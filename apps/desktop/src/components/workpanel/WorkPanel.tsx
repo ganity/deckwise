@@ -14,6 +14,7 @@ import {
   isKnownWorkPanelTab,
   parsePluginViewRef,
   pluginWorkPanelTab,
+  BROWSER_PLUGIN_TAB,
   toolWorkPanelTab,
 } from "../../lib/work-panel-tabs";
 import { pluginViewIcon, pluginViewInitial } from "../../lib/plugin-view-icons";
@@ -37,6 +38,8 @@ import { ReviewTab } from "./ReviewTab";
 import { FilesTab } from "./FilesTab";
 import { PluginViewTab } from "./PluginViewTab";
 import { SubagentPanel } from "./SubagentPanel";
+import { PptMasterTab } from "./PptMasterTab";
+import { PptEditorTab } from "./PptEditorTab";
 import type { SubagentPanelSelection } from "../../lib/subagent-panel";
 import {
   MAIN_PANE_MIN_WIDTH,
@@ -49,6 +52,8 @@ import {
 const TAB_ICONS = {
   new: IconPlus,
   review: IconDiff,
+  ppt: IconFileText,
+  editor: IconFileText,
   file: IconFileText,
   plugin: IconPlug,
 } as const;
@@ -84,6 +89,8 @@ function tabLabel(
     return view?.title ?? tab.resource ?? t("panel.tabs.plugin");
   }
   if (tab.kind === "new") return t("panel.new.title");
+  if (tab.kind === "ppt") return "PPT Master";
+  if (tab.kind === "editor") return tab.resource?.split("/").filter(Boolean).pop() || "PPTX 编辑器";
   if (tab.kind !== "file") return t(`panel.tabs.${tab.kind}`);
   const path = tab.resource ?? "";
   return path.split("/").filter(Boolean).pop() || t("panel.tabs.file");
@@ -96,6 +103,13 @@ function workPanelTools(
   // Review is the only host-owned launcher. Files, Browser, and every future
   // tool are plugin-contributed views, so their list stays data-driven.
   return [
+    {
+      id: "ppt-master",
+      tab: toolWorkPanelTab("ppt"),
+      label: "PPT Master",
+      icon: IconFileText,
+      description: "课件生成、预览与编辑",
+    },
     {
       id: "review",
       tab: toolWorkPanelTab("review"),
@@ -416,12 +430,27 @@ export function WorkPanel({
   const activeLabel = activeTab
     ? tabLabel(activeTab, t, pluginViews)
     : t("panel.title");
+  const isEditingSurface =
+    activeTab?.kind === "editor" ||
+    (activeTab?.kind === "plugin" &&
+      activeTab.resource === `${BROWSER_PLUGIN_TAB.pluginId}/${BROWSER_PLUGIN_TAB.viewId}`);
   const exitAnimationReady = exiting && nativeSurfaceReadyForExit;
   const panelStyle = {
     width: renderPanelWidth,
     maxWidth: layout.maxPanelWidth,
     "--work-panel-width": `${renderPanelWidth}px`,
   } as CSSProperties;
+
+  useEffect(() => {
+    if (!maximized || !onToggleMaximize) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      onToggleMaximize();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [maximized, onToggleMaximize]);
 
   return (
     <aside
@@ -542,7 +571,7 @@ export function WorkPanel({
               >
                 <IconChevronLeft size={15} />
               </TooltipButton>
-            ) : (
+            ) : !isEditingSurface ? (
               <TooltipButton
                 ref={newTabButtonRef}
                 type="button"
@@ -553,12 +582,12 @@ export function WorkPanel({
               >
                 <IconPlus size={16} />
               </TooltipButton>
-            )}
+            ) : null}
             <TooltipButton
               type="button"
               className="work-panel-maximize"
-              tooltip={t(maximized ? "panel.restore" : "panel.maximize")}
-              ariaLabel={t(maximized ? "panel.restore" : "panel.maximize")}
+              tooltip={maximized ? "退出全屏" : t("panel.maximize")}
+              ariaLabel={maximized ? "退出全屏" : t("panel.maximize")}
               aria-pressed={maximized}
               onClick={() => onToggleMaximize?.()}
             >
@@ -591,6 +620,33 @@ export function WorkPanel({
               aria-labelledby={`work-panel-tab-${activeTab.id}`}
             >
               <FilesTab />
+            </div>
+          )}
+          {!subagentPanel && activeTab?.kind === "ppt" && (
+            <div
+              key={activeTab.id}
+              id={`work-panel-surface-${activeTab.id}`}
+              className="work-panel-tabpane"
+              role="tabpanel"
+              aria-labelledby={`work-panel-tab-${activeTab.id}`}
+            >
+              <PptMasterTab />
+            </div>
+          )}
+          {!subagentPanel && activeTab?.kind === "editor" && activeTab.resource && (
+            <div
+              key={activeTab.id}
+              id={`work-panel-surface-${activeTab.id}`}
+              className="work-panel-tabpane"
+              role="tabpanel"
+              aria-labelledby={`work-panel-tab-${activeTab.id}`}
+            >
+              <PptEditorTab
+                path={activeTab.resource}
+                tabId={activeTab.id}
+                maximized={maximized}
+                onToggleMaximize={onToggleMaximize}
+              />
             </div>
           )}
           {!subagentPanel &&

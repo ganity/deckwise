@@ -21,6 +21,7 @@ export type ComposerDraftFileInput = {
 };
 
 const cache = new Map<string, ComposerDraftSnapshot>();
+const webSearchCache = new Map<string, boolean>();
 
 export function draftKeyForSession(sessionId: string | null | undefined): string {
   return sessionId ?? HOME_DRAFT_KEY;
@@ -74,6 +75,16 @@ export function captureComposerDraft(
 
 export function deleteComposerDraft(key: string): void {
   cache.delete(key);
+  webSearchCache.delete(key);
+}
+
+export function readComposerWebSearch(key: string): boolean {
+  return webSearchCache.get(key) ?? false;
+}
+
+export function writeComposerWebSearch(key: string, enabled: boolean): void {
+  if (enabled) webSearchCache.set(key, true);
+  else webSearchCache.delete(key);
 }
 
 /**
@@ -97,13 +108,16 @@ let scheduledHomeAdoptSessionId: string | null = null;
 export function adoptHomeDraftForSession(sessionId: string): void {
   if (!sessionId) return;
   const home = cache.get(HOME_DRAFT_KEY);
+  const webSearchEnabled = webSearchCache.get(HOME_DRAFT_KEY);
   cache.delete(HOME_DRAFT_KEY);
-  if (!home) return;
-  if (!home.text && home.fileReferences.length === 0) return;
-  cache.set(sessionId, {
-    text: home.text,
-    fileReferences: home.fileReferences.map((reference) => ({ ...reference })),
-  });
+  webSearchCache.delete(HOME_DRAFT_KEY);
+  if (webSearchEnabled) webSearchCache.set(sessionId, true);
+  if (home && (home.text || home.fileReferences.length > 0)) {
+    cache.set(sessionId, {
+      text: home.text,
+      fileReferences: home.fileReferences.map((reference) => ({ ...reference })),
+    });
+  }
 }
 
 export function scheduleHomeDraftAdopt(sessionId: string): void {
@@ -123,10 +137,14 @@ export function pruneComposerDrafts(keep: Iterable<string>): void {
   for (const key of cache.keys()) {
     if (!retain.has(key)) cache.delete(key);
   }
+  for (const key of webSearchCache.keys()) {
+    if (!retain.has(key)) webSearchCache.delete(key);
+  }
 }
 
 /** Test-only: drop every slot so cases cannot leak into one another. */
 export function resetComposerDraftCache(): void {
   cache.clear();
+  webSearchCache.clear();
   scheduledHomeAdoptSessionId = null;
 }

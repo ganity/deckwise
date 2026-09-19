@@ -30,6 +30,10 @@ import type { HostProcess } from "../host-process";
 import type { Logger } from "../logger";
 import type { PluginRuntime } from "../plugin-runtime";
 import { runSessionListProbe } from "../session-list-probe";
+import {
+  installEditorHostProtocol,
+  registerEditorHostScheme,
+} from "../editor-host-protocol";
 
 type IpcInvoker = (
   channel: string,
@@ -96,6 +100,7 @@ export function registerApplicationStartup(deps: StartupDependencies): void {
   // Electron only accepts scheme privileges before the app is ready, and this
   // runs from the composition root, before the `whenReady` promise can settle.
   registerPluginAssetScheme();
+  registerEditorHostScheme();
   void app.whenReady().then(async () => {
     const {
       hasSingleInstanceLock,
@@ -136,6 +141,7 @@ export function registerApplicationStartup(deps: StartupDependencies): void {
     installPluginAssetProtocol((pluginId, assetPath) =>
       plugins.resolveThemeAsset(pluginId, assetPath),
     );
+    installEditorHostProtocol();
     // Load the close-behavior preference before the first window exists: the
     // close handler reads `closeBehavior` synchronously, and a window created
     // while it still held the "ask" default would prompt a user who already
@@ -153,10 +159,6 @@ export function registerApplicationStartup(deps: StartupDependencies): void {
       dispatch: dispatchApplicationMenuCommand,
       dispatchNative: dispatchNativeMenuAction,
     });
-    // Start the retained launcher as soon as Electron is ready. It can load in
-    // parallel with host/plugin boot, so the first post-boot Option+Space does
-    // not race the renderer allocation just because backend startup was slow.
-    prewarmPluginLauncher();
     const invokeIpc = registerIpc();
     state.agentHostBridge = createAgentHostBridge({
       invoke: invokeIpc,

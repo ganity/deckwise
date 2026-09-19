@@ -741,6 +741,90 @@
   white-space: pre-wrap;
 }
 
+.deckwise-home-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ds-text-muted);
+  font-size: var(--text-xs);
+}
+
+.deckwise-home-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-round);
+  background: var(--ds-success);
+}
+
+.deckwise-home-quickstart {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--ds-bg-composer);
+  padding: 14px;
+  text-align: left;
+}
+
+.deckwise-home-quickstart-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.deckwise-home-quickstart-heading > div {
+  display: grid;
+  gap: 3px;
+}
+
+.deckwise-home-quickstart-heading strong {
+  color: var(--ds-text-primary);
+  font-size: var(--text-sm-plus);
+  font-weight: var(--font-weight-medium);
+}
+
+.deckwise-home-quickstart-heading span:not(.deckwise-home-format) {
+  color: var(--ds-text-muted);
+  font-size: var(--text-xs);
+}
+
+.deckwise-home-format {
+  border-radius: var(--radius-full);
+  background: var(--ds-bg-chip);
+  padding: 4px 8px;
+  color: var(--ds-text-secondary);
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.deckwise-home-prompts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.deckwise-home-prompt {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--ds-bg-tertiary);
+  padding: 10px;
+  color: var(--ds-text-primary);
+  text-align: left;
+}
+
+.deckwise-home-prompt:hover { background: var(--ds-bg-hover); }
+.deckwise-home-prompt span { font-size: var(--text-sm); font-weight: var(--font-weight-medium); }
+.deckwise-home-prompt small { overflow: hidden; color: var(--ds-text-muted); font-size: var(--text-2xs); text-overflow: ellipsis; white-space: nowrap; }
+
+@container home-main-content (max-width: 720px) {
+  .deckwise-home-prompts { grid-template-columns: 1fr; }
+}
+
 .empty-hero .home-project-switcher {
   display: inline-block;
   max-width: 100%;

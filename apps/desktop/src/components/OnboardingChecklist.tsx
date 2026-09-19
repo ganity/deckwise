@@ -9,7 +9,6 @@ const STEP_LOCALE_KEY: Record<string, string> = {
   secret: "saveKey",
   project: "openProject",
   prompt: "firstPrompt",
-  plugin: "loadPlugin",
 };
 
 /** First-run inline checklist (D021): rendered on the empty chat home until
@@ -51,10 +50,6 @@ export function OnboardingChecklist() {
             .querySelector<HTMLTextAreaElement>(".composer-input")
             ?.focus();
         });
-        break;
-      case "plugins.open":
-      case "loadPlugin":
-        setPage("plugins");
         break;
       default:
         break;

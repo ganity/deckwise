@@ -58,10 +58,10 @@ test("composer runtime chips keep compact line-height for descenders", () => {
   );
 });
 
-test("mode selector reserves the longest localized label width", () => {
+test("fixed Agent label keeps the established compact width", () => {
   assert.match(
     composerSource,
-    /className="icon-btn mode-chip composer-mode-chip"/,
+    /className="icon-btn mode-chip composer-mode-chip composer-mode-static"/,
   );
 
   const block = styles.match(/\.composer-mode-chip\s*\{[^}]+\}/)?.[0] ?? "";
@@ -72,23 +72,9 @@ test("mode selector reserves the longest localized label width", () => {
   assert.match(styles, /\.composer-mode-chip-label\s*\{[\s\S]*?text-overflow:\s*ellipsis;/);
 });
 
-test("mode chip cross-fades on switch and pulses while planning is live", () => {
-  assert.match(composerSource, /data-planning=\{planningLive \? "true" : undefined\}/);
+test("mode chip is a non-interactive Agent label", () => {
+  assert.match(composerSource, /data-mode="agent"/);
   assert.match(composerSource, /className="composer-mode-chip-face"/);
-  assert.match(
-    composerSource,
-    /const planningLive =\s*isRunning &&\s*planningState === "planning" &&\s*\(mode === "plan" \|\| mode === "goal"\)/,
-  );
-  assert.match(
-    styles,
-    /\.composer-mode-chip-face\s*\{[\s\S]*?animation:\s*composer-mode-face-in/,
-  );
-  assert.match(
-    styles,
-    /\.composer-mode-chip\[data-planning="true"\] svg\s*\{[\s\S]*?animation:\s*composer-mode-planning-pulse/,
-  );
-  assert.match(
-    styles,
-    /prefers-reduced-motion:\s*reduce[\s\S]*?\.composer-mode-chip-face,/,
-  );
+  assert.match(styles, /\.composer-mode-static\s*\{[^}]*cursor:\s*default;/);
+  assert.doesNotMatch(composerSource, /nextMode\(mode\)|data-planning=/);
 });

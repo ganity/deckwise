@@ -79,12 +79,13 @@ export default defineConfig({
         input: {
           index: resolve(__dirname, "electron/preload/index.ts"),
           "plugin-panel": resolve(__dirname, "electron/preload/plugin-panel.ts"),
+          "editor-host": resolve(__dirname, "electron/preload/editor-host.ts"),
         },
         output: {
           format: "cjs",
-          // Main window preload stays .cjs; plugin panels use .js as referenced by panel host.
+          // Main window preload stays .cjs; embedded guest preloads use .js.
           entryFileNames: (chunk) =>
-            chunk.name === "plugin-panel" ? "[name].js" : "[name].cjs",
+            chunk.name === "index" ? "[name].cjs" : "[name].js",
         },
       },
     },

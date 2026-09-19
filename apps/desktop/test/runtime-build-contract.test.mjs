@@ -48,6 +48,10 @@ test("packaging scripts rebuild workspace dependencies before bundling", async (
       script.indexOf(depsScript) < script.indexOf(rendererBuild),
       `${name} must rebuild workspace dependencies before ${rendererBuild}`,
     );
+    assert.ok(
+      script.includes("pnpm run build:python-runtime"),
+      `${name} must stage the private Python runtime before packaging`,
+    );
   }
 });
 

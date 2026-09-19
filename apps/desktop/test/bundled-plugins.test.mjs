@@ -102,11 +102,11 @@ test("the host no longer offers Files or Browser as built-in tools", () => {
   assert.match(panelSource, /activeTab\?\.kind === "review"/);
 });
 
-test("Review still opens itself from workspace edit artifacts", () => {
-  // Removing the launcher entry must not remove the way Review appears at all.
+test("Review remains manually available without opening on workspace edits", () => {
   const storeSource = readStoreSourceSync();
-  assert.match(storeSource, /shouldOpenReviewArtifact\(\{/);
-  assert.match(storeSource, /toolWorkPanelTab\("review"\)/);
+  assert.doesNotMatch(storeSource, /shouldOpenReviewArtifact/);
+  assert.doesNotMatch(storeSource, /toolWorkPanelTab\("review"\)/);
+  assert.match(panelSource, /activeTab\?\.kind === "review"/);
 });
 
 test("Browser ships as an ordinary plugin over the public CDP API", () => {
@@ -148,6 +148,26 @@ test("Browser declares plan-safe actions for Plan-mode URL inspection (ADR 0211)
       `mutating action ${unsafe} must not appear in PLAN_SAFE_ACTIONS`,
     );
   }
+});
+
+test("Web search ships as a hidden first-party agent tool", () => {
+  const webSearchManifest = JSON.parse(
+    read("resources/plugins/pi.web-search/manifest.json"),
+  );
+  const webSearchMain = read("resources/plugins/pi.web-search/main.js");
+  assert.equal(webSearchManifest.id, "pi.web-search");
+  assert.equal(webSearchManifest.contributes, undefined);
+  assert.deepEqual(
+    [...webSearchManifest.permissions].sort(),
+    ["agent.tool.register", "net.fetch"],
+  );
+  assert.deepEqual(webSearchManifest.net.domains, [
+    "duckduckgo.com",
+    "html.duckduckgo.com",
+    "www.so.com",
+  ]);
+  assert.match(webSearchMain, /name: "web_search"/);
+  assert.match(webSearchMain, /pi\.net\.fetch/);
 });
 
 

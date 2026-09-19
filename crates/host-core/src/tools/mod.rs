@@ -2528,7 +2528,7 @@ async fn tool_bash(
         args: invocation.args,
         workspace: root.to_path_buf(),
         scratch_dir: scratch.map(Path::to_path_buf),
-        env_path: shell::user_login_path().map(str::to_string),
+        env_path: shell::tool_env_path(),
     };
     let SpawnedToolRunner {
         pid,

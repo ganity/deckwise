@@ -24,6 +24,7 @@ import type {
   ComposerPrefill,
 } from "../../lib/composer-smart-stop";
 import { optimisticUserMessage } from "../../lib/session-transcript";
+import { toolWorkPanelTab } from "../../lib/work-panel-tabs";
 import type { AppState } from "../app-state";
 import {
   type SessionRuntime,
@@ -144,6 +145,7 @@ export function createQueueSlice({
             fileReferences: draft.fileReferences.map((reference) => ({
               ...reference,
             })),
+            ...(draft.webSearchEnabled ? { webSearchEnabled: true } : {}),
           }
         : { text: content, fileReferences: [] };
       const item: QueuedPrompt = {
@@ -395,6 +397,7 @@ export function createQueueSlice({
           latestTurnResults: withoutRecordKey(state.latestTurnResults, startedIn),
           sessionOutcomes: withoutRecordKey(state.sessionOutcomes, startedIn),
         }));
+        get().openWorkPanelTabForSession(startedIn, toolWorkPanelTab("ppt"));
         const optimisticMessage = optimisticUserMessage(
           crypto.randomUUID(),
           content,
@@ -433,6 +436,7 @@ export function createQueueSlice({
           await api.prompt({
             sessionId,
             content,
+            ...(draft?.webSearchEnabled ? { webSearchEnabled: true } : {}),
             messageId: optimisticMessage.id,
             viewingSessionId: viewingSessionIdForPrompt(get(), sessionId),
             attachments: draft ? promptAttachmentsFromDraft(draft.fileReferences) : [],

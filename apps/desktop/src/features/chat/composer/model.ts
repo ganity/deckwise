@@ -27,8 +27,6 @@ export const PLACEHOLDER_KEYS = {
   ],
 } as const;
 
-export const MODE_CYCLE: readonly Mode[] = ["agent", "plan", "goal"];
-
 export const MODE_LABEL_KEYS: Record<Mode, string> = {
   agent: "settings.modeAgent",
   plan: "settings.modePlan",
@@ -73,11 +71,6 @@ export type PromptEnhancementError = {
   message: string;
   code: string;
 };
-
-export function nextMode(mode: Mode): Mode {
-  const index = MODE_CYCLE.indexOf(mode);
-  return MODE_CYCLE[(index + 1) % MODE_CYCLE.length] ?? "agent";
-}
 
 export function isThinkingLevel(value: unknown): value is ThinkingLevel {
   return typeof value === "string" && THINKING_LEVELS.includes(value as ThinkingLevel);

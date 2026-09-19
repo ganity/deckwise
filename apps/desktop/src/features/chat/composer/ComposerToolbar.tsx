@@ -15,6 +15,7 @@ import {
   IconArrowUp,
   IconCheck,
   IconChevronDown,
+  IconGlobe,
   IconPlus,
   IconSparkles,
   IconStop,
@@ -25,7 +26,6 @@ import { ComposerModelPicker } from "./ComposerModelPicker";
 import {
   MODE_LABEL_KEYS,
   PERMISSION_MODE_I18N_KEYS,
-  nextMode,
 } from "./model";
 import type { useComposerModelMenu } from "./hooks/useComposerModelMenu";
 
@@ -35,11 +35,12 @@ type ContextUsage = Parameters<typeof ContextUsageInspector>[0];
 export type ComposerToolbarProps = {
   t: TFunction;
   mode: Mode;
-  planningLive: boolean;
   providerId?: string;
   modelId?: string;
   thinkingLevel: ThinkingLevel;
   composerPermissionMode: Exclude<PermissionMode, "inherit">;
+  webSearchEnabled: boolean;
+  setWebSearchEnabled: (enabled: boolean) => void;
   permissionOpen: boolean;
   setPermissionOpen: Dispatch<SetStateAction<boolean>>;
   controlsBlocked: boolean;
@@ -70,11 +71,12 @@ export type ComposerToolbarProps = {
 export function ComposerToolbar({
   t,
   mode,
-  planningLive,
   providerId,
   modelId,
   thinkingLevel,
   composerPermissionMode,
+  webSearchEnabled,
+  setWebSearchEnabled,
   permissionOpen,
   setPermissionOpen,
   controlsBlocked,
@@ -120,39 +122,18 @@ export function ComposerToolbar({
             <IconPlus size={15} aria-hidden="true" />
           </TooltipButton>
         </div>
-        <TooltipButton
-          type="button"
-          className="icon-btn mode-chip composer-mode-chip"
-          data-mode={mode}
-          data-planning={planningLive ? "true" : undefined}
-          tooltip={planningLive ? t(`${mode}.planning`) : t("settings.mode")}
-          ariaLabel={planningLive ? t(`${mode}.planning`) : t("settings.mode")}
-          disabled={controlsBlocked}
-          onClick={async () => {
-            modelMenu.setOpen(false);
-            setPermissionOpen(false);
-            const next: Mode = nextMode(mode);
-            try {
-              await configureActiveSession({
-                mode: next,
-                providerId,
-                modelId,
-                thinkingLevel,
-              });
-            } catch (error) {
-              showToast(error instanceof Error ? error.message : String(error), {
-                variant: "error",
-              });
-            }
-          }}
+        <span
+          className="icon-btn mode-chip composer-mode-chip composer-mode-static"
+          data-mode="agent"
+          title={t("settings.modeAgent")}
         >
-          <span className="composer-mode-chip-face" key={mode}>
-            <ModeIcon mode={mode} />
+          <span className="composer-mode-chip-face">
+            <ModeIcon mode="agent" />
             <span className="composer-mode-chip-label text-sm">
-              {t(MODE_LABEL_KEYS[mode])}
+              {t(MODE_LABEL_KEYS.agent)}
             </span>
           </span>
-        </TooltipButton>
+        </span>
         <AnchoredMenu
           className="composer-permission"
           open={permissionOpen && mode !== "goal"}
@@ -228,6 +209,18 @@ export function ComposerToolbar({
             </button>
           ))}
         </AnchoredMenu>
+        <TooltipButton
+          type="button"
+          className={`icon-btn mode-chip composer-web-search${webSearchEnabled ? " active" : ""}`}
+          tooltip={t("chat.webSearchDescription")}
+          ariaLabel={t("chat.webSearchDescription")}
+          aria-pressed={webSearchEnabled}
+          disabled={controlsBlocked || runActive}
+          onClick={() => setWebSearchEnabled(!webSearchEnabled)}
+        >
+          <IconGlobe size={14} aria-hidden="true" />
+          <span className="text-sm">{t("chat.webSearch")}</span>
+        </TooltipButton>
       </div>
 
       <div className="composer-right">

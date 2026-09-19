@@ -18,6 +18,10 @@ import {
 } from "@pi-desktop/shared";
 import { useAppStore } from "../stores/app-store";
 import { latestTurnContextInspector } from "../lib/latest-turn-context";
+import {
+  readComposerWebSearch,
+  writeComposerWebSearch,
+} from "../lib/composer-draft-cache";
 import { isActivePlanExecution } from "../lib/plan-mode-state";
 import { headAsk, queuedAskCount } from "../lib/pending-asks";
 import type { QueuedPrompt } from "../lib/queued-prompts";
@@ -86,9 +90,6 @@ export function Composer({
   const sendQueuedNow = useAppStore((s) => s.sendQueuedNow);
   const abort = useAppStore((s) => s.abort);
   const isRunning = useAppStore((s) => s.isRunning);
-  const planningState = useAppStore((s) =>
-    s.activeSessionId ? s.planningStates[s.activeSessionId] : undefined,
-  );
   const settings = useAppStore((s) => s.settings);
   const sessions = useAppStore((s) => s.sessions);
   const activeSessionId = useAppStore((s) => s.activeSessionId);
@@ -185,6 +186,18 @@ export function Composer({
     insertNewlineInEditor,
     handleInput,
   } = draft;
+  const [webSearchState, setWebSearchState] = useState(() => ({
+    key: draftKey,
+    enabled: readComposerWebSearch(draftKey),
+  }));
+  const webSearchEnabled =
+    webSearchState.key === draftKey
+      ? webSearchState.enabled
+      : readComposerWebSearch(draftKey);
+  const setWebSearchEnabled = (enabled: boolean) => {
+    writeComposerWebSearch(draftKey, enabled);
+    setWebSearchState({ key: draftKey, enabled });
+  };
 
   const approvalPending = planCheckpoint?.status === "pending";
   const largePasteThreshold = normalizeLargePasteThreshold(
@@ -301,14 +314,10 @@ export function Composer({
   const mode: Mode = activeSession
     ? activeSession.mode
     : (draftConfiguration?.mode ?? settings?.defaultMode ?? "agent");
-  const planningLive =
-    isRunning &&
-    planningState === "planning" &&
-    (mode === "plan" || mode === "goal");
   // Permission mode (D115/D132): inherited sessions still resolve through the
   // global setting, but the composer presents only the effective mode.
   const globalPermissionMode: PermissionMode =
-    settings?.defaultPermissionMode ?? "ask";
+    settings?.defaultPermissionMode ?? "auto";
   const sessionPermissionMode: PermissionMode = activeSession
     ? isPermissionMode(activeSession.permissionMode)
       ? activeSession.permissionMode
@@ -408,6 +417,7 @@ export function Composer({
     providerId: provider?.id,
     modelId,
     thinkingLevel,
+    webSearchEnabled,
     modelReady,
     sendBlocked,
     pasting,
@@ -579,11 +589,12 @@ export function Composer({
           <ComposerToolbar
             t={t}
             mode={mode}
-            planningLive={planningLive}
             providerId={provider?.id}
             modelId={modelId}
             thinkingLevel={thinkingLevel}
             composerPermissionMode={composerPermissionMode}
+            webSearchEnabled={webSearchEnabled}
+            setWebSearchEnabled={setWebSearchEnabled}
             permissionOpen={permissionOpen}
             setPermissionOpen={setPermissionOpen}
             controlsBlocked={controlsBlocked}

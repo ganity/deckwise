@@ -25,6 +25,8 @@ import { registerWindowIpc } from "./window-ipc";
 import { createComposerTemplateLoader, registerWorkspaceIpc } from "./workspace-ipc";
 import { registerComposerIpc } from "./composer-ipc";
 import { registerSpeechIpc } from "./speech-ipc";
+import { registerPptEditorIpc } from "./ppt-editor-ipc";
+import { registerPptPreviewIpc } from "./ppt-preview-ipc";
 import type { IpcRegistrar } from "./types";
 
 export type RegisterIpcDependencies = {
@@ -185,6 +187,16 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     togglePluginLauncher,
     safeOpenExternal,
     updater,
+  });
+  registerPptEditorIpc({
+    registrar,
+    getMainWindow,
+    getWorkspaceRoot: optionalWorkspaceRoot,
+    sendToRenderer,
+  });
+  registerPptPreviewIpc({
+    registrar,
+    getWorkspaceRoot: optionalWorkspaceRoot,
   });
   registerNotificationIpc({
     registrar,

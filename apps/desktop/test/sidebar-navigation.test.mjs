@@ -28,7 +28,7 @@ const shortcutSource = await readFile(
 );
 test("home sidebar exposes only the supported destination entries", () => {
   assert.match(sidebarSource, /data-nav="home"/);
-  assert.match(sidebarSource, /data-nav="plugins"/);
+  assert.doesNotMatch(sidebarSource, /data-nav="plugins"/);
   assert.doesNotMatch(sidebarSource, /data-nav="projects"/);
   assert.doesNotMatch(sidebarSource, /data-nav="pulls"/);
   assert.doesNotMatch(sidebarSource, /data-nav="scheduled"/);
@@ -108,31 +108,14 @@ test("destination history is available through shortcuts without titlebar button
   assert.doesNotMatch(appSource, /title=\{t\("nav\.(?:back|forward)"\)\}/);
 });
 
-test("sidebar shows a bounded standalone session list before retained projects", () => {
-  const newProjectAction = sidebarSource.match(
-    /<div[\s\S]*?className="sidebar-list-toolbar"[\s\S]*?data-action="new-project"[\s\S]*?<\/div>/,
-  )?.[0] ?? "";
-  const standaloneSessions = sidebarSource.match(
-    /data-sidebar-session-section="temporary"[\s\S]*?<\/section>/,
-  )?.[0] ?? "";
-
-  assert.match(newProjectAction, /t\("nav\.projects"\)/);
-  assert.match(newProjectAction, /<IconNewProject/);
-  assert.match(newProjectAction, /openProjectPicker\(\)/);
-  assert.match(standaloneSessions, /t\("nav\.sessions"/);
-  assert.match(standaloneSessions, /data-action="new-standalone-session"/);
-  assert.match(standaloneSessions, /createSession\(\{ projectPath: null \}\)/);
-  assert.match(standaloneSessions, /renderSessionRows\(temporarySessionHistory/);
-  assert.ok(
-    sidebarSource.indexOf('data-sidebar-session-section="temporary"') <
-      sidebarSource.indexOf('data-action="new-project"'),
-  );
-  assert.match(
-    globalStyles,
-    // `[^}]*`, not `[\s\S]*?`: the assertion must read this block, not a
-    // `max-height` in some later partial of the concatenated stylesheet.
-    /\.sidebar-session-group-body\.standalone\s*\{[^}]*max-height:\s*146px;[^}]*overflow-x:\s*hidden;[^}]*overflow-y:\s*auto;/,
-  );
+test("sidebar exposes Courses without a temporary-session section", () => {
+  assert.match(sidebarSource, /t\("nav\.projects"\)/);
+  assert.match(sidebarSource, /data-action="session-sort"/);
+  assert.match(sidebarSource, /data-action="new-project"/);
+  assert.match(sidebarSource, /<IconNewProject/);
+  assert.match(sidebarSource, /openProjectPicker\(\)/);
+  assert.doesNotMatch(sidebarSource, /data-sidebar-session-section="temporary"/);
+  assert.doesNotMatch(sidebarSource, /data-action="new-standalone-session"/);
   assert.doesNotMatch(sidebarSource, /data-sidebar-project-group="temporary"/);
 });
 
@@ -162,11 +145,10 @@ test("pinned project rows replace the folder glyph with a filled star", () => {
   );
 });
 
-test("sidebar section toolbars open create actions from context menus", () => {
-  assert.match(sidebarSource, /data-sidebar-section=\"sessions\"/);
+test("Courses toolbar opens its create action from the context menu", () => {
+  assert.doesNotMatch(sidebarSource, /data-sidebar-section=\"sessions\"/);
   assert.match(sidebarSource, /data-sidebar-section=\"projects\"/);
-  assert.match(sidebarSource, /openSectionMenu\(\"sessions\"/);
-  assert.match(sidebarSource, /openSectionMenu\(\"projects\"/);
+  assert.match(sidebarSource, /openSectionMenu\(event\.clientX, event\.clientY\)/);
   assert.match(sidebarSource, /data-sidebar-section-menu=\{sectionMenu\}/);
   assert.match(
     sidebarSource,
@@ -209,15 +191,6 @@ test("portaled sort menu does not stretch to the viewport edge", () => {
   assert.match(floatingPopoverRule, /right:\s*auto;/);
   assert.match(globalStyles, /\.sidebar-floating-menu\s*\{[^}]*width:\s*max-content;/s);
   assert.match(globalStyles, /\.sidebar-floating-menu\s*\{[^}]*max-width:\s*calc\(100vw - 16px\);/s);
-});
-
-test("sessions toolbar puts sorting before new-session creation", () => {
-  const sortIndex = sidebarSource.indexOf('data-action="session-sort"');
-  const newSessionIndex = sidebarSource.indexOf('data-action="new-standalone-session"');
-
-  assert.ok(sortIndex >= 0);
-  assert.ok(newSessionIndex >= 0);
-  assert.ok(sortIndex < newSessionIndex);
 });
 
 test("sidebar action icons stay quiet until their toolbar or row is hovered", () => {

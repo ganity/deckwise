@@ -12,7 +12,7 @@ const [main, renderer, launcher, styles] = await Promise.all([
   readFile(new URL("../src/styles/plugin-launcher.css", import.meta.url), "utf8"),
 ]);
 
-test("global plugin launcher is a centered frameless cross-platform utility window", () => {
+test("legacy plugin launcher remains dormant and is not prewarmed", () => {
   assert.match(main, /screen\.getDisplayNearestPoint\(screen\.getCursorScreenPoint\(\)\)/);
   assert.match(main, /frame: false/);
   assert.match(main, /minimizable: false/);
@@ -29,11 +29,7 @@ test("global plugin launcher is a centered frameless cross-platform utility wind
     /if \(launcherState\.creationPromise\) return launcherState\.creationPromise/,
   );
   assert.match(main, /function prewarmPluginLauncher\(\): void/);
-  assert.ok(
-    main.indexOf("prewarmPluginLauncher();") < main.indexOf("await bootBackends();"),
-    "launcher warm-up should start before backend boot",
-  );
-  assert.doesNotMatch(main, /await ensureWindow\(\);\s+prewarmPluginLauncher\(\)/);
+  assert.equal(main.match(/prewarmPluginLauncher\(\);/g)?.length ?? 0, 0);
   assert.match(main, /window\.show\(\);\s+\/\/ `show\(\)` already activates and focuses a macOS panel\./);
   assert.match(main, /process\.platform !== "darwin"\) \{[\s\S]*window\.focus\(\);[\s\S]*window\.moveTop\(\);/);
   assert.doesNotMatch(main, /process\.platform === "darwin"\) app\.focus\(\{ steal: true \}\)/);

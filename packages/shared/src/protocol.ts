@@ -1,7 +1,7 @@
 export const PROTOCOL_VERSION = 11 as const;
 export const SCHEMA_VERSION = 16 as const;
-export const APP_ID = "net.aiuo.pi-desktop";
-export const APP_NAME = "PI-Desktop";
+export const APP_ID = "com.trainwise.deckwise";
+export const APP_NAME = "DeckWise";
 export const APP_VERSION = "0.15.0";
 
 export const APP_MENU_COMMANDS = [
@@ -268,6 +268,12 @@ export const IPC = {
     fsOpen: "pi-desktop/fs/open",
     fsIndex: "pi-desktop/fs/index",
     fsResolveRef: "pi-desktop/fs/resolveRef",
+    pptPreviewOpen: "deckwise/ppt-preview/open",
+    pptEditorOpen: "deckwise/ppt-editor/open",
+    pptEditorSave: "deckwise/ppt-editor/save",
+    pptEditorClose: "deckwise/ppt-editor/close",
+    pptEditorSetBounds: "deckwise/ppt-editor/setBounds",
+    pptEditorSetVisible: "deckwise/ppt-editor/setVisible",
     windowSetWorkPanelReservation:
       "pi-desktop/window/setWorkPanelReservation",
     windowSetWorkPanelChatWidth: "pi-desktop/window/setWorkPanelChatWidth",
@@ -293,6 +299,7 @@ export const IPC = {
     toast: "pi-desktop/app/event/toast",
     browserState: "pi-desktop/browser/event/state",
     browserPreview: "pi-desktop/browser/event/preview",
+    pptEditorState: "deckwise/ppt-editor/event/state",
     windowMaximized: "pi-desktop/window/event/maximized",
     windowFullScreen: "pi-desktop/window/event/fullscreen",
     windowWorkPanelResize: "pi-desktop/window/event/workPanelResize",

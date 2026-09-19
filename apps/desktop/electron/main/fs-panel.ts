@@ -217,12 +217,15 @@ export async function listDir(root: string, rel: string): Promise<FsEntry[]> {
     if (isIgnoredName(dirent.name)) continue;
     let kind: FsEntry["kind"];
     let size = 0;
+    let mtimeMs = 0;
     if (dirent.isDirectory()) {
       kind = "dir";
     } else if (dirent.isFile()) {
       kind = "file";
       try {
-        size = (await stat(join(dir, dirent.name))).size;
+        const info = await stat(join(dir, dirent.name));
+        size = info.size;
+        mtimeMs = info.mtimeMs;
       } catch {
         size = 0;
       }
@@ -238,13 +241,14 @@ export async function listDir(root: string, rel: string): Promise<FsEntry[]> {
         const info = await stat(target);
         kind = info.isDirectory() ? "dir" : "file";
         size = info.isFile() ? info.size : 0;
+        mtimeMs = info.mtimeMs;
       } catch {
         continue;
       }
     } else {
       continue;
     }
-    entries.push({ name: dirent.name, kind, size });
+    entries.push({ name: dirent.name, kind, size, mtimeMs });
   }
   entries.sort((a, b) => {
     if (a.kind !== b.kind) return a.kind === "dir" ? -1 : 1;

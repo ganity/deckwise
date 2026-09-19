@@ -3,6 +3,7 @@ export type FsEntry = {
   name: string;
   kind: "dir" | "file";
   size: number;
+  mtimeMs: number;
 };
 
 export type FsReadResult = {

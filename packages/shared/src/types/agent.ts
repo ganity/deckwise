@@ -10,6 +10,8 @@ import type { ThinkingLevel } from "./models.js";
 export type AgentPromptRequest = {
   sessionId: string;
   content: string;
+  /** Expose DeckWise's built-in web search tool for this turn. */
+  webSearchEnabled?: boolean;
   /** Host-owned collaboration delivery; its durable record supplies the input. */
   sessionMessageId?: string;
   /** Attachments are resolved by Electron main and never trusted by the sidecar. */

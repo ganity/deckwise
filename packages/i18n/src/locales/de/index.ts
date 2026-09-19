@@ -439,6 +439,8 @@ export const de = {
     "modelBadgeReasoning": "Begründung",
     "modelBadgeVision": "Vision",
     "permissionMode": "Berechtigungsmodus",
+    "webSearch": "Websuche",
+    "webSearchDescription": "Erlaubt PPT Master bei Bedarf die Websuche. PPT Master entscheidet, ob sie verwendet wird.",
     "reasoningLevel": "Argumentationsebene",
     "reasoningSupportedBy": "Aktuelles Modell {{model}} unterstützt diese Argumentationsebenen",
     "permissionInherit": "Standard",

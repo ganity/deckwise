@@ -104,17 +104,17 @@ test("sidebar renders global pins once, outside project folding and history limi
     assert.doesNotMatch(pinnedSection(html), /sidebar-time-group/);
     assert.ok(
       html.indexOf('data-sidebar-session-section="pinned"') <
-        html.indexOf('data-sidebar-session-section="temporary"'),
+        html.indexOf('data-action="new-project"'),
     );
     assert.equal(rows(html).length, new Set(rows(html)).size, "pins have no duplicate rows");
     assert.equal(rows(html).filter((id) => id.startsWith("normal-")).length, 10);
-    assert.ok(rows(html).includes("temporary-normal"));
+    assert.ok(!rows(html).includes("temporary-normal"));
     assert.ok(!rows(html).includes("archived-pin"));
     assert.ok(!rows(html).includes("archived-project-pin"));
 
     const unpinned = render({ sessionMeta: {} });
     assert.equal(pinnedSection(unpinned), "");
-    assert.ok(rows(unpinned).includes("temporary-pin"));
+    assert.ok(!rows(unpinned).includes("temporary-pin"));
     assert.ok(!rows(unpinned).includes("closed-pin"), "unpin respects closed project tabs");
     const collapsedGroup =
       unpinned.match(/data-sidebar-project-group="\/collapsed"[\s\S]*?<\/section>/)?.[0] ?? "";
@@ -166,7 +166,7 @@ test("sidebar renders global pins once, outside project folding and history limi
     const selectedRows = (markup) => [...markup.matchAll(
       /class="thread-item active[^"]*" data-sidebar-session-row="([^"]+)"/g,
     )].map((match) => match[1]);
-    for (const id of ["normal-00", "open-pin", "temporary-normal", "temporary-pin"]) {
+    for (const id of ["normal-00", "open-pin", "temporary-pin"]) {
       const selected = render({ activeProjectPath: "/open", activeSessionId: id });
       assert.deepEqual(selectedRows(selected), [id]);
       assert.match(selected, /data-sidebar-project-group="\/open" data-current-workspace="true"/);

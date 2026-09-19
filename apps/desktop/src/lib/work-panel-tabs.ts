@@ -1,6 +1,8 @@
 export type WorkPanelTabKind =
   | "new"
   | "review"
+  | "ppt"
+  | "editor"
   | "file"
   | "plugin";
 
@@ -22,12 +24,6 @@ export type WorkPanelTabsState = {
 export type WorkPanelContext = WorkPanelTabsState & {
   open: boolean;
   fileRequest: { path: string; seq: number; mimeType?: string } | null;
-};
-
-export type ReviewArtifactEvent = {
-  toolName?: string;
-  isError?: boolean;
-  result: unknown;
 };
 
 let newWorkPanelTabSequence = 0;
@@ -110,6 +106,10 @@ export function browserPluginTab(location?: string): WorkPanelTab {
   };
 }
 
+export function pptEditorWorkPanelTab(path: string): WorkPanelTab {
+  return { id: `editor:${path}`, kind: "editor", resource: path };
+}
+
 /**
  * The bundled file view (ADR 0241). A chat file reference prefers it, because
  * the file belongs beside the conversation that named it and the view can edit
@@ -157,7 +157,7 @@ export function parsePluginViewRef(
 export function isKnownWorkPanelTab(tab: WorkPanelTab): boolean {
   return (
     Boolean(tab) &&
-    (tab.kind === "new" || tab.kind === "review" ||
+    (tab.kind === "new" || tab.kind === "review" || tab.kind === "ppt" || tab.kind === "editor" ||
       tab.kind === "file" || tab.kind === "plugin")
   );
 }
@@ -224,22 +224,6 @@ export function fileWorkPanelTab(path: string, mimeType?: string): WorkPanelTab 
     resource,
     ...(mimeType ? { mimeType } : {}),
   };
-}
-
-export function toolResultRoot(result: unknown): string | null {
-  if (!result || typeof result !== "object") return null;
-  const details = (result as { details?: unknown }).details;
-  if (!details || typeof details !== "object") return null;
-  const root = (details as { root?: unknown }).root;
-  return typeof root === "string" ? root : null;
-}
-
-export function shouldOpenReviewArtifact(event: ReviewArtifactEvent): boolean {
-  return (
-    (event.toolName === "Write" || event.toolName === "Edit") &&
-    event.isError !== true &&
-    toolResultRoot(event.result) === "workspace"
-  );
 }
 
 export function openWorkPanelTabState(

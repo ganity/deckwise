@@ -78,13 +78,13 @@ test("thinking levels use their canonical English values without i18n", () => {
   assert.doesNotMatch(settingsSource, /thinkingLevel\./);
 });
 
-test("Composer owns the mode and model controls", () => {
+test("Composer owns the fixed Agent context and model controls", () => {
   const leftToolbar = composerSource.slice(
     composerSource.indexOf('<div className="composer-left">'),
     composerSource.indexOf('<div className="composer-right">'),
   );
   const modeControl = leftToolbar.indexOf(
-    'className="icon-btn mode-chip composer-mode-chip"',
+    'className="icon-btn mode-chip composer-mode-chip composer-mode-static"',
   );
   const permissionControl = leftToolbar.indexOf('className="composer-permission"');
   const rightToolbar = composerToolbarSource.slice(

@@ -5,12 +5,11 @@
 //! the configured shell again immediately before a Bash call starts.
 
 use std::env;
+use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-#[cfg(windows)]
-use std::ffi::OsStr;
 #[cfg(unix)]
 use std::process::Stdio;
 #[cfg(unix)]
@@ -461,6 +460,28 @@ pub fn user_login_path() -> Option<&'static str> {
     None
 }
 
+fn prepend_path(runtime_bin: Option<&OsStr>, base: Option<&OsStr>) -> Option<String> {
+    if runtime_bin.is_none() && base.is_none() {
+        return None;
+    }
+    let entries = runtime_bin
+        .into_iter()
+        .map(PathBuf::from)
+        .chain(base.into_iter().flat_map(env::split_paths));
+    env::join_paths(entries).ok()?.into_string().ok()
+}
+
+/// PATH used by command tools. A packaged DeckWise Python runtime must win,
+/// while the user's login PATH remains available for their normal toolchain.
+pub fn tool_env_path() -> Option<String> {
+    let runtime = env::var_os("DECKWISE_RUNTIME_BIN");
+    let login = user_login_path()
+        .map(OsStr::new)
+        .map(ToOwned::to_owned)
+        .or_else(|| env::var_os("PATH"));
+    prepend_path(runtime.as_deref(), login.as_deref())
+}
+
 #[cfg(unix)]
 pub fn user_login_path() -> Option<&'static str> {
     static CACHE: OnceLock<Option<String>> = OnceLock::new();
@@ -652,6 +673,20 @@ mod tests {
             assert!(path.starts_with('/'), "PATH entries stay absolute");
             assert!(path.contains('/'), "PATH looks like directories");
         }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn packaged_runtime_is_prepended_without_losing_the_user_path() {
+        let joined = prepend_path(
+            Some(OsStr::new("/deckwise/python/bin")),
+            Some(OsStr::new("/usr/local/bin:/usr/bin")),
+        )
+        .unwrap();
+        let entries = env::split_paths(OsStr::new(&joined)).collect::<Vec<_>>();
+        assert_eq!(entries[0], PathBuf::from("/deckwise/python/bin"));
+        assert_eq!(entries[1], PathBuf::from("/usr/local/bin"));
+        assert_eq!(entries[2], PathBuf::from("/usr/bin"));
     }
 
     #[cfg(unix)]

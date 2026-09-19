@@ -42,7 +42,6 @@ test("shared shortcut map drives renderer dispatch and native menu accelerators"
     "openCommandPalette",
     "toggleSidebar",
     "openWorkPanel",
-    "openPluginLauncher",
     "abort",
     "toggleWindow",
     "resetZoom",
@@ -52,6 +51,7 @@ test("shared shortcut map drives renderer dispatch and native menu accelerators"
   ]) {
     assert.match(shortcutSource, new RegExp(`"${id}"`));
   }
+  assert.doesNotMatch(shortcutSource, /"openPluginLauncher"/);
   assert.match(appSource, /KEYBOARD_SHORTCUTS\.find/);
   assert.match(appSource, /settings\?\.keybindings/);
   assert.match(appSource, /keybindingMatchesEvent/);

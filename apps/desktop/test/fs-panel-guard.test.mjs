@@ -51,6 +51,17 @@ test("default ignore list hides vcs and dependency directories", () => {
   assert.equal(isIgnoredName("gitignore"), false);
 });
 
+test("directory entries expose modification time for generated artifact freshness", async (t) => {
+  const fixture = await mkdtemp(join(tmpdir(), "pi-fs-mtime-"));
+  t.after(() => rm(fixture, { recursive: true, force: true }));
+  await writeFile(join(fixture, "slide.svg"), "<svg/>");
+
+  const entry = (await listDir(fixture, "")).find((item) => item.name === "slide.svg");
+  assert.equal(entry?.kind, "file");
+  assert.equal(typeof entry?.mtimeMs, "number");
+  assert.ok((entry?.mtimeMs ?? 0) > 0);
+});
+
 test("work panel never follows a workspace link outside the real root", async (t) => {
   const fixture = await mkdtemp(join(tmpdir(), "pi-fs-panel-"));
   t.after(() => rm(fixture, { recursive: true, force: true }));

@@ -278,6 +278,18 @@ test("work panel header exposes a scrollable tab strip and direct new-page actio
   );
 });
 
+test("PPTX and Browser editing surfaces expose an in-app full-screen mode", () => {
+  assert.match(panelSource, /activeTab\?\.kind === "editor"/);
+  assert.match(panelSource, /BROWSER_PLUGIN_TAB\.pluginId/);
+  assert.match(panelSource, /event\.key !== "Escape"/);
+  assert.match(appSource, /!workPanelMaximized && \(!sidebarCollapsed \|\| sidebarExiting\)/);
+  assert.match(appSource, /!sidebarCollapsed && !workPanelMaximized && "sidebar-expanded"/);
+  assert.match(appSource, /\(sidebarCollapsed \|\| workPanelMaximized\) && "sidebar-collapsed"/);
+  assert.match(appSource, /sidebarCollapsed=\{workPanelMaximized \|\| sidebarCollapsed\}/);
+  assert.match(panelSource, /<PptEditorTab[\s\S]*maximized=\{maximized\}/);
+  assert.match(panelSource, /onToggleMaximize=\{onToggleMaximize\}/);
+});
+
 test("plus creates a blank page and launcher rows open tools in that page", () => {
   assert.match(panelSource, /openNewWorkPanelTab/);
   assert.match(panelSource, /activeTab\?\.kind === "new"/);
@@ -436,30 +448,10 @@ test("built-in terminal is absent while the work panel keeps its other surfaces"
   assert.doesNotMatch(transcriptSource, /openTerminal|terminalArtifact|chat\.openTerminal/);
 });
 
-test("workspace artifacts attach review to their originating session", () => {
-  const artifactIndex = storeSource.indexOf("shouldOpenReviewArtifact({");
-  const openReviewMatch = storeSource.match(
-    /get\(\)\.openWorkPanelTabForSession\(\s*envelope\.sessionId,\s*toolWorkPanelTab\("review"\),?\s*\)/,
-  );
-  const openReviewIndex = openReviewMatch?.index ?? -1;
-  const gateIndex = storeSource.indexOf(
-    "if (envelope.sessionId !== get().activeSessionId)",
-  );
-  assert.ok(artifactIndex > -1, "workspace artifact gate exists");
-  assert.ok(openReviewIndex > artifactIndex, "review artifact records its session tab");
-  assert.ok(gateIndex > -1, "cross-session gate exists");
-  assert.ok(
-    openReviewIndex < gateIndex,
-    "background artifacts must be recorded before the cross-session early-return",
-  );
-  assert.match(
-    storeSource,
-    /shouldOpenReviewArtifact\(\{[\s\S]*toolName,[\s\S]*isError:\s*event\.isError,[\s\S]*result:\s*event\.result/s,
-  );
-  assert.doesNotMatch(
-    storeSource.match(/shouldOpenReviewArtifact\(\{[\s\S]*?\}\)/)?.[0] ?? "",
-    /activeSessionId|sessionId/,
-  );
+test("workspace edits do not automatically switch to Review", () => {
+  assert.doesNotMatch(storeSource, /shouldOpenReviewArtifact/);
+  assert.doesNotMatch(storeSource, /toolWorkPanelTab\("review"\)/);
+  assert.match(panelSource, /activeTab\?\.kind === "review"/);
 });
 
 test("work panel context is retained by session instead of cleared on selection", () => {
@@ -595,7 +587,7 @@ test("the shell budgets the three columns inside the fixed client area", () => {
   assert.match(panelSource, /layout\.shouldCollapseSidebar\) onAutoCollapseSidebar/);
   assert.match(appSource, /onAutoCollapseSidebar=\{autoCollapseSidebar\}/);
   assert.match(appSource, /containerWidth=\{shellWidth\}/);
-  assert.match(appSource, /sidebarExiting=\{sidebarExiting\}/);
+  assert.match(appSource, /sidebarExiting=\{workPanelMaximized \? false : sidebarExiting\}/);
   assert.match(appSource, /workPanelWidthForSidebarReopen/);
   assert.match(appSource, /if \(sidebarCollapsedRef\.current\) reopenSidebar\(\)/);
   // The window itself never changes: the native reservation seam stays at

@@ -10,6 +10,7 @@ export type ComposerDraftFileReference = {
 export type ComposerDraftSnapshot = {
   text: string;
   fileReferences: ComposerDraftFileReference[];
+  webSearchEnabled?: boolean;
 };
 
 export type ComposerPrefill = ComposerDraftSnapshot & {

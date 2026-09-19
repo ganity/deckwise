@@ -44,7 +44,7 @@ test("chat configuration errors still navigate to agent settings", () => {
 test("secondary destinations stay outside the initial shell bundle", () => {
   assert.match(appShell, /const SettingsPage = lazy/);
   assert.match(appShell, /import\("\.\.\/\.\.\/pages\/SettingsPage"\)/);
-  assert.match(appShell, /import\("\.\.\/\.\.\/pages\/PluginsPage"\)/);
+  assert.doesNotMatch(appShell, /PluginsPage/);
   assert.match(appShell, /<Suspense fallback=\{<RoutePending \/>\}>/);
 });
 

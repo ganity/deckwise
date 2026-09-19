@@ -19,6 +19,7 @@ function placeholders(value) {
 }
 
 const english = flattenCatalog(en);
+const chinese = flattenCatalog(zhCN);
 
 test("every shipped catalog matches English keys and interpolation variables", () => {
   for (const [id, catalog] of Object.entries(catalogs)) {
@@ -145,6 +146,13 @@ test("import, project, and temporary-session copy is catalog-backed", () => {
     assert.equal(typeof english[key], "string", key);
     assert.notEqual(english[key], "");
   }
+});
+
+test("DeckWise sidebar names projects as Courses", () => {
+  assert.equal(english["nav.projects"], "Courses");
+  assert.equal(english["nav.newProject"], "New course");
+  assert.equal(chinese["nav.projects"], "课件");
+  assert.equal(chinese["nav.newProject"], "新建课件");
 });
 
 test("locale resolution maps variants onto shipped catalogs and falls back to English", () => {

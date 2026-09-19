@@ -66,10 +66,7 @@ test("macOS installs a standard application menu before window creation", () => 
     mainSource,
     /installApplicationMenu\(\{\s+locale: app\.getLocale\(\),\s+dispatch: dispatchApplicationMenuCommand,\s+dispatchNative: dispatchNativeMenuAction,\s+\}\);/,
   );
-  assert.ok(
-    mainSource.indexOf("prewarmPluginLauncher();") < mainSource.indexOf("registerIpc();"),
-    "launcher warm-up should start before IPC registration completes",
-  );
+  assert.doesNotMatch(mainSource, /prewarmPluginLauncher\(\);/);
 });
 
 test("macOS application menu routes shell commands and preserves native roles", () => {
