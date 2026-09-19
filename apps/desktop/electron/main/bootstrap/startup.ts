@@ -159,10 +159,6 @@ export function registerApplicationStartup(deps: StartupDependencies): void {
       dispatch: dispatchApplicationMenuCommand,
       dispatchNative: dispatchNativeMenuAction,
     });
-    // Start the retained launcher as soon as Electron is ready. It can load in
-    // parallel with host/plugin boot, so the first post-boot Option+Space does
-    // not race the renderer allocation just because backend startup was slow.
-    prewarmPluginLauncher();
     const invokeIpc = registerIpc();
     state.agentHostBridge = createAgentHostBridge({
       invoke: invokeIpc,

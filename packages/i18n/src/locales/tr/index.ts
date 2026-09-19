@@ -448,6 +448,9 @@ export const tr = {
     modelBadgeReasoning: "akıl yürütme",
     modelBadgeVision: "görüntü",
     permissionMode: "İzin kipi",
+    webSearch: "Web araması",
+    webSearchDescription:
+      "PPT Master'ın gerektiğinde web'de arama yapmasına izin verin. Kullanıp kullanmayacağına PPT Master karar verir.",
     reasoningLevel: "Akıl yürütme düzeyi",
     reasoningSupportedBy: "Geçerli model {{model}} bu akıl yürütme düzeylerini destekliyor",
     permissionInherit: "Varsayılan",

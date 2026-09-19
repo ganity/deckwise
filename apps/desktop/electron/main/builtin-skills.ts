@@ -61,6 +61,7 @@ export function resolvePptMasterSkillRoot(): string | null {
     join(moduleDir, "../../resources/skills/ppt-master"),
     join(moduleDir, "../../../resources/skills/ppt-master"),
     join(process.cwd(), "../ppt-gen/vendors/ppt-master/skills/ppt-master"),
+    join(process.cwd(), "../../../ppt-gen/vendors/ppt-master/skills/ppt-master"),
     join(moduleDir, "../../../../../ppt-gen/vendors/ppt-master/skills/ppt-master"),
   ].filter((candidate): candidate is string => Boolean(candidate));
   for (const candidate of candidates) {
@@ -95,6 +96,7 @@ function withPptMasterRuntimeContext(body: string, root: string): string {
     "",
     "## DeckWise Host Policy",
     "Continue through the existing automated PM flow without confirmation pauses until the editable SVG preview is ready. Only ask when required input is genuinely missing.",
+    "Whenever starting PPT Master's SVG editor service, append `--no-browser`; DeckWise owns browser presentation and must not open the system browser.",
     "After the live preview server starts, call ToolSearch for `browser`, then call Browser with `action=navigate` and the exact loopback preview URL printed by PPT Master. Do not merely print the URL; opening the in-app Browser is part of the workflow.",
     "On the initial generation turn, stop after the editable SVG preview is ready and opened. Do not finalize or export PPTX until the user explicitly requests PPTX generation. A user request from DeckWise's `Generate PPTX` action is explicit authorization to continue the official finalization, validation, and SVG-to-PPTX export steps without another confirmation.",
     "For a delivered project that already has an export, SVG is the only source of truth. Treat a user's request to change the courseware as the official Revision Round: edit the owning SVG and related project metadata, rerun the required validation and finalization steps, and immediately create a new timestamped PPTX export without asking for another confirmation. Never read changes back from a PPTX or merge Web Office edits into SVG; a regenerated export supersedes PPTX-only edits while earlier exports remain as history.",

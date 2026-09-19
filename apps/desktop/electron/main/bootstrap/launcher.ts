@@ -205,7 +205,7 @@ export function createLauncher({
 
   function applyPluginLauncherShortcut(keybindings?: KeybindingOverrides) {
     const shortcut = KEYBOARD_SHORTCUTS.find(
-      (candidate) => candidate.id === "openPluginLauncher",
+      (candidate) => String(candidate.id) === "openPluginLauncher",
     );
     if (!shortcut || !app.isReady()) return;
     const platform: ShortcutPlatform =

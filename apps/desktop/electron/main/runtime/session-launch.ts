@@ -40,6 +40,8 @@ import type { UserMcpRuntime } from "../user-mcp";
 import type { RuntimeState } from "./context";
 import type { RuntimeProvider } from "./provider-catalog";
 
+const BUILTIN_WEB_SEARCH_PLUGIN_ID = "pi.web-search";
+
 const ErrorCodes = {
   ...SharedErrorCodes,
   COMMAND_SHELL_INVALID: "COMMAND_SHELL_INVALID",
@@ -264,6 +266,7 @@ export function createSessionLaunchRuntime({
       providerId?: string;
       modelId?: string;
       thinkingLevel?: ThinkingLevel;
+      webSearchEnabled?: boolean;
     } = {},
   ) {
     if (!runtimeState.host) throw new Error("host unavailable");
@@ -633,6 +636,11 @@ export function createSessionLaunchRuntime({
           ...plugins
             .getTools()
             .filter((tool) => pluginActiveInProject(tool.pluginId, projectPath))
+            .filter(
+              (tool) =>
+                tool.pluginId !== BUILTIN_WEB_SEARCH_PLUGIN_ID ||
+                overrides.webSearchEnabled === true,
+            )
             .map((tool) => ({
               name: tool.fullName,
               description: tool.description,

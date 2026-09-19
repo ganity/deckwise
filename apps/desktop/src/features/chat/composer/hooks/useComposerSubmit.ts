@@ -23,6 +23,7 @@ type UseComposerSubmitOptions = {
   providerId?: string;
   modelId?: string;
   thinkingLevel: Parameters<AppState["configureActiveSession"]>[0]["thinkingLevel"];
+  webSearchEnabled: boolean;
   modelReady: boolean;
   sendBlocked: boolean;
   pasting: boolean;
@@ -65,6 +66,7 @@ export function useComposerSubmit({
   providerId,
   modelId,
   thinkingLevel,
+  webSearchEnabled,
   modelReady,
   sendBlocked,
   pasting,
@@ -186,6 +188,10 @@ export function useComposerSubmit({
   };
 
   const submit = async (steering = false) => {
+    const submissionDraft = (text: string): ComposerDraftSnapshot => ({
+      ...draft.draftSnapshot(text),
+      ...(webSearchEnabled ? { webSearchEnabled: true } : {}),
+    });
     const text = draft.ref.current ? readEditorValue(draft.ref.current) : value;
     const inlineContent = serializeInlineComposerFileReferences(
       text,
@@ -229,7 +235,7 @@ export function useComposerSubmit({
                 visibleCommandBody,
                 activeFileReferences,
               ),
-              draft.draftSnapshot(visibleCommandBody),
+              submissionDraft(visibleCommandBody),
             );
             if (accepted) draft.clearDraftForKey(submittedDraftKey);
           } catch (error) {
@@ -268,7 +274,7 @@ export function useComposerSubmit({
       showToast(t("errors.MODEL_NOT_CONFIGURED"), { variant: "error" });
       return;
     }
-    const submittedDraft = draft.draftSnapshot(text);
+    const submittedDraft = submissionDraft(text);
     draft.clearDraftForKey(submittedDraftKey);
     const accepted = steering
       ? await steerPrompt(inlineContent, submittedDraft)

@@ -15,6 +15,10 @@ import {
 } from "@pi-desktop/shared";
 import { useAppStore } from "../stores/app-store";
 import { latestTurnContextInspector } from "../lib/latest-turn-context";
+import {
+  readComposerWebSearch,
+  writeComposerWebSearch,
+} from "../lib/composer-draft-cache";
 import { isActivePlanExecution } from "../lib/plan-mode-state";
 import { headAsk, queuedAskCount } from "../lib/pending-asks";
 import type { QueuedPrompt } from "../lib/queued-prompts";
@@ -177,6 +181,18 @@ export function Composer({
     insertNewlineInEditor,
     handleInput,
   } = draft;
+  const [webSearchState, setWebSearchState] = useState(() => ({
+    key: draftKey,
+    enabled: readComposerWebSearch(draftKey),
+  }));
+  const webSearchEnabled =
+    webSearchState.key === draftKey
+      ? webSearchState.enabled
+      : readComposerWebSearch(draftKey);
+  const setWebSearchEnabled = (enabled: boolean) => {
+    writeComposerWebSearch(draftKey, enabled);
+    setWebSearchState({ key: draftKey, enabled });
+  };
 
   const approvalPending = planCheckpoint?.status === "pending";
   const largePasteThreshold = normalizeLargePasteThreshold(
@@ -388,6 +404,7 @@ export function Composer({
     providerId: provider?.id,
     modelId,
     thinkingLevel,
+    webSearchEnabled,
     modelReady,
     sendBlocked,
     pasting,
@@ -561,6 +578,8 @@ export function Composer({
             providerId={provider?.id}
             modelId={modelId}
             thinkingLevel={thinkingLevel}
+            webSearchEnabled={webSearchEnabled}
+            setWebSearchEnabled={setWebSearchEnabled}
             controlsBlocked={controlsBlocked}
             pasting={pasting}
             pickAndAttach={pickAndAttach}

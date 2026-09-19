@@ -444,6 +444,8 @@ export const zhCN = {
     modelBadgeReasoning: "推理",
     modelBadgeVision: "视觉",
     permissionMode: "权限模式",
+    webSearch: "联网搜索",
+    webSearchDescription: "允许 PPT Master 在需要时联网检索，是否使用由 PPT Master 决定。",
     reasoningLevel: "推理等级",
     reasoningSupportedBy: "当前模型 {{model}} 支持的推理等级",
     permissionInherit: "跟随默认",

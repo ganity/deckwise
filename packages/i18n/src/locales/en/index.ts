@@ -446,6 +446,9 @@ export const en = {
     modelBadgeReasoning: "reasoning",
     modelBadgeVision: "vision",
     permissionMode: "Permission mode",
+    webSearch: "Web search",
+    webSearchDescription:
+      "Allow PPT Master to search the web when useful. PPT Master decides whether to use it.",
     reasoningLevel: "Reasoning level",
     reasoningSupportedBy: "Current model {{model}} supports these reasoning levels",
     permissionInherit: "Default",

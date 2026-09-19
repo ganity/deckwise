@@ -332,6 +332,13 @@ combined model × reasoning selection (§11).
 
 ## 3. Sidebar
 
+> DeckWise product override: the user-facing Plugins/Extensions destination and
+> marketplace are not part of the courseware product. The footer exposes only
+> Settings and notifications; no plugin-launcher shortcut or prewarmed launcher
+> window is registered. Bundled runtime plugins, including `pi.browser`
+> and `pi.file-manager`, remain internal implementation components for the PPT
+> workflow and are not managed from a marketplace UI.
+
 ### 3.1 Purpose
 
 Scoped project and session navigation, management, and notification access. The
@@ -1007,6 +1014,34 @@ history. The workbench compares source SVG and export modification times; if
 SVG is newer, the old editor entry is replaced by **Regenerate PPTX**. While a
 revision turn is active, the old export is not presented as complete or as the
 current editor target.
+
+Once SVG source exists, the workbench exposes **Preview SVG** independently of
+the agent turn. Each activation asks Electron main to validate the
+project-local `live_preview/lock.json` against the service `/api/health`
+response. A matching live service is reused; a missing, stale, or unhealthy
+service is restarted with DeckWise's Python runtime and `--no-browser`, then
+opened in the embedded Browser view. Closing the Browser tab does not stop the
+preview service; PPT Master's Exit preview action and idle timeout retain their
+normal lifecycle behavior.
+
+#### Web search toggle
+
+The Composer toolbar places a **Web search** toggle after the permission-mode
+control. It defaults to off and is retained in renderer memory per conversation.
+The submitted turn snapshots the current value; the toggle is disabled while a
+turn is running so the capability cannot change underneath an active agent.
+
+When enabled, DeckWise adds its bundled `web_search` tool to PPT Master's
+on-demand tool catalog. PPT Master decides whether the request benefits from
+search and may leave the tool unused. DeckWise does not infer whether the user's
+materials are sufficient, inject a search instruction, or add another
+confirmation. When disabled, the search tool is absent from the catalog.
+
+The toggle grants this dedicated retrieval capability; it is not an offline
+mode or a network firewall. Provider requests and the local-preview Browser
+retain their existing network behavior. The search implementation ships as a
+hidden first-party component: there is no plugin installation, marketplace, or
+provider-configuration surface.
 
 ### 5.3 States
 

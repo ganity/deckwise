@@ -439,6 +439,8 @@ export const es = {
     "modelBadgeReasoning": "razonamiento",
     "modelBadgeVision": "visión",
     "permissionMode": "Modo de permiso",
+    "webSearch": "Búsqueda web",
+    "webSearchDescription": "Permite que PPT Master busque en la web cuando sea útil. PPT Master decide si usarla.",
     "reasoningLevel": "Nivel de razonamiento",
     "reasoningSupportedBy": "El modelo actual {{model}} admite estos niveles de razonamiento",
     "permissionInherit": "Predeterminado",

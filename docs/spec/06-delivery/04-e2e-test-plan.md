@@ -8,6 +8,43 @@
 
 ## 1. Goals
 
+### E2E-DECKWISE-NO-EXTENSIONS-MARKET: Extensions stay internal
+
+- **Preconditions:** DeckWise is started with its bundled Browser and File
+  Manager plugins available.
+- **Steps:** Inspect the sidebar footer, global search destinations, keyboard
+  shortcuts, and first-run checklist; press Alt/Option+Space, then open an SVG
+  preview from PPT Master.
+- **Expected:** No Plugins/Extensions or marketplace destination is exposed,
+  onboarding never asks the user to install a plugin, and no plugin launcher
+  opens or consumes a startup window. The bundled Browser still opens the SVG
+  preview inside the work panel.
+- **Specs linked:** `04-ux/08-component-spec.md` §3 and §5.2.3.
+- **Acceptance criterion:** DeckWise product scope and PPT preview continuity.
+- **Milestone:** DeckWise product increment.
+- **Status:** Shell source contract automated by
+  `apps/desktop/test/utility-navigation.test.mjs`; packaged journey remains
+  manual.
+
+### E2E-DECKWISE-WEB-ACCESS-OPTOUT: Web search is an explicit Composer capability
+
+- **Preconditions:** DeckWise is configured with a working provider and the
+  Composer is idle.
+- **Steps:** Inspect the toolbar after the permission-mode control. Submit one
+  PPT request with **Web search** off, then another with it on; inspect the
+  Agent tool catalog and execute a search on the enabled run.
+- **Expected:** The toggle defaults to off, is disabled during an active turn,
+  and requires no secondary confirmation. With it off, `web_search` is absent.
+  With it on, the bundled tool is discoverable through ToolSearch and returns
+  bounded result snippets with source URLs; PPT Master remains free not to call
+  it. No marketplace or plugin-install surface appears.
+- **Specs linked:** `04-ux/08-component-spec.md` §5.2.3 "Web search toggle".
+- **Acceptance criterion:** DeckWise product scope.
+- **Milestone:** DeckWise product increment.
+- **Status:** Source and parser contracts automated by
+  `apps/desktop/test/web-search-tool.test.mjs`; live provider journey remains
+  manual.
+
 ### E2E-DECKWISE-PPT-SVG-SOURCE: SVG revisions publish a new PPTX
 
 - **Preconditions:** A DeckWise PPT Master session has editable SVG source and
@@ -28,6 +65,27 @@
   `apps/desktop/test/ppt-master-flow.test.mjs` and
   `apps/desktop/test/fs-panel-guard.test.mjs`; live provider/browser/editor
   journey remains manual.
+
+### E2E-DECKWISE-PPT-SVG-PREVIEW-RECOVERY: SVG preview reuses or restarts its local service
+
+- **Preconditions:** A DeckWise PPT Master project contains SVG source. Its
+  preview service can be started, stopped, and inspected through
+  `live_preview/lock.json`.
+- **Steps:** Click **Preview SVG** with no service running; close the Browser
+  tab and click again while the service is alive; stop the service through
+  **Exit preview**, then click **Preview SVG** once more.
+- **Expected:** The first click starts the service without opening an external
+  browser and opens the editor in DeckWise's Browser tab. The second click
+  reuses the same healthy PID and port. After shutdown, the next click detects
+  the missing or unhealthy service, starts a new one, waits for matching
+  `/api/health`, and opens the new URL. Paths outside the current workspace's
+  `.deckwise-ppt/projects` directory are rejected.
+- **Specs linked:** `04-ux/08-component-spec.md` §5.2.3.
+- **Acceptance criterion:** D (agent execution), E (work panel).
+- **Milestone:** DeckWise product increment.
+- **Status:** Lifecycle and IPC contracts automated by
+  `apps/desktop/test/ppt-preview-lifecycle.test.mjs`; packaged Electron journey
+  remains manual.
 
 ### E2E-PLUGIN-appearance-extension-lifecycle
 

@@ -155,6 +155,11 @@ export type PptEditorState = {
   message?: string;
 };
 
+export type PptPreviewState = {
+  url: string;
+  started: boolean;
+};
+
 declare global {
   interface Window {
     piDesktop?: {
@@ -1054,6 +1059,8 @@ export const api = {
   fsReveal: (path: string) => invoke(IPC.invoke.fsReveal, { path }),
   fsOpen: (path: string) => invoke(IPC.invoke.fsOpen, { path }),
   fsIndex: () => invoke<FsIndexResult>(IPC.invoke.fsIndex),
+  pptPreviewOpen: (path: string) =>
+    invoke<PptPreviewState>(IPC.invoke.pptPreviewOpen, { path }),
   pptEditorOpen: (path: string) =>
     invoke<PptEditorState>(IPC.invoke.pptEditorOpen, { path }),
   pptEditorSave: () => invoke<{ ok: boolean }>(IPC.invoke.pptEditorSave),

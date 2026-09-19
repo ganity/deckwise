@@ -28,7 +28,7 @@ const shortcutSource = await readFile(
 );
 test("home sidebar exposes only the supported destination entries", () => {
   assert.match(sidebarSource, /data-nav="home"/);
-  assert.match(sidebarSource, /data-nav="plugins"/);
+  assert.doesNotMatch(sidebarSource, /data-nav="plugins"/);
   assert.doesNotMatch(sidebarSource, /data-nav="projects"/);
   assert.doesNotMatch(sidebarSource, /data-nav="pulls"/);
   assert.doesNotMatch(sidebarSource, /data-nav="scheduled"/);

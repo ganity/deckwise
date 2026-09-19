@@ -692,9 +692,6 @@ export function useAppShellRuntime() {
           case "openCommandPalette":
             setSearchOpen(true);
             break;
-          case "openPluginLauncher":
-            void api.togglePluginLauncher();
-            break;
           case "toggleSidebar":
             toggleSidebar();
             break;

@@ -448,6 +448,8 @@ export const ko = {
     modelBadgeReasoning: "추론",
     modelBadgeVision: "비전",
     permissionMode: "권한 모드",
+    webSearch: "웹 검색",
+    webSearchDescription: "필요할 때 PPT Master가 웹을 검색하도록 허용합니다. 사용 여부는 PPT Master가 결정합니다.",
     reasoningLevel: "추론 수준",
     reasoningSupportedBy: "현재 모델 {{model}}은(는) 다음 추론 수준을 지원합니다",
     permissionInherit: "기본값",

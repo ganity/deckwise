@@ -9,6 +9,7 @@ import { ContextUsageInspector } from "../../../components/ContextUsageInspector
 import { TooltipButton } from "../../../components/ui";
 import {
   IconArrowUp,
+  IconGlobe,
   IconPlus,
   IconSparkles,
   IconStop,
@@ -30,6 +31,8 @@ export type ComposerToolbarProps = {
   providerId?: string;
   modelId?: string;
   thinkingLevel: ThinkingLevel;
+  webSearchEnabled: boolean;
+  setWebSearchEnabled: (enabled: boolean) => void;
   controlsBlocked: boolean;
   pasting: boolean;
   pickAndAttach: () => Promise<void>;
@@ -58,6 +61,8 @@ export function ComposerToolbar({
   providerId,
   modelId,
   thinkingLevel,
+  webSearchEnabled,
+  setWebSearchEnabled,
   controlsBlocked,
   pasting,
   pickAndAttach,
@@ -116,6 +121,18 @@ export function ComposerToolbar({
         >
           <span className="text-sm">{t(PERMISSION_MODE_I18N_KEYS.auto)}</span>
         </span>
+        <TooltipButton
+          type="button"
+          className={`icon-btn mode-chip composer-web-search${webSearchEnabled ? " active" : ""}`}
+          tooltip={t("chat.webSearchDescription")}
+          ariaLabel={t("chat.webSearchDescription")}
+          aria-pressed={webSearchEnabled}
+          disabled={controlsBlocked || runActive}
+          onClick={() => setWebSearchEnabled(!webSearchEnabled)}
+        >
+          <IconGlobe size={14} aria-hidden="true" />
+          <span className="text-sm">{t("chat.webSearch")}</span>
+        </TooltipButton>
       </div>
 
       <div className="composer-right">

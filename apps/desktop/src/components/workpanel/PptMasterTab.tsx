@@ -2,13 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FsEntry, UiMessage } from "@pi-desktop/shared";
 import { useAppStore } from "../../stores/app-store";
 import { api } from "../../lib/api";
-import { pptEditorWorkPanelTab } from "../../lib/work-panel-tabs";
+import { browserPluginTab, pptEditorWorkPanelTab } from "../../lib/work-panel-tabs";
 import { IconCheck, IconExternal, IconRefresh, IconSparkles } from "../icons";
 
 const PPTX_EXPORT_PROMPT =
   "SVG 已确认，请继续执行 PPT Master 的最终定稿、校验和 SVG 转 PPTX 流程，生成最终可编辑 PPTX。无需再次确认。";
 
 type PptProjectState = {
+  projectPath: string;
   hasSvg: boolean;
   pptxPath: string | null;
   previewUrl: string | null;
@@ -71,6 +72,7 @@ async function inspectProject(projectPath: string): Promise<PptProjectState> {
     .sort((a, b) => b.mtimeMs - a.mtimeMs || b.name.localeCompare(a.name))[0];
   const latestSvgMtime = Math.max(0, ...sourceSvgs.map((entry) => entry.mtimeMs));
   return {
+    projectPath,
     hasSvg: [...svgOutput, ...svgFinal].some(
       (entry) => entry.kind === "file" && /\.svg$/i.test(entry.name),
     ),
@@ -115,6 +117,8 @@ export function PptMasterTab() {
   const messages = useAppStore((state) => state.messages);
   const sendPrompt = useAppStore((state) => state.sendPrompt);
   const [project, setProject] = useState<PptProjectState | null>(null);
+  const [previewBusy, setPreviewBusy] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const activeSession = useAppStore((state) =>
     state.activeSessionId
       ? state.sessions.find((session) => session.id === state.activeSessionId)
@@ -142,6 +146,20 @@ export function PptMasterTab() {
   const openEditor = () => {
     if (!project?.pptxPath) return;
     useAppStore.getState().openWorkPanelTab(pptEditorWorkPanelTab(project.pptxPath));
+  };
+  const openSvgPreview = async () => {
+    if (!project?.projectPath || previewBusy) return;
+    setPreviewBusy(true);
+    setPreviewError(null);
+    try {
+      const preview = await api.pptPreviewOpen(project.projectPath);
+      useAppStore.getState().openWorkPanelTab(browserPluginTab(preview.url));
+      await refreshProject();
+    } catch (error) {
+      setPreviewError(error instanceof Error ? error.message : "SVG 预览启动失败");
+    } finally {
+      setPreviewBusy(false);
+    }
   };
 
   const progress =
@@ -235,6 +253,16 @@ export function PptMasterTab() {
       </div>
 
       <div className="ppt-master-panel-actions">
+        {project?.hasSvg ? (
+          <button
+            type="button"
+            className="ppt-master-action"
+            disabled={previewBusy}
+            onClick={() => void openSvgPreview()}
+          >
+            <IconExternal size={14} /> {previewBusy ? "正在启动预览" : "预览 SVG"}
+          </button>
+        ) : null}
         {isRunning ? (
           <button type="button" className="ppt-master-action primary" disabled>
             <IconRefresh size={14} /> {project?.pptxPath ? "重新生成中" : "生成中"}
@@ -256,6 +284,7 @@ export function PptMasterTab() {
         <button type="button" className="ppt-master-action" disabled>
           <IconRefresh size={14} /> 导入 MAIC
         </button>
+        {previewError ? <div className="ppt-master-action-error" role="alert">{previewError}</div> : null}
       </div>
     </div>
   );

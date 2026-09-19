@@ -386,6 +386,7 @@ export function registerAgentIpc({
       req.sessionId,
       session,
       settings,
+      { webSearchEnabled: req.webSearchEnabled === true },
     );
     sidecar.setProjectInstructionRoot(req.sessionId, launch.projectPath);
 

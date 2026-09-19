@@ -444,6 +444,8 @@ export const zhTW = {
     modelBadgeReasoning: "推理",
     modelBadgeVision: "視覺",
     permissionMode: "許可權模式",
+    webSearch: "聯網搜尋",
+    webSearchDescription: "允許 PPT Master 在需要時聯網搜尋，是否使用由 PPT Master 決定。",
     reasoningLevel: "推理等級",
     reasoningSupportedBy: "當前模型 {{model}} 支援的推理等級",
     permissionInherit: "跟隨預設",

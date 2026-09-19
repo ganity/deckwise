@@ -145,6 +145,7 @@ export function createQueueSlice({
             fileReferences: draft.fileReferences.map((reference) => ({
               ...reference,
             })),
+            ...(draft.webSearchEnabled ? { webSearchEnabled: true } : {}),
           }
         : { text: content, fileReferences: [] };
       const item: QueuedPrompt = {
@@ -435,6 +436,7 @@ export function createQueueSlice({
           await api.prompt({
             sessionId,
             content,
+            ...(draft?.webSearchEnabled ? { webSearchEnabled: true } : {}),
             messageId: optimisticMessage.id,
             viewingSessionId: viewingSessionIdForPrompt(get(), sessionId),
             attachments: draft ? promptAttachmentsFromDraft(draft.fileReferences) : [],

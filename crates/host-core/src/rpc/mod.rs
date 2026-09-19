@@ -4520,7 +4520,6 @@ async fn handle_request(
                 json!({"id":"secret","title":"Save your API key","done": has_secret, "action":"settings.providers"}),
                 json!({"id":"project","title":"Open a project folder","done": has_project, "action":"project.open"}),
                 json!({"id":"prompt","title":"Send your first prompt","done": has_session, "action":"chat.focus"}),
-                json!({"id":"plugin","title":"Load a development plugin (optional)","done": !st.plugins.list().is_empty(), "action":"plugins.open"}),
             ];
             let critical_incomplete = !has_provider || !has_secret || !has_session;
             Ok(json!({
