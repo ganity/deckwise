@@ -78,21 +78,23 @@ test("thinking levels use their canonical English values without i18n", () => {
   assert.doesNotMatch(settingsSource, /thinkingLevel\./);
 });
 
-test("Composer owns the mode and model controls", () => {
+test("Composer owns the fixed Agent context and model controls", () => {
   const leftToolbar = composerSource.slice(
     composerSource.indexOf('<div className="composer-left">'),
     composerSource.indexOf('<div className="composer-right">'),
   );
   const modeControl = leftToolbar.indexOf(
-    'className="icon-btn mode-chip composer-mode-chip"',
+    'className="icon-btn mode-chip composer-mode-chip composer-mode-static"',
   );
-  const permissionControl = leftToolbar.indexOf('className="composer-permission"');
+  const permissionControl = leftToolbar.indexOf("composer-permission-static");
   const rightToolbar = composerToolbarSource.slice(
     composerToolbarSource.indexOf('<div className="composer-right">'),
   );
 
   assert.ok(modeControl >= 0);
   assert.ok(permissionControl > modeControl);
+  assert.match(leftToolbar, /PERMISSION_MODE_I18N_KEYS\.auto/);
+  assert.doesNotMatch(leftToolbar, /composer-permission-menu/);
   assert.doesNotMatch(leftToolbar, /composer-thinking|thinking-chip/);
   assert.doesNotMatch(topbarSource, /ModelSelect|model-chip/);
   assert.doesNotMatch(topbarSource, /ct-mode|ct-mode-btn|configureActiveSession/);

@@ -550,7 +550,7 @@ export function createPluginServices({
       if (!sessionId) return null;
       const root =
         process.env.PI_DESKTOP_DATA_DIR?.trim() ||
-        join(homedir(), ".pi-desktop");
+        join(homedir(), ".deckwise");
       return join(root, "scratch", sessionId);
     },
     onState: emitBrowserState,

@@ -1,6 +1,6 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Composer } from "./Composer";
+import { Composer, type ComposerPrefill } from "./Composer";
 import { HomeMascotLogo } from "./HomeMascotLogo";
 import { HomeProjectSwitcher } from "./HomeProjectSwitcher";
 import { IconX } from "./icons";
@@ -42,6 +42,8 @@ function projectName(path?: string | null, name?: string | null) {
  */
 export const ChatSurface = memo(function ChatSurface() {
   const { t } = useTranslation();
+  const [quickstartPrefill, setQuickstartPrefill] =
+    useState<ComposerPrefill | null>(null);
   const activeSessionId = useAppStore((state) => state.activeSessionId);
   const selectingSessionId = useAppStore((state) => state.selectingSessionId);
   const retainedSessionIds = useAppStore((state) => state.retainedSessionIds);
@@ -162,12 +164,45 @@ export const ChatSurface = memo(function ChatSurface() {
                     t("chat.emptyTitle")
                   )}
                 </h1>
+                <div className="deckwise-home-badge">
+                  <span className="deckwise-home-badge-dot" />
+                  PPTX 课件生成工作台 · Pi Agent + PPT Master
+                </div>
+              </div>
+              <div className="deckwise-home-quickstart" aria-label="DeckWise 快速开始">
+                <div className="deckwise-home-quickstart-heading">
+                  <div>
+                    <strong>从一个主题开始</strong>
+                    <span>分析材料、生成页面、应用内编辑，一条流程完成</span>
+                  </div>
+                  <span className="deckwise-home-format">PPTX</span>
+                </div>
+                <div className="deckwise-home-prompts">
+                  {[
+                    ["课堂讲解", "生成一份适合课堂讲解的课件"],
+                    ["材料转课件", "根据上传的 PDF / DOCX 生成 PPTX"],
+                    ["知识总结", "把重点内容整理成可编辑演示文稿"],
+                  ].map(([label, prompt]) => (
+                    <button
+                      key={label}
+                      type="button"
+                      className="deckwise-home-prompt"
+                      onClick={async () => {
+                        if (!activeSessionId) await useAppStore.getState().newSession();
+                        setQuickstartPrefill({ text: prompt, token: Date.now() });
+                      }}
+                    >
+                      <span>{label}</span>
+                      <small>{prompt}</small>
+                    </button>
+                  ))}
+                </div>
               </div>
               <OnboardingChecklist />
             </div>
           </div>
           <div className="home-composer-wrap">
-            <StableComposer variant="home" />
+            <StableComposer variant="home" prefill={quickstartPrefill} />
           </div>
         </div>
       ) : (

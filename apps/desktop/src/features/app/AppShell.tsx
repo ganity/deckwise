@@ -99,7 +99,7 @@ export function AppShell() {
     } else {
       shell = (
         <>
-          {!sidebarCollapsed || sidebarExiting ? (
+          {!workPanelMaximized && (!sidebarCollapsed || sidebarExiting) ? (
             <Sidebar
               className={cx(sidebarEntering && "is-entering", sidebarExiting && "is-exiting")}
               onAnimationEnd={handleSidebarAnimationEnd}
@@ -117,7 +117,7 @@ export function AppShell() {
             <div
               className={cx(
                 "window-chrome-row",
-                !sidebarCollapsed && "sidebar-expanded",
+                !sidebarCollapsed && !workPanelMaximized && "sidebar-expanded",
               )}
             >
               {sidebarCollapsed && (
@@ -261,8 +261,8 @@ export function AppShell() {
               onCloseSubagentPanel={closeSubagentPanel}
               containerWidth={shellWidth}
               sidebarWidth={sidebarWidth}
-              sidebarCollapsed={sidebarCollapsed}
-              sidebarExiting={sidebarExiting}
+              sidebarCollapsed={workPanelMaximized || sidebarCollapsed}
+              sidebarExiting={workPanelMaximized ? false : sidebarExiting}
               onAutoCollapseSidebar={autoCollapseSidebar}
               maximized={workPanelMaximized}
               onToggleMaximize={toggleWorkPanelMaximize}
@@ -299,7 +299,7 @@ export function AppShell() {
         "app-shell",
         !ready && "app-shell-boot",
         page === "settings" && ready && "settings-mode",
-        sidebarCollapsed && "sidebar-collapsed",
+        (sidebarCollapsed || workPanelMaximized) && "sidebar-collapsed",
         workPanelMaximized && "work-panel-maximized",
         showSplash && "is-booting",
       )}

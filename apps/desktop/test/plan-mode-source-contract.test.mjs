@@ -38,14 +38,12 @@ const legacyModeKey = ["mode", "Chat"].join("");
 const legacyModeCommand = ["builtin.mode", "chat"].join(".");
 const legacyModeLiteral = ["mode:", '"chat"'].join(" ");
 
-test("renderer exposes Agent, Plan, and Goal as the only operating modes", () => {
-  assert.match(composerSource, /MODE_CYCLE: readonly Mode\[\] = \["agent", "plan", "goal"\]/);
-  assert.match(composerSource, /settings\.modePlan/);
-  assert.match(composerSource, /settings\.modeGoal/);
-  assert.match(composerSource, /IconListChecks/);
-  assert.match(composerSource, /IconTarget/);
-  assert.match(settingsSource, /\["plan", "settings\.modePlan"\]/);
-  assert.match(settingsSource, /\["goal", "settings\.modeGoal"\]/);
+test("DeckWise Composer exposes Agent only while retaining legacy mode contracts", () => {
+  assert.match(composerSource, /className="icon-btn mode-chip composer-mode-chip composer-mode-static"/);
+  assert.match(composerSource, /data-mode="agent"/);
+  assert.match(composerSource, /t\(MODE_LABEL_KEYS\.agent\)/);
+  assert.doesNotMatch(composerSource, /MODE_CYCLE|nextMode\(mode\)/);
+  assert.doesNotMatch(settingsSource, /settings\.modePlan|settings\.modeGoal|defaultMode: value/);
   assert.match(commandsSource, /case "builtin\.mode\.plan"/);
   assert.match(commandsSource, /case "builtin\.mode\.goal"/);
   for (const source of [composerSource, settingsSource, commandsSource]) {
@@ -140,7 +138,7 @@ test("the component spec assigns mode ownership to Composer", () => {
   assert.doesNotMatch(topbarSpec, /model picker/);
   assert.doesNotMatch(topbarSpec, /Agent \| Plan|mode toggle|mode indicator/);
   assert.match(composerSpec, /combined model ×\s+reasoning-level control/);
-  assert.match(composerSpec, /Composer-left Agent\/Plan\/Goal chip is the sole mode/);
+  assert.match(composerSpec, /Composer-left Agent label is fixed and non-interactive/);
   assert.match(composerSpec, /--ds-bg-composer/);
 });
 

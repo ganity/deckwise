@@ -521,7 +521,7 @@ const {
 } = desktopServices;
 
 const dataDir =
-  process.env.PI_DESKTOP_DATA_DIR || join(homedir(), ".pi-desktop");
+  process.env.PI_DESKTOP_DATA_DIR || join(homedir(), ".deckwise");
 
 // Agent extensions (D387/D388, ADR 0214): plugins contribute the modules,
 // the sidecar loads them; this bridge carries commands, diagnostics, and

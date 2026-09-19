@@ -213,7 +213,7 @@ Outer frame that positions Topbar, Sidebar, MainChat, and WorkPanel. Owns resize
 ### 2.1 Purpose
 
 Global controls bar: task title and window actions. Project scope remains
-available in the title tooltip. The active session's Agent/Plan/Goal control and
+available in the title tooltip. The fixed Agent context and
 model selection belong to the Composer. (Settings is reached from the command
 palette / application menu, not the top bar.)
 
@@ -233,7 +233,7 @@ available.)
 The conversation top bar renders for the chat route only; Pull requests, Scheduled,
 Plugins, and Settings keep the frameless drag band. It owns the task title and
 window actions only. Project scope remains in the title tooltip instead of adding
-another visible label. The Composer owns the Agent/Plan/Goal control and the
+another visible label. The Composer shows a fixed Agent context label and the
 combined model × reasoning selection (§11).
 
 ### 2.3 Layout
@@ -522,13 +522,12 @@ visually distinct from list content.
   single-item create menu that runs the same Create project dialog action
 - Click project `+`: activate that project, then select its most recent empty
   session or create a durable empty session bound to its exact path
-- Click the `Sessions` heading message-plus action: clear the workspace, then
-  select the most recent empty temporary session or create a durable empty one
-- Sessions and Projects heading actions reveal together when their toolbar is
-  hovered or keyboard-focused; the controls remain keyboard-reachable while
-  visually hidden at rest
-- Right-click the `Sessions` heading or empty standalone-list chrome: open a
-  single-item create menu that applies the same temporary-group reuse rule
+- The DeckWise sidebar omits the standalone temporary-session section. Temporary
+  sessions remain valid runtime data and searchable history, but are not listed
+  as a primary navigation group.
+- The project navigation heading is presented as **Courses** in English and
+  **课件** in Simplified Chinese; internal project and workspace contracts remain
+  unchanged.
 - Project overflow: open folder, rename, pin/unpin, archive/restore, close
   retained tab. Project activation remains on the directory row rather than
   in its overflow menu. Rename edits the local display name only; open folder
@@ -581,8 +580,8 @@ visually distinct from list content.
 
 ### 3.6 Accessibility
 
-- Projects and Sessions headings have localized names; each disclosure and
-  create action has a scope-specific accessible name
+- The Courses heading has a localized name; each disclosure, sort, and create
+  action has a scope-specific accessible name
 - Under `lang=zh-CN`, section labels keep normal tracking and skip
   `text-transform: uppercase` so two-glyph labels are not letter-spaced apart
 - Session groups use semantic `section` containers
@@ -991,6 +990,23 @@ entirely inside the plugin's isolated page:
   reads and writes go through its host process, which keeps the jail of the one
   folder the view is browsing — never the whole group — refuses credential
   paths, and records writes to its own audit log (ADR 0241, ADR 0263).
+
+### 5.2.3 DeckWise PPT Master surface
+
+DeckWise adds a session-scoped PPT Master workbench and an embedded PPTX editor
+to the existing work panel. The editable SVG project is the sole generation
+source. Initial generation stops at the browser-based SVG preview until the
+user chooses **Generate PPTX**. Once a project has an export, a conversational
+courseware revision follows PPT Master's delivered-project Revision Round:
+the agent changes SVG and its owned metadata, validates it, and publishes a new
+timestamped PPTX without another confirmation.
+
+PPTX-only edits are never reverse-imported into SVG. A later SVG revision
+therefore supersedes them while older timestamped exports remain available as
+history. The workbench compares source SVG and export modification times; if
+SVG is newer, the old editor entry is replaced by **Regenerate PPTX**. While a
+revision turn is active, the old export is not presented as complete or as the
+current editor target.
 
 ### 5.3 States
 
@@ -2432,7 +2448,7 @@ reasoning-level control.
 
 ```text
 +----------------------------------------------------------+
-| [Agent/Plan/Goal] [permission mode]     | [ring %] [model · reasoning ▾] |
+| [Agent] [permission mode]               | [ring %] [model · reasoning ▾] |
 | queued messages (optional; one row per item) | [⏹ Stop / → Send] (one submit slot) |
 | textarea (auto-growing, 1 line → max 7)                         |
 | placeholder: welcome → command/file hint → keyboard hint        |
@@ -2456,17 +2472,11 @@ reasoning-level control.
   layer.
 - Border: border-default top
 - Padding: px-4 py-3 inner textarea
-- Font: text-sm for Agent, Plan, and Goal; mode changes semantics and tool
-  controls, not the typography
-- The Agent/Plan/Goal mode chip reserves one fixed 88px width, sized from the
-  longest built-in label in English and zh-CN ("Agent" / "智能体"). Its label
-  stays single-line and ellipsizes if a future locale exceeds that budget, so
-  switching modes never reflows the adjacent Composer controls. Cycling the
-  chip cross-fades the icon and label in place. While the live turn is
-  `planning`, the chip pulses on its icon (purple) instead of leaving a
-  second status row parked above the composer; a staged mode choice still
-  updates the chip immediately and does not start that pulse until the
-  in-flight turn actually projects `planning`.
+- Font: text-sm for the fixed Agent context and permission controls.
+- The Composer-left Agent label is fixed and non-interactive. It retains the
+  existing 88px geometry so adjacent controls do not move. Plan and Goal runtime
+  contracts remain compatible with historical sessions, but DeckWise does not
+  offer them as Composer choices.
 - The permission chip remains visible in Agent, Plan, and Goal for a stable
   toolbar rhythm. Agent and Plan expose the effective selectable permission;
   Goal displays the localized Auto label as a disabled, non-opening chip while
@@ -2664,8 +2674,7 @@ reasoning-level control.
   an empty list), so changing a level during a turn cannot collapse the submenu
   to Off-only. An active pending Plan or Goal approval still disables these
   controls. Approval actions are the exception while awaiting approval. The
-  Composer-left Agent/Plan/Goal chip is the sole mode
-  control and cycles Agent → Plan → Goal → Agent on click. The Composer-right
+  Composer-left Agent label is fixed and non-interactive. The Composer-right
   model × reasoning chip owns both selections. Palette and Composer slash mode commands use the
   same active-session configuration path; after host confirmation resolves an
   approval, the approval surface is removed rather than remaining as a terminal

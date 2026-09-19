@@ -6,7 +6,7 @@ pub(crate) fn built_in_catalog() -> MarketCatalogFile {
         .unwrap_or_else(|_| {
             dirs::home_dir()
                 .unwrap_or_else(|| PathBuf::from("."))
-                .join(".pi-desktop")
+                .join(".deckwise")
         });
     let package_dir = data_dir.join("plugins/market/packages");
     let hello_path = package_dir.join("demo.hello-0.2.0.piplug");

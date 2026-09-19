@@ -3918,7 +3918,7 @@ export class PluginRuntime {
   private pluginDataDir(pluginId: string): string {
     const root = process.env.PI_DESKTOP_DATA_DIR
       ? resolve(process.env.PI_DESKTOP_DATA_DIR)
-      : join(homedir(), ".pi-desktop");
+      : join(homedir(), ".deckwise");
     return join(root, "plugins", "data", pluginId.replace(/[^a-zA-Z0-9._-]/g, "_"));
   }
 

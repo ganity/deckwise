@@ -10,6 +10,7 @@ import {
   replaceWorkPanelTabState,
   sanitizeWorkPanelTabsState,
   switchWorkPanelContextState,
+  toolWorkPanelTab,
   type WorkPanelContext,
   type WorkPanelTab,
 } from "../../lib/work-panel-tabs";
@@ -136,12 +137,22 @@ export function createWorkPanelSlice({
     const sessionId = state.activeSessionId;
     if (!sessionId) return;
     const context = currentWorkPanelContext(state);
+    const nextContext = context.tabs.length > 0
+      ? { ...context, open: true }
+      : {
+          ...context,
+          open: true,
+          tabs: [toolWorkPanelTab("ppt")],
+          activeTabId: "ppt",
+        };
     set({
       workPanelOpen: true,
       workPanelContexts: {
         ...state.workPanelContexts,
-        [sessionId]: { ...context, open: true },
+        [sessionId]: nextContext,
       },
+      workPanelTabs: nextContext.tabs,
+      activeWorkPanelTabId: nextContext.activeTabId,
     });
   },
 

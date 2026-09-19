@@ -146,6 +146,15 @@ export interface ImportRunResult {
   failed: number;
 }
 
+export type PptEditorState = {
+  status: "opening" | "ready" | "saving" | "saved" | "error" | "closed";
+  path?: string;
+  revision?: number;
+  revisionPath?: string;
+  sha256?: string;
+  message?: string;
+};
+
 declare global {
   interface Window {
     piDesktop?: {
@@ -1045,6 +1054,14 @@ export const api = {
   fsReveal: (path: string) => invoke(IPC.invoke.fsReveal, { path }),
   fsOpen: (path: string) => invoke(IPC.invoke.fsOpen, { path }),
   fsIndex: () => invoke<FsIndexResult>(IPC.invoke.fsIndex),
+  pptEditorOpen: (path: string) =>
+    invoke<PptEditorState>(IPC.invoke.pptEditorOpen, { path }),
+  pptEditorSave: () => invoke<{ ok: boolean }>(IPC.invoke.pptEditorSave),
+  pptEditorClose: () => invoke<{ ok: boolean }>(IPC.invoke.pptEditorClose),
+  pptEditorSetBounds: (bounds: { x: number; y: number; width: number; height: number }) =>
+    invoke<{ ok: boolean }>(IPC.invoke.pptEditorSetBounds, bounds),
+  pptEditorSetVisible: (visible: boolean) =>
+    invoke<{ ok: boolean }>(IPC.invoke.pptEditorSetVisible, { visible }),
   /**
    * Complete a file reference from chat text to a real file (D320 follow-up).
    * The main process owns the root order — project, session scratch,
@@ -1140,6 +1157,12 @@ export const api = {
     if (!window.piDesktop?.on) return () => undefined;
     return window.piDesktop.on(IPC.event.browserPreview, (payload) =>
       listener(payload as { sessionId: string; path?: string; url?: string }),
+    );
+  },
+  onPptEditorState: (listener: (state: PptEditorState) => void) => {
+    if (!window.piDesktop?.on) return () => undefined;
+    return window.piDesktop.on(IPC.event.pptEditorState, (payload) =>
+      listener(payload as PptEditorState),
     );
   },
   onAgentEvent: (listener: (event: AgentEventEnvelope) => void) => {

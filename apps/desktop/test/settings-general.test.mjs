@@ -104,7 +104,7 @@ test("Basics and AI tabs expose their respective app and AI controls", () => {
   assert.doesNotMatch(generalSource, /defaultMode: value/);
   assert.doesNotMatch(generalSource, /enterToSend: !settings\.enterToSend/);
   assert.doesNotMatch(generalSource, /settings\.defaultsTitle/);
-  assert.match(aiSource, /defaultMode: value/);
+  assert.doesNotMatch(aiSource, /defaultMode: value|settings\.modePlan|settings\.modeGoal/);
   assert.match(aiSource, /settings\.defaultsTitle/);
   assert.match(aiSource, /CommandShellRow/);
   assert.match(aiSource, /enterToSend: !settings\.enterToSend/);
@@ -130,15 +130,9 @@ test("Basics and AI tabs expose their respective app and AI controls", () => {
   assert.match(settingsPageSource, /largePasteThreshold/);
   assert.match(settingsPageSource, /saveSettings\(\{ largePasteThreshold: next \}\)/);
   assert.doesNotMatch(settingsPageSource, /commandShellConfigured/);
-  assert.match(
-    aiSource,
-    /defaultPermissionMode: mode as GlobalPermissionMode/,
-  );
-  assert.match(aiSource, /<SettingsMenuSelect\b/);
-  assert.match(aiSource, /"accept-edits"/);
-  // The AI tab keeps the Settings picker control: a native <select> popup is
-  // platform-drawn and cannot carry the shared menu surface or its check mark.
-  assert.doesNotMatch(aiSource, /<select/);
+  assert.doesNotMatch(aiSource, /defaultPermissionMode/);
+  assert.doesNotMatch(aiSource, /settings\.permissionMode/);
+  assert.doesNotMatch(settingsSearchSource, /settings\.permissionMode/);
 });
 
 test("language persists as part of shared app settings", () => {
@@ -300,7 +294,6 @@ test("settings nav icons map each destination to a semantic lucide glyph", () =>
   assert.match(settingsPageSource, /ai: <IconSparkles/);
   assert.doesNotMatch(settingsPageSource, /usage: <IconActivity/);
   assert.match(settingsPageSource, /shortcuts: <IconKeyboard/);
-  assert.match(settingsPageSource, /instructions: <IconFileText/);
   assert.match(settingsPageSource, /agent: <IconBot/);
   assert.match(settingsPageSource, /import: <IconDownload/);
   assert.match(settingsPageSource, /projects: <IconArchive/);
@@ -308,6 +301,7 @@ test("settings nav icons map each destination to a semantic lucide glyph", () =>
   assert.doesNotMatch(settingsPageSource, /general: <IconSettings/);
   assert.doesNotMatch(settingsPageSource, /agent: <IconConfig/);
   assert.doesNotMatch(settingsPageSource, /import: <IconSnapshot/);
+  assert.doesNotMatch(settingsPageSource, /instructions:|skills:|mcp:|subagents:/);
 });
 
 test("settings nav keeps a flat searchable index with titled visual groups", () => {
@@ -336,7 +330,6 @@ test("settings nav keeps a flat searchable index with titled visual groups", () 
     "general",
     "ai",
     "shortcuts",
-    "instructions",
     "agent",
     "import",
     "projects",
@@ -371,11 +364,7 @@ test("settings rail uses short parallel labels and descriptive page titles", () 
     "settings.nav.general",
     "settings.nav.ai",
     "settings.nav.shortcuts",
-    "settings.nav.instructions",
     "settings.nav.models",
-    "settings.nav.skills",
-    "settings.nav.mcp",
-    "settings.nav.subagents",
     "settings.nav.import",
     "settings.nav.projects",
     "settings.nav.info",

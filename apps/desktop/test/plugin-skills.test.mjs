@@ -105,8 +105,28 @@ test("the built-in plugin skill only activates for plugin workspaces", () => {
   assert.match(builtinSrc, /isPluginWorkspace/);
   assert.match(builtinSrc, /schemaVersion.*number/s);
   assert.match(builtinSrc, /pluginPaths\.some/);
-  assert.match(builtinSrc, /if \(!isPluginWorkspace\(input\.workspacePath, input\.pluginPaths\)\) return \[\]/);
+  assert.match(builtinSrc, /if \(!isPluginWorkspace\(input\.workspacePath, input\.pluginPaths\)\) return skills/);
   assert.match(mainSrc, /builtinSkills\(\{/);
+});
+
+test("PPT Master is a host-owned skill available in every DeckWise workspace", () => {
+  assert.match(builtinSrc, /PPT_MASTER_SKILL_ID = "deckwise\/ppt-master"/);
+  assert.match(builtinSrc, /DECKWISE_PPT_MASTER_SKILL_ROOT/);
+  assert.match(builtinSrc, /skills", "ppt-master"/);
+  assert.match(builtinSrc, /withPptMasterRuntimeContext/);
+  assert.match(builtinSrc, /scripts\/attribution_guard\.py/);
+  assert.match(builtinSrc, /workflows\/routing\.md/);
+  assert.match(builtinSrc, /DeckWise Workspace Boundary/);
+  assert.match(builtinSrc, /project_manager\.py init/);
+  assert.match(builtinSrc, /--dir/);
+  assert.match(builtinSrc, /Never omit.*--dir/);
+  assert.ok(
+    packageJson.build.extraResources.some(
+      (entry) =>
+        entry.from === "../../../ppt-gen/vendors/ppt-master/skills/ppt-master" &&
+        entry.to === "skills/ppt-master",
+    ),
+  );
 });
 
 test("the built-in skill body loads through the same Skill tool", () => {

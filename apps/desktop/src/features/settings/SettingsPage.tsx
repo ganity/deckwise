@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { useTranslation } from "react-i18next";
 import type {
   AppSettings,
-  GlobalPermissionMode,
   PluginSettingsDestinationMeta,
   ShortcutPlatform,
 } from "@pi-desktop/shared";
@@ -19,11 +18,9 @@ import {
   IconBot,
   IconChevronLeft,
   IconDownload,
-  IconFileText,
   IconInfo,
   IconKeyboard,
   IconSearch,
-  IconServer,
   IconSliders,
   IconSparkles,
 } from "../../components/icons";
@@ -34,13 +31,9 @@ import { FontFamilyRow } from "../../components/settings/FontFamilyRow";
 import { ThinkingDisplayModeRow } from "../../components/settings/ThinkingDisplayModeRow";
 import { FontSizeRow } from "../../components/settings/FontSizeRow";
 import { LanguageRow } from "../../components/settings/LanguageRow";
-import { SettingsMenuSelect } from "../../components/settings/SettingsMenuSelect";
 import { ThemeRow } from "../../components/settings/ThemeRow";
 import { NetworkProxySection } from "../../components/settings/NetworkProxySection";
 import { ProjectsPage } from "../../pages/ProjectsPage";
-import { AgentSkillsPage } from "../../components/settings/AgentSkillsPage";
-import { AgentMcpPage } from "../../components/settings/AgentMcpPage";
-import { AgentSubagentsPage } from "../../components/settings/AgentSubagentsPage";
 import {
   CommandShellRow,
   ContextUsageDisplayRow,
@@ -50,7 +43,6 @@ import {
   SettingsRow,
 } from "./primitives";
 import {
-  AgentInstructionsSection,
   ImportSection,
   UpdatesRow,
 } from "./agent-sections";
@@ -177,11 +169,7 @@ export function SettingsPage() {
       general: <IconSliders size={14} />,
       ai: <IconSparkles size={14} />,
       shortcuts: <IconKeyboard size={14} />,
-      instructions: <IconFileText size={14} />,
       agent: <IconBot size={14} />,
-      skills: <IconBookOpen size={14} />,
-      mcp: <IconServer size={14} />,
-      subagents: <IconBot size={14} />,
       import: <IconDownload size={14} />,
       projects: <IconArchive size={14} />,
       about: <IconInfo size={14} />,
@@ -343,61 +331,9 @@ export function SettingsPage() {
 
           {tab === "ai" && settings && (
             <div className="settings-stack">
-              <SettingsCard title={t("settings.permissions")}>
-                <SettingsRow
-                  title={t("settings.permissionMode")}
-                  description={t("settings.permissionModeDesc")}
-                >
-                  <SettingsMenuSelect
-                    className="settings-permission-select"
-                    label={t("settings.permissionMode")}
-                    value={settings.defaultPermissionMode ?? "ask"}
-                    onChange={(mode) =>
-                      void saveSettings({
-                        defaultPermissionMode: mode as GlobalPermissionMode,
-                      })
-                    }
-                    options={[
-                      { id: "ask", label: t("settings.permissionModeAsk") },
-                      {
-                        id: "accept-edits",
-                        label: t("settings.permissionModeAcceptEdits"),
-                      },
-                      { id: "auto", label: t("settings.permissionModeAuto") },
-                    ]}
-                  />
-                </SettingsRow>
-              </SettingsCard>
-
               <VoiceSettingsCard settings={settings} saveSettings={saveSettings} />
 
               <SettingsCard title={t("settings.defaultsTitle")}>
-                <SettingsRow title={t("settings.mode")} description={t("settings.modeDesc")}>
-                  <div
-                    className="settings-segment"
-                    role="group"
-                    aria-label={t("settings.mode")}
-                  >
-                    {([
-                      ["agent", "settings.modeAgent"],
-                      ["plan", "settings.modePlan"],
-                      ["goal", "settings.modeGoal"],
-                    ] as const).map(([value, labelKey]) => (
-                      <button
-                        key={value}
-                        type="button"
-                        className={cx(
-                          "settings-segment-item",
-                          settings.defaultMode === value && "active",
-                        )}
-                        aria-pressed={settings.defaultMode === value}
-                        onClick={() => void saveSettings({ defaultMode: value })}
-                      >
-                        {t(labelKey)}
-                      </button>
-                    ))}
-                  </div>
-                </SettingsRow>
                 <CommandShellRow settings={settings} saveSettings={saveSettings} />
                 <LinkOpenTargetRow settings={settings} saveSettings={saveSettings} />
                 <ThinkingDisplayModeRow settings={settings} saveSettings={saveSettings} />
@@ -441,14 +377,6 @@ export function SettingsPage() {
           )}
 
           {tab === "agent" && <ModelConfigPage />}
-
-          {tab === "skills" && <AgentSkillsPage />}
-
-          {tab === "mcp" && <AgentMcpPage />}
-
-          {tab === "subagents" && <AgentSubagentsPage />}
-
-          {tab === "instructions" && <AgentInstructionsSection />}
 
           {tab === "import" && <ImportSection />}
 

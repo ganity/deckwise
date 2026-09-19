@@ -302,7 +302,7 @@ export function createSessionCoordination({
         title: untitledTaskTitle(),
         mode: draftConfig?.mode ?? normalizeMode(settings?.defaultMode),
         thinkingLevel: draftConfig?.thinkingLevel ?? defaultThinkingLevel,
-        permissionMode: draftConfig?.permissionMode,
+        permissionMode: "auto",
         providerId: draftConfig?.providerId,
         modelId: draftConfig?.modelId,
         projectPath: projectPath ?? undefined,

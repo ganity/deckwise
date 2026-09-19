@@ -9,11 +9,7 @@ export type SettingsTabId =
   | "general"
   | "ai"
   | "shortcuts"
-  | "instructions"
   | "agent"
-  | "skills"
-  | "mcp"
-  | "subagents"
   | "import"
   | "projects"
   | "about";
@@ -73,16 +69,10 @@ export const SETTINGS_NAV: SettingsNavEntry[] = [
     titleKey: "settings.ai",
     group: "preferences",
     keywordKeys: [
-      "settings.permissions",
-      "settings.permissionMode",
-      "settings.permissionModeAsk",
-      "settings.permissionModeAcceptEdits",
-      "settings.permissionModeAuto",
       "settings.defaultsTitle",
       "settings.speechTitle",
       "settings.speechTranscribe",
       "settings.speechSynthesize",
-      "settings.mode",
       "settings.commandShell",
       "settings.linkOpenTarget",
       "settings.enterToSend",
@@ -109,16 +99,6 @@ export const SETTINGS_NAV: SettingsNavEntry[] = [
     ],
   },
   {
-    id: "instructions",
-    labelKey: "settings.nav.instructions",
-    titleKey: "settings.instructions",
-    group: "agent",
-    keywordKeys: [
-      "settings.instructionsGlobal",
-      "settings.instructionsPath",
-    ],
-  },
-  {
     id: "agent",
     labelKey: "settings.nav.models",
     titleKey: "settings.configuration",
@@ -130,67 +110,6 @@ export const SETTINGS_NAV: SettingsNavEntry[] = [
       "settings.apiKey",
       "settings.baseUrl",
       "settings.apiStyle",
-    ],
-  },
-  {
-    id: "skills",
-    labelKey: "settings.nav.skills",
-    titleKey: "settings.skills",
-    group: "agent",
-    keywordKeys: [
-      "settings.skillsGlobalPath",
-      "settings.skillsProjectPath",
-      "settings.globalScopeDescription",
-      "settings.projectScopeDescription",
-      "settings.importSkill",
-      "settings.capabilityFilterGlobal",
-      "settings.capabilityFilterProject",
-      "extensions.skills.add",
-      "extensions.skills.edit",
-      "extensions.skills.remove",
-      "extensions.skills.reveal",
-    ],
-  },
-  {
-    id: "mcp",
-    labelKey: "settings.nav.mcp",
-    titleKey: "settings.mcp",
-    group: "agent",
-    keywordKeys: [
-      "settings.mcpGlobalPath",
-      "settings.mcpProjectPath",
-      "settings.globalScopeDescription",
-      "settings.projectScopeDescription",
-      "settings.addMcp",
-      "settings.editMcp",
-      "settings.transport",
-      "settings.capabilityFilterGlobal",
-      "settings.capabilityFilterProject",
-      "extensions.mcp.test",
-      "extensions.mcp.remove",
-    ],
-  },
-  {
-    id: "subagents",
-    labelKey: "settings.nav.subagents",
-    titleKey: "settings.subagents",
-    group: "agent",
-    keywordKeys: [
-      "settings.subagentsGlobalPath",
-      "settings.subagentsOnlyGlobal",
-      "settings.globalScopeDescription",
-      "extensions.subagents.add",
-      "extensions.subagents.edit",
-      "extensions.subagents.remove",
-      "extensions.subagents.reveal",
-      "extensions.subagents.copy",
-      "extensions.subagents.sourceBuiltin",
-      "extensions.subagents.presetExplorerName",
-      "extensions.subagents.presetReviewerName",
-      "extensions.subagents.presetTestRunnerName",
-      "extensions.subagents.presetFixerName",
-      "extensions.subagents.presetUiDesignerName",
-      "extensions.subagents.tools",
     ],
   },
   {

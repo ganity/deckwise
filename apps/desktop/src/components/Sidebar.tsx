@@ -271,7 +271,7 @@ export function Sidebar({
   // Which row menu item is armed for its second, confirming click.
   const { armed: armedDelete, setArmed: setArmedDelete } = useArmedDelete();
   const [projectMenu, setProjectMenu] = useState<string | null>(null);
-  const [sectionMenu, setSectionMenu] = useState<"sessions" | "projects" | null>(null);
+  const [sectionMenu, setSectionMenu] = useState<"projects" | null>(null);
   const [menuPosition, setMenuPosition] = useState<{
     top: number;
     left: number;
@@ -488,13 +488,13 @@ export function Sidebar({
   );
 
   const openSectionMenu = useCallback(
-    (section: "sessions" | "projects", x: number, y: number) => {
+    (x: number, y: number) => {
       menuTriggerRef.current = null;
       setSortOpen(false);
       setSessionMenu(null);
       setProjectMenu(null);
       placeMenuAtPoint(x, y);
-      setSectionMenu(section);
+      setSectionMenu("projects");
     },
     [placeMenuAtPoint],
   );
@@ -925,10 +925,6 @@ export function Sidebar({
       .filter((session) => !normalizeProjectPath(session.projectPath))
       .sort(compareSessions),
     [filtered, compareSessions],
-  );
-  const temporarySessionHistory = useMemo(
-    () => temporarySessions.filter((session) => !pinnedSessionIds.has(session.id)),
-    [temporarySessions, pinnedSessionIds],
   );
   const renderSessionStatus = (status: SidebarSessionStatus) => {
     const labelKey =
@@ -1808,12 +1804,6 @@ export function Sidebar({
       return null;
     }
     if (sectionMenu) {
-      const isSessions = sectionMenu === "sessions";
-      const action = isSessions ? "new-standalone-session" : "new-project";
-      const label = isSessions
-        ? t("nav.newTemporarySession")
-        : t("nav.newProject");
-      const Icon = isSessions ? IconNewSession : IconNewProject;
       return createPortal(
         <div
           className="sidebar-row-menu sidebar-floating-menu sidebar-section-menu"
@@ -1829,15 +1819,14 @@ export function Sidebar({
             ref={menuFirstItemRef}
             type="button"
             role="menuitem"
-            data-action={action}
+            data-action="new-project"
             onClick={() => {
               closeMenus(false);
-              if (isSessions) void createSession({ projectPath: null });
-              else void openProjectPicker();
+              void openProjectPicker();
             }}
           >
-            <Icon size={14} />
-            <span>{label}</span>
+            <IconNewProject size={14} />
+            <span>{t("nav.newProject")}</span>
           </button>
         </div>,
         document.body,
@@ -2117,108 +2106,56 @@ export function Sidebar({
           </section>
         ) : null}
 
-        <section
-          className="sidebar-standalone-sessions"
-          aria-labelledby="sidebar-standalone-sessions-label"
-          data-sidebar-session-section="temporary"
-        >
-          <div
-            className="sidebar-list-toolbar sidebar-list-toolbar-secondary"
-            data-sidebar-section="sessions"
-            onContextMenu={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              openSectionMenu("sessions", event.clientX, event.clientY);
-            }}
-            onPointerDown={(event) => {
-              // Keep native drag/text selection from eating the secondary click path.
-              if (event.button === 2) event.preventDefault();
-            }}
-          >
-            <span id="sidebar-standalone-sessions-label" className="sidebar-list-label">
-              {t("nav.sessions", { defaultValue: "Sessions" })}
-            </span>
-            <div className="sidebar-toolbar-actions">
-              <div className="sidebar-menu-wrap">
-                <TooltipButton
-                  type="button"
-                  className={`sidebar-toolbar-button ${sortOpen ? "active" : ""}`}
-                  data-action="session-sort"
-                  ariaLabel={t("nav.sortSessions", { defaultValue: "Sort sessions" })}
-                  tooltip={t("nav.sortSessions", { defaultValue: "Sort sessions" })}
-                  aria-haspopup="menu"
-                  aria-expanded={sortOpen}
-                  onClick={(event) => {
-                    if (sortOpen) {
-                      closeMenus();
-                      return;
-                    }
-                    placeMenu(event);
-                    menuTriggerRef.current = event.currentTarget;
-                    setSessionMenu(null);
-                    setProjectMenu(null);
-                    setSectionMenu(null);
-                    setSortOpen(true);
-                  }}
-                >
-                  <IconArrowUpDown size={14} />
-                </TooltipButton>
-              </div>
-              <TooltipButton
-                type="button"
-                className="sidebar-toolbar-button"
-                data-action="new-standalone-session"
-                tooltip={t("nav.newTemporarySession")}
-                ariaLabel={t("nav.newTemporarySession")}
-                onClick={() => void createSession({ projectPath: null })}
-              >
-                <IconNewSession size={14} />
-              </TooltipButton>
-            </div>
-          </div>
-          <div
-            className="sidebar-session-group-body standalone"
-            onScroll={() => {
-              if (sessionMenu || projectMenu || sectionMenu || sortOpen) closeMenus(false);
-            }}
-            onContextMenu={(event) => {
-              if ((event.target as Element).closest?.("[data-sidebar-session-row]")) return;
-              event.preventDefault();
-              event.stopPropagation();
-              openSectionMenu("sessions", event.clientX, event.clientY);
-            }}
-          >
-            {temporarySessionHistory.length > 0 ? (
-              renderSessionRows(temporarySessionHistory, { temporary: true })
-            ) : temporarySessions.length === 0 ? (
-              <div className="sidebar-session-empty">{t("nav.noTemporarySessions")}</div>
-            ) : null}
-          </div>
-        </section>
-
         <div
           className="sidebar-list-toolbar"
           data-sidebar-section="projects"
           onContextMenu={(event) => {
             event.preventDefault();
             event.stopPropagation();
-            openSectionMenu("projects", event.clientX, event.clientY);
+            openSectionMenu(event.clientX, event.clientY);
           }}
           onPointerDown={(event) => {
             if (event.button === 2) event.preventDefault();
           }}
         >
           <span className="sidebar-list-label">{t("nav.projects")}</span>
-          <TooltipButton
-            type="button"
-            className="sidebar-toolbar-button"
-            data-action="new-project"
-            tooltip={t("nav.newProject")}
-            ariaLabel={t("nav.newProject")}
-            onClick={() => void openProjectPicker()}
-          >
-            <IconNewProject size={14} />
-          </TooltipButton>
+          <div className="sidebar-toolbar-actions">
+            <div className="sidebar-menu-wrap">
+              <TooltipButton
+                type="button"
+                className={`sidebar-toolbar-button ${sortOpen ? "active" : ""}`}
+                data-action="session-sort"
+                ariaLabel={t("nav.sortSessions", { defaultValue: "Sort sessions" })}
+                tooltip={t("nav.sortSessions", { defaultValue: "Sort sessions" })}
+                aria-haspopup="menu"
+                aria-expanded={sortOpen}
+                onClick={(event) => {
+                  if (sortOpen) {
+                    closeMenus();
+                    return;
+                  }
+                  placeMenu(event);
+                  menuTriggerRef.current = event.currentTarget;
+                  setSessionMenu(null);
+                  setProjectMenu(null);
+                  setSectionMenu(null);
+                  setSortOpen(true);
+                }}
+              >
+                <IconArrowUpDown size={14} />
+              </TooltipButton>
+            </div>
+            <TooltipButton
+              type="button"
+              className="sidebar-toolbar-button"
+              data-action="new-project"
+              tooltip={t("nav.newProject")}
+              ariaLabel={t("nav.newProject")}
+              onClick={() => void openProjectPicker()}
+            >
+              <IconNewProject size={14} />
+            </TooltipButton>
+          </div>
         </div>
 
         <div
@@ -2236,7 +2173,7 @@ export function Sidebar({
             }
             event.preventDefault();
             event.stopPropagation();
-            openSectionMenu("projects", event.clientX, event.clientY);
+            openSectionMenu(event.clientX, event.clientY);
           }}
           onDragEnter={(event) => {
             if (hasComposerFileDrag(event.dataTransfer)) event.preventDefault();

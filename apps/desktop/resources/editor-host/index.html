@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>DeckWise Editor</title>
+    <style>
+      html, body, iframe { width: 100%; height: 100%; margin: 0; border: 0; overflow: hidden; }
+      body { background: #1f2329; }
+    </style>
+  </head>
+  <body>
+    <iframe id="editor" title="演示文稿编辑器" allow="clipboard-read; clipboard-write"></iframe>
+    <script>
+      (() => {
+        const params = new URLSearchParams(location.search);
+        const editorUrl = params.get("editor");
+        const expectedOrigin = params.get("editorOrigin");
+        const editor = document.getElementById("editor");
+        const bridge = window.deckwiseEditorHost;
+        if (!editorUrl || !expectedOrigin || !bridge) {
+          bridge?.sendEvent({ type: "error", message: "Invalid editor host configuration" });
+          return;
+        }
+
+        const pending = [];
+        let ready = false;
+        const post = (command) => {
+          if (!ready || !editor.contentWindow) {
+            pending.push(command);
+            return;
+          }
+          editor.contentWindow.postMessage(command, expectedOrigin);
+        };
+        const flush = () => {
+          ready = true;
+          while (pending.length) post(pending.shift());
+        };
+
+        editor.addEventListener("load", flush);
+        editor.src = `${editorUrl.replace(/\/$/, "")}/editor?embed=1&deckwise=1&embedOrigin=${encodeURIComponent(location.origin)}`;
+        bridge.onCommand((command) => {
+          if (!command || typeof command.type !== "string") return;
+          if (command.type === "document:save" && command.payload?.targetExt !== "PPTX") return;
+          post(command);
+        });
+        window.addEventListener("message", async (event) => {
+          if (event.origin !== expectedOrigin || event.source !== editor.contentWindow) return;
+          const message = event.data || {};
+          if (message.type === "document:ready") flush();
+          if (message.type === "document:save-requested") {
+            bridge.sendEvent({ type: "save-requested" });
+            return;
+          }
+          if (message.type !== "document:saved") {
+            bridge.sendEvent({ type: "message", message });
+            return;
+          }
+          const file = message.payload?.file;
+          if (!(file instanceof Blob)) return;
+          bridge.sendEvent({
+            type: "saved",
+            fileName: message.payload?.fileName,
+            bytes: await file.arrayBuffer(),
+          });
+        });
+      })();
+    </script>
+  </body>
+</html>

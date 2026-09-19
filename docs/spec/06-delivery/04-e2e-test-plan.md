@@ -8,6 +8,27 @@
 
 ## 1. Goals
 
+### E2E-DECKWISE-PPT-SVG-SOURCE: SVG revisions publish a new PPTX
+
+- **Preconditions:** A DeckWise PPT Master session has editable SVG source and
+  one timestamped PPTX export.
+- **Steps:** Request a courseware change in the conversation; while it runs,
+  inspect the PPT Master workbench; after completion, open the editor. Then
+  modify an SVG in the browser preview and return to PPT Master.
+- **Expected:** The conversational change uses the delivered-project Revision
+  Round, validates SVG, and creates a newer timestamped PPTX without asking for
+  export confirmation. During the turn the workbench reports regeneration
+  instead of completion. The editor opens the newest export. A direct SVG
+  change marks the existing export stale and offers **Regenerate PPTX**.
+  PPTX-only edits are not merged back into SVG.
+- **Specs linked:** `04-ux/08-component-spec.md` §5.2.3.
+- **Acceptance criterion:** D (agent execution), E (work panel).
+- **Milestone:** DeckWise product increment.
+- **Status:** Partially automated by
+  `apps/desktop/test/ppt-master-flow.test.mjs` and
+  `apps/desktop/test/fs-panel-guard.test.mjs`; live provider/browser/editor
+  journey remains manual.
+
 ### E2E-PLUGIN-appearance-extension-lifecycle
 
 - **Preconditions:** A fixture plugin declares `ui.theme`, `ui.settings`, one
@@ -1415,7 +1436,7 @@ identify the platform validation still needed.
   same 120px native-control band at the right. On the chat route the
   conversation top bar renders with its title and actions only; it has no model
   or Agent|Plan|Goal mode control. The
-  left-of-input Composer chip owns the active session's Agent/Plan/Goal switch,
+  left-of-input Composer shows a fixed Agent context label,
   and the Composer-right combined chip owns model and reasoning selection. The
   task title is the only visible title text and is capped at 10 characters
   with an ellipsis; project scope is available through its tooltip. The sidebar
@@ -1454,18 +1475,15 @@ identify the platform validation still needed.
 - **Status**: Source-level regression covered
   (`apps/desktop/test/plugins-page-style.test.mjs`); full UI scenario Draft
 
-#### E2E-088: Composer Agent/Plan/Goal chip updates the session
+#### E2E-088: Composer exposes a fixed Agent context
 
 - **Preconditions**: Chat route active; a session selected.
-- **Steps**: 1) Click the left-of-input Composer mode chip to enter Plan. 2)
-  Send a prompt that would normally require Write/Edit and observe behavior. 3)
-  Click the same Composer chip to return to Agent. 4) Begin a turn and try to
-  toggle mode mid-run or while a pending Plan approval is visible.
-- **Expected**: The Composer chip updates the active session `mode` (Plan and
-  Goal hard-deny Write/Edit and plugin tools while Bash follows the selected
-  permission mode; Agent allows its normal tools per permission settings). The
-  chip is disabled while a turn or active pending approval exists and re-enables
-  after the session returns idle/planning. No top-bar mode control is rendered.
+- **Steps**: 1) Inspect the left side of the Composer. 2) Hover and click the
+  Agent label. 3) Begin and complete a normal agent turn.
+- **Expected**: The Composer shows Agent as a non-interactive context label and
+  offers no Plan or Goal cycle. Clicking it changes neither session state nor
+  layout. Historical Plan/Goal sessions remain readable, and no top-bar mode
+  control is rendered.
 - **Specs linked**: `04-ux/08-component-spec.md` (§2, §11),
   `03-runtime/03-tools-and-permissions.md` (§10),
   `03-runtime/04-data-storage.md` (§8)
@@ -2906,18 +2924,18 @@ identify the platform validation still needed.
 
 - **Preconditions**: Two retained projects contain conversations with distinct
   titles and created/updated timestamps; archived view is initially disabled.
-- **Steps**: 1) Inspect the Sessions and Projects heading actions at rest. 2)
-  Hover each heading and keyboard-focus each action to confirm the controls
-  reveal without moving the labels. 3) Inspect the `Sessions` toolbar and verify
-  that Sort appears before New Chat. 4) Open Sort and inspect its placement,
+- **Steps**: 1) Inspect the Courses heading actions at rest. 2)
+  Hover the heading and keyboard-focus each action to confirm the controls
+  reveal without moving the label. 3) Verify that Sort appears before New
+  course. 4) Open Sort and inspect its placement,
   then select Recently updated, Created date, Oldest first, and Name in turn.
   5) Pin one project and one conversation. 6) Archive another conversation
   and project. 7) Enable Show archived and restore both. 8) Restart the app.
   9) Delete a disposable conversation through the distinct Delete action.
-- **Expected**: Section create and sort controls are visually quiet at rest and
+- **Expected**: Course create and sort controls are visually quiet at rest and
   reveal on toolbar hover or keyboard focus; project `+` and overflow actions
-  follow the same rule without shifting labels. Sort precedes New Chat in the
-  Sessions toolbar; the sort menu remains content-sized, opens to the trigger's
+  follow the same rule without shifting labels. Sort precedes New course in the
+  Courses toolbar; the sort menu remains content-sized, opens to the trigger's
   right without flipping left, and
   session/project/section body-level menus use the same right-side rule with a
   narrow-viewport width cap. Pinned rows remain ahead
@@ -5740,8 +5758,8 @@ identify the platform validation still needed.
   zh-CN. 7) Search visible commands for the removed Chat mode and
   request-changes controls. Host/app restart recovery is exercised separately
   by E2E-108 and E2E-109.
-- **Expected**: Agent is the default; the left-of-input Composer chip is the
-  sole active-session Agent/Plan/Goal control; Plan and Goal show
+- **Expected**: Agent is the default; the left-of-input Composer shows a fixed
+  Agent context label; historical Plan and Goal sessions still show
   Ask/Accept edits/Auto, the submitted title, an artifact opener,
   remembered approval mode, approve/reject only, shell catalog/fallback status,
   and localized failed-closed states. No
@@ -7704,17 +7722,18 @@ This test plan spec is accepted when:
 ### US-UI-04 Composer without workspace context
 - With a git workspace open, composer does not show project, Local, or branch
   labels above the prompt surface.
-- Operating-mode selector switches between Agent, Plan, and Goal; both contract
-  modes keep the permission-mode chip and explain their Bash tradeoff.
+- The Composer operating context is fixed to Agent; historical Plan and Goal
+  sessions keep their permission and approval compatibility.
 
 ### US-UI-05 Locale chrome
-- On a zh-CN system locale, sidebar labels render in Chinese (项目 / 临时会话),
+- On a zh-CN system locale, the sidebar course label renders as 课件 and no
+  临时会话 section is shown,
   without 拉取请求 or 已安排 entries. The footer plug-shaped Plugins icon
   exposes the localized accessible name 插件.
 - Empty-thread hero and supporting line are localized Chinese copy; project
   name remains a dotted-underline action when a workspace is open.
-- Composer omits the 本地 workspace label and shows Agent/Plan/Goal plus the
-  active model ID; both locales expose the Plan and Goal approval copy.
+- Composer omits the 本地 workspace label and shows a fixed Agent context plus
+  the active model ID; both locales retain historical Plan and Goal approval copy.
 
 ### US-UI-06 Session auto-title
 - Create a new task and send a first prompt such as "同步代码".
@@ -8149,18 +8168,14 @@ This test plan spec is accepted when:
 
 ### US-UI-57 Multi-project sidebar groups
 - Open projects A and B without closing either.
-- Expect a `Sessions` heading above `Projects`, containing path-less
-  conversations plus new-session and sort actions. With more than five
-  standalone conversations, expect a five-row-high list that scrolls to every
-  remaining row without growing further.
-- Right-click the `Sessions` heading or empty standalone list chrome and expect
-  a one-item create menu that creates/reuses a path-less temporary session.
-- Expect the following `Projects` heading to retain its new-project folder
+- Expect no standalone temporary-session heading or temporary-session rows.
+  Temporary sessions remain searchable but are not primary sidebar navigation.
+- Expect the `Courses` heading to retain its new-course folder
   action, one path-keyed group per retained project, and an active-state marker
   on exactly one group. Its list consumes the remaining height and scrolls
   independently. Adjacent project groups read as a compact continuous tree
   without detached card spacing.
-- Right-click the `Projects` heading or empty project-list chrome and expect a
+- Right-click the `Courses` heading or empty course-list chrome and expect a
   one-item create menu that opens the same project picker as the folder-plus
   action.
 - Expect project and session lists to scroll inside the sidebar body without
@@ -8517,15 +8532,12 @@ This test plan spec is accepted when:
 - **Milestone**: M5
 - **Status**: Partially automated (radius token and shared-control source test)
 
-### US-UI-73 Composer mode selector has stable width
+### US-UI-73 Composer Agent context has stable width
 - Open the empty home and a docked thread in both English and zh-CN.
-- Switch the Composer mode chip through Agent/Plan/Goal several times.
-- Expect the mode chip to keep one fixed width sized for the longest built-in
+- Expect the fixed Agent label to keep one width sized for the built-in
   label (English "Agent" / zh-CN "智能体"); the adjacent Thinking and
   permission controls, send button, and composer shell do not move or resize.
-- In Goal, expect the permission chip to remain visible with the same geometry,
-  show Full auto / 全自动, and stay disabled without opening a permission menu.
-  The Plan/Goal approval card remains the separate execution-policy control.
+- Clicking the label does nothing and opens no mode menu.
 - **Specs linked**: `04-ux/08-component-spec.md` §11.3
 - **Milestone**: M5
 - **Status**: Partially automated (renderer style/source contract)

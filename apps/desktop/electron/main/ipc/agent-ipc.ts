@@ -13,6 +13,7 @@ import type { Logger } from "../logger";
 import type { PersistenceOutbox } from "../persistence-outbox";
 import type { ComposerCommandService } from "./composer-ipc";
 import type { IpcRegistrar } from "./types";
+import { PPT_MASTER_SKILL_ID } from "../builtin-skills";
 
 export type AgentIpcDependencies = {
   registrar: IpcRegistrar;
@@ -54,6 +55,19 @@ function rejectNativeAgentOperation(sessionId: string): void {
   if (sessionId.startsWith("native-pi:")) {
     throw Object.assign(new Error("Operation is unsupported for native Pi sessions"), { errorCode: "NATIVE_PI_UNSUPPORTED" });
   }
+}
+
+function deckWiseModelPrompt(content: string): string {
+  return [
+    "DeckWise turn policy:",
+    "- This product only supports creating, revising, inspecting, or exporting PPTX courseware.",
+    "- If this request is outside that scope, do not call tools or answer it normally; briefly state the product boundary and ask for a courseware topic or source material.",
+    `- For a supported request, first call the \`Skill\` tool with id ${JSON.stringify(PPT_MASTER_SKILL_ID)} and follow the loaded instructions.`,
+    "- Infer the lifecycle from workspace artifacts: before the first export, stop at the editable SVG preview unless this is the host's explicit PPTX export request; after an export exists, revise the SVG source and create a new PPTX version.",
+    "",
+    "User request:",
+    content,
+  ].join("\n");
 }
 
 /** Register prompt, agent lifecycle, queue, approval and plan channels. */
@@ -260,7 +274,7 @@ export function registerAgentIpc({
       setNotificationViewingSessionId(req.sessionId);
       return sidecar.call("agent.prompt", {
         sessionId: req.sessionId,
-        content: req.content,
+        content: deckWiseModelPrompt(req.content),
         userMessageId: req.messageId,
       });
     }
@@ -457,9 +471,8 @@ export function registerAgentIpc({
       });
       throw error;
     }
-    const modelContent = appendPromptFallbackPaths(
-      promptContent,
-      preparedAttachments,
+    const modelContent = deckWiseModelPrompt(
+      appendPromptFallbackPaths(promptContent, preparedAttachments),
     );
 
     // Persist user message

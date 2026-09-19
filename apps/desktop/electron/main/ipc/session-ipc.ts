@@ -142,22 +142,18 @@ export function registerSessionIpc({
   });
   handle(IPC.invoke.sessionList, async () => {
     if (!host) throw new Error("host unavailable");
-    const [result, native, { providers, defaults }] = await Promise.all([
+    const [result, { providers, defaults }] = await Promise.all([
       host.call<{ sessions: RuntimeSession[] }>("session.list"),
-      sidecar
-        ? sidecar.call<{ sessions: RuntimeSession[] }>("native.session.list").catch(() => ({ sessions: [] }))
-        : Promise.resolve({ sessions: [] }),
       sessionCapabilityContext(),
     ]);
     return {
       ...result,
-      sessions: [
-        ...result.sessions.map((session) => ({
+      sessions: result.sessions
+        .map((session) => ({
           ...enrichSession(session, providers, defaults),
           source: "desktop",
-        })),
-        ...native.sessions,
-      ].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))),
+        }))
+        .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))),
     };
   });
   handle(IPC.invoke.sessionCreate, async (input = {}) => {

@@ -215,13 +215,22 @@
   white-space: nowrap;
 }
 
-/* Keep the Agent/Plan/Goal control stable while its localized label changes. */
+/* DeckWise keeps Agent as a fixed operating context in the Composer. */
 .composer-mode-chip {
   width: 88px;
   min-width: 88px;
   max-width: 88px;
   flex: 0 0 88px;
   justify-content: flex-start;
+}
+
+.composer-mode-static {
+  cursor: default;
+}
+
+.composer-mode-static:hover {
+  background: transparent !important;
+  color: var(--ds-text-secondary) !important;
 }
 
 .composer-mode-chip-label {
@@ -251,13 +260,7 @@
   color: var(--ds-text-primary) !important;
 }
 
-/* Goal keeps the same chip geometry while presenting a non-editable Auto state. */
-.composer-permission .mode-chip:disabled {
-  cursor: default;
-  opacity: 1;
-}
-
-.composer-permission .mode-chip:disabled:hover {
+.composer-permission-static:hover {
   background: transparent !important;
   color: var(--ds-text-secondary) !important;
 }

@@ -60,7 +60,7 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or_else(|_| {
             dirs::home_dir()
                 .unwrap_or_else(|| std::path::PathBuf::from("."))
-                .join(".pi-desktop")
+                .join(".deckwise")
         });
 
     std::fs::create_dir_all(&data_dir)?;

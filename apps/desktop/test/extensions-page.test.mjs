@@ -141,10 +141,8 @@ test("the client hides development-only demo plugins from marketplace results", 
   assert.match(pageSrc, /setMarket\(\(res\.plugins \?\? \[\]\)\.filter\(isClientVisibleMarketPlugin\)\)/);
 });
 
-test("Settings exposes three independent Agent capability destinations", () => {
-  assert.match(settingsPageSrc, /tab === "skills" && <AgentSkillsPage \/>/);
-  assert.match(settingsPageSrc, /tab === "mcp" && <AgentMcpPage \/>/);
-  assert.match(settingsPageSrc, /tab === "subagents" && <AgentSubagentsPage \/>/);
+test("DeckWise keeps generic Agent capability editors out of Settings", () => {
+  assert.doesNotMatch(settingsPageSrc, /tab === "skills"|tab === "mcp"|tab === "subagents"/);
   assert.match(settingsComponents.get("AgentCapabilityLayout.tsx"), /AgentCapabilityPage/);
   assert.match(settingsComponents.get("AgentCapabilityLayout.tsx"), /agent-capability-list/);
   for (const name of ["AgentSkillsPage.tsx", "AgentMcpPage.tsx"]) {

@@ -6,10 +6,7 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import type {
-  Mode,
-  PermissionMode,
-} from "@pi-desktop/shared";
+import type { Mode } from "@pi-desktop/shared";
 import {
   initialThinkingLevelForBinding,
   modelIdsMatch,
@@ -40,7 +37,6 @@ import {
   COMPOSER_MIN_HEIGHT_PX,
   PLACEHOLDER_KEYS,
   cssPixels,
-  isPermissionMode,
   isThinkingLevel,
   thinkingLevelForProvider,
   thinkingProviderForModel,
@@ -86,9 +82,6 @@ export function Composer({
   const sendQueuedNow = useAppStore((s) => s.sendQueuedNow);
   const abort = useAppStore((s) => s.abort);
   const isRunning = useAppStore((s) => s.isRunning);
-  const planningState = useAppStore((s) =>
-    s.activeSessionId ? s.planningStates[s.activeSessionId] : undefined,
-  );
   const settings = useAppStore((s) => s.settings);
   const sessions = useAppStore((s) => s.sessions);
   const activeSessionId = useAppStore((s) => s.activeSessionId);
@@ -136,7 +129,6 @@ export function Composer({
       : EMPTY_QUEUED_PROMPTS,
   );
 
-  const [permissionOpen, setPermissionOpen] = useState(false);
   const enhancementInvalidateRef = useRef<() => void>(() => {});
   const composerShellRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<HTMLDivElement>(null);
@@ -301,27 +293,20 @@ export function Composer({
   const mode: Mode = activeSession
     ? activeSession.mode
     : (draftConfiguration?.mode ?? settings?.defaultMode ?? "agent");
-  const planningLive =
-    isRunning &&
-    planningState === "planning" &&
-    (mode === "plan" || mode === "goal");
-  // Permission mode (D115/D132): inherited sessions still resolve through the
-  // global setting, but the composer presents only the effective mode.
-  const globalPermissionMode: PermissionMode =
-    settings?.defaultPermissionMode ?? "ask";
-  const sessionPermissionMode: PermissionMode = activeSession
-    ? isPermissionMode(activeSession.permissionMode)
-      ? activeSession.permissionMode
-      : "inherit"
-    : isPermissionMode(draftConfiguration?.permissionMode)
-      ? draftConfiguration.permissionMode
-      : "inherit";
-  const effectivePermissionMode: Exclude<PermissionMode, "inherit"> =
-    sessionPermissionMode === "inherit"
-      ? (globalPermissionMode as Exclude<PermissionMode, "inherit">)
-      : sessionPermissionMode;
-  const composerPermissionMode: Exclude<PermissionMode, "inherit"> =
-    mode === "goal" ? "auto" : effectivePermissionMode;
+  useEffect(() => {
+    if (!activeSession || nativeSession || activeSession.permissionMode === "auto") return;
+    void configureActiveSession({
+      mode: activeSession.mode,
+      providerId: activeSession.providerId,
+      modelId: activeSession.modelId,
+      thinkingLevel: activeSession.thinkingLevel,
+      permissionMode: "auto",
+    }).catch((error) => {
+      showToast(error instanceof Error ? error.message : String(error), {
+        variant: "error",
+      });
+    });
+  }, [activeSession, configureActiveSession, nativeSession, showToast]);
   const provider = providers.find(
     (candidate) =>
       candidate.id ===
@@ -395,11 +380,6 @@ export function Composer({
   // Chips occupy sentinel characters, which `trim()` preserves — text and
   // attachments share one content check.
   const hasDraftContent = Boolean(value.trim());
-
-  useEffect(() => {
-    if (!controlsBlocked) return;
-    setPermissionOpen(false);
-  }, [controlsBlocked]);
 
   const submitController = useComposerSubmit({
     value,
@@ -578,19 +558,12 @@ export function Composer({
           />
           <ComposerToolbar
             t={t}
-            mode={mode}
-            planningLive={planningLive}
             providerId={provider?.id}
             modelId={modelId}
             thinkingLevel={thinkingLevel}
-            composerPermissionMode={composerPermissionMode}
-            permissionOpen={permissionOpen}
-            setPermissionOpen={setPermissionOpen}
             controlsBlocked={controlsBlocked}
             pasting={pasting}
             pickAndAttach={pickAndAttach}
-            configureActiveSession={configureActiveSession}
-            showToast={showToast}
             modelMenu={modelMenu}
             modelLabel={modelLabel}
             thinkingLabel={thinkingLabel}

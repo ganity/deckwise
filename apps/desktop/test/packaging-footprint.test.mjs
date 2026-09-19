@@ -202,16 +202,29 @@ test("packaging keeps only shipped locales and excludes non-runtime artifacts", 
       from: "../../packages/agent-runtime/dist-bundle",
       to: "agent-runtime",
     },
+    {
+      from: "dist/runtime/current",
+      to: "runtime",
+    },
     // Built-in skills stay outside the asar so they read as plain files.
     {
       from: "resources/skills",
       to: "skills",
+    },
+    {
+      from: "../../../ppt-gen/vendors/ppt-master/skills/ppt-master",
+      to: "skills/ppt-master",
     },
     // Bundled first-party plugins, for the same reason: host-core reads their
     // manifests from disk and the views are loaded as file:// pages (ADR 0105).
     {
       from: "resources/plugins",
       to: "plugins",
+    },
+    // The sandboxed editor host is served by a custom protocol at runtime.
+    {
+      from: "resources/editor-host",
+      to: "editor-host",
     },
     {
       from: "resources/models.dev",

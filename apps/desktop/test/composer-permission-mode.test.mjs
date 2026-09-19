@@ -4,40 +4,27 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const composerSource = await readComposerSource();
+const sessionCoordinationSource = await readFile(
+  new URL("../src/stores/runtime/session-coordination.ts", import.meta.url),
+  "utf8",
+);
 
-test("Agent and Plan permission menus present only effective selectable modes", () => {
-  const permissionControlSource = composerSource.slice(
-    composerSource.indexOf('className="composer-permission"'),
-    composerSource.indexOf('<div className="composer-right">'),
-  );
-
-  assert.match(
-    permissionControlSource,
-    /\["ask", "accept-edits", "auto"\] as const/,
-  );
-  assert.match(
-    permissionControlSource,
-    /aria-checked=\{composerPermissionMode === candidate\}/,
-  );
-  assert.match(
-    permissionControlSource,
-    /\{t\(PERMISSION_MODE_I18N_KEYS\[candidate\]\)\}/,
-  );
-  assert.doesNotMatch(permissionControlSource, /permissionInherit/);
-  assert.doesNotMatch(permissionControlSource, /\["inherit",/);
-});
-
-test("Goal keeps the permission chip visible but fixes it to Full auto", () => {
-  const permissionControlSource = composerSource.slice(
-    composerSource.indexOf('className="composer-permission"'),
-    composerSource.indexOf('<div className="composer-right">'),
-  );
-
+test("Composer exposes Full auto as a fixed non-interactive permission label", () => {
   assert.match(
     composerSource,
-    /const composerPermissionMode: Exclude<PermissionMode, "inherit"> =\s*\n\s*mode === "goal" \? "auto" : effectivePermissionMode;/,
+    /composer-permission composer-permission-static/,
   );
-  assert.match(permissionControlSource, /mode === "goal" \? undefined : "menu"/);
-  assert.match(permissionControlSource, /disabled=\{controlsBlocked \|\| mode === "goal"\}/);
-  assert.match(permissionControlSource, /permissionOpen && mode !== "goal"/);
+  assert.match(composerSource, /PERMISSION_MODE_I18N_KEYS\.auto/);
+  assert.doesNotMatch(composerSource, /composer-permission-menu/);
+  assert.doesNotMatch(composerSource, /permissionOpen|setPermissionOpen/);
+  assert.doesNotMatch(composerSource, /\["ask", "accept-edits", "auto"\]/);
+});
+
+test("new and existing desktop sessions use Full auto", () => {
+  assert.match(sessionCoordinationSource, /permissionMode: "auto"/);
+  assert.match(
+    composerSource,
+    /activeSession\.permissionMode === "auto"/,
+  );
+  assert.match(composerSource, /permissionMode: "auto"/);
 });

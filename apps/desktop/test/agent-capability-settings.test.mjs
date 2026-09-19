@@ -31,10 +31,8 @@ const styles = await loadStyles();
 
 // Keep this suite source-oriented like the neighboring desktop contracts: it
 // catches IA regressions without requiring an Electron window or a native picker.
-test("agent settings have three independent destinations and extensions have two tabs", () => {
-  assert.match(settingsPage, /tab === "skills" && <AgentSkillsPage \/>/);
-  assert.match(settingsPage, /tab === "mcp" && <AgentMcpPage \/>/);
-  assert.match(settingsPage, /tab === "subagents" && <AgentSubagentsPage \/>/);
+test("DeckWise hides generic agent capability destinations", () => {
+  assert.doesNotMatch(settingsPage, /tab === "skills"|tab === "mcp"|tab === "subagents"/);
   assert.match(pluginsPage, /type TabId = "installed" \| "market"/);
   assert.doesNotMatch(pluginsPage, /plugins-(?:tab|panel)-(?:mcp|skills|subagents)/);
 });
