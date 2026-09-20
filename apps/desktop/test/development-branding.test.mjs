@@ -101,20 +101,19 @@ test("macOS development uses the canonical DeckWise Dock icon", () => {
   );
 });
 
-test("macOS icon derivation preserves the canonical renderer asset", () => {
-  assert.match(iconScriptSource, /SOURCE = BUILD \/ "icon_1024\.png"/);
+test("macOS icon derivation keeps system icons separate from renderer branding", () => {
+  assert.match(iconScriptSource, /SOURCE = BUILD \/ "logo_dark\.png"/);
   assert.match(iconScriptSource, /with Image\.open\(SOURCE\) as source/);
   assert.match(iconScriptSource, /master\.save\(icns, format="ICNS"\)/);
-  assert.doesNotMatch(
-    iconScriptSource,
-    /\.save\(BUILD \/ "icon_1024\.png"\)/,
-  );
+  assert.match(iconScriptSource, /system_icon = BUILD \/ "icon_1024\.png"/);
+  assert.match(iconScriptSource, /master\.save\(system_icon\)/);
 });
 
 test("macOS development launches from a branded host bundle", () => {
   assert.equal(packageJson.scripts.dev, "node ../../scripts/dev-electron.mjs");
   assert.match(devScriptSource, /process\.platform === "darwin"/);
   assert.match(devScriptSource, /PI_DESKTOP_DEV: "1"/);
+  assert.match(devScriptSource, /env\.DECKWISE_EDITOR_URL \|\|= "https:\/\/trainwise\.efrobot\.com\/wiseoffice"/);
   assert.match(devScriptSource, /ELECTRON_EXEC_PATH/);
   assert.match(devScriptSource, /CFBundleDisplayName", APP_NAME/);
   assert.match(devScriptSource, /CFBundleName", APP_NAME/);

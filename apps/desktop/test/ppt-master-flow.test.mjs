@@ -119,6 +119,11 @@ test("PPT tasks open PPT Master without workspace edits opening Review", () => {
   assert.doesNotMatch(events, /shouldOpenReviewArtifact|toolWorkPanelTab\("review"\)/);
 });
 
+test("a new task never inherits another task's courseware project", () => {
+  assert.match(panel, /if \(!referenced\) return null;/);
+  assert.doesNotMatch(panel, /listDir\("\.deckwise-ppt\/projects"\)/);
+});
+
 test("SVG preview opens in Browser and waits for explicit PPTX generation", () => {
   assert.match(skill, /call ToolSearch for `browser`/);
   assert.match(skill, /Browser with `action=navigate`/);

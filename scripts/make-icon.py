@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Derive DeckWise platform icon resources from the canonical logo.
+"""Derive DeckWise system icon resources from the canonical logo mark.
 
-The tracked ``apps/desktop/build/icon_1024.png`` file is the brand source of
-truth. This script preserves that file and emits:
+The in-app logo remains transparent. This script adds the rounded system-icon
+background used by desktop shortcuts, taskbars, Dock, and the tray.
 
+  apps/desktop/build/icon_1024.png - 1024px development Dock icon
   apps/desktop/build/icon.iconset/  - all macOS iconset sizes
   apps/desktop/build/icon.icns      - via `iconutil` (macOS only)
   apps/desktop/build/icon.ico       - multi-size Windows application icon
@@ -20,11 +21,11 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from PIL import Image, ImageFilter
+from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parent.parent
 BUILD = ROOT / "apps" / "desktop" / "build"
-SOURCE = BUILD / "icon_1024.png"
+SOURCE = BUILD / "logo_dark.png"
 
 BASE = 1024
 
@@ -34,13 +35,41 @@ def main() -> None:
         raise FileNotFoundError(f"canonical logo is missing: {SOURCE}")
 
     with Image.open(SOURCE) as source:
-        master = source.convert("RGBA")
-    if master.size != (BASE, BASE):
-        raise ValueError(
-            f"canonical logo must be {BASE}x{BASE}, got {master.width}x{master.height}"
-        )
+        source_alpha = source.convert("RGBA").getchannel("A")
+    mark_bounds = source_alpha.getbbox()
+    if mark_bounds is None:
+        raise ValueError("canonical logo does not contain a DeckWise mark")
+
+    mark_alpha = source_alpha.crop(mark_bounds)
+    mark_alpha.thumbnail((650, 650), Image.LANCZOS)
+    centered_alpha = Image.new("L", (BASE, BASE), 0)
+    centered_alpha.paste(
+        mark_alpha,
+        ((BASE - mark_alpha.width) // 2, (BASE - mark_alpha.height) // 2),
+    )
+
+    master = Image.new("RGBA", (BASE, BASE), (0, 0, 0, 0))
+    shadow_alpha = Image.new("L", master.size, 0)
+    ImageDraw.Draw(shadow_alpha).rounded_rectangle(
+        (74, 86, 950, 962), radius=220, fill=48
+    )
+    shadow = Image.new("RGBA", master.size, (0, 0, 0, 0))
+    shadow.putalpha(shadow_alpha.filter(ImageFilter.GaussianBlur(24)))
+    master.alpha_composite(shadow)
+    ImageDraw.Draw(master).rounded_rectangle(
+        (64, 64, 960, 960),
+        radius=220,
+        fill=(247, 248, 249, 255),
+        outline=(210, 213, 216, 255),
+        width=4,
+    )
+    mark = Image.new("RGBA", master.size, (34, 39, 43, 0))
+    mark.putalpha(centered_alpha)
+    master.alpha_composite(mark)
 
     BUILD.mkdir(parents=True, exist_ok=True)
+    system_icon = BUILD / "icon_1024.png"
+    master.save(system_icon)
     windows_icon = BUILD / "icon.ico"
     master.save(
         windows_icon,
@@ -57,34 +86,17 @@ def main() -> None:
     package_icon = BUILD / "icon.png"
     master.resize((512, 512), Image.LANCZOS).save(package_icon)
 
-    # Windows/Linux do not tint tray images. A white mark with a dark edge
-    # remains legible on both dark and light desktop panels at 16px.
-    tray_alpha = master.getchannel("A")
-    mark_bounds = tray_alpha.getbbox()
-    if mark_bounds is None:
-        raise ValueError("canonical logo does not contain a DeckWise mark")
-    mark_alpha = tray_alpha.crop(mark_bounds)
-    mark_alpha.thumbnail((820, 820), Image.LANCZOS)
-    centered_alpha = Image.new("L", master.size, 0)
-    centered_alpha.paste(
-        mark_alpha,
-        ((BASE - mark_alpha.width) // 2, (BASE - mark_alpha.height) // 2),
-    )
-    tray_icon = Image.new("RGBA", master.size, (24, 28, 31, 0))
-    tray_icon.putalpha(centered_alpha.filter(ImageFilter.MaxFilter(41)))
-    tray_foreground = Image.new("RGBA", master.size, (255, 255, 255, 0))
-    tray_foreground.putalpha(centered_alpha)
-    tray_icon.alpha_composite(tray_foreground)
+    # Windows/Linux tray icons keep the same high-contrast rounded tile.
     tray_icon_path = BUILD / "tray-icon.png"
-    tray_icon.resize((512, 512), Image.LANCZOS).save(tray_icon_path)
+    master.resize((512, 512), Image.LANCZOS).save(tray_icon_path)
 
-    # macOS menu bar icons are template images: only the source mark's alpha
-    # matters because the system supplies the light/dark tint.
+    # macOS supplies the tint, so use a rounded tile with the mark cut out.
+    tray_tile_alpha = Image.new("L", master.size, 0)
+    ImageDraw.Draw(tray_tile_alpha).rounded_rectangle(
+        (96, 96, 928, 928), radius=210, fill=255
+    )
     tray_icon_mac = Image.new("RGBA", master.size, (0, 0, 0, 0))
-    tray_icon_mac.putalpha(tray_alpha)
-    mark = tray_icon_mac.crop(mark_bounds).resize((768, 768), Image.LANCZOS)
-    tray_icon_mac = Image.new("RGBA", master.size, (0, 0, 0, 0))
-    tray_icon_mac.paste(mark, (128, 128), mark)
+    tray_icon_mac.putalpha(ImageChops.subtract(tray_tile_alpha, centered_alpha))
     tray_icon_mac_path = BUILD / "tray-icon-mac.png"
     tray_icon_mac.save(tray_icon_mac_path)
 
@@ -108,6 +120,7 @@ def main() -> None:
             [iconutil, "-c", "icns", str(iconset), "-o", str(icns)], check=True
         )
     print(f"used {SOURCE}")
+    print(f"wrote {system_icon}")
     print(f"wrote {windows_icon}")
     print(f"wrote {package_icon}")
     print(f"wrote {tray_icon_path}")

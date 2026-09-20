@@ -165,7 +165,7 @@ export class PptEditorController {
   constructor(
     private readonly ipcMain: IpcMain,
     private readonly emit: (state: PptEditorState) => void,
-    editorUrl = process.env.DECKWISE_EDITOR_URL || "https://edit.chaxus.com",
+    editorUrl = process.env.DECKWISE_EDITOR_URL || "https://trainwise.efrobot.com/wiseoffice",
   ) {
     this.editorUrl = new URL(editorUrl);
     if (!/^https?:$/.test(this.editorUrl.protocol)) {

@@ -99,23 +99,8 @@ async function inspectProject(projectPath: string): Promise<PptProjectState> {
 
 async function inspectCurrentProject(messages: UiMessage[]): Promise<PptProjectState | null> {
   const referenced = referencedProject(messages);
-  if (referenced) return inspectProject(referenced);
-
-  const projects = (await listDir(".deckwise-ppt/projects")).filter(
-    (entry) => entry.kind === "dir",
-  );
-  if (projects.length === 0) return null;
-
-  const browserUrl = (await api.browserGetState().catch(() => null))?.url;
-  let fallback: PptProjectState | null = null;
-  for (const entry of [...projects].reverse()) {
-    const project = await inspectProject(`.deckwise-ppt/projects/${entry.name}`);
-    if (!fallback && (project.hasSvg || project.pptxPath || project.previewUrl)) {
-      fallback = project;
-    }
-    if (project.previewUrl && browserUrl?.startsWith(project.previewUrl)) return project;
-  }
-  return fallback;
+  if (!referenced) return null;
+  return inspectProject(referenced);
 }
 
 function phaseLabel(isRunning: boolean, project: PptProjectState | null, messageCount: number) {
@@ -150,6 +135,7 @@ export function PptMasterTab() {
   }, [messages]);
 
   useEffect(() => {
+    setProject(null);
     void refreshProject();
     if (!isRunning) return;
     const timer = window.setInterval(() => void refreshProject(), 2_000);

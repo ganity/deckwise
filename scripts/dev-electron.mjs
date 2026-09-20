@@ -129,6 +129,7 @@ export function prepareMacDevelopmentBundle({
 
 function run() {
   const env = { ...process.env, PI_DESKTOP_DEV: "1" };
+  env.DECKWISE_EDITOR_URL ||= "https://trainwise.efrobot.com/wiseoffice";
   if (process.platform === "darwin") {
     const electron = resolveElectronInstallation();
     env.ELECTRON_EXEC_PATH = prepareMacDevelopmentBundle({
