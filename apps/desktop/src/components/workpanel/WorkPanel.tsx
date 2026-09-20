@@ -12,6 +12,7 @@ import { useTranslation } from "react-i18next";
 import type { PluginViewMeta } from "@pi-desktop/shared";
 import {
   isKnownWorkPanelTab,
+  isWorkPanelTabClosable,
   parsePluginViewRef,
   pluginWorkPanelTab,
   BROWSER_PLUGIN_TAB,
@@ -83,14 +84,17 @@ function tabLabel(
   pluginViews: PluginViewMeta[],
 ) {
   if (tab.kind === "plugin") {
+    if (tab.resource === `${BROWSER_PLUGIN_TAB.pluginId}/${BROWSER_PLUGIN_TAB.viewId}`) {
+      return "预览编辑";
+    }
     const view = pluginViews.find((candidate) => candidate.ref === tab.resource);
     // A view whose plugin was disabled mid-session no longer resolves; fall
     // back to its id rather than leaving the tab blank until it closes.
     return view?.title ?? tab.resource ?? t("panel.tabs.plugin");
   }
   if (tab.kind === "new") return t("panel.new.title");
-  if (tab.kind === "ppt") return "PPT Master";
-  if (tab.kind === "editor") return tab.resource?.split("/").filter(Boolean).pop() || "PPTX 编辑器";
+  if (tab.kind === "ppt") return "课件工作台";
+  if (tab.kind === "editor") return "编辑 PPT";
   if (tab.kind !== "file") return t(`panel.tabs.${tab.kind}`);
   const path = tab.resource ?? "";
   return path.split("/").filter(Boolean).pop() || t("panel.tabs.file");
@@ -106,7 +110,7 @@ function workPanelTools(
     {
       id: "ppt-master",
       tab: toolWorkPanelTab("ppt"),
-      label: "PPT Master",
+      label: "课件工作台",
       icon: IconFileText,
       description: "课件生成、预览与编辑",
     },
@@ -189,7 +193,6 @@ export function WorkPanel({
   const activateTab = useAppStore((s) => s.activateWorkPanelTab);
   const closeTab = useAppStore((s) => s.closeWorkPanelTab);
   const openWorkPanelTab = useAppStore((s) => s.openWorkPanelTab);
-  const openNewWorkPanelTab = useAppStore((s) => s.openNewWorkPanelTab);
   const replaceWorkPanelTab = useAppStore((s) => s.replaceWorkPanelTab);
   const setWidth = useAppStore((s) => s.setWorkPanelWidth);
   const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? null;
@@ -198,7 +201,6 @@ export function WorkPanel({
   const [panelDragWidth, setPanelDragWidth] = useState<number | null>(null);
   const panelResizeState = useRef<WorkPanelResizeState | null>(null);
   const tabButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-  const newTabButtonRef = useRef<HTMLButtonElement | null>(null);
   const [nativeSurfaceReadyForExit, setNativeSurfaceReadyForExit] =
     useState(false);
 
@@ -276,11 +278,11 @@ export function WorkPanel({
   const closeTabAndFocus = useCallback(
     (tabId: string) => {
       const index = tabs.findIndex((tab) => tab.id === tabId);
+      if (index < 0 || !isWorkPanelTabClosable(tabs[index])) return;
       const nextTab = index >= 0 ? tabs[index + 1] ?? tabs[index - 1] : undefined;
       closeTab(tabId);
       requestAnimationFrame(() => {
         if (nextTab) tabButtonRefs.current[nextTab.id]?.focus();
-        else newTabButtonRef.current?.focus();
       });
     },
     [closeTab, tabs],
@@ -430,10 +432,6 @@ export function WorkPanel({
   const activeLabel = activeTab
     ? tabLabel(activeTab, t, pluginViews)
     : t("panel.title");
-  const isEditingSurface =
-    activeTab?.kind === "editor" ||
-    (activeTab?.kind === "plugin" &&
-      activeTab.resource === `${BROWSER_PLUGIN_TAB.pluginId}/${BROWSER_PLUGIN_TAB.viewId}`);
   const exitAnimationReady = exiting && nativeSurfaceReadyForExit;
   const panelStyle = {
     width: renderPanelWidth,
@@ -513,6 +511,7 @@ export function WorkPanel({
                 {tabs.map((tab) => {
                   const label = tabLabel(tab, t, pluginViews);
                   const selected = tab.id === activeTabId;
+                  const closable = isWorkPanelTabClosable(tab);
                   const Icon =
                     tab.kind === "plugin"
                       ? pluginViewIcon(
@@ -544,16 +543,18 @@ export function WorkPanel({
                         <Icon size={14} />
                         <span className="work-panel-tab-label">{label}</span>
                       </button>
-                      <button
-                        type="button"
-                        className="work-panel-tab-close"
-                        aria-label={t("panel.closeTab", { name: label })}
-                        title={t("panel.closeTab", { name: label })}
-                        onPointerDown={(event) => event.stopPropagation()}
-                        onClick={() => closeTabAndFocus(tab.id)}
-                      >
-                        <IconClose size={12} />
-                      </button>
+                      {closable ? (
+                        <button
+                          type="button"
+                          className="work-panel-tab-close"
+                          aria-label={t("panel.closeTab", { name: label })}
+                          title={t("panel.closeTab", { name: label })}
+                          onPointerDown={(event) => event.stopPropagation()}
+                          onClick={() => closeTabAndFocus(tab.id)}
+                        >
+                          <IconClose size={12} />
+                        </button>
+                      ) : null}
                     </div>
                   );
                 })}
@@ -570,17 +571,6 @@ export function WorkPanel({
                 onClick={onCloseSubagentPanel}
               >
                 <IconChevronLeft size={15} />
-              </TooltipButton>
-            ) : !isEditingSurface ? (
-              <TooltipButton
-                ref={newTabButtonRef}
-                type="button"
-                className="work-panel-new-tab"
-                tooltip={t("panel.new.open")}
-                ariaLabel={t("panel.new.open")}
-                onClick={openNewWorkPanelTab}
-              >
-                <IconPlus size={16} />
               </TooltipButton>
             ) : null}
             <TooltipButton

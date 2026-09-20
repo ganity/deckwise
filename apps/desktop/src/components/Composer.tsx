@@ -25,6 +25,7 @@ import type { QueuedPrompt } from "../lib/queued-prompts";
 import {
   composerModelDisplayName,
   composerModelsForProvider,
+  isInternalCoursewareModelLabel,
 } from "../lib/composer-models";
 import {
   providerThinkingLevels,
@@ -374,9 +375,12 @@ export function Composer({
         (model) => modelIdsMatch(model.modelId, modelId ?? ""),
       )
     : undefined;
-  const modelLabel = provider && modelId
+  const configuredModelLabel = provider && modelId
     ? composerModelDisplayName(provider, modelId, selectedModel?.displayName)
     : selectedModel?.displayName || modelId || t("chat.model");
+  const modelLabel = isInternalCoursewareModelLabel(configuredModelLabel)
+    ? t("chat.coursewareAssistant")
+    : configuredModelLabel;
   const modelMenu = useComposerModelMenu({
     mode,
     activeSessionId,
@@ -512,7 +516,7 @@ export function Composer({
         ) : null}
         {nativeReadOnly ? (
           <div className="composer-status" role="status">
-            Native Pi session is read-only: {activeSessionSummary?.readOnlyReason ?? "continuation unavailable"}.
+            该旧版会话仅支持查看：{activeSessionSummary?.readOnlyReason ?? "无法继续回复"}。
           </div>
         ) : null}
         <ComposerStatus

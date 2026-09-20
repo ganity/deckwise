@@ -1,10 +1,13 @@
 import { ErrorBoundary } from "./features/app/chrome";
 import { AppShell } from "./features/app/AppShell";
+import { AuthGate } from "./features/auth/AuthGate";
 
 export default function App() {
   return (
     <ErrorBoundary>
-      <AppShell />
+      <AuthGate>
+        <AppShell />
+      </AuthGate>
     </ErrorBoundary>
   );
 }

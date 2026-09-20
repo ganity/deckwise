@@ -5,7 +5,7 @@
 set -euo pipefail
 
 RELEASE_DIR="${1:-apps/desktop/release}"
-PRODUCT_NAME="PI-Desktop"
+PRODUCT_NAME="DeckWise"
 
 if [[ ! -d "$RELEASE_DIR" ]]; then
   echo "error: release directory does not exist: $RELEASE_DIR" >&2

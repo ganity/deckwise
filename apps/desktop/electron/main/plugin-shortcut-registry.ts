@@ -33,7 +33,7 @@ export const MAX_PLUGIN_GLOBAL_SHORTCUTS = 8;
  * `bootstrap/launcher.ts`); everything else in `KEYBOARD_SHORTCUTS` is
  * renderer-scoped and cannot conflict with a system-wide binding.
  */
-const HOST_GLOBAL_SHORTCUT_IDS = ["openPluginLauncher", "toggleWindow"] as const;
+const HOST_GLOBAL_SHORTCUT_IDS = ["toggleWindow"] as const;
 
 export type PluginShortcutErrorCode =
   | "INVALID_ACCELERATOR"
@@ -132,7 +132,7 @@ export class PluginShortcutRegistry {
         { pluginId, accelerator, code: "SHORTCUT_CONFLICT" },
         new PluginShortcutError(
           "SHORTCUT_CONFLICT",
-          `${accelerator} is already used by PI-Desktop`,
+          `${accelerator} is already used by DeckWise`,
         ),
       );
     }

@@ -12,6 +12,7 @@ export type SettingsTabId =
   | "agent"
   | "import"
   | "projects"
+  | "account"
   | "about";
 
 export type SettingsNavGroupId =
@@ -138,6 +139,19 @@ export const SETTINGS_NAV: SettingsNavEntry[] = [
       "project.archive",
       "project.restore",
       "project.delete",
+    ],
+  },
+  {
+    id: "account",
+    labelKey: "settings.nav.account",
+    titleKey: "settings.account",
+    group: "system",
+    keywordKeys: [
+      "settings.accountName",
+      "settings.accountSchool",
+      "settings.accountRole",
+      "settings.accountEdition",
+      "settings.accountLogout",
     ],
   },
   {

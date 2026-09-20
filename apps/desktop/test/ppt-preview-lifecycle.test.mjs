@@ -30,8 +30,8 @@ test("the main-window-only IPC returns a ready preview URL", () => {
   assert.match(api, /pptPreviewOpen/);
 });
 
-test("PPT Master exposes an in-app preview action", () => {
-  assert.match(panel, /预览 SVG/);
+test("the courseware workspace exposes an in-app page preview action", () => {
+  assert.match(panel, /预览与编辑页面/);
   assert.match(panel, /api\.pptPreviewOpen/);
   assert.match(panel, /browserPluginTab/);
   assert.match(skill, /--no-browser/);

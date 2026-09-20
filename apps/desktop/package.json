@@ -4,7 +4,7 @@
   "desktopName": "deckwise.desktop",
   "private": true,
   "description": "DeckWise PPTX courseware desktop application",
-  "homepage": "https://github.com/vastsa/PI-Desktop",
+  "homepage": "https://github.com/ganity/deckwise",
   "author": {
     "name": "vastsa",
     "email": "hhxk666@gmail.com"
@@ -49,6 +49,7 @@
     "@pi-desktop/plugin-sdk": "workspace:*",
     "@pi-desktop/shared": "workspace:*",
     "@tailwindcss/vite": "^4.3.3",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@types/ws": "^8.18.1",
@@ -63,6 +64,7 @@
     "marked": "^18.0.9",
     "mermaid": "^11.16.1",
     "pinyin-pro": "3.29.1",
+    "qrcode": "^1.5.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-i18next": "^15.6.0",
@@ -87,9 +89,8 @@
     },
     "publish": [
       {
-        "provider": "github",
-        "owner": "vastsa",
-        "repo": "PI-Desktop"
+        "provider": "generic",
+        "url": "https://trainwise.oss-cn-beijing.aliyuncs.com/deckwise/"
       }
     ],
     "files": [
@@ -116,7 +117,7 @@
     ],
     "extraResources": [
       {
-        "from": "build/icon.png",
+        "from": "build/tray-icon.png",
         "to": "tray-icon.png"
       },
       {
@@ -175,8 +176,8 @@
         }
       ],
       "extraDistFiles": [
-        "PI-Desktop-macOS-open.command",
-        "PI-Desktop-macOS-opening-help.txt"
+        "DeckWise-macOS-open.command",
+        "DeckWise-macOS-opening-help.txt"
       ]
     },
     "dmg": {
@@ -204,7 +205,7 @@
           "y": 370,
           "type": "file",
           "name": "If app won't open, read this.txt",
-          "path": "PI-Desktop-macOS-opening-help.txt"
+          "path": "DeckWise-macOS-opening-help.txt"
         }
       ]
     },
@@ -239,27 +240,27 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "shortcutName": "PI-Desktop",
-      "artifactName": "PI-Desktop-Setup-${version}.${ext}"
+      "shortcutName": "DeckWise",
+      "artifactName": "DeckWise-Setup-${version}.${ext}"
     },
     "portable": {
-      "artifactName": "PI-Desktop-Portable-${version}.${ext}",
+      "artifactName": "DeckWise-Portable-${version}.${ext}",
       "requestExecutionLevel": "user"
     },
     "deb": {
-      "packageName": "pi-desktop",
-      "artifactName": "pi-desktop_${version}_${arch}.${ext}"
+      "packageName": "deckwise",
+      "artifactName": "deckwise_${version}_${arch}.${ext}"
     },
     "rpm": {
-      "packageName": "pi-desktop",
-      "artifactName": "pi-desktop-${version}-${arch}.${ext}",
+      "packageName": "deckwise",
+      "artifactName": "deckwise-${version}-${arch}.${ext}",
       "fpm": [
         "--rpm-rpmbuild-define",
         "_build_id_links none"
       ]
     },
     "linux": {
-      "executableName": "pi-desktop",
+      "executableName": "deckwise",
       "syncDesktopName": true,
       "target": [
         {

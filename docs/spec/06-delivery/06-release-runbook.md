@@ -22,15 +22,15 @@ not pass.
 
 On macOS, `pnpm dev` creates and reuses a fingerprinted branded Electron host
 bundle under `.cache/electron-dev/`. Its bundle name, executable, identifier,
-and ICNS resource are development-only PI-Desktop values, so AppKit shows
-PI-Desktop in the application menu and uses the canonical icon in the native
+and ICNS resource are development-only DeckWise values, so AppKit shows
+DeckWise in the application menu and uses the canonical icon in the native
 About panel. The runtime also applies `build/icon_1024.png` to the Dock. Stock
 files under `node_modules` are never modified. Windows/Linux development keeps
 the normal electron-vite executable. Windows Main nevertheless registers the
-same `net.aiuo.pi-desktop` AppUserModelID used by the NSIS package before
+same `com.trainwise.deckwise` AppUserModelID used by the NSIS package before
 Electron readiness, preventing the stock host identity from owning native
 notifications or taskbar groups. The Windows package additionally pins the
-`PI-Desktop` executable and Start menu shortcut names. The launcher sets
+`DeckWise` executable and Start menu shortcut names. The launcher sets
 `PI_DESKTOP_DEV=1` so runtime packaging checks keep update delivery disabled
 and preserve developer workspace defaults despite the branded executable name.
 The first `pnpm dev` on Electron 43+ downloads the Electron binary on demand
@@ -39,7 +39,7 @@ Packaged lanes use `build/icon.icns` through electron-builder on macOS and
 `build/icon.ico` for the Windows executable and native window icon. The
 renderer imports the same PNG through `BrandLogo`. The PNG is canonical;
 `scripts/make-icon.py` derives the multi-size Windows ICO, the 512px
-Windows/Linux package PNG, the
+Windows/Linux package PNG, the high-contrast Windows/Linux tray PNG, the
 transparent monochrome `build/tray-icon-mac.png` template, and the iconset/ICNS
 when macOS `iconutil` is available, without overwriting the canonical source.
 
@@ -76,9 +76,9 @@ when macOS `iconutil` is available, without overwriting the canonical source.
   independently of Chromium locales.
 - App icons `build/icon.icns` and `build/icon.ico` (derived from canonical
   `build/icon_1024.png` by `scripts/make-icon.py`).
-- macOS menu bar template `build/tray-icon-mac.png`, derived from the dark PI
-  mark with a transparent background; Windows/Linux use the product PNG tray
-  resource.
+- macOS menu bar template `build/tray-icon-mac.png`, derived from the DeckWise
+  mark with a transparent background; Windows/Linux use the dedicated
+  high-contrast `build/tray-icon.png` resource.
 
 ## 4. Release steps
 
@@ -226,9 +226,9 @@ into one feed after downloading both artifacts.
 The shared electron-builder configuration applies the architecture-labelled
 pattern at the macOS platform level for ZIPs and overrides it at the DMG target
 level. Both public architectures are therefore explicit: the arm64 lane
-publishes `PI-Desktop-<version>-arm64.dmg` and
-`PI-Desktop-<version>-arm64-mac.zip`, while the Intel x64 lane publishes
-`PI-Desktop-<version>-x64.dmg` and `PI-Desktop-<version>-x64-mac.zip`. This
+publishes `DeckWise-<version>-arm64.dmg` and
+`DeckWise-<version>-arm64-mac.zip`, while the Intel x64 lane publishes
+`DeckWise-<version>-x64.dmg` and `DeckWise-<version>-x64-mac.zip`. This
 applies to both unsigned and signed macOS lanes, including local release builds,
 and ensures each generated updater feed references its architecture-labelled
 asset names and matching checksums. Before upload, each macOS runner requires
@@ -242,18 +242,18 @@ without making it the normal installation action. The note is displayed as
 `If app won't open, read this.txt`; the DMG does not include the executable command helper.
 
 Every macOS DMG includes the companion
-`PI-Desktop-macOS-opening-help.txt` at the package root under that display
+`DeckWise-macOS-opening-help.txt` at the package root under that display
 name. The macOS ZIP includes both that note and the executable
-`PI-Desktop-macOS-open.command`. After moving `PI-Desktop.app` to
+`DeckWise-macOS-open.command`. After moving `DeckWise.app` to
 `/Applications` or `~/Applications`, ZIP users can double-click the helper. It
 searches only those two fixed locations, removes only the recursive
-`com.apple.quarantine` attribute when present, and opens PI-Desktop. Before
-doing so it verifies `CFBundleIdentifier=net.aiuo.pi-desktop`. It does not use
+`com.apple.quarantine` attribute when present, and opens DeckWise. Before
+doing so it verifies `CFBundleIdentifier=com.trainwise.deckwise`. It does not use
 `sudo` or accept an arbitrary application path. The manual fallback for the
 standard system location is:
 
 ```sh
-xattr -r -d com.apple.quarantine /Applications/PI-Desktop.app
+xattr -r -d com.apple.quarantine /Applications/DeckWise.app
 ```
 
 This helper is only for a trusted unsigned artifact when macOS reports that the
@@ -264,32 +264,9 @@ compressed or compression-insensitive. The workflow therefore uploads their
 temporary Actions artifacts with compression level zero before the publish job
 assembles the GitHub Release. The Linux runner also copies
 `linux-unpacked/resources/app.asar` to the versioned
-`PI-Desktop-<version>-linux-x64.asar` asset before upload. This preserves the
+`DeckWise-<version>-linux-x64.asar` asset before upload. This preserves the
 exact archive used by the Linux installers for downstream repackaging with a
 system Electron.
-
-### 4.4 CNB mirror trigger
-
-After `softprops/action-gh-release` publishes or updates a GitHub Release,
-`.github/workflows/mirror-to-cnb.yml` starts the CNB pipeline at
-`aixk/Pi-Desktop`. GitHub Release remains the canonical artifact source; CNB
-is a copy of the same tag for users who pull from
-https://cnb.cool/aixk/Pi-Desktop.
-
-The job:
-
-- runs only on `vastsa/PI-Desktop`
-- fires on `release` `published` / `edited`, and on `workflow_dispatch` with
-  an explicit tag such as `v0.14.6`
-- sends event `api_trigger_mirror` and `MIRROR_TAGS` set to that tag
-- uses repository secret `CNB_MIRROR_TOKEN` (already configured) and fails
-  closed if the secret is empty
-- builds the JSON body with `jq` so a missing tag cannot produce an empty
-  `MIRROR_TAGS` value on a manual run
-
-Re-running the workflow for the same tag is safe if the CNB pipeline is
-idempotent. It does not rebuild desktop artifacts and does not change
-electron-updater feeds.
 
 ## 5. Verification gates
 
@@ -300,7 +277,7 @@ run explicitly enables `sign_macos: true`.
 Run after every release build:
 
 ```bash
-for APP in apps/desktop/release/mac-*/PI-Desktop.app; do
+for APP in apps/desktop/release/mac-*/DeckWise.app; do
   codesign -dv --verbose=2 "$APP"          # identity + hardened runtime flags
   codesign --verify --deep --strict "$APP" # signature integrity
   spctl -a -vv "$APP"                      # Gatekeeper assessment (notarized Developer ID)
@@ -392,12 +369,12 @@ them requires an ADR revision, not a build-config change.
 
 Manual smoke on a clean profile (`PI_DESKTOP_DATA_DIR=$(mktemp -d)`):
 
-1. `pnpm dev` launches with `PI-Desktop` in the macOS application menu and the
+1. `pnpm dev` launches with `DeckWise` in the macOS application menu and the
    canonical icon in both the Dock and native About panel; no Electron brand is
    visible.
 2. App launches from DMG install, window appears, and the application-menu,
    About-panel, and Dock branding match the development lane.
-3. Empty home and expanded/collapsed sidebar show the canonical PI-Desktop
+3. Empty home and expanded/collapsed sidebar show the canonical DeckWise
    logo; composer prompt rows have no leading brand icon; New task and
    project/Temporary create controls use the message-plus session icon.
 4. Onboarding checklist appears; configure provider; one streamed chat turn.
@@ -433,14 +410,14 @@ D126/D285.
 
 Native-runner output matrix:
 
-- macOS arm64: `PI-Desktop-<version>-arm64.dmg` and
-  `PI-Desktop-<version>-arm64-mac.zip`
-- macOS Intel x64: `PI-Desktop-<version>-x64.dmg` and
-  `PI-Desktop-<version>-x64-mac.zip`
-- Windows x64: NSIS installer `PI-Desktop-Setup-<version>.exe` and portable
-  exe `PI-Desktop-Portable-<version>.exe`
+- macOS arm64: `DeckWise-<version>-arm64.dmg` and
+  `DeckWise-<version>-arm64-mac.zip`
+- macOS Intel x64: `DeckWise-<version>-x64.dmg` and
+  `DeckWise-<version>-x64-mac.zip`
+- Windows x64: NSIS installer `DeckWise-Setup-<version>.exe` and portable
+  exe `DeckWise-Portable-<version>.exe`
 - Linux x64: AppImage, deb, and rpm
-- Linux x64 system Electron asset: `PI-Desktop-<version>-linux-x64.asar`
+- Linux x64 system Electron asset: `DeckWise-<version>-linux-x64.asar`
 
 The portable Windows target does not write `latest.yml`. Packaged portable
 runs use notify-and-link delivery (`PORTABLE_EXECUTABLE_FILE`); NSIS keeps
@@ -449,7 +426,7 @@ application data directory. Portable requests user execution level, so launch
 does not require administrator rights.
 
 RPM targets pass `_build_id_links none` to FPM. Bundled Electron binaries live
-under `/opt/PI-Desktop`; omitting global `/usr/lib/.build-id` links prevents
+under `/opt/deckwise`; omitting global `/usr/lib/.build-id` links prevents
 collisions with other applications that bundle the same Electron binaries.
 
 The ASAR asset contains the Electron application archive, not a complete Linux
@@ -458,7 +435,7 @@ target Electron resources layout together with the native host and other
 resources from the target package, then launch it with:
 
 ```bash
-electron PI-Desktop-<version>-linux-x64.asar
+electron DeckWise-<version>-linux-x64.asar
 ```
 
 Shell smoke on each native runner:

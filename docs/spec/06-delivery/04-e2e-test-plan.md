@@ -87,6 +87,40 @@
   `apps/desktop/test/ppt-preview-lifecycle.test.mjs`; packaged Electron journey
   remains manual.
 
+### E2E-DECKWISE-MAIC-IMPORT: Completed PPTX creates an education import task
+
+- **Preconditions:** The user is authenticated with an education account; the
+  active PPT Master session has a current PPTX export and an uploaded PDF, DOC,
+  or DOCX lesson plan.
+- **Steps:** Click **Import to MAIC**, verify the prefilled title and lesson
+  plan, choose a primary-school grade, subject, and narration detail, then
+  submit.
+- **Expected:** The action is disabled while generation is running or SVG is
+  newer than PPTX. The modal uses the account's grade/subject dictionaries,
+  uploads only the selected lesson plan and current PPTX through authorized
+  presigned paths, submits an EDUCATION import with `schoolStage=primary`, and
+  reports the returned task id. Local paths outside the workspace, scratch, or
+  attachment roots are rejected.
+- **Specs linked:** `04-ux/08-component-spec.md` §5.2.3.
+- **Acceptance criterion:** D (courseware workflow), E (work panel).
+- **Milestone:** DeckWise product increment.
+- **Status:** Renderer/Main source contract automated by
+  `apps/desktop/test/ppt-master-flow.test.mjs`; live OSS/MAIC journey remains
+  manual.
+
+### E2E-DECKWISE-SIGN-OUT: Account sign out returns to QR login
+
+- **Preconditions:** DeckWise has a restored authenticated education session.
+- **Steps:** Open Settings → Account and click **Sign out**.
+- **Expected:** The local refresh token is removed, the app content becomes
+  inaccessible, and a fresh education QR code is displayed without an OS
+  keyring prompt.
+- **Specs linked:** `04-ux/06-settings-ia.md` §2 Account.
+- **Acceptance criterion:** A (authenticated shell access).
+- **Milestone:** DeckWise product increment.
+- **Status:** Source contract automated by
+  `apps/desktop/test/auth-gate.test.mjs`; packaged QR journey remains manual.
+
 ### E2E-PLUGIN-appearance-extension-lifecycle
 
 - **Preconditions:** A fixture plugin declares `ui.theme`, `ui.settings`, one
@@ -367,20 +401,20 @@ identify the platform validation still needed.
   app and Applications link form the main row, and `If app won't open, read this.txt` is the
   only secondary item. 3) Confirm the DMG has no command helper. 4) Inspect
   the ZIP root without extracting the application contents and confirm it has
-  both `PI-Desktop-macOS-opening-help.txt` and the executable
-  `PI-Desktop-macOS-open.command`. 5) Read the note, move the app to
+  both `DeckWise-macOS-opening-help.txt` and the executable
+  `DeckWise-macOS-open.command`. 5) Read the note, move the app to
   `/Applications`, and double-click the ZIP helper.
 - **Expected**: The DMG contains the branded 720×500 background, the app,
   Applications link, and the text-only opening note displayed as
   `If app won't open, read this.txt`; it does not contain or expose the command helper. The
   ZIP contains the helper and the same note at its root. The note includes
-  `xattr -r -d com.apple.quarantine /Applications/PI-Desktop.app`, explains
+  `xattr -r -d com.apple.quarantine /Applications/DeckWise.app`, explains
   that the fallback is only for a trusted unsigned artifact when macOS reports
   that the app is damaged or does not open, and says signed/notarized builds do
-  not need it. The ZIP helper searches only `/Applications/PI-Desktop.app` and
-  `~/Applications/PI-Desktop.app`, removes only `com.apple.quarantine` when
+  not need it. The ZIP helper searches only `/Applications/DeckWise.app` and
+  `~/Applications/DeckWise.app`, removes only `com.apple.quarantine` when
   present, and opens the app without `sudo` or an arbitrary path argument. It
-  validates `CFBundleIdentifier=net.aiuo.pi-desktop` before changing attributes.
+  validates `CFBundleIdentifier=com.trainwise.deckwise` before changing attributes.
   The guidance does not claim that an unsigned artifact has passed Gatekeeper
   qualification.
 - **Specs linked**: `06-delivery/06-release-runbook.md`,
@@ -414,27 +448,6 @@ identify the platform validation still needed.
 - **Milestone**: M6+
 - **Status**: Workflow script/unit-covered; clean-machine journey required for
   each release (run only in a capable environment when this surface changes)
-
-#### E2E-212: GitHub Release starts the CNB mirror pipeline
-
-- **Preconditions**: Repository secret `CNB_MIRROR_TOKEN` is configured on
-  `vastsa/PI-Desktop`; the CNB pipeline at `aixk/Pi-Desktop` listens for
-  `api_trigger_mirror`; a GitHub Release tag such as `vX.Y.Z` exists with
-  uploaded artifacts.
-- **Steps**: 1) Publish or edit that GitHub Release, or dispatch
-  `mirror-to-cnb.yml` with the same tag. 2) Inspect the Actions log for the
-  resolved tag and the POST to `api.cnb.cool`. 3) Confirm the CNB pipeline
-  starts with `MIRROR_TAGS` equal to that tag.
-- **Expected**: The job runs only on `vastsa/PI-Desktop`. Manual dispatch
-  without a `vX.Y.Z` tag fails before calling CNB. A missing
-  `CNB_MIRROR_TOKEN` fails closed. The JSON body is built with `jq` (not
-  YAML string interpolation). GitHub Release artifacts and updater feeds are
-  unchanged; CNB is a mirror of the same tag.
-- **Specs linked**: `06-delivery/06-release-runbook.md`
-- **Acceptance**: Quality (release mirroring)
-- **Milestone**: M6+
-- **Status**: Source-contract covered (`ci-workflow.test.mjs`); live CNB
-  start remains operator validation (run only in a capable environment when this surface changes)
 
 ### Boot & Healthcheck
 
@@ -2051,8 +2064,8 @@ identify the platform validation still needed.
 #### E2E-038: Settings owns the project archive destination
 
 - **Preconditions**: App running with at least one configured provider, one supported local session store, one retained project, and one archived project.
-- **Steps**: 1) Open Settings. 2) Inspect the complete settings rail. 3) Open Basics and change the theme in its Appearance card using the searchable theme picker. 4) Open 全局 AI and inspect the Permissions and Defaults cards, including the Command shell row; confirm Context management has no settings card. 5) Open Shortcuts and inspect the Keyboard shortcuts card. 6) Open Instructions and save global instructions. 7) Open Model configuration and inspect the provider studio. 8) Open Import, Project archive, and Info in order. 9) Search Settings for "project" or "archive". 10) In Project archive, compare each group strip's count with its rendered rows. 11) Switch the sort control from Recent to Name. 12) Search for a known session title, inspect its expanded project row, then reveal more than eight sessions; clear the search with the clear affordance. 13) Open a row menu, dismiss it with Escape and with an outside press. 14) Restore the archived project, then activate it. 15) Return to the app shell and open Plugins.
-- **Expected**: The rail contains exactly Basics, 全局 AI/AI, Shortcuts, Instructions, Model configuration, Import, Project archive, and Info in that order, each with its semantic Lucide icon (Sliders / Sparkles / Keyboard / FileText / Bot / Download / Archive / Info). The flat directory is visually grouped under four muted, non-interactive headings — Personal / 个人 for Basics, AI, and Shortcuts; Agent / 智能体 for Instructions and Model configuration; Workspace / 工作区 for Import and Project archive; About / 关于 for Info — with whitespace and no divider lines between groups; searching keeps the destination results flat and hides empty groups together with their headings. Appearance remains in Basics, while Permissions, Defaults, and the Command shell row live under 全局 AI; an available selected shell is represented by the selector without a duplicate Configured status, while default, fallback, and no-effective-shell states remain explicit; Context management has no settings card; Keyboard shortcuts and global instructions have their own destinations; Developer lives under Info; Project archive shows active, closed, and archived durable rows without a visibility toggle, grouping them under the always-visible Pinned / All projects / Archived strips (D168/D267) with per-section counts inside one panel. The destination renders no hero block and no page-level counter run: the intro is one quiet description line, and each group strip's count agrees with its rendered rows; sorting by Name reorders rows inside every section without hiding any; search matches project fields and session titles and reports a match count, a session-title result expands its owning project, lists sessions by latest activity with relative update times, and reveals history in batches of eight; clearing the search restores the complete index. The row menu closes on Escape and on an outside press. Bootstrap completion and background refreshes do not return Settings or Extensions to the chat home; the destination changes only after an explicit navigation action. Restore keeps the archive open and activation returns to chat with the restored project retained in the sidebar; the home sidebar and global page results have no standalone Projects destination; Settings search finds Project archive; Plugins remains an independent app-shell destination.
+- **Steps**: 1) Open Settings. 2) Inspect the complete settings rail. 3) Open Basics and change the theme in its Appearance card using the searchable theme picker. 4) Open 全局 AI and inspect the Permissions and Defaults cards, including the Command shell row; confirm Context management has no settings card. 5) Open Shortcuts and inspect the Keyboard shortcuts card. 6) Open Instructions and save global instructions. 7) Open Model configuration and inspect the provider studio. 8) Open Import, Project archive, Account, and Info in order; confirm Account shows the signed-in user's avatar, name, school, role, edition, and Sign out action without credential details. 9) Search Settings for "project" or "archive". 10) In Project archive, compare each group strip's count with its rendered rows. 11) Switch the sort control from Recent to Name. 12) Search for a known session title, inspect its expanded project row, then reveal more than eight sessions; clear the search with the clear affordance. 13) Open a row menu, dismiss it with Escape and with an outside press. 14) Restore the archived project, then activate it. 15) Return to the app shell and open Plugins.
+- **Expected**: The rail contains exactly Basics, 全局 AI/AI, Shortcuts, Instructions, Model configuration, Import, Project archive, Account, and Info in that order, each with its semantic Lucide icon (Sliders / Sparkles / Keyboard / FileText / Bot / Download / Archive / User / Info). The flat directory is visually grouped under four muted, non-interactive headings — Personal / 个人 for Basics, AI, and Shortcuts; Agent / 智能体 for Instructions and Model configuration; Workspace / 工作区 for Import and Project archive; System / 系统 for Account and Info — with whitespace and no divider lines between groups; searching keeps the destination results flat and hides empty groups together with their headings. Appearance remains in Basics, while Permissions, Defaults, and the Command shell row live under 全局 AI; an available selected shell is represented by the selector without a duplicate Configured status, while default, fallback, and no-effective-shell states remain explicit; Context management has no settings card; Keyboard shortcuts and global instructions have their own destinations; Account shows profile basics and Sign out without credential details; Developer lives under Info; Project archive shows active, closed, and archived durable rows without a visibility toggle, grouping them under the always-visible Pinned / All projects / Archived strips (D168/D267) with per-section counts inside one panel. The destination renders no hero block and no page-level counter run: the intro is one quiet description line, and each group strip's count agrees with its rendered rows; sorting by Name reorders rows inside every section without hiding any; search matches project fields and session titles and reports a match count, a session-title result expands its owning project, lists sessions by latest activity with relative update times, and reveals history in batches of eight; clearing the search restores the complete index. The row menu closes on Escape and on an outside press. Bootstrap completion and background refreshes do not return Settings or Extensions to the chat home; the destination changes only after an explicit navigation action. Restore keeps the archive open and activation returns to chat with the restored project retained in the sidebar; the home sidebar and global page results have no standalone Projects destination; Settings search finds Project archive; Plugins remains an independent app-shell destination.
 - **Specs linked**: `04-ux/06-settings-ia.md`, `04-ux/01-ui-ia.md`, `03-runtime/11-provider-model-system.md`
 - **Acceptance**: B (model configuration), F (session import)
 - **Milestone**: M4
@@ -10269,7 +10282,7 @@ are withdrawn with ADR 0165.
   4) Activate Open GitHub.
 - **Expected**: The row is indexed by Settings search and stays on Info. The
   action calls `pi-desktop/app/openFeedback` with no URL from the renderer.
-  Main opens `https://github.com/vastsa/PI-Desktop/issues/new` with
+  Main opens `https://github.com/ganity/deckwise/issues/new` with
   `template=bug_report.yml` and prefills `app-version`, `os`, and
   `environment`. The GitHub bug form still requires description, reproduction
   steps, expected, actual, version, and OS; blank issues remain disabled.

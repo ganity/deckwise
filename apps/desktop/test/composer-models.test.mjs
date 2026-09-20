@@ -8,6 +8,7 @@ import {
   composerProviderDisplayName,
   composerProviderSearchText,
   composerModelsForProvider,
+  isInternalCoursewareModelLabel,
 } from "../src/lib/composer-models.ts";
 
 const binding = (id) => ({
@@ -168,6 +169,12 @@ test("a blank alias leaves the published display name alone", () => {
   );
 
   assert.equal(models[0].displayName, "DeepSeek V4 Pro");
+});
+
+test("courseware implementation aliases are recognized before display", () => {
+  assert.equal(isInternalCoursewareModelLabel("PPT Master Agent"), true);
+  assert.equal(isInternalCoursewareModelLabel("Pi Agent"), true);
+  assert.equal(isInternalCoursewareModelLabel("DeepSeek V4 Pro"), false);
 });
 
 test("composer model rows expose published reasoning and vision markers", () => {

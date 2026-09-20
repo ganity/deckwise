@@ -295,9 +295,10 @@ test("Windows/Linux explicit minimize paths use the native taskbar", () => {
     (resource) => resource.to === "tray-icon.png",
   );
   assert.deepEqual(trayResource, {
-    from: "build/icon.png",
+    from: "build/tray-icon.png",
     to: "tray-icon.png",
   });
+  assert.match(mainSource, /join\(resourceRoot, "tray-icon\.png"\)/);
   assert.deepEqual(packageJson.build.mac.extraResources, [
     {
       from: "../../target/release/pi-desktop-host-core",
@@ -308,8 +309,9 @@ test("Windows/Linux explicit minimize paths use the native taskbar", () => {
       to: "tray-icon-mac.png",
     },
   ]);
+  assert.match(iconScriptSource, /tray-icon\.png/);
   assert.match(iconScriptSource, /tray-icon-mac\.png/);
-  assert.match(iconScriptSource, /ImageChops\.multiply/);
+  assert.match(iconScriptSource, /ImageFilter\.MaxFilter/);
 });
 
 test("Windows taskbar minimize keeps the taskbar entry", () => {

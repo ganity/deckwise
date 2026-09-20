@@ -22,15 +22,15 @@
 
 在 macOS 上，`pnpm dev` 创建并重用带有指纹的品牌 Electron 主机
 捆绑在 `.cache/electron-dev/` 下。它的包名称、可执行文件、标识符、
-和 ICNS 资源是仅用于开发的 PI-Desktop 值，因此 AppKit 显示
-应用程序菜单中的 PI-Desktop 并使用本机中的规范图标
+和 ICNS 资源是仅用于开发的 DeckWise 值，因此 AppKit 显示
+应用程序菜单中的 DeckWise 并使用本机中的规范图标
 关于面板。运行时还将 `build/icon_1024.png` 应用于 Dock。库存
 `node_modules` 下的文件永远不会被修改。 Windows/Linux 不断发展
 正常的 electro-vite 可执行文件。尽管如此，Windows Main 还是注册了
-之前 NSIS 包使用的相同 `net.aiuo.pi-desktop` AppUserModelID
+之前 NSIS 包使用的相同 `com.trainwise.deckwise` AppUserModelID
 Electron 准备就绪，防止库存主机身份拥有本机
 通知或任务栏组。 Windows 封装另外引脚
-`PI-Desktop` 可执行文件和“开始”菜单快捷方式名称。启动器设置
+`DeckWise` 可执行文件和“开始”菜单快捷方式名称。启动器设置
 `PI_DESKTOP_DEV=1` 因此运行时打包检查会禁用更新传送
 并保留开发人员工作区默认值，尽管有品牌可执行文件名称。
 Electron 43+ 上的首次 `pnpm dev` 会按需下载 Electron 二进制文件
@@ -197,9 +197,9 @@ macOS 矩阵使用 arm64 的 `macos-15` 和 Intel x64 的
 
 共享的 electron-builder 配置在 macOS 平台级别为 ZIP 应用带架构后缀的命名模板，
 并在 DMG 目标级别覆盖该模板。两个公开架构都会明确可见：arm64 通道发布
-`PI-Desktop-<version>-arm64.dmg` 和 `PI-Desktop-<version>-arm64-mac.zip`，
-Intel x64 通道发布 `PI-Desktop-<version>-x64.dmg` 和
-`PI-Desktop-<version>-x64-mac.zip`。这同时适用于未签名、已签名和本地 macOS
+`DeckWise-<version>-arm64.dmg` 和 `DeckWise-<version>-arm64-mac.zip`，
+Intel x64 通道发布 `DeckWise-<version>-x64.dmg` 和
+`DeckWise-<version>-x64-mac.zip`。这同时适用于未签名、已签名和本地 macOS
 通道，并确保每个按架构生成的更新源都会引用带架构后缀的工件名及其匹配校验和。
 上传前，每个 macOS 运行器必须恰好生成一个带架构后缀的 DMG 和 ZIP（包括
 blockmap），任何无后缀或架构错误的 macOS 工件都会使发布失败。
@@ -210,15 +210,15 @@ DMG 使用带有品牌视觉的 720×500 背景，并明确展示拖入 Applicat
 DMG 不包含可执行的 command 助手。
 
 每个 macOS DMG 的安装包根目录都会包含配套的
-`PI-Desktop-macOS-opening-help.txt`，显示名为 `If app won't open, read this.txt`。macOS ZIP
-还包含该说明和可执行的 `PI-Desktop-macOS-open.command`。将 `PI-Desktop.app` 移动到
+`DeckWise-macOS-opening-help.txt`，显示名为 `If app won't open, read this.txt`。macOS ZIP
+还包含该说明和可执行的 `DeckWise-macOS-open.command`。将 `DeckWise.app` 移动到
 `/Applications` 或 `~/Applications` 后，ZIP 用户可以双击该助手。它只搜索这两个
-固定位置，在存在时递归删除唯一的 `com.apple.quarantine` 属性，然后打开 PI-Desktop。
-在执行前它会校验 `CFBundleIdentifier=net.aiuo.pi-desktop`。它不会使用 `sudo`，也不
+固定位置，在存在时递归删除唯一的 `com.apple.quarantine` 属性，然后打开 DeckWise。
+在执行前它会校验 `CFBundleIdentifier=com.trainwise.deckwise`。它不会使用 `sudo`，也不
 接受任意应用路径。标准系统位置的终端备用命令为：
 
 ```sh
-xattr -r -d com.apple.quarantine /Applications/PI-Desktop.app
+xattr -r -d com.apple.quarantine /Applications/DeckWise.app
 ```
 
 该助手仅适用于可信来源的未签名工件在 macOS 上提示应用已损坏的场景；已签名并公证
@@ -236,25 +236,6 @@ DMG、ZIP、NSIS、AppImage、deb、rpm、块图和更新程序提要输出已
 发布作业之前压缩级别为零的临时操作工件
 组装 GitHub 版本。
 
-### 4.4 CNB 镜像触发
-
-`softprops/action-gh-release` 发布或更新 GitHub Release 之后，
-`.github/workflows/mirror-to-cnb.yml` 会启动 `aixk/Pi-Desktop` 上的 CNB
-流水线。GitHub Release 仍是权威产物源；CNB 只是同一标签的副本，供从
-https://cnb.cool/aixk/Pi-Desktop 拉取的用户使用。
-
-该作业：
-
-- 仅在 `vastsa/PI-Desktop` 上运行
-- 在 `release` 的 `published` / `edited` 时触发，也可通过
-  `workflow_dispatch` 传入明确标签（例如 `v0.14.6`）
-- 发送事件 `api_trigger_mirror`，并把 `MIRROR_TAGS` 设为该标签
-- 使用仓库密钥 `CNB_MIRROR_TOKEN`（已配置）；密钥为空时失败退出
-- 用 `jq` 构造 JSON，避免手动运行时标签缺失导致空的 `MIRROR_TAGS`
-
-若 CNB 流水线幂等，对同一标签重跑是安全的。它不会重新构建桌面产物，
-也不会改写 electron-updater 更新源。
-
 ## 5. 验证门
 
 对于默认未签名的 macOS 通道，不要将工件视为通过 Gatekeeper 资格验证；
@@ -263,7 +244,7 @@ https://cnb.cool/aixk/Pi-Desktop 拉取的用户使用。
 每次发布版本后运行：
 
 ```bash
-for APP in apps/desktop/release/mac-*/PI-Desktop.app; do
+for APP in apps/desktop/release/mac-*/DeckWise.app; do
   codesign -dv --verbose=2 "$APP"          # identity + hardened runtime flags
   codesign --verify --deep --strict "$APP" # signature integrity
   spctl -a -vv "$APP"                      # Gatekeeper assessment (notarized Developer ID)
@@ -351,12 +332,12 @@ Electron 目标布局。
 
 在干净的轮廓上手动烟雾 (`PI_DESKTOP_DATA_DIR=$(mktemp -d)`)：
 
-1. `pnpm dev` 与 `PI-Desktop` 一起在 macOS 应用程序菜单中启动，
+1. `pnpm dev` 与 `DeckWise` 一起在 macOS 应用程序菜单中启动，
    Dock 和本机“关于”面板中的规范图标；没有 Electron 品牌
    可见。
 2. 应用程序从 DMG 安装启动，出现窗口，然后出现应用程序菜单，
    关于面板和 Dock 品牌与开发路线相匹配。
-3. 空首页和 expanded/collapsed 侧边栏显示规范的 PI-Desktop
+3. 空首页和 expanded/collapsed 侧边栏显示规范的 DeckWise
    标志；输入框提示行没有领先的品牌图标；新任务和
 project/Temporary 使用消息加会话图标创建控件。
 4. 出现新手引导清单；配置提供商；一轮流式聊天。
@@ -389,21 +370,21 @@ macOS 软件包包括按本机架构构建的 `bin/pi-desktop-host-core`；Windo
 
 Native-runner 输出矩阵：
 
-- macOS arm64：`PI-Desktop-<version>-arm64.dmg` 和
-  `PI-Desktop-<version>-arm64-mac.zip`
-- macOS Intel x64：`PI-Desktop-<version>-x64.dmg` 和
-  `PI-Desktop-<version>-x64-mac.zip`
-- Windows x64：NSIS 安装程序 `PI-Desktop-Setup-<version>.exe` 和便携版
-  exe `PI-Desktop-Portable-<version>.exe`
+- macOS arm64：`DeckWise-<version>-arm64.dmg` 和
+  `DeckWise-<version>-arm64-mac.zip`
+- macOS Intel x64：`DeckWise-<version>-x64.dmg` 和
+  `DeckWise-<version>-x64-mac.zip`
+- Windows x64：NSIS 安装程序 `DeckWise-Setup-<version>.exe` 和便携版
+  exe `DeckWise-Portable-<version>.exe`
 - Linux x64：AppImage、deb 和 rpm
-- Linux x64 系统 Electron 产物：`PI-Desktop-<version>-linux-x64.asar`
+- Linux x64 系统 Electron 产物：`DeckWise-<version>-linux-x64.asar`
 
 便携版 Windows 目标不会写入 `latest.yml`。已打包的便携版运行使用通知加链接
 交付（`PORTABLE_EXECUTABLE_FILE`）；NSIS 仍走应用内下载并在退出时安装。
 数据仍在现有应用数据目录。便携版请求 user 执行级别，因此启动不需要管理员权限。
 
 RPM 目标会向 FPM 传入 `_build_id_links none`。捆绑的 Electron 二进制文件位于
-`/opt/PI-Desktop` 下；省略全局 `/usr/lib/.build-id` 链接，可以避免与其他捆绑相同
+`/opt/deckwise` 下；省略全局 `/usr/lib/.build-id` 链接，可以避免与其他捆绑相同
 Electron 二进制文件的应用发生冲突。
 
 该 ASAR 产物包含的是 Electron 应用归档，而不是完整的 Linux 发行包。
@@ -411,7 +392,7 @@ Electron 二进制文件的应用发生冲突。
 与目标软件包内的本机主机及其他资源放在一起，然后用以下命令启动：
 
 ```bash
-electron PI-Desktop-<version>-linux-x64.asar
+electron DeckWise-<version>-linux-x64.asar
 ```
 
 每个本机运行器上的外壳冒烟测试：

@@ -162,6 +162,10 @@ export function isKnownWorkPanelTab(tab: WorkPanelTab): boolean {
   );
 }
 
+export function isWorkPanelTabClosable(tab: WorkPanelTab): boolean {
+  return tab.kind !== "ppt";
+}
+
 export function sanitizeWorkPanelTabsState(
   state: WorkPanelTabsState,
 ): WorkPanelTabsState {
@@ -279,6 +283,7 @@ export function closeWorkPanelTabState(
 ): WorkPanelTabsState {
   const index = state.tabs.findIndex((tab) => tab.id === tabId);
   if (index === -1) return state;
+  if (!isWorkPanelTabClosable(state.tabs[index])) return state;
 
   const tabs = state.tabs.filter((tab) => tab.id !== tabId);
   if (state.activeTabId !== tabId) return { tabs, activeTabId: state.activeTabId };

@@ -25,6 +25,10 @@ const panelSource = await readFile(
   new URL("../src/components/workpanel/WorkPanel.tsx", import.meta.url),
   "utf8",
 );
+const pptEditorSource = await readFile(
+  new URL("../src/components/workpanel/PptEditorTab.tsx", import.meta.url),
+  "utf8",
+);
 const transcriptSource = await readTranscriptSource();
 const storeSource = await readStoreSource();
 const globalStyles = await loadStyles();
@@ -102,24 +106,21 @@ test("a viewport-fixed toggle is the sole pointer collapse control", () => {
     globalStyles,
     /\.work-panel-actions \{[^}]*border-right:/s,
   );
-  // `+` and maximize are chrome icon controls: transparent at rest, hover wash
-  // only. A filled tile of their own re-seated the header's quiet group as two
-  // filled squares beside the toggle (chrome-control-geometry.test.mjs owns the
-  // family and its interaction states).
+  // Maximize is a chrome icon control: transparent at rest, hover wash only.
   assert.match(
     globalStyles,
-    /\.work-panel-new-tab,\n\.work-panel-maximize \{[^}]*background:\s*transparent;/s,
+    /\.work-panel-maximize \{[^}]*background:\s*transparent;/s,
   );
   assert.doesNotMatch(
     globalStyles,
-    /\.work-panel-(?:new-tab|maximize)\s*\{[^}]*background:\s*var\(--ds-tile/,
+    /\.work-panel-maximize\s*\{[^}]*background:\s*var\(--ds-tile/,
   );
   assert.doesNotMatch(
     globalStyles,
     /\.app-work-panel-toggle\[aria-pressed="true"\] \{[^}]*box-shadow:/s,
   );
   assert.match(mainSource, /WORK_PANEL_HEADER_PROBE/);
-  assert.match(mainSource, /querySelector\('\.work-panel-new-tab'\)/);
+  assert.match(mainSource, /rectFor\('\.work-panel-maximize'\)/);
   assert.doesNotMatch(mainSource, /work-panel-switcher-trigger/);
   assert.match(mainSource, /probe\.gap < 24/);
   assert.match(mainSource, /pi-panel-new/);
@@ -212,7 +213,7 @@ test("work panel uses the fixed-window internal dock", () => {
   );
 });
 
-test("work panel header exposes a scrollable tab strip and direct new-page action", () => {
+test("work panel header exposes a scrollable tab strip without a new-page action", () => {
   const headerIndex = panelSource.indexOf('className="work-panel-header"');
   const stripIndex = panelSource.indexOf('className="work-panel-tab-strip"');
   const actionsIndex = panelSource.indexOf('className="work-panel-actions no-drag"');
@@ -225,6 +226,8 @@ test("work panel header exposes a scrollable tab strip and direct new-page actio
   assert.match(panelSource, /aria-selected=\{selected\}/);
   assert.match(panelSource, /aria-controls=\{`work-panel-surface-\$\{tab\.id\}`\}/);
   assert.match(panelSource, /className="work-panel-tab-close"/);
+  assert.match(panelSource, /const closable = isWorkPanelTabClosable\(tab\)/);
+  assert.match(panelSource, /\{closable \? \(/);
   assert.match(panelSource, /event\.button !== 1/);
   assert.match(panelSource, /workPanelTools\(t, pluginViews\)/);
   assert.match(panelSource, /toolWorkPanelTab\("review"\)/);
@@ -233,7 +236,7 @@ test("work panel header exposes a scrollable tab strip and direct new-page actio
   // Launchable tools are plugin views (`pi.file-manager`, `pi.browser`, …). The
   // `file` *kind* remains: a `file:<path>` tab is a transcript artifact.
   assert.doesNotMatch(panelSource, /\{ kind: "file", Icon/);
-  assert.match(panelSource, /onClick=\{openNewWorkPanelTab\}/);
+  assert.doesNotMatch(panelSource, /work-panel-new-tab|openNewWorkPanelTab/);
   assert.match(panelSource, /data-work-panel-launcher-item=\{item\.id\}/);
   assert.doesNotMatch(panelSource, /aria-haspopup|work-panel-new-menu|role="menuitemradio"/);
   assert.match(panelSource, /role="tabpanel"/);
@@ -279,7 +282,8 @@ test("work panel header exposes a scrollable tab strip and direct new-page actio
 });
 
 test("PPTX and Browser editing surfaces expose an in-app full-screen mode", () => {
-  assert.match(panelSource, /activeTab\?\.kind === "editor"/);
+  assert.match(panelSource, /return "预览编辑"/);
+  assert.match(panelSource, /if \(tab\.kind === "editor"\) return "编辑 PPT"/);
   assert.match(panelSource, /BROWSER_PLUGIN_TAB\.pluginId/);
   assert.match(panelSource, /event\.key !== "Escape"/);
   assert.match(appSource, /!workPanelMaximized && \(!sidebarCollapsed \|\| sidebarExiting\)/);
@@ -288,10 +292,11 @@ test("PPTX and Browser editing surfaces expose an in-app full-screen mode", () =
   assert.match(appSource, /sidebarCollapsed=\{workPanelMaximized \|\| sidebarCollapsed\}/);
   assert.match(panelSource, /<PptEditorTab[\s\S]*maximized=\{maximized\}/);
   assert.match(panelSource, /onToggleMaximize=\{onToggleMaximize\}/);
+  assert.match(pptEditorSource, /maximized \? "退出全屏" : "全屏编辑"/);
 });
 
-test("plus creates a blank page and launcher rows open tools in that page", () => {
-  assert.match(panelSource, /openNewWorkPanelTab/);
+test("internal blank pages still let launcher rows open tools", () => {
+  assert.doesNotMatch(panelSource, /openNewWorkPanelTab/);
   assert.match(panelSource, /activeTab\?\.kind === "new"/);
   assert.match(panelSource, /replaceWorkPanelTab/);
   assert.match(storeSource, /openNewWorkPanelTab: \(\) =>/);

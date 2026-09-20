@@ -27,6 +27,8 @@ import { registerComposerIpc } from "./composer-ipc";
 import { registerSpeechIpc } from "./speech-ipc";
 import { registerPptEditorIpc } from "./ppt-editor-ipc";
 import { registerPptPreviewIpc } from "./ppt-preview-ipc";
+import { registerAuthIpc } from "./auth-ipc";
+import type { DesktopAuthSession } from "../auth-session";
 import type { IpcRegistrar } from "./types";
 
 export type RegisterIpcDependencies = {
@@ -35,6 +37,7 @@ export type RegisterIpcDependencies = {
   getHost: () => HostProcess | null;
   getSidecar: () => AgentSidecar | null;
   getAgentHostBridge: () => AgentHostBridge | null;
+  authSession: DesktopAuthSession;
   getNotificationViewingSessionId: () => string | null;
   setNotificationViewingSessionId: (sessionId: string | null) => void;
   activeUserSubagentDocuments: (...args: any[]) => Promise<any>;
@@ -61,6 +64,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     getHost,
     getSidecar,
     getAgentHostBridge,
+    authSession,
     getNotificationViewingSessionId,
     setNotificationViewingSessionId,
     getPluginLauncherWindow,
@@ -179,6 +183,13 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     handleWithEvent,
     assertMainWindowSender,
   };
+
+  registerAuthIpc({
+    registrar,
+    authSession,
+    dataDir,
+    getWorkspaceRoot: optionalWorkspaceRoot,
+  });
 
   registerAppIpc({
     registrar,

@@ -38,10 +38,8 @@ const legacyModeKey = ["mode", "Chat"].join("");
 const legacyModeCommand = ["builtin.mode", "chat"].join(".");
 const legacyModeLiteral = ["mode:", '"chat"'].join(" ");
 
-test("DeckWise Composer exposes Agent only while retaining legacy mode contracts", () => {
-  assert.match(composerSource, /className="icon-btn mode-chip composer-mode-chip composer-mode-static"/);
-  assert.match(composerSource, /data-mode="agent"/);
-  assert.match(composerSource, /t\(MODE_LABEL_KEYS\.agent\)/);
+test("DeckWise keeps Agent mode fixed without exposing a mode control", () => {
+  assert.doesNotMatch(composerSource, /composer-mode-chip|data-mode="agent"|MODE_LABEL_KEYS\.agent/);
   assert.doesNotMatch(composerSource, /MODE_CYCLE|nextMode\(mode\)/);
   assert.doesNotMatch(settingsSource, /settings\.modePlan|settings\.modeGoal|defaultMode: value/);
   assert.match(commandsSource, /case "builtin\.mode\.plan"/);

@@ -53,7 +53,7 @@ export type AgentIpcDependencies = {
 
 function rejectNativeAgentOperation(sessionId: string): void {
   if (sessionId.startsWith("native-pi:")) {
-    throw Object.assign(new Error("Operation is unsupported for native Pi sessions"), { errorCode: "NATIVE_PI_UNSUPPORTED" });
+    throw Object.assign(new Error("Operation is unsupported for legacy sessions"), { errorCode: "NATIVE_PI_UNSUPPORTED" });
   }
 }
 
@@ -62,6 +62,7 @@ function deckWiseModelPrompt(content: string): string {
     "DeckWise turn policy:",
     "- This product only supports creating, revising, inspecting, or exporting PPTX courseware.",
     "- If this request is outside that scope, do not call tools or answer it normally; briefly state the product boundary and ask for a courseware topic or source material.",
+    "- In user-facing responses, never mention Pi, PPT Master, skill ids, Python scripts, SVG services, internal tools, or workspace paths. Describe the work using courseware requirements, courseware pages, page preview, and courseware editing.",
     `- For a supported request, first call the \`Skill\` tool with id ${JSON.stringify(PPT_MASTER_SKILL_ID)} and follow the loaded instructions.`,
     "- Infer the lifecycle from workspace artifacts: before the first export, stop at the editable SVG preview unless this is the host's explicit PPTX export request; after an export exists, revise the SVG source and create a new PPTX version.",
     "",
@@ -267,7 +268,7 @@ export function registerAgentIpc({
     if (!sidecar) throw new Error("sidecar unavailable");
     if (req.sessionId.startsWith("native-pi:")) {
       if (req.sessionMessageId || req.truncateFromMessageId || req.truncateBefore !== undefined || req.attachments?.length) {
-        throw Object.assign(new Error("Native Pi continuation currently supports text prompts only"), {
+        throw Object.assign(new Error("Legacy session continuation currently supports text prompts only"), {
           errorCode: ErrorCodes.INVALID_ARGUMENT,
         });
       }

@@ -19,7 +19,7 @@ export const PLUGIN_DEV_SKILL_ID = "pi-desktop/plugin-development";
 
 /** DeckWise's PPT generation workflow is a host-owned skill, not a worker. */
 export const PPT_MASTER_SKILL_ID = "deckwise/ppt-master";
-const PPT_MASTER_SKILL_NAME = "PPT Master";
+const PPT_MASTER_SKILL_NAME = "课件生成";
 const PPT_MASTER_SKILL_DESCRIPTION =
   "Create, generate, reconstruct, beautify, edit, or enhance editable PowerPoint/PPTX presentations and courseware.";
 const PPT_MASTER_REQUIRED_FILES = [
@@ -95,7 +95,12 @@ function withPptMasterRuntimeContext(body: string, root: string): string {
     body,
     "",
     "## DeckWise Host Policy",
+    "Keep implementation details private in every user-facing response. Never mention Pi, PPT Master, skill ids, Python scripts, SVG services, internal tools, or workspace paths unless the user explicitly asks for technical troubleshooting. Use product language such as courseware assistant, courseware pages, page preview, and courseware editor instead.",
     "Continue through the existing automated PM flow without confirmation pauses until the editable SVG preview is ready. Only ask when required input is genuinely missing.",
+    "Before asking, inspect the user's prompt and attached documents. Never ask for information already stated or reasonably inferable from those materials.",
+    "For initial generation, clarification is limited to at most three rounds. One `asktool` call is one clarification round and may group several tightly related missing items. After each round, reassess whether the request is sufficient and start immediately once it is; never ask extra questions merely to use the remaining rounds.",
+    "Treat a discernible teaching topic or source scope as the main blocker. Grade and subject should be clarified when they materially affect the content and cannot be inferred. Page count, visual style, color palette, lesson structure, and narration detail are optional preferences: infer sensible defaults rather than blocking generation unless the materials conflict or the user explicitly asks to choose them.",
+    "Keep every clarification round compact, with short questions and a small set of useful options plus the custom-answer path provided by `asktool`. If critical information is still missing after the third round, proceed with conservative assumptions and state them briefly; stop only when there is no usable topic or source content at all.",
     "Whenever starting PPT Master's SVG editor service, append `--no-browser`; DeckWise owns browser presentation and must not open the system browser.",
     "After the live preview server starts, call ToolSearch for `browser`, then call Browser with `action=navigate` and the exact loopback preview URL printed by PPT Master. Do not merely print the URL; opening the in-app Browser is part of the workflow.",
     "On the initial generation turn, stop after the editable SVG preview is ready and opened. Do not finalize or export PPTX until the user explicitly requests PPTX generation. A user request from DeckWise's `Generate PPTX` action is explicit authorization to continue the official finalization, validation, and SVG-to-PPTX export steps without another confirmation.",
@@ -183,7 +188,7 @@ export function builtinSkills(input: BuiltinSkillInput): PluginSkillDef[] {
     ...skills,
     {
       id: PLUGIN_DEV_SKILL_ID,
-      name: parsed.name ?? "PI-Desktop plugin development",
+      name: parsed.name ?? "DeckWise plugin development",
       description: parsed.description,
     },
   ];
@@ -214,7 +219,7 @@ export function loadBuiltinSkillBody(
   if (!parsed.body) return null;
   return {
     id: PLUGIN_DEV_SKILL_ID,
-    name: parsed.name ?? "PI-Desktop plugin development",
+    name: parsed.name ?? "DeckWise plugin development",
     body: parsed.body,
   };
 }

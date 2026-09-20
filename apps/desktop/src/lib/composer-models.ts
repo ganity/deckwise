@@ -9,6 +9,10 @@ import {
 
 type ConfiguredProvider = Pick<ProviderPublic, "id" | "models" | "defaultModelId">;
 
+export function isInternalCoursewareModelLabel(value: string): boolean {
+  return /(?:PPT\s*Master(?:\s*Agent)?|Pi\s*Agent)/i.test(value);
+}
+
 /**
  * Resolve the provider heading shown in the Composer model menu.
  *

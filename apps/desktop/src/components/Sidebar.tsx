@@ -1559,7 +1559,7 @@ export function Sidebar({
             <IconPin size={11} className="thread-item-pin" aria-hidden />
           ) : null}
           {session.source === "pi-native" ? (
-            <span className="thread-item-source" title="Native Pi session">Pi</span>
+            <span className="thread-item-source" title="旧版会话">已导入</span>
           ) : null}
           <span className="thread-item-title">{taskTitle(session.title)}</span>
           {options?.global ? (

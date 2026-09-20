@@ -9,12 +9,9 @@ const sessionCoordinationSource = await readFile(
   "utf8",
 );
 
-test("Composer exposes Full auto as a fixed non-interactive permission label", () => {
-  assert.match(
-    composerSource,
-    /composer-permission composer-permission-static/,
-  );
-  assert.match(composerSource, /PERMISSION_MODE_I18N_KEYS\.auto/);
+test("Composer keeps Full auto internal instead of exposing a permission control", () => {
+  assert.doesNotMatch(composerSource, /composer-permission/);
+  assert.doesNotMatch(composerSource, /PERMISSION_MODE_I18N_KEYS\.auto/);
   assert.doesNotMatch(composerSource, /composer-permission-menu/);
   assert.doesNotMatch(composerSource, /permissionOpen|setPermissionOpen/);
   assert.doesNotMatch(composerSource, /\["ask", "accept-edits", "auto"\]/);

@@ -61,6 +61,18 @@ function bareToolName(toolName?: string): string {
     .replace(/[^a-z0-9]+/g, "");
 }
 
+export function isCoursewareInternalToolCall(
+  toolName: string | undefined,
+  args: unknown,
+): boolean {
+  if (!args || typeof args !== "object") return false;
+  const text = formatToolValue(args);
+  return (
+    (bareToolName(toolName) === "skill" && text.includes("deckwise/ppt-master")) ||
+    /ppt-master|PPT_MASTER|SKILL_DIR|project_manager\.py|\.deckwise-ppt/i.test(text)
+  );
+}
+
 /** The tool that STARTS a subagent (ADR 0062). The lifecycle tools of ADR 0089
  * (TaskWait/TaskList/TaskStop) drive an existing delegation and are not
  * delegation activity items themselves. */
@@ -177,6 +189,7 @@ export function getToolSummaryValue(
 }
 
 export function getToolSummary(toolName: string | undefined, args: unknown) {
+  if (isCoursewareInternalToolCall(toolName, args)) return "课件处理流程";
   const action = getToolAction(toolName);
   if (args && typeof args === "object") {
     const record = args as Record<string, unknown>;

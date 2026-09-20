@@ -21,6 +21,14 @@ const [
   hostMain,
   marketplaceCatalog,
   ignoreRules,
+  importDialog,
+  authSession,
+  authIpc,
+  protocol,
+  rendererApi,
+  toolDisplay,
+  toolRow,
+  composer,
 ] = await Promise.all([
   read("../src/components/workpanel/PptMasterTab.tsx"),
   read("../src/stores/slices/queue-slice.ts"),
@@ -39,6 +47,14 @@ const [
   read("../../../crates/host-core/src/main.rs"),
   read("../../../crates/host-core/src/plugins/marketplace/catalog.rs"),
   read("../../../crates/host-core/src/tools/ignore_rules.rs"),
+  read("../src/components/workpanel/CoursewareImportDialog.tsx"),
+  read("../electron/main/auth-session.ts"),
+  read("../electron/main/ipc/auth-ipc.ts"),
+  read("../../../packages/shared/src/protocol.ts"),
+  read("../src/lib/api.ts"),
+  read("../src/lib/tool-display.ts"),
+  read("../src/features/chat/transcript/ToolRow.tsx"),
+  read("../src/components/Composer.tsx"),
 ]);
 
 test("DeckWise only accepts PPTX courseware tasks and loads PPT Master", () => {
@@ -49,11 +65,29 @@ test("DeckWise only accepts PPTX courseware tasks and loads PPT Master", () => {
   assert.match(agentIpc, /PPT_MASTER_SKILL_ID/);
   assert.match(agentIpc, /content: deckWiseModelPrompt\(req\.content\)/);
   assert.match(agentIpc, /const modelContent = deckWiseModelPrompt\(/);
+  assert.match(agentIpc, /never mention Pi, PPT Master, skill ids/);
+  assert.match(composer, /isInternalCoursewareModelLabel/);
+  assert.match(composer, /t\("chat\.coursewareAssistant"\)/);
+  assert.match(skill, /Keep implementation details private/);
+  assert.match(toolDisplay, /isCoursewareInternalToolCall/);
+  assert.match(toolDisplay, /课件处理流程/);
+  assert.match(toolRow, /!internalCoursewareTool/);
 });
 
 test("home quick starts prefill the composer without auto-sending", () => {
   assert.match(chatSurface, /setQuickstartPrefill\(\{ text: prompt, token:/);
   assert.match(chatSurface, /<StableComposer variant="home" prefill=\{quickstartPrefill\}/);
+  assert.match(chatSurface, /小学三年级数学制作《认识分数》/);
+  assert.match(chatSurface, /约 15 页/);
+  assert.match(chatSurface, /清新插画风/);
+});
+
+test("PPT Master asks only for genuinely missing input in at most three rounds", () => {
+  assert.match(skill, /inspect the user's prompt and attached documents/);
+  assert.match(skill, /at most three rounds/);
+  assert.match(skill, /One `asktool` call is one clarification round/);
+  assert.match(skill, /never ask extra questions merely to use the remaining rounds/);
+  assert.match(skill, /proceed with conservative assumptions/);
 });
 
 test("settings do not expose agent behavior customization", () => {
@@ -89,7 +123,7 @@ test("SVG preview opens in Browser and waits for explicit PPTX generation", () =
   assert.match(skill, /call ToolSearch for `browser`/);
   assert.match(skill, /Browser with `action=navigate`/);
   assert.match(skill, /Do not finalize or export PPTX until the user explicitly requests/);
-  assert.match(panel, /生成 PPTX/);
+  assert.match(panel, /生成 PPT/);
   assert.match(panel, /sendPrompt\(PPTX_EXPORT_PROMPT/);
   assert.doesNotMatch(panel, /当前产物|开始生成/);
 });
@@ -100,6 +134,25 @@ test("delivered PPT projects revise SVG as the only source and export a new PPTX
   assert.match(skill, /immediately create a new timestamped PPTX export/);
   assert.match(skill, /Never read changes back from a PPTX/);
   assert.match(panel, /latestSvgMtime > pptx\.mtimeMs/);
-  assert.match(panel, /重新生成 PPTX/);
-  assert.match(panel, /正在根据最新 SVG 生成新版本 PPTX/);
+  assert.match(panel, /重新生成 PPT/);
+  assert.match(panel, /正在根据最新页面生成新版本 PPT/);
+});
+
+test("completed PPTX projects can be published with education metadata", () => {
+  assert.match(panel, /<CoursewareImportDialog/);
+  assert.match(panel, /发布到教学平台/);
+  assert.match(importDialog, /firstLessonPlan/);
+  assert.match(importDialog, /account\.dictionaries\?\.grades/);
+  assert.match(importDialog, /account\.dictionaries\?\.subjects/);
+  assert.match(importDialog, /detailLevel/);
+  assert.match(importDialog, /api\.importCourseware/);
+  assert.match(protocol, /coursewareImport:\s*"deckwise\/courseware\/import"/);
+  assert.match(rendererApi, /importCourseware/);
+  assert.match(authIpc, /assertMainWindowSender/);
+  assert.match(authSession, /\/courses\/presign/);
+  assert.match(authSession, /skipMaterial:\s*"true"/);
+  assert.match(authSession, /\/courses\/courseware-import-tasks/);
+  assert.match(authSession, /sourceMaterial/);
+  assert.match(authSession, /lessonPlan/);
+  assert.match(authSession, /schoolStage:\s*"primary"/);
 });

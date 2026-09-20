@@ -105,6 +105,15 @@ test("closing an inactive tab preserves selection and the last close empties sta
   assert.deepEqual(empty, { tabs: [], activeTabId: null });
 });
 
+test("the courseware workspace is a pinned tab", () => {
+  const state = {
+    tabs: [toolWorkPanelTab("ppt"), toolWorkPanelTab("review")],
+    activeTabId: "ppt",
+  };
+
+  assert.equal(closeWorkPanelTabState(state, "ppt"), state);
+});
+
 test("activation ignores stale tab ids", () => {
   const state = { tabs: [toolWorkPanelTab("review")], activeTabId: "review" };
   assert.equal(activateWorkPanelTabState(state, "missing"), state);

@@ -36,12 +36,12 @@ test("placeholder changes fade without duplicating the native accessible value",
   assert.match(composerStyles, /opacity:\s*0\s*!important/);
 });
 
-test("both shipped locales provide welcome, command, file, and shortcut guidance", () => {
-  assert.match(english, /placeholderHint:\s*"Type \/ for commands · @ for files"/);
-  assert.match(english, /placeholderHomeHint:\s*"Type \/ for commands · @ for files"/);
+test("both shipped locales provide courseware examples and shortcut guidance", () => {
+  assert.match(english, /placeholderHint:\s*"Example: Grade 3 math, Fractions, 15 slides, clean illustrated style"/);
+  assert.match(english, /placeholderHomeHint:\s*"Example: Grade 3 math, Fractions, 15 slides, clean illustrated style"/);
   assert.match(english, /placeholderShortcut:\s*"Shift\+Enter for newline · Use Send to submit"/);
-  assert.match(chinese, /placeholderHint:\s*"输入 \/ 使用命令 · @ 引用文件"/);
-  assert.match(chinese, /placeholderHomeHint:\s*"输入 \/ 使用命令 · @ 引用文件"/);
+  assert.match(chinese, /placeholderHint:\s*"例如：小学三年级数学《认识分数》，15 页，清新插画风"/);
+  assert.match(chinese, /placeholderHomeHint:\s*"例如：小学三年级数学《认识分数》，15 页，清新插画风"/);
   assert.match(chinese, /placeholderShortcut:\s*"Shift\+Enter 换行 · 点击发送提交"/);
 });
 

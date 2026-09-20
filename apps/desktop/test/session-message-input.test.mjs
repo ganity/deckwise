@@ -105,7 +105,11 @@ test("prompt IPC persists original session text, skips slash expansion and binds
   assert.equal(row.content, message.content);
   assert.deepEqual(row.sessionMessage, origin);
   assert.equal(row.command, undefined);
-  assert.equal(sidecarCalls[0].params.content, message.content);
+  assert.match(sidecarCalls[0].params.content, /^DeckWise turn policy:/);
+  assert.match(
+    sidecarCalls[0].params.content,
+    new RegExp(`User request:\\n${message.content.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`),
+  );
   assert.deepEqual(sidecarCalls[0].params.sessionMessage, origin);
   assert.equal(events.length, 2);
   assert.equal(released, true);

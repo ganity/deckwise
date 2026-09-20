@@ -48,8 +48,68 @@ export const WINDOW_CONTROL_ACTIONS = [
 
 export type WindowControlAction = (typeof WINDOW_CONTROL_ACTIONS)[number];
 
+export type DesktopAuthProfile = {
+  userId: number;
+  userName: string;
+  avatarUrl?: string;
+  role: string;
+  tenantId: number;
+  tenantName: string;
+  edition: "EDUCATION";
+  dictionaries?: Record<string, DesktopAuthDictionaryItem[]>;
+  generationDefaults?: {
+    schoolStage?: string;
+    grade?: string;
+    subject?: string;
+    detailLevel?: "quick" | "normal" | "detailed";
+  };
+  workflowProfile?: string;
+  interactionProfile?: string;
+};
+
+export type DesktopAuthDictionaryItem = {
+  value: string;
+  label: string;
+  sort?: number;
+  enabled?: boolean;
+  parentValue?: string;
+};
+
+export type DesktopCoursewareImportInput = {
+  title: string;
+  grade: string;
+  subject: string;
+  customSubjectName?: string;
+  detailLevel: "quick" | "normal" | "detailed";
+  pptxPath: string;
+  lessonPlanPath: string;
+};
+
+export type DesktopCoursewareImportResult = {
+  taskId: number;
+  status: string;
+  courseId?: number;
+  courseTitle?: string;
+};
+
+export type DesktopAuthState =
+  | { status: "restoring" }
+  | { status: "signedOut"; message?: string }
+  | {
+      status: "waitingForScan";
+      ticket: string;
+      qrCodeText: string;
+      expiresAt: number;
+    }
+  | { status: "authenticated"; profile: DesktopAuthProfile };
+
 export const IPC = {
   invoke: {
+    authRestore: "deckwise/auth/restore",
+    authStartQr: "deckwise/auth/startQr",
+    authPollQr: "deckwise/auth/pollQr",
+    authLogout: "deckwise/auth/logout",
+    coursewareImport: "deckwise/courseware/import",
     appGetVersion: "pi-desktop/app/getVersion",
     appOpenFeedback: "pi-desktop/app/openFeedback",
     appHealth: "pi-desktop/app/health",
@@ -285,6 +345,7 @@ export const IPC = {
     nativeMenuAction: "pi-desktop/menu/nativeAction",
   },
   event: {
+    authChanged: "deckwise/auth/event/changed",
     pluginChanged: "pi-desktop/event/pluginChanged",
     /** Progress of an install or update, while it is still running. */
     pluginInstallProgress: "pi-desktop/plugin/event/installProgress",

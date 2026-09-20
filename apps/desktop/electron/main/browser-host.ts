@@ -222,7 +222,7 @@ export class BrowserHost {
       return {
         ok: false,
         content:
-          "BrowserPreview: the Browser plugin is disabled. Enable pi.browser in Plugins to preview HTML.",
+          "页面预览组件已停用，无法打开预览。",
       };
     }
     this.rememberLocation(sessionId, path);

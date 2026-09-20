@@ -30,11 +30,13 @@ const [
     read("../src/components/HomeMascotLogo.tsx"),
   ]);
 
-test("renderer surfaces the PI-Desktop brand instead of the Codex shell brand", () => {
-  assert.match(english, /shellName:\s*"PI-Desktop"/);
-  assert.match(chinese, /shellName:\s*"PI-Desktop"/);
-  assert.match(english, /placeholder:\s*"Ask PI-Desktop to help with anything"/);
-  assert.match(chinese, /placeholder:\s*"让 PI-Desktop 帮你做任何事"/);
+test("renderer surfaces the DeckWise courseware brand", () => {
+  assert.match(english, /shellName:\s*"DeckWise"/);
+  assert.match(chinese, /shellName:\s*"DeckWise"/);
+  assert.match(english, /placeholder:\s*"Enter the topic, grade, subject, and style, or attach a lesson plan"/);
+  assert.match(chinese, /placeholder:\s*"输入课件主题、年级、学科和风格，或上传教案"/);
+  assert.doesNotMatch(english, /PI-Desktop|PPT Master|Pi Agent/);
+  assert.doesNotMatch(chinese, /PI-Desktop|PPT Master|Pi Agent/);
   assert.doesNotMatch(english, /shellName:\s*"Codex"/);
   assert.doesNotMatch(chinese, /shellName:\s*"Codex"/);
   // Codex remains a supported external import source, not the app identity.

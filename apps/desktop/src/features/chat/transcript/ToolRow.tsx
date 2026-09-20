@@ -18,6 +18,7 @@ import {
   getToolDisplayName,
   getToolSummary,
   getToolSummaryValue,
+  isCoursewareInternalToolCall,
 } from "../../../lib/tool-display";
 import {
   buildToolPresentation,
@@ -167,6 +168,10 @@ export const ToolRow = memo(function ToolRow({
     status === "running" ? TOOL_RUNNING_KEYS[action] : TOOL_ACTION_KEYS[action],
   );
   const rawName = getToolDisplayName(message.toolName) || t("chat.tool");
+  const internalCoursewareTool = isCoursewareInternalToolCall(
+    message.toolName,
+    message.toolArgs,
+  );
   const argSummary = getToolSummary(message.toolName, message.toolArgs);
   const previewTarget = PREVIEWABLE_ACTIONS.has(action)
     ? getToolPreviewTarget(message.toolArgs, root)
@@ -180,7 +185,8 @@ export const ToolRow = memo(function ToolRow({
     : "";
   // A delegation is always expandable: its brief, report and the delegate's
   // own rows all live in the body.
-  const hasDetails = hasToolDetails(message) || Boolean(delegate);
+  const hasDetails =
+    !internalCoursewareTool && (hasToolDetails(message) || Boolean(delegate));
   const chips = toolResultChips(message);
   // A lifecycle row (ADR 0089) is about subagents, so it is presented as one:
   // the agent names it reports on replace the bare delegation ids it was

@@ -28,6 +28,9 @@ import type {
   AgentInstructionFile,
   AppSettings,
   CommandShellCatalog,
+  DesktopAuthState,
+  DesktopCoursewareImportInput,
+  DesktopCoursewareImportResult,
   AppVersionInfo,
   BrowserAction,
   BrowserState,
@@ -350,6 +353,13 @@ function normalizePlansChangedEvent(value: unknown): PlanningStateEvent {
 }
 
 export const api = {
+  restoreAuth: () => invoke<DesktopAuthState>(IPC.invoke.authRestore),
+  startQrLogin: () => invoke<DesktopAuthState>(IPC.invoke.authStartQr),
+  pollQrLogin: (ticket: string) =>
+    invoke<DesktopAuthState>(IPC.invoke.authPollQr, { ticket }),
+  logout: () => invoke<DesktopAuthState>(IPC.invoke.authLogout),
+  importCourseware: (input: DesktopCoursewareImportInput) =>
+    invoke<DesktopCoursewareImportResult>(IPC.invoke.coursewareImport, input),
   getVersion: () => invoke<AppVersionInfo>(IPC.invoke.appGetVersion),
   health: () => invoke<HostHealth>(IPC.invoke.appHealth),
   getOnboarding: () => invoke<OnboardingState>(IPC.invoke.appGetOnboarding),
@@ -1122,6 +1132,12 @@ export const api = {
     if (!window.piDesktop?.on) return () => undefined;
     return window.piDesktop.on(IPC.event.windowMaximized, (payload) =>
       listener(payload as { maximized: boolean }),
+    );
+  },
+  onAuthChanged: (listener: (state: DesktopAuthState) => void) => {
+    if (!window.piDesktop?.on) return () => undefined;
+    return window.piDesktop.on(IPC.event.authChanged, (payload) =>
+      listener(payload as DesktopAuthState),
     );
   },
   onWindowFullScreen: (listener: (event: { fullScreen: boolean }) => void) => {

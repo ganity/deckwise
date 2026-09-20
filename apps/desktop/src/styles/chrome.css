@@ -513,7 +513,7 @@
 
 /* One geometry and one seat for every chrome icon control: the topbar's dock
    toggle, the viewport-fixed work-panel toggle, the preview/route-band lane
-   actions, and the work-panel header's create and maximize controls. The seat is
+   actions, and the work-panel header's maximize control. The seat is
    transparent at rest, so the icon alone carries the control and only the pointer
    hover wash paints a surface under it; keyboard focus keeps the global outline.
    `flex: 0 0` keeps them square when a crowded band would otherwise squeeze
@@ -522,7 +522,6 @@
 .app-work-panel-toggle,
 .main-titlebar .title-nav-btn,
 .window-chrome-row .title-nav-btn,
-.work-panel-new-tab,
 .work-panel-maximize {
   display: inline-flex;
   height: var(--ds-work-panel-toggle-size);
@@ -543,7 +542,6 @@
 .app-work-panel-toggle:hover:not(:disabled),
 .main-titlebar .title-nav-btn:hover:not(:disabled),
 .window-chrome-row .title-nav-btn:hover:not(:disabled),
-.work-panel-new-tab:hover:not(:disabled),
 .work-panel-maximize:hover:not(:disabled) {
   background: var(--ds-bg-hover);
   color: var(--ds-text-primary);
@@ -553,7 +551,6 @@
 .app-work-panel-toggle:disabled,
 .main-titlebar .title-nav-btn:disabled,
 .window-chrome-row .title-nav-btn:disabled,
-.work-panel-new-tab:disabled,
 .work-panel-maximize:disabled {
   opacity: 0.4;
   cursor: default;

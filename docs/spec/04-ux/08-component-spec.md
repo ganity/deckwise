@@ -1008,6 +1008,18 @@ courseware revision follows PPT Master's delivered-project Revision Round:
 the agent changes SVG and its owned metadata, validates it, and publishes a new
 timestamped PPTX without another confirmation.
 
+The empty Composer prompts for topic, grade, subject, and visual style and
+shows a concrete courseware example; quick-start cards insert complete examples
+without auto-submitting them. PPT Master first inspects the prompt and attached
+lesson-plan documents. If critical information such as the teaching topic or
+source scope still cannot be inferred, it uses the existing `asktool` UI for at
+most three clarification rounds. One tool call counts as one round and may
+contain multiple related questions. It stops asking as soon as the request is
+sufficient; optional page-count, style, palette, structure, and narration
+preferences receive sensible defaults instead of blocking generation. After
+the third round it proceeds with explicit conservative assumptions unless no
+usable topic or source exists.
+
 PPTX-only edits are never reverse-imported into SVG. A later SVG revision
 therefore supersedes them while older timestamped exports remain available as
 history. The workbench compares source SVG and export modification times; if
@@ -1023,6 +1035,17 @@ service is restarted with DeckWise's Python runtime and `--no-browser`, then
 opened in the embedded Browser view. Closing the Browser tab does not stop the
 preview service; PPT Master's Exit preview action and idle timeout retain their
 normal lifecycle behavior.
+
+After the current SVG source has a non-stale PPTX export, the workbench exposes
+**Import to MAIC**. Its modal defaults the title from the active session, takes
+grade and subject from the authenticated education profile dictionaries,
+selects the first PDF/DOC/DOCX attached by the user as the lesson plan, and lets
+the user choose concise, normal, or detailed narration. The user may replace
+the lesson-plan file before submission. Electron main validates both local file
+paths, uploads them through the platform's presigned course upload contract,
+and creates one education courseware import task. The action is unavailable
+while generation is active or the PPTX is stale; successful submission reports
+the MAIC task id without pretending the asynchronous import has completed.
 
 #### Web search toggle
 

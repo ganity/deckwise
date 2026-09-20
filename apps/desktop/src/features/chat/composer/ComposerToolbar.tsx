@@ -15,12 +15,7 @@ import {
   IconStop,
   IconUndo2,
 } from "../../../components/icons";
-import { ModeIcon } from "./ComposerModeIcon";
 import { ComposerModelPicker } from "./ComposerModelPicker";
-import {
-  MODE_LABEL_KEYS,
-  PERMISSION_MODE_I18N_KEYS,
-} from "./model";
 import type { useComposerModelMenu } from "./hooks/useComposerModelMenu";
 
 type ModelMenuController = ReturnType<typeof useComposerModelMenu>;
@@ -55,7 +50,7 @@ export type ComposerToolbarProps = {
   submit: () => Promise<void>;
 };
 
-/** Composer controls: fixed Agent/Auto context, model, enhancement, and send/stop. */
+/** Composer controls: attachments, web search, model, enhancement, and send/stop. */
 export function ComposerToolbar({
   t,
   providerId,
@@ -103,24 +98,6 @@ export function ComposerToolbar({
             <IconPlus size={15} aria-hidden="true" />
           </TooltipButton>
         </div>
-        <span
-          className="icon-btn mode-chip composer-mode-chip composer-mode-static"
-          data-mode="agent"
-          title={t("settings.modeAgent")}
-        >
-          <span className="composer-mode-chip-face">
-            <ModeIcon mode="agent" />
-            <span className="composer-mode-chip-label text-sm">
-              {t(MODE_LABEL_KEYS.agent)}
-            </span>
-          </span>
-        </span>
-        <span
-          className="icon-btn mode-chip composer-permission composer-permission-static"
-          title={t("chat.permissionMode")}
-        >
-          <span className="text-sm">{t(PERMISSION_MODE_I18N_KEYS.auto)}</span>
-        </span>
         <TooltipButton
           type="button"
           className={`icon-btn mode-chip composer-web-search${webSearchEnabled ? " active" : ""}`}

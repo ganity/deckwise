@@ -1,17 +1,11 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { useTranslation } from "react-i18next";
 import type {
   AppSettings,
+  DesktopAuthProfile,
   PluginSettingsDestinationMeta,
   ShortcutPlatform,
 } from "@pi-desktop/shared";
-import { useAppStore } from "../../stores/app-store";
-import { api } from "../../lib/api";
-import {
-  SETTINGS_NAV,
-  SETTINGS_NAV_GROUP_LABELS,
-  type SettingsNavGroupId,
-} from "../../lib/settings-search";
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   IconArchive,
   IconBookOpen,
@@ -23,17 +17,28 @@ import {
   IconSearch,
   IconSliders,
   IconSparkles,
+  IconUser,
 } from "../../components/icons";
-import { Button, cx } from "../../components/ui";
-import { ModelConfigPage } from "../../components/settings/ModelConfigPage";
-import { KeyboardShortcutsSection } from "../../components/settings/KeyboardShortcutsSection";
 import { FontFamilyRow } from "../../components/settings/FontFamilyRow";
-import { ThinkingDisplayModeRow } from "../../components/settings/ThinkingDisplayModeRow";
 import { FontSizeRow } from "../../components/settings/FontSizeRow";
+import { KeyboardShortcutsSection } from "../../components/settings/KeyboardShortcutsSection";
 import { LanguageRow } from "../../components/settings/LanguageRow";
-import { ThemeRow } from "../../components/settings/ThemeRow";
+import { ModelConfigPage } from "../../components/settings/ModelConfigPage";
 import { NetworkProxySection } from "../../components/settings/NetworkProxySection";
+import { PluginSettingsDestination } from "../../components/settings/PluginSettingsDestination";
+import { ThemeRow } from "../../components/settings/ThemeRow";
+import { ThinkingDisplayModeRow } from "../../components/settings/ThinkingDisplayModeRow";
+import { Button, cx } from "../../components/ui";
+import { api } from "../../lib/api";
+import {
+  SETTINGS_NAV,
+  SETTINGS_NAV_GROUP_LABELS,
+  type SettingsNavGroupId,
+} from "../../lib/settings-search";
 import { ProjectsPage } from "../../pages/ProjectsPage";
+import { useAppStore } from "../../stores/app-store";
+import { ImportSection, UpdatesRow } from "./agent-sections";
+import { CloseBehaviorSection, DeveloperSection } from "./developer-sections";
 import {
   CommandShellRow,
   ContextUsageDisplayRow,
@@ -42,13 +47,7 @@ import {
   SettingsCard,
   SettingsRow,
 } from "./primitives";
-import {
-  ImportSection,
-  UpdatesRow,
-} from "./agent-sections";
 import { VoiceSettingsCard } from "./voice-settings";
-import { CloseBehaviorSection, DeveloperSection } from "./developer-sections";
-import { PluginSettingsDestination } from "../../components/settings/PluginSettingsDestination";
 
 type SettingsTab = ReturnType<typeof useAppStore.getState>["settingsTab"];
 
@@ -79,6 +78,31 @@ export function SettingsPage() {
   const [settingsRecoveryFailed, setSettingsRecoveryFailed] = useState(false);
   const [extensions, setExtensions] = useState<PluginSettingsDestinationMeta[]>([]);
   const [activeExtension, setActiveExtension] = useState<PluginSettingsDestinationMeta | null>(null);
+  const [account, setAccount] = useState<DesktopAuthProfile | null>(null);
+  const [accountError, setAccountError] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState(false);
+
+  useEffect(() => {
+    if (tab !== "account" || account) return;
+    setAccountError(false);
+    void api.restoreAuth().then((state) => {
+      if (state.status === "authenticated") setAccount(state.profile);
+      else setAccountError(true);
+    }, () => setAccountError(true));
+  }, [account, tab]);
+
+  const logout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    setLogoutError(false);
+    try {
+      await api.logout();
+    } catch {
+      setLogoutError(true);
+      setLoggingOut(false);
+    }
+  };
 
   useEffect(() => {
     const refresh = () => void api.listPluginSettingsDestinations().then(setExtensions, () => setExtensions([]));
@@ -172,6 +196,7 @@ export function SettingsPage() {
       agent: <IconBot size={14} />,
       import: <IconDownload size={14} />,
       projects: <IconArchive size={14} />,
+      account: <IconUser size={14} />,
       about: <IconInfo size={14} />,
     };
     return SETTINGS_NAV.map((entry) => ({
@@ -382,16 +407,77 @@ export function SettingsPage() {
 
           {tab === "projects" && <ProjectsPage />}
 
+          {tab === "account" && (
+            <div className="settings-stack">
+              {account ? (
+                <SettingsCard>
+                  <div className="settings-account-header">
+                    {account.avatarUrl ? (
+                      <img
+                        className="settings-account-avatar"
+                        src={account.avatarUrl}
+                        alt=""
+                        aria-hidden="true"
+                        draggable={false}
+                      />
+                    ) : (
+                      <span className="settings-account-avatar settings-account-avatar-fallback" aria-hidden="true">
+                        <IconUser size={24} />
+                      </span>
+                    )}
+                    <div>
+                      <div className="settings-account-name">{account.userName || t("settings.accountUnknown")}</div>
+                      <div className="settings-account-school">{account.tenantName || t("settings.accountUnknown")}</div>
+                    </div>
+                  </div>
+                  <SettingsRow title={t("settings.accountName")}>
+                    <span className="settings-account-value">{account.userName || t("settings.accountUnknown")}</span>
+                  </SettingsRow>
+                  <SettingsRow title={t("settings.accountSchool")}>
+                    <span className="settings-account-value">{account.tenantName || t("settings.accountUnknown")}</span>
+                  </SettingsRow>
+                  <SettingsRow title={t("settings.accountRole")}>
+                    <span className="settings-account-value">
+                      {account.role === "SUPER_ADMIN"
+                        ? t("settings.accountRoleSuperAdmin")
+                        : account.role === "ADMIN"
+                          ? t("settings.accountRoleAdmin")
+                          : account.role}
+                    </span>
+                  </SettingsRow>
+                  <SettingsRow title={t("settings.accountEdition")}>
+                    <span className="settings-account-value">
+                      {account.edition === "EDUCATION"
+                        ? t("settings.accountEducationEdition")
+                        : account.edition || t("settings.accountUnknown")}
+                    </span>
+                  </SettingsRow>
+                  <div className="settings-account-actions">
+                    <Button variant="secondary" disabled={loggingOut} onClick={() => void logout()}>
+                      {loggingOut ? t("settings.accountLoggingOut") : t("settings.accountLogout")}
+                    </Button>
+                    {logoutError ? (
+                      <span className="settings-account-error" role="alert">
+                        {t("settings.accountLogoutFailed")}
+                      </span>
+                    ) : null}
+                  </div>
+                </SettingsCard>
+              ) : (
+                <div className="settings-recovery" role="status" aria-live="polite">
+                  {accountError ? t("settings.accountLoadFailed") : t("common.loading")}
+                </div>
+              )}
+            </div>
+          )}
+
           {tab === "about" && (
             <div className="settings-stack">
               <SettingsCard>
                 <SettingsRow title={t("settings.application")}>
                   <div className="settings-about-meta">
                     <div className="font-medium">
-                      {version?.name || "PI-Desktop"} {version?.version}
-                    </div>
-                    <div className="font-mono text-xs-plus text-text-muted">
-                      protocol {version?.protocolVersion} · host {version?.hostVersion}
+                      {version?.name || "DeckWise"} {version?.version}
                     </div>
                   </div>
                 </SettingsRow>

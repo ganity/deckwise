@@ -11,7 +11,10 @@ import {
   IconSparkles,
 } from "../../../components/icons";
 import { TooltipButton } from "../../../components/ui";
-import { composerModelBadges } from "../../../lib/composer-models";
+import {
+  composerModelBadges,
+  isInternalCoursewareModelLabel,
+} from "../../../lib/composer-models";
 import type { useComposerModelMenu } from "./hooks/useComposerModelMenu";
 
 type ModelMenuController = ReturnType<typeof useComposerModelMenu>;
@@ -182,7 +185,10 @@ export function ComposerModelPicker({
                         const active =
                           selectedProviderId === group.provider.id &&
                           modelIdsMatch(selectedModelId ?? "", model.modelId);
-                        const optionTitle = model.displayName || model.modelId;
+                        const configuredTitle = model.displayName || model.modelId;
+                        const optionTitle = isInternalCoursewareModelLabel(configuredTitle)
+                          ? t("chat.coursewareAssistant")
+                          : configuredTitle;
                         return (
                           <button
                             key={`${group.provider.id}:${model.modelId}`}

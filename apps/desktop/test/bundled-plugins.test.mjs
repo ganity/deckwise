@@ -120,11 +120,12 @@ test("Browser ships as an ordinary plugin over the public CDP API", () => {
     ["agent.tool.register", "browser.cdp", "ui.view"],
   );
   assert.equal(typeof browserManifest.contributes.views[0].title.en, "string");
-  assert.equal(typeof browserManifest.contributes.views[0].title["zh-CN"], "string");
+  assert.equal(browserManifest.contributes.views[0].title["zh-CN"], "预览编辑");
   assert.match(browserMain, /pi\.agent\.registerTool/);
   assert.match(browserMain, /pi\.browser\.(navigate|snapshot|cdp)/);
   assert.match(browserView, /pluginBridge/);
   assert.match(browserView, /browser\.setBounds/);
+  assert.match(browserView, /\.chrome \{\s*display: none;/);
   assert.doesNotMatch(browserView, /require\(|ipcRenderer|webview/);
 });
 

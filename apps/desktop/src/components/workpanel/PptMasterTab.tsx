@@ -4,9 +4,13 @@ import { useAppStore } from "../../stores/app-store";
 import { api } from "../../lib/api";
 import { browserPluginTab, pptEditorWorkPanelTab } from "../../lib/work-panel-tabs";
 import { IconCheck, IconExternal, IconRefresh, IconSparkles } from "../icons";
+import {
+  CoursewareImportDialog,
+  type CoursewareFile,
+} from "./CoursewareImportDialog";
 
 const PPTX_EXPORT_PROMPT =
-  "SVG 已确认，请继续执行 PPT Master 的最终定稿、校验和 SVG 转 PPTX 流程，生成最终可编辑 PPTX。无需再次确认。";
+  "页面内容已确认，请完成最终检查并生成可编辑的 PPT 文件，无需再次确认。";
 
 type PptProjectState = {
   projectPath: string;
@@ -53,6 +57,17 @@ function referencedProject(messages: UiMessage[]): string | null {
       .join("\n");
     const match = text.match(/\.deckwise-ppt[\\/]projects[\\/]([^\\/\s"'`]+)/);
     if (match?.[1]) return `.deckwise-ppt/projects/${match[1]}`;
+  }
+  return null;
+}
+
+function findFirstLessonPlan(messages: UiMessage[]): CoursewareFile | null {
+  for (const message of messages) {
+    if (message.role !== "user") continue;
+    const attachment = message.attachments?.find(
+      (candidate) => candidate.kind === "file" && /\.(pdf|docx?)$/i.test(candidate.name),
+    );
+    if (attachment) return { name: attachment.name, path: attachment.ref };
   }
   return null;
 }
@@ -104,11 +119,11 @@ async function inspectCurrentProject(messages: UiMessage[]): Promise<PptProjectS
 }
 
 function phaseLabel(isRunning: boolean, project: PptProjectState | null, messageCount: number) {
-  if (isRunning && project?.pptxPath) return "正在重新生成 PPTX";
-  if (isRunning) return "Pi 正在执行";
-  if (project?.needsPptxRegeneration) return "SVG 已修改";
-  if (project?.pptxPath) return "PPTX 已生成";
-  if (project?.hasSvg) return "等待生成 PPTX";
+  if (isRunning && project?.pptxPath) return "正在重新生成 PPT";
+  if (isRunning) return "正在处理课件";
+  if (project?.needsPptxRegeneration) return "页面已修改";
+  if (project?.pptxPath) return "课件已生成";
+  if (project?.hasSvg) return "等待生成 PPT";
   return messageCount > 0 ? "等待继续" : "等待开始";
 }
 
@@ -119,6 +134,7 @@ export function PptMasterTab() {
   const [project, setProject] = useState<PptProjectState | null>(null);
   const [previewBusy, setPreviewBusy] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const activeSession = useAppStore((state) =>
     state.activeSessionId
       ? state.sessions.find((session) => session.id === state.activeSessionId)
@@ -128,6 +144,7 @@ export function PptMasterTab() {
     () => phaseLabel(isRunning, project, messages.length),
     [isRunning, messages.length, project],
   );
+  const firstLessonPlan = useMemo(() => findFirstLessonPlan(messages), [messages]);
   const refreshProject = useCallback(async () => {
     setProject(await inspectCurrentProject(messages));
   }, [messages]);
@@ -156,7 +173,7 @@ export function PptMasterTab() {
       useAppStore.getState().openWorkPanelTab(browserPluginTab(preview.url));
       await refreshProject();
     } catch (error) {
-      setPreviewError(error instanceof Error ? error.message : "SVG 预览启动失败");
+      setPreviewError(error instanceof Error ? error.message : "页面预览启动失败");
     } finally {
       setPreviewBusy(false);
     }
@@ -182,10 +199,10 @@ export function PptMasterTab() {
       <div className="ppt-master-panel-heading">
         <div>
           <div className="ppt-master-eyebrow">
-            <IconSparkles size={13} /> PPT Master
+            <IconSparkles size={13} /> AI 课件
           </div>
           <h2>课件生成工作台</h2>
-          <p>Pi 分析、SVG 预览和 PPTX 编辑都在当前窗口完成。</p>
+          <p>需求分析、页面预览和课件编辑都在当前窗口完成。</p>
         </div>
         <span className={`ppt-master-status ${isRunning ? "running" : ""}`}>
           <span className="ppt-master-status-dot" /> {phase}
@@ -195,7 +212,7 @@ export function PptMasterTab() {
       <div className="ppt-master-progress-card">
         <div className="ppt-master-card-title">当前任务</div>
         <div className="ppt-master-task-name">
-          {activeSession?.title || "新建 PPTX 课件"}
+          {activeSession?.title || "新建 PPT 课件"}
         </div>
         <div className="ppt-master-progress-track">
           <span style={{ width: progress }} />
@@ -203,15 +220,15 @@ export function PptMasterTab() {
         <div className="ppt-master-progress-meta">
           <span>
             {isRunning && project?.pptxPath
-              ? "正在根据最新 SVG 生成新版本 PPTX"
+              ? "正在根据最新页面生成新版本 PPT"
               : project?.needsPptxRegeneration
-                ? "SVG 已修改，请重新生成 PPTX"
+                ? "页面已修改，请重新生成 PPT"
                 : project?.pptxPath
-                  ? "PPTX 可编辑；后续 AI 修改仍以 SVG 为准"
+                  ? "PPT 可编辑；后续 AI 修改以页面稿为准"
                   : project?.hasSvg
-                    ? "请在浏览器中完成 SVG 检查和修改"
+                    ? "请完成页面预览和修改"
                     : isRunning
-                      ? "PPT Master 正在分析并生成页面"
+                      ? "正在分析需求并生成页面"
                       : "输入课件需求后开始"}
           </span>
           <span>
@@ -232,22 +249,22 @@ export function PptMasterTab() {
         <div className="ppt-master-card-title">流程状态</div>
         <div className={`ppt-master-event ${messages.length > 0 ? "done" : isRunning ? "active" : ""}`}>
           {messages.length > 0 ? <IconCheck size={14} /> : <span className="ppt-master-event-dot" />}
-          <span>Pi Agent 执行分析</span>
+          <span>分析课件需求</span>
           <em>{messages.length > 0 ? "已开始" : "等待任务"}</em>
         </div>
         <div className={`ppt-master-event ${project?.hasSvg || project?.pptxPath ? "done" : isRunning ? "active" : ""}`}>
           {project?.hasSvg || project?.pptxPath ? <IconCheck size={14} /> : <span className="ppt-master-event-dot" />}
-          <span>PPT Master 生成页面</span>
+          <span>生成课件页面</span>
           <em>{project?.hasSvg || project?.pptxPath ? "已完成" : isRunning ? "进行中" : "等待任务"}</em>
         </div>
         <div className={`ppt-master-event ${project?.needsPptxRegeneration || (project?.hasSvg && !project.pptxPath) ? "active" : project?.pptxPath ? "done" : ""}`}>
           {project?.pptxPath && !project.needsPptxRegeneration ? <IconCheck size={14} /> : <span className="ppt-master-event-dot" />}
-          <span>SVG 视觉预览</span>
+          <span>预览与编辑页面</span>
           <em>{project?.needsPptxRegeneration ? "已修改" : project?.pptxPath ? "已确认" : project?.hasSvg ? "可编辑" : "生成后自动打开"}</em>
         </div>
         <div className={`ppt-master-event ${project?.pptxPath && !project.needsPptxRegeneration ? "done" : ""}`}>
           {project?.pptxPath && !project.needsPptxRegeneration ? <IconCheck size={14} /> : <span className="ppt-master-event-dot" />}
-          <span>内嵌 Web Office 编辑</span>
+          <span>编辑 PPT</span>
           <em>{project?.needsPptxRegeneration ? "重新生成后可用" : project?.pptxPath ? "可用" : "生成后可用"}</em>
         </div>
       </div>
@@ -260,7 +277,7 @@ export function PptMasterTab() {
             disabled={previewBusy}
             onClick={() => void openSvgPreview()}
           >
-            <IconExternal size={14} /> {previewBusy ? "正在启动预览" : "预览 SVG"}
+            <IconExternal size={14} /> {previewBusy ? "正在启动预览" : "预览与编辑页面"}
           </button>
         ) : null}
         {isRunning ? (
@@ -278,14 +295,29 @@ export function PptMasterTab() {
             disabled={!canGeneratePptx}
             onClick={generatePptx}
           >
-            <IconSparkles size={14} /> {project?.needsPptxRegeneration ? "重新生成 PPTX" : "生成 PPTX"}
+            <IconSparkles size={14} /> {project?.needsPptxRegeneration ? "重新生成 PPT" : "生成 PPT"}
           </button>
         )}
-        <button type="button" className="ppt-master-action" disabled>
-          <IconRefresh size={14} /> 导入 MAIC
+        <button
+          type="button"
+          className="ppt-master-action"
+          disabled={!project?.pptxPath || project.needsPptxRegeneration || isRunning}
+          onClick={() => setImportOpen(true)}
+        >
+          <IconRefresh size={14} /> 发布到教学平台
         </button>
         {previewError ? <div className="ppt-master-action-error" role="alert">{previewError}</div> : null}
       </div>
+      {activeSession?.id && project?.pptxPath ? (
+        <CoursewareImportDialog
+          open={importOpen}
+          sessionId={activeSession.id}
+          initialTitle={activeSession.title || "新建 PPT 课件"}
+          pptxPath={project.pptxPath}
+          firstLessonPlan={firstLessonPlan}
+          onClose={() => setImportOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }

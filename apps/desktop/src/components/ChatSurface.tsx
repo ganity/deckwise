@@ -166,7 +166,7 @@ export const ChatSurface = memo(function ChatSurface() {
                 </h1>
                 <div className="deckwise-home-badge">
                   <span className="deckwise-home-badge-dot" />
-                  PPTX 课件生成工作台 · Pi Agent + PPT Master
+                  AI 课件生成与编辑
                 </div>
               </div>
               <div className="deckwise-home-quickstart" aria-label="DeckWise 快速开始">
@@ -179,9 +179,18 @@ export const ChatSurface = memo(function ChatSurface() {
                 </div>
                 <div className="deckwise-home-prompts">
                   {[
-                    ["课堂讲解", "生成一份适合课堂讲解的课件"],
-                    ["材料转课件", "根据上传的 PDF / DOCX 生成 PPTX"],
-                    ["知识总结", "把重点内容整理成可编辑演示文稿"],
+                    [
+                      "课堂讲解",
+                      "为小学三年级数学制作《认识分数》课件，约 15 页，清新插画风，包含概念讲解、例题、课堂练习和总结，讲解词详细。",
+                    ],
+                    [
+                      "材料转课件",
+                      "根据上传的教案制作小学五年级语文课件，约 20 页，国风水墨风格，突出课堂互动与课后练习。",
+                    ],
+                    [
+                      "知识总结",
+                      "为小学六年级科学制作《太阳系》知识总结课件，约 12 页，深色科技风，突出核心概念、对比图示和复习问题。",
+                    ],
                   ].map(([label, prompt]) => (
                     <button
                       key={label}

@@ -49,14 +49,15 @@ Settings is a **full-window page** that replaces the app sidebar + main chrome (
   8. **Subagents / 子智能体** — Lucide `Bot` (built-in and personal parallel agents)
   9. **Import / 导入** — Lucide `Download` (bring sessions and model configuration in from other tools)
   10. **Projects / 项目** — Lucide `Archive` (durable project index)
-  11. **Info / 信息** — Lucide `Info` (versions, logs, updates, developer)
+  11. **Account / 账号** — Lucide `User` (authenticated user profile)
+  12. **Info / 信息** — Lucide `Info` (versions, logs, updates, developer)
   Icons are decorative (`aria-hidden` via the SVG default) and stay monochrome
   with the rail label; do not reuse refresh/rotate glyphs here.
 - The directory remains a flat searchable list in the same exact order. For
   scanability, the destinations are shown in four titled visual clusters:
   `Preferences` / `偏好` (General, AI, Shortcuts), `Agent` / `智能体`
   (Instructions, Models, Skills, MCP, Subagents), `Workspace` / `工作区`
-  (Import, Projects), and `System` / `系统` (Info). Headings are muted,
+  (Import, Projects), and `System` / `系统` (Account, Info). Headings are muted,
   non-interactive labels and use whitespace for separation; no divider lines are
   rendered. These are visual landmarks only, not a second navigation level.
   When search filters the directory, empty clusters and their headings disappear.
@@ -214,6 +215,10 @@ a usage tab.
     override is folded into it when the map is read (D438, D439)
 
 ### Model configuration (`agent` tab)
+- **Built-in AI services** card: DeckWise shows the courseware-generation and
+  courseware-image services as platform-managed, read-only rows. The desktop
+  does not expose model IDs, API keys, routing, billing, or edit controls for
+  these services; their concrete provider models remain server-owned.
 - **Defaults** card: a compact settings row shows the provider name and exact
   model ID beneath the Default model label. A quiet Change action opens the
   picker without duplicating the current value. The picker groups model-level
@@ -587,6 +592,13 @@ system while preserving their different data ownership:
   of eight rather than silently truncating the history
 - Activating a project or project session returns to chat; archive and close
   actions keep Project archive open even when the active workspace changes
+
+### Account
+- Displays the authenticated profile's avatar, name, school, role, and product
+  edition from the existing desktop authentication state
+- Exposes one **Sign out** action. Sign out clears the local refresh token,
+  returns to the QR login gate, and never displays access tokens, refresh
+  tokens, or credential storage details
 
 ### Info
 - app/host/protocol versions + open logs

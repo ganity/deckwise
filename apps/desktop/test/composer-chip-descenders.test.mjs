@@ -33,7 +33,7 @@ test("model chip label avoids leading-none under truncation", () => {
 test("model menu options show one complete display name on hover", () => {
   assert.match(
     composerSource,
-    /const optionTitle =\s*model\.displayName \|\| model\.modelId;/,
+    /const configuredTitle = model\.displayName \|\| model\.modelId;[\s\S]*?const optionTitle = isInternalCoursewareModelLabel\(configuredTitle\)/,
   );
   assert.match(composerSource, /title=\{optionTitle\}/);
   const optionBlock =
@@ -58,23 +58,7 @@ test("composer runtime chips keep compact line-height for descenders", () => {
   );
 });
 
-test("fixed Agent label keeps the established compact width", () => {
-  assert.match(
-    composerSource,
-    /className="icon-btn mode-chip composer-mode-chip composer-mode-static"/,
-  );
-
-  const block = styles.match(/\.composer-mode-chip\s*\{[^}]+\}/)?.[0] ?? "";
-  assert.match(block, /width:\s*88px;/);
-  assert.match(block, /min-width:\s*88px;/);
-  assert.match(block, /max-width:\s*88px;/);
-  assert.match(block, /flex:\s*0 0 88px;/);
-  assert.match(styles, /\.composer-mode-chip-label\s*\{[\s\S]*?text-overflow:\s*ellipsis;/);
-});
-
-test("mode chip is a non-interactive Agent label", () => {
-  assert.match(composerSource, /data-mode="agent"/);
-  assert.match(composerSource, /className="composer-mode-chip-face"/);
-  assert.match(styles, /\.composer-mode-static\s*\{[^}]*cursor:\s*default;/);
-  assert.doesNotMatch(composerSource, /nextMode\(mode\)|data-planning=/);
+test("fixed Agent and permission labels stay hidden", () => {
+  assert.doesNotMatch(composerSource, /composer-mode-chip|composer-permission/);
+  assert.doesNotMatch(styles, /\.composer-mode-(?:chip|static)|\.composer-permission/);
 });

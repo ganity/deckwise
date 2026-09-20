@@ -10,9 +10,9 @@
 # (macOS dmg/zip arm64 and x64, Windows NSIS and portable x64, Linux
 # AppImage/deb/rpm x64), each
 # with its native pi-desktop-host-core Rust sidecar. The Linux app.asar is also
-# exported as a system-Electron repackaging asset, and all outputs — with their
-# electron-updater latest*.yml feeds — are published to the GitHub Release
-# (D126/D285/D364).
+# exported as a system-Electron repackaging asset. Installers and their
+# electron-updater latest*.yml feeds are published to Alibaba Cloud OSS; the
+# existing GitHub Release remains a backup artifact archive (D126/D285/D364).
 
 name: Release
 
@@ -235,16 +235,16 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
-          expected_dmg=(apps/desktop/release/PI-Desktop-*-${{ matrix.arch }}.dmg)
-          expected_dmg_blockmap=(apps/desktop/release/PI-Desktop-*-${{ matrix.arch }}.dmg.blockmap)
-          expected_zip=(apps/desktop/release/PI-Desktop-*-${{ matrix.arch }}-mac.zip)
-          expected_zip_blockmap=(apps/desktop/release/PI-Desktop-*-${{ matrix.arch }}-mac.zip.blockmap)
+          expected_dmg=(apps/desktop/release/DeckWise-*-${{ matrix.arch }}.dmg)
+          expected_dmg_blockmap=(apps/desktop/release/DeckWise-*-${{ matrix.arch }}.dmg.blockmap)
+          expected_zip=(apps/desktop/release/DeckWise-*-${{ matrix.arch }}-mac.zip)
+          expected_zip_blockmap=(apps/desktop/release/DeckWise-*-${{ matrix.arch }}-mac.zip.blockmap)
           if [[ "${#expected_dmg[@]}" -ne 1 || "${#expected_dmg_blockmap[@]}" -ne 1 || "${#expected_zip[@]}" -ne 1 || "${#expected_zip_blockmap[@]}" -ne 1 ]]; then
             echo "::error::Expected exactly one ${{ matrix.arch }} DMG, DMG blockmap, ZIP, and ZIP blockmap."
             printf '%s\n' apps/desktop/release/* || true
             exit 1
           fi
-          for artifact in apps/desktop/release/PI-Desktop-*; do
+          for artifact in apps/desktop/release/DeckWise-*; do
             case "$artifact" in
               *-${{ matrix.arch }}.dmg|*-${{ matrix.arch }}.dmg.blockmap|*-${{ matrix.arch }}-mac.zip|*-${{ matrix.arch }}-mac.zip.blockmap) ;;
               *)
@@ -276,7 +276,7 @@ jobs:
             apps/desktop/release/latest*.yml
 
   publish:
-    name: Publish GitHub Release
+    name: Publish OSS Feed and GitHub Backup
     if: startsWith(github.ref, 'refs/tags/v')
     needs: build
     runs-on: ubuntu-latest
@@ -323,6 +323,37 @@ jobs:
           File.write("latest-mac.yml", merged.to_yaml)
           RUBY
           rm latest-mac-arm64.yml latest-mac-x64.yml
+
+      - name: Install ossutil
+        run: |
+          set -euo pipefail
+          curl -fsSLo "$RUNNER_TEMP/ossutil.zip" \
+            https://gosspublic.alicdn.com/ossutil/v2/2.4.0/ossutil-2.4.0-linux-amd64.zip
+          echo "85edf66b2fb7238f5c7e25cab820cf29312319fe4935b7c86a6b8485eb434f3c  $RUNNER_TEMP/ossutil.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/ossutil.zip" -d "$RUNNER_TEMP/ossutil"
+          install -m 0755 "$RUNNER_TEMP/ossutil/ossutil-2.4.0-linux-amd64/ossutil" "$RUNNER_TEMP/ossutil-bin"
+
+      - name: Publish update feed to Alibaba Cloud OSS
+        env:
+          OSS_ACCESS_KEY_ID: ${{ secrets.OSS_ACCESS_KEY_ID }}
+          OSS_ACCESS_KEY_SECRET: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
+          OSS_REGION: cn-beijing
+          OSS_ENDPOINT: https://oss-cn-beijing.aliyuncs.com
+        run: |
+          set -euo pipefail
+          : "${OSS_ACCESS_KEY_ID:?Configure the OSS_ACCESS_KEY_ID repository secret}"
+          : "${OSS_ACCESS_KEY_SECRET:?Configure the OSS_ACCESS_KEY_SECRET repository secret}"
+          for artifact in dist/*; do
+            case "$artifact" in
+              dist/latest*.yml) continue ;;
+            esac
+            "$RUNNER_TEMP/ossutil-bin" cp "$artifact" "oss://trainwise/deckwise/$(basename "$artifact")" \
+              -f --cache-control "public,max-age=31536000,immutable"
+          done
+          for metadata in dist/latest*.yml; do
+            "$RUNNER_TEMP/ossutil-bin" cp "$metadata" "oss://trainwise/deckwise/$(basename "$metadata")" \
+              -f --cache-control "no-cache,max-age=0,must-revalidate" --content-type "application/yaml"
+          done
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3

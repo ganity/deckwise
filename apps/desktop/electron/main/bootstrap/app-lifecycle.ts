@@ -127,9 +127,9 @@ export function createApplicationLifecycle({
       process.platform === "darwin"
         ? [
           join(resourceRoot, "tray-icon-mac.png"),
-          join(resourceRoot, app.isPackaged ? "tray-icon.png" : "icon.png"),
+          join(resourceRoot, "tray-icon.png"),
           ]
-        : [join(resourceRoot, app.isPackaged ? "tray-icon.png" : "icon.png")];
+        : [join(resourceRoot, "tray-icon.png")];
     return candidates.find((candidate) => existsSync(candidate)) ?? null;
   }
 

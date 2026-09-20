@@ -41,10 +41,6 @@
   flex: 0 1 auto;
 }
 
-.composer-permission {
-  cursor: default;
-}
-
 .composer-model-menu {
   position: fixed;
   top: 0;

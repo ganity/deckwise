@@ -213,6 +213,20 @@ test("model configuration keeps model defaults; AI owns app behavior defaults", 
   assert.doesNotMatch(providersSource, /settings\.modeAgent/);
 });
 
+test("model configuration presents built-in courseware models as platform-managed", () => {
+  const managedModels =
+    providersSource.match(/data-testid="managed-models"[\s\S]*?<\/section>/)?.[0] ?? "";
+  assert.notEqual(managedModels, "");
+  assert.match(managedModels, /settings\.managedTextModel/);
+  assert.match(managedModels, /settings\.managedImageModel/);
+  assert.match(managedModels, /settings\.managedModelBadge/);
+  assert.doesNotMatch(managedModels, /<Button|<TooltipButton|onClick=/);
+  for (const source of [enLocaleSource, zhLocaleSource]) {
+    assert.match(source, /managedModelsTitle:/);
+    assert.match(source, /managedModelBadge:/);
+  }
+});
+
 test("default model selector shows every configured model under its provider", () => {
   const defaultModelPicker =
     providersSource.match(
@@ -297,6 +311,7 @@ test("settings nav icons map each destination to a semantic lucide glyph", () =>
   assert.match(settingsPageSource, /agent: <IconBot/);
   assert.match(settingsPageSource, /import: <IconDownload/);
   assert.match(settingsPageSource, /projects: <IconArchive/);
+  assert.match(settingsPageSource, /account: <IconUser/);
   assert.match(settingsPageSource, /about: <IconInfo/);
   assert.doesNotMatch(settingsPageSource, /general: <IconSettings/);
   assert.doesNotMatch(settingsPageSource, /agent: <IconConfig/);
@@ -333,6 +348,7 @@ test("settings nav keeps a flat searchable index with titled visual groups", () 
     "agent",
     "import",
     "projects",
+    "account",
     "about",
   ].map((id) => settingsSearchSource.indexOf(`id: "${id}"`));
   assert.ok(navOrder.every((index) => index >= 0));
@@ -367,6 +383,7 @@ test("settings rail uses short parallel labels and descriptive page titles", () 
     "settings.nav.models",
     "settings.nav.import",
     "settings.nav.projects",
+    "settings.nav.account",
     "settings.nav.info",
   ];
   for (const key of navKeys) {
@@ -380,6 +397,16 @@ test("settings rail uses short parallel labels and descriptive page titles", () 
   assert.match(settingsSearchSource, /titleKey: "settings\.projectArchive"/);
   assert.match(settingsPageSource, /activeTitleKey/);
   assert.match(settingsPageSource, /titleKey: entry\.titleKey/);
+});
+
+test("account settings display only the authenticated profile basics", () => {
+  assert.match(settingsPageSource, /api\.restoreAuth\(\)/);
+  assert.match(settingsPageSource, /tab === "account"/);
+  assert.match(settingsPageSource, /account\.userName/);
+  assert.match(settingsPageSource, /account\.tenantName/);
+  assert.match(settingsPageSource, /account\.role/);
+  assert.match(settingsPageSource, /account\.edition/);
+  assert.doesNotMatch(settingsPageSource, /refreshToken|accessToken/);
 });
 
 test("marketplace source settings live inside the Plugins marketplace surface", () => {

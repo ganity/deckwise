@@ -139,11 +139,11 @@ test("the launcher registers the toggle accelerator and nothing else", () => {
       .sort(),
     ["openPluginLauncher", "toggleWindow"],
   );
-  // The plugin registry refuses what the app now holds: `Alt+Space` and the
-  // `Alt+Shift+W` toggle.
+  // The launcher compatibility path remains, but only the window toggle still
+  // has a shipped binding and must be refused by the plugin registry.
   assert.match(
     registrySource,
-    /HOST_GLOBAL_SHORTCUT_IDS = \["openPluginLauncher", "toggleWindow"\] as const/,
+    /HOST_GLOBAL_SHORTCUT_IDS = \["toggleWindow"\] as const/,
   );
 });
 

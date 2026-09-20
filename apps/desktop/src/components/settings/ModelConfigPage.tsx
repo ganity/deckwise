@@ -302,6 +302,31 @@ export function ModelConfigPage() {
 
   return (
     <div className="settings-stack model-config-page">
+      <section className="settings-card-block" data-testid="managed-models">
+        <div className="model-config-section-head">
+          <div>
+            <h3 className="settings-card-heading">{t("settings.managedModelsTitle")}</h3>
+            <p className="settings-row-desc">{t("settings.managedModelsDesc")}</p>
+          </div>
+        </div>
+        <div className="settings-panel">
+          <div className="settings-row">
+            <div className="settings-row-copy">
+              <div className="settings-row-title">{t("settings.managedTextModel")}</div>
+              <div className="settings-row-desc">{t("settings.managedTextModelDesc")}</div>
+            </div>
+            <Badge tone="neutral">{t("settings.managedModelBadge")}</Badge>
+          </div>
+          <div className="settings-row">
+            <div className="settings-row-copy">
+              <div className="settings-row-title">{t("settings.managedImageModel")}</div>
+              <div className="settings-row-desc">{t("settings.managedImageModelDesc")}</div>
+            </div>
+            <Badge tone="neutral">{t("settings.managedModelBadge")}</Badge>
+          </div>
+        </div>
+      </section>
+
       <section className="settings-card-block">
         <div className="model-config-section-head">
           <h3 className="settings-card-heading">{t("settings.defaultsTitle")}</h3>

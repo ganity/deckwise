@@ -112,7 +112,7 @@ export class PptPreviewController {
     }
 
     const skillRoot = resolvePptMasterSkillRoot();
-    if (!skillRoot) throw new Error("PPT Master is unavailable");
+    if (!skillRoot) throw new Error("课件预览组件不可用");
     const python = resolveBundledPython() ?? (process.platform === "win32" ? "python" : "python3");
     const server = join(skillRoot, "scripts", "svg_editor", "server.py");
     await execFileAsync(
@@ -129,7 +129,7 @@ export class PptPreviewController {
 
     const started = await readLock(projectPath);
     const url = started ? await probe(projectPath, started) : null;
-    if (!url) throw new Error("SVG preview service did not become ready");
+    if (!url) throw new Error("课件页面预览启动超时");
     return { url, started: true };
   }
 }

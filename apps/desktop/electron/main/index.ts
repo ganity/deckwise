@@ -160,6 +160,7 @@ import { registerPluginIpc } from "./ipc/plugin-ipc";
 import { registerPluginUiIpc } from "./ipc/plugin-ui-ipc";
 import { registerSkillsIpc } from "./ipc/skills-ipc";
 import { stripWinLongPrefix } from "./path-utils";
+import { DesktopAuthSession } from "./auth-session";
 
 // The shared error-code union is reconciled in the shared lane. Keep desktop
 // source type-safe while that lane is temporarily staged at main.
@@ -546,6 +547,11 @@ const logger = new Logger(
   isDevelopmentBuild ? "debug" : "info",
   { mirrorConsole: isDevelopmentBuild },
 );
+const authSession = new DesktopAuthSession({
+  dataDir,
+  onChanged: (state) => sendToRenderer(IPC.event.authChanged, state),
+  log: (level, message) => logger.app("runtime", level, message),
+});
 installMainProcessErrorHandlers({
   emit: (record) => {
     logger.app("runtime", "error", record.message, {
@@ -985,6 +991,7 @@ const createdLauncher = createLauncher({
   logger,
   safeOpenExternal,
   toggleMainWindow,
+  isAuthenticated: () => authSession.getState().status === "authenticated",
 });
 launcherRuntime = createdLauncher;
 const {
@@ -1255,6 +1262,7 @@ function registerIpc() {
     getHost: () => host,
     getSidecar: () => sidecar,
     getAgentHostBridge: () => agentHostBridge,
+    authSession,
     getNotificationViewingSessionId: () => notificationViewingSessionId,
     setNotificationViewingSessionId: (sessionId: string | null) => {
       notificationViewingSessionId = sessionId;

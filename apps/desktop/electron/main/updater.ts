@@ -1,10 +1,9 @@
 /**
- * App auto-update via electron-updater against GitHub Releases.
+ * App auto-update via electron-updater against the DeckWise OSS feed.
  *
- * The feed (latest*.yml + installers) is attached to each GitHub Release by
- * .github/workflows/release.yml. Discovery always tracks the latest stable
- * release (`allowPrerelease = false`) so RC installs still graduate to newer
- * stables. Delivery mode per install:
+ * The feed directory contains latest*.yml, installers, and blockmaps.
+ * Discovery always tracks the latest stable release (`allowPrerelease = false`)
+ * so RC installs still graduate to newer stables. Delivery mode per install:
  *  - Windows NSIS / Linux AppImage → full in-app flow: silent background
  *    download, "restart to update" prompt, install-on-quit fallback.
  *  - Windows portable (`PORTABLE_EXECUTABLE_FILE`) → notify + link. The
@@ -32,11 +31,11 @@ import {
 
 const { autoUpdater } = electronUpdaterPkg;
 
-export const RELEASES_URL = "https://github.com/vastsa/PI-Desktop/releases/latest";
+export const RELEASES_URL = "https://trainwise.oss-cn-beijing.aliyuncs.com/deckwise/";
 
 const AUTO_CHECK_INITIAL_DELAY_MS = 15_000;
 const AUTO_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
-/** Auto-check wait. Chromium's GitHub hang is ~60s; do not pin UI on that. */
+/** Auto-check wait. A stalled remote request must not pin the UI. */
 export const AUTO_CHECK_TIMEOUT_MS = 8_000;
 /** Manual check can wait a bit longer; still far below the socket timeout. */
 export const MANUAL_CHECK_TIMEOUT_MS = 15_000;
@@ -117,9 +116,9 @@ export class AppUpdaterController {
     autoUpdater.autoDownload = this.state.mode === "in-app";
     // electron-updater defaults allowPrerelease=true when the installed
     // version has a prerelease component (e.g. 0.2.0-rc.6). That pins the
-    // GitHub provider to the same custom channel ("rc") and never offers a
-    // newer stable release such as 0.2.2. Always track GitHub's latest
-    // stable release so RC installs can graduate to stable.
+    // update provider to the same custom channel ("rc") and never offers a
+    // newer stable release such as 0.2.2. Always track the stable channel so
+    // RC installs can graduate to stable.
     autoUpdater.allowPrerelease = false;
     // Even if the user ignores the restart prompt, a downloaded update
     // lands on the next normal quit.

@@ -27,6 +27,7 @@ export type LauncherDependencies = {
   logger: Pick<Logger, "app">;
   safeOpenExternal: (rawUrl: unknown) => Promise<void>;
   toggleMainWindow: () => void;
+  isAuthenticated: () => boolean;
 };
 
 /**
@@ -55,6 +56,7 @@ export function createLauncher({
   logger,
   safeOpenExternal,
   toggleMainWindow,
+  isAuthenticated,
 }: LauncherDependencies) {
 
   const PLUGIN_LAUNCHER_WIDTH = 620;
@@ -177,7 +179,7 @@ export function createLauncher({
   }
 
   async function showPluginLauncher(): Promise<void> {
-    if (!appState.applicationBooted) return;
+    if (!appState.applicationBooted || !isAuthenticated()) return;
     const window = await createPluginLauncherWindow();
     if (window.isDestroyed()) return;
     window.setBounds(pluginLauncherBounds(), false);

@@ -298,7 +298,7 @@ export function registerPluginIpc({
     const result = await dialog.showOpenDialog({
       properties: ["openFile"],
       filters: [
-        { name: "PI Plugin", extensions: ["piplug", "zip"] },
+        { name: "DeckWise Plugin", extensions: ["piplug", "zip"] },
       ],
     });
     if (result.canceled || !result.filePaths[0]) {

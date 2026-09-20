@@ -153,9 +153,7 @@
     transform: none;
   }
 
-  .composer-placeholder,
-  .composer-mode-chip-face,
-  .composer-mode-chip[data-planning="true"] svg {
+  .composer-placeholder {
     animation: none;
   }
 

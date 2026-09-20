@@ -3,15 +3,15 @@
   "id": "pi.web-search",
   "name": "Web Search",
   "version": "1.0.0",
-  "description": "DeckWise's built-in web search capability for PPT Master.",
+  "description": "DeckWise's built-in web search capability for courseware creation.",
   "i18n": {
     "en": {
       "name": "Web Search",
-      "description": "DeckWise's built-in web search capability for PPT Master."
+      "description": "DeckWise's built-in web search capability for courseware creation."
     },
     "zh-CN": {
       "name": "联网搜索",
-      "description": "供 PPT Master 使用的 DeckWise 内置联网搜索能力。"
+      "description": "用于课件生成的 DeckWise 内置联网搜索能力。"
     }
   },
   "author": "DeckWise",

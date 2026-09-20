@@ -222,25 +222,27 @@ test("a system-reserved binding is refused", () => {
   }
 });
 
-test("without a live source the app's shipped defaults are refused", () => {
+test("without a live source only the current shipped global default is refused", () => {
   for (const platform of ["linux", "darwin"]) {
     const { registry, calls } = fakePlatform({ platform });
-    // D438/D439: the app spends `Alt+Shift+W` on the window toggle, and neither
-    // retired chord (`Mod+W`, `Mod+Shift+W`) is held by anyone.
-    for (const accelerator of ["Alt+Space", "Alt+Shift+W"]) {
-      refusal(
-        () =>
-          registry.register({
-            pluginId: PLUGIN_ID,
-            id: "voice.launcher",
-            accelerator,
-            command: VOICE_COMMAND,
-          }),
-        "SHORTCUT_CONFLICT",
-      );
-    }
-    assert.deepEqual(registry.list(PLUGIN_ID), []);
-    assert.deepEqual(calls.registered, []);
+    const entry = registry.register({
+      pluginId: PLUGIN_ID,
+      id: "voice.launcher",
+      accelerator: "Alt+Space",
+      command: VOICE_COMMAND,
+    });
+    assert.equal(entry.accelerator, "Alt+Space");
+    refusal(
+      () =>
+        registry.register({
+          pluginId: PLUGIN_ID,
+          id: "voice.toggle",
+          accelerator: "Alt+Shift+W",
+          command: VOICE_COMMAND,
+        }),
+      "SHORTCUT_CONFLICT",
+    );
+    assert.deepEqual(calls.registered, ["Alt+Space"]);
   }
 });
 
@@ -299,8 +301,8 @@ test("an empty live report still falls back to the shipped defaults", () => {
     () =>
       registry.register({
         pluginId: PLUGIN_ID,
-        id: "voice.launcher",
-        accelerator: "Alt+Space",
+        id: "voice.toggle",
+        accelerator: "Alt+Shift+W",
         command: VOICE_COMMAND,
       }),
     "SHORTCUT_CONFLICT",
@@ -762,24 +764,22 @@ test("a manifest that declares a shortcut without the permission never loads", a
   assert.deepEqual(runtime.listLoaded(), []);
 });
 
-test("the app's own launcher binding is refused to a plugin that declares it", async (t) => {
+test("the retired launcher binding is available to a plugin that declares it", async (t) => {
   const platform = createRealPlatform();
   const { runtime, audits } = createRuntime(t, { pluginShortcuts: platform.registry });
   const dir = writePlugin(t);
 
   await runtime.loadFromPath(dir);
 
-  // `Alt+Space` is the plugin launcher's default, so the plugin keeps no
-  // binding and the load still succeeds.
-  const refusalEntry = audits.find(
+  const registration = audits.find(
     (entry) => entry.api === "keyboard.globalShortcut.register",
   );
   assert.deepEqual(
-    { ok: refusalEntry.ok, errorCode: refusalEntry.errorCode },
-    { ok: false, errorCode: "SHORTCUT_CONFLICT" },
+    { ok: registration.ok, accelerator: registration.accelerator },
+    { ok: true, accelerator: "Alt+Space" },
   );
-  assert.deepEqual(platform.registered, [], "the platform is never asked");
-  assert.deepEqual(platform.registry.list(PLUGIN_ID), []);
+  assert.deepEqual(platform.registered, ["Alt+Space"]);
+  assert.equal(platform.registry.list(PLUGIN_ID).length, 1);
   assert.ok(runtime.getLoaded(PLUGIN_ID));
 });
 

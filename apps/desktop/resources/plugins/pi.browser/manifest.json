@@ -14,15 +14,15 @@
       "description": "工作面板里的浏览器外壳，并为 Agent 提供针对宿主访客页的 CDP 调试能力。"
     }
   },
-  "author": "PI-Desktop",
+  "author": "DeckWise",
   "main": "main.js",
   "contributes": {
     "views": [
       {
         "id": "browser",
         "title": {
-          "en": "Browser",
-          "zh-CN": "浏览器"
+          "en": "Preview Editor",
+          "zh-CN": "预览编辑"
         },
         "icon": "browser",
         "entry": "views/browser.html",

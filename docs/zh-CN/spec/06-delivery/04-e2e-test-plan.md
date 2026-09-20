@@ -3492,16 +3492,16 @@ IPC 请求无法关闭。
 - **步骤**：1) 打开 DMG 并检查根目录和布局。2) 确认应用与 Applications 链接位于主
   区域，且下方唯一的辅助项是 `If app won't open, read this.txt`。3) 确认 DMG 不含 command 助手。
   4) 不解压应用内容，检查 ZIP 根目录，并确认其中同时存在
-  `PI-Desktop-macOS-opening-help.txt` 和可执行的 `PI-Desktop-macOS-open.command`。
+  `DeckWise-macOS-opening-help.txt` 和可执行的 `DeckWise-macOS-open.command`。
   5) 阅读说明，将应用移动到 `/Applications`，然后双击 ZIP 中的助手。
 - **预期**：DMG 使用带品牌的 720×500 背景，包含应用、Applications 链接和显示为
   `If app won't open, read this.txt` 的纯文本说明，不包含或暴露 command 助手。ZIP 根目录包含助手
   和同一份说明。说明包含
-  `xattr -r -d com.apple.quarantine /Applications/PI-Desktop.app`，并说明兜底方式仅适用
+  `xattr -r -d com.apple.quarantine /Applications/DeckWise.app`，并说明兜底方式仅适用
   于 macOS 对可信未签名工件提示应用已损坏或应用打不开的场景；已签名/公证版本无需
-  执行。ZIP 助手只查找 `/Applications/PI-Desktop.app` 和 `~/Applications/PI-Desktop.app`，
+  执行。ZIP 助手只查找 `/Applications/DeckWise.app` 和 `~/Applications/DeckWise.app`，
   在存在时只删除 `com.apple.quarantine` 属性，然后打开应用，不使用 `sudo`，也不接受
-  任意路径；助手会在修改属性前校验 `CFBundleIdentifier=net.aiuo.pi-desktop`。说明不会
+  任意路径；助手会在修改属性前校验 `CFBundleIdentifier=com.trainwise.deckwise`。说明不会
   声称未签名工件已通过 Gatekeeper 资质验证。
 - **关联规格**：`06-delivery/06-release-runbook.md`、`05-security/01-security.md`
 - **验收**：质量、安全
@@ -3527,24 +3527,6 @@ IPC 请求无法关闭。
 - **验收**：质量、安全
 - **里程碑**：M6+
 - **状态**：工作流脚本/单元已覆盖；每次发布仍需在干净机器上验证（适用变更合入前需在具备条件的环境中运行 E2E）
-
-#### E2E-212：GitHub Release 启动 CNB 镜像流水线
-
-- **前提条件**：`vastsa/PI-Desktop` 已配置仓库密钥 `CNB_MIRROR_TOKEN`；
-  `aixk/Pi-Desktop` 上的 CNB 流水线监听 `api_trigger_mirror`；已有带上传
-  工件的 GitHub Release 标签（例如 `vX.Y.Z`）。
-- **步骤**：1) 发布或编辑该 GitHub Release，或对 `mirror-to-cnb.yml` 传入
-  同一标签手动运行。2) 检查 Actions 日志中的解析标签以及对
-  `api.cnb.cool` 的 POST。3) 确认 CNB 流水线以该标签作为 `MIRROR_TAGS` 启动。
-- **预期**：作业仅在 `vastsa/PI-Desktop` 上运行。没有 `vX.Y.Z` 标签的手动
-  运行会在调用 CNB 之前失败。缺少 `CNB_MIRROR_TOKEN` 时失败退出。JSON
-  请求体由 `jq` 构造（不是 YAML 字符串插值）。GitHub Release 工件和更新源
-  不变；CNB 只是同一标签的镜像。
-- **链接规格**：`06-delivery/06-release-runbook.md`
-- **验收**：质量（发布镜像）
-- **里程碑**：M6+
-- **状态**：源合同已覆盖（`ci-workflow.test.mjs`）；实际启动 CNB 仍为操作
-  验证（除非明确要求，否则不要在本地跑 E2E）
 
 #### E2E-092：打包的运行时是独立的，没有重复的依赖项
 
@@ -6534,7 +6516,7 @@ IPC 请求无法关闭。
 
 - **前提条件**：可以打开设置；本机可以启动系统浏览器。
 - **步骤**：1）打开设置 → 信息。2）确认「应用」行显示当前版本。3）用设置搜索查找「问题反馈」。4）点击「打开 GitHub」。
-- **预期**：该行可被设置搜索索引，并停留在信息页。动作调用 `pi-desktop/app/openFeedback`，渲染器不提供 URL。Main 打开 `https://github.com/vastsa/PI-Desktop/issues/new`，带 `template=bug_report.yml`，并预填 `app-version`、`os` 和 `environment`。GitHub bug 表单仍要求描述、复现步骤、预期、实际、版本和操作系统；空白 issue 保持禁用。
+- **预期**：该行可被设置搜索索引，并停留在信息页。动作调用 `pi-desktop/app/openFeedback`，渲染器不提供 URL。Main 打开 `https://github.com/ganity/deckwise/issues/new`，带 `template=bug_report.yml`，并预填 `app-version`、`os` 和 `environment`。GitHub bug 表单仍要求描述、复现步骤、预期、实际、版本和操作系统；空白 issue 保持禁用。
 - **链接规格**：`04-ux/06-settings-ia.md`、`03-runtime/01-ipc-protocol.md`、
   `06-delivery/03-ai-development-workflow.md`、`08-meta/decisions-log.md`（D313）、ADR 0157
 - **验收**：H（诊断）、质量

@@ -170,18 +170,10 @@ function ruleBody(rule) {
   return rule.slice(rule.indexOf("{") + 1);
 }
 
-test("the work-panel header controls take the shared seat, not one of their own", () => {
-  // `+` and maximize sit in the panel header beside the viewport-fixed collapse
-  // toggle, so they are members of the same family: 28px square, transparent at
-  // rest, semantic hover wash, dimmed only when disabled. A `--ds-tile` seat of
-  // their own turned the header into three filled squares.
+test("the work-panel maximize control takes the shared seat", () => {
   const members = sharedChromeControlMembers();
-  for (const selector of [".work-panel-new-tab", ".work-panel-maximize"]) {
-    assert.ok(
-      members.includes(selector),
-      `${selector} is not a member of the shared chrome-control group`,
-    );
-  }
+  assert.ok(members.includes(".work-panel-maximize"));
+  assert.ok(!members.includes(".work-panel-new-tab"));
   assert.match(sharedChromeControlRule(), /background:\s*transparent;/);
   assert.match(
     sharedChromeControlRule(),
@@ -202,7 +194,7 @@ test("the work-panel header controls take the shared seat, not one of their own"
 
   // One geometry, stated once: every rule that names either control must be a
   // shared-family rule, and none of them may paint a tile or a raised seat.
-  for (const selector of [".work-panel-new-tab", ".work-panel-maximize"]) {
+  for (const selector of [".work-panel-maximize"]) {
     const own = rulesSelecting(selector);
     assert.ok(own.length > 0, `${selector} takes no rule at all`);
     for (const rule of own) {

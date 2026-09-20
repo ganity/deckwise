@@ -1,0 +1,13 @@
+DeckWise macOS first launch
+
+This build is unsigned. After moving DeckWise.app to Applications, if macOS
+says the app is damaged or does not open, open Terminal and run:
+
+xattr -r -d com.apple.quarantine /Applications/DeckWise.app
+
+Use this only for an app obtained from a trusted DeckWise source. It removes
+only Apple's quarantine attribute from DeckWise.app. Signed and notarized
+builds do not need it.
+
+The macOS ZIP package also includes DeckWise-macOS-open.command, which can
+clear the same attribute and launch the app after installation.

@@ -23,7 +23,10 @@ test("the sidebar forwards collapse-animation props to the aside element", () =>
 });
 
 test("collapsing keeps the sidebar mounted until its exit animation ends", () => {
-  assert.match(appSource, /!sidebarCollapsed \|\| sidebarExiting \?/);
+  assert.match(
+    appSource,
+    /!workPanelMaximized && \(!sidebarCollapsed \|\| sidebarExiting\) \?/,
+  );
   assert.match(appSource, /className=\{cx\(sidebarEntering && "is-entering", sidebarExiting && "is-exiting"\)\}/);
   assert.match(appSource, /onAnimationEnd=\{handleSidebarAnimationEnd\}/);
   assert.match(appSource, /event\.target !== event\.currentTarget/);
@@ -82,7 +85,7 @@ test("the collapse keyframes cannot reflow the sidebar's content", () => {
 test("a collapsed sidebar keeps the preferred chat band and only changes motion", () => {
   assert.match(
     appSource,
-    /sidebarCollapsed && "sidebar-collapsed"/,
+    /\(sidebarCollapsed \|\| workPanelMaximized\) && "sidebar-collapsed"/,
   );
 
   const mainPaneBlock = globalStyles.match(/\.main-pane\s*\{[\s\S]*?\}/)?.[0] ?? "";

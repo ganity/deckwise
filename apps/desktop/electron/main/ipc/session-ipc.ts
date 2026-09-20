@@ -71,7 +71,7 @@ function importSelectionKey(value: unknown): string | null {
 
 function rejectNativeMutation(sessionId: unknown, action: string): void {
   if (typeof sessionId === "string" && sessionId.startsWith("native-pi:")) {
-    throw Object.assign(new Error(`Native Pi session ${action} is not supported`), {
+    throw Object.assign(new Error(`Legacy session ${action} is not supported`), {
       errorCode: ErrorCodes.INVALID_ARGUMENT,
     });
   }
@@ -320,7 +320,7 @@ export function registerSessionIpc({
   });
   handle(IPC.invoke.sessionDelete, async (id: string) => {
     if (id.startsWith("native-pi:")) {
-      throw Object.assign(new Error("Native Pi sessions cannot be deleted from PI-Desktop"), {
+      throw Object.assign(new Error("Legacy sessions cannot be deleted from DeckWise"), {
         errorCode: ErrorCodes.INVALID_ARGUMENT,
       });
     }
@@ -342,7 +342,7 @@ export function registerSessionIpc({
   });
   handle(IPC.invoke.sessionRename, async (id: string, title: string) => {
     if (id.startsWith("native-pi:")) {
-      throw Object.assign(new Error("Native Pi session rename is not supported"), {
+      throw Object.assign(new Error("Legacy session rename is not supported"), {
         errorCode: ErrorCodes.INVALID_ARGUMENT,
       });
     }

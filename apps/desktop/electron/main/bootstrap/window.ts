@@ -1263,18 +1263,16 @@ export async function createWindow({
             const probeWorkPanelNewPage = async (scene: string) => {
               const probe = await windowState.mainWindow!.webContents.executeJavaScript(`(() => {
                 const blank = document.querySelector('[data-testid="work-panel-empty"]');
-                const add = document.querySelector('.work-panel-new-tab');
                 return {
                   scene: ${JSON.stringify(scene)},
                   viewport: { width: innerWidth, height: innerHeight },
                   blankPage: Boolean(blank),
                   launcherRows: blank?.querySelectorAll('.work-panel-launcher-row').length ?? 0,
                   popupCount: blank?.querySelectorAll('[role="menu"]').length ?? 0,
-                  addHasPopup: add?.hasAttribute('aria-haspopup') ?? false,
                 };
               })()`);
               console.log("WORK_PANEL_NEW_PAGE_PROBE", probe);
-              if (!probe?.blankPage || probe.launcherRows < 1 || probe.popupCount || probe.addHasPopup) {
+              if (!probe?.blankPage || probe.launcherRows < 1 || probe.popupCount) {
                 throw new Error(`work-panel blank page contract failed in ${scene}`);
               }
             };
@@ -1318,19 +1316,19 @@ export async function createWindow({
                     bottom: Math.round(rect.bottom),
                   };
                 };
-                const add = rectFor('.work-panel-new-tab');
+                const action = rectFor('.work-panel-maximize');
                 const toggle = rectFor('.app-work-panel-toggle');
                 const header = rectFor('.work-panel-header');
                 return {
                   scene: ${JSON.stringify(scene)},
                   viewport: { width: innerWidth, height: innerHeight },
                   header,
-                  add,
+                  action,
                   toggle,
-                  gap: add && toggle ? toggle.left - add.right : null,
-                  overlaps: add && toggle
-                    ? add.left < toggle.right && add.right > toggle.left &&
-                      add.top < toggle.bottom && add.bottom > toggle.top
+                  gap: action && toggle ? toggle.left - action.right : null,
+                  overlaps: action && toggle
+                    ? action.left < toggle.right && action.right > toggle.left &&
+                      action.top < toggle.bottom && action.bottom > toggle.top
                     : null,
                 };
               })()`);

@@ -997,6 +997,126 @@
 .ppt-master-action:disabled { cursor: not-allowed; opacity: 0.45; }
 .ppt-master-action-error { color: var(--ds-error); font-size: var(--text-2xs); }
 
+.courseware-import-dialog {
+  width: min(100%, 560px);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+}
+
+.courseware-import-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.courseware-import-head h2 {
+  margin: 0;
+  color: var(--ds-text-primary);
+  font-size: var(--text-lg);
+}
+
+.courseware-import-head p {
+  margin: 5px 0 0;
+  color: var(--ds-text-muted);
+  font-size: var(--text-sm);
+}
+
+.courseware-import-close {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  color: var(--ds-text-muted);
+}
+
+.courseware-import-close:hover:not(:disabled) { background: var(--ds-bg-hover); }
+
+.courseware-import-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.courseware-import-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--ds-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.courseware-import-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.courseware-import-files {
+  display: grid;
+  gap: 8px;
+  border-radius: var(--radius-md);
+  background: var(--ds-tile);
+  padding: 10px 12px;
+}
+
+.courseware-import-files > div {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.courseware-import-files span {
+  color: var(--ds-text-muted);
+  font-size: var(--text-xs);
+}
+
+.courseware-import-files strong {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  color: var(--ds-text-primary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.courseware-import-files strong svg { flex: 0 0 auto; }
+
+.courseware-import-message {
+  border-radius: var(--radius-sm);
+  padding: 9px 11px;
+  font-size: var(--text-sm);
+}
+
+.courseware-import-message.error {
+  background: color-mix(in oklab, var(--ds-error) 10%, transparent);
+  color: var(--ds-error);
+}
+
+.courseware-import-message.success {
+  background: color-mix(in oklab, var(--ds-success) 10%, transparent);
+  color: var(--ds-success);
+}
+
+.courseware-import-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 560px) {
+  .courseware-import-grid { grid-template-columns: 1fr; }
+  .courseware-import-files > div { grid-template-columns: 40px minmax(0, 1fr); }
+  .courseware-import-files .btn { grid-column: 2; justify-self: start; }
+}
+
 .ppt-editor-tab { display: grid; grid-template-rows: auto minmax(0, 1fr); width: 100%; height: 100%; min-height: 0; background: var(--ds-bg-primary); }
 .ppt-editor-toolbar { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 7px 10px; border-bottom: 1px solid var(--ds-border-subtle); }
 .ppt-editor-document { display: grid; min-width: 0; margin-right: auto; }
