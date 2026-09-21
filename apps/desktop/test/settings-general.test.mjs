@@ -213,14 +213,14 @@ test("model configuration keeps model defaults; AI owns app behavior defaults", 
   assert.doesNotMatch(providersSource, /settings\.modeAgent/);
 });
 
-test("model configuration presents built-in courseware models as platform-managed", () => {
-  const managedModels =
-    providersSource.match(/data-testid="managed-models"[\s\S]*?<\/section>/)?.[0] ?? "";
-  assert.notEqual(managedModels, "");
-  assert.match(managedModels, /settings\.managedTextModel/);
-  assert.match(managedModels, /settings\.managedImageModel/);
-  assert.match(managedModels, /settings\.managedModelBadge/);
-  assert.doesNotMatch(managedModels, /<Button|<TooltipButton|onClick=/);
+test("model configuration treats built-in AI as a read-only provider", () => {
+  assert.doesNotMatch(providersSource, /data-testid="managed-models"/);
+  assert.match(providersSource, /provider\.id === DECKWISE_MANAGED_PROVIDER_ID/);
+  assert.match(providersSource, /settings\.managedModelsTitle/);
+  assert.match(providersSource, /settings\.managedTextModel/);
+  assert.match(providersSource, /settings\.managedModelBadge/);
+  assert.match(providersSource, /!isManaged && !ownedByPlugin/);
+  assert.match(providersSource, /!isManaged \? \(/);
   for (const source of [enLocaleSource, zhLocaleSource]) {
     assert.match(source, /managedModelsTitle:/);
     assert.match(source, /managedModelBadge:/);
@@ -234,11 +234,11 @@ test("default model selector shows every configured model under its provider", (
     )?.[0] ?? "";
   assert.notEqual(defaultModelPicker, "");
   assert.match(defaultModelPicker, /model-default-provider-group/);
-  assert.match(defaultModelPicker, /model-default-option-model font-mono">[\s\S]*?\{modelId\}/);
+  assert.match(defaultModelPicker, /model-default-option-model">\{modelName\}/);
   assert.match(defaultModelPicker, /setDefaultModel\(provider, modelId\)/);
   assert.match(providersSource, /settings-text-action model-default-trigger/);
   assert.doesNotMatch(providersSource, /defaultModelDescription/);
-  assert.match(providersSource, /aria-label=\{`\$\{provider\.name\} · \$\{modelId\}`\}/);
+  assert.match(providersSource, /aria-label=\{`\$\{providerName\} · \$\{modelName\}`\}/);
   assert.match(providersSource, /placeholder=\{t\("settings\.defaultModelSearch"\)\}/);
   assert.match(providersSource, /model-default-results/);
   assert.match(stylesSource, /\.model-default-results\s*\{[\s\S]*?overflow-y: auto;/);

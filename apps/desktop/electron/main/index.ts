@@ -720,6 +720,8 @@ const createdSessionLaunchRuntime = createSessionLaunchRuntime({
   dataDir,
   vendorOAuth,
   modelsDevCatalog,
+  listRuntimeProviders,
+  resolvePlatformAccessToken: () => authSession.resolveAccessToken(),
   getWorkspacePath: currentWorkspacePath,
   pluginActiveInProject,
   bindingForModel,

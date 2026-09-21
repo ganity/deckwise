@@ -151,3 +151,33 @@ test("a bulk session refresh reuses catalog matches while preserving each sessio
   }
   assert.equal(modelReads, 0, "session list refreshes must not repeat catalog matching work");
 });
+
+test("the managed DeckWise provider is first and becomes the empty-settings default", async () => {
+  const catalog = new ModelsDevCatalog({
+    catalogPath: "unused-model-catalog.json",
+    fetchImpl: async () => new Response(JSON.stringify(fixture), { status: 200 }),
+  });
+  assert.equal(await catalog.refresh(), true);
+  const runtime = createProviderCatalogRuntime({
+    getHost: () => ({
+      call: async () => ({
+        providers: [{ id: "custom", name: "Custom", authKind: "none", enabled: true }],
+      }),
+    }),
+    modelsDevCatalog: catalog,
+  });
+
+  const providers = await runtime.listRuntimeProviders();
+  assert.equal(providers[0].id, "deckwise-managed");
+  assert.equal(providers[1].id, "custom");
+  const defaults = runtime.normalizeSettings({});
+  assert.equal(defaults.defaultProviderId, "deckwise-managed");
+  assert.equal(defaults.defaultModelId, providers[0].defaultModelId);
+  assert.ok(defaults.defaultCommandShell);
+  assert.equal(
+    runtime.normalizeSettings({ defaultProviderId: "custom", defaultModelId: "custom-model" })
+      .defaultProviderId,
+    "custom",
+  );
+  assert.equal(runtime.normalizeSettings({ defaultProviderId: "custom" }).defaultModelId, "");
+});

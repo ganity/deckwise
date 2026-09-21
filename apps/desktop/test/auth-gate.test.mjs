@@ -5,13 +5,15 @@ import test from "node:test";
 const root = new URL("../", import.meta.url);
 const read = (path) => readFile(new URL(path, root), "utf8");
 
-const [protocol, app, authGate, authSession, launcher, settingsPage] = await Promise.all([
+const [protocol, app, authGate, authSession, launcher, settingsPage, sessionLaunch, main] = await Promise.all([
   read("../../packages/shared/src/protocol.ts"),
   read("src/App.tsx"),
   read("src/features/auth/AuthGate.tsx"),
   read("electron/main/auth-session.ts"),
   read("electron/main/bootstrap/launcher.ts"),
   read("src/features/settings/SettingsPage.tsx"),
+  read("electron/main/runtime/session-launch.ts"),
+  read("electron/main/index.ts"),
 ]);
 
 test("the main app is gated by education QR authentication", () => {
@@ -41,4 +43,15 @@ test("account settings can end the desktop session", () => {
   assert.match(authSession, /clearStoredSession\(\)/);
   assert.match(authGate, /next\.status === "signedOut"/);
   assert.match(authGate, /void startLogin\(\)/);
+});
+
+test("the optional llm gateway uses the signed-in platform access token", () => {
+  assert.match(authSession, /async resolveAccessToken\(\)/);
+  assert.match(sessionLaunch, /process\.env\.DECKWISE_LLM_BASE_URL/);
+  assert.match(sessionLaunch, /provider\.id === DECKWISE_MANAGED_PROVIDER_ID/);
+  assert.match(sessionLaunch, /const llmBaseUrl = isManagedProvider \?/);
+  assert.match(sessionLaunch, /value: await resolvePlatformAccessToken\(\)/);
+  assert.match(sessionLaunch, /const baseUrl = llmBaseUrl \?\?/);
+  assert.doesNotMatch(sessionLaunch, /const llmBaseUrl = configuredLlmBaseUrl\(\);/);
+  assert.match(main, /resolvePlatformAccessToken: \(\) => authSession\.resolveAccessToken\(\)/);
 });

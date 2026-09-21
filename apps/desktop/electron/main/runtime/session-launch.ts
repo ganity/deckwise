@@ -1,21 +1,5 @@
 import { join } from "node:path";
 import {
-  ErrorCodes as SharedErrorCodes,
-  isActiveInProject,
-  isCommandShellCatalog,
-  normalizeMode,
-  resolveBindingContextWindow,
-  trustedExtensionAgentKeyFromProviderId,
-  type CommandShellCatalog,
-  type McpServerRecord,
-  type ModelBinding,
-  type Mode,
-  type Risk,
-  type ThinkingLevel,
-  type UserSkillRecord,
-  type UserSubagentRecord,
-} from "@pi-desktop/shared";
-import {
   capabilitiesFromModelConfig,
   clampThinkingLevel,
   genericModelConfig,
@@ -24,17 +8,34 @@ import {
   modelConfigWithBinding,
   optionalProviderHeaders,
   resolveSubagentProviders,
-  visionFromModelConfig,
   type UserSubagentDocument,
+  visionFromModelConfig,
 } from "@pi-desktop/agent-runtime";
-import { builtinSkills } from "../builtin-skills";
-import { OAUTH_AUTH_KIND, type VendorOAuth } from "../oauth";
 import {
-  modelConfigFromModelsDev,
-  type ModelsDevCatalog,
-} from "../models-dev-catalog";
+  type CommandShellCatalog,
+  DECKWISE_MANAGED_PROVIDER_ID,
+  isActiveInProject,
+  isCommandShellCatalog,
+  type McpServerRecord,
+  type Mode,
+  type ModelBinding,
+  normalizeMode,
+  type Risk,
+  resolveBindingContextWindow,
+  ErrorCodes as SharedErrorCodes,
+  type ThinkingLevel,
+  trustedExtensionAgentKeyFromProviderId,
+  type UserSkillRecord,
+  type UserSubagentRecord,
+} from "@pi-desktop/shared";
+import { builtinSkills } from "../builtin-skills";
 import type { HostProcess } from "../host-process";
 import type { Logger } from "../logger";
+import {
+  type ModelsDevCatalog,
+  modelConfigFromModelsDev,
+} from "../models-dev-catalog";
+import { OAUTH_AUTH_KIND, type VendorOAuth } from "../oauth";
 import type { PluginRuntime } from "../plugin-runtime";
 import type { UserMcpRuntime } from "../user-mcp";
 import type { RuntimeState } from "./context";
@@ -59,6 +60,8 @@ export type SessionLaunchRuntimeDependencies = {
   dataDir: string;
   vendorOAuth: VendorOAuth;
   modelsDevCatalog: ModelsDevCatalog;
+  listRuntimeProviders: (includeDisabled?: boolean) => Promise<RuntimeProvider[]>;
+  resolvePlatformAccessToken: () => Promise<string>;
   getWorkspacePath: () => string | null;
   pluginActiveInProject: (
     pluginId: string,
@@ -92,6 +95,8 @@ export function createSessionLaunchRuntime({
   dataDir,
   vendorOAuth,
   modelsDevCatalog,
+  listRuntimeProviders,
+  resolvePlatformAccessToken,
   getWorkspacePath,
   pluginActiveInProject,
   bindingForModel,
@@ -99,6 +104,19 @@ export function createSessionLaunchRuntime({
   effectiveSubagentModelConfig,
   normalizeThinkingLevel,
 }: SessionLaunchRuntimeDependencies) {
+  const configuredLlmBaseUrl = () => {
+    const value = process.env.DECKWISE_LLM_BASE_URL?.trim();
+    if (!value) return undefined;
+    const url = new URL(value);
+    if (
+      url.protocol !== "https:" &&
+      url.hostname !== "127.0.0.1" &&
+      url.hostname !== "localhost"
+    ) {
+      throw new Error("DeckWise model gateway requires HTTPS");
+    }
+    return url.toString().replace(/\/$/, "");
+  };
   const isHostUnavailable = (error: unknown): boolean =>
     (error as { errorCode?: string } | null | undefined)?.errorCode ===
     ErrorCodes.HOST_UNAVAILABLE;
@@ -272,10 +290,7 @@ export function createSessionLaunchRuntime({
     if (!runtimeState.host) throw new Error("host unavailable");
     await modelsDevCatalog.ensureLoaded();
     const commandShell = (await resolveEffectiveCommandShell()).effective!;
-    const providers = await runtimeState.host!.call<{ providers: RuntimeProvider[] }>(
-      "providers.list",
-      { includeDisabled: false },
-    );
+    const providerRows = await listRuntimeProviders(false);
     const requestedProviderId = overrides.providerId ?? session.providerId;
     const extensionAgentKey = requestedProviderId
       ? trustedExtensionAgentKeyFromProviderId(requestedProviderId)
@@ -288,12 +303,12 @@ export function createSessionLaunchRuntime({
           authKind: "none",
           extensionAgentKey,
         }
-      : providers.providers.find((item) => item.id === requestedProviderId) ||
-        providers.providers.find((item) => item.id === settings.defaultProviderId) ||
-        providers.providers.find(
+      : providerRows.find((item) => item.id === requestedProviderId) ||
+        providerRows.find((item) => item.id === settings.defaultProviderId) ||
+        providerRows.find(
           (item) => item.hasSecret || item.hasOauth || item.authKind === "none",
         ) ||
-        providers.providers[0];
+        providerRows[0];
     if (!provider) {
       throw Object.assign(new Error("No provider configured"), {
         errorCode: ErrorCodes.MODEL_NOT_CONFIGURED,
@@ -302,12 +317,21 @@ export function createSessionLaunchRuntime({
     // Plugin-owned agents resolve credentials and transport inside the trusted
     // extension; the host never reads or injects a secret for them.
     const isExtensionAgent = Boolean(extensionAgentKey);
-    const isVendorAccount = !isExtensionAgent && provider.authKind === OAUTH_AUTH_KIND;
+    const isManagedProvider = provider.id === DECKWISE_MANAGED_PROVIDER_ID;
+    const llmBaseUrl = isManagedProvider ? configuredLlmBaseUrl() : undefined;
+    if (isManagedProvider && !llmBaseUrl) {
+      throw Object.assign(new Error("DeckWise AI service is not configured"), {
+        errorCode: ErrorCodes.MODEL_NOT_CONFIGURED,
+      });
+    }
+    const isVendorAccount = !isManagedProvider && !isExtensionAgent && provider.authKind === OAUTH_AUTH_KIND;
     const secret = isExtensionAgent || isVendorAccount
       ? { value: undefined }
-      : await runtimeState.host!.call<{ value?: string }>("providers.getSecret", {
-          id: provider.id,
-        });
+      : isManagedProvider
+        ? { value: await resolvePlatformAccessToken() }
+        : await runtimeState.host!.call<{ value?: string }>("providers.getSecret", {
+            id: provider.id,
+          });
     if (!secret.value && !isExtensionAgent && !isVendorAccount && provider.authKind !== "none") {
       throw Object.assign(new Error("Provider API key missing"), {
         errorCode: ErrorCodes.PROVIDER_SECRET_MISSING,
@@ -344,7 +368,7 @@ export function createSessionLaunchRuntime({
     }
     const storedModel = bindingForModel(provider, modelId);
     const apiStyle = vendorBinding?.apiStyle ?? provider.apiStyle;
-    const baseUrl = vendorBinding?.baseUrl ?? provider.baseUrl;
+    const baseUrl = llmBaseUrl ?? vendorBinding?.baseUrl ?? provider.baseUrl;
     const modelsDevModel = modelsDevModelFor(provider, modelId);
     const catalogModelConfig = vendorBinding?.modelConfig ??
       (modelsDevModel
@@ -467,7 +491,7 @@ export function createSessionLaunchRuntime({
     });
     const subagentBindings = await resolveSubagentProviders({
       definitions: subagentCatalog.definitions,
-      providers: providers.providers,
+      providers: providerRows,
       getSecret: async (id: string) =>
         (await runtimeState.host!.call<{ value?: string }>("providers.getSecret", { id })).value,
       resolveVendorBinding: (pinned, pinnedModelId) =>
@@ -481,7 +505,7 @@ export function createSessionLaunchRuntime({
         const catalogModelConfig = model
           ? modelConfigFromModelsDev(model, pinned.baseUrl)
           : genericModelConfig(pinnedModelId, pinned.baseUrl ?? "");
-        const configuredProvider = providers.providers.find(
+        const configuredProvider = providerRows.find(
           (candidate) => candidate.id === pinned.id,
         );
         return configuredProvider
@@ -502,7 +526,7 @@ export function createSessionLaunchRuntime({
     // extra RPC round-trip. Statically pinned entries from definitions take
     // precedence — they were resolved above with stricter diagnostics.
     const subagentModelKeys: string[] = [];
-    for (const row of providers.providers) {
+    for (const row of providerRows) {
       if (!row.enabled) continue;
       for (const binding of row.models ?? []) {
         if (!binding.availableForSubagents) continue;
@@ -516,9 +540,16 @@ export function createSessionLaunchRuntime({
           subagentModelKeys.push(key);
           continue; // already resolved, and independently opted in
         }
-        const isVendorAccount = row.authKind === OAUTH_AUTH_KIND;
+        const rowIsManaged = row.id === DECKWISE_MANAGED_PROVIDER_ID;
+        const rowBaseUrl = rowIsManaged ? configuredLlmBaseUrl() : row.baseUrl;
+        const isVendorAccount = !rowIsManaged && row.authKind === OAUTH_AUTH_KIND;
         let apiKey = "";
-        if (!isVendorAccount && row.authKind !== "none") {
+        if (rowIsManaged) {
+          if (!rowBaseUrl) continue;
+          apiKey = isManagedProvider
+            ? secret.value ?? ""
+            : await resolvePlatformAccessToken();
+        } else if (!isVendorAccount && row.authKind !== "none") {
           try {
             apiKey =
               (
@@ -558,7 +589,7 @@ export function createSessionLaunchRuntime({
           id: row.id,
           name: row.name,
           ...(row.vendorKey ? { vendorKey: row.vendorKey } : {}),
-          ...(row.baseUrl ? { baseUrl: row.baseUrl } : {}),
+          ...(rowBaseUrl ? { baseUrl: rowBaseUrl } : {}),
           modelId: binding.id,
           apiKey,
           ...(row.authKind ? { authKind: row.authKind } : {}),
@@ -592,7 +623,7 @@ export function createSessionLaunchRuntime({
         provider.id,
         ...Object.values(subagentBindings.providers).map((binding) => binding.id),
       ]
-        .map((id) => providers.providers.find((row) => row.id === id))
+        .map((id) => providerRows.find((row) => row.id === id))
         .flatMap((row) =>
           row?.authKind === OAUTH_AUTH_KIND
             ? [{ providerId: row.id }]

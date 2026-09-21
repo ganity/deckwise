@@ -13223,3 +13223,22 @@ plugin-form fixtures in an isolated temporary directory at runtime.
 - **Acceptance:** A (runtime), C (sessions).
 - **Milestone:** M6+.
 - **Status:** Automated; run against the task/PR integration candidate.
+
+### E2E-MODEL-managed-provider-routing
+
+- **Preconditions:** A signed-in DeckWise profile, a configured DeckWise model
+  gateway, and one user-configured provider with a distinct test endpoint.
+- **Steps:** 1) Open Model configuration with no saved default. 2) Confirm the
+  managed provider is first and selected. 3) Inspect its available actions.
+  4) Run one turn, then select the user provider and run another turn.
+- **Expected:** The managed provider shows a friendly model name and no
+  edit/copy/test/delete/disable actions. Its turn uses the DeckWise gateway and
+  platform access token. The user provider's turn uses its own endpoint and
+  credential and is not redirected through the DeckWise gateway.
+- **Specs linked:** `03-runtime/11-provider-model-system.md` §10.
+- **Acceptance:** B (model config), F (persistence), Security, Quality.
+- **Status:** Partially automated by
+  `apps/desktop/test/provider-catalog-runtime.test.mjs`,
+  `apps/desktop/test/settings-general.test.mjs`, and
+  `apps/desktop/test/auth-gate.test.mjs`; live two-endpoint verification remains
+  manual.

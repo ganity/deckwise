@@ -1,5 +1,7 @@
 import {
   ErrorCodes as SharedErrorCodes,
+  DECKWISE_MANAGED_MODEL_ID,
+  DECKWISE_MANAGED_PROVIDER_ID,
   THINKING_LEVELS,
   defaultCommandShellForPlatform,
   isCommandShellId,
@@ -70,6 +72,27 @@ export function createProviderCatalogRuntime({
   getHost,
   modelsDevCatalog,
 }: ProviderCatalogRuntimeDependencies) {
+  const managedModelId =
+    process.env.DECKWISE_LLM_MODEL?.trim() || DECKWISE_MANAGED_MODEL_ID;
+  const managedProvider: RuntimeProvider = {
+    id: DECKWISE_MANAGED_PROVIDER_ID,
+    name: "DeckWise AI",
+    vendorKey: "deckwise",
+    enabled: true,
+    authKind: "none",
+    apiStyle: "chat_completions",
+    defaultModelId: managedModelId,
+    models: [
+      {
+        id: managedModelId,
+        alias: "DeckWise AI",
+        contextWindow: 128_000,
+        maxTokens: 8_192,
+        thinkingLevels: ["off"],
+        defaultThinkingLevel: "off",
+      },
+    ],
+  };
   const bindingForModel = (
     provider: Pick<RuntimeProvider, "models">,
     modelId: string,
@@ -174,16 +197,39 @@ export function createProviderCatalogRuntime({
 
   const normalizeSettings = <T>(
     settings: T,
-  ): T & { defaultCommandShell: CommandShellId } => {
+  ): T & {
+    defaultCommandShell: CommandShellId;
+    defaultProviderId: string;
+    defaultModelId: string;
+  } => {
     const value = (
       settings && typeof settings === "object" ? settings : {}
-    ) as T & { defaultCommandShell?: unknown };
+    ) as T & {
+      defaultCommandShell?: unknown;
+      defaultProviderId?: unknown;
+      defaultModelId?: unknown;
+    };
+    const hasDefaultProvider =
+      typeof value.defaultProviderId === "string" && value.defaultProviderId.length > 0;
     return {
       ...(value as T),
+      defaultProviderId: hasDefaultProvider
+        ? value.defaultProviderId as string
+        : DECKWISE_MANAGED_PROVIDER_ID,
+      defaultModelId:
+        typeof value.defaultModelId === "string" && value.defaultModelId
+          ? value.defaultModelId
+          : hasDefaultProvider
+            ? ""
+            : managedModelId,
       defaultCommandShell: isCommandShellId(value.defaultCommandShell)
         ? value.defaultCommandShell
         : defaultCommandShellForPlatform(process.platform),
-    } as T & { defaultCommandShell: CommandShellId };
+    } as T & {
+      defaultCommandShell: CommandShellId;
+      defaultProviderId: string;
+      defaultModelId: string;
+    };
   };
 
   const validateSettingsWrite = <T>(settings: T): T => {
@@ -227,7 +273,7 @@ export function createProviderCatalogRuntime({
       { includeDisabled },
     );
     await modelsDevCatalog.ensureLoaded();
-    return result.providers;
+    return [managedProvider, ...result.providers];
   };
 
   const enrichProviderList = async <T extends RuntimeProvider>(result: {

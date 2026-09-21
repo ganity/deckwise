@@ -34,7 +34,8 @@ We standardize on pi’s multi-provider layer and add product-level configuratio
 
 ```text
 Settings / UI
-  → ProviderConfigStore (Rust host DB)
+  → DeckWise managed provider (read-only, Electron main)
+  → ProviderConfigStore (Rust host DB, user-configured providers)
   → AgentRuntime (Node/pi)
       ├─ built-in vendor providers (via pi-ai)
       ├─ openai-compatible provider
@@ -483,6 +484,12 @@ type ModelDescriptor = {
 ## 10. UI requirements
 
 ### Settings → Agent → Providers
+- show `DeckWise built-in AI` first as a read-only provider. It exposes only a
+  friendly model name, cannot be edited/copied/deleted/disabled, and becomes
+  the default only when no explicit provider default exists
+- route only that managed provider through the configured DeckWise gateway
+  with the signed-in platform access token; user-configured providers keep
+  their own endpoint and credential path
 - add built-in vendor quickly
 - add OpenAI-compatible endpoint
 - add custom provider

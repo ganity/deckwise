@@ -134,6 +134,16 @@ export class DesktopAuthSession {
     return this.state;
   }
 
+  async resolveAccessToken(): Promise<string> {
+    if (this.state.status !== "authenticated" || !this.accessToken) {
+      await this.restore();
+    }
+    if (this.state.status !== "authenticated" || !this.accessToken) {
+      throw new Error("登录已过期，请重新扫码");
+    }
+    return this.accessToken;
+  }
+
   async restore(): Promise<DesktopAuthState> {
     if (this.state.status === "authenticated") return this.state;
     if (this.restoreInFlight) return this.restoreInFlight;

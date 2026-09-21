@@ -9,6 +9,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  DECKWISE_MANAGED_PROVIDER_ID,
   OAUTH_AUTH_KIND,
   modelIdsMatch,
   type ModelBinding,
@@ -118,13 +119,23 @@ export function ModelConfigPage() {
   );
   const readyProviders = providers.filter(providerReady);
   const defaultModelOptionsList = defaultModelOptions(readyProviders);
-  const visibleDefaultModelOptions = useMemo(() => {
-    const query = defaultModelQuery.trim().toLowerCase();
-    if (!query) return defaultModelOptionsList;
-    return defaultModelOptionsList.filter(({ provider, modelId }) =>
-      `${provider.name} ${modelId}`.toLowerCase().includes(query),
-    );
-  }, [defaultModelOptionsList, defaultModelQuery]);
+  const providerDisplayName = (provider: ProviderPublic) =>
+    provider.id === DECKWISE_MANAGED_PROVIDER_ID
+      ? t("settings.managedModelsTitle")
+      : provider.name;
+  const modelDisplayName = (provider: ProviderPublic, modelId: string) =>
+    provider.id === DECKWISE_MANAGED_PROVIDER_ID
+      ? t("settings.managedTextModel")
+      : provider.models?.find((binding) => modelIdsMatch(binding.id, modelId))?.alias?.trim() ||
+        modelId;
+  const defaultQuery = defaultModelQuery.trim().toLowerCase();
+  const visibleDefaultModelOptions = defaultQuery
+    ? defaultModelOptionsList.filter(({ provider, modelId }) =>
+        `${providerDisplayName(provider)} ${modelDisplayName(provider, modelId)} ${modelId}`
+          .toLowerCase()
+          .includes(defaultQuery),
+      )
+    : defaultModelOptionsList;
 
   if (!settings) return null;
 
@@ -302,31 +313,6 @@ export function ModelConfigPage() {
 
   return (
     <div className="settings-stack model-config-page">
-      <section className="settings-card-block" data-testid="managed-models">
-        <div className="model-config-section-head">
-          <div>
-            <h3 className="settings-card-heading">{t("settings.managedModelsTitle")}</h3>
-            <p className="settings-row-desc">{t("settings.managedModelsDesc")}</p>
-          </div>
-        </div>
-        <div className="settings-panel">
-          <div className="settings-row">
-            <div className="settings-row-copy">
-              <div className="settings-row-title">{t("settings.managedTextModel")}</div>
-              <div className="settings-row-desc">{t("settings.managedTextModelDesc")}</div>
-            </div>
-            <Badge tone="neutral">{t("settings.managedModelBadge")}</Badge>
-          </div>
-          <div className="settings-row">
-            <div className="settings-row-copy">
-              <div className="settings-row-title">{t("settings.managedImageModel")}</div>
-              <div className="settings-row-desc">{t("settings.managedImageModelDesc")}</div>
-            </div>
-            <Badge tone="neutral">{t("settings.managedModelBadge")}</Badge>
-          </div>
-        </div>
-      </section>
-
       <section className="settings-card-block">
         <div className="model-config-section-head">
           <h3 className="settings-card-heading">{t("settings.defaultsTitle")}</h3>
@@ -339,13 +325,17 @@ export function ModelConfigPage() {
               </div>
               {defaultProviderReady ? (
                 <div className="settings-row-desc model-default-value">
-                  <span className="model-default-provider">{defaultProvider.name}</span>
+                  <span className="model-default-provider">
+                    {providerDisplayName(defaultProvider)}
+                  </span>
                   <span className="model-default-sep" aria-hidden>
                     ·
                   </span>
                   <span className="model-default-model font-mono">
-                    {displayedDefaultModelId(defaultProvider, settings.defaultModelId) ||
-                      t("settings.noModel")}
+                    {modelDisplayName(
+                      defaultProvider,
+                      displayedDefaultModelId(defaultProvider, settings.defaultModelId) ?? "",
+                    ) || t("settings.noModel")}
                   </span>
                 </div>
               ) : (
@@ -399,6 +389,8 @@ export function ModelConfigPage() {
                 ) : null}
                 <ul className="model-default-list">
                   {visibleDefaultModelOptions.map(({ provider, modelId }, index) => {
+                    const providerName = providerDisplayName(provider);
+                    const modelName = modelDisplayName(provider, modelId);
                     const isCurrent =
                       provider.id === settings.defaultProviderId &&
                       modelIdsMatch(settings.defaultModelId ?? "", modelId);
@@ -413,14 +405,14 @@ export function ModelConfigPage() {
                               index > 0 && "has-divider",
                             )}
                           >
-                            {provider.name}
+                            {providerName}
                           </div>
                         ) : null}
                         <button
                           type="button"
                           role="option"
                           aria-selected={isCurrent}
-                          aria-label={`${provider.name} · ${modelId}`}
+                          aria-label={`${providerName} · ${modelName}`}
                           className={cx("model-default-option", isCurrent && "is-current")}
                           disabled={busyId === provider.id}
                           onClick={() => void setDefaultModel(provider, modelId)}
@@ -428,7 +420,7 @@ export function ModelConfigPage() {
                           <span className="model-default-option-check" aria-hidden>
                             {isCurrent ? <IconCheck size={12} /> : null}
                           </span>
-                          <span className="model-default-option-model font-mono">{modelId}</span>
+                          <span className="model-default-option-model">{modelName}</span>
                         </button>
                       </li>
                     );
@@ -474,6 +466,7 @@ export function ModelConfigPage() {
           ) : (
             <ul className="model-provider-list">
               {aiProviders.map((provider) => {
+                const isManaged = provider.id === DECKWISE_MANAGED_PROVIDER_ID;
                 const isDefault = settings.defaultProviderId === provider.id;
                 const rowBusy = busyId === provider.id || testingId === provider.id;
                 const confirming = confirmDeleteId === provider.id;
@@ -490,7 +483,9 @@ export function ModelConfigPage() {
                   >
                     <div className="model-provider-row-copy">
                       <div className="model-provider-row-title">
-                        <span className="model-provider-row-name">{provider.name}</span>
+                        <span className="model-provider-row-name">
+                          {providerDisplayName(provider)}
+                        </span>
                         {isDefault ? (
                           <Badge tone="success">{t("settings.default")}</Badge>
                         ) : null}
@@ -509,21 +504,32 @@ export function ModelConfigPage() {
                             <Badge tone="neutral">{t("settings.pluginProviderBadge")}</Badge>
                           </span>
                         ) : null}
+                        {isManaged ? (
+                          <Badge tone="neutral">{t("settings.managedModelBadge")}</Badge>
+                        ) : null}
                       </div>
                       <div className="model-provider-row-meta">
-                        <span>{hostFromBaseUrl(provider.baseUrl)}</span>
-                        <span className="model-provider-meta-dot" aria-hidden>
-                          ·
-                        </span>
-                        <span>{t("settings.providerModelCount", { count: modelCount })}</span>
-                        {ownedByPlugin ? (
+                        {isManaged ? (
+                          <span>{t("settings.managedModelsDesc")}</span>
+                        ) : (
                           <>
+                            <span>{hostFromBaseUrl(provider.baseUrl)}</span>
                             <span className="model-provider-meta-dot" aria-hidden>
                               ·
                             </span>
-                            <span>{t("settings.pluginProviderBy", { plugin: ownedByPlugin })}</span>
+                            <span>{t("settings.providerModelCount", { count: modelCount })}</span>
+                            {ownedByPlugin ? (
+                              <>
+                                <span className="model-provider-meta-dot" aria-hidden>
+                                  ·
+                                </span>
+                                <span>
+                                  {t("settings.pluginProviderBy", { plugin: ownedByPlugin })}
+                                </span>
+                              </>
+                            ) : null}
                           </>
-                        ) : null}
+                        )}
                       </div>
                     </div>
 
@@ -540,7 +546,7 @@ export function ModelConfigPage() {
                           {t("settings.makeDefault")}
                         </Button>
                       ) : null}
-                      {!ownedByPlugin ? (
+                      {!isManaged && !ownedByPlugin ? (
                         <TooltipButton
                           type="button"
                           className="icon-btn icon-btn-square model-provider-icon-btn"
@@ -555,7 +561,7 @@ export function ModelConfigPage() {
                           <IconCopy size={14} />
                         </TooltipButton>
                       ) : null}
-                      {ownedByPlugin && provider.authKind === "api_key" ? (
+                      {!isManaged && ownedByPlugin && provider.authKind === "api_key" ? (
                         <TooltipButton
                           type="button"
                           className="icon-btn icon-btn-square model-provider-icon-btn"
@@ -570,77 +576,81 @@ export function ModelConfigPage() {
                           <IconKey size={14} />
                         </TooltipButton>
                       ) : null}
-                      <TooltipButton
-                        type="button"
-                        className="icon-btn icon-btn-square model-provider-icon-btn"
-                        tooltip={
-                          ownedByPlugin
-                            ? t("settings.pluginProviderManaged", { plugin: ownedByPlugin })
-                            : t("settings.editProvider")
-                        }
-                        ariaLabel={t("settings.editProvider")}
-                        disabled={rowBusy || Boolean(ownedByPlugin)}
-                        onClick={() => setSetupFor(provider.id)}
-                      >
-                        <IconPencil size={14} />
-                      </TooltipButton>
-                      <TooltipButton
-                        type="button"
-                        className={cx(
-                          "icon-btn icon-btn-square model-provider-icon-btn",
-                          testingId === provider.id && "is-testing",
-                        )}
-                        tooltip={t("settings.testConnection")}
-                        ariaLabel={t("settings.testConnection")}
-                        disabled={rowBusy}
-                        onClick={() => void testProvider(provider)}
-                      >
-                        <IconPlug size={14} />
-                      </TooltipButton>
-                      {confirming ? (
-                        <button
-                          type="button"
-                          className="model-provider-delete-confirm"
-                          disabled={rowBusy}
-                          onBlur={() => setConfirmDeleteId(null)}
-                          onClick={() => void removeProvider(provider)}
-                        >
-                          {t("settings.deleteConfirm")}
-                        </button>
-                      ) : (
-                        <TooltipButton
-                          type="button"
-                          className="icon-btn icon-btn-square model-provider-icon-btn is-danger"
-                          tooltip={
-                            ownedByPlugin
-                              ? t("settings.pluginProviderManaged", { plugin: ownedByPlugin })
-                              : t("settings.delete")
-                          }
-                          ariaLabel={t("settings.delete")}
-                          disabled={rowBusy || Boolean(ownedByPlugin)}
-                          onClick={() => setConfirmDeleteId(provider.id)}
-                        >
-                          <IconTrash size={14} />
-                        </TooltipButton>
-                      )}
-                      <TooltipButton
-                        type="button"
-                        className={cx("settings-toggle", provider.enabled && "on")}
-                        role="switch"
-                        aria-checked={provider.enabled}
-                        tooltip={
-                          ownedByPlugin
-                            ? t("settings.pluginProviderManaged", { plugin: ownedByPlugin })
-                            : t("settings.enabledToggle")
-                        }
-                        ariaLabel={t("settings.enabledToggle")}
-                        disabled={rowBusy || Boolean(ownedByPlugin)}
-                        onClick={() => void toggleEnabled(provider)}
-                      >
-                        <span className="settings-toggle-thumb" />
-                      </TooltipButton>
+                      {!isManaged ? (
+                        <>
+                          <TooltipButton
+                            type="button"
+                            className="icon-btn icon-btn-square model-provider-icon-btn"
+                            tooltip={
+                              ownedByPlugin
+                                ? t("settings.pluginProviderManaged", { plugin: ownedByPlugin })
+                                : t("settings.editProvider")
+                            }
+                            ariaLabel={t("settings.editProvider")}
+                            disabled={rowBusy || Boolean(ownedByPlugin)}
+                            onClick={() => setSetupFor(provider.id)}
+                          >
+                            <IconPencil size={14} />
+                          </TooltipButton>
+                          <TooltipButton
+                            type="button"
+                            className={cx(
+                              "icon-btn icon-btn-square model-provider-icon-btn",
+                              testingId === provider.id && "is-testing",
+                            )}
+                            tooltip={t("settings.testConnection")}
+                            ariaLabel={t("settings.testConnection")}
+                            disabled={rowBusy}
+                            onClick={() => void testProvider(provider)}
+                          >
+                            <IconPlug size={14} />
+                          </TooltipButton>
+                          {confirming ? (
+                            <button
+                              type="button"
+                              className="model-provider-delete-confirm"
+                              disabled={rowBusy}
+                              onBlur={() => setConfirmDeleteId(null)}
+                              onClick={() => void removeProvider(provider)}
+                            >
+                              {t("settings.deleteConfirm")}
+                            </button>
+                          ) : (
+                            <TooltipButton
+                              type="button"
+                              className="icon-btn icon-btn-square model-provider-icon-btn is-danger"
+                              tooltip={
+                                ownedByPlugin
+                                  ? t("settings.pluginProviderManaged", { plugin: ownedByPlugin })
+                                  : t("settings.delete")
+                              }
+                              ariaLabel={t("settings.delete")}
+                              disabled={rowBusy || Boolean(ownedByPlugin)}
+                              onClick={() => setConfirmDeleteId(provider.id)}
+                            >
+                              <IconTrash size={14} />
+                            </TooltipButton>
+                          )}
+                          <TooltipButton
+                            type="button"
+                            className={cx("settings-toggle", provider.enabled && "on")}
+                            role="switch"
+                            aria-checked={provider.enabled}
+                            tooltip={
+                              ownedByPlugin
+                                ? t("settings.pluginProviderManaged", { plugin: ownedByPlugin })
+                                : t("settings.enabledToggle")
+                            }
+                            ariaLabel={t("settings.enabledToggle")}
+                            disabled={rowBusy || Boolean(ownedByPlugin)}
+                            onClick={() => void toggleEnabled(provider)}
+                          >
+                            <span className="settings-toggle-thumb" />
+                          </TooltipButton>
+                        </>
+                      ) : null}
                     </div>
-                    {keyEntry ? (
+                    {!isManaged && keyEntry ? (
                       <div className="model-provider-key-entry">
                         <Field
                           label={t("settings.pluginProviderKey")}

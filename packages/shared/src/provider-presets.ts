@@ -5,6 +5,8 @@ import type { CatalogApiStyle } from "./model-catalog.js";
 export const OPENCODE_GO_API_STYLE = "opencode_go" as const;
 export const OPENCODE_GO_NAME = "OpenCode Go";
 export const OPENCODE_GO_BASE_URL = "https://opencode.ai/zen/go/v1";
+export const DECKWISE_MANAGED_PROVIDER_ID = "deckwise-managed";
+export const DECKWISE_MANAGED_MODEL_ID = "deepseek-v4-1-flash-260910";
 
 export type NamedEndpointPreset = {
   id: string;
