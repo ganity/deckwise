@@ -97,12 +97,6 @@ async function inspectProject(projectPath: string): Promise<PptProjectState> {
   };
 }
 
-async function inspectCurrentProject(messages: UiMessage[]): Promise<PptProjectState | null> {
-  const referenced = referencedProject(messages);
-  if (!referenced) return null;
-  return inspectProject(referenced);
-}
-
 function phaseLabel(isRunning: boolean, project: PptProjectState | null, messageCount: number) {
   if (isRunning && project?.pptxPath) return "正在重新生成 PPT";
   if (isRunning) return "正在处理课件";
@@ -120,6 +114,7 @@ export function PptMasterTab() {
   const [previewBusy, setPreviewBusy] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const projectPath = useMemo(() => referencedProject(messages), [messages]);
   const activeSession = useAppStore((state) =>
     state.activeSessionId
       ? state.sessions.find((session) => session.id === state.activeSessionId)
@@ -131,16 +126,19 @@ export function PptMasterTab() {
   );
   const firstLessonPlan = useMemo(() => findFirstLessonPlan(messages), [messages]);
   const refreshProject = useCallback(async () => {
-    setProject(await inspectCurrentProject(messages));
-  }, [messages]);
+    if (!projectPath) return;
+    setProject(await inspectProject(projectPath));
+  }, [projectPath]);
 
   useEffect(() => {
-    setProject(null);
+    setProject((current) =>
+      projectPath && current?.projectPath === projectPath ? current : null,
+    );
     void refreshProject();
     if (!isRunning) return;
     const timer = window.setInterval(() => void refreshProject(), 2_000);
     return () => window.clearInterval(timer);
-  }, [activeSession?.id, isRunning, refreshProject]);
+  }, [activeSession?.id, isRunning, projectPath, refreshProject]);
 
   const generatePptx = () => {
     if (!activeSession?.id || isRunning) return;
@@ -165,6 +163,8 @@ export function PptMasterTab() {
     }
   };
 
+  const pageGenerationDone =
+    Boolean(project?.hasSvg) && (!isRunning || Boolean(project?.pptxPath));
   const progress =
     isRunning && project?.pptxPath
       ? "88%"
@@ -173,7 +173,9 @@ export function PptMasterTab() {
         : project?.pptxPath
           ? "100%"
           : project?.hasSvg
-            ? "75%"
+            ? isRunning
+              ? "60%"
+              : "75%"
             : isRunning
               ? "42%"
               : "0%";
@@ -212,7 +214,9 @@ export function PptMasterTab() {
                 : project?.pptxPath
                   ? "PPT 可编辑；后续 AI 修改以页面稿为准"
                   : project?.hasSvg
-                    ? "请完成页面预览和修改"
+                    ? isRunning
+                      ? "页面正在生成，可预览已完成页面"
+                      : "请完成页面预览和修改"
                     : isRunning
                       ? "正在分析需求并生成页面"
                       : "输入课件需求后开始"}
@@ -238,15 +242,15 @@ export function PptMasterTab() {
           <span>分析课件需求</span>
           <em>{messages.length > 0 ? "已开始" : "等待任务"}</em>
         </div>
-        <div className={`ppt-master-event ${project?.hasSvg || project?.pptxPath ? "done" : isRunning ? "active" : ""}`}>
-          {project?.hasSvg || project?.pptxPath ? <IconCheck size={14} /> : <span className="ppt-master-event-dot" />}
+        <div className={`ppt-master-event ${pageGenerationDone ? "done" : isRunning ? "active" : ""}`}>
+          {pageGenerationDone ? <IconCheck size={14} /> : <span className="ppt-master-event-dot" />}
           <span>生成课件页面</span>
-          <em>{project?.hasSvg || project?.pptxPath ? "已完成" : isRunning ? "进行中" : "等待任务"}</em>
+          <em>{pageGenerationDone ? "已完成" : isRunning ? "进行中" : "等待任务"}</em>
         </div>
         <div className={`ppt-master-event ${project?.needsPptxRegeneration || (project?.hasSvg && !project.pptxPath) ? "active" : project?.pptxPath ? "done" : ""}`}>
           {project?.pptxPath && !project.needsPptxRegeneration ? <IconCheck size={14} /> : <span className="ppt-master-event-dot" />}
           <span>预览与编辑页面</span>
-          <em>{project?.needsPptxRegeneration ? "已修改" : project?.pptxPath ? "已确认" : project?.hasSvg ? "可编辑" : "生成后自动打开"}</em>
+          <em>{project?.needsPptxRegeneration ? "已修改" : project?.pptxPath ? "已确认" : project?.hasSvg ? isRunning ? "生成中可预览" : "可编辑" : "生成后自动打开"}</em>
         </div>
         <div className={`ppt-master-event ${project?.pptxPath && !project.needsPptxRegeneration ? "done" : ""}`}>
           {project?.pptxPath && !project.needsPptxRegeneration ? <IconCheck size={14} /> : <span className="ppt-master-event-dot" />}

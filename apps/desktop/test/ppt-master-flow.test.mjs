@@ -120,7 +120,8 @@ test("PPT tasks open PPT Master without workspace edits opening Review", () => {
 });
 
 test("a new task never inherits another task's courseware project", () => {
-  assert.match(panel, /if \(!referenced\) return null;/);
+  assert.match(panel, /const projectPath = useMemo\(\(\) => referencedProject\(messages\), \[messages\]\)/);
+  assert.match(panel, /if \(!projectPath\) return;/);
   assert.doesNotMatch(panel, /listDir\("\.deckwise-ppt\/projects"\)/);
 });
 

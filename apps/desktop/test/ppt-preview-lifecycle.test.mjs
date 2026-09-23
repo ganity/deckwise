@@ -36,3 +36,11 @@ test("the courseware workspace exposes an in-app page preview action", () => {
   assert.match(panel, /browserPluginTab/);
   assert.match(skill, /--no-browser/);
 });
+
+test("page generation stays active until the whole agent turn finishes", () => {
+  assert.match(panel, /const projectPath = useMemo\(\(\) => referencedProject\(messages\), \[messages\]\)/);
+  assert.match(panel, /projectPath && current\?\.projectPath === projectPath \? current : null/);
+  assert.doesNotMatch(panel, /setProject\(null\);\s*void refreshProject\(\)/);
+  assert.match(panel, /pageGenerationDone =\s*Boolean\(project\?\.hasSvg\) &&\s*\(!isRunning \|\| Boolean\(project\?\.pptxPath\)\)/);
+  assert.match(panel, /project\?\.hasSvg \? isRunning \? "生成中可预览" : "可编辑"/);
+});

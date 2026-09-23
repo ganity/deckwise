@@ -55,7 +55,9 @@
 - **Expected:** The conversational change uses the delivered-project Revision
   Round, validates SVG, and creates a newer timestamped PPTX without asking for
   export confirmation. During the turn the workbench reports regeneration
-  instead of completion. The editor opens the newest export. A direct SVG
+  instead of completion; during initial generation, already-written SVG pages
+  may be previewed but **Generate pages** remains in progress until the turn
+  settles. The editor opens the newest export. A direct SVG
   change marks the existing export stale and offers **Regenerate PPTX**.
   PPTX-only edits are not merged back into SVG.
 - **Specs linked:** `04-ux/08-component-spec.md` §5.2.3.

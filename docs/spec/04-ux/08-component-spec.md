@@ -1036,6 +1036,12 @@ opened in the embedded Browser view. Closing the Browser tab does not stop the
 preview service; PPT Master's Exit preview action and idle timeout retain their
 normal lifecycle behavior.
 
+During an active generation turn, the presence of one or more SVG files makes
+the completed pages previewable but does not complete the **Generate pages**
+stage. That stage remains in progress until the turn settles, so the workbench
+does not present a partially written page roster as a completed courseware
+generation.
+
 After the current SVG source has a non-stale PPTX export, the workbench exposes
 **Import to MAIC**. Its modal defaults the title from the active session, takes
 grade and subject from the authenticated education profile dictionaries,
