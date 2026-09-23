@@ -592,8 +592,8 @@ pi.browser.getState(): Promise<BrowserState | null>
 pi.browser.openExternal(): Promise<void>
 pi.browser.snapshot(): Promise<{ tree: string; url: string; title: string }>
 pi.browser.screenshot(input?: { fullPage?: boolean }): Promise<{ mimeType: string; data: string; path?: string }>
-pi.browser.click(input: { uid: string }): Promise<void>
-pi.browser.fill(input: { uid: string; text: string }): Promise<void>
+pi.browser.click(input: { uid?: string; selector?: string }): Promise<void>
+pi.browser.fill(input: { uid?: string; selector?: string; text: string }): Promise<void>
 pi.browser.evaluate(input: { expression: string }): Promise<unknown>
 pi.browser.console(input?: { limit?: number }): Promise<{ messages: unknown[] }>
 pi.browser.cdp(input: { method: string; params?: unknown }): Promise<unknown>
@@ -605,6 +605,11 @@ the guest cannot cover chat/composer. `cdp` is deny-by-default; cookie,
 storage, target, and network-interception methods fail with
 `PERMISSION_DENIED`. Session identity for agent calls comes from the in-flight
 `plugins.execute` `sessionId`, not from plugin arguments (D333 / ADR 0170).
+Click/fill requires exactly one of a current snapshot `uid` or a CSS `selector`;
+snapshot uids are invalidated when navigation starts. A page may close its
+WebContents after an action, in which case a pending CDP command reports
+`BROWSER_TARGET_CLOSED` because completion is uncertain. Use click as a
+standalone action for self-closing pages and verify the result outside them.
 
 `getHistory` returns newest-first entries explicitly recorded by the host, with
 text and images interleaved in capture order. Content written through

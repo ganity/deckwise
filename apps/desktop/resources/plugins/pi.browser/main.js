@@ -27,7 +27,7 @@ export async function onLoad() {
   await pi.agent.registerTool({
     name: "Browser",
     description:
-      "Drive DeckWise's work-panel browser via CDP: snapshot the accessibility tree, click/fill by uid, screenshot, evaluate JavaScript, read console output, or send an allowlisted raw CDP method. Call ToolSearch for \"browser\" or \"cdp\" to load this tool. Use BrowserPreview to open a workspace HTML file with live reload.",
+      "Drive DeckWise's work-panel browser via CDP: snapshot the accessibility tree; click/fill by a snapshot uid (eN) or an explicit CSS selector; screenshot, evaluate JavaScript, read console output, or send an allowlisted raw CDP method. Uids expire as soon as navigation starts, so take a fresh snapshot before reusing them. For pages that submit and close themselves, use a standalone click action (prefer a CSS selector) and verify the result outside the closed page; do not await follow-up work inside the same evaluate call. Call ToolSearch for \"browser\" or \"cdp\" to load this tool. Use BrowserPreview to open a workspace HTML file with live reload.",
     risk: "medium",
     planSafeActions: PLAN_SAFE_ACTIONS,
     schema: {
@@ -45,7 +45,11 @@ export async function onLoad() {
         },
         uid: {
           type: "string",
-          description: "Snapshot uid (e1, e2, …) for click/fill.",
+          description: "Current-page snapshot uid (e1, e2, …) for click/fill; invalidated on navigation.",
+        },
+        selector: {
+          type: "string",
+          description: "CSS selector for click/fill, for example #submit. Mutually exclusive with uid.",
         },
         text: { type: "string", description: "Text to type for action=fill." },
         expression: {
@@ -96,14 +100,18 @@ export async function onLoad() {
           };
         }
         case "click":
-          await pi.browser.click({ uid: String(args?.uid ?? "") });
-          return { ok: true, action, uid: args?.uid };
+          await pi.browser.click({
+            uid: args?.uid ? String(args.uid) : undefined,
+            selector: args?.selector ? String(args.selector) : undefined,
+          });
+          return { ok: true, action, uid: args?.uid, selector: args?.selector };
         case "fill":
           await pi.browser.fill({
-            uid: String(args?.uid ?? ""),
+            uid: args?.uid ? String(args.uid) : undefined,
+            selector: args?.selector ? String(args.selector) : undefined,
             text: String(args?.text ?? ""),
           });
-          return { ok: true, action, uid: args?.uid };
+          return { ok: true, action, uid: args?.uid, selector: args?.selector };
         case "evaluate":
           return {
             ok: true,

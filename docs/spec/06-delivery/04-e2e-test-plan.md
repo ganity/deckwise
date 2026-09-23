@@ -1017,17 +1017,23 @@ identify the platform validation still needed.
 - **Steps**: 1) Confirm Plugins lists `pi.browser`, enabled, not uninstallable.
   2) Open the work panel and launch Browser from plugin views. 3) Ask the
   agent to preview a workspace HTML file (`BrowserPreview`) then snapshot via
-  ToolSearch `cdp` / `Browser`. 4) Switch to Plan and call the plugin Browser
-  tool. 5) Disable `pi.browser`. 6) Call `BrowserPreview` and click an http(s)
-  transcript link. 7) From a third-party or test caller, send
+  ToolSearch `cdp` / `Browser`. 4) On a fixture page with a self-closing
+  confirm button, call `Browser` with a standalone `click` using the button's
+  CSS selector, then verify the server-side result without evaluating the
+  closed page. 5) Navigate and confirm an earlier snapshot uid is rejected;
+  take a new snapshot and click/fill by uid. 6) Switch to Plan and call the
+  plugin Browser tool. 7) Disable `pi.browser`. 8) Call `BrowserPreview` and
+  click an http(s) transcript link. 9) From a third-party or test caller, send
   `Network.getAllCookies` through `pi.browser.cdp`.
 - **Expected**: The launcher has no host Browser row. Preview opens the plugin
   view and live-reloads the file. Plugin tool `plugin_pi_browser_Browser` can
   snapshot after ToolSearch. Plan denies the plugin tool
   (`PLUGIN_DISABLED_IN_PLAN`) while `BrowserPreview` remains callable. Disable
   hides the view and tools; `BrowserPreview` errors; http(s) chips use
-  `openExternal`. Cookie CDP is denied. Guest bounds stay inside the plugin
-  view.
+  `openExternal`. Selector click/fill resolves a current DOM element; stale
+  snapshot uids fail after navigation. The standalone click reports completion
+  before the fixture closes its page, and verification succeeds out-of-page.
+  Cookie CDP is denied. Guest bounds stay inside the plugin view.
 - **Specs linked**: ADR 0170, D333, `07-plugins/03-plugin-api.md`,
   `03-runtime/03-tools-and-permissions.md`
 - **Acceptance**: E (plugin view + tool) + security allowlist
@@ -9259,15 +9265,15 @@ This test plan spec is accepted when:
      cannot be remapped, so it fails with `EDIT_TAG_MISMATCH`.
   2. Re-read, then emit an `Edit` anchored on lines the session never displayed,
      so it fails with `EDIT_LINES_UNSEEN` and a truncated reveal.
-  3. Emit an `Edit` on that same path with a malformed op header.
-  4. Emit a second `Edit` with a malformed op header.
-  5. Emit a third `Edit` with a malformed op header.
+  3. Emit an `Edit` on that same path with malformed payload A.
+  4. Emit a second `Edit` with a distinct malformed payload B.
+  5. Emit a third `Edit` with a distinct malformed payload C.
 - **Expected**: Steps 1 and 2 return their own codes with no `terminate` hint —
   each recoverable code spends its single grace on that path, and the turn keeps
   going, so the agent can act on what the error handed it. Steps 3 and 4 count as
-  attempts 1 and 2 and still do not terminate. Step 5 terminates. A successful
-  `Edit` inserted anywhere before step 5 resets the count, so the following
-  failure is attempt 1 again.
+  attempts 1 and 2 and still do not terminate. Step 5 terminates. Repeating one
+  identical `EDIT_PARSE_FAILED` payload consecutively terminates on the second
+  call. A successful `Edit` inserted before termination resets both guards.
 - **Specs linked**: `03-runtime/18-line-anchored-edit-contract.md` §9.3, §11,
   `03-runtime/03-tools-and-permissions.md` §4d, ADR 0087, ADR 0207
 - **Acceptance**: E (tools & permissions), Quality
@@ -9282,7 +9288,9 @@ This test plan spec is accepted when:
   1. Emit three failing `Edit` calls on the same path within one prompt.
   2. Observe the transcript after the agent loop stops.
   3. Send a follow-up prompt in the same session.
-  4. Repeat with three failing `apply_patch` shell commands instead of `Edit`.
+  4. In a separate prompt, emit the same malformed `Edit` payload twice
+     consecutively and observe the transcript.
+  5. Repeat the three-call sequence with failing `apply_patch` shell commands.
 - **Expected**: The third call carries the termination hint and the loop stops,
   but the turn does not merely complete: the transcript ends on an assistant
   error row with `MUTATION_RETRY_BUDGET_EXHAUSTED`, marked retriable, naming the
@@ -9292,7 +9300,9 @@ This test plan spec is accepted when:
   `PUT 48.=48:` — and does not tell the agent to re-read solely to repair the
   malformed payload. The turn is recorded as failed rather than completed with
   no final message. Step 3 proceeds normally — the guard's counters are per
-  prompt. Step 4 produces the same row with `details.kind` of `patch-command`.
+  prompt. Step 4 stops on its second call and says the unchanged malformed
+  payload was repeated. Step 5 produces the same row with `details.kind` of
+  `patch-command`.
 - **Specs linked**: `03-runtime/18-line-anchored-edit-contract.md` §9.3,
   `03-runtime/03-tools-and-permissions.md` §4d,
   `03-runtime/08-error-codes.md` §3.3, ADR 0087

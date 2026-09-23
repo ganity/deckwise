@@ -1135,8 +1135,8 @@ export type PluginHostApi = {
       data: string;
       path?: string;
     }>;
-    click: (input: { uid: string }) => Promise<void>;
-    fill: (input: { uid: string; text: string }) => Promise<void>;
+    click: (input: { uid?: string; selector?: string }) => Promise<void>;
+    fill: (input: { uid?: string; selector?: string; text: string }) => Promise<void>;
     evaluate: (input: { expression: string }) => Promise<unknown>;
     console: (input?: { limit?: number }) => Promise<{ messages: unknown[] }>;
     cdp: (input: { method: string; params?: unknown }) => Promise<unknown>;

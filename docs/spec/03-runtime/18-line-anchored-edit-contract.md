@@ -465,11 +465,15 @@ occurrence, because repeating one of those means the model is guessing.
 |---|---|
 | `EDIT_TAG_MISMATCH`, then `EDIT_LINES_UNSEEN` | Neither counts: two different honest failures, each with its own grace |
 | `EDIT_TAG_MISMATCH` twice | The second counts as attempt 1 |
-| `EDIT_PARSE_FAILED` three times | Attempt 3 — the turn stops |
+| `EDIT_PARSE_FAILED` with three distinct payloads | Attempt 3 — the turn stops |
+| The same `EDIT_PARSE_FAILED` payload twice consecutively on one path | The second call stops the turn |
 | A failure, then a successful `Edit`, then a failure | Attempt 1 — a write that landed clears that path's history |
 
 Counting a grace is per code, not per call, so a stale tag followed by unseen
 lines is two distinct honest failures while the same code twice is not.
+An unchanged `EDIT_PARSE_FAILED` payload is also stopped on its second
+consecutive occurrence; changing the payload permits the existing three-failure
+budget, and any successful mutation clears this comparison state.
 
 When the count does reach the limit the tool result carries `terminate: true`
 and the agent loop stops after that batch. Stopping there must not leave a turn

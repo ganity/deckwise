@@ -408,8 +408,8 @@ export type PluginHostServices = {
       input?: { fullPage?: boolean },
       sessionId?: string,
     ) => Promise<unknown>;
-    click: (uid: string) => Promise<void>;
-    fill: (uid: string, text: string) => Promise<void>;
+    click: (target: { uid?: string; selector?: string }) => Promise<void>;
+    fill: (target: { uid?: string; selector?: string }, text: string) => Promise<void>;
     evaluate: (expression: string) => Promise<unknown>;
     console: (limit?: number) => unknown;
     cdp: (method: string, params?: unknown) => Promise<unknown>;
@@ -3966,10 +3966,19 @@ export class PluginRuntime {
       case "screenshot":
         return api.screenshot({ fullPage: payload?.fullPage === true });
       case "click":
-        await api.click(String(payload?.uid ?? ""));
+        await api.click({
+          uid: payload?.uid != null ? String(payload.uid) : undefined,
+          selector: payload?.selector != null ? String(payload.selector) : undefined,
+        });
         return { ok: true };
       case "fill":
-        await api.fill(String(payload?.uid ?? ""), String(payload?.text ?? ""));
+        await api.fill(
+          {
+            uid: payload?.uid != null ? String(payload.uid) : undefined,
+            selector: payload?.selector != null ? String(payload.selector) : undefined,
+          },
+          String(payload?.text ?? ""),
+        );
         return { ok: true };
       case "evaluate":
         return api.evaluate(String(payload?.expression ?? ""));
@@ -5459,25 +5468,34 @@ export class PluginRuntime {
             this.browserSessionId(pluginId),
           );
         },
-        click: async (input: string | { uid?: string }) => {
+        click: async (input: string | { uid?: string; selector?: string }) => {
           this.assertPermission(loaded, "browser.cdp");
           if (!this.services.browser) {
             throw apiError("UNAVAILABLE", "browser host missing");
           }
-          const uid = typeof input === "string" ? input : String(input?.uid ?? "");
-          await this.services.browser.click(uid);
+          const target = typeof input === "string" ? { uid: input } : input;
+          await this.services.browser.click({
+            uid: target?.uid ? String(target.uid) : undefined,
+            selector: target?.selector ? String(target.selector) : undefined,
+          });
         },
         fill: async (
-          input: string | { uid?: string; text?: string },
+          input: string | { uid?: string; selector?: string; text?: string },
           textArg?: string,
         ) => {
           this.assertPermission(loaded, "browser.cdp");
           if (!this.services.browser) {
             throw apiError("UNAVAILABLE", "browser host missing");
           }
-          const uid = typeof input === "string" ? input : String(input?.uid ?? "");
+          const target = typeof input === "string" ? { uid: input } : input;
           const text = typeof input === "string" ? String(textArg ?? "") : String(input?.text ?? "");
-          await this.services.browser.fill(uid, text);
+          await this.services.browser.fill(
+            {
+              uid: target?.uid ? String(target.uid) : undefined,
+              selector: target?.selector ? String(target.selector) : undefined,
+            },
+            text,
+          );
         },
         evaluate: async (input: string | { expression?: string }) => {
           this.assertPermission(loaded, "browser.cdp");

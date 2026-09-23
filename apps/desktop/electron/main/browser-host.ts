@@ -1,6 +1,6 @@
 import type { BrowserState } from "@pi-desktop/shared";
 import type { BrowserPane } from "./browser-view";
-import { BrowserCdp } from "./browser-cdp";
+import { BrowserCdp, type BrowserElementTarget } from "./browser-cdp";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 
@@ -202,12 +202,18 @@ export class BrowserHost {
     }
   }
 
-  async click(uid: string): Promise<void> {
-    await this.cdp.click(this.requireWebContents(), uid);
+  async click(target: string | BrowserElementTarget): Promise<void> {
+    const { uid, selector } = this.elementTarget(target);
+    const wc = this.requireWebContents();
+    if (selector) await this.cdp.clickSelector(wc, selector);
+    else await this.cdp.click(wc, uid!);
   }
 
-  async fill(uid: string, text: string): Promise<void> {
-    await this.cdp.fill(this.requireWebContents(), uid, text);
+  async fill(target: string | BrowserElementTarget, text: string): Promise<void> {
+    const { uid, selector } = this.elementTarget(target);
+    const wc = this.requireWebContents();
+    if (selector) await this.cdp.fillSelector(wc, selector, text);
+    else await this.cdp.fill(wc, uid!, text);
   }
 
   async evaluate(expression: string): Promise<unknown> {
@@ -292,6 +298,18 @@ export class BrowserHost {
       });
     }
     return wc;
+  }
+
+  private elementTarget(target: string | BrowserElementTarget): BrowserElementTarget {
+    const value = typeof target === "string" ? { uid: target } : target;
+    const uid = value.uid?.trim();
+    const selector = value.selector?.trim();
+    if (Boolean(uid) === Boolean(selector)) {
+      throw Object.assign(new Error("provide exactly one of uid or selector"), {
+        code: "INVALID_ARGUMENT",
+      });
+    }
+    return { uid, selector };
   }
 
   private ensureCdp(): void {

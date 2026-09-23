@@ -1605,11 +1605,14 @@ export class DesktopAgentRuntime {
   private mutationFailureCounts = new Map<string, number>();
   /** `<failure key> <error code>` pairs that already spent their free retry. */
   private mutationRecoveryGraces = new Set<string>();
+  /** Last consecutive malformed Edit payload per path, used to stop unchanged retries. */
+  private lastEditParseFailure = new Map<string, string>();
   /** Why the recovery guard ended the turn, pending its visible error row. */
   private pendingMutationTermination?: {
     kind: "edit" | "patch-command";
     target: string;
     lastErrorCode?: string;
+    repeatedPayload?: boolean;
   };
   private terminatingToolCalls = new Set<string>();
   private fullEntries: MessageEntry[];
@@ -2974,6 +2977,24 @@ Delegation rules:
         const terminateAfterMutationFailure =
           mutationFailureAttempt !== undefined &&
           mutationFailureAttempt >= MAX_MUTATION_RECOVERY_FAILURES;
+        const editPayload =
+          toolName === "Edit" && typeof recordParams?.ops === "string"
+            ? JSON.stringify([recordParams.tag, recordParams.ops])
+            : undefined;
+        const repeatedParseFailure =
+          failedEditPath !== undefined &&
+          result.errorCode === "EDIT_PARSE_FAILED" &&
+          editPayload !== undefined &&
+          this.lastEditParseFailure.get(failedEditPath) === editPayload;
+        if (
+          failedEditPath &&
+          result.errorCode === "EDIT_PARSE_FAILED" &&
+          editPayload !== undefined
+        ) {
+          this.lastEditParseFailure.set(failedEditPath, editPayload);
+        } else if (failedEditPath) {
+          this.lastEditParseFailure.delete(failedEditPath);
+        }
         if (failureKey && mutationFailureAttempt !== undefined) {
           this.mutationFailureCounts.set(failureKey, mutationFailureAttempt);
         }
@@ -2989,6 +3010,7 @@ Delegation rules:
                 : undefined;
           if (succeededKey !== undefined) {
             this.mutationFailureCounts.delete(succeededKey);
+            this.lastEditParseFailure.delete(succeededKey);
             for (const key of this.mutationRecoveryGraces) {
               if (key.startsWith(`${succeededKey} `)) {
                 this.mutationRecoveryGraces.delete(key);
@@ -2996,7 +3018,7 @@ Delegation rules:
             }
           }
         }
-        if (terminateAfterMutationFailure) {
+        if (terminateAfterMutationFailure || repeatedParseFailure) {
           this.terminatingToolCalls.add(toolCallId);
           // The loop stops after this batch, so nothing downstream would
           // explain why. Hold the reason for agent_end to turn into a visible
@@ -3007,6 +3029,7 @@ Delegation rules:
             ...(typeof result.errorCode === "string"
               ? { lastErrorCode: result.errorCode }
               : {}),
+            ...(repeatedParseFailure ? { repeatedPayload: true } : {}),
           };
         }
         const rawContent = result.content;
@@ -3054,7 +3077,9 @@ Delegation rules:
         return {
           content: [{ type: "text", text }, ...imageBlocks],
           details,
-          ...(terminateAfterMutationFailure ? { terminate: true } : {}),
+          ...(terminateAfterMutationFailure || repeatedParseFailure
+            ? { terminate: true }
+            : {}),
           isError: result.isError === true || result.ok === false,
         };
       };
@@ -5359,6 +5384,7 @@ Delegation rules:
     this.providerRetryAbort = undefined;
     this.mutationFailureCounts.clear();
     this.mutationRecoveryGraces.clear();
+    this.lastEditParseFailure.clear();
     this.pendingMutationTermination = undefined;
     this.terminatingToolCalls.clear();
     this.turnHadError = false;
@@ -7102,7 +7128,9 @@ Delegation rules:
       : "";
     const message =
       termination.kind === "edit"
-        ? `Stopped after ${MAX_MUTATION_RECOVERY_FAILURES} failed Edit attempts on ${termination.target}.${lastError} ${recovery}`
+        ? termination.repeatedPayload
+          ? `Stopped after the same malformed Edit payload was repeated on ${termination.target}.${lastError} ${recovery}`
+          : `Stopped after ${MAX_MUTATION_RECOVERY_FAILURES} failed Edit attempts on ${termination.target}.${lastError} ${recovery}`
         : `Stopped after ${MAX_MUTATION_RECOVERY_FAILURES} failed patch commands.${lastError} ${recovery}`;
     const error = {
       code: "MUTATION_RETRY_BUDGET_EXHAUSTED",
@@ -7584,6 +7612,7 @@ Delegation rules:
     this.failedHostToolCalls.clear();
     this.mutationFailureCounts.clear();
     this.mutationRecoveryGraces.clear();
+    this.lastEditParseFailure.clear();
     this.pendingMutationTermination = undefined;
     this.terminatingToolCalls.clear();
     this.delegateToolCalls.clear();

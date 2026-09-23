@@ -61,6 +61,11 @@ export type SnapshotResult = {
   title: string;
 };
 
+export type BrowserElementTarget = {
+  uid?: string;
+  selector?: string;
+};
+
 export function isAllowedCdpMethod(method: string): boolean {
   return BROWSER_CDP_ALLOWLIST.has(method.trim());
 }
@@ -130,6 +135,7 @@ function consoleText(args: unknown): string {
  */
 export class BrowserCdp {
   private attachedId: number | null = null;
+  private attachedWebContents: WebContents | null = null;
   private uids = new Map<string, number>();
   private messages: BrowserConsoleMessage[] = [];
   private onDebuggerMessage?: (
@@ -137,6 +143,7 @@ export class BrowserCdp {
     method: string,
     params: unknown,
   ) => void;
+  private onDebuggerDetach?: () => void;
 
   isAttached(wc: WebContents): boolean {
     return this.attachedId === wc.id && !wc.isDestroyed() && wc.debugger.isAttached();
@@ -152,7 +159,15 @@ export class BrowserCdp {
       wc.debugger.attach(BROWSER_CDP_PROTOCOL);
     }
     this.attachedId = wc.id;
+    this.attachedWebContents = wc;
     this.onDebuggerMessage = (_event, method, params) => {
+      if (
+        method === "Page.frameStartedNavigating" ||
+        method === "Page.frameNavigated" ||
+        method === "Page.navigatedWithinDocument"
+      ) {
+        this.uids.clear();
+      }
       if (method !== "Runtime.consoleAPICalled" && method !== "Console.messageAdded") {
         return;
       }
@@ -170,29 +185,71 @@ export class BrowserCdp {
       this.messages.push({ type, text, timestamp: Date.now() });
       if (this.messages.length > MAX_CONSOLE_MESSAGES) this.messages.shift();
     };
+    this.onDebuggerDetach = () => {
+      if (this.onDebuggerMessage) wc.debugger.off("message", this.onDebuggerMessage);
+      if (this.onDebuggerDetach) wc.debugger.off("detach", this.onDebuggerDetach);
+      this.uids.clear();
+      this.attachedId = null;
+      this.attachedWebContents = null;
+      this.onDebuggerMessage = undefined;
+      this.onDebuggerDetach = undefined;
+    };
     wc.debugger.on("message", this.onDebuggerMessage);
-    await wc.debugger.sendCommand("Runtime.enable");
-    await wc.debugger.sendCommand("Console.enable");
-    await wc.debugger.sendCommand("Page.enable");
-    await wc.debugger.sendCommand("DOM.enable");
-    await wc.debugger.sendCommand("Accessibility.enable");
+    wc.debugger.on("detach", this.onDebuggerDetach);
+    try {
+      await this.command(wc, "Runtime.enable");
+      await this.command(wc, "Console.enable");
+      await this.command(wc, "Page.enable");
+      await this.command(wc, "DOM.enable");
+      await this.command(wc, "Accessibility.enable");
+    } catch (error) {
+      this.detach(wc);
+      throw error;
+    }
   }
 
   detach(wc?: WebContents): void {
-    const target = wc && !wc.isDestroyed() ? wc : null;
-    if (target?.debugger.isAttached()) {
+    const target = this.attachedWebContents ?? wc;
+    if (target) {
       if (this.onDebuggerMessage) {
         target.debugger.off("message", this.onDebuggerMessage);
       }
-      try {
-        target.debugger.detach();
-      } catch {
-        // Already detached.
+      if (this.onDebuggerDetach) {
+        target.debugger.off("detach", this.onDebuggerDetach);
+      }
+      if (!target.isDestroyed() && target.debugger.isAttached()) {
+        try {
+          target.debugger.detach();
+        } catch {
+          // Already detached.
+        }
       }
     }
     this.onDebuggerMessage = undefined;
+    this.onDebuggerDetach = undefined;
     this.attachedId = null;
+    this.attachedWebContents = null;
     this.uids.clear();
+  }
+
+  private async command(
+    wc: WebContents,
+    method: string,
+    params: Record<string, unknown> = {},
+  ): Promise<unknown> {
+    try {
+      return await wc.debugger.sendCommand(method, params);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (/target.*closed|webcontents.*destroyed|debugger.*(detached|not attached)/i.test(message)) {
+        this.detach(wc);
+        throw Object.assign(
+          new Error(`browser target closed while handling ${method}; the action may have completed`),
+          { code: "BROWSER_TARGET_CLOSED", cause: error },
+        );
+      }
+      throw error;
+    }
   }
 
   async send(wc: WebContents, method: string, params?: unknown): Promise<unknown> {
@@ -202,7 +259,8 @@ export class BrowserCdp {
       });
     }
     await this.attach(wc);
-    return wc.debugger.sendCommand(
+    return this.command(
+      wc,
       method,
       (params && typeof params === "object" ? params : {}) as Record<string, unknown>,
     );
@@ -210,7 +268,7 @@ export class BrowserCdp {
 
   async snapshot(wc: WebContents): Promise<SnapshotResult> {
     await this.attach(wc);
-    const raw = (await wc.debugger.sendCommand("Accessibility.getFullAXTree")) as {
+    const raw = (await this.command(wc, "Accessibility.getFullAXTree")) as {
       nodes?: AxNode[];
     };
     const flattened = flattenAxTree(Array.isArray(raw?.nodes) ? raw.nodes : []);
@@ -233,7 +291,7 @@ export class BrowserCdp {
     await this.attach(wc);
     let clip: { x: number; y: number; width: number; height: number; scale: number } | undefined;
     if (input.fullPage) {
-      const metrics = (await wc.debugger.sendCommand("Page.getLayoutMetrics")) as {
+      const metrics = (await this.command(wc, "Page.getLayoutMetrics")) as {
         contentSize?: { width?: number; height?: number };
         cssContentSize?: { width?: number; height?: number };
       };
@@ -243,7 +301,7 @@ export class BrowserCdp {
       const scale = width > SCREENSHOT_MAX_WIDTH ? SCREENSHOT_MAX_WIDTH / width : 1;
       clip = { x: 0, y: 0, width, height, scale };
     }
-    const result = (await wc.debugger.sendCommand("Page.captureScreenshot", {
+    const result = (await this.command(wc, "Page.captureScreenshot", {
       format: "jpeg",
       quality: 70,
       ...(clip ? { clip, captureBeyondViewport: true } : {}),
@@ -254,27 +312,30 @@ export class BrowserCdp {
     return { mimeType: "image/jpeg", data: result.data };
   }
 
-  async click(wc: WebContents, uid: string): Promise<void> {
-    const backendNodeId = this.requireUid(uid);
+  private async clickNode(
+    wc: WebContents,
+    target: { nodeId?: number; backendNodeId?: number },
+    label: string,
+  ): Promise<void> {
     await this.attach(wc);
-    await wc.debugger.sendCommand("DOM.scrollIntoViewIfNeeded", { backendNodeId });
-    const model = (await wc.debugger.sendCommand("DOM.getBoxModel", { backendNodeId })) as {
+    await this.command(wc, "DOM.scrollIntoViewIfNeeded", target);
+    const model = (await this.command(wc, "DOM.getBoxModel", target)) as {
       model?: { content?: number[] };
     };
     const quad = model.model?.content;
     if (!Array.isArray(quad) || quad.length < 8) {
-      throw Object.assign(new Error(`no box model for ${uid}`), { code: "NOT_FOUND" });
+      throw Object.assign(new Error(`no box model for ${label}`), { code: "NOT_FOUND" });
     }
     const x = (quad[0] + quad[2] + quad[4] + quad[6]) / 4;
     const y = (quad[1] + quad[3] + quad[5] + quad[7]) / 4;
-    await wc.debugger.sendCommand("Input.dispatchMouseEvent", {
+    await this.command(wc, "Input.dispatchMouseEvent", {
       type: "mousePressed",
       x,
       y,
       button: "left",
       clickCount: 1,
     });
-    await wc.debugger.sendCommand("Input.dispatchMouseEvent", {
+    await this.command(wc, "Input.dispatchMouseEvent", {
       type: "mouseReleased",
       x,
       y,
@@ -283,17 +344,72 @@ export class BrowserCdp {
     });
   }
 
+  async click(wc: WebContents, uid: string): Promise<void> {
+    const backendNodeId = this.requireUid(uid);
+    await this.clickNode(wc, { backendNodeId }, uid);
+  }
+
+  async clickSelector(wc: WebContents, selector: string): Promise<void> {
+    const target = await this.querySelector(wc, selector);
+    await this.clickNode(wc, { nodeId: target }, `selector ${JSON.stringify(selector)}`);
+  }
+
+  private async querySelector(wc: WebContents, selector: string): Promise<number> {
+    const trimmed = selector.trim();
+    if (!trimmed) {
+      throw Object.assign(new Error("selector must not be empty"), { code: "INVALID_ARGUMENT" });
+    }
+    await this.attach(wc);
+    const document = (await this.command(wc, "DOM.getDocument", { depth: 0 })) as {
+      root?: { nodeId?: number };
+    };
+    const rootNodeId = document.root?.nodeId;
+    if (typeof rootNodeId !== "number") {
+      throw Object.assign(new Error("browser document is not ready"), { code: "UNAVAILABLE" });
+    }
+    try {
+      const result = (await this.command(wc, "DOM.querySelector", {
+        nodeId: rootNodeId,
+        selector: trimmed,
+      })) as { nodeId?: number };
+      if (!result.nodeId) {
+        throw Object.assign(new Error(`selector not found: ${trimmed}`), { code: "NOT_FOUND" });
+      }
+      return result.nodeId;
+    } catch (error) {
+      if (error && typeof error === "object" && "code" in error) throw error;
+      throw Object.assign(new Error(`invalid selector: ${trimmed}`), {
+        code: "INVALID_ARGUMENT",
+        cause: error,
+      });
+    }
+  }
+
   async fill(wc: WebContents, uid: string, text: string): Promise<void> {
     const backendNodeId = this.requireUid(uid);
+    await this.fillNode(wc, { backendNodeId }, text, uid);
+  }
+
+  async fillSelector(wc: WebContents, selector: string, text: string): Promise<void> {
+    const nodeId = await this.querySelector(wc, selector);
+    await this.fillNode(wc, { nodeId }, text, `selector ${JSON.stringify(selector)}`);
+  }
+
+  private async fillNode(
+    wc: WebContents,
+    target: { nodeId?: number; backendNodeId?: number },
+    text: string,
+    label: string,
+  ): Promise<void> {
     await this.attach(wc);
-    const resolved = (await wc.debugger.sendCommand("DOM.resolveNode", { backendNodeId })) as {
+    const resolved = (await this.command(wc, "DOM.resolveNode", target)) as {
       object?: { objectId?: string };
     };
     const objectId = resolved.object?.objectId;
     if (!objectId) {
-      throw Object.assign(new Error(`could not resolve ${uid}`), { code: "NOT_FOUND" });
+      throw Object.assign(new Error(`could not resolve ${label}`), { code: "NOT_FOUND" });
     }
-    await wc.debugger.sendCommand("Runtime.callFunctionOn", {
+    await this.command(wc, "Runtime.callFunctionOn", {
       objectId,
       functionDeclaration: `function (value) {
         this.focus();
@@ -312,7 +428,7 @@ export class BrowserCdp {
 
   async evaluate(wc: WebContents, expression: string): Promise<unknown> {
     await this.attach(wc);
-    const result = (await wc.debugger.sendCommand("Runtime.evaluate", {
+    const result = (await this.command(wc, "Runtime.evaluate", {
       expression,
       returnByValue: true,
       awaitPromise: true,

@@ -1,5 +1,6 @@
 import { readMainSourceSync } from "./helpers/source-contracts.mjs";
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
@@ -8,6 +9,7 @@ const cdpSource = readFileSync(
   resolve("electron/main/browser-cdp.ts"),
   "utf8",
 );
+const { BrowserCdp } = await import("../electron/main/browser-cdp.ts");
 const hostSource = readFileSync(
   resolve("electron/main/browser-host.ts"),
   "utf8",
@@ -66,7 +68,7 @@ test("CDP allowlist denies cookies, storage, and target methods", () => {
   assert.doesNotMatch(cdpSource, /Storage\./);
   assert.doesNotMatch(cdpSource, /"Target\./);
   assert.doesNotMatch(cdpSource, /Fetch\./);
-  assert.doesNotMatch(cdpSource, /Page\.navigate/);
+  assert.doesNotMatch(cdpSource, /["']Page\.navigate["']/);
   assert.match(cdpSource, /CDP method not allowed/);
   assert.match(cdpSource, /this\.detach\(wc\);/);
 });
@@ -113,6 +115,120 @@ test("snapshot uids are stable eN handles mapped to backend nodes", () => {
   assert.match(tree, /- e1 WebArea/);
   assert.match(tree, /- e2 button "Submit"/);
   assert.equal(uids.get("e2"), 42);
+});
+
+test("browser selectors target elements without weakening uid validation", () => {
+  assert.match(cdpSource, /async clickSelector\(wc: WebContents, selector: string\)/);
+  assert.match(cdpSource, /async fillSelector\(wc: WebContents, selector: string, text: string\)/);
+  assert.match(cdpSource, /"DOM\.querySelector"/);
+  assert.match(cdpSource, /Page\.frameNavigated.*Page\.navigatedWithinDocument/s);
+  assert.match(hostSource, /provide exactly one of uid or selector/);
+  assert.match(cdpSource, /BROWSER_TARGET_CLOSED/);
+  assert.match(hostSource, /async click\(target: string \| BrowserElementTarget\)/);
+  assert.match(hostSource, /async fill\(target: string \| BrowserElementTarget, text: string\)/);
+});
+
+test("browser tool distinguishes CSS selectors and warns about closed targets", () => {
+  const pluginSource = readFileSync(
+    resolve("resources/plugins/pi.browser/main.js"),
+    "utf8",
+  );
+  assert.match(pluginSource, /selector: \{/);
+  assert.match(pluginSource, /Uids expire as soon as navigation starts/);
+  assert.match(pluginSource, /selector: args\?\.selector/);
+  assert.match(runtimeSource, /selector: payload\?\.selector/);
+});
+
+test("selector clicks work and navigation invalidates snapshot uids", async () => {
+  class Debugger extends EventEmitter {
+    attached = false;
+    calls = [];
+
+    isAttached() {
+      return this.attached;
+    }
+
+    attach() {
+      this.attached = true;
+    }
+
+    detach() {
+      this.attached = false;
+      this.emit("detach");
+    }
+
+    async sendCommand(method, params = {}) {
+      this.calls.push({ method, params });
+      if (method === "Accessibility.getFullAXTree") {
+        return {
+          nodes: [
+            { nodeId: "1", role: { value: "WebArea" }, childIds: ["2"] },
+            { nodeId: "2", role: { value: "button" }, name: { value: "Confirm" }, backendDOMNodeId: 42 },
+          ],
+        };
+      }
+      if (method === "DOM.getDocument") return { root: { nodeId: 1 } };
+      if (method === "DOM.querySelector") return { nodeId: 2 };
+      if (method === "DOM.resolveNode") return { object: { objectId: "input-1" } };
+      if (method === "DOM.getBoxModel") {
+        return { model: { content: [0, 0, 20, 0, 20, 10, 0, 10] } };
+      }
+      return {};
+    }
+  }
+
+  const debuggerApi = new Debugger();
+  const wc = {
+    id: 1,
+    debugger: debuggerApi,
+    isDestroyed: () => false,
+    getURL: () => "http://127.0.0.1/",
+    getTitle: () => "Test",
+  };
+  const cdp = new BrowserCdp();
+
+  const snapshot = await cdp.snapshot(wc);
+  assert.match(snapshot.tree, /e2 button "Confirm"/);
+  await cdp.clickSelector(wc, "#btn-confirm");
+  assert.equal(
+    debuggerApi.calls.filter(({ method }) => method === "Input.dispatchMouseEvent").length,
+    2,
+  );
+  await cdp.fillSelector(wc, "#name", "lesson plan");
+  assert.deepEqual(
+    debuggerApi.calls.find(({ method }) => method === "Runtime.callFunctionOn").params.arguments,
+    [{ value: "lesson plan" }],
+  );
+
+  debuggerApi.emit("message", {}, "Page.frameStartedNavigating", { frameId: "main" });
+  await assert.rejects(cdp.click(wc, "e2"), /unknown or stale uid/);
+  cdp.detach();
+});
+
+test("target closure has a stable browser error code", async () => {
+  class Debugger extends EventEmitter {
+    attached = false;
+    isAttached() { return this.attached; }
+    attach() { this.attached = true; }
+    detach() { this.attached = false; this.emit("detach"); }
+    async sendCommand(method) {
+      if (method === "Runtime.evaluate") throw new Error("target closed while handling command");
+      return {};
+    }
+  }
+  const wc = {
+    id: 2,
+    debugger: new Debugger(),
+    isDestroyed: () => false,
+    getURL: () => "http://127.0.0.1/",
+    getTitle: () => "Test",
+  };
+
+  await assert.rejects(new BrowserCdp().evaluate(wc, "1 + 1"), (error) => {
+    assert.equal(error.code, "BROWSER_TARGET_CLOSED");
+    assert.match(error.message, /action may have completed/);
+    return true;
+  });
 });
 
 const runtimeSource = readFileSync(

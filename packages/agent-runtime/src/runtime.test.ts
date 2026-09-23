@@ -629,6 +629,45 @@ describe("DesktopAgentRuntime configuration matching", () => {
     await runtime.dispose();
   });
 
+  it("stops a repeated malformed Edit payload immediately", async () => {
+    const onEvent = vi.fn();
+    const host = {
+      call: vi.fn(async (method: string) => {
+        if (method !== "tools.execute") return undefined;
+        return {
+          ok: false,
+          isError: true,
+          errorCode: "EDIT_PARSE_FAILED",
+          content: { error: "PUT body line 2 is missing a plus prefix" },
+        };
+      }),
+    };
+    const runtime = createRuntime({ host, onEvent });
+    const agent = (runtime as any).agent;
+    const handleAgentEvent = (runtime as any).handleAgentEvent.bind(runtime);
+    const edit = agent.state.tools.find((tool: any) => tool.name === "Edit");
+    const args = { path: "src/example.ts", tag: "A1B2", ops: "PUT 1.=1:\n}" };
+
+    const first = await edit.execute("edit-1", args);
+    expect(first.terminate).toBeUndefined();
+    const repeated = await edit.execute("edit-2", args);
+    expect(repeated.terminate).toBe(true);
+
+    await handleAgentEvent({ type: "agent_end", messages: [] });
+    const events = onEvent.mock.calls.map(([envelope]: any) => envelope.event);
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "error",
+        error: expect.objectContaining({
+          code: "MUTATION_RETRY_BUDGET_EXHAUSTED",
+          message: expect.stringContaining("same malformed Edit payload was repeated"),
+        }),
+      }),
+    );
+
+    await runtime.dispose();
+  });
+
   it("reports a visible error row when the mutation guard ends the turn", async () => {
     const onEvent = vi.fn();
     const host = {
@@ -646,12 +685,16 @@ describe("DesktopAgentRuntime configuration matching", () => {
     const agent = (runtime as any).agent;
     const handleAgentEvent = (runtime as any).handleAgentEvent.bind(runtime);
     const edit = agent.state.tools.find((tool: any) => tool.name === "Edit");
-    const args = { path: "src/example.ts", tag: "A1B2", ops: "PUT 1.=1:" };
+    const malformed = (line: number) => ({
+      path: "src/example.ts",
+      tag: "A1B2",
+      ops: `PUT ${line}.=${line}:`,
+    });
 
-    await edit.execute("edit-1", args);
-    const second = await edit.execute("edit-2", args);
+    await edit.execute("edit-1", malformed(1));
+    const second = await edit.execute("edit-2", malformed(2));
     expect(second.terminate).toBeUndefined();
-    const third = await edit.execute("edit-3", args);
+    const third = await edit.execute("edit-3", malformed(3));
     expect(third.terminate).toBe(true);
     // pi-agent-core stops the loop on a terminating batch, so agent_end is the
     // last chance to say why instead of completing the turn in silence.

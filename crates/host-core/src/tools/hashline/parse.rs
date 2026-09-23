@@ -113,6 +113,14 @@ pub fn parse_ops(ops: &str) -> Result<ParsedOps, ParseError> {
                         if let Some(rest) = line.strip_prefix('+') {
                             body.push(rest.to_string());
                             idx += 1;
+                        } else if !line.trim().is_empty() && parse_header(line).is_err() {
+                            return Err(ParseError::new(
+                                "EDIT_PARSE_FAILED",
+                                format!(
+                                    "PUT body line {} is missing a `+` prefix: {line}",
+                                    idx + 1
+                                ),
+                            ));
                         } else {
                             break;
                         }
@@ -431,6 +439,14 @@ mod tests {
             error.message,
             "PUT header `PUT 48.=48` is missing a trailing `:` before + body rows; use `PUT 48.=48:`"
         );
+    }
+
+    #[test]
+    fn explains_unprefixed_put_body_line() {
+        let error = parse_ops("PUT 1.=1:\n+valid\n}\n").unwrap_err();
+
+        assert_eq!(error.code, "EDIT_PARSE_FAILED");
+        assert_eq!(error.message, "PUT body line 3 is missing a `+` prefix: }");
     }
 
     #[test]
