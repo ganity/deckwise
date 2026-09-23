@@ -94,6 +94,7 @@ function run(program, args) {
 async function resolveSkillRoot() {
   const candidates = [
     process.env.DECKWISE_PPT_MASTER_SKILL_ROOT,
+    path.resolve(here, "../../dist/ppt-master"),
     path.resolve(here, "../../../../../ppt-gen/vendors/ppt-master/skills/ppt-master"),
   ].filter(Boolean);
   for (const candidate of candidates) {

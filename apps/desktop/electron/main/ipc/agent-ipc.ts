@@ -1,8 +1,8 @@
-import { IPC, ErrorCodes, isGlobalPermissionMode, type AgentEventEnvelope, type AgentPromptRequest, type AgentSteerRequest, type UiMessage, type AgentQueuePushRequest, type AgentStopRequest, type AskToolResolution, type GlobalPermissionMode, type MessageUsage, type PlanExecutionFinishStatus, type PlanResolutionResult, type PlanResolveRequest, type PromptEnhancementRequest, type SessionSummarizeTitleRequest } from "@pi-desktop/shared";
+import { DECKWISE_MANAGED_PROVIDER_ID, IPC, ErrorCodes, isGlobalPermissionMode, type AgentEventEnvelope, type AgentPromptRequest, type AgentSteerRequest, type UiMessage, type AgentQueuePushRequest, type AgentStopRequest, type AskToolResolution, type GlobalPermissionMode, type MessageUsage, type PlanExecutionFinishStatus, type PlanResolutionResult, type PlanResolveRequest, type PromptEnhancementRequest, type SessionSummarizeTitleRequest } from "@pi-desktop/shared";
 import type { FinishTurn } from "../runtime/plans";
 import { expandSlashInvocation, enhancePromptDraft, summarizeSessionTitle, visionFromModelConfig, type ComposerTemplate, type RuntimeProviderConfig } from "@pi-desktop/agent-runtime";
 import { OAUTH_AUTH_KIND, type VendorOAuth } from "../oauth";
-import { appendPromptFallbackPaths, durableUserMessageId, preparePromptAttachments, type PreparedPromptAttachment } from "../prompt-attachments";
+import { appendPromptFallbackPaths, durableUserMessageId, isStructuredDocumentAttachment, preparePromptAttachments, stripPromptAttachmentReferences, type PreparedPromptAttachment } from "../prompt-attachments";
 import { executionFromResponse } from "../plan-execution";
 import { resolveSessionMessageInput } from "../session-message-input";
 import type { AgentExtensionBridge } from "../agent-extensions";
@@ -22,6 +22,14 @@ export type AgentIpcDependencies = {
   getAgentHostBridge: () => AgentHostBridge | null;
   logger: Pick<Logger, "app">;
   vendorOAuth: VendorOAuth;
+  resolvePlatformAccessToken: () => Promise<string>;
+  parseDocument: (path: string) => Promise<{
+    text?: string;
+    semanticText?: string;
+    cleanupUrls?: string[];
+  }>;
+  cleanupDocuments: (fileUrls: string[]) => Promise<void>;
+  registerDocumentCleanup: (sessionId: string, turnId: string, fileUrls: string[]) => void;
   agentExtensions: AgentExtensionBridge;
   cancelSessionTools: (sessionId: string, reason?: string) => void;
   persistenceOutbox: PersistenceOutbox;
@@ -64,6 +72,7 @@ function deckWiseModelPrompt(content: string): string {
     "- If this request is outside that scope, do not call tools or answer it normally; briefly state the product boundary and ask for a courseware topic or source material.",
     "- In user-facing responses, never mention Pi, PPT Master, skill ids, Python scripts, SVG services, internal tools, or workspace paths. Describe the work using courseware requirements, courseware pages, page preview, and courseware editing.",
     `- For a supported request, first call the \`Skill\` tool with id ${JSON.stringify(PPT_MASTER_SKILL_ID)} and follow the loaded instructions.`,
+    "- Attached office documents are pre-parsed by the DeckWise document service and appear below as `### 资料`; never inspect the original binary attachment or run a local document converter.",
     "- Infer the lifecycle from workspace artifacts: before the first export, stop at the editable SVG preview unless this is the host's explicit PPTX export request; after an export exists, revise the SVG source and create a new PPTX version.",
     "",
     "User request:",
@@ -79,6 +88,10 @@ export function registerAgentIpc({
   getAgentHostBridge,
   logger,
   vendorOAuth,
+  resolvePlatformAccessToken,
+  parseDocument,
+  cleanupDocuments,
+  registerDocumentCleanup,
   agentExtensions,
   cancelSessionTools,
   persistenceOutbox,
@@ -153,7 +166,9 @@ export function registerAgentIpc({
     const runtimeProvider = {
       ...launch.sidecarParams.provider,
       ...(launch.sidecarParams.provider.authKind === OAUTH_AUTH_KIND
-        ? { resolveAuth: () => vendorOAuth.resolveAuth(launch.providerId) }
+        ? { resolveAuth: () => launch.providerId === DECKWISE_MANAGED_PROVIDER_ID
+            ? resolvePlatformAccessToken().then((apiKey) => ({ apiKey }))
+            : vendorOAuth.resolveAuth(launch.providerId) }
         : {}),
     } as RuntimeProviderConfig;
     const enhancedDraft = await enhancePromptDraft(
@@ -199,7 +214,9 @@ export function registerAgentIpc({
     const runtimeProvider = {
       ...launch.sidecarParams.provider,
       ...(launch.sidecarParams.provider.authKind === OAUTH_AUTH_KIND
-        ? { resolveAuth: () => vendorOAuth.resolveAuth(launch.providerId) }
+        ? { resolveAuth: () => launch.providerId === DECKWISE_MANAGED_PROVIDER_ID
+            ? resolvePlatformAccessToken().then((apiKey) => ({ apiKey }))
+            : vendorOAuth.resolveAuth(launch.providerId) }
         : {}),
     } as RuntimeProviderConfig;
 
@@ -473,9 +490,38 @@ export function registerAgentIpc({
       });
       throw error;
     }
-    const modelContent = deckWiseModelPrompt(
-      appendPromptFallbackPaths(promptContent, preparedAttachments),
+    const documentCleanupUrls: string[] = [];
+    const documentContexts: string[] = [];
+    const structuredDocuments = preparedAttachments.filter(isStructuredDocumentAttachment);
+    try {
+      for (const attachment of preparedAttachments) {
+        if (attachment.message.kind !== "file") continue;
+        if (!/\.(pdf|docx?|pptx?)$/i.test(attachment.message.name)) continue;
+        const parsed = await parseDocument(attachment.absolutePath);
+        documentCleanupUrls.push(...(parsed.cleanupUrls ?? []));
+        const content = (parsed.semanticText || parsed.text || "").trim();
+        if (content) {
+          documentContexts.push(`### 资料：${attachment.message.name}\n${content.slice(0, 120000)}`);
+        }
+      }
+    } catch (error) {
+      if (documentCleanupUrls.length) void cleanupDocuments(documentCleanupUrls).catch(() => undefined);
+      await finishTurn(req.sessionId, "error", "DOCUMENT_PARSE_FAILED", { turnId: durableTurnId });
+      throw error;
+    }
+    const modelAttachments = preparedAttachments.filter(
+      (attachment) => !structuredDocuments.includes(attachment),
     );
+    const modelContent = deckWiseModelPrompt([
+      stripPromptAttachmentReferences(
+        appendPromptFallbackPaths(promptContent, modelAttachments),
+        structuredDocuments,
+      ),
+      ...documentContexts,
+    ].filter(Boolean).join("\n\n"));
+    if (documentCleanupUrls.length) {
+      registerDocumentCleanup(req.sessionId, durableTurnId, documentCleanupUrls);
+    }
 
     // Persist user message
     const revisionMeta = (req as any).__revisionMeta as
@@ -494,7 +540,10 @@ export function registerAgentIpc({
       ),
 
       role: "user" as const,
-      content: promptContent,
+      // Keep binary lesson-plan paths out of persisted history. The current
+      // model request receives the server-parsed text below; retaining the
+      // path here would cause history hydration to expose the .doc again.
+      content: stripPromptAttachmentReferences(promptContent, structuredDocuments),
       ...(sessionMessage ? { sessionMessage: sessionMessage.origin } : {}),
       createdAt: new Date().toISOString(),
       status: "complete" as const,

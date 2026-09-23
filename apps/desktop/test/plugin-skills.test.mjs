@@ -120,10 +120,11 @@ test("PPT Master is a host-owned skill available in every DeckWise workspace", (
   assert.match(builtinSrc, /project_manager\.py init/);
   assert.match(builtinSrc, /--dir/);
   assert.match(builtinSrc, /Never omit.*--dir/);
+  assert.match(builtinSrc, /host-provided image backend configuration/);
   assert.ok(
     packageJson.build.extraResources.some(
       (entry) =>
-        entry.from === "../../../ppt-gen/vendors/ppt-master/skills/ppt-master" &&
+        entry.from === "dist/ppt-master" &&
         entry.to === "skills/ppt-master",
     ),
   );

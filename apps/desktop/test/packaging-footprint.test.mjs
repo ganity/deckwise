@@ -212,7 +212,7 @@ test("packaging keeps only shipped locales and excludes non-runtime artifacts", 
       to: "skills",
     },
     {
-      from: "../../../ppt-gen/vendors/ppt-master/skills/ppt-master",
+      from: "dist/ppt-master",
       to: "skills/ppt-master",
     },
     // Bundled first-party plugins, for the same reason: host-core reads their

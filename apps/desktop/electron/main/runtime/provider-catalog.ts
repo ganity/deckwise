@@ -2,6 +2,7 @@ import {
   ErrorCodes as SharedErrorCodes,
   DECKWISE_MANAGED_MODEL_ID,
   DECKWISE_MANAGED_PROVIDER_ID,
+  OAUTH_AUTH_KIND,
   THINKING_LEVELS,
   defaultCommandShellForPlatform,
   isCommandShellId,
@@ -30,6 +31,10 @@ const ErrorCodes = {
   ...SharedErrorCodes,
   COMMAND_SHELL_INVALID: "COMMAND_SHELL_INVALID",
 } as const;
+
+const MANAGED_CONTEXT_WINDOW = 128_000;
+const MANAGED_MAX_TOKENS = 32_768;
+const MANAGED_THINKING_LEVELS = ["off", "low", "medium", "high"] as const;
 
 export type RuntimeProvider = {
   id: string;
@@ -66,32 +71,81 @@ export type SessionCapabilityDefaults = {
 export type ProviderCatalogRuntimeDependencies = {
   getHost: () => HostProcess | null;
   modelsDevCatalog: ModelsDevCatalog;
+  resolvePlatformAccessToken: () => Promise<string>;
 };
 
 export function createProviderCatalogRuntime({
   getHost,
   modelsDevCatalog,
+  resolvePlatformAccessToken = async () => "",
 }: ProviderCatalogRuntimeDependencies) {
+  const managedBaseUrl = () => {
+    const value = process.env.DECKWISE_LLM_BASE_URL?.trim() || "http://127.0.0.1:9788/v1";
+    const url = new URL(value);
+    if (!url.pathname || url.pathname === "/") url.pathname = "/v1";
+    return url.toString().replace(/\/$/, "");
+  };
   const managedModelId =
     process.env.DECKWISE_LLM_MODEL?.trim() || DECKWISE_MANAGED_MODEL_ID;
+  const managedImageModelId =
+    process.env.DECKWISE_IMAGE_MODEL?.trim() || "doubao-seedream-5-0-pro";
   const managedProvider: RuntimeProvider = {
     id: DECKWISE_MANAGED_PROVIDER_ID,
     name: "DeckWise AI",
     vendorKey: "deckwise",
     enabled: true,
-    authKind: "none",
-    apiStyle: "chat_completions",
+    authKind: OAUTH_AUTH_KIND,
+    hasOauth: true,
+    // The managed gateway uses the OpenAI Responses API as its canonical
+    // conversation transport.
+    apiStyle: "responses",
     defaultModelId: managedModelId,
     models: [
       {
         id: managedModelId,
         alias: "DeckWise AI",
-        contextWindow: 128_000,
-        maxTokens: 8_192,
-        thinkingLevels: ["off"],
+        contextWindow: MANAGED_CONTEXT_WINDOW,
+        maxTokens: MANAGED_MAX_TOKENS,
+        thinkingLevels: [...MANAGED_THINKING_LEVELS],
         defaultThinkingLevel: "off",
       },
     ],
+  };
+  const managedModels = async (): Promise<ModelBinding[]> => {
+    let token = "";
+    try {
+      token = await resolvePlatformAccessToken();
+    } catch {
+      return managedProvider.models ?? [];
+    }
+    if (!token) return managedProvider.models ?? [];
+    try {
+      const response = await fetch(`${managedBaseUrl()}/models`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) return managedProvider.models ?? [];
+      const payload = (await response.json()) as {
+        data?: Array<{ id?: unknown }>;
+      };
+      const models = (payload.data ?? [])
+        .flatMap((item): ModelBinding[] => {
+          const id = typeof item.id === "string" ? item.id.trim() : "";
+          if (!id || modelIdsMatch(id, managedImageModelId)) return [];
+          return [{
+            id,
+            // llm-ha's public model id is the stable alias selected by the
+            // administrator; upstream deployment names stay server-side.
+            alias: id,
+            contextWindow: MANAGED_CONTEXT_WINDOW,
+            maxTokens: MANAGED_MAX_TOKENS,
+            thinkingLevels: [...MANAGED_THINKING_LEVELS],
+            defaultThinkingLevel: "off",
+          }];
+        });
+      return models.length > 0 ? models : managedProvider.models ?? [];
+    } catch {
+      return managedProvider.models ?? [];
+    }
   };
   const bindingForModel = (
     provider: Pick<RuntimeProvider, "models">,
@@ -273,7 +327,16 @@ export function createProviderCatalogRuntime({
       { includeDisabled },
     );
     await modelsDevCatalog.ensureLoaded();
-    return [managedProvider, ...result.providers];
+    const models = await managedModels();
+    return [
+      {
+        ...managedProvider,
+        baseUrl: managedBaseUrl(),
+        defaultModelId: models[0]?.id ?? managedModelId,
+        models,
+      },
+      ...result.providers,
+    ];
   };
 
   const enrichProviderList = async <T extends RuntimeProvider>(result: {

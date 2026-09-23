@@ -395,7 +395,7 @@ export function Composer({
     : !!provider &&
       provider.enabled &&
       !!modelId &&
-      (provider.hasSecret || provider.authKind === "none");
+      (provider.hasSecret || provider.hasOauth || provider.authKind === "none");
   const enterToSend = settings?.enterToSend ?? true;
   // Chips occupy sentinel characters, which `trim()` preserves — text and
   // attachments share one content check.

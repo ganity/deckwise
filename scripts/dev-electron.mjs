@@ -38,6 +38,40 @@ function resolveElectronInstallation() {
   };
 }
 
+function resolveLinuxDisplayEnvironment(env) {
+  if (process.platform !== "linux") return env;
+  const runtimeDir = env.XDG_RUNTIME_DIR || `/run/user/${process.getuid?.() ?? ""}`;
+  const candidates = [
+    { display: env.DISPLAY, xauthority: env.XAUTHORITY },
+    { display: ":0", xauthority: join(runtimeDir, "gdm", "Xauthority") },
+    { display: ":0", xauthority: join(env.HOME || "", ".Xauthority") },
+  ];
+  for (const candidate of candidates) {
+    if (!candidate.display || !/^:\d+$/.test(candidate.display)) continue;
+    try {
+      execFileSync("xdpyinfo", {
+        env: {
+          ...env,
+          DISPLAY: candidate.display,
+          ...(candidate.xauthority ? { XAUTHORITY: candidate.xauthority } : {}),
+        },
+        stdio: "ignore",
+      });
+      if (candidate.display !== env.DISPLAY) {
+        console.warn(`DISPLAY=${env.DISPLAY || "(unset)"} unavailable; using ${candidate.display}`);
+      }
+      return {
+        ...env,
+        DISPLAY: candidate.display,
+        ...(candidate.xauthority ? { XAUTHORITY: candidate.xauthority } : {}),
+      };
+    } catch {
+      // Try the next local X display/auth pair.
+    }
+  }
+  return env;
+}
+
 function setPlistString(plistPath, key, value) {
   execFileSync("plutil", ["-replace", key, "-string", value, plistPath]);
 }
@@ -128,7 +162,7 @@ export function prepareMacDevelopmentBundle({
 }
 
 function run() {
-  const env = { ...process.env, PI_DESKTOP_DEV: "1" };
+  const env = resolveLinuxDisplayEnvironment({ ...process.env, PI_DESKTOP_DEV: "1" });
   env.DECKWISE_EDITOR_URL ||= "https://trainwise.efrobot.com/wiseoffice";
   if (process.platform === "darwin") {
     const electron = resolveElectronInstallation();

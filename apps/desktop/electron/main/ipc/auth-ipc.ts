@@ -58,4 +58,20 @@ export function registerAuthIpc(options: {
       });
     },
   );
+  registrar.handleWithEvent(IPC.invoke.documentParse, async (event, input: { path?: unknown } = {}) => {
+    registrar.assertMainWindowSender(event);
+    const workspaceRoot = await getWorkspaceRoot();
+    const roots = [join(dataDir, "scratch"), join(dataDir, "attachments")];
+    const path = await resolveRealOpenablePath(String(input.path ?? ""), workspaceRoot, roots);
+    if (!path) throw new Error("文档不在允许的课件目录中");
+    return authSession.parseDocument(path);
+  });
+  registrar.handleWithEvent(IPC.invoke.documentCleanup, async (event, input: { fileUrls?: unknown } = {}) => {
+    registrar.assertMainWindowSender(event);
+    const fileUrls = Array.isArray(input.fileUrls)
+      ? input.fileUrls.filter((value): value is string => typeof value === "string")
+      : [];
+    await authSession.cleanupDocuments(fileUrls);
+    return { ok: true };
+  });
 }

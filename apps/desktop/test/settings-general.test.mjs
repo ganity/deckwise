@@ -217,7 +217,7 @@ test("model configuration treats built-in AI as a read-only provider", () => {
   assert.doesNotMatch(providersSource, /data-testid="managed-models"/);
   assert.match(providersSource, /provider\.id === DECKWISE_MANAGED_PROVIDER_ID/);
   assert.match(providersSource, /settings\.managedModelsTitle/);
-  assert.match(providersSource, /settings\.managedTextModel/);
+  assert.match(providersSource, /alias\?\.trim\(\) \|\|/);
   assert.match(providersSource, /settings\.managedModelBadge/);
   assert.match(providersSource, /!isManaged && !ownedByPlugin/);
   assert.match(providersSource, /!isManaged \? \(/);
@@ -246,10 +246,17 @@ test("default model selector shows every configured model under its provider", (
 });
 
 test("model configuration separates AI services from independently removable vendor accounts", () => {
-  assert.match(providersSource, /authKind !== OAUTH_AUTH_KIND/);
+  assert.match(
+    providersSource,
+    /provider\.id === DECKWISE_MANAGED_PROVIDER_ID \|\|[\s\S]*provider\.authKind !== OAUTH_AUTH_KIND/,
+  );
   assert.match(
     providersSource,
     /provider\.hasSecret \|\| provider\.hasOauth \|\| provider\.authKind === "none"/,
+  );
+  assert.match(
+    providersSource,
+    /!provider\.hasSecret && !provider\.hasOauth && provider\.authKind !== "none"/,
   );
   assert.doesNotMatch(providersSource, /provider-config-hero/);
   assert.doesNotMatch(providersSource, /settings-section-subtitle/);

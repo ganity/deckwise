@@ -226,6 +226,10 @@ export class BrowserCdp {
     wc: WebContents,
     input: { fullPage?: boolean } = {},
   ): Promise<{ mimeType: string; data: string }> {
+    // A renderer reload can leave an attached DevTools session alive but no
+    // longer usable for Page.captureScreenshot. Reattach for this operation;
+    // runtime/snapshot commands keep their existing session semantics.
+    this.detach(wc);
     await this.attach(wc);
     let clip: { x: number; y: number; width: number; height: number; scale: number } | undefined;
     if (input.fullPage) {

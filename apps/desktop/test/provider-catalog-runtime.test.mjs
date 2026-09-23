@@ -181,3 +181,63 @@ test("the managed DeckWise provider is first and becomes the empty-settings defa
   );
   assert.equal(runtime.normalizeSettings({ defaultProviderId: "custom" }).defaultModelId, "");
 });
+
+test("the managed provider reads its model catalog from the llm gateway", async () => {
+  const catalog = new ModelsDevCatalog({
+    catalogPath: "unused-model-catalog.json",
+    fetchImpl: async () => new Response(JSON.stringify(fixture), { status: 200 }),
+  });
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+  globalThis.fetch = async (input, init) => {
+    requests.push({ input: String(input), authorization: init?.headers?.Authorization });
+    return new Response(JSON.stringify({
+      object: "list",
+      data: [
+        { id: "gateway-model-a", display_name: "模型 A" },
+        { id: "gateway-model-b" },
+      ],
+    }), { status: 200 });
+  };
+  try {
+    const runtime = createProviderCatalogRuntime({
+      getHost: () => ({ call: async () => ({ providers: [] }) }),
+      modelsDevCatalog: catalog,
+      resolvePlatformAccessToken: async () => "access-token",
+    });
+    const providers = await runtime.listRuntimeProviders();
+    assert.equal(providers[0].apiStyle, "responses");
+    assert.deepEqual(providers[0].models.map((model) => ({
+      id: model.id,
+      alias: model.alias,
+      contextWindow: model.contextWindow,
+      maxTokens: model.maxTokens,
+      thinkingLevels: model.thinkingLevels,
+      defaultThinkingLevel: model.defaultThinkingLevel,
+    })), [
+      {
+        id: "gateway-model-a",
+        alias: "gateway-model-a",
+        contextWindow: 128_000,
+        maxTokens: 32_768,
+        thinkingLevels: ["off", "low", "medium", "high"],
+        defaultThinkingLevel: "off",
+      },
+      {
+        id: "gateway-model-b",
+        alias: "gateway-model-b",
+        contextWindow: 128_000,
+        maxTokens: 32_768,
+        thinkingLevels: ["off", "low", "medium", "high"],
+        defaultThinkingLevel: "off",
+      },
+    ]);
+    assert.equal(providers[0].defaultModelId, "gateway-model-a");
+    assert.deepEqual(requests, [{
+      input: "http://127.0.0.1:9788/v1/models",
+      authorization: "Bearer access-token",
+    }]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

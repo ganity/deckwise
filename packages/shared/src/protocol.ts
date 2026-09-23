@@ -92,6 +92,17 @@ export type DesktopCoursewareImportResult = {
   courseTitle?: string;
 };
 
+export type DesktopDocumentParseResult = {
+  text?: string;
+  semanticText?: string;
+  parser?: string;
+  pageCount?: number;
+  images?: string[];
+  pdfImages?: Array<{ src?: string; description?: string; pageNumber?: number }>;
+  visionSheets?: Array<{ src?: string; pageNumbers?: number[] }>;
+  cleanupUrls?: string[];
+};
+
 export type DesktopAuthState =
   | { status: "restoring" }
   | { status: "signedOut"; message?: string }
@@ -110,6 +121,8 @@ export const IPC = {
     authPollQr: "deckwise/auth/pollQr",
     authLogout: "deckwise/auth/logout",
     coursewareImport: "deckwise/courseware/import",
+    documentParse: "deckwise/document/parse",
+    documentCleanup: "deckwise/document/cleanup",
     appGetVersion: "pi-desktop/app/getVersion",
     appOpenFeedback: "pi-desktop/app/openFeedback",
     appHealth: "pi-desktop/app/health",

@@ -6,7 +6,9 @@ export const OPENCODE_GO_API_STYLE = "opencode_go" as const;
 export const OPENCODE_GO_NAME = "OpenCode Go";
 export const OPENCODE_GO_BASE_URL = "https://opencode.ai/zen/go/v1";
 export const DECKWISE_MANAGED_PROVIDER_ID = "deckwise-managed";
-export const DECKWISE_MANAGED_MODEL_ID = "deepseek-v4-1-flash-260910";
+// Public model id exposed by llm-ha. The upstream deployment model name is
+// kept server-side and may differ from this stable client-facing id.
+export const DECKWISE_MANAGED_MODEL_ID = "deepseek-v4-1-flash";
 
 export type NamedEndpointPreset = {
   id: string;

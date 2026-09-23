@@ -16,6 +16,7 @@ import {
   DECKWISE_MANAGED_PROVIDER_ID,
   isActiveInProject,
   isCommandShellCatalog,
+  modelIdsMatch,
   type McpServerRecord,
   type Mode,
   type ModelBinding,
@@ -61,7 +62,6 @@ export type SessionLaunchRuntimeDependencies = {
   vendorOAuth: VendorOAuth;
   modelsDevCatalog: ModelsDevCatalog;
   listRuntimeProviders: (includeDisabled?: boolean) => Promise<RuntimeProvider[]>;
-  resolvePlatformAccessToken: () => Promise<string>;
   getWorkspacePath: () => string | null;
   pluginActiveInProject: (
     pluginId: string,
@@ -96,7 +96,6 @@ export function createSessionLaunchRuntime({
   vendorOAuth,
   modelsDevCatalog,
   listRuntimeProviders,
-  resolvePlatformAccessToken,
   getWorkspacePath,
   pluginActiveInProject,
   bindingForModel,
@@ -105,8 +104,7 @@ export function createSessionLaunchRuntime({
   normalizeThinkingLevel,
 }: SessionLaunchRuntimeDependencies) {
   const configuredLlmBaseUrl = () => {
-    const value = process.env.DECKWISE_LLM_BASE_URL?.trim();
-    if (!value) return undefined;
+    const value = process.env.DECKWISE_LLM_BASE_URL?.trim() || "http://127.0.0.1:9788/v1";
     const url = new URL(value);
     if (
       url.protocol !== "https:" &&
@@ -115,6 +113,7 @@ export function createSessionLaunchRuntime({
     ) {
       throw new Error("DeckWise model gateway requires HTTPS");
     }
+    if (!url.pathname || url.pathname === "/") url.pathname = "/v1";
     return url.toString().replace(/\/$/, "");
   };
   const isHostUnavailable = (error: unknown): boolean =>
@@ -325,19 +324,18 @@ export function createSessionLaunchRuntime({
       });
     }
     const isVendorAccount = !isManagedProvider && !isExtensionAgent && provider.authKind === OAUTH_AUTH_KIND;
-    const secret = isExtensionAgent || isVendorAccount
+    const usesRequestAuth = isManagedProvider || isVendorAccount;
+    const secret = isExtensionAgent || usesRequestAuth
       ? { value: undefined }
-      : isManagedProvider
-        ? { value: await resolvePlatformAccessToken() }
-        : await runtimeState.host!.call<{ value?: string }>("providers.getSecret", {
-            id: provider.id,
-          });
-    if (!secret.value && !isExtensionAgent && !isVendorAccount && provider.authKind !== "none") {
+      : await runtimeState.host!.call<{ value?: string }>("providers.getSecret", {
+          id: provider.id,
+        });
+    if (!secret.value && !isExtensionAgent && !usesRequestAuth && provider.authKind !== "none") {
       throw Object.assign(new Error("Provider API key missing"), {
         errorCode: ErrorCodes.PROVIDER_SECRET_MISSING,
       });
     }
-    const modelId = isExtensionAgent
+    const requestedModelId = isExtensionAgent
       ? overrides.modelId ?? session.modelId
       : (provider.id === requestedProviderId
         ? overrides.modelId ?? session.modelId
@@ -347,6 +345,12 @@ export function createSessionLaunchRuntime({
         : undefined) ||
       provider.models?.[0]?.id ||
       provider.defaultModelId;
+    const modelId =
+      isManagedProvider && requestedModelId && provider.models?.length
+        ? provider.models.some((binding) => modelIdsMatch(binding.id, requestedModelId))
+          ? requestedModelId
+          : provider.models[0]?.id
+        : requestedModelId;
     if (!modelId) {
       throw Object.assign(new Error("No model selected for provider"), {
         errorCode: ErrorCodes.MODEL_NOT_CONFIGURED,
@@ -546,9 +550,6 @@ export function createSessionLaunchRuntime({
         let apiKey = "";
         if (rowIsManaged) {
           if (!rowBaseUrl) continue;
-          apiKey = isManagedProvider
-            ? secret.value ?? ""
-            : await resolvePlatformAccessToken();
         } else if (!isVendorAccount && row.authKind !== "none") {
           try {
             apiKey =

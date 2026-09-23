@@ -217,10 +217,10 @@ function promptAttachmentsFromDraft(
       (/\.(avif|bmp|gif|heic|jpe?g|png|tiff?|webp)$/i.test(reference.path)
         ? "image"
         : "file");
-    // Inline chips use tokens for both files and images. Ordinary file chips
-    // already serialize to @path text (the model can Read them); only image
-    // chips need the structured transport for vision/fallback handling.
-    if (reference.token && kind !== "image") return [];
+    // Inline image chips need structured transport; document chips also need
+    // it so the main process can parse them before the model sees the prompt.
+    const isDocument = /\.(pdf|docx?|pptx?)$/i.test(reference.name || reference.path);
+    if (reference.token && kind !== "image" && !isDocument) return [];
     return [
       {
         path: reference.path,

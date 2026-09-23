@@ -676,6 +676,7 @@ const pluginServices = createPluginServices({
     )(...args);
   },
   vendorOAuth,
+  resolvePlatformAccessToken: () => authSession.resolveAccessToken(),
   agentExtensions,
 });
 const {
@@ -696,6 +697,7 @@ const {
 const providerCatalogRuntime = createProviderCatalogRuntime({
   getHost: () => host,
   modelsDevCatalog,
+  resolvePlatformAccessToken: () => authSession.resolveAccessToken(),
 });
 const {
   bindingForModel,
@@ -721,7 +723,6 @@ const createdSessionLaunchRuntime = createSessionLaunchRuntime({
   vendorOAuth,
   modelsDevCatalog,
   listRuntimeProviders,
-  resolvePlatformAccessToken: () => authSession.resolveAccessToken(),
   getWorkspacePath: currentWorkspacePath,
   pluginActiveInProject,
   bindingForModel,
@@ -1006,6 +1007,27 @@ const {
 
 /** sessionId → open host turn id, for turn bookkeeping across agent events. */
 const activeTurns = new Map<string, string>();
+const documentCleanupByTurn = new Map<string, string[]>();
+const documentCleanupKey = (sessionId: string, turnId: string) => `${sessionId}:${turnId}`;
+const registerDocumentCleanup = (sessionId: string, turnId: string, fileUrls: string[]) => {
+  const key = documentCleanupKey(sessionId, turnId);
+  documentCleanupByTurn.set(key, [
+    ...new Set([...(documentCleanupByTurn.get(key) ?? []), ...fileUrls.filter(Boolean)]),
+  ]);
+};
+const settleDeckwiseTurn = async (sessionId: string, turnId: string) => {
+  const key = documentCleanupKey(sessionId, turnId);
+  const fileUrls = documentCleanupByTurn.get(key);
+  documentCleanupByTurn.delete(key);
+  if (fileUrls?.length) {
+    try {
+      await authSession.cleanupDocuments(fileUrls);
+    } catch (error) {
+      logger.app("runtime", "warn", "temporary document cleanup failed", { sessionId, data: String(error) });
+    }
+  }
+  await sessionCollaboration.settle(sessionId, turnId);
+};
 /** Plan submission turns end without a task-complete notification. */
 const planSubmissionTurnIds = new Set<string>();
 /** sessionId → host execution id for an approved plan currently dispatched. */
@@ -1150,7 +1172,7 @@ const planRuntime = createPlanRuntime({
   acquireSessionOperation,
   resolveAgentRuntimeLaunch,
   isQuitting: () => quitting,
-  onTurnSettled: sessionCollaboration.settle,
+  onTurnSettled: settleDeckwiseTurn,
 });
 const {
   finishTurn,
@@ -1200,6 +1222,7 @@ const sidecarRuntime = createSidecarRuntime({
   dataDir,
   agentExtensions,
   vendorOAuth,
+  resolvePlatformAccessToken: () => authSession.resolveAccessToken(),
   listRuntimeProviders,
   modelsDevCatalog,
   effectiveSubagentModelConfig,
@@ -1265,6 +1288,7 @@ function registerIpc() {
     getSidecar: () => sidecar,
     getAgentHostBridge: () => agentHostBridge,
     authSession,
+    registerDocumentCleanup,
     getNotificationViewingSessionId: () => notificationViewingSessionId,
     setNotificationViewingSessionId: (sessionId: string | null) => {
       notificationViewingSessionId = sessionId;

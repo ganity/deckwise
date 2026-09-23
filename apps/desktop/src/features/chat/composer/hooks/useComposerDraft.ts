@@ -424,8 +424,15 @@ export function useComposerDraft({
 
   useEffect(() => {
     if (!prefill?.text) return;
-    setValue(prefill.text);
-    setFileReferences([]);
+    const fileTokens = fileReferencesRef.current
+      .filter(
+        (fileReference) =>
+          fileReference.sessionId === referenceSessionId && fileReference.token,
+      )
+      .map((fileReference) => fileReference.token!);
+    const nextValue = [...fileTokens, prefill.text].join("\n");
+    valueRef.current = nextValue;
+    setValue(nextValue);
     requestAnimationFrame(() => {
       const element = ref.current;
       if (!element) return;
@@ -440,6 +447,7 @@ export function useComposerDraft({
     caret: number,
   ) => {
     pendingEditorCaretRef.current = caret;
+    valueRef.current = nextText;
     setValue(nextText);
     setCursor(caret);
     setFileReferences(nextReferences);

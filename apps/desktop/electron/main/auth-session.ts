@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
 import { basename, extname, join } from "node:path";
 import { net } from "electron";
 import type {
@@ -8,11 +9,29 @@ import type {
   DesktopAuthState,
   DesktopCoursewareImportInput,
   DesktopCoursewareImportResult,
+  DesktopDocumentParseResult,
 } from "@pi-desktop/shared";
 
 const DEFAULT_PLATFORM_BASE_URL = "https://trainwise.efrobot.com/api/backend";
 const QR_TTL_MS = 5 * 60 * 1000;
 const ACCESS_REFRESH_EARLY_MS = 5 * 60 * 1000;
+const DESKTOP_REFRESH_PATH = "/auth/desktop/refresh";
+const IMAGE_ENV_BEGIN = "# BEGIN DECKWISE MANAGED IMAGE RUNTIME";
+const IMAGE_ENV_END = "# END DECKWISE MANAGED IMAGE RUNTIME";
+const IMAGE_ENV_KEYS = new Set([
+  "IMAGE_BACKEND",
+  "OPENAI_API_KEY",
+  "OPENAI_BASE_URL",
+  "OPENAI_MODEL",
+  "OPENAI_RESPONSE_FORMAT",
+  "OPENAI_QUALITY",
+]);
+
+class PlatformRequestError extends Error {
+  constructor(message: string, readonly status: number, readonly code?: number) {
+    super(message);
+  }
+}
 
 type ApiEnvelope<T> = {
   code?: number;
@@ -123,7 +142,9 @@ export class DesktopAuthSession {
   private state: DesktopAuthState = { status: "restoring" };
   private accessToken = "";
   private restoreInFlight: Promise<DesktopAuthState> | null = null;
+  private refreshInFlight: Promise<void> | null = null;
   private refreshTimer: NodeJS.Timeout | null = null;
+  private restoreRetryTimer: NodeJS.Timeout | null = null;
 
   constructor(private readonly options: AuthSessionOptions) {
     this.sessionPath = join(options.dataDir, "auth", "session.token");
@@ -140,6 +161,9 @@ export class DesktopAuthSession {
     }
     if (this.state.status !== "authenticated" || !this.accessToken) {
       throw new Error("登录已过期，请重新扫码");
+    }
+    if (this.accessTokenExpiresIn() <= ACCESS_REFRESH_EARLY_MS) {
+      await this.refreshStoredAccessToken();
     }
     return this.accessToken;
   }
@@ -162,9 +186,16 @@ export class DesktopAuthSession {
       await this.refreshAccessToken(refreshToken);
       return this.finishLogin();
     } catch (error) {
-      await this.clearStoredSession();
+      if (this.isUnauthorized(error)) {
+        await this.clearStoredSession();
+        return this.setState({ status: "signedOut" });
+      }
       this.options.log("warn", `desktop auth restore failed: ${String(error)}`);
-      return this.setState({ status: "signedOut" });
+      this.restoreRetryTimer = setTimeout(() => {
+        this.restoreRetryTimer = null;
+        void this.restore();
+      }, 5000);
+      return this.setState({ status: "restoring" });
     }
   }
 
@@ -173,7 +204,7 @@ export class DesktopAuthSession {
       return this.state;
     }
     const payload = await this.request<Record<string, unknown>>(
-      "/auth/wx/qrcode?edition=EDUCATION",
+      "/auth/desktop/wx/qrcode?edition=EDUCATION",
     );
     const ticket = text(payload.ticket);
     const qrCodeText = text(payload.entryUrl);
@@ -211,6 +242,7 @@ export class DesktopAuthSession {
     if (!tokens.accessToken || !tokens.refreshToken) throw new Error("登录结果缺少凭证");
     this.accessToken = tokens.accessToken;
     await this.writeRefreshToken(tokens.refreshToken);
+    await this.writeImageRuntime(tokens.accessToken);
     this.scheduleAccessRefresh();
     try {
       return await this.finishLogin();
@@ -235,7 +267,10 @@ export class DesktopAuthSession {
     }
     this.accessToken = "";
     this.clearRefreshTimer();
+    if (this.restoreRetryTimer) clearTimeout(this.restoreRetryTimer);
+    this.restoreRetryTimer = null;
     await this.clearStoredSession();
+    await this.writeImageRuntime("");
     return this.setState({ status: "signedOut" });
   }
 
@@ -301,6 +336,42 @@ export class DesktopAuthSession {
     return task;
   }
 
+  async parseDocument(path: string): Promise<DesktopDocumentParseResult> {
+    const name = basename(path);
+    const uploaded = await this.uploadLocalFile(path, [".pdf", ".doc", ".docx", ".ppt", ".pptx"]);
+    const token = await this.resolveAccessToken();
+    let parsed: DesktopDocumentParseResult;
+    try {
+      parsed = await this.request<DesktopDocumentParseResult>("/courses/documents/parse", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ fileUrl: uploaded.fileUrl, fileName: name }),
+      });
+    } catch (error) {
+      await this.cleanupDocuments([uploaded.fileUrl]).catch(() => undefined);
+      throw error;
+    }
+    const cleanupUrls = new Set<string>([uploaded.fileUrl]);
+    const addCleanupUrl = (value: string | undefined) => {
+      if (value && /^https?:\/\//i.test(value)) cleanupUrls.add(value);
+    };
+    for (const image of parsed.pdfImages ?? []) addCleanupUrl(image.src);
+    for (const image of parsed.images ?? []) addCleanupUrl(image);
+    for (const sheet of parsed.visionSheets ?? []) addCleanupUrl(sheet.src);
+    return { ...parsed, cleanupUrls: [...cleanupUrls] };
+  }
+
+  async cleanupDocuments(fileUrls: string[]): Promise<void> {
+    const urls = [...new Set(fileUrls.map((value) => text(value)).filter(Boolean))];
+    if (urls.length === 0) return;
+    const token = await this.resolveAccessToken();
+    await this.request("/courses/documents/cleanup", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ fileUrls: urls }),
+    });
+  }
+
   private async uploadLocalFile(path: string, extensions: readonly string[]): Promise<{
     name: string;
     fileUrl: string;
@@ -316,9 +387,10 @@ export class DesktopAuthSession {
       fileSize: String(info.size),
       skipMaterial: "true",
     });
+    const token = await this.resolveAccessToken();
     const target = await this.request<PresignedUpload>(`/courses/presign?${query}`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${this.accessToken}` },
+      headers: { Authorization: `Bearer ${token}` },
     });
     const uploadUrl = text(target.uploadUrl);
     const fileUrl = text(target.ossUrl);
@@ -344,38 +416,85 @@ export class DesktopAuthSession {
   }
 
   private async refreshAccessToken(refreshToken: string): Promise<void> {
-    const refreshed = await this.request<{ accessToken?: string }>("/auth/refresh", {
-      method: "POST",
-      body: JSON.stringify({ refreshToken }),
-    });
+    let refreshed: { accessToken?: string; refreshToken?: string };
+    try {
+      refreshed = await this.request(DESKTOP_REFRESH_PATH, {
+        method: "POST",
+        body: JSON.stringify({ refreshToken }),
+      });
+    } catch (error) {
+      if (!(error instanceof PlatformRequestError) || (error.status !== 404 && error.code !== 404)) {
+        throw error;
+      }
+      refreshed = await this.request("/auth/refresh", {
+        method: "POST",
+        body: JSON.stringify({ refreshToken }),
+      });
+    }
     this.accessToken = text(refreshed.accessToken);
     if (!this.accessToken) throw new Error("登录凭证刷新失败");
+    const rotatedRefreshToken = text(refreshed.refreshToken);
+    if (rotatedRefreshToken) await this.writeRefreshToken(rotatedRefreshToken);
+    await this.writeImageRuntime(this.accessToken);
     this.scheduleAccessRefresh();
+  }
+
+  private async refreshStoredAccessToken(): Promise<void> {
+    if (this.refreshInFlight) return this.refreshInFlight;
+    const refresh = this.readRefreshToken()
+      .then((refreshToken) => {
+        if (!refreshToken) throw new Error("登录凭证不存在");
+        return this.refreshAccessToken(refreshToken);
+      })
+      .catch(async (error) => {
+        if (this.isUnauthorized(error)) {
+          this.accessToken = "";
+          this.clearRefreshTimer();
+          await this.clearStoredSession();
+          await this.writeImageRuntime("");
+          this.setState({ status: "signedOut", message: "登录已过期，请重新扫码" });
+        }
+        throw error;
+      })
+      .finally(() => {
+        if (this.refreshInFlight === refresh) this.refreshInFlight = null;
+      });
+    this.refreshInFlight = refresh;
+    return refresh;
   }
 
   private scheduleAccessRefresh(): void {
     this.clearRefreshTimer();
     try {
-      const payload = JSON.parse(Buffer.from(this.accessToken.split(".")[1] ?? "", "base64url").toString("utf8")) as { exp?: unknown };
-      const expiresAt = Number(payload.exp) * 1000;
-      if (!Number.isFinite(expiresAt)) return;
-      const delay = Math.max(30_000, expiresAt - Date.now() - ACCESS_REFRESH_EARLY_MS);
+      const delay = Math.max(30_000, this.accessTokenExpiresIn() - ACCESS_REFRESH_EARLY_MS);
       this.refreshTimer = setTimeout(() => {
-        void this.readRefreshToken()
-          .then((refreshToken) => {
-            if (!refreshToken) throw new Error("登录凭证不存在");
-            return this.refreshAccessToken(refreshToken);
-          })
+        void this.refreshStoredAccessToken()
           .catch(async (error) => {
             this.options.log("warn", `desktop auth refresh failed: ${String(error)}`);
-            this.accessToken = "";
-            await this.clearStoredSession();
-            this.setState({ status: "signedOut", message: "登录已过期，请重新扫码" });
+            if (!this.isUnauthorized(error)) {
+              this.refreshTimer = setTimeout(() => {
+                void this.refreshStoredAccessToken().catch(() => this.scheduleAccessRefresh());
+              }, 30_000);
+            }
           });
       }, delay);
     } catch {
       this.options.log("warn", "desktop access token has no readable expiry");
     }
+  }
+
+  private accessTokenExpiresIn(): number {
+    try {
+      const payload = JSON.parse(Buffer.from(this.accessToken.split(".")[1] ?? "", "base64url").toString("utf8")) as { exp?: unknown };
+      const expiresAt = Number(payload.exp) * 1000;
+      return Number.isFinite(expiresAt) ? expiresAt - Date.now() : Number.POSITIVE_INFINITY;
+    } catch {
+      return Number.POSITIVE_INFINITY;
+    }
+  }
+
+  private isUnauthorized(error: unknown): boolean {
+    return error instanceof PlatformRequestError && (error.status === 401 || error.code === 401);
   }
 
   private clearRefreshTimer(): void {
@@ -399,7 +518,11 @@ export class DesktopAuthSession {
     });
     const envelope = await response.json() as ApiEnvelope<T>;
     if (!response.ok || (typeof envelope.code === "number" && envelope.code !== 200)) {
-      throw new Error(text(envelope.message) || `平台请求失败 (${response.status})`);
+      throw new PlatformRequestError(
+        text(envelope.message) || `平台请求失败 (${response.status})`,
+        response.status,
+        envelope.code,
+      );
     }
     if (envelope.data === undefined) throw new Error("平台返回无效数据");
     return envelope.data;
@@ -424,5 +547,46 @@ export class DesktopAuthSession {
       rm(this.sessionPath, { force: true }),
       rm(this.legacySessionPath, { force: true }),
     ]);
+  }
+
+  private async writeImageRuntime(accessToken: string): Promise<void> {
+    const directory = join(homedir(), ".ppt-master");
+    const path = join(directory, ".env");
+    await mkdir(directory, { recursive: true, mode: 0o700 });
+    await chmod(directory, 0o700);
+    const current = await readFile(path, "utf8").catch(() => "");
+    let insideManagedBlock = false;
+    const preserved = current.split(/\r?\n/).filter((line) => {
+      if (line.trim() === IMAGE_ENV_BEGIN) {
+        insideManagedBlock = true;
+        return false;
+      }
+      if (line.trim() === IMAGE_ENV_END) {
+        insideManagedBlock = false;
+        return false;
+      }
+      if (insideManagedBlock) return false;
+      const key = line.match(/^\s*(?:export\s+)?([A-Z0-9_]+)\s*=/)?.[1];
+      return !key || !IMAGE_ENV_KEYS.has(key);
+    });
+    const model = process.env.DECKWISE_IMAGE_MODEL?.trim() || "doubao-seedream-5-0-pro";
+    const baseUrl = process.env.DECKWISE_LLM_BASE_URL?.trim() || "http://127.0.0.1:9788/v1";
+    const block = accessToken ? [
+      IMAGE_ENV_BEGIN,
+      "IMAGE_BACKEND=openai",
+      `OPENAI_API_KEY=${accessToken}`,
+      `OPENAI_BASE_URL=${baseUrl}`,
+      `OPENAI_MODEL=${model}`,
+      "OPENAI_RESPONSE_FORMAT=omit",
+      "OPENAI_QUALITY=omit",
+      IMAGE_ENV_END,
+    ] : [];
+    const contents = [...preserved, ...block]
+      .join("\n")
+      .replace(/^\s*\n/, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trimEnd();
+    await writeFile(path, contents ? `${contents}\n` : "", { mode: 0o600 });
+    await chmod(path, 0o600);
   }
 }

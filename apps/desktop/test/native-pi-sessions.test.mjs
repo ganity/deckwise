@@ -163,6 +163,7 @@ test("native model readiness never depends on a Desktop provider but read-only f
   assert.equal(ready(true, {}, undefined, undefined), false);
   assert.equal(ready(false, {}, undefined, undefined), false);
   assert.equal(ready(false, {}, { enabled: true, hasSecret: false }, "model"), false);
+  assert.equal(ready(false, {}, { enabled: true, hasSecret: false, hasOauth: true }, "model"), true);
   assert.equal(ready(false, {}, { enabled: true, hasSecret: true }, "model"), true);
 });
 

@@ -114,7 +114,11 @@ export function ModelConfigPage() {
     (provider.hasSecret || provider.hasOauth || provider.authKind === "none");
 
   const aiProviders = useMemo(
-    () => providers.filter((provider) => provider.authKind !== OAUTH_AUTH_KIND),
+    () => providers.filter(
+      (provider) =>
+        provider.id === DECKWISE_MANAGED_PROVIDER_ID ||
+        provider.authKind !== OAUTH_AUTH_KIND,
+    ),
     [providers],
   );
   const readyProviders = providers.filter(providerReady);
@@ -124,10 +128,8 @@ export function ModelConfigPage() {
       ? t("settings.managedModelsTitle")
       : provider.name;
   const modelDisplayName = (provider: ProviderPublic, modelId: string) =>
-    provider.id === DECKWISE_MANAGED_PROVIDER_ID
-      ? t("settings.managedTextModel")
-      : provider.models?.find((binding) => modelIdsMatch(binding.id, modelId))?.alias?.trim() ||
-        modelId;
+    provider.models?.find((binding) => modelIdsMatch(binding.id, modelId))?.alias?.trim() ||
+    modelId;
   const defaultQuery = defaultModelQuery.trim().toLowerCase();
   const visibleDefaultModelOptions = defaultQuery
     ? defaultModelOptionsList.filter(({ provider, modelId }) =>
@@ -489,7 +491,7 @@ export function ModelConfigPage() {
                         {isDefault ? (
                           <Badge tone="success">{t("settings.default")}</Badge>
                         ) : null}
-                        {!provider.hasSecret && provider.authKind !== "none" ? (
+                        {!provider.hasSecret && !provider.hasOauth && provider.authKind !== "none" ? (
                           <Badge tone="warning">{t("settings.noSecret")}</Badge>
                         ) : null}
                         {!provider.enabled ? (

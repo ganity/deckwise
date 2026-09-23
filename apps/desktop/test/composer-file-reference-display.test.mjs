@@ -122,3 +122,12 @@ test("unanswered stop restores compact references instead of serialized paths", 
   );
   assert.doesNotMatch(composer, /setValue\(composerPrefill\);/);
 });
+
+test("quickstart text does not clear existing file references", () => {
+  assert.match(composer, /if \(!prefill\?\.text\) return;[\s\S]*?fileReferencesRef\.current[\s\S]*?fileReference\.sessionId === referenceSessionId && fileReference\.token[\s\S]*?const nextValue = \[\.\.\.fileTokens, prefill\.text\]\.join\("\\n"\);[\s\S]*?valueRef\.current = nextValue;\s*setValue\(nextValue\);/);
+  assert.doesNotMatch(composer, /if \(!prefill\?\.text\) return;[\s\S]{0,180}setFileReferences\(\[\]\);/);
+});
+
+test("programmatic editor updates keep the live text ref current", () => {
+  assert.match(composer, /pendingEditorCaretRef\.current = caret;\s*valueRef\.current = nextText;\s*setValue\(nextText\);/);
+});

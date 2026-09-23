@@ -174,8 +174,22 @@ export class BrowserHost {
     input: { fullPage?: boolean } = {},
     sessionId?: string,
   ): Promise<{ mimeType: string; data: string; path?: string }> {
-    const wc = this.requireWebContents();
-    const shot = await this.cdp.screenshot(wc, input);
+    // The guest can be cached while its plugin tab is detached. Chromium
+    // waits forever when either CDP or capturePage is asked to rasterize such
+    // a zero-surface WebContents, so restore the current surface and fail fast
+    // if the renderer has not supplied a real visible hole yet.
+    this.applyGuest();
+    if (!this.pane.isCaptureReady()) {
+      throw Object.assign(new Error("browser preview is not visible yet"), {
+        code: "UNAVAILABLE",
+      });
+    }
+    const shot = input.fullPage
+      ? await this.cdp.screenshot(this.requireWebContents(), input)
+      : {
+          mimeType: "image/jpeg",
+          data: (await this.pane.capturePage()).toJPEG(70).toString("base64"),
+        };
     const scratch = this.deps.getScratchDir?.(sessionId ?? this.chromeSessionId ?? undefined);
     if (!scratch) return shot;
     try {

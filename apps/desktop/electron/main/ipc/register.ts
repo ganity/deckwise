@@ -41,6 +41,7 @@ export type RegisterIpcDependencies = {
   getNotificationViewingSessionId: () => string | null;
   setNotificationViewingSessionId: (sessionId: string | null) => void;
   activeUserSubagentDocuments: (...args: any[]) => Promise<any>;
+  registerDocumentCleanup: (sessionId: string, turnId: string, fileUrls: string[]) => void;
   disabledBuiltinSubagents: () => Promise<string[]>;
   [name: string]: any;
 };
@@ -65,6 +66,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     getSidecar,
     getAgentHostBridge,
     authSession,
+    registerDocumentCleanup,
     getNotificationViewingSessionId,
     setNotificationViewingSessionId,
     getPluginLauncherWindow,
@@ -330,6 +332,10 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     cancelSessionTools: (sessionId: string, reason?: string) => plugins.cancelSessionTools(sessionId, reason),
     logger,
     vendorOAuth,
+    resolvePlatformAccessToken: () => authSession.resolveAccessToken(),
+    parseDocument: (path) => authSession.parseDocument(path),
+    cleanupDocuments: (fileUrls) => authSession.cleanupDocuments(fileUrls),
+    registerDocumentCleanup,
     agentExtensions,
     persistenceOutbox,
     dataDir,

@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import {
   IPC,
+  DECKWISE_MANAGED_PROVIDER_ID,
   type ActivationScope,
   type AppSettings,
   type BrowserState,
@@ -75,6 +76,7 @@ export type PluginServicesDependencies = {
   isHostUnavailable: (error: unknown) => boolean;
   resolveAgentRuntimeLaunch: (...args: any[]) => Promise<any>;
   vendorOAuth: VendorOAuth;
+  resolvePlatformAccessToken: () => Promise<string>;
   agentExtensions: AgentExtensionBridge;
 };
 
@@ -97,6 +99,7 @@ export function createPluginServices({
   isHostUnavailable,
   resolveAgentRuntimeLaunch,
   vendorOAuth,
+  resolvePlatformAccessToken,
   agentExtensions,
 }: PluginServicesDependencies) {
   const pluginPanels = new PluginPanelHost(
@@ -363,7 +366,9 @@ export function createPluginServices({
       const runtimeProvider = {
         ...launch.sidecarParams.provider,
         ...(launch.sidecarParams.provider.authKind === OAUTH_AUTH_KIND
-          ? { resolveAuth: () => vendorOAuth.resolveAuth(launch.providerId) }
+          ? { resolveAuth: () => launch.providerId === DECKWISE_MANAGED_PROVIDER_ID
+              ? resolvePlatformAccessToken().then((apiKey) => ({ apiKey }))
+              : vendorOAuth.resolveAuth(launch.providerId) }
           : {}),
       } as RuntimeProviderConfig;
       const sessionContext = input.includeSessionContext

@@ -73,7 +73,7 @@ export function useComposerModelMenu({
         .filter(
           (candidate) =>
             candidate.enabled &&
-            (candidate.hasSecret || candidate.authKind === "none"),
+            (candidate.hasSecret || candidate.hasOauth || candidate.authKind === "none"),
         )
         .map((candidate) => {
           const models = composerModelsForProvider(
@@ -145,7 +145,10 @@ export function useComposerModelMenu({
   useEffect(() => {
     if (!open) return;
     for (const candidate of providers) {
-      if (candidate.enabled && (candidate.hasSecret || candidate.authKind === "none")) {
+      if (
+        candidate.enabled &&
+        (candidate.hasSecret || candidate.hasOauth || candidate.authKind === "none")
+      ) {
         void loadProviderModels(candidate.id);
       }
     }

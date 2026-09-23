@@ -70,8 +70,33 @@ type PromptPath = {
 export type PreparedPromptAttachment = {
   message: MessageAttachment;
   fallbackPath: string;
+  absolutePath: string;
   inlineData?: string;
 };
+
+export function isStructuredDocumentAttachment(
+  attachment: PreparedPromptAttachment,
+): boolean {
+  return attachment.message.kind === "file" && /\.(pdf|docx?|pptx?)$/i.test(attachment.message.name);
+}
+
+export function stripPromptAttachmentReferences(
+  content: string,
+  attachments: readonly PreparedPromptAttachment[],
+): string {
+  let result = content;
+  for (const attachment of attachments) {
+    for (const path of [
+      attachment.fallbackPath,
+      attachment.absolutePath,
+      attachment.message.ref,
+    ]) {
+      const reference = formatFileInsert(path, "file").trim();
+      if (reference) result = result.replaceAll(reference, "");
+    }
+  }
+  return result.replace(/\s{2,}/g, " ").trim();
+}
 
 function pathInside(root: string, candidate: string): boolean {
   const child = relative(root, candidate);
@@ -246,6 +271,7 @@ export async function preparePromptAttachments(
           ...(Number.isFinite(attachment.size) ? { size: attachment.size } : {}),
         },
         fallbackPath: displayPromptPath(source, projectPath),
+        absolutePath: source.absolute,
       });
       continue;
     }
@@ -276,6 +302,7 @@ export async function preparePromptAttachments(
         size,
       },
       fallbackPath,
+      absolutePath: source.absolute,
       ...(bytes
         ? { inlineData: bytes.toString("base64") }
         : {}),

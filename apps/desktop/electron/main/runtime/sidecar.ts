@@ -1,4 +1,4 @@
-import { IPC, type AgentEventEnvelope, type UiMessage } from "@pi-desktop/shared";
+import { DECKWISE_MANAGED_PROVIDER_ID, IPC, type AgentEventEnvelope, type UiMessage } from "@pi-desktop/shared";
 import {
   findSubagentProviderSource,
   genericModelConfig,
@@ -45,6 +45,7 @@ export type SidecarRuntimeDependencies = {
   dataDir: string;
   agentExtensions: AgentExtensionBridge;
   vendorOAuth: VendorOAuth;
+  resolvePlatformAccessToken: () => Promise<string>;
   listRuntimeProviders: (includeDisabled?: boolean) => Promise<any[]>;
   modelsDevCatalog: ModelsDevCatalog;
   effectiveSubagentModelConfig: (...args: any[]) => any;
@@ -75,6 +76,7 @@ export function createSidecarRuntime({
   dataDir,
   agentExtensions,
   vendorOAuth,
+  resolvePlatformAccessToken,
   listRuntimeProviders,
   modelsDevCatalog,
   effectiveSubagentModelConfig,
@@ -394,7 +396,9 @@ export function createSidecarRuntime({
     },
   });
   s.setVendorAuthResolver(async ({ providerId }) =>
-    vendorOAuth.resolveAuth(providerId),
+    providerId === DECKWISE_MANAGED_PROVIDER_ID
+      ? { apiKey: await resolvePlatformAccessToken() }
+      : vendorOAuth.resolveAuth(providerId),
   );
   s.setSubagentModelResolver(async (key: string) => {
     const slash = key.indexOf("/");
@@ -419,9 +423,10 @@ export function createSidecarRuntime({
       );
     }
 
-    const isVendorAccount = provider.authKind === OAUTH_AUTH_KIND;
+    const isManagedProvider = provider.id === DECKWISE_MANAGED_PROVIDER_ID;
+    const isVendorAccount = !isManagedProvider && provider.authKind === OAUTH_AUTH_KIND;
     let apiKey = "";
-    if (!isVendorAccount && provider.authKind !== "none") {
+    if (!isManagedProvider && !isVendorAccount && provider.authKind !== "none") {
       const secret = await runtimeState.host!.call<{ value?: string }>(
         "providers.getSecret",
         { id: provider.id },

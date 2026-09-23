@@ -31,6 +31,7 @@ import type {
   DesktopAuthState,
   DesktopCoursewareImportInput,
   DesktopCoursewareImportResult,
+  DesktopDocumentParseResult,
   AppVersionInfo,
   BrowserAction,
   BrowserState,
@@ -360,6 +361,10 @@ export const api = {
   logout: () => invoke<DesktopAuthState>(IPC.invoke.authLogout),
   importCourseware: (input: DesktopCoursewareImportInput) =>
     invoke<DesktopCoursewareImportResult>(IPC.invoke.coursewareImport, input),
+  parseDocument: (path: string) =>
+    invoke<DesktopDocumentParseResult>(IPC.invoke.documentParse, { path }),
+  cleanupDocuments: (fileUrls: string[]) =>
+    invoke<{ ok: boolean }>(IPC.invoke.documentCleanup, { fileUrls }),
   getVersion: () => invoke<AppVersionInfo>(IPC.invoke.appGetVersion),
   health: () => invoke<HostHealth>(IPC.invoke.appHealth),
   getOnboarding: () => invoke<OnboardingState>(IPC.invoke.appGetOnboarding),

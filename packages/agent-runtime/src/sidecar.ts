@@ -250,17 +250,31 @@ async function hydrateAttachmentHistory(
   return Promise.all(
     history.map(async (message) => {
       if (message.role !== "user" || !message.attachments?.length) return message;
-      const resolved = await Promise.all(message.attachments.map(resolveAttachment));
+      const structuredDocuments = message.attachments.filter(
+        (attachment) =>
+          attachment.kind === "file" &&
+          /\.(pdf|docx?|pptx?)$/i.test(attachment.name),
+      );
+      const agentAttachments = message.attachments.filter(
+        (attachment) => !structuredDocuments.includes(attachment),
+      );
+      let restoredContent = message.content;
+      for (const attachment of structuredDocuments) {
+        const reference = formatFileInsert(attachment.ref, "file").trim();
+        if (reference) restoredContent = restoredContent.replaceAll(reference, "");
+      }
+      restoredContent = restoredContent.replace(/\s{2,}/g, " ").trim();
+      const resolved = await Promise.all(agentAttachments.map(resolveAttachment));
       const fallbackPaths = resolved
         .map((item) => item.fallbackPath)
         .filter((path): path is string => Boolean(path))
         .map((path) => formatFileInsert(path, "file"))
         .join("")
         .trim();
-      const content = message.content.trim()
+      const content = restoredContent
         ? fallbackPaths
-          ? `${message.content}\n${fallbackPaths}`
-          : message.content
+          ? `${restoredContent}\n${fallbackPaths}`
+          : restoredContent
         : fallbackPaths;
       return {
         ...message,

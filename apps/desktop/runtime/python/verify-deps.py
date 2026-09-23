@@ -4,7 +4,7 @@
 import importlib.util
 import sys
 
-REQUIRED = ["pptx", "xlsxwriter", "uharfbuzz", "pathops", "PIL", "yaml", "flask"]
+REQUIRED = ["pptx", "xlsxwriter", "uharfbuzz", "pathops", "PIL", "yaml", "flask", "requests"]
 FORBIDDEN = ["fitz", "pymupdf"]
 
 

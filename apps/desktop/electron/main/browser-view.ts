@@ -114,6 +114,32 @@ export class BrowserPane {
     return wc;
   }
 
+  isCaptureReady(): boolean {
+    const view = this.view;
+    const window = this.window;
+    const wc = view?.webContents;
+    return Boolean(
+      this.visible &&
+        window &&
+        !window.isDestroyed() &&
+        view &&
+        wc &&
+        !wc.isDestroyed() &&
+        window.contentView.children.includes(view) &&
+        this.bounds.width > 0 &&
+        this.bounds.height > 0,
+    );
+  }
+
+  async capturePage() {
+    if (!this.isCaptureReady()) {
+      throw Object.assign(new Error("browser preview is not visible yet"), {
+        code: "UNAVAILABLE",
+      });
+    }
+    return this.view!.webContents.capturePage();
+  }
+
   navigate(raw: string, fileRoot: string | null = null): BrowserState | null {
     if (fileRoot) this.fileRoot = fileRoot;
     const localPath = resolveLocalFile(raw, this.fileRoot);

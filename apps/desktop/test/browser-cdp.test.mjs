@@ -68,6 +68,14 @@ test("CDP allowlist denies cookies, storage, and target methods", () => {
   assert.doesNotMatch(cdpSource, /Fetch\./);
   assert.doesNotMatch(cdpSource, /Page\.navigate/);
   assert.match(cdpSource, /CDP method not allowed/);
+  assert.match(cdpSource, /this\.detach\(wc\);/);
+});
+
+test("viewport screenshots use the native capture path and reject detached guests", () => {
+  assert.match(hostSource, /this\.applyGuest\(\);/);
+  assert.match(hostSource, /this\.pane\.isCaptureReady\(\)/);
+  assert.match(hostSource, /this\.pane\.capturePage\(\)/);
+  assert.match(hostSource, /browser preview is not visible yet/);
 });
 
 test("guest bounds are clamped to the plugin view rect", () => {

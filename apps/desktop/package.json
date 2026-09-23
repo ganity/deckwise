@@ -25,17 +25,18 @@
     "build:host-release": "cargo build --release --manifest-path ../../Cargo.toml -p host-core",
     "bundle:runtime": "pnpm -C ../../packages/agent-runtime bundle",
     "build:python-runtime": "node runtime/python/build-runtime.mjs --output dist/runtime/current",
+    "prepare:ppt-master": "node ../../scripts/prepare-ppt-master.mjs --output dist/ppt-master",
     "build:python-runtime:win": "node runtime/python/build-runtime.mjs --platform win --arch x64 --output dist/runtime/current",
     "runtime:mac:x64": "node runtime/python/build-runtime.mjs --platform mac --arch x64 --output dist/runtime/mac-x64",
     "runtime:mac:arm64": "node runtime/python/build-runtime.mjs --platform mac --arch arm64 --output dist/runtime/mac-arm64",
     "runtime:win:x64": "node runtime/python/build-runtime.mjs --platform win --arch x64 --output dist/runtime/win-x64",
     "runtime:linux:x64": "node runtime/python/build-runtime.mjs --platform linux --arch x64 --output dist/runtime/linux-x64",
     "runtime:linux:arm64": "node runtime/python/build-runtime.mjs --platform linux --arch arm64 --output dist/runtime/linux-arm64",
-    "pack": "pnpm run build:deps && pnpm run build:host-release && pnpm run bundle:runtime && pnpm run build:python-runtime && electron-vite build && electron-builder --dir",
-    "dist": "pnpm run build:deps && pnpm run build:host-release && pnpm run bundle:runtime && pnpm run build:python-runtime && electron-vite build && electron-builder --publish never",
-    "dist:mac": "pnpm run build:deps && pnpm run build:host-release && pnpm run bundle:runtime && pnpm run build:python-runtime && electron-vite build && electron-builder --mac --publish never",
-    "dist:win": "pnpm run build:deps && pnpm run build:host-release && pnpm run bundle:runtime && pnpm run build:python-runtime:win && electron-vite build && electron-builder --win --publish never",
-    "dist:linux": "pnpm run build:deps && pnpm run build:host-release && pnpm run bundle:runtime && pnpm run build:python-runtime && electron-vite build && electron-builder --linux --publish never"
+    "pack": "pnpm run prepare:ppt-master && pnpm run build:deps && pnpm run build:host-release && pnpm run bundle:runtime && pnpm run build:python-runtime && electron-vite build && electron-builder --dir",
+    "dist": "pnpm run prepare:ppt-master && pnpm run build:deps && pnpm run build:host-release && pnpm run bundle:runtime && pnpm run build:python-runtime && electron-vite build && electron-builder --publish never",
+    "dist:mac": "pnpm run prepare:ppt-master && pnpm run build:deps && pnpm run build:host-release && pnpm run bundle:runtime && pnpm run build:python-runtime && electron-vite build && electron-builder --mac --publish never",
+    "dist:win": "pnpm run prepare:ppt-master && pnpm run build:deps && pnpm run build:host-release && pnpm run bundle:runtime && pnpm run build:python-runtime:win && electron-vite build && electron-builder --win --publish never",
+    "dist:linux": "pnpm run prepare:ppt-master && pnpm run build:deps && pnpm run build:host-release && pnpm run bundle:runtime && pnpm run build:python-runtime && electron-vite build && electron-builder --linux --publish never"
   },
   "dependencies": {
     "electron-updater": "^6.8.9"
@@ -133,7 +134,7 @@
         "to": "skills"
       },
       {
-        "from": "../../../ppt-gen/vendors/ppt-master/skills/ppt-master",
+        "from": "dist/ppt-master",
         "to": "skills/ppt-master"
       },
       {
