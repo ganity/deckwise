@@ -599,8 +599,11 @@ pi.browser.console(input?: { limit?: number }): Promise<{ messages: unknown[] }>
 pi.browser.cdp(input: { method: string; params?: unknown }): Promise<unknown>
 ```
 
-Screenshot first renders the active native SVG editor page at 1920 pixels wide,
-independently of work-panel size. Supplying a workspace-relative SVG `path`
+Screenshot first renders the active native SVG editor page for the calling
+session at 1920 pixels wide,
+independently of work-panel size. When the session instead shows PPT Master's
+local browser preview, screenshot renders its currently selected SVG page
+without capturing the browser view. Supplying a workspace-relative SVG `path`
 renders that file even when its preview is closed. SVG paths and local image
 references must stay inside the session workspace. If SVG capture is unavailable
 or fails, the host falls back to CDP screenshot and then Electron's native

@@ -1,9 +1,9 @@
-import type { BrowserWindow } from "electron";
+import type { BrowserWindow, WebContents } from "electron";
 import { readFile, realpath, stat } from "node:fs/promises";
 import { dirname, extname, isAbsolute, relative, resolve, sep } from "node:path";
 
 type Screenshot = { mimeType: string; data: string };
-type ActiveSvg = { markup: string; projectPath: string } | null;
+type ActiveSvg = { markup: string; projectPath: string; sessionId: string } | null;
 
 const MAX_SVG_BYTES = 10_000_000;
 const IMAGE_TYPES: Record<string, string> = {
@@ -11,15 +11,15 @@ const IMAGE_TYPES: Record<string, string> = {
   ".gif": "image/gif", ".webp": "image/webp",
 };
 
-function rendererCall<T>(window: BrowserWindow, fn: (...args: any[]) => T, ...args: unknown[]): Promise<T> {
-  return window.webContents.executeJavaScript(`(${fn.toString()})(...${JSON.stringify(args)})`) as Promise<T>;
+function rendererCall<T>(contents: WebContents, fn: (...args: any[]) => T, ...args: unknown[]): Promise<T> {
+  return contents.executeJavaScript(`(${fn.toString()})(...${JSON.stringify(args)})`) as Promise<T>;
 }
 
 function activeSvg(): ActiveSvg {
-  const editor = document.querySelector<HTMLElement>(".work-panel-tabpane .svg-editor[data-project-path]");
+  const editor = document.querySelector<HTMLElement>(".work-panel-tabpane .svg-editor[data-project-path][data-session-id]");
   const svg = editor?.querySelector(".svg-editor-canvas svg");
   if (!editor || !svg || !editor.getClientRects().length) return null;
-  return { markup: svg.outerHTML, projectPath: editor.dataset.projectPath ?? "" };
+  return { markup: svg.outerHTML, projectPath: editor.dataset.projectPath ?? "", sessionId: editor.dataset.sessionId ?? "" };
 }
 
 function imageRefs(markup: string): string[] {
@@ -28,6 +28,44 @@ function imageRefs(markup: string): string[] {
   return [...new Set([...doc.querySelectorAll("image")].map((image) =>
     image.getAttribute("href") ?? image.getAttribute("xlink:href") ?? "",
   ).filter((href) => href && !href.startsWith("data:") && !href.startsWith("#")))];
+}
+
+async function livePreviewSvg(): Promise<string | null> {
+  const content = document.getElementById("svg-content");
+  const svg = content?.querySelector("svg");
+  if (!svg || content?.style.display === "none" || !document.querySelector("#slide-list .slide-item.active")) return null;
+  const copy = svg.cloneNode(true) as SVGSVGElement;
+  const images = [...copy.querySelectorAll("image[href], image[xlink\\:href]")];
+  let totalBytes = 0;
+  for (const image of images) {
+    const attr = image.hasAttribute("href") ? "href" : "xlink:href";
+    const href = image.getAttribute(attr) ?? "";
+    if (!href || href.startsWith("data:") || href.startsWith("#")) continue;
+    const url = new URL(href, location.href);
+    if (url.origin !== location.origin || !url.pathname.startsWith("/images/")) throw new Error("Preview image is outside the local image route");
+    const response = await fetch(url.href, { credentials: "omit", signal: AbortSignal.timeout(5_000) });
+    if (!response.ok) throw new Error(`Preview image request failed (${response.status})`);
+    const blob = await response.blob();
+    totalBytes += blob.size;
+    if (!/^image\/(?:png|jpeg|gif|webp)$/.test(blob.type) || totalBytes > 20_000_000) throw new Error("Unsupported preview image");
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
+    image.setAttribute(attr, dataUrl);
+  }
+  return copy.outerHTML;
+}
+
+export async function screenshotLivePreview(contents: WebContents): Promise<Screenshot | null> {
+  const href = contents.getURL();
+  if (!/^http:\/\/(?:127\.0\.0\.1|localhost):\d+\//.test(href)) return null;
+  const url = new URL(href);
+  if (!["/", "/index.html"].includes(url.pathname)) return null;
+  const markup = await rendererCall(contents, livePreviewSvg);
+  return markup ? rendererCall(contents, renderSvg, markup, {}) : null;
 }
 
 async function renderSvg(markup: string, images: Record<string, string>): Promise<Screenshot> {
@@ -85,7 +123,7 @@ async function containedPath(root: string, requested: string): Promise<string> {
   return target;
 }
 
-export async function screenshotSvg(window: BrowserWindow, workspaceRoot: string, path?: string): Promise<Screenshot | null> {
+export async function screenshotSvg(window: BrowserWindow, workspaceRoot: string, path?: string, sessionId?: string): Promise<Screenshot | null> {
   let markup: string;
   let file: string | null = null;
   if (path) {
@@ -95,15 +133,15 @@ export async function screenshotSvg(window: BrowserWindow, workspaceRoot: string
     if (fileStat.size > MAX_SVG_BYTES) throw new Error("SVG is too large");
     markup = await readFile(file, "utf8");
   } else {
-    const active = await rendererCall(window, activeSvg);
-    if (!active) return null;
+    const active = await rendererCall(window.webContents, activeSvg);
+    if (!active || !sessionId || active.sessionId !== sessionId) return null;
     await containedPath(workspaceRoot, active.projectPath);
     markup = active.markup;
   }
   if (Buffer.byteLength(markup) > MAX_SVG_BYTES) throw new Error("SVG is too large");
   const images: Record<string, string> = {};
   let imageBytes = 0;
-  for (const href of await rendererCall(window, imageRefs, markup)) {
+  for (const href of await rendererCall(window.webContents, imageRefs, markup)) {
     if (!file) throw new Error(`SVG image is not embedded: ${href}`);
     const imagePath = await containedPath(workspaceRoot, resolve(dirname(file), href));
     const mimeType = IMAGE_TYPES[extname(imagePath).toLowerCase()];
@@ -114,5 +152,5 @@ export async function screenshotSvg(window: BrowserWindow, workspaceRoot: string
     }
     images[href] = `data:${mimeType};base64,${(await readFile(imagePath)).toString("base64")}`;
   }
-  return rendererCall(window, renderSvg, markup, images);
+  return rendererCall(window.webContents, renderSvg, markup, images);
 }

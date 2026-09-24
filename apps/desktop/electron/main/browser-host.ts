@@ -4,7 +4,7 @@ import { BrowserCdp, type BrowserCdpLog, type BrowserElementTarget } from "./bro
 import { writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { BrowserWindow } from "electron";
-import { screenshotSvg } from "./svg-screenshot";
+import { screenshotLivePreview, screenshotSvg } from "./svg-screenshot";
 
 export const BROWSER_PLUGIN_ID = "pi.browser";
 export const BROWSER_VIEW_ID = "browser";
@@ -194,15 +194,28 @@ export class BrowserHost {
     try {
       const window = this.deps.getMainWindow?.();
       const root = window && await this.deps.getFileRoot(sessionId ?? this.chromeSessionId ?? undefined);
-      if (window && root && (input.path || (sessionId && sessionId === this.chromeSessionId))) {
-        shot = await screenshotSvg(window, root, input.path);
+      if (window && root && (input.path || sessionId)) {
+        shot = await screenshotSvg(window, root, input.path, sessionId);
+        this.deps.log?.("info", shot ? "browser.screenshot.svg.done" : "browser.screenshot.svg.skipped", {
+          pathProvided: Boolean(input.path),
+        });
       }
     } catch (error) {
       this.deps.log?.("warn", "browser.screenshot.svg.fallback", { error: String(error) });
     }
     if (!shot) {
       const wc = await this.waitForWebContents();
-      shot = await this.cdp.screenshot(wc, input, () => this.pane.capturePage());
+      if (!input.path && sessionId && sessionId === this.chromeSessionId) {
+        try {
+          shot = await screenshotLivePreview(wc);
+          this.deps.log?.("info", shot ? "browser.screenshot.svg.done" : "browser.screenshot.svg.skipped", {
+            source: "live_preview",
+          });
+        } catch (error) {
+          this.deps.log?.("warn", "browser.screenshot.svg.fallback", { source: "live_preview", error: String(error) });
+        }
+      }
+      if (!shot) shot = await this.cdp.screenshot(wc, input, () => this.pane.capturePage());
     }
     const scratch = this.deps.getScratchDir?.(sessionId ?? this.chromeSessionId ?? undefined);
     if (!scratch) return shot;

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { register } from "node:module";
 import test from "node:test";
+import { runInNewContext } from "node:vm";
 
 register(new URL("./helpers/ts-import-hooks.mjs", import.meta.url));
 const { screenshotSvg } = await import("../electron/main/svg-screenshot.ts");
@@ -31,19 +32,21 @@ test("active SVG renders without a browser guest or visible panel dimensions", a
   const project = join(workspace, ".deckwise-ppt", "projects", "lesson");
   await mkdir(project, { recursive: true });
   const window = windowFor([
-    () => ({ markup, projectPath: project }),
+    () => ({ markup, projectPath: project, sessionId: "task-1" }),
     () => [],
     () => png,
   ]);
+  let nativeCaptures = 0;
   const host = new BrowserHost({
-    pane: { getWebContents: () => null, invalidateNavigation: () => {}, setVisible: () => {} },
+    pane: { getWebContents: () => ({ isDestroyed: () => false }), capturePage: async () => { nativeCaptures++; }, invalidateNavigation: () => {}, setVisible: () => {} },
     isPluginLoaded: () => true,
     getFileRoot: async () => workspace,
     getMainWindow: () => window,
     onState: () => {},
   });
-  host.setChromeSession("task-1");
+  host.cdp.screenshot = async (_wc, _input, native) => { await native(); return { mimeType: "image/jpeg", data: "anBn" }; };
   assert.deepEqual(await host.screenshot({}, "task-1"), png);
+  assert.equal(nativeCaptures, 0);
   assert.equal(window.calls.length, 3);
   assert.match(window.calls[2], /1920/);
 });
@@ -72,6 +75,46 @@ test("explicit SVG path works with preview closed and local images stay in works
   await writeFile(join(outside, "foreign.svg"), markup);
   await symlink(join(outside, "foreign.svg"), join(slides, "foreign.svg"));
   await assert.rejects(screenshotSvg(window, workspace, join(slides, "foreign.svg")), /inside the workspace/);
+});
+
+test("active SVG is not captured for another session", async (t) => {
+  const workspace = await mkdtemp(join(tmpdir(), "deckwise-svg-shot-"));
+  t.after(() => rm(workspace, { recursive: true, force: true }));
+  const window = windowFor([() => ({ markup, projectPath: workspace, sessionId: "visible-task" })]);
+  assert.equal(await screenshotSvg(window, workspace, undefined, "background-task"), null);
+  assert.equal(window.calls.length, 1);
+});
+
+test("PPT Master browser preview captures its current SVG before CDP or native screenshot", async () => {
+  let nativeCaptures = 0;
+  const scripts = [];
+  const guest = {
+    isDestroyed: () => false,
+    getURL: () => "http://127.0.0.1:6061/",
+    async executeJavaScript(script) {
+      scripts.push(script);
+      if (scripts.length !== 1) return png;
+      const svg = { cloneNode: () => ({ outerHTML: markup, querySelectorAll: () => [] }) };
+      return runInNewContext(script, {
+        document: {
+          getElementById: () => ({ style: { display: "block" }, querySelector: () => svg }),
+          querySelector: () => ({}),
+        },
+      });
+    },
+  };
+  const host = new BrowserHost({
+    pane: { getWebContents: () => guest, capturePage: async () => { nativeCaptures++; }, invalidateNavigation: () => {}, setVisible: () => {} },
+    isPluginLoaded: () => true,
+    getFileRoot: async () => null,
+    onState: () => {},
+  });
+  host.setChromeSession("task-1");
+  host.cdp.screenshot = async (_wc, _input, native) => { await native(); return { mimeType: "image/jpeg", data: "anBn" }; };
+  assert.deepEqual(await host.screenshot({}, "task-1"), png);
+  assert.equal(nativeCaptures, 0);
+  assert.match(scripts[0], /getElementById\("svg-content"\)/);
+  assert.match(scripts[1], /1920/);
 });
 
 test("failed SVG render falls back to the existing CDP screenshot", async (t) => {
