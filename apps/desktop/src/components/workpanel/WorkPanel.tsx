@@ -41,6 +41,7 @@ import { PluginViewTab } from "./PluginViewTab";
 import { SubagentPanel } from "./SubagentPanel";
 import { PptMasterTab } from "./PptMasterTab";
 import { PptEditorTab } from "./PptEditorTab";
+import { SvgEditorTab } from "./SvgEditorTab";
 import type { SubagentPanelSelection } from "../../lib/subagent-panel";
 import {
   MAIN_PANE_MIN_WIDTH,
@@ -54,6 +55,7 @@ const TAB_ICONS = {
   new: IconPlus,
   review: IconDiff,
   ppt: IconFileText,
+  "svg-editor": IconFileText,
   editor: IconFileText,
   file: IconFileText,
   plugin: IconPlug,
@@ -94,6 +96,7 @@ function tabLabel(
   }
   if (tab.kind === "new") return t("panel.new.title");
   if (tab.kind === "ppt") return "课件工作台";
+  if (tab.kind === "svg-editor") return tab.resource?.split("/").filter(Boolean).at(-1) || t("panel.tabs.svgEditor");
   if (tab.kind === "editor") return "编辑 PPT";
   if (tab.kind !== "file") return t(`panel.tabs.${tab.kind}`);
   const path = tab.resource ?? "";
@@ -636,6 +639,20 @@ export function WorkPanel({
                 tabId={activeTab.id}
                 maximized={maximized}
                 onToggleMaximize={onToggleMaximize}
+              />
+            </div>
+          )}
+          {!subagentPanel && activeTab?.kind === "svg-editor" && activeTab.resource && (
+            <div
+              key={activeTab.id}
+              id={`work-panel-surface-${activeTab.id}`}
+              className="work-panel-tabpane"
+              role="tabpanel"
+              aria-labelledby={`work-panel-tab-${activeTab.id}`}
+            >
+              <SvgEditorTab
+                path={activeTab.resource}
+                tabId={activeTab.id}
               />
             </div>
           )}

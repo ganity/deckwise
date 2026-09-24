@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FsEntry, UiMessage } from "@pi-desktop/shared";
 import { useAppStore } from "../../stores/app-store";
 import { api } from "../../lib/api";
-import { browserPluginTab, pptEditorWorkPanelTab } from "../../lib/work-panel-tabs";
+import { pptEditorWorkPanelTab, svgEditorWorkPanelTab } from "../../lib/work-panel-tabs";
 import { IconCheck, IconExternal, IconRefresh, IconSparkles } from "../icons";
 import {
   CoursewareImportDialog,
@@ -154,7 +154,7 @@ export function PptMasterTab() {
     setPreviewError(null);
     try {
       const preview = await api.pptPreviewOpen(project.projectPath);
-      useAppStore.getState().openWorkPanelTab(browserPluginTab(preview.url));
+      useAppStore.getState().openWorkPanelTab(svgEditorWorkPanelTab(project.projectPath));
       await refreshProject();
     } catch (error) {
       setPreviewError(error instanceof Error ? error.message : "页面预览启动失败");

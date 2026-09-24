@@ -19,4 +19,19 @@ export function registerPptPreviewIpc(input: {
       return controller.open(workspaceRoot, path);
     },
   );
+
+  registrar.handleWithEvent(
+    IPC.invoke.pptPreviewRequest,
+    async (event, payload: { path?: string; route?: string; method?: "GET" | "POST" | "DELETE"; body?: unknown } = {}) => {
+      registrar.assertMainWindowSender(event);
+      const workspaceRoot = await getWorkspaceRoot();
+      const path = String(payload.path ?? "").trim();
+      if (!workspaceRoot || !path) throw new Error("SVG preview project is unavailable");
+      return controller.request(workspaceRoot, path, {
+        route: String(payload.route ?? ""),
+        method: payload.method,
+        body: payload.body,
+      });
+    },
+  );
 }

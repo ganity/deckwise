@@ -327,10 +327,39 @@ export class BrowserCdp {
       fullPage: Boolean(input.fullPage),
       webContentsId: wc.id,
     });
-    // Electron's native capture path does not depend on a CDP response and is
-    // reliable for the normal visible-area screenshot used by the preview.
+    // CDP captures the guest without toggling its native WebContentsView.
+    // Toggling a hidden view visible for native capture causes a visible flash.
     if (!input.fullPage) {
-      return this.nativeScreenshot(wc, startedAt, capturePage);
+      try {
+        this.detach(wc);
+        await this.withTimeout(this.attach(wc, true), SCREENSHOT_TIMEOUT_MS, "CDP attach");
+        const result = (await this.withTimeout(
+          this.command(wc, "Page.captureScreenshot", {
+            format: "jpeg",
+            quality: 70,
+          }, true),
+          SCREENSHOT_TIMEOUT_MS,
+          "CDP screenshot",
+        )) as { data?: string };
+        if (typeof result?.data !== "string" || !result.data) {
+          throw new Error("screenshot produced no data");
+        }
+        this.log?.("info", "browser.screenshot.done", {
+          fullPage: false,
+          webContentsId: wc.id,
+          durationMs: Date.now() - startedAt,
+          bytes: result.data.length,
+        });
+        return { mimeType: "image/jpeg", data: result.data };
+      } catch (error) {
+        this.detach(wc);
+        this.log?.("warn", "browser.screenshot.native.fallback", {
+          webContentsId: wc.id,
+          durationMs: Date.now() - startedAt,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return this.nativeScreenshot(wc, startedAt, capturePage);
+      }
     }
 
     // Full-page capture still needs CDP for its content-sized clip. Bound the

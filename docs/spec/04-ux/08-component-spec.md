@@ -1032,9 +1032,14 @@ the agent turn. Each activation asks Electron main to validate the
 project-local `live_preview/lock.json` against the service `/api/health`
 response. A matching live service is reused; a missing, stale, or unhealthy
 service is restarted with DeckWise's Python runtime and `--no-browser`, then
-opened in the embedded Browser view. Closing the Browser tab does not stop the
-preview service; PPT Master's Exit preview action and idle timeout retain their
-normal lifecycle behavior.
+opened in the native SVG Editor work-panel tab. The editor renders sanitized
+SVG in the renderer, resolves relative images through a main-process allowlist,
+and supports slide navigation, element selection/multi-selection, parent-group
+selection, box selection, overlap selection, drag and keyboard movement,
+geometry/attribute/text edits, tspan promotion, annotations, per-slide undo,
+save-all, external-change reload, unsaved-change protection, and explicit Exit
+preview. The underlying `ppt-master` service remains the source of truth; its
+source is not modified.
 
 During an active generation turn, the presence of one or more SVG files makes
 the completed pages previewable but does not complete the **Generate pages**

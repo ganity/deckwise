@@ -1076,6 +1076,8 @@ export const api = {
   fsIndex: () => invoke<FsIndexResult>(IPC.invoke.fsIndex),
   pptPreviewOpen: (path: string) =>
     invoke<PptPreviewState>(IPC.invoke.pptPreviewOpen, { path }),
+  pptPreviewRequest: <T = unknown>(path: string, route: string, method: "GET" | "POST" | "DELETE" = "GET", body?: unknown) =>
+    invoke<T>(IPC.invoke.pptPreviewRequest, { path, route, method, body }),
   pptEditorOpen: (path: string) =>
     invoke<PptEditorState>(IPC.invoke.pptEditorOpen, { path }),
   pptEditorSave: () => invoke<{ ok: boolean }>(IPC.invoke.pptEditorSave),

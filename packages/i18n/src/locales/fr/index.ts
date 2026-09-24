@@ -1340,8 +1340,10 @@ sklm: {
       "review": "Réviser",
       "browser": "Navigateur",
       "file": "Fichiers",
-      "plugin": "Vue du plugin"
+      "plugin": "Vue du plugin",
+      "svgEditor": "Éditeur SVG"
     },
+    "svgEditor": { "loading": "Chargement", "live": "En direct", "ready": "Prêt", "undo": "Annuler la modification en attente", "saved": "Enregistré", "save": "Enregistrer les modifications", "slides": "Diapositives", "annotationCount": "{{count}} annotations", "slide": "Diapositive SVG", "waitingSlides": "En attente des diapositives générées…", "noSlides": "Aucune diapositive", "externalChange": "Cette diapositive a changé sur le disque. Recharger", "hint": "Cliquer pour sélectionner · Ctrl-clic pour multi-sélection · Alt-clic pour le groupe parent · Glisser pour déplacer · Flèches pour ajuster", "staged": "{{count}} modifications en attente", "inspect": "Inspecter", "selectedCount": "{{count}} sélectionnés", "noSelection": "Aucune sélection", "selectHint": "Sélectionnez un élément pour modifier ses propriétés ou ajouter une annotation IA.", "selectParent": "Sélectionner le groupe parent", "x": "X", "y": "Y", "width": "Largeur", "height": "Hauteur", "text": "Texte", "attributes": "Attributs", "batchStyle": "Style groupé", "annotation": "Annotation IA", "annotationPlaceholder": "Décrivez la modification souhaitée…", "addAnnotation": "Ajouter une annotation", "slideAnnotations": "Annotations de la diapositive", "element": "Élément", "removeAnnotation": "Supprimer l’annotation", "saveConfirm": "Enregistrer les modifications SVG et annotations en attente dans svg_output ?", "exitPreview": "Quitter l’aperçu", "exitConfirm": "Abandonner les modifications et annotations en attente et quitter l’aperçu ?", "editTextSeparately": "Modifier ce texte séparément", "previousSlide": "Diapositive précédente", "nextSlide": "Diapositive suivante", "chooseOverlap": "Choisir un élément superposé", "fill": "Remplissage" },
     "pluginView": {
       "failed": "Cette vue n'a pas pu être chargée. Rechargez le plugin et réessayez."
     },

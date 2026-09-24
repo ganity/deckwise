@@ -1340,8 +1340,10 @@ sklm: {
       "review": "Überprüfen",
       "browser": "Browser",
       "file": "Dateien",
-      "plugin": "Plugin-Ansicht"
+      "plugin": "Plugin-Ansicht",
+      "svgEditor": "SVG-Editor"
     },
+    "svgEditor": { "loading": "Wird geladen", "live": "Live", "ready": "Bereit", "undo": "Vorgemerkte Änderung rückgängig machen", "saved": "Gespeichert", "save": "Änderungen speichern", "slides": "Folien", "annotationCount": "{{count}} Anmerkungen", "slide": "SVG-Folie", "waitingSlides": "Warte auf erstellte Folien…", "noSlides": "Keine Folien gefunden", "externalChange": "Diese Folie wurde auf dem Datenträger geändert. Neu laden", "hint": "Klicken zum Auswählen · Strg-Klick für Mehrfachauswahl · Alt-Klick für übergeordnete Gruppe · Ziehen zum Verschieben · Pfeiltasten zum Feinschieben", "staged": "{{count}} vorgemerkte Änderungen", "inspect": "Prüfen", "selectedCount": "{{count}} ausgewählt", "noSelection": "Nichts ausgewählt", "selectHint": "Wählen Sie ein Element aus, um Eigenschaften zu bearbeiten oder eine KI-Anmerkung hinzuzufügen.", "selectParent": "Übergeordnete Gruppe auswählen", "x": "X", "y": "Y", "width": "Breite", "height": "Höhe", "text": "Text", "attributes": "Attribute", "batchStyle": "Stil für Auswahl", "annotation": "KI-Anmerkung", "annotationPlaceholder": "Beschreiben Sie die gewünschte Änderung…", "addAnnotation": "Anmerkung hinzufügen", "slideAnnotations": "Folienanmerkungen", "element": "Element", "removeAnnotation": "Anmerkung entfernen", "saveConfirm": "Vorgemerkte SVG-Änderungen und Anmerkungen in svg_output speichern?", "exitPreview": "Vorschau beenden", "exitConfirm": "Vorgemerkte Änderungen und Anmerkungen verwerfen und Vorschau beenden?", "editTextSeparately": "Diesen Text separat bearbeiten", "previousSlide": "Vorherige Folie", "nextSlide": "Nächste Folie", "chooseOverlap": "Überlappendes Element auswählen", "fill": "Füllung" },
     "pluginView": {
       "failed": "Diese Ansicht konnte nicht geladen werden. Laden Sie das Plugin neu und versuchen Sie es erneut."
     },

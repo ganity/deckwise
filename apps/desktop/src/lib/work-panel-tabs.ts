@@ -2,6 +2,7 @@ export type WorkPanelTabKind =
   | "new"
   | "review"
   | "ppt"
+  | "svg-editor"
   | "editor"
   | "file"
   | "plugin";
@@ -110,6 +111,10 @@ export function pptEditorWorkPanelTab(path: string): WorkPanelTab {
   return { id: `editor:${path}`, kind: "editor", resource: path };
 }
 
+export function svgEditorWorkPanelTab(path: string): WorkPanelTab {
+  return { id: `svg-editor:${path}`, kind: "svg-editor", resource: path };
+}
+
 /**
  * The bundled file view (ADR 0241). A chat file reference prefers it, because
  * the file belongs beside the conversation that named it and the view can edit
@@ -157,7 +162,7 @@ export function parsePluginViewRef(
 export function isKnownWorkPanelTab(tab: WorkPanelTab): boolean {
   return (
     Boolean(tab) &&
-    (tab.kind === "new" || tab.kind === "review" || tab.kind === "ppt" || tab.kind === "editor" ||
+    (tab.kind === "new" || tab.kind === "review" || tab.kind === "ppt" || tab.kind === "svg-editor" || tab.kind === "editor" ||
       tab.kind === "file" || tab.kind === "plugin")
   );
 }

@@ -1358,7 +1358,9 @@ sklm: {
       browser: "브라우저",
       file: "파일",
       plugin: "플러그인 화면",
+      svgEditor: "SVG 편집기",
     },
+    svgEditor: { loading: "불러오는 중", live: "실시간", ready: "준비됨", undo: "대기 중인 편집 실행 취소", saved: "저장됨", save: "변경 사항 저장", slides: "슬라이드", annotationCount: "주석 {{count}}개", slide: "SVG 슬라이드", waitingSlides: "생성된 슬라이드를 기다리는 중…", noSlides: "슬라이드가 없습니다", externalChange: "디스크에서 슬라이드가 변경되었습니다. 새로고침", hint: "클릭하여 선택 · Ctrl-클릭하여 다중 선택 · Alt-클릭하여 상위 그룹 선택 · 드래그하여 이동 · 방향키로 미세 조정", staged: "저장 대기 중인 편집 {{count}}개", inspect: "검사", selectedCount: "{{count}}개 선택됨", noSelection: "선택 항목 없음", selectHint: "슬라이드 요소를 선택해 속성을 편집하거나 AI 주석을 추가하세요.", selectParent: "상위 그룹 선택", x: "X", y: "Y", width: "너비", height: "높이", text: "텍스트", attributes: "속성", batchStyle: "일괄 스타일", annotation: "AI 주석", annotationPlaceholder: "원하는 변경 사항을 설명하세요…", addAnnotation: "주석 추가", slideAnnotations: "슬라이드 주석", element: "요소", removeAnnotation: "주석 삭제", saveConfirm: "대기 중인 SVG 편집과 주석을 svg_output에 저장할까요?", exitPreview: "미리보기 종료", exitConfirm: "대기 중인 편집과 주석을 버리고 미리보기를 종료할까요?", editTextSeparately: "이 텍스트를 별도로 편집", previousSlide: "이전 슬라이드", nextSlide: "다음 슬라이드", chooseOverlap: "겹친 요소 선택", fill: "채우기" },
     pluginView: {
       failed: "이 화면을 불러올 수 없습니다. 플러그인을 새로 고친 후 다시 시도하세요.",
     },

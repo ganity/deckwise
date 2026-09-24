@@ -75,7 +75,6 @@ export function captureComposerDraft(
 
 export function deleteComposerDraft(key: string): void {
   cache.delete(key);
-  webSearchCache.delete(key);
 }
 
 export function readComposerWebSearch(key: string): boolean {

@@ -1359,7 +1359,9 @@ sklm: {
       browser: "Tarayıcı",
       file: "Dosyalar",
       plugin: "Eklenti görünümü",
+      svgEditor: "SVG düzenleyici",
     },
+    svgEditor: { loading: "Yükleniyor", live: "Canlı", ready: "Hazır", undo: "Bekleyen düzenlemeyi geri al", saved: "Kaydedildi", save: "Değişiklikleri kaydet", slides: "Slaytlar", annotationCount: "{{count}} not", slide: "SVG slaydı", waitingSlides: "Oluşturulan slaytlar bekleniyor…", noSlides: "Slayt bulunamadı", externalChange: "Bu slayt diskte değişti. Yeniden yükle", hint: "Seçmek için tıklayın · Çoklu seçim için Ctrl+tıklayın · Üst grubu seçmek için Alt+tıklayın · Taşımak için sürükleyin · Ok tuşlarıyla ince ayar", staged: "{{count}} bekleyen düzenleme", inspect: "İncele", selectedCount: "{{count}} seçili", noSelection: "Seçim yok", selectHint: "Özellikleri düzenlemek veya AI notu eklemek için slaytta bir öğe seçin.", selectParent: "Üst grubu seç", x: "X", y: "Y", width: "Genişlik", height: "Yükseklik", text: "Metin", attributes: "Öznitelikler", batchStyle: "Toplu stil", annotation: "AI notu", annotationPlaceholder: "İstediğiniz değişikliği açıklayın…", addAnnotation: "Not ekle", slideAnnotations: "Slayt notları", element: "Öğe", removeAnnotation: "Notu kaldır", saveConfirm: "Bekleyen SVG düzenlemeleri ve notlar svg_output konumuna kaydedilsin mi?", exitPreview: "Önizlemeden çık", exitConfirm: "Bekleyen düzenlemeler ve notlar atılsın ve önizlemeden çıkılsın mı?", editTextSeparately: "Bu metni ayrı düzenle", previousSlide: "Önceki slayt", nextSlide: "Sonraki slayt", chooseOverlap: "Üst üste gelen öğeyi seç", fill: "Dolgu" },
     pluginView: {
       failed: "Bu görünüm yüklenemedi. Eklentiyi yeniden yükleyip deneyin.",
     },

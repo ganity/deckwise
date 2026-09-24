@@ -73,15 +73,44 @@ test("CDP allowlist denies cookies, storage, and target methods", () => {
   assert.match(cdpSource, /this\.detach\(wc\);/);
 });
 
-test("screenshots use native capture for the normal preview path", () => {
+test("normal screenshots use CDP before native capture fallback", () => {
   assert.match(hostSource, /const wc = this\.requireWebContents\(\);/);
   assert.match(hostSource, /const shot = await this\.cdp\.screenshot\(wc, input, \(\) => this\.pane\.capturePage\(\)\);/);
   assert.match(hostSource, /const wc = await this\.waitForWebContents\(\);/);
   assert.doesNotMatch(hostSource, /this\.pane\.isCaptureReady\(\)/);
   assert.doesNotMatch(hostSource, /browser preview is not visible yet/);
+  assert.match(cdpSource, /Page\.captureScreenshot/);
+  assert.match(cdpSource, /browser\.screenshot\.native\.fallback/);
   assert.match(cdpSource, /nativeScreenshot/);
   assert.match(cdpSource, /capturePage\(undefined, \{ stayHidden: true, stayAwake: true \}\)/);
   assert.match(cdpSource, /SCREENSHOT_TIMEOUT_MS/);
+});
+
+test("normal screenshot does not invoke native capture when CDP succeeds", async () => {
+  class Debugger extends EventEmitter {
+    attached = false;
+    calls = [];
+    isAttached() { return this.attached; }
+    attach() { this.attached = true; }
+    detach() { this.attached = false; this.emit("detach"); }
+    async sendCommand(method) {
+      this.calls.push(method);
+      return method === "Page.captureScreenshot" ? { data: "c2hvdA==" } : {};
+    }
+  }
+
+  const debuggerApi = new Debugger();
+  const wc = {
+    id: 3,
+    debugger: debuggerApi,
+    isDestroyed: () => false,
+  };
+  const shot = await new BrowserCdp().screenshot(wc, {}, async () => {
+    throw new Error("native capture should be fallback only");
+  });
+
+  assert.deepEqual(shot, { mimeType: "image/jpeg", data: "c2hvdA==" });
+  assert.ok(debuggerApi.calls.includes("Page.captureScreenshot"));
 });
 
 test("guest bounds are clamped to the plugin view rect", () => {

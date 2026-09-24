@@ -342,6 +342,7 @@ export const IPC = {
     fsIndex: "pi-desktop/fs/index",
     fsResolveRef: "pi-desktop/fs/resolveRef",
     pptPreviewOpen: "deckwise/ppt-preview/open",
+    pptPreviewRequest: "deckwise/ppt-preview/request",
     pptEditorOpen: "deckwise/ppt-editor/open",
     pptEditorSave: "deckwise/ppt-editor/save",
     pptEditorClose: "deckwise/ppt-editor/close",

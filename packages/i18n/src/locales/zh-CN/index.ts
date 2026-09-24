@@ -1342,7 +1342,9 @@ sklm: {
       browser: "浏览器",
       file: "文件",
       plugin: "插件视图",
+      svgEditor: "SVG 编辑器",
     },
+    svgEditor: { loading: "正在加载", live: "实时预览", ready: "就绪", undo: "撤销暂存修改", saved: "已保存", save: "保存修改", slides: "幻灯片", annotationCount: "{{count}} 条标注", slide: "SVG 页面", waitingSlides: "等待生成页面…", noSlides: "没有找到页面", externalChange: "此页面已在磁盘上修改，点击重新加载", hint: "点击选择 · Ctrl 点击多选 · Alt 点击选择父组 · 拖动移动 · 方向键微调", staged: "{{count}} 项待保存修改", inspect: "检查器", selectedCount: "已选 {{count}} 项", noSelection: "未选择元素", selectHint: "选择页面中的元素以编辑属性或添加 AI 标注。", selectParent: "选择父组", x: "X 坐标", y: "Y 坐标", width: "宽度", height: "高度", text: "文本", attributes: "属性", batchStyle: "批量样式", annotation: "AI 标注", annotationPlaceholder: "描述你希望进行的修改…", addAnnotation: "添加标注", slideAnnotations: "页面标注", element: "元素", removeAnnotation: "删除标注", saveConfirm: "将暂存的 SVG 修改和标注保存到 svg_output？", exitPreview: "退出预览", exitConfirm: "放弃暂存修改和标注并退出预览？", editTextSeparately: "单独编辑此文本", previousSlide: "上一页", nextSlide: "下一页", chooseOverlap: "选择重叠元素", fill: "填充" },
     pluginView: {
       failed: "无法加载该视图。请重新加载插件后重试。",
     },

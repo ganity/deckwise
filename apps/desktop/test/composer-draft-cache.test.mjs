@@ -15,9 +15,11 @@ import {
   scheduleHomeDraftAdopt,
   draftOwnerSessionId,
   pruneComposerDrafts,
+  readComposerWebSearch,
   readComposerDraft,
   resetComposerDraftCache,
   snapshotComposerDraft,
+  writeComposerWebSearch,
   writeComposerDraft,
 } from "../src/lib/composer-draft-cache.ts";
 
@@ -78,6 +80,12 @@ test("deleting a slot does not clear a different session", () => {
   deleteComposerDraft("a");
   assert.equal(readComposerDraft("a"), undefined);
   assert.equal(readComposerDraft("b")?.text, "beta");
+});
+
+test("deleting submitted draft content keeps the session web search preference", () => {
+  writeComposerWebSearch("a", true);
+  deleteComposerDraft("a");
+  assert.equal(readComposerWebSearch("a"), true);
 });
 
 test("adopting the home draft moves the live snapshot onto the created session", () => {

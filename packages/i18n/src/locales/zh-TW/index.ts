@@ -1342,7 +1342,9 @@ sklm: {
       browser: "瀏覽器",
       file: "檔案",
       plugin: "外掛檢視",
+      svgEditor: "SVG 編輯器",
     },
+    svgEditor: { loading: "正在載入", live: "即時預覽", ready: "就緒", undo: "復原暫存修改", saved: "已儲存", save: "儲存修改", slides: "投影片", annotationCount: "{{count}} 則標註", slide: "SVG 頁面", waitingSlides: "等待產生頁面…", noSlides: "找不到頁面", externalChange: "此頁面已在磁碟上修改，按一下重新載入", hint: "按一下選取 · Ctrl 按一下多選 · Alt 按一下選取父群組 · 拖曳移動 · 方向鍵微調", staged: "{{count}} 項待儲存修改", inspect: "檢查器", selectedCount: "已選取 {{count}} 項", noSelection: "未選取元素", selectHint: "選取頁面中的元素以編輯屬性或新增 AI 標註。", selectParent: "選取父群組", x: "X 座標", y: "Y 座標", width: "寬度", height: "高度", text: "文字", attributes: "屬性", batchStyle: "批次樣式", annotation: "AI 標註", annotationPlaceholder: "描述您想進行的修改…", addAnnotation: "新增標註", slideAnnotations: "頁面標註", element: "元素", removeAnnotation: "移除標註", saveConfirm: "要將暫存的 SVG 修改和標註儲存至 svg_output 嗎？", exitPreview: "退出預覽", exitConfirm: "放棄暫存修改和標註並退出預覽？", editTextSeparately: "單獨編輯此文字", previousSlide: "上一頁", nextSlide: "下一頁", chooseOverlap: "選取重疊元素", fill: "填滿" },
     pluginView: {
       failed: "無法載入該檢視。請重新載入外掛後重試。",
     },

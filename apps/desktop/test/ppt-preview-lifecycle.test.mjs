@@ -1,15 +1,19 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { runInNewContext } from "node:vm";
+import ts from "typescript";
 
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
-const [controller, ipc, protocol, api, panel, skill] = await Promise.all([
+const [controller, ipc, protocol, api, panel, skill, editor, editorCss] = await Promise.all([
   read("../electron/main/ppt-preview.ts"),
   read("../electron/main/ipc/ppt-preview-ipc.ts"),
   read("../../../packages/shared/src/protocol.ts"),
   read("../src/lib/api.ts"),
   read("../src/components/workpanel/PptMasterTab.tsx"),
   read("../electron/main/builtin-skills.ts"),
+  read("../src/components/workpanel/SvgEditorTab.tsx"),
+  read("../src/styles/svg-editor.css"),
 ]);
 
 test("SVG preview probes the project service and restarts it when unavailable", () => {
@@ -25,16 +29,55 @@ test("SVG preview probes the project service and restarts it when unavailable", 
 
 test("the main-window-only IPC returns a ready preview URL", () => {
   assert.match(protocol, /pptPreviewOpen:\s*"deckwise\/ppt-preview\/open"/);
+  assert.match(protocol, /pptPreviewRequest:\s*"deckwise\/ppt-preview\/request"/);
   assert.match(ipc, /assertMainWindowSender/);
   assert.match(ipc, /controller\.open/);
+  assert.match(ipc, /controller\.request/);
   assert.match(api, /pptPreviewOpen/);
 });
 
 test("the courseware workspace exposes an in-app page preview action", () => {
   assert.match(panel, /预览与编辑页面/);
   assert.match(panel, /api\.pptPreviewOpen/);
-  assert.match(panel, /browserPluginTab/);
+  assert.match(panel, /svgEditorWorkPanelTab/);
   assert.match(skill, /--no-browser/);
+});
+
+test("native SVG requests stay inside the preview API allowlist", () => {
+  assert.match(controller, /isAllowedPptPreviewRoute/);
+  assert.match(controller, /\/api\/shutdown/);
+  assert.match(controller, /route\.startsWith\("\/images\/"\)/);
+  assert.match(controller, /SVG preview route is not allowed/);
+  assert.match(controller, /if \(action === "edit" \|\| action === "undo"\) return method === "POST"/);
+  assert.match(controller, /if \(annotationId\) return method === "DELETE"/);
+});
+
+test("slide image references pass the preview route allowlist", () => {
+  const source = controller.slice(controller.indexOf("const API_ROUTES"), controller.indexOf("function samePath")).replace("export function", "function");
+  const js = ts.transpileModule(`${source}\nglobalThis.check = isAllowedPptPreviewRoute;`, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const context = {};
+  runInNewContext(js, context);
+  const check = context.check;
+  assert.equal(check("/images/sun_hero.png", "GET"), true);
+  assert.equal(check("/images/subfolder/sun_hero.png", "GET"), true);
+  assert.equal(check(`/api/slide/${encodeURIComponent("01_封面_太阳系.svg")}`, "GET"), true);
+  assert.equal(check("/images/../secret.txt", "GET"), false);
+  assert.equal(check("/images/sun_hero.png", "POST"), false);
+});
+
+test("native SVG editor covers the original editing workflow", () => {
+  for (const feature of ["promote_tspan", "/api/save-all", "/undo", "box: true", "svg-editor-annotation", "externalChange", "exitPreview"]) {
+    assert.ok(editor.includes(feature), `missing editor behavior: ${feature}`);
+  }
+  assert.match(editor, /FORBID_TAGS: \["foreignObject"\]/);
+  assert.match(editor, /hasExternalCssResource/);
+});
+
+test("SVG slide list has no empty thumbnails and selectable elements show a hover outline", () => {
+  assert.doesNotMatch(editor, /svg-editor-thumb|padStart\(2, "0"\)/);
+  assert.match(editorCss, /\.svg-editor-canvas \.svg-editor-selectable:hover\s*\{[^}]*outline:\s*2px solid/);
 });
 
 test("page generation stays active until the whole agent turn finishes", () => {

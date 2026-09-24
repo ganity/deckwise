@@ -16,6 +16,35 @@ export type PptPreviewState = {
   started: boolean;
 };
 
+export type PptPreviewRequest = {
+  route: string;
+  method?: "GET" | "POST" | "DELETE";
+  body?: unknown;
+};
+
+const API_ROUTES = new Set([
+  "GET /api/config",
+  "GET /api/slides",
+  "POST /api/save-all",
+  "POST /api/shutdown",
+]);
+
+export function isAllowedPptPreviewRoute(route: string, method: string): boolean {
+  let decoded: string;
+  try { decoded = decodeURIComponent(route); } catch { return false; }
+  if (decoded.includes("..") || decoded.includes("\\") || decoded.includes("?") || decoded.includes("#")) return false;
+  if (API_ROUTES.has(`${method} ${decoded}`)) return true;
+  const image = /^\/images\/(?:[^/]+\/)*[^/]+$/.test(decoded) && decoded.slice("/images/".length).split("/").every((part) => part !== ".");
+  if (image) return method === "GET";
+  const slide = decoded.match(/^\/api\/slide\/([^/]+)(?:\/(edit|undo|annotate)(?:\/([^/]+))?)?$/);
+  if (!slide) return false;
+  const [, , action, annotationId] = slide;
+  if (!action) return method === "GET";
+  if (action === "edit" || action === "undo") return method === "POST";
+  if (annotationId) return method === "DELETE";
+  return method === "POST";
+}
+
 function samePath(left: string, right: string): boolean {
   const a = resolve(left);
   const b = resolve(right);
@@ -101,6 +130,41 @@ export class PptPreviewController {
     });
     this.opening.set(projectPath, opening);
     return opening;
+  }
+
+  async request(workspaceRoot: string, requestedPath: string, input: PptPreviewRequest): Promise<unknown> {
+    const projectPath = await resolveProjectPath(workspaceRoot, requestedPath);
+    const route = String(input.route || "");
+    const method = input.method ?? "GET";
+    if (!isAllowedPptPreviewRoute(route, method)) {
+      throw new Error("SVG preview route is not allowed");
+    }
+    if (method === "GET" && input.body !== undefined) throw new Error("GET preview requests cannot have a body");
+    if (route.startsWith("/images/") && input.body !== undefined) throw new Error("Image requests cannot have a body");
+    const lock = await readLock(projectPath);
+    if (!lock) throw new Error("SVG preview service is unavailable");
+    const baseUrl = await probe(projectPath, lock);
+    if (!baseUrl) throw new Error("SVG preview service is unavailable");
+    const body = input.body === undefined ? undefined : JSON.stringify(input.body);
+    if (body && body.length > 512_000) throw new Error("SVG preview request is too large");
+    const response = await fetch(`${baseUrl}${route}`, {
+      method,
+      headers: body ? { "Content-Type": "application/json" } : undefined,
+      body,
+      redirect: "error",
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (route.startsWith("/images/")) {
+      if (!response.ok) throw new Error(`Preview image request failed (${response.status})`);
+      const image = await response.arrayBuffer();
+      if (image.byteLength > 10_000_000) throw new Error("Preview image is too large");
+      const contentType = response.headers.get("content-type") || "application/octet-stream";
+      return { dataUrl: `data:${contentType};base64,${Buffer.from(image).toString("base64")}` };
+    }
+    const contentType = response.headers.get("content-type") || "";
+    const value = contentType.includes("application/json") ? await response.json() : await response.text();
+    if (!response.ok) throw new Error((value as { error?: unknown })?.error?.toString() || `Preview request failed (${response.status})`);
+    return value;
   }
 
   private async ensureOpen(workspaceRoot: string, projectPath: string): Promise<PptPreviewState> {

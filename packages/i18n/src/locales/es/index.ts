@@ -1340,8 +1340,10 @@ sklm: {
       "review": "Revisar",
       "browser": "Navegador",
       "file": "Archivos",
-      "plugin": "Vista de complemento"
+      "plugin": "Vista de complemento",
+      "svgEditor": "Editor SVG"
     },
+    "svgEditor": { "loading": "Cargando", "live": "En directo", "ready": "Listo", "undo": "Deshacer cambio pendiente", "saved": "Guardado", "save": "Guardar cambios", "slides": "Diapositivas", "annotationCount": "{{count}} anotaciones", "slide": "Diapositiva SVG", "waitingSlides": "Esperando las diapositivas generadas…", "noSlides": "No se encontraron diapositivas", "externalChange": "La diapositiva cambió en el disco. Recargar", "hint": "Clic para seleccionar · Ctrl-clic para selección múltiple · Alt-clic para grupo padre · Arrastrar para mover · Flechas para ajustar", "staged": "{{count}} cambios pendientes", "inspect": "Inspeccionar", "selectedCount": "{{count}} seleccionados", "noSelection": "Sin selección", "selectHint": "Selecciona un elemento para editar sus propiedades o añadir una anotación de IA.", "selectParent": "Seleccionar grupo padre", "x": "X", "y": "Y", "width": "Ancho", "height": "Alto", "text": "Texto", "attributes": "Atributos", "batchStyle": "Estilo por lotes", "annotation": "Anotación de IA", "annotationPlaceholder": "Describe el cambio que quieres…", "addAnnotation": "Añadir anotación", "slideAnnotations": "Anotaciones de la diapositiva", "element": "Elemento", "removeAnnotation": "Quitar anotación", "saveConfirm": "¿Guardar los cambios SVG y las anotaciones pendientes en svg_output?", "exitPreview": "Salir de la vista previa", "exitConfirm": "¿Descartar los cambios y anotaciones pendientes y salir de la vista previa?", "editTextSeparately": "Editar este texto por separado", "previousSlide": "Diapositiva anterior", "nextSlide": "Diapositiva siguiente", "chooseOverlap": "Elige un elemento superpuesto", "fill": "Relleno" },
     "pluginView": {
       "failed": "Esta vista no se pudo cargar. Vuelva a cargar el complemento e inténtelo de nuevo."
     },
