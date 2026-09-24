@@ -3,6 +3,8 @@ import type { BrowserPane } from "./browser-view";
 import { BrowserCdp, type BrowserCdpLog, type BrowserElementTarget } from "./browser-cdp";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
+import type { BrowserWindow } from "electron";
+import { screenshotSvg } from "./svg-screenshot";
 
 export const BROWSER_PLUGIN_ID = "pi.browser";
 export const BROWSER_VIEW_ID = "browser";
@@ -58,6 +60,7 @@ export type BrowserHostDeps = {
   isPluginLoaded: (pluginId: string) => boolean;
   getFileRoot: (sessionId?: string) => Promise<string | null>;
   getScratchDir?: (sessionId?: string) => string | null;
+  getMainWindow?: () => BrowserWindow | null;
   onState: (state: BrowserState) => void;
   log?: BrowserCdpLog;
 };
@@ -182,19 +185,30 @@ export class BrowserHost {
   }
 
   async screenshot(
-    input: { fullPage?: boolean } = {},
+    input: { fullPage?: boolean; path?: string } = {},
     sessionId?: string,
   ): Promise<{ mimeType: string; data: string; path?: string }> {
-    // Screenshotting is a browser automation operation, not a requirement that
-    // the work-panel surface currently be visible. The panel can be transiently
-    // detached while its guest WebContents remains loaded and CDP-addressable.
-    const wc = await this.waitForWebContents();
-    const shot = await this.cdp.screenshot(wc, input, () => this.pane.capturePage());
+    // SVG capture reads the current editor or a workspace file without showing
+    // the browser guest; other pages retain CDP and native capture fallback.
+    let shot: { mimeType: string; data: string } | null = null;
+    try {
+      const window = this.deps.getMainWindow?.();
+      const root = window && await this.deps.getFileRoot(sessionId ?? this.chromeSessionId ?? undefined);
+      if (window && root && (input.path || (sessionId && sessionId === this.chromeSessionId))) {
+        shot = await screenshotSvg(window, root, input.path);
+      }
+    } catch (error) {
+      this.deps.log?.("warn", "browser.screenshot.svg.fallback", { error: String(error) });
+    }
+    if (!shot) {
+      const wc = await this.waitForWebContents();
+      shot = await this.cdp.screenshot(wc, input, () => this.pane.capturePage());
+    }
     const scratch = this.deps.getScratchDir?.(sessionId ?? this.chromeSessionId ?? undefined);
     if (!scratch) return shot;
     try {
       mkdirSync(scratch, { recursive: true });
-      const path = join(scratch, `browser-screenshot-${Date.now()}.jpg`);
+      const path = join(scratch, `browser-screenshot-${Date.now()}.${shot.mimeType === "image/png" ? "png" : "jpg"}`);
       writeFileSync(path, Buffer.from(shot.data, "base64"));
       return { ...shot, path };
     } catch {

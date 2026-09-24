@@ -407,7 +407,7 @@ export function SvgEditorTab({
   };
 
   return (
-    <section className={`svg-editor${leftCollapsed ? " left-collapsed" : ""}${rightCollapsed ? " right-collapsed" : ""}`} aria-label={t("panel.tabs.svgEditor")}>
+    <section className={`svg-editor${leftCollapsed ? " left-collapsed" : ""}${rightCollapsed ? " right-collapsed" : ""}`} data-project-path={path} aria-label={t("panel.tabs.svgEditor")}>
       <header className="svg-editor-toolbar">
         <div className="svg-editor-title"><MousePointer2 size={15} /><span>{path.split("/").at(-1) || path}</span><span className="svg-editor-status">{busy ? t("panel.svgEditor.loading") : live ? t("panel.svgEditor.live") : t("panel.svgEditor.ready")}</span></div>
         <div className="svg-editor-actions">

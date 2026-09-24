@@ -405,7 +405,7 @@ export type PluginHostServices = {
     openExternal: () => void;
     snapshot: () => Promise<unknown>;
     screenshot: (
-      input?: { fullPage?: boolean },
+      input?: { fullPage?: boolean; path?: string },
       sessionId?: string,
     ) => Promise<unknown>;
     click: (target: { uid?: string; selector?: string }) => Promise<void>;
@@ -3964,7 +3964,7 @@ export class PluginRuntime {
       case "snapshot":
         return api.snapshot();
       case "screenshot":
-        return api.screenshot({ fullPage: payload?.fullPage === true });
+        return api.screenshot({ fullPage: payload?.fullPage === true, path: payload?.path != null ? String(payload.path) : undefined });
       case "click":
         await api.click({
           uid: payload?.uid != null ? String(payload.uid) : undefined,
@@ -5458,7 +5458,7 @@ export class PluginRuntime {
           }
           return this.services.browser.snapshot();
         },
-        screenshot: async (input?: { fullPage?: boolean }) => {
+        screenshot: async (input?: { fullPage?: boolean; path?: string }) => {
           this.assertPermission(loaded, "browser.cdp");
           if (!this.services.browser) {
             throw apiError("UNAVAILABLE", "browser host missing");

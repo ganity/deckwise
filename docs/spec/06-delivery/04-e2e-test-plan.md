@@ -93,6 +93,20 @@
   `apps/desktop/test/ppt-preview-lifecycle.test.mjs`; packaged Electron journey
   remains manual.
 
+### E2E-DECKWISE-SVG-SCREENSHOT: SVG capture is independent of preview size
+
+- **Preconditions:** A PPT Master project has an SVG slide with a local image.
+- **Steps:** Open the slide in the native SVG Editor in a narrow work panel and
+  call Browser screenshot; close the editor and call Browser screenshot with
+  the slide's workspace-relative SVG `path`; then use an invalid SVG path while
+  a browser page is open.
+- **Expected:** Both SVG captures return a 1920-pixel-wide PNG including the
+  local image, without flashing or resizing the window. The invalid SVG path
+  falls back to the existing CDP/native browser screenshot chain. A symlink or
+  image reference outside the session workspace is rejected for SVG capture.
+- **Status:** Priority, path containment, and fallback are unit-covered by
+  `apps/desktop/test/svg-screenshot.test.mjs`; visual Electron check pending.
+
 ### E2E-DECKWISE-MAIC-IMPORT: Completed PPTX creates an education import task
 
 - **Preconditions:** The user is authenticated with an education account; the

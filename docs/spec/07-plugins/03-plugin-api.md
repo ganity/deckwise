@@ -591,7 +591,7 @@ pi.browser.setVisible(visible: boolean | { visible: boolean }): Promise<void>
 pi.browser.getState(): Promise<BrowserState | null>
 pi.browser.openExternal(): Promise<void>
 pi.browser.snapshot(): Promise<{ tree: string; url: string; title: string }>
-pi.browser.screenshot(input?: { fullPage?: boolean }): Promise<{ mimeType: string; data: string; path?: string }>
+pi.browser.screenshot(input?: { fullPage?: boolean; path?: string }): Promise<{ mimeType: string; data: string; path?: string }>
 pi.browser.click(input: { uid?: string; selector?: string }): Promise<void>
 pi.browser.fill(input: { uid?: string; selector?: string; text: string }): Promise<void>
 pi.browser.evaluate(input: { expression: string }): Promise<unknown>
@@ -599,12 +599,13 @@ pi.browser.console(input?: { limit?: number }): Promise<{ messages: unknown[] }>
 pi.browser.cdp(input: { method: string; params?: unknown }): Promise<unknown>
 ```
 
-Viewport screenshots use Electron's native capture from the host-owned browser
-`WebContents`. The Browser work-panel surface may be temporarily hidden or
-detached while the page remains loaded; capture temporarily attaches the guest
-without displaying it. Full-page screenshots use CDP and fall back to a
-viewport capture if CDP times out. A missing or destroyed browser guest is
-still reported as unavailable.
+Screenshot first renders the active native SVG editor page at 1920 pixels wide,
+independently of work-panel size. Supplying a workspace-relative SVG `path`
+renders that file even when its preview is closed. SVG paths and local image
+references must stay inside the session workspace. If SVG capture is unavailable
+or fails, the host falls back to CDP screenshot and then Electron's native
+browser capture. A missing browser guest is reported as unavailable only after
+the SVG path has failed or is inapplicable.
 
 The guest page is a host-owned `WebContentsView` (`persist:work-browser`).
 `setBounds` is content-relative to the calling plugin view and is clamped so

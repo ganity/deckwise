@@ -75,7 +75,7 @@ test("CDP allowlist denies cookies, storage, and target methods", () => {
 
 test("normal screenshots use CDP before native capture fallback", () => {
   assert.match(hostSource, /const wc = this\.requireWebContents\(\);/);
-  assert.match(hostSource, /const shot = await this\.cdp\.screenshot\(wc, input, \(\) => this\.pane\.capturePage\(\)\);/);
+  assert.match(hostSource, /shot = await this\.cdp\.screenshot\(wc, input, \(\) => this\.pane\.capturePage\(\)\);/);
   assert.match(hostSource, /const wc = await this\.waitForWebContents\(\);/);
   assert.doesNotMatch(hostSource, /this\.pane\.isCaptureReady\(\)/);
   assert.doesNotMatch(hostSource, /browser preview is not visible yet/);

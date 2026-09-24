@@ -1130,7 +1130,7 @@ export type PluginHostApi = {
     getState: () => Promise<unknown>;
     openExternal: () => Promise<void>;
     snapshot: () => Promise<{ tree: string; url: string; title: string }>;
-    screenshot: (input?: { fullPage?: boolean }) => Promise<{
+    screenshot: (input?: { fullPage?: boolean; path?: string }) => Promise<{
       mimeType: string;
       data: string;
       path?: string;
