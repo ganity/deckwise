@@ -27,7 +27,7 @@ export async function onLoad() {
   await pi.agent.registerTool({
     name: "Browser",
     description:
-      "Drive DeckWise's work-panel browser via CDP: navigate to a page before screenshotting or inspecting it; snapshot the accessibility tree; click/fill by a snapshot uid (eN) or an explicit CSS selector; screenshot, evaluate JavaScript, read console output, or send an allowlisted raw CDP method. Uids expire as soon as navigation starts, so take a fresh snapshot before reusing them. For pages that submit and close themselves, use a standalone click action (prefer a CSS selector) and verify the result outside the closed page; do not await follow-up work inside the same evaluate call. Call ToolSearch for \"browser\" or \"cdp\" to load this tool. Use BrowserPreview to open a workspace HTML file with live reload.",
+      "Drive DeckWise's work-panel browser via CDP: navigate to a page before screenshotting or inspecting it; snapshot the accessibility tree; click/fill by a snapshot uid (eN) or an explicit CSS selector; screenshot, evaluate JavaScript, read console output, or send an allowlisted raw CDP method. Screenshot captures an open SVG editor page directly at high resolution, or pass path to capture a workspace SVG without opening its preview; other pages use CDP and native fallback. Uids expire as soon as navigation starts, so take a fresh snapshot before reusing them. For pages that submit and close themselves, use a standalone click action (prefer a CSS selector) and verify the result outside the closed page; do not await follow-up work inside the same evaluate call. Call ToolSearch for \"browser\" or \"cdp\" to load this tool. Use BrowserPreview to open a workspace HTML file with live reload.",
     risk: "medium",
     planSafeActions: PLAN_SAFE_ACTIONS,
     schema: {
@@ -41,7 +41,7 @@ export async function onLoad() {
         url: { type: "string", description: "http(s) URL for action=navigate." },
         path: {
           type: "string",
-          description: "Workspace-relative HTML file for action=navigate.",
+          description: "Workspace-relative HTML file for navigate, or SVG file for screenshot. SVG screenshot works without an open preview.",
         },
         uid: {
           type: "string",
@@ -87,6 +87,7 @@ export async function onLoad() {
         case "screenshot": {
           const shot = await pi.browser.screenshot({
             fullPage: args?.fullPage === true,
+            path: args?.path ? String(args.path) : undefined,
           });
           return {
             ok: true,

@@ -536,6 +536,7 @@ export function createPluginServices({
   pluginPanels.addSenderResolver((senderId) => pluginSettingsViews.pluginIdForSender(senderId));
   const browserHost = new BrowserHost({
     pane: browserPane,
+    getMainWindow,
     isPluginLoaded: (pluginId) => Boolean(plugins.getLoaded(pluginId)),
     getFileRoot: async (sessionId) => {
       if (sessionId) {
