@@ -1,5 +1,4 @@
 import { readFile } from "node:fs/promises";
-import { modelIdsMatch } from "@pi-desktop/shared";
 import type {
   ModelCost,
   ModelCostTier,
@@ -514,6 +513,57 @@ const MODEL_VENDOR_PREFIXES = new Set([
   "xai",
 ]);
 
+const CATALOG_VARIANT_SUFFIX = /[-:](?:thinking|think|agent|latest)$/;
+
+function stripCatalogVariant(value: string): string {
+  let previous: string;
+  do {
+    previous = value;
+    value = value.replace(CATALOG_VARIANT_SUFFIX, "");
+  } while (value !== previous);
+  return value;
+}
+
+function catalogVendor(value: string): string | undefined {
+  const parts = value.split("/");
+  const vendor = parts.find((part) => MODEL_VENDOR_PREFIXES.has(part)) ??
+    [...MODEL_VENDOR_PREFIXES].find((prefix) =>
+      parts.at(-1)?.startsWith(`${prefix}-`) || parts.at(-1)?.startsWith(`${prefix}.`),
+    );
+  if (vendor === "deepseek-ai") return "deepseek";
+  if (vendor === "gemini") return "google";
+  if (vendor === "x-ai") return "xai";
+  if (vendor === "z-ai" || vendor === "zhipuai") return "zai";
+  if (vendor === "moonshotai") return "moonshot";
+  if (vendor === "aws") return "amazon";
+  return vendor;
+}
+
+/** Metadata aliases do not change the identity of saved model bindings. */
+function catalogModelIdsMatch(candidate: string, requested: string): boolean {
+  const left = normalizedModelId(candidate).split("@")[0];
+  const right = normalizedModelId(requested).split("@")[0];
+  if (!left || !right) return false;
+  const matches = (a: string, b: string): boolean => {
+    const leftVendor = catalogVendor(a);
+    const rightVendor = catalogVendor(b);
+    if (leftVendor && rightVendor && leftVendor !== rightVendor) return false;
+    if (a === b || a.endsWith(`/${b}`) || b.endsWith(`/${a}`)) return true;
+    for (const separator of ["-", "."] as const) {
+      for (const vendor of MODEL_VENDOR_PREFIXES) {
+        if (a === `${vendor}${separator}${b}` || b === `${vendor}${separator}${a}`) return true;
+      }
+    }
+    return a.includes("/") !== b.includes("/") &&
+      a.slice(a.lastIndexOf("/") + 1) === b.slice(b.lastIndexOf("/") + 1);
+  };
+  if (matches(left, right)) return true;
+  const strippedLeft = stripCatalogVariant(left);
+  const strippedRight = stripCatalogVariant(right);
+  return (strippedLeft !== left || strippedRight !== right) &&
+    matches(strippedLeft, strippedRight);
+}
+
 function modelVendorPrefixes(model: ModelsDevModel): string[] {
   const prefixes = new Set<string>();
   const add = (value: unknown) => {
@@ -803,24 +853,37 @@ class ModelsDevLookupIndex {
   }
 
   candidates(requested: string): readonly IndexedModel[] {
-    return this.byModelId.get(requested) ?? EMPTY_CANDIDATES;
+    const result: IndexedModel[] = [];
+    const seen = new Set<IndexedModel>();
+    for (const key of registrationKeys(requested)) {
+      for (const entry of this.byModelId.get(key) ?? EMPTY_CANDIDATES) {
+        if (seen.has(entry)) continue;
+        seen.add(entry);
+        result.push(entry);
+      }
+    }
+    return result;
   }
 }
 
-/** The normalized id, the `@region`-less base, and every vendor-prefixed form
- * `modelIdsMatch` treats as equivalent, so a query finds all matching catalog
- * models through the index without a full scan. */
+/** Candidate aliases are bounded by catalog IDs; the matcher checks identity. */
 function registrationKeys(modelId: string): string[] {
   const keys = new Set<string>();
-  const raw = modelId.trim();
-  keys.add(normalizedModelId(raw));
-  const at = raw.indexOf("@");
-  if (at > 0) keys.add(normalizedModelId(raw.slice(0, at)));
-  for (const separator of ["/", "-", "."] as const) {
-    for (const prefix of MODEL_VENDOR_PREFIXES) {
-      const head = `${prefix}${separator}`;
-      if (raw.startsWith(head) && raw.length > head.length) {
-        keys.add(normalizedModelId(raw.slice(head.length)));
+  const raw = normalizedModelId(modelId);
+  const base = raw.split("@")[0];
+  for (const value of new Set([raw, base, stripCatalogVariant(base)])) {
+    if (!value) continue;
+    keys.add(value);
+    const leaf = value.slice(value.lastIndexOf("/") + 1);
+    keys.add(leaf);
+    for (const candidate of [value, leaf]) {
+      for (const separator of ["-", "."] as const) {
+        for (const prefix of MODEL_VENDOR_PREFIXES) {
+          const head = `${prefix}${separator}`;
+          if (candidate.startsWith(head) && candidate.length > head.length) {
+            keys.add(candidate.slice(head.length));
+          }
+        }
       }
     }
   }
@@ -982,7 +1045,8 @@ export class ModelsDevCatalog {
     }
     const candidates: Array<{ model: ModelsDevModel; score: number }> = [];
     for (const { model, provider } of [...preferred, ...rest]) {
-      if (!modelIdsMatch(model.modelId, requested)) continue;
+      if (preferredProvider && provider !== preferredProvider) continue;
+      if (!catalogModelIdsMatch(model.modelId, requested)) continue;
       let score = model.modelId.toLowerCase() === requested ? 20 : 10;
       if (provider === preferredProvider) score += 100;
       if (apiMatches(input.baseUrl, provider.api)) score += 80;

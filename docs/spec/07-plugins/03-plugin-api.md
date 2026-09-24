@@ -599,6 +599,13 @@ pi.browser.console(input?: { limit?: number }): Promise<{ messages: unknown[] }>
 pi.browser.cdp(input: { method: string; params?: unknown }): Promise<unknown>
 ```
 
+Viewport screenshots use Electron's native capture from the host-owned browser
+`WebContents`. The Browser work-panel surface may be temporarily hidden or
+detached while the page remains loaded; capture temporarily attaches the guest
+without displaying it. Full-page screenshots use CDP and fall back to a
+viewport capture if CDP times out. A missing or destroyed browser guest is
+still reported as unavailable.
+
 The guest page is a host-owned `WebContentsView` (`persist:work-browser`).
 `setBounds` is content-relative to the calling plugin view and is clamped so
 the guest cannot cover chat/composer. `cdp` is deny-by-default; cookie,

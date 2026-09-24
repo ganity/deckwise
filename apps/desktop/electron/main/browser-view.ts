@@ -85,6 +85,10 @@ export class BrowserPane {
   private watcher: FSWatcher | null = null;
   private watchedDir: string | null = null;
   private reloadTimer: NodeJS.Timeout | null = null;
+  private navigationEpoch = 0;
+  private stateEventsEpoch: number | null = null;
+  private stateUrl: string | null = null;
+  private nativeNavigationPending = false;
 
   constructor(onState: (state: BrowserState) => void) {
     this.onState = onState;
@@ -114,6 +118,13 @@ export class BrowserPane {
     return wc;
   }
 
+  invalidateNavigation(): void {
+    this.navigationEpoch += 1;
+    this.stateEventsEpoch = null;
+    this.stateUrl = null;
+    this.nativeNavigationPending = false;
+  }
+
   isCaptureReady(): boolean {
     const view = this.view;
     const window = this.window;
@@ -132,33 +143,80 @@ export class BrowserPane {
   }
 
   async capturePage() {
-    if (!this.isCaptureReady()) {
+    const view = this.view;
+    const window = this.window;
+    const wc = view?.webContents;
+    if (!window || window.isDestroyed() || !view || !wc || wc.isDestroyed()) {
       throw Object.assign(new Error("browser preview is not visible yet"), {
         code: "UNAVAILABLE",
       });
     }
-    return this.view!.webContents.capturePage();
+    const wasAttached = window.contentView.children.includes(view);
+    const hadBounds = this.bounds.width > 0 && this.bounds.height > 0;
+    const originalVisible = this.visible;
+    if (!wasAttached) {
+      this.attach();
+    }
+    const captureBounds = hadBounds
+      ? this.bounds
+      : {
+          x: 0,
+          y: 0,
+          width: Math.max(1, window.getContentBounds().width),
+          height: Math.max(1, window.getContentBounds().height),
+        };
+    if (!hadBounds) {
+      view.setBounds(captureBounds);
+    }
+    // Chromium creates a capture surface only after an attached view has been
+    // visible at least once. Keep it visible until capture completes so the
+    // compositor cannot discard the newly-created surface.
+    view.setVisible(true);
+    try {
+      // A newly attached view may not have a composited frame yet.
+      let lastError: unknown;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0 || !wasAttached || !hadBounds) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        try {
+          const image = await wc.capturePage(undefined, { stayHidden: true, stayAwake: true });
+          if (!image.isEmpty()) return image;
+          lastError = new Error("screenshot produced no data");
+        } catch (error) {
+          if (!(error instanceof Error) || error.message !== "UnknownVizError") throw error;
+          lastError = error;
+        }
+      }
+      throw lastError instanceof Error ? lastError : new Error("screenshot produced no data");
+    } finally {
+      if (!wasAttached) this.detach();
+      if (!hadBounds && !view.webContents.isDestroyed()) view.setBounds(this.bounds);
+      if (!view.webContents.isDestroyed()) view.setVisible(originalVisible);
+    }
   }
 
   navigate(raw: string, fileRoot: string | null = null): BrowserState | null {
     if (fileRoot) this.fileRoot = fileRoot;
     const localPath = resolveLocalFile(raw, this.fileRoot);
     if (localPath) {
+      const epoch = this.beginManagedNavigation();
       const view = this.ensureView();
       this.watchDirForReload(dirname(localPath));
-      void view.webContents.loadURL(pathToFileURL(localPath).toString()).catch(() => {
-        // Navigation failures surface through did-fail-load → state push.
-      });
+      void view.webContents.loadURL(pathToFileURL(localPath).toString())
+        .then(() => this.completeManagedNavigation(epoch))
+        .catch(() => undefined);
       if (this.visible) this.attach();
       return this.getState();
     }
     const url = normalizeUrl(raw);
     if (!url) return this.getState();
+    const epoch = this.beginManagedNavigation();
     this.clearLiveReload();
     const view = this.ensureView();
-    void view.webContents.loadURL(url).catch(() => {
-      // Navigation failures surface through did-fail-load → state push.
-    });
+    void view.webContents.loadURL(url)
+      .then(() => this.completeManagedNavigation(epoch))
+      .catch(() => undefined);
     if (this.visible) this.attach();
     return this.getState();
   }
@@ -173,32 +231,42 @@ export class BrowserPane {
     const target = localPath
       ? pathToFileURL(localPath).toString()
       : normalizeUrl(raw);
-    if (!target) return this.getState();
+    if (!target) return null;
+    const epoch = this.beginManagedNavigation();
     if (localPath) this.watchDirForReload(dirname(localPath));
     else this.clearLiveReload();
     const view = this.ensureView();
     if (this.visible) this.attach();
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      await Promise.race([
-        view.webContents.loadURL(target),
-        new Promise<void>((resolve) => {
-          setTimeout(resolve, Math.max(1, timeoutMs));
+      const completed = await Promise.race([
+        view.webContents.loadURL(target).then(() => true),
+        new Promise<false>((resolve) => {
+          timer = setTimeout(() => resolve(false), Math.max(1, timeoutMs));
         }),
       ]);
+      if (!completed || epoch !== this.navigationEpoch) return null;
+      const state = this.getState();
+      if (state) this.enableStateEvents(epoch, state.url);
+      return state;
     } catch {
-      // Load failures surface through did-fail-load → state push.
+      return null;
+    } finally {
+      if (timer) clearTimeout(timer);
     }
-    return this.getState();
   }
 
   action(action: "back" | "forward" | "reload" | "stop"): void {
     const wc = this.view?.webContents;
     if (!wc || wc.isDestroyed()) return;
     if (action === "back" && wc.navigationHistory.canGoBack()) {
+      this.nativeNavigationPending = this.hasCurrentStateEventScope();
       wc.navigationHistory.goBack();
     } else if (action === "forward" && wc.navigationHistory.canGoForward()) {
+      this.nativeNavigationPending = this.hasCurrentStateEventScope();
       wc.navigationHistory.goForward();
     } else if (action === "reload") {
+      this.nativeNavigationPending = this.hasCurrentStateEventScope();
       wc.reload();
     } else if (action === "stop") {
       wc.stop();
@@ -241,6 +309,7 @@ export class BrowserPane {
   }
 
   dispose(): void {
+    this.invalidateNavigation();
     this.clearLiveReload();
     this.detach();
     if (this.view) {
@@ -315,7 +384,9 @@ export class BrowserPane {
   }
 
   private ensureView(): WebContentsView {
-    if (this.view && !this.view.webContents.isDestroyed()) return this.view;
+    if (this.view?.webContents && !this.view.webContents.isDestroyed()) return this.view;
+    if (this.view) this.detach();
+    this.view = null;
     const view = new WebContentsView({
       webPreferences: {
         sandbox: true,
@@ -334,13 +405,20 @@ export class BrowserPane {
       callback(false);
     });
     wc.on("will-navigate", (event, url) => {
-      if (isAllowedHttpUrl(url)) return;
+      if (isAllowedHttpUrl(url)) {
+        this.nativeNavigationPending = this.hasCurrentStateEventScope();
+        return;
+      }
       // Relative links inside a previewed page may point at sibling files;
       // anything escaping the workspace root stays blocked.
-      if (/^file:/i.test(url) && this.isAllowedFileUrl(url)) return;
+      if (/^file:/i.test(url) && this.isAllowedFileUrl(url)) {
+        this.nativeNavigationPending = this.hasCurrentStateEventScope();
+        return;
+      }
       event.preventDefault();
     });
     wc.on("did-navigate", (_event, url) => {
+      if (!this.acceptNativeNavigation(url)) return;
       if (!/^file:/i.test(url)) return;
       try {
         this.watchDirForReload(dirname(fileURLToPath(url)));
@@ -349,16 +427,67 @@ export class BrowserPane {
       }
     });
     const push = () => {
+      if (!this.hasCurrentStateEventScope() || this.stateUrl !== wc.getURL()) return;
       const state = this.getState();
       if (state) this.onState(state);
     };
     wc.on("did-start-loading", push);
     wc.on("did-stop-loading", push);
-    wc.on("did-navigate", push);
-    wc.on("did-navigate-in-page", push);
+    wc.on("did-navigate", (_event, url) => {
+      if (this.acceptNativeNavigation(url)) push();
+    });
+    wc.on("did-navigate-in-page", (_event, url, isMainFrame, processId, routingId) => {
+      if (
+        !isMainFrame || !this.hasCurrentStateEventScope() || url !== wc.getURL() ||
+        processId !== wc.mainFrame.processId || routingId !== wc.mainFrame.routingId
+      ) return;
+      this.enableStateEvents(this.navigationEpoch, url);
+      push();
+    });
     wc.on("page-title-updated", push);
-    wc.on("did-fail-load", push);
+    wc.on("did-fail-load", (_event, _errorCode, _errorDescription, url, isMainFrame) => {
+      if (isMainFrame !== false && this.acceptNativeNavigation(url)) push();
+    });
     this.view = view;
     return view;
+  }
+
+  private beginManagedNavigation(): number {
+    const epoch = ++this.navigationEpoch;
+    this.stateEventsEpoch = null;
+    this.stateUrl = null;
+    this.nativeNavigationPending = false;
+    return epoch;
+  }
+
+  private enableStateEvents(epoch: number, url: string): void {
+    if (epoch !== this.navigationEpoch) return;
+    this.stateEventsEpoch = epoch;
+    this.stateUrl = url;
+    this.nativeNavigationPending = false;
+  }
+
+  private completeManagedNavigation(epoch: number): void {
+    if (epoch !== this.navigationEpoch) return;
+    const state = this.getState();
+    if (!state) return;
+    this.enableStateEvents(epoch, state.url);
+    this.onState(state);
+  }
+
+  private hasCurrentStateEventScope(): boolean {
+    return this.stateEventsEpoch === this.navigationEpoch && this.stateUrl !== null;
+  }
+
+  private acceptNativeNavigation(url: string): boolean {
+    if (!this.hasCurrentStateEventScope()) return false;
+    if (url === this.stateUrl) {
+      this.nativeNavigationPending = false;
+      return true;
+    }
+    if (!this.nativeNavigationPending) return false;
+    this.stateUrl = url;
+    this.nativeNavigationPending = false;
+    return true;
   }
 }

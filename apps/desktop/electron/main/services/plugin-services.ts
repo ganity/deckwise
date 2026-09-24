@@ -559,6 +559,8 @@ export function createPluginServices({
       return join(root, "scratch", sessionId);
     },
     onState: emitBrowserState,
+    log: (level, event, data) =>
+      logger.app("plugin", level, event, { data }),
   });
   pluginViews.onSurface = (surface) => {
     browserHost.setChromeSurface(surface);

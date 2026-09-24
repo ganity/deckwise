@@ -1112,6 +1112,11 @@ sweep promotes a leftover checkpoint whose final row never landed: as
 checkpoint. A user Stop does not touch the checkpoint, because the runtime's
 own aborted final row is still on its way and removes it on arrival.
 Electron handshake awaits the outbox drain before a cold `session.get`.
+If the outbox remains full after a flush attempt, enqueue reports an error
+instead of acknowledging an unsaved message. A replay with a stale or
+cross-session turn reference retains the message without that reference;
+if its JSONL line predates its index row, replay repairs the index without
+appending a duplicate line.
 Renderer-side Stop never rewrites a transcript that has a
 started reply (spec 01 §5.3); its only rewrite is the undo of an unanswered
 prompt, computed from the full durable transcript merged with the live rows.

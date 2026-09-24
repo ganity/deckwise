@@ -209,6 +209,36 @@ test("model IDs match provider namespaces without matching model variants", () =
   assert.equal(modelIdsMatch("claude-opus-5-fast", "claude-opus-5"), false);
 });
 
+test("catalog metadata follows proxy paths and thinking aliases without merging bindings", async (t) => {
+  const catalog = await loadFixtureCatalog(t);
+  for (const modelId of [
+    "proxy/claude-opus-4.6",
+    "proxy/claude-opus-4.6-thinking",
+    "claude-opus-4.6:thinking",
+    "claude-opus-4.6-agent",
+  ]) {
+    assert.equal(catalog.findModel({ vendorKey: "custom", modelId })?.modelId, "claude-opus-4.6");
+  }
+  assert.equal(catalog.findModel({ vendorKey: "custom", modelId: "myproxy-claude-opus-4.6" }), undefined);
+  assert.equal(modelIdsMatch("claude-opus-4.6", "claude-opus-4.6-thinking"), false);
+});
+
+test("catalog aliases stay scoped to a known provider endpoint", async (t) => {
+  const catalog = await loadFixtureCatalog(t, {
+    alpha: { api: "https://alpha.example/v1", models: { "shared-model": { id: "shared-model" } } },
+    beta: { api: "https://beta.example/v1", models: { "shared-model": { id: "shared-model" } } },
+  });
+  assert.equal(catalog.findModel({ baseUrl: "https://alpha.example/v1", modelId: "proxy/shared-model-thinking" })?.providerKey, "alpha");
+  assert.equal(catalog.findModel({ baseUrl: "https://beta.example/v1", modelId: "proxy/shared-model-thinking" })?.providerKey, "beta");
+});
+
+test("catalog metadata does not merge two routed model paths", async (t) => {
+  const catalog = await loadFixtureCatalog(t, {
+    gateway: { models: { "gateway-a/foo": { id: "gateway-a/foo" } } },
+  });
+  assert.equal(catalog.findModel({ modelId: "gateway-b/foo" }), undefined);
+});
+
 test("models.dev records retain all published model parameters and modalities", () => {
   const [provider] = parseModelsDevCatalog(catalogFixture);
   assert.equal(provider.providerKey, "anthropic");

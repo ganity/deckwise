@@ -415,6 +415,9 @@ manual token entry. The enrichment lookup is:
    from `bindingForCustomModel`.
 3. The lookup does not send API keys to models.dev. Runtime model resolution
    uses the same models.dev record and the selected pi-ai transport adapter.
+   Metadata lookup accepts exact proxy paths and narrow `-thinking`, `-agent`
+   and `-latest` variants, scoped to the matched provider endpoint. Configured
+   model ID identity remains strict; these aliases do not merge saved bindings.
 
 ## 12. Refresh strategy
 

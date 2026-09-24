@@ -1743,6 +1743,9 @@ pub fn append_message(
     let message = crate::session_collaboration::prepare_append(db, session_id, message, turn_id)?;
     let session_created = ensure_session_for_append(db, session_id)?;
     let (mut record, text) = ui_to_record(&message);
+    let had_turn_reference = turn_id.is_some();
+    let turn_id = valid_turn_reference(db, session_id, turn_id)?;
+    let stale_turn_reference = had_turn_reference && turn_id.is_none();
     // Electron may replay an outbox entry after a host restart. Message ids
     // are globally unique, so an existing row in this session is already the
     // durable result. Provider toolCallIds are not globally unique: a collision
@@ -1784,14 +1787,18 @@ pub fn append_message(
                 return Ok(());
             }
         }
-        append_record(
-            db,
-            session_id,
-            &session_created,
-            &record,
-            text.as_deref(),
-            turn_id,
-        )?;
+        let transcript_repaired =
+            stale_turn_reference && repair_unindexed_transcript_message(db, session_id, &record)?;
+        if !transcript_repaired {
+            append_record(
+                db,
+                session_id,
+                &session_created,
+                &record,
+                text.as_deref(),
+                turn_id.as_deref(),
+            )?;
+        }
     }
     if message.role == "assistant" && message.status.as_deref() == Some("streaming") {
         // Even an empty reservation needs a checkpoint so a crash can settle
@@ -1806,7 +1813,7 @@ pub fn append_message(
                 &transcripts::InflightRecord {
                     schema: transcripts::INFLIGHT_SCHEMA,
                     session_id: session_id.to_string(),
-                    turn_id: turn_id.map(str::to_string),
+                    turn_id: turn_id.clone(),
                     saved_at: ms_to_ts(now_ms()),
                     message: record,
                 },
@@ -1861,6 +1868,113 @@ fn transcript_contains_id(db: &Database, session_id: &str, message_id: &str) -> 
     Ok(transcripts::read_transcript(db.data_dir(), session_id)?
         .iter()
         .any(|record| record.id == message_id))
+}
+
+fn valid_turn_reference(
+    db: &Database,
+    session_id: &str,
+    turn_id: Option<&str>,
+) -> Result<Option<String>> {
+    let Some(turn_id) = turn_id else {
+        return Ok(None);
+    };
+    let owner: Option<String> = db
+        .conn()
+        .query_row(
+            "SELECT session_id FROM turns WHERE id = ?1",
+            params![turn_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    if owner.as_deref() == Some(session_id) {
+        return Ok(Some(turn_id.to_string()));
+    }
+    tracing::warn!(
+        %session_id,
+        %turn_id,
+        turn_session_id = owner.as_deref().unwrap_or("(missing)"),
+        "omitting invalid turn reference from transcript message"
+    );
+    Ok(None)
+}
+
+fn repair_unindexed_transcript_message(
+    db: &Database,
+    session_id: &str,
+    record: &MessageRecord,
+) -> Result<bool> {
+    let mut records = dedupe_records(transcripts::read_transcript(db.data_dir(), session_id)?);
+    let Some(position) = records.iter().position(|existing| existing.id == record.id) else {
+        return Ok(false);
+    };
+    if !transcripts::update_message(db.data_dir(), session_id, record)? {
+        return Ok(false);
+    }
+    records[position] = record.clone();
+    invalidate_transcript_layout(session_id);
+    rebuild_session_message_index(db, session_id, &records)?;
+    tracing::warn!(
+        %session_id,
+        message_id = %record.id,
+        "reconciled transcript message after an unindexed outbox replay"
+    );
+    Ok(true)
+}
+
+fn rebuild_session_message_index(
+    db: &Database,
+    session_id: &str,
+    records: &[MessageRecord],
+) -> Result<()> {
+    let existing_turns: std::collections::HashMap<String, String> = {
+        let mut stmt = db.conn().prepare_cached(
+            "SELECT m.id, m.turn_id, t.session_id
+             FROM messages m JOIN turns t ON t.id = m.turn_id
+             WHERE m.session_id = ?1 AND m.turn_id IS NOT NULL",
+        )?;
+        let rows = stmt.query_map(params![session_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        })?;
+        let mut turns = std::collections::HashMap::new();
+        for row in rows {
+            let (message_id, turn_id, turn_session_id) = row?;
+            if turn_session_id == session_id {
+                turns.insert(message_id, turn_id);
+            }
+        }
+        turns
+    };
+    let last_seq = i64::try_from(records.len())
+        .map_err(|_| anyhow!("transcript has too many messages to index"))?;
+    let conn = db.conn();
+    let tx = conn.unchecked_transaction()?;
+    tx.prepare_cached("DELETE FROM messages WHERE session_id = ?1")?
+        .execute(params![session_id])?;
+    for (seq, record) in records.iter().enumerate() {
+        let seq =
+            i64::try_from(seq).map_err(|_| anyhow!("transcript has too many messages to index"))?;
+        let text = record_index_text(record);
+        insert_index_row(
+            &tx,
+            session_id,
+            seq,
+            existing_turns.get(&record.id).map(String::as_str),
+            record,
+            text.as_deref(),
+        )?;
+    }
+    let changed = tx
+        .prepare_cached("UPDATE sessions SET last_seq = ?1, updated_at = ?2 WHERE id = ?3")?
+        .execute(params![last_seq, now_ms(), session_id])?;
+    if changed == 0 {
+        return Err(anyhow!("session not found while rebuilding message index"));
+    }
+    tx.commit()?;
+    Ok(())
 }
 
 fn streaming_assistant_indexed(db: &Database, session_id: &str, message_id: &str) -> Result<bool> {
@@ -4066,6 +4180,86 @@ mod tests {
                 .messages
                 .len(),
             1
+        );
+    }
+
+    #[test]
+    fn append_message_keeps_content_when_turn_is_missing_or_owned_by_another_session() {
+        let db = test_db();
+        let source = create_session(&db, None, None, None, None, None).unwrap();
+        let target = create_session(&db, None, None, None, None, None).unwrap();
+        let source_turn = begin_turn(&db, &source.id, None, None).unwrap();
+        let missing = user_msg("missing-turn", "kept", "2026-07-28T00:00:00Z");
+        let cross_session = user_msg("cross-session", "also kept", "2026-07-28T00:00:01Z");
+
+        append_message(&db, &target.id, &missing, Some("deleted-turn")).unwrap();
+        append_message(&db, &target.id, &cross_session, Some(&source_turn)).unwrap();
+
+        let links: Vec<(String, Option<String>)> = db
+            .conn()
+            .prepare("SELECT id, turn_id FROM messages WHERE session_id = ?1 ORDER BY seq")
+            .unwrap()
+            .query_map(params![target.id], |row| Ok((row.get(0)?, row.get(1)?)))
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap();
+        assert_eq!(links, vec![(missing.id, None), (cross_session.id, None)]);
+        assert_eq!(
+            get_session(&db, &target.id)
+                .unwrap()
+                .unwrap()
+                .messages
+                .len(),
+            2
+        );
+    }
+
+    #[test]
+    fn replay_repairs_unindexed_transcript_line_without_appending_a_duplicate() {
+        let db = test_db();
+        let session = create_session(&db, None, None, None, None, None).unwrap();
+        let turn_id = begin_turn(&db, &session.id, None, None).unwrap();
+        let before = user_msg("before", "before", "2026-07-28T00:00:00Z");
+        let old = user_msg("replay", "old", "2026-07-28T00:00:01Z");
+        let replay = user_msg("replay", "latest", "2026-07-28T00:00:01Z");
+        let after = user_msg("after", "after", "2026-07-28T00:00:02Z");
+        append_message(&db, &session.id, &before, Some(&turn_id)).unwrap();
+        let (record, _) = ui_to_record(&old);
+        transcripts::append_message(db.data_dir(), &session.id, &session.created_at, &record)
+            .unwrap();
+        append_message(&db, &session.id, &after, Some(&turn_id)).unwrap();
+
+        append_message(&db, &session.id, &replay, Some("deleted-turn")).unwrap();
+
+        let rows: Vec<(String, i64, Option<String>)> = db
+            .conn()
+            .prepare("SELECT id, seq, turn_id FROM messages WHERE session_id = ?1 ORDER BY seq")
+            .unwrap()
+            .query_map(params![session.id], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+            })
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap();
+        assert_eq!(
+            rows,
+            vec![
+                (before.id, 0, Some(turn_id.clone())),
+                (replay.id.clone(), 1, None),
+                (after.id, 2, Some(turn_id)),
+            ]
+        );
+        assert_eq!(
+            transcripts::read_transcript(db.data_dir(), &session.id)
+                .unwrap()
+                .iter()
+                .filter(|message| message.id == replay.id)
+                .count(),
+            1,
+        );
+        assert_eq!(
+            get_session(&db, &session.id).unwrap().unwrap().messages[1].content,
+            replay.content
         );
     }
 

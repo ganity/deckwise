@@ -106,6 +106,7 @@ export function createProviderCatalogRuntime({
         alias: "DeckWise AI",
         contextWindow: MANAGED_CONTEXT_WINDOW,
         maxTokens: MANAGED_MAX_TOKENS,
+        supportsImages: true,
         thinkingLevels: [...MANAGED_THINKING_LEVELS],
         defaultThinkingLevel: "off",
       },
@@ -138,6 +139,7 @@ export function createProviderCatalogRuntime({
             alias: id,
             contextWindow: MANAGED_CONTEXT_WINDOW,
             maxTokens: MANAGED_MAX_TOKENS,
+            supportsImages: true,
             thinkingLevels: [...MANAGED_THINKING_LEVELS],
             defaultThinkingLevel: "off",
           }];

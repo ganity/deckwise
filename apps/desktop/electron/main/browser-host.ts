@@ -1,6 +1,6 @@
 import type { BrowserState } from "@pi-desktop/shared";
 import type { BrowserPane } from "./browser-view";
-import { BrowserCdp, type BrowserElementTarget } from "./browser-cdp";
+import { BrowserCdp, type BrowserCdpLog, type BrowserElementTarget } from "./browser-cdp";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 
@@ -59,6 +59,7 @@ export type BrowserHostDeps = {
   getFileRoot: (sessionId?: string) => Promise<string | null>;
   getScratchDir?: (sessionId?: string) => string | null;
   onState: (state: BrowserState) => void;
+  log?: BrowserCdpLog;
 };
 
 type ChromeSurface = {
@@ -74,7 +75,7 @@ type ChromeSurface = {
  */
 export class BrowserHost {
   private readonly pane: BrowserPane;
-  private readonly cdp = new BrowserCdp();
+  private readonly cdp: BrowserCdp;
   private readonly deps: BrowserHostDeps;
   private chrome: ChromeSurface | null = null;
   private hole: BrowserRect | null = null;
@@ -82,10 +83,12 @@ export class BrowserHost {
   private readonly locations = new Map<string, string>();
   private chromeSessionId: string | null = null;
   private started = false;
+  private navigationEpoch = 0;
 
   constructor(deps: BrowserHostDeps) {
     this.deps = deps;
     this.pane = deps.pane;
+    this.cdp = new BrowserCdp(deps.log);
   }
 
   setChromeSurface(surface: ChromeSurface | null): void {
@@ -97,7 +100,15 @@ export class BrowserHost {
     const next = sessionId?.trim() || null;
     if (this.chromeSessionId === next) return;
     this.chromeSessionId = next;
-    if (next) void this.rebindSession(next);
+    this.navigationEpoch += 1;
+    this.pane.invalidateNavigation();
+    this.started = false;
+    this.pane.setVisible(false);
+    if (next) {
+      void this.rebindSession(next).catch((error) => {
+        console.warn("Browser preview session restore failed", error);
+      });
+    }
   }
 
   /**
@@ -145,10 +156,10 @@ export class BrowserHost {
       Boolean(this.chromeSessionId) &&
       sessionId !== this.chromeSessionId;
     if (background) return this.pane.getState();
-    const root = await this.deps.getFileRoot(sessionId ?? this.chromeSessionId ?? undefined);
-    this.started = true;
-    const state = await this.pane.navigateAndWait(target, root);
-    this.applyGuest();
+    const state = await this.navigateGuest(
+      target,
+      this.deps.getFileRoot(sessionId ?? this.chromeSessionId ?? undefined),
+    );
     if (state) this.deps.onState(state);
     return state;
   }
@@ -174,22 +185,11 @@ export class BrowserHost {
     input: { fullPage?: boolean } = {},
     sessionId?: string,
   ): Promise<{ mimeType: string; data: string; path?: string }> {
-    // The guest can be cached while its plugin tab is detached. Chromium
-    // waits forever when either CDP or capturePage is asked to rasterize such
-    // a zero-surface WebContents, so restore the current surface and fail fast
-    // if the renderer has not supplied a real visible hole yet.
-    this.applyGuest();
-    if (!this.pane.isCaptureReady()) {
-      throw Object.assign(new Error("browser preview is not visible yet"), {
-        code: "UNAVAILABLE",
-      });
-    }
-    const shot = input.fullPage
-      ? await this.cdp.screenshot(this.requireWebContents(), input)
-      : {
-          mimeType: "image/jpeg",
-          data: (await this.pane.capturePage()).toJPEG(70).toString("base64"),
-        };
+    // Screenshotting is a browser automation operation, not a requirement that
+    // the work-panel surface currently be visible. The panel can be transiently
+    // detached while its guest WebContents remains loaded and CDP-addressable.
+    const wc = await this.waitForWebContents();
+    const shot = await this.cdp.screenshot(wc, input, () => this.pane.capturePage());
     const scratch = this.deps.getScratchDir?.(sessionId ?? this.chromeSessionId ?? undefined);
     if (!scratch) return shot;
     try {
@@ -249,14 +249,13 @@ export class BrowserHost {
     const background =
       Boolean(this.chromeSessionId) && this.chromeSessionId !== sessionId;
     if (!background) {
-      this.started = true;
-      await this.pane.navigateAndWait(path, root);
-      this.applyGuest();
+      await this.navigateGuest(path, root);
     }
     return { ok: true };
   }
 
   disposeGuest(): void {
+    this.navigationEpoch += 1;
     this.cdp.detach(this.pane.getWebContents() ?? undefined);
     this.pane.dispose();
     this.started = false;
@@ -272,8 +271,7 @@ export class BrowserHost {
 
   private applyGuest(): void {
     const bounds = this.guestBounds();
-    const url = this.pane.getState()?.url;
-    if (!bounds || (!this.started && !url)) {
+    if (!bounds || !this.started) {
       this.pane.setVisible(false);
       return;
     }
@@ -284,10 +282,21 @@ export class BrowserHost {
   private async rebindSession(sessionId: string): Promise<void> {
     const location = this.locations.get(sessionId);
     if (!location) return;
-    const root = await this.deps.getFileRoot(sessionId);
-    this.started = true;
-    await this.pane.navigateAndWait(location, root);
+    await this.navigateGuest(location, this.deps.getFileRoot(sessionId));
+  }
+
+  private async navigateGuest(
+    target: string,
+    root: string | null | Promise<string | null>,
+  ): Promise<BrowserState | null> {
+    const epoch = ++this.navigationEpoch;
+    const fileRoot = await root;
+    if (epoch !== this.navigationEpoch) return null;
+    const state = await this.pane.navigateAndWait(target, fileRoot);
+    if (epoch !== this.navigationEpoch) return null;
+    if (state) this.started = true;
     this.applyGuest();
+    return state;
   }
 
   private requireWebContents() {
@@ -298,6 +307,16 @@ export class BrowserHost {
       });
     }
     return wc;
+  }
+
+  private async waitForWebContents(timeoutMs = 2_000) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const wc = this.pane.getWebContents();
+      if (wc && !wc.isDestroyed()) return wc;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    return this.requireWebContents();
   }
 
   private elementTarget(target: string | BrowserElementTarget): BrowserElementTarget {

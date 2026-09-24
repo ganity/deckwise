@@ -14,6 +14,7 @@ import type { HostProcess } from "../host-process";
 import type { Logger } from "../logger";
 import type { PluginRuntime } from "../plugin-runtime";
 import type { PluginViewHost } from "../plugin-view-host";
+import { recoverRendererAfterGone } from "../renderer-recovery";
 import {
   baseWindowBounds,
   clampBoundsOriginToWorkArea,
@@ -445,12 +446,30 @@ export async function createWindow({
     void safeOpenExternal(url).catch(() => undefined);
     return { action: "deny" };
   });
+  let windowCloseAccepted = false;
   window.webContents.on("did-start-loading", () => {
     windowState.notificationViewingSessionId = null;
     if (windowState.mainWindow === window) resetMenuRendererReady(window);
   });
-  window.webContents.on("render-process-gone", () => {
+  window.webContents.on("render-process-gone", (_event, details) => {
     windowState.notificationViewingSessionId = null;
+    recoverRendererAfterGone(details, {
+      isCurrentWindow: windowState.mainWindow === window,
+      quitting: windowState.quitting,
+      windowCloseAccepted,
+      windowDestroyed: window.isDestroyed(),
+      webContentsDestroyed: window.webContents.isDestroyed(),
+      reload: () => window.webContents.reload(),
+      log: (rendererDetails, reloaded) => logger.app(
+        "diagnostics",
+        rendererDetails.reason === "clean-exit" ? "info" : "warn",
+        "renderer process exited",
+        {
+          event: "rendererProcessGone",
+          data: { reason: rendererDetails.reason, exitCode: rendererDetails.exitCode, reloaded },
+        },
+      ),
+    });
   });
 
   // Devtools shortcut, gated on developer mode. Frameless windows get no
@@ -840,6 +859,7 @@ export async function createWindow({
       windowState.quitting ||
       windowsAllowedToClose.has(window)
     ) {
+      windowCloseAccepted = true;
       return;
     }
     event.preventDefault();

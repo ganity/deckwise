@@ -169,6 +169,7 @@ test("the managed DeckWise provider is first and becomes the empty-settings defa
 
   const providers = await runtime.listRuntimeProviders();
   assert.equal(providers[0].id, "deckwise-managed");
+  assert.equal(providers[0].models[0].supportsImages, true);
   assert.equal(providers[1].id, "custom");
   const defaults = runtime.normalizeSettings({});
   assert.equal(defaults.defaultProviderId, "deckwise-managed");
@@ -214,6 +215,7 @@ test("the managed provider reads its model catalog from the llm gateway", async 
       maxTokens: model.maxTokens,
       thinkingLevels: model.thinkingLevels,
       defaultThinkingLevel: model.defaultThinkingLevel,
+      supportsImages: model.supportsImages,
     })), [
       {
         id: "gateway-model-a",
@@ -222,6 +224,7 @@ test("the managed provider reads its model catalog from the llm gateway", async 
         maxTokens: 32_768,
         thinkingLevels: ["off", "low", "medium", "high"],
         defaultThinkingLevel: "off",
+        supportsImages: true,
       },
       {
         id: "gateway-model-b",
@@ -230,6 +233,7 @@ test("the managed provider reads its model catalog from the llm gateway", async 
         maxTokens: 32_768,
         thinkingLevels: ["off", "low", "medium", "high"],
         defaultThinkingLevel: "off",
+        supportsImages: true,
       },
     ]);
     assert.equal(providers[0].defaultModelId, "gateway-model-a");

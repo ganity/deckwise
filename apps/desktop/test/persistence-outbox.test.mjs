@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -122,3 +122,18 @@ test("non-unique flush errors still pause the outbox", async () => {
   assert.equal(outbox.size(), 2);
 });
 
+test("a full outbox rejects new messages instead of reporting a successful enqueue", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "pi-outbox-full-"));
+  const entries = Array.from({ length: 1024 }, (_, index) => ({
+    key: `message:s:${index}`,
+    sessionId: "s",
+    message: { id: String(index) },
+  }));
+  await writeFile(join(dir, "session-message-outbox.json"), JSON.stringify(entries));
+  const outbox = new PersistenceOutbox(dir, silent);
+  await assert.rejects(
+    outbox.enqueue({ key: "message:s:new", sessionId: "s", message: { id: "new" } }, () => null),
+    /outbox is full/,
+  );
+  assert.equal(outbox.size(), 1024);
+});

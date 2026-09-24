@@ -27,7 +27,7 @@ export async function onLoad() {
   await pi.agent.registerTool({
     name: "Browser",
     description:
-      "Drive DeckWise's work-panel browser via CDP: snapshot the accessibility tree; click/fill by a snapshot uid (eN) or an explicit CSS selector; screenshot, evaluate JavaScript, read console output, or send an allowlisted raw CDP method. Uids expire as soon as navigation starts, so take a fresh snapshot before reusing them. For pages that submit and close themselves, use a standalone click action (prefer a CSS selector) and verify the result outside the closed page; do not await follow-up work inside the same evaluate call. Call ToolSearch for \"browser\" or \"cdp\" to load this tool. Use BrowserPreview to open a workspace HTML file with live reload.",
+      "Drive DeckWise's work-panel browser via CDP: navigate to a page before screenshotting or inspecting it; snapshot the accessibility tree; click/fill by a snapshot uid (eN) or an explicit CSS selector; screenshot, evaluate JavaScript, read console output, or send an allowlisted raw CDP method. Uids expire as soon as navigation starts, so take a fresh snapshot before reusing them. For pages that submit and close themselves, use a standalone click action (prefer a CSS selector) and verify the result outside the closed page; do not await follow-up work inside the same evaluate call. Call ToolSearch for \"browser\" or \"cdp\" to load this tool. Use BrowserPreview to open a workspace HTML file with live reload.",
     risk: "medium",
     planSafeActions: PLAN_SAFE_ACTIONS,
     schema: {
@@ -92,8 +92,8 @@ export async function onLoad() {
             ok: true,
             action,
             text: shot.path
-              ? `Captured screenshot (${shot.mimeType}) saved at ${shot.path}.`
-              : `Captured screenshot (${shot.mimeType}).`,
+              ? `Screenshot captured (${shot.mimeType}); vision-capable models receive the image directly. A file copy is saved at ${shot.path}; Read cannot inspect this binary image.`
+              : `Screenshot captured (${shot.mimeType}); vision-capable models receive the image directly.`,
             path: shot.path,
             mimeType: shot.mimeType,
             images: [{ mimeType: shot.mimeType, data: shot.data }],

@@ -118,6 +118,7 @@ import {
   usageFromPi,
   usageToPi,
 } from "./agent-messages.js";
+import { withExplicitRequired } from "./tool-schema.js";
 import { buildSessionContext } from "./session-context.js";
 import {
   apiBindingForProviderModel,
@@ -3270,11 +3271,11 @@ Delegation rules:
       // an accidental parallel batch: everything is sequential except `Task`.
       // pi runs a whole batch sequentially when it holds one sequential tool,
       // so only an all-`Task` batch fans out.
-      catalog.set(tool.name, {
+      catalog.set(tool.name, withExplicitRequired({
         ...tool,
         executionMode:
           tool.name === SUBAGENT_TOOL_NAME ? "parallel" : "sequential",
-      });
+      }));
     }
     this.toolCatalog = catalog;
     this.deferredToolNames = new Set(
@@ -3288,10 +3289,10 @@ Delegation rules:
       }
     }
     if (this.deferredToolNames.size > 0) {
-      this.toolCatalog.set(TOOL_SEARCH_NAME, {
+      this.toolCatalog.set(TOOL_SEARCH_NAME, withExplicitRequired({
         ...this.buildToolSearchTool(),
         executionMode: "sequential",
-      });
+      }));
     }
   }
 

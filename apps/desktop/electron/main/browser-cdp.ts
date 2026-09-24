@@ -1,4 +1,4 @@
-import type { WebContents } from "electron";
+import type { NativeImage, WebContents } from "electron";
 
 /** Chrome DevTools Protocol revision attached to the work-panel guest. */
 export const BROWSER_CDP_PROTOCOL = "1.3";
@@ -39,6 +39,7 @@ export const BROWSER_CDP_ALLOWLIST = new Set([
 const MAX_EVALUATE_CHARS = 64 * 1024;
 const MAX_CONSOLE_MESSAGES = 100;
 const SCREENSHOT_MAX_WIDTH = 1280;
+const SCREENSHOT_TIMEOUT_MS = 15_000;
 
 export type BrowserConsoleMessage = {
   type: string;
@@ -65,6 +66,12 @@ export type BrowserElementTarget = {
   uid?: string;
   selector?: string;
 };
+
+export type BrowserCdpLog = (
+  level: "info" | "warn",
+  event: string,
+  data?: Record<string, unknown>,
+) => void;
 
 export function isAllowedCdpMethod(method: string): boolean {
   return BROWSER_CDP_ALLOWLIST.has(method.trim());
@@ -134,6 +141,12 @@ function consoleText(args: unknown): string {
  * recreated. Snapshot uids are valid only until the next snapshot.
  */
 export class BrowserCdp {
+  private readonly log?: BrowserCdpLog;
+
+  constructor(log?: BrowserCdpLog) {
+    this.log = log;
+  }
+
   private attachedId: number | null = null;
   private attachedWebContents: WebContents | null = null;
   private uids = new Map<string, number>();
@@ -149,7 +162,7 @@ export class BrowserCdp {
     return this.attachedId === wc.id && !wc.isDestroyed() && wc.debugger.isAttached();
   }
 
-  async attach(wc: WebContents): Promise<void> {
+  async attach(wc: WebContents, trace = false): Promise<void> {
     if (wc.isDestroyed()) {
       throw new Error("browser guest is not available");
     }
@@ -197,11 +210,11 @@ export class BrowserCdp {
     wc.debugger.on("message", this.onDebuggerMessage);
     wc.debugger.on("detach", this.onDebuggerDetach);
     try {
-      await this.command(wc, "Runtime.enable");
-      await this.command(wc, "Console.enable");
-      await this.command(wc, "Page.enable");
-      await this.command(wc, "DOM.enable");
-      await this.command(wc, "Accessibility.enable");
+      await this.command(wc, "Runtime.enable", {}, trace);
+      await this.command(wc, "Console.enable", {}, trace);
+      await this.command(wc, "Page.enable", {}, trace);
+      await this.command(wc, "DOM.enable", {}, trace);
+      await this.command(wc, "Accessibility.enable", {}, trace);
     } catch (error) {
       this.detach(wc);
       throw error;
@@ -236,11 +249,35 @@ export class BrowserCdp {
     wc: WebContents,
     method: string,
     params: Record<string, unknown> = {},
+    trace = false,
   ): Promise<unknown> {
+    const startedAt = Date.now();
+    if (trace) {
+      this.log?.("info", "browser.cdp.command.start", {
+        method,
+        webContentsId: wc.id,
+      });
+    }
     try {
-      return await wc.debugger.sendCommand(method, params);
+      const result = await wc.debugger.sendCommand(method, params);
+      if (trace) {
+        this.log?.("info", "browser.cdp.command.done", {
+          method,
+          webContentsId: wc.id,
+          durationMs: Date.now() - startedAt,
+        });
+      }
+      return result;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      if (trace) {
+        this.log?.("warn", "browser.cdp.command.failed", {
+          method,
+          webContentsId: wc.id,
+          durationMs: Date.now() - startedAt,
+          error: message,
+        });
+      }
       if (/target.*closed|webcontents.*destroyed|debugger.*(detached|not attached)/i.test(message)) {
         this.detach(wc);
         throw Object.assign(
@@ -283,33 +320,121 @@ export class BrowserCdp {
   async screenshot(
     wc: WebContents,
     input: { fullPage?: boolean } = {},
+    capturePage?: () => Promise<NativeImage>,
   ): Promise<{ mimeType: string; data: string }> {
-    // A renderer reload can leave an attached DevTools session alive but no
-    // longer usable for Page.captureScreenshot. Reattach for this operation;
-    // runtime/snapshot commands keep their existing session semantics.
-    this.detach(wc);
-    await this.attach(wc);
-    let clip: { x: number; y: number; width: number; height: number; scale: number } | undefined;
-    if (input.fullPage) {
-      const metrics = (await this.command(wc, "Page.getLayoutMetrics")) as {
-        contentSize?: { width?: number; height?: number };
-        cssContentSize?: { width?: number; height?: number };
-      };
-      const size = metrics.cssContentSize ?? metrics.contentSize ?? { width: 0, height: 0 };
-      const width = Math.max(1, Number(size.width) || 1);
-      const height = Math.max(1, Number(size.height) || 1);
-      const scale = width > SCREENSHOT_MAX_WIDTH ? SCREENSHOT_MAX_WIDTH / width : 1;
-      clip = { x: 0, y: 0, width, height, scale };
+    const startedAt = Date.now();
+    this.log?.("info", "browser.screenshot.start", {
+      fullPage: Boolean(input.fullPage),
+      webContentsId: wc.id,
+    });
+    // Electron's native capture path does not depend on a CDP response and is
+    // reliable for the normal visible-area screenshot used by the preview.
+    if (!input.fullPage) {
+      return this.nativeScreenshot(wc, startedAt, capturePage);
     }
-    const result = (await this.command(wc, "Page.captureScreenshot", {
-      format: "jpeg",
-      quality: 70,
-      ...(clip ? { clip, captureBeyondViewport: true } : {}),
-    })) as { data?: string };
-    if (typeof result?.data !== "string" || !result.data) {
-      throw new Error("screenshot produced no data");
+
+    // Full-page capture still needs CDP for its content-sized clip. Bound the
+    // command so a Chromium capture stall cannot consume the host RPC timeout.
+    try {
+      this.detach(wc);
+      await this.withTimeout(this.attach(wc, true), SCREENSHOT_TIMEOUT_MS, "CDP attach");
+      let clip: { x: number; y: number; width: number; height: number; scale: number } | undefined;
+      if (input.fullPage) {
+        const metrics = (await this.withTimeout(
+          this.command(wc, "Page.getLayoutMetrics", {}, true),
+          SCREENSHOT_TIMEOUT_MS,
+          "CDP layout metrics",
+        )) as {
+          contentSize?: { width?: number; height?: number };
+          cssContentSize?: { width?: number; height?: number };
+        };
+        const size = metrics.cssContentSize ?? metrics.contentSize ?? { width: 0, height: 0 };
+        const width = Math.max(1, Number(size.width) || 1);
+        const height = Math.max(1, Number(size.height) || 1);
+        const scale = width > SCREENSHOT_MAX_WIDTH ? SCREENSHOT_MAX_WIDTH / width : 1;
+        clip = { x: 0, y: 0, width, height, scale };
+      }
+      const result = (await this.withTimeout(this.command(wc, "Page.captureScreenshot", {
+        format: "jpeg",
+        quality: 70,
+        ...(clip ? { clip, captureBeyondViewport: true } : {}),
+      }, true), SCREENSHOT_TIMEOUT_MS, "CDP screenshot")) as { data?: string };
+      if (typeof result?.data !== "string" || !result.data) {
+        throw new Error("screenshot produced no data");
+      }
+      this.log?.("info", "browser.screenshot.done", {
+        fullPage: Boolean(input.fullPage),
+        webContentsId: wc.id,
+        durationMs: Date.now() - startedAt,
+        bytes: result.data.length,
+      });
+      return { mimeType: "image/jpeg", data: result.data };
+    } catch (error) {
+      if (error instanceof Error && (error as Error & { code?: string }).code === "SCREENSHOT_TIMEOUT") {
+        this.detach(wc);
+        this.log?.("warn", "browser.screenshot.fullPage.fallback", {
+          webContentsId: wc.id,
+          durationMs: Date.now() - startedAt,
+          error: error.message,
+        });
+        return this.nativeScreenshot(wc, startedAt, capturePage);
+      }
+      this.log?.("warn", "browser.screenshot.failed", {
+        fullPage: Boolean(input.fullPage),
+        webContentsId: wc.id,
+        durationMs: Date.now() - startedAt,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
     }
-    return { mimeType: "image/jpeg", data: result.data };
+  }
+
+  private async nativeScreenshot(
+    wc: WebContents,
+    startedAt: number,
+    capturePage?: () => Promise<NativeImage>,
+  ): Promise<{ mimeType: string; data: string }> {
+    this.log?.("info", "browser.screenshot.native.start", {
+      webContentsId: wc.id,
+    });
+    try {
+      const image = await this.withTimeout(
+        (capturePage ?? (() => wc.capturePage(undefined, { stayHidden: true, stayAwake: true })))(),
+        SCREENSHOT_TIMEOUT_MS,
+        "native screenshot",
+      );
+      const data = image.toJPEG(70).toString("base64");
+      if (!data) throw new Error("screenshot produced no data");
+      this.log?.("info", "browser.screenshot.native.done", {
+        webContentsId: wc.id,
+        durationMs: Date.now() - startedAt,
+        bytes: data.length,
+      });
+      return { mimeType: "image/jpeg", data };
+    } catch (error) {
+      this.log?.("warn", "browser.screenshot.native.failed", {
+        webContentsId: wc.id,
+        durationMs: Date.now() - startedAt,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  }
+
+  private async withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        promise,
+        new Promise<T>((_resolve, reject) => {
+          timer = setTimeout(() => reject(Object.assign(new Error(`${label} timed out`), {
+            code: "SCREENSHOT_TIMEOUT",
+          })), timeoutMs);
+        }),
+      ]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   }
 
   private async clickNode(

@@ -73,11 +73,15 @@ test("CDP allowlist denies cookies, storage, and target methods", () => {
   assert.match(cdpSource, /this\.detach\(wc\);/);
 });
 
-test("viewport screenshots use the native capture path and reject detached guests", () => {
-  assert.match(hostSource, /this\.applyGuest\(\);/);
-  assert.match(hostSource, /this\.pane\.isCaptureReady\(\)/);
-  assert.match(hostSource, /this\.pane\.capturePage\(\)/);
-  assert.match(hostSource, /browser preview is not visible yet/);
+test("screenshots use native capture for the normal preview path", () => {
+  assert.match(hostSource, /const wc = this\.requireWebContents\(\);/);
+  assert.match(hostSource, /const shot = await this\.cdp\.screenshot\(wc, input, \(\) => this\.pane\.capturePage\(\)\);/);
+  assert.match(hostSource, /const wc = await this\.waitForWebContents\(\);/);
+  assert.doesNotMatch(hostSource, /this\.pane\.isCaptureReady\(\)/);
+  assert.doesNotMatch(hostSource, /browser preview is not visible yet/);
+  assert.match(cdpSource, /nativeScreenshot/);
+  assert.match(cdpSource, /capturePage\(undefined, \{ stayHidden: true, stayAwake: true \}\)/);
+  assert.match(cdpSource, /SCREENSHOT_TIMEOUT_MS/);
 });
 
 test("guest bounds are clamped to the plugin view rect", () => {
