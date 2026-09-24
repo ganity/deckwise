@@ -653,6 +653,7 @@ export function WorkPanel({
               <SvgEditorTab
                 path={activeTab.resource}
                 tabId={activeTab.id}
+                sessionId={activeSessionId ?? ""}
               />
             </div>
           )}

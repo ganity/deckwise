@@ -96,16 +96,20 @@
 ### E2E-DECKWISE-SVG-SCREENSHOT: SVG capture is independent of preview size
 
 - **Preconditions:** A PPT Master project has an SVG slide with a local image.
-- **Steps:** Open the slide in the native SVG Editor in a narrow work panel and
-  call Browser screenshot; close the editor and call Browser screenshot with
-  the slide's workspace-relative SVG `path`; then use an invalid SVG path while
+- **Steps:** Open the slide in the native SVG Editor in a narrow work panel,
+  without opening the Browser plugin view, and call Browser screenshot; close
+  the editor, open PPT Master's local browser preview on a later slide, and
+  call Browser screenshot again without a `path`; finally call with the slide's
+  workspace-relative SVG `path`, then use an invalid SVG path while
   a browser page is open.
-- **Expected:** Both SVG captures return a 1920-pixel-wide PNG including the
+- **Expected:** All SVG captures return a 1920-pixel-wide PNG including the
   local image, without flashing or resizing the window. The invalid SVG path
   falls back to the existing CDP/native browser screenshot chain. A symlink or
   image reference outside the session workspace is rejected for SVG capture.
 - **Status:** Priority, path containment, and fallback are unit-covered by
-  `apps/desktop/test/svg-screenshot.test.mjs`; visual Electron check pending.
+  `apps/desktop/test/svg-screenshot.test.mjs`. The hidden-window SVG render is
+  covered by `apps/desktop/test/svg-screenshot-electron.mjs` under Xvfb;
+  interactive courseware verification remains manual.
 
 ### E2E-DECKWISE-MAIC-IMPORT: Completed PPTX creates an education import task
 
