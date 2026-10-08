@@ -112,7 +112,7 @@ test("release builds are gated on the CI checks and least-privilege permissions"
 test("release artifacts bypass redundant Actions compression", () => {
   assert.match(
     releaseWorkflowSource,
-    /uses: actions\/upload-artifact@v4[\s\S]*?compression-level: 0/,
+    /uses: actions\/upload-artifact@v6[\s\S]*?compression-level: 0/,
   );
 });
 
@@ -141,7 +141,7 @@ test("manual Linux package validation covers the RPM desktop identity", () => {
   assert.match(linuxPackageWorkflowSource, /StartupWMClass=deckwise/);
   assert.match(
     linuxPackageWorkflowSource,
-    /uses: actions\/upload-artifact@v4[\s\S]*path: apps\/desktop\/release\/\*\.rpm/,
+    /uses: actions\/upload-artifact@v6[\s\S]*path: apps\/desktop\/release\/\*\.rpm/,
   );
 });
 
