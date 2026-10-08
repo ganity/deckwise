@@ -189,6 +189,8 @@ test("the managed provider reads its model catalog from the llm gateway", async 
     fetchImpl: async () => new Response(JSON.stringify(fixture), { status: 200 }),
   });
   const originalFetch = globalThis.fetch;
+  const originalBaseUrl = process.env.DECKWISE_LLM_BASE_URL;
+  delete process.env.DECKWISE_LLM_BASE_URL;
   const requests = [];
   globalThis.fetch = async (input, init) => {
     requests.push({ input: String(input), authorization: init?.headers?.Authorization });
@@ -238,10 +240,40 @@ test("the managed provider reads its model catalog from the llm gateway", async 
     ]);
     assert.equal(providers[0].defaultModelId, "gateway-model-a");
     assert.deepEqual(requests, [{
-      input: "http://127.0.0.1:9788/v1/models",
+      input: "https://trainwise.efrobot.com/llm-ha/v1/models",
       authorization: "Bearer access-token",
     }]);
   } finally {
     globalThis.fetch = originalFetch;
+    if (originalBaseUrl === undefined) delete process.env.DECKWISE_LLM_BASE_URL;
+    else process.env.DECKWISE_LLM_BASE_URL = originalBaseUrl;
+  }
+});
+
+test("the managed provider preserves a gateway URL override", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalBaseUrl = process.env.DECKWISE_LLM_BASE_URL;
+  process.env.DECKWISE_LLM_BASE_URL = "http://127.0.0.1:9788/v1/";
+  const requests = [];
+  globalThis.fetch = async (input) => {
+    requests.push(String(input));
+    return new Response(JSON.stringify({ data: [{ id: "local-model" }] }));
+  };
+  try {
+    const runtime = createProviderCatalogRuntime({
+      getHost: () => ({ call: async () => ({ providers: [] }) }),
+      modelsDevCatalog: new ModelsDevCatalog({
+        catalogPath: "unused.json",
+        fetchImpl: async () => new Response(JSON.stringify(fixture)),
+      }),
+      resolvePlatformAccessToken: async () => "access-token",
+    });
+    const providers = await runtime.listRuntimeProviders();
+    assert.equal(providers[0].defaultModelId, "local-model");
+    assert.deepEqual(requests, ["http://127.0.0.1:9788/v1/models"]);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalBaseUrl === undefined) delete process.env.DECKWISE_LLM_BASE_URL;
+    else process.env.DECKWISE_LLM_BASE_URL = originalBaseUrl;
   }
 });

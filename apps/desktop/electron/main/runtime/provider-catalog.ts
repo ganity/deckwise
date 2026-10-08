@@ -1,5 +1,6 @@
 import {
   ErrorCodes as SharedErrorCodes,
+  DECKWISE_MANAGED_BASE_URL,
   DECKWISE_MANAGED_MODEL_ID,
   DECKWISE_MANAGED_PROVIDER_ID,
   OAUTH_AUTH_KIND,
@@ -80,7 +81,7 @@ export function createProviderCatalogRuntime({
   resolvePlatformAccessToken = async () => "",
 }: ProviderCatalogRuntimeDependencies) {
   const managedBaseUrl = () => {
-    const value = process.env.DECKWISE_LLM_BASE_URL?.trim() || "http://127.0.0.1:9788/v1";
+    const value = process.env.DECKWISE_LLM_BASE_URL?.trim() || DECKWISE_MANAGED_BASE_URL;
     const url = new URL(value);
     if (!url.pathname || url.pathname === "/") url.pathname = "/v1";
     return url.toString().replace(/\/$/, "");

@@ -219,6 +219,9 @@ a usage tab.
   courseware-image services as platform-managed, read-only rows. The desktop
   does not expose model IDs, API keys, routing, billing, or edit controls for
   these services; their concrete provider models remain server-owned.
+  Model discovery, conversations (including subagents), and PPT image generation
+  default to `https://trainwise.efrobot.com/llm-ha/v1` using the signed-in
+  platform access token. `DECKWISE_LLM_BASE_URL` remains a deployment override.
 - **Defaults** card: a compact settings row shows the provider name and exact
   model ID beneath the Default model label. A quiet Change action opens the
   picker without duplicating the current value. The picker groups model-level

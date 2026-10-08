@@ -8,6 +8,22 @@
 
 ## 1. Goals
 
+### E2E-DECKWISE-MANAGED-GATEWAY: Built-in AI uses the production gateway
+
+- **Preconditions:** DeckWise is signed in with no `DECKWISE_LLM_BASE_URL` override.
+- **Steps:** Load the managed model catalog, start a conversation, and generate
+  a PPT image. Repeat with an explicit gateway URL override.
+- **Expected:** Model discovery, conversations (including subagents), and image
+  generation default to `https://trainwise.efrobot.com/llm-ha/v1` with the
+  platform access token. An explicit override is preserved.
+- **Specs linked:** `04-ux/06-settings-ia.md` Model configuration.
+- **Acceptance criterion:** B (model config), C (conversation).
+- **Milestone:** DeckWise product increment.
+- **Status:** Model discovery and URL override are automated by
+  `apps/desktop/test/provider-catalog-runtime.test.mjs`; authentication wiring
+  is covered by `apps/desktop/test/auth-gate.test.mjs`. Live conversation and
+  image-generation journeys remain manual.
+
 ### E2E-DECKWISE-NO-EXTENSIONS-MARKET: Extensions stay internal
 
 - **Preconditions:** DeckWise is started with its bundled Browser and File
@@ -7652,6 +7668,7 @@ identify the platform validation still needed.
 
 | Acceptance | Scenarios |
 |---|---|
+| B / C — Managed production gateway | E2E-DECKWISE-MANAGED-GATEWAY |
 | A / C — Unicode stdio framing | E2E-RPC-unicode-separators |
 | C / G / Quality — Plugins navigation | E2E-NAV-plugins-button-goes-back |
 | C / D / Quality — Sidebar row states | E2E-LAYOUT-sidebar-row-states |

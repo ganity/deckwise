@@ -3,6 +3,7 @@ import { chmod, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, extname, join } from "node:path";
 import { net } from "electron";
+import { DECKWISE_MANAGED_BASE_URL } from "@pi-desktop/shared";
 import type {
   DesktopAuthDictionaryItem,
   DesktopAuthProfile,
@@ -570,7 +571,7 @@ export class DesktopAuthSession {
       return !key || !IMAGE_ENV_KEYS.has(key);
     });
     const model = process.env.DECKWISE_IMAGE_MODEL?.trim() || "doubao-seedream-5-0-pro";
-    const baseUrl = process.env.DECKWISE_LLM_BASE_URL?.trim() || "http://127.0.0.1:9788/v1";
+    const baseUrl = process.env.DECKWISE_LLM_BASE_URL?.trim() || DECKWISE_MANAGED_BASE_URL;
     const block = accessToken ? [
       IMAGE_ENV_BEGIN,
       "IMAGE_BACKEND=openai",
