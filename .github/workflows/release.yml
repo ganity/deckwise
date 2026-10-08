@@ -178,6 +178,10 @@ jobs:
           wait "$host_build_pid"
           trap - EXIT
 
+      - name: Verify Windows archive extraction
+        if: matrix.platform == 'windows'
+        run: node --test apps/desktop/test/python-runtime-contract.test.mjs
+
       - name: Package installers (${{ matrix.dist }})
         if: matrix.platform != 'macos'
         # The dist scripts pass --publish never themselves: electron-builder

@@ -21,6 +21,10 @@ result in `dist/runtime/current`. Windows arm64 is not supported because
 Both PPT Master and Python archives are extracted by `scripts/extract-tar.mjs`,
 which passes the archive filename from its containing directory. This keeps GNU
 tar from interpreting a Windows drive colon as a remote archive address.
+On Windows it selects `%SystemRoot%\System32\tar.exe` explicitly so Git Bash's
+tar cannot misinterpret native paths when the archive and output use different
+drives. The Windows release runner executes the archive regression tests before
+packaging, extracting from its temporary directory into the desktop workspace.
 
 The runtime intentionally excludes PyMuPDF/fitz and optional document conversion
 packages. DeckWise uses Chromium for SVG preview and only packages dependencies needed

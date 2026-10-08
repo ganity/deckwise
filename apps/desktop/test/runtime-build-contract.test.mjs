@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const desktopPackageUrl = new URL("../package.json", import.meta.url);
-const dependencyBuild = "pnpm --filter '@pi-desktop/desktop^...' build";
+const dependencyBuild = 'pnpm --filter "@pi-desktop/desktop^..." --fail-if-no-match build';
 const depsScript = "pnpm run build:deps";
 
 const readScripts = async () => {
@@ -16,7 +16,7 @@ test("build:deps rebuilds every workspace dependency consumed by Electron", asyn
 
   assert.ok(
     (scripts["build:deps"] ?? "").includes(dependencyBuild),
-    "build:deps must rebuild every workspace dependency consumed by Electron",
+    "build:deps must rebuild every workspace dependency with a Windows-compatible filter",
   );
 });
 

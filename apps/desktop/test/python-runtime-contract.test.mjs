@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
 import { promisify } from "node:util";
+import { fileURLToPath } from "node:url";
 
 const execFileAsync = promisify(execFile);
 
@@ -81,8 +82,9 @@ test("packaging extracts archives from paths containing a drive colon and spaces
   t.after(() => rm(root, { recursive: true, force: true }));
   const archiveRoot = join(root, process.platform === "win32" ? "drive with spaces" : "C:drive with spaces");
   const source = join(root, "source");
-  const output = join(root, "output with spaces");
-  for (const directory of [archiveRoot, source, output]) await mkdir(directory);
+  const output = await mkdtemp(join(fileURLToPath(new URL("../", import.meta.url)), ".archive output-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
+  for (const directory of [archiveRoot, source]) await mkdir(directory);
   await writeFile(join(source, "payload.txt"), "packaged runtime\n");
   await execFileAsync("tar", ["-czf", "fixture.tar.gz", "-C", source, "."], { cwd: archiveRoot });
 
@@ -92,6 +94,6 @@ test("packaging extracts archives from paths containing a drive colon and spaces
   const extractorUrl = new URL("../../../scripts/extract-tar.mjs", import.meta.url).href;
   await execFileAsync(process.execPath, ["--input-type=module", "-e",
     `import { extractTarGz } from ${JSON.stringify(extractorUrl)}; await extractTarGz(process.argv[1], process.argv[2]);`,
-    archive, "output with spaces"], { cwd: root });
+    archive, output], { cwd: root });
   assert.equal(await readFile(join(output, "payload.txt"), "utf8"), "packaged runtime\n");
 });
