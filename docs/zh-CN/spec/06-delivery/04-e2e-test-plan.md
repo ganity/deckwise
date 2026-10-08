@@ -11,6 +11,18 @@
 
 ## 1. 目标
 
+### E2E-DECKWISE-MANAGED-GATEWAY：内置 AI 使用线上网关
+
+- **前置条件：** DeckWise 已登录，未设置 `DECKWISE_LLM_BASE_URL`。
+- **步骤：** 加载托管模型目录，发起对话并生成 PPT 图片；设置显式网关地址后重复。
+- **预期：** 模型发现、对话（含子代理）和图片生成默认使用
+  `https://trainwise.efrobot.com/llm-ha/v1`，携带平台访问令牌；显式地址覆盖保持有效。
+- **关联规格：** `04-ux/06-settings-ia.md` 模型配置。
+- **验收标准：** B（模型配置）、C（对话）。
+- **里程碑：** DeckWise 产品增量。
+- **状态：** `apps/desktop/test/provider-catalog-runtime.test.mjs` 自动验证模型发现及地址覆盖；
+  `apps/desktop/test/auth-gate.test.mjs` 验证认证连接。真实对话和图片生成流程仍需手动验证。
+
 - 记录 MVP 必须验证的每个用户可见和协议可见的行为。
 - 提供映射到验收标准 (A–H) 和里程碑 (M1–M6) 的场景目录。
 - 作为可追溯性主干：场景 ID ↔ 验收标准 ↔ 规范。
@@ -5006,6 +5018,7 @@ IPC 请求无法关闭。
 
 | 验收 | 应用场景 |
 |---|---|
+| B / C — 托管线上网关 | E2E-DECKWISE-MANAGED-GATEWAY |
 | A / C — Unicode stdio 成帧 | E2E-RPC-unicode-separators |
 | C / G / Quality — Plugins navigation | E2E-NAV-plugins-button-goes-back |
 | C / D / Quality — 侧边栏行状态 | E2E-LAYOUT-sidebar-row-states |

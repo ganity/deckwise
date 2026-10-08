@@ -3,7 +3,6 @@ import {
   BrowserWindow,
   ipcMain,
   nativeTheme,
-  screen,
   Tray,
 } from "electron";
 import { join } from "node:path";
@@ -20,9 +19,6 @@ import {
   ErrorCodes as SharedErrorCodes,
   IPC,
   IPC_WHITELIST,
-  KEYBOARD_SHORTCUTS,
-  keybindingToElectronAccelerator,
-  resolveKeybinding,
   isActiveInProject,
   type ActivationScope,
   type AgentEventEnvelope,
@@ -31,13 +27,8 @@ import {
   type KeybindingOverrides,
   type PlanExecutionFinishStatus,
 } from "@pi-desktop/shared";
-import {
-  genericModelConfig,
-  summarizeSessionTitle,
-} from "@pi-desktop/agent-runtime";
+import { genericModelConfig } from "@pi-desktop/agent-runtime";
 import { AgentExtensionBridge } from "./agent-extensions";
-import { registerAgentExtensionIpc } from "./agent-extensions-ipc";
-import { isTemplateName, scaffold } from "@pi-desktop/plugin-devkit";
 
 import { HostProcess } from "./host-process";
 import {
@@ -45,77 +36,25 @@ import {
   pluginWorkspaceInfo,
   refreshProjectGroups,
 } from "./workspace-roots";
-import {
-  shouldCreateTaskNotification as shouldCreateTaskNotificationPolicy,
-  shouldShowNativeNotification,
-} from "./notification-policy";
 import { PersistenceOutbox } from "./persistence-outbox";
 import { InflightCheckpointer } from "./inflight-checkpoint";
 import { AgentSidecar } from "./agent-sidecar";
 import { Logger, ignoreBrokenStdio } from "./logger";
 import { installMainProcessErrorHandlers } from "./main-process-errors";
 import {
-  isDbSchemaTooNewError,
-} from "./host-boot-diagnostics";
-import {
   ModelsDevCatalog,
   modelConfigFromModelsDev,
 } from "./models-dev-catalog";
 import { VendorOAuth } from "./oauth";
 import { AppUpdaterController } from "./updater";
-import { catalogs, resolveLocale } from "@pi-desktop/i18n";
 import {
-  baseWindowBounds,
-  clampBoundsOriginToWorkArea,
-  displayWorkAreaKey,
   emptyWorkPanelReservationState,
-  isWorkPanelOuterResizeEdge,
-  parseWorkPanelChatWidth,
-  parseWorkPanelReservationWidth,
-  planWorkPanelChatResize,
-  planWorkPanelReservation,
-  reconcileBaseWindowBounds,
-  WORK_PANEL_MAX_WIDTH,
-  WORK_PANEL_MIN_WIDTH,
-  windowBoundsEqual,
-  type DisplayTransition,
   type WindowBounds,
   type WorkPanelReservationState,
 } from "./work-panel-window";
-import {
-  appendPromptFallbackPaths,
-  durableUserMessageId,
-  preparePromptAttachments,
-  type PreparedPromptAttachment,
-} from "./prompt-attachments";
-import {
-  executionFromResponse,
-  executionListFromResponse,
-  planExecutionFromUnknown,
-} from "./plan-execution";
-import {
-  readWindowState,
-  writeWindowState,
-} from "./window-preferences";
 import { createPlanUiProbe } from "./plan-ui-probe";
 import type { McpControlController, McpControlServer } from "./mcp-control";
 import type { AgentHostBridge } from "./agent-host-bridge";
-import { registerAppIpc } from "./ipc/app-ipc";
-import { registerNotificationIpc } from "./ipc/notification-ipc";
-import { registerSessionIpc } from "./ipc/session-ipc";
-import { registerSettingsIpc } from "./ipc/settings-ipc";
-import { registerProviderIpc } from "./ipc/provider-ipc";
-import {
-  createComposerTemplateLoader,
-  registerWorkspaceIpc,
-} from "./ipc/workspace-ipc";
-import {
-  registerComposerIpc,
-} from "./ipc/composer-ipc";
-import { registerWindowIpc } from "./ipc/window-ipc";
-import { registerPullsIpc } from "./ipc/pulls-ipc";
-import { registerScheduledIpc } from "./ipc/scheduled-ipc";
-import { registerAgentIpc } from "./ipc/agent-ipc";
 import { registerIpcHandlers } from "./ipc/register";
 import {
   type WindowLifecycleState,
@@ -153,12 +92,6 @@ import {
 import { createWorkPanelRuntime } from "./bootstrap/work-panel";
 import { createCloseBehaviorRuntime } from "./bootstrap/close-behavior";
 import { registerShutdownHandlers, type ShutdownState } from "./bootstrap/shutdown";
-import { registerDiagnosticsIpc } from "./ipc/diagnostics-ipc";
-import { registerMarketIpc } from "./ipc/market-ipc";
-import { registerMcpIpc } from "./ipc/mcp-ipc";
-import { registerPluginIpc } from "./ipc/plugin-ipc";
-import { registerPluginUiIpc } from "./ipc/plugin-ui-ipc";
-import { registerSkillsIpc } from "./ipc/skills-ipc";
 import { stripWinLongPrefix } from "./path-utils";
 import { DesktopAuthSession } from "./auth-session";
 

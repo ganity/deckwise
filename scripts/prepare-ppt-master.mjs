@@ -2,13 +2,10 @@
 
 import { createHash } from "node:crypto";
 import { cp, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
-import { execFile } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
-
-const execFileAsync = promisify(execFile);
+import { extractTarGz } from "./extract-tar.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_OUTPUT = join(ROOT, "apps", "desktop", "dist", "ppt-master");
@@ -25,7 +22,7 @@ const REQUIRED_FILES = [
 function parseArgs(argv) {
   let output = DEFAULT_OUTPUT;
   for (let index = 0; index < argv.length; index += 1) {
-    if (argv[index] === "--output") output = resolve(ROOT, argv[++index]);
+    if (argv[index] === "--output") output = resolve(argv[++index]);
     else throw new Error(`Unknown argument: ${argv[index]}`);
   }
   return { output };
@@ -111,7 +108,7 @@ async function main() {
       throw new Error(`PPT Master archive checksum mismatch: ${actual}`);
     }
     await mkdir(extractRoot, { recursive: true });
-    await execFileAsync("tar", ["-xzf", archive, "-C", extractRoot]);
+    await extractTarGz(archive, extractRoot);
     const extracted = await findExtractedRoot(extractRoot);
     await assertSkillRoot(extracted);
     await rm(output, { recursive: true, force: true });

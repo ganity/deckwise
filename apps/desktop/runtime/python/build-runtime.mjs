@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
+import { extractTarGz } from "../../../../scripts/extract-tar.mjs";
 
 const release = "20260901";
 const pythonVersion = "3.14.7";
@@ -125,7 +126,7 @@ async function main() {
     if (actual !== target.sha256) throw new Error(`Python archive checksum mismatch: ${actual}`);
 
     await fs.mkdir(output, { recursive: true });
-    run("tar", [process.platform === "win32" ? "-xf" : "-xzf", archive, "-C", output]);
+    await extractTarGz(archive, output);
     const pythonRoot = path.join(output, "python");
     const sitePackages = path.join(pythonRoot, ...target.sitePackages);
     await fs.mkdir(sitePackages, { recursive: true });
