@@ -217,6 +217,7 @@ export const zhTW = {
     emptyTitle: "今天想做點什麼？",
     emptyTitleInProject: "今天想在 {{project}} 裡做點什麼？",
     emptyTitleTemporary: "臨時聊點什麼？",
+    projectRequired: "臨時會話無法產生課件，請先新建或開啟專案。",
     placeholder: "讓 DeckWise 幫你做任何事",
     placeholderHome: "隨便問問",
     placeholderHint: "輸入 / 使用命令 · @ 引用檔案",

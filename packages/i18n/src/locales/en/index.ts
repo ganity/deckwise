@@ -222,6 +222,7 @@ export const en = {
     emptyTitle: "What courseware should we create today?",
     emptyTitleInProject: "What can we build in {{project}}?",
     emptyTitleTemporary: "What would you like to explore temporarily?",
+    projectRequired: "Temporary sessions cannot generate courseware. Create or open a project first.",
     placeholder: "Enter the topic, grade, subject, and style, or attach a lesson plan",
     placeholderHome: "Enter the topic, grade, subject, and style, or attach a lesson plan",
     placeholderHint: "Example: Grade 3 math, Fractions, 15 slides, clean illustrated style",

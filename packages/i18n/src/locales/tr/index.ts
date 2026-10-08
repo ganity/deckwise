@@ -224,6 +224,7 @@ export const tr = {
     emptyTitle: "Neyi birlikte oluşturalım?",
     emptyTitleInProject: "{{project}} içinde ne oluşturalım?",
     emptyTitleTemporary: "Geçici olarak neyi keşfetmek istersiniz?",
+    projectRequired: "Geçici oturumlar ders materyali oluşturamaz. Önce bir proje oluşturun veya açın.",
     placeholder: "DeckWise’tan herhangi bir konuda yardım isteyin",
     placeholderHome: "Bir şey sorun",
     placeholderHint: "Komutlar için / · dosyalar için @ yazın",

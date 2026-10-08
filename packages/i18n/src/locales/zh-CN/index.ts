@@ -217,6 +217,7 @@ export const zhCN = {
     emptyTitle: "今天想生成什么课件？",
     emptyTitleInProject: "今天想在 {{project}} 里做点什么？",
     emptyTitleTemporary: "临时聊点什么？",
+    projectRequired: "临时会话无法生成课件，请先新建或打开项目。",
     placeholder: "输入课件主题、年级、学科和风格，或上传教案",
     placeholderHome: "输入课件主题、年级、学科和风格，或上传教案",
     placeholderHint: "例如：小学三年级数学《认识分数》，15 页，清新插画风",

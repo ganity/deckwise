@@ -1000,6 +1000,18 @@ entirely inside the plugin's isolated page:
 
 ### 5.2.3 DeckWise PPT Master surface
 
+DeckWise requires a nonblank project binding before creating or submitting a
+courseware session. **New Task**, first-send session materialization, and
+attachment session materialization without a project show a localized message
+and open the existing project creation/open dialog without creating a scratch
+session. Explicit path-less New Task requests do not clear the current project
+or reuse historical temporary sessions. Existing temporary history remains
+readable, but send, queue, and steering reject it based on that session's own
+`projectPath`, even if another workspace is open. Rejected submissions preserve
+the Composer draft and never start a turn or insert an optimistic message.
+After creating/opening a project, the user starts a project-bound task and
+resubmits the request; the rejected request is not automatically sent.
+
 DeckWise adds a session-scoped PPT Master workbench and an embedded PPTX editor
 to the existing work panel. The editable SVG project is the sole generation
 source. Initial generation stops at the browser-based SVG preview until the

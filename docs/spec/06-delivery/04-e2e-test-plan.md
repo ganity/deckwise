@@ -8,6 +8,29 @@
 
 ## 1. Goals
 
+### E2E-DECKWISE-PROJECT-REQUIRED: Courseware tasks refuse temporary sessions
+
+- **Preconditions:** DeckWise has no project selected and retains a historical
+  temporary session.
+- **Steps:** Click **New Task**, submit a courseware request from the empty
+  home, and attach a document before a session exists. Attempt to send, queue,
+  and steer in the old temporary session while another workspace is open.
+  Create/open a project, then resubmit the request in a project-bound task.
+- **Expected:** Missing or blank project bindings show the project-required
+  message and existing project dialog without creating a temporary session,
+  clearing the current project, inserting a message, or starting generation.
+  The rejected draft remains available. Old temporary history remains readable
+  but cannot generate courseware. A project-bound submission starts the PPT
+  workbench normally and uses that session's own project binding.
+- **Specs linked:** `04-ux/01-ui-ia.md` §5;
+  `04-ux/08-component-spec.md` §5.2.3.
+- **Acceptance criterion:** C (conversation), D (courseware execution).
+- **Milestone:** DeckWise product increment.
+- **Status:** Store interaction regression automated by
+  `apps/desktop/test/courseware-project-required.test.mjs`; draft restoration
+  contract covered by `apps/desktop/test/composer-send-state.test.mjs`.
+  Packaged macOS dialog/draft journey remains manual.
+
 ### E2E-DECKWISE-MANAGED-GATEWAY: Built-in AI uses the production gateway
 
 - **Preconditions:** DeckWise is signed in with no `DECKWISE_LLM_BASE_URL` override.
@@ -7669,6 +7692,7 @@ identify the platform validation still needed.
 | Acceptance | Scenarios |
 |---|---|
 | B / C — Managed production gateway | E2E-DECKWISE-MANAGED-GATEWAY |
+| C / D — Project-bound courseware tasks | E2E-DECKWISE-PROJECT-REQUIRED |
 | A / C — Unicode stdio framing | E2E-RPC-unicode-separators |
 | C / G / Quality — Plugins navigation | E2E-NAV-plugins-button-goes-back |
 | C / D / Quality — Sidebar row states | E2E-LAYOUT-sidebar-row-states |

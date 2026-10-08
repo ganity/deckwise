@@ -224,6 +224,7 @@ export const ko = {
     emptyTitle: "무엇을 만들어 볼까요?",
     emptyTitleInProject: "{{project}}에서 무엇을 만들어 볼까요?",
     emptyTitleTemporary: "무엇을 임시로 탐색해 볼까요?",
+    projectRequired: "임시 세션에서는 수업 자료를 생성할 수 없습니다. 먼저 프로젝트를 만들거나 여세요.",
     placeholder: "DeckWise에 무엇이든 도움을 요청하세요",
     placeholderHome: "무엇이든 물어보세요",
     placeholderHint: "명령은 / · 파일은 @ 입력",

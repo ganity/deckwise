@@ -404,6 +404,11 @@ export function createSessionSlice({
         options && "projectPath" in options
           ? options.projectPath ?? null
           : get().workspace?.path ?? null;
+      if (!requestedProjectPath?.trim()) {
+        get().showToast(i18n.t("chat.projectRequired"), { variant: "info" });
+        await get().openProject();
+        return;
+      }
       const scopeKey = runtime.newSessionScopeKey(requestedProjectPath);
       const pending = runtime.pendingNewSessionRequests.get(scopeKey);
       if (pending) {
@@ -426,11 +431,6 @@ export function createSessionSlice({
           if (!runtime.navigationIntentIsCurrent(intent)) return;
           if (!workspace) throw new Error(i18n.t("errors.workspaceActivationFailed"));
         }
-        if (requestedProjectPath === null && get().workspace) {
-          await get().clearProject({ navigationIntent: intent });
-          if (!runtime.navigationIntentIsCurrent(intent)) return;
-        }
-
         const latest = runtime.latestSessionInScope(
           get().sessions,
           requestedProjectPath,

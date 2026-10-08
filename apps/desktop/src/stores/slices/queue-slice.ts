@@ -80,6 +80,17 @@ export function createQueueSlice({
   const queuedDrafts = new Map<string, ComposerDraftSnapshot>();
   const pendingSubmissions = new Set<string>();
 
+  function requireProject(sessionId: string): boolean {
+    const state = get();
+    const session = state.sessions.find((session) => session.id === sessionId);
+    if (session?.projectPath?.trim()) {
+      return true;
+    }
+    state.showToast(i18n.t("chat.projectRequired"), { variant: "info" });
+    void state.openProject();
+    return false;
+  }
+
   function toQueuedPrompt(entry: QueuedTurnSummary): QueuedPrompt {
     return {
       id: entry.id,
@@ -138,7 +149,7 @@ export function createQueueSlice({
   return {
     enqueuePrompt: async (content, draft, requestedSessionId) => {
       const sessionId = requestedSessionId ?? get().activeSessionId;
-      if (!sessionId) return false;
+      if (!sessionId || !requireProject(sessionId)) return false;
       const queuedDraft: ComposerDraftSnapshot = draft
         ? {
             text: draft.text,
@@ -303,6 +314,7 @@ export function createQueueSlice({
     steerPrompt: async (content, draft) => {
       const state = get();
       const sessionId = state.activeSessionId;
+      if (sessionId && !requireProject(sessionId)) return false;
       const expectedTurnId = sessionId ? state.agentStatuses[sessionId]?.currentTurnId : undefined;
       if (
         !sessionId || !expectedTurnId || !state.runningSessions[sessionId] ||
@@ -356,6 +368,7 @@ export function createQueueSlice({
           materializedKey = key;
         }
         if (!sessionId) throw new Error(i18n.t("errors.noActiveSession"));
+        if (!requireProject(sessionId)) return false;
         if (get().pendingPlans[sessionId]?.status === "pending") return false;
         if (get().runningSessions[sessionId]) {
           // Native Pi children have no Desktop prompt queue. Reject the send

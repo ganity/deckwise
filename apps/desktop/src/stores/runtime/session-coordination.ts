@@ -1,3 +1,4 @@
+import i18n from "i18next";
 import type {
   ContextCompactionRecord,
   SessionDetail,
@@ -275,6 +276,11 @@ export function createSessionCoordination({
       options && "projectPath" in options
         ? options.projectPath
         : state.workspace?.path ?? null;
+    if (!projectPath?.trim()) {
+      state.showToast(i18n.t("chat.projectRequired"), { variant: "info" });
+      await state.openProject();
+      return null;
+    }
     const draftConfig =
       options && "draftConfiguration" in options
         ? options.draftConfiguration

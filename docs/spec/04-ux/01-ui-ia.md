@@ -318,6 +318,13 @@ shared capability contract:
 
 ## 5. Navigation model
 
+DeckWise override: new tasks and automatic session materialization require a
+project. Without one, show the project-required message and open the existing
+project dialog instead of creating or reusing a temporary session. Historical
+temporary conversations stay readable but cannot submit new courseware turns;
+their binding is never inferred from another open workspace. See
+[PPT Master surface](08-component-spec.md#523-deckwise-ppt-master-surface).
+
 - `page` state: `chat | pulls | scheduled | plugins | settings`; `chat` is the
   conversation-surface route, not an operating mode. The project
   archive is the `projects` settings tab rather than a standalone page.

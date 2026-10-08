@@ -215,6 +215,7 @@ export const de = {
     "emptyTitle": "Was kann ich Ihnen beim Aufbau helfen?",
     "emptyTitleInProject": "Was können wir in {{project}} bauen?",
     "emptyTitleTemporary": "Was würden Sie gerne vorübergehend erkunden?",
+    "projectRequired": "Temporäre Sitzungen können keine Unterrichtsmaterialien erstellen. Erstellen oder öffnen Sie zuerst ein Projekt.",
     "placeholder": "Bitten Sie DeckWise um Hilfe bei allem",
     "placeholderHome": "Fragen Sie alles",
     "placeholderHint": "Geben Sie / für Befehle · @ für Dateien ein",
