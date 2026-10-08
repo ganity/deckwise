@@ -2,6 +2,15 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const deEntries: ChangelogEntry[] = [
   {
+    version: "0.17.1",
+    date: "2026-10-08",
+    highlights: [
+      "Erstellen und überarbeiten Sie PPTX-Schulungsmaterial mit dem DeckWise-Workflow und dem verwalteten KI-Anbieter.",
+      "Bearbeiten Sie SVG-Folien im nativen Editor und exportieren Sie aktualisierte PPTX-Dateien.",
+      "Erstellen Sie SVG-Folienaufnahmen in voller Größe und stellen Sie Live-Vorschauen zuverlässig wieder her.",
+    ],
+  },
+  {
     "version": "0.15.0",
     "date": "2026-09-17",
     "highlights": [

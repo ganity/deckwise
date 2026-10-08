@@ -77,7 +77,7 @@ test("native SVG editor covers the original editing workflow", () => {
 
 test("SVG slide list has no empty thumbnails and selectable elements show a hover outline", () => {
   assert.doesNotMatch(editor, /svg-editor-thumb|padStart\(2, "0"\)/);
-  assert.match(editorCss, /\.svg-editor-canvas \.svg-editor-selectable:hover\s*\{[^}]*outline:\s*2px solid/);
+  assert.match(editorCss, /\.svg-editor-canvas \.svg-editor-selectable:hover\s*(?:,[^{]+)?\{[^}]*outline:\s*2px solid/);
 });
 
 test("page generation stays active until the whole agent turn finishes", () => {

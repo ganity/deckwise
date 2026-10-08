@@ -2,6 +2,15 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const koEntries: ChangelogEntry[] = [
   {
+    version: "0.17.1",
+    date: "2026-10-08",
+    highlights: [
+      "DeckWise 작업 흐름과 관리형 AI 제공자를 통해 PPTX 교육 자료를 만들고 수정합니다.",
+      "네이티브 편집기에서 SVG 슬라이드를 편집하고 업데이트된 PPTX를 다시 생성합니다.",
+      "SVG 슬라이드를 전체 크기로 캡처하고 실시간 미리보기를 안정적으로 복구합니다.",
+    ],
+  },
+  {
     version: "0.15.0",
     date: "2026-09-17",
     highlights: [

@@ -2,6 +2,15 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const frEntries: ChangelogEntry[] = [
   {
+    version: "0.17.1",
+    date: "2026-10-08",
+    highlights: [
+      "Créez et révisez des supports de formation PPTX avec le parcours DeckWise et son fournisseur d'IA géré.",
+      "Modifiez les diapositives SVG dans l'éditeur natif et régénérez les fichiers PPTX mis à jour.",
+      "Capturez les diapositives SVG en taille réelle et rétablissez les aperçus en direct de manière fiable.",
+    ],
+  },
+  {
     "version": "0.15.0",
     "date": "2026-09-17",
     "highlights": [

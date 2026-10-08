@@ -29,6 +29,15 @@ export type ChangelogEntry = {
 
 const enEntries: ChangelogEntry[] = [
   {
+    version: "0.17.1",
+    date: "2026-10-08",
+    highlights: [
+      "Create and revise PPTX courseware with the DeckWise workflow and managed AI provider.",
+      "Edit SVG slides in the native editor and regenerate updated PPTX exports.",
+      "Capture full-size SVG slide screenshots and recover live previews reliably.",
+    ],
+  },
+  {
     version: "0.15.0",
     date: "2026-09-17",
     highlights: [
@@ -793,6 +802,15 @@ const enEntries: ChangelogEntry[] = [
 
 const zhCNEntries: ChangelogEntry[] = [
   {
+    version: "0.17.1",
+    date: "2026-10-08",
+    highlights: [
+      "通过 DeckWise 课件工作流和托管 AI 提供商创建、修改 PPTX 课件。",
+      "在原生编辑器中编辑 SVG 幻灯片，并重新生成更新后的 PPTX。",
+      "截取完整尺寸的 SVG 幻灯片，并可靠恢复实时预览。",
+    ],
+  },
+  {
     version: "0.15.0",
     date: "2026-09-17",
     highlights: [
@@ -1556,6 +1574,15 @@ const zhCNEntries: ChangelogEntry[] = [
 ];
 
 const zhTWEntries: ChangelogEntry[] = [
+  {
+    version: "0.17.1",
+    date: "2026-10-08",
+    highlights: [
+      "透過 DeckWise 課件工作流程和託管 AI 提供商建立、修改 PPTX 課件。",
+      "在原生編輯器中編輯 SVG 投影片，並重新產生更新後的 PPTX。",
+      "擷取完整尺寸的 SVG 投影片，並可靠地恢復即時預覽。",
+    ],
+  },
   {
     version: "0.15.0",
     date: "2026-09-17",

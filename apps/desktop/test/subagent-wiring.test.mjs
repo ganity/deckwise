@@ -58,7 +58,7 @@ test("subagent models use the exact stored binding for thinking capability", () 
   assert.equal(modelSource.match(/effectiveSubagentModelConfig\(/g)?.length, 3);
   assert.match(
     sessionLaunchSource,
-    /const configuredProvider = providers\.providers\.find\([\s\S]*?effectiveSubagentModelConfig\(/,
+    /const configuredProvider = providerRows\.find\([\s\S]*?effectiveSubagentModelConfig\(/,
   );
 });
 

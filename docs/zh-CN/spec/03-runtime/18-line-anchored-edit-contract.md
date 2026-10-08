@@ -402,11 +402,14 @@ dest       := path | quoted_path
 |---|---|
 | `EDIT_TAG_MISMATCH`，然后 `EDIT_LINES_UNSEEN` | 两者都不计数：两次不同的诚实失败，各有自己的宽限 |
 | 两次 `EDIT_TAG_MISMATCH` | 第二次计为尝试 1 |
-| `EDIT_PARSE_FAILED` 三次 | 第 3 次尝试——本轮停止 |
+| 三个不同负载的 `EDIT_PARSE_FAILED` | 第 3 次尝试，本轮停止 |
+| 同一路径连续两次使用相同的 `EDIT_PARSE_FAILED` 负载 | 第二次调用终止本轮 |
 | 一次失败，然后一次成功 `Edit`，然后一次失败 | 尝试 1——落盘的写入清除该路径的历史 |
 
 宽限按代码计数，而不是按调用计数，因此过时 tag 后跟未显示行是两次不同的诚实失败，而同一个
 代码两次不是。
+相同的 `EDIT_PARSE_FAILED` 负载连续出现两次时，第二次就会停止。修改负载后仍适用既有的
+三次失败预算；任何成功的修改都会清除这项比较状态。
 
 当计数确实达到上限时，工具结果携带 `terminate: true`，代理循环在该批次之后停止。停在那里
 不得留下一个只是结束了的 turn：runtime 用 `MUTATION_RETRY_BUDGET_EXHAUSTED` 敲定该 assistant

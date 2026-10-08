@@ -2,6 +2,15 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const trEntries: ChangelogEntry[] = [
   {
+    version: "0.17.1",
+    date: "2026-10-08",
+    highlights: [
+      "DeckWise iş akışı ve yönetilen yapay zekâ sağlayıcısıyla PPTX eğitim materyalleri oluşturun ve düzenleyin.",
+      "SVG slaytlarını yerel düzenleyicide düzenleyin ve güncellenmiş PPTX dosyalarını yeniden oluşturun.",
+      "SVG slaytlarının tam boyutlu ekran görüntülerini alın ve canlı önizlemeleri güvenilir şekilde kurtarın.",
+    ],
+  },
+  {
     "version": "0.15.0",
     "date": "2026-09-17",
     "highlights": [
