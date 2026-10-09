@@ -1,6 +1,6 @@
 {
   "name": "@pi-desktop/desktop",
-  "version": "0.17.4",
+  "version": "0.17.5",
   "desktopName": "deckwise.desktop",
   "private": true,
   "description": "DeckWise PPTX courseware desktop application",

@@ -29,6 +29,14 @@ export type ChangelogEntry = {
 
 const enEntries: ChangelogEntry[] = [
   {
+    version: "0.17.5",
+    date: "2026-10-09",
+    highlights: [
+      "Open the dedicated DeckWise download page from update notifications.",
+      "Keep the download page version and installers aligned with each successful release.",
+    ],
+  },
+  {
     version: "0.17.4",
     date: "2026-10-09",
     highlights: [
@@ -818,6 +826,14 @@ const enEntries: ChangelogEntry[] = [
 
 const zhCNEntries: ChangelogEntry[] = [
   {
+    version: "0.17.5",
+    date: "2026-10-09",
+    highlights: [
+      "更新提示中的发布入口打开 DeckWise 专属下载页面。",
+      "每次成功发布后，下载页面自动同步版本号和各平台安装包。",
+    ],
+  },
+  {
     version: "0.17.4",
     date: "2026-10-09",
     highlights: [
@@ -1606,6 +1622,14 @@ const zhCNEntries: ChangelogEntry[] = [
 ];
 
 const zhTWEntries: ChangelogEntry[] = [
+  {
+    version: "0.17.5",
+    date: "2026-10-09",
+    highlights: [
+      "更新提示中的發布入口開啟 DeckWise 專屬下載頁面。",
+      "每次成功發布後，下載頁面自動同步版本號與各平台安裝包。",
+    ],
+  },
   {
     version: "0.17.4",
     date: "2026-10-09",

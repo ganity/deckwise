@@ -2,6 +2,14 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const koEntries: ChangelogEntry[] = [
   {
+    version: "0.17.5",
+    date: "2026-10-09",
+    highlights: [
+      "업데이트 알림에서 DeckWise 전용 다운로드 페이지를 엽니다.",
+      "성공적으로 출시할 때마다 다운로드 페이지의 버전과 설치 파일을 동기화합니다.",
+    ],
+  },
+  {
     version: "0.17.4",
     date: "2026-10-09",
     highlights: [

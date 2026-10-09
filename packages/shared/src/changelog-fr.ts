@@ -2,6 +2,14 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const frEntries: ChangelogEntry[] = [
   {
+    version: "0.17.5",
+    date: "2026-10-09",
+    highlights: [
+      "Ouvrir la page de téléchargement DeckWise depuis les notifications de mise à jour.",
+      "Actualiser la version et les installateurs de la page après chaque publication réussie.",
+    ],
+  },
+  {
     version: "0.17.4",
     date: "2026-10-09",
     highlights: [
