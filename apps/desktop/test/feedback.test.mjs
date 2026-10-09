@@ -63,19 +63,24 @@ test("feature request form requires a problem and a proposal", () => {
   assert.match(featureTemplate, /labels:\s*\[["']enhancement["']\]/);
 });
 
-test("Settings Info exposes a Main-owned GitHub feedback action", () => {
+test("the feedback IPC retains its Main-owned destination", () => {
   assert.match(protocolSource, /appOpenFeedback:\s*"pi-desktop\/app\/openFeedback"/);
   assert.match(mainSource, /IPC\.invoke\.appOpenFeedback/);
   assert.match(mainSource, /buildBugReportUrl\(/);
   assert.match(mainSource, /assertFeedbackIssueUrl\(/);
   assert.match(mainSource, /await safeOpenExternal\(url\)/);
   assert.match(apiSource, /openFeedback:\s*\(\)\s*=>\s*invoke\(IPC\.invoke\.appOpenFeedback\)/);
-  assert.match(settingsSource, /t\("settings\.feedback"\)/);
-  assert.match(settingsSource, /api\.openFeedback\(\)/);
-  assert.match(settingsSearchSource, /"settings\.feedback"/);
   for (const source of [enSource, zhSource]) {
     assert.match(source, /feedback:/);
     assert.match(source, /feedbackDesc:/);
     assert.match(source, /openFeedback:/);
   }
+});
+
+test("DeckWise hides feedback from Settings Info and settings search", () => {
+  assert.doesNotMatch(settingsSource, /t\("settings\.(?:feedback|feedbackDesc|openFeedback)"\)/);
+  assert.doesNotMatch(settingsSource, /api\.openFeedback\(\)/);
+  assert.doesNotMatch(settingsSearchSource, /"settings\.feedback"/);
+  assert.match(settingsSource, /<UpdatesRow currentVersion=/);
+  assert.match(settingsSource, /api\.openLogs\(\)/);
 });

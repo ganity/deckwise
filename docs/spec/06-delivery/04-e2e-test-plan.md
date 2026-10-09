@@ -10349,19 +10349,16 @@ are withdrawn with ADR 0165.
 - **Milestone**: M5
 - **Status**: Unit-covered (host-core `tools` tests)
 
-#### E2E-176: Settings Info opens a prefilled GitHub bug form
+#### E2E-176: DeckWise hides GitHub feedback from Settings
 
-- **Preconditions**: Settings can be opened; the machine can launch a system
-  browser.
+- **Preconditions**: Settings can be opened.
 - **Steps**: 1) Open Settings → Info. 2) Confirm the Application row shows the
-  current app version. 3) Search settings for the Report a problem label.
-  4) Activate Open GitHub.
-- **Expected**: The row is indexed by Settings search and stays on Info. The
-  action calls `pi-desktop/app/openFeedback` with no URL from the renderer.
-  Main opens `https://github.com/ganity/deckwise/issues/new` with
-  `template=bug_report.yml` and prefills `app-version`, `os`, and
-  `environment`. The GitHub bug form still requires description, reproduction
-  steps, expected, actual, version, and OS; blank issues remain disabled.
+  current app version. 3) Confirm logs and updates remain available.
+  4) Search settings for the Report a problem label.
+- **Expected**: Info has no Report a problem row or Open GitHub button, and
+  Settings search offers no feedback result. Logs and update actions retain
+  their behavior. The existing `pi-desktop/app/openFeedback` IPC retains its
+  Main-owned destination contract; GitHub issue forms remain unchanged.
 - **Specs linked**: `04-ux/06-settings-ia.md`, `03-runtime/01-ipc-protocol.md`,
   `06-delivery/03-ai-development-workflow.md`, `08-meta/decisions-log.md`
   (D313), ADR 0157

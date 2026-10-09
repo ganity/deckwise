@@ -6544,11 +6544,11 @@ IPC 请求无法关闭。
 - **里程碑**：M5
 - **状态**：单元已覆盖（host-core `tools` 测试）
 
-#### E2E-176：设置 → 信息打开预填的 GitHub bug 表单
+#### E2E-176：DeckWise 在设置中隐藏 GitHub 问题反馈
 
-- **前提条件**：可以打开设置；本机可以启动系统浏览器。
-- **步骤**：1）打开设置 → 信息。2）确认「应用」行显示当前版本。3）用设置搜索查找「问题反馈」。4）点击「打开 GitHub」。
-- **预期**：该行可被设置搜索索引，并停留在信息页。动作调用 `pi-desktop/app/openFeedback`，渲染器不提供 URL。Main 打开 `https://github.com/ganity/deckwise/issues/new`，带 `template=bug_report.yml`，并预填 `app-version`、`os` 和 `environment`。GitHub bug 表单仍要求描述、复现步骤、预期、实际、版本和操作系统；空白 issue 保持禁用。
+- **前提条件**：可以打开设置。
+- **步骤**：1）打开设置 → 信息。2）确认「应用」行显示当前版本。3）确认日志与软件更新仍可使用。4）用设置搜索查找「问题反馈」。
+- **预期**：信息页没有「问题反馈」行或「打开 GitHub」按钮，设置搜索不提供反馈结果。日志与更新操作保持原有行为。现有 `pi-desktop/app/openFeedback` IPC 保留主进程拥有目标地址的契约；GitHub issue 表单保持不变。
 - **链接规格**：`04-ux/06-settings-ia.md`、`03-runtime/01-ipc-protocol.md`、
   `06-delivery/03-ai-development-workflow.md`、`08-meta/decisions-log.md`（D313）、ADR 0157
 - **验收**：H（诊断）、质量

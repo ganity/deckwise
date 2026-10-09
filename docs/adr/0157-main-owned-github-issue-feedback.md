@@ -30,6 +30,10 @@ those triage fields as optional.
 
 ## Consequences
 
+DeckWise amendment (2026-10-09): Settings → Info and Settings search hide the
+feedback entry. The Main-owned IPC and issue forms retain their existing
+contracts for compatibility.
+
 - Triage data is collected at intake instead of in follow-up comments.
 - Opening GitHub follows the same Main-owned URL rule as the releases page.
 - No host-protocol, storage, or update-feed change.
