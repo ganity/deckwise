@@ -2,6 +2,15 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const koEntries: ChangelogEntry[] = [
   {
+    version: "0.17.2",
+    date: "2026-10-09",
+    highlights: [
+      "macOS 설치 프로그램 배경에 DeckWise가 표시되도록 수정했습니다.",
+      "슬라이드와 PPTX 내보내기를 같은 작업 공간에 보관하도록 수업 자료 생성 전에 프로젝트를 요구합니다.",
+      "Windows 설치 프로그램 빌드 중 Python 런타임 압축 해제 문제를 수정했습니다.",
+    ],
+  },
+  {
     version: "0.17.1",
     date: "2026-10-08",
     highlights: [

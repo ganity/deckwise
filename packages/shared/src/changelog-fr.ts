@@ -2,6 +2,15 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const frEntries: ChangelogEntry[] = [
   {
+    version: "0.17.2",
+    date: "2026-10-09",
+    highlights: [
+      "Le fond du programme d’installation macOS affiche désormais DeckWise.",
+      "La création de supports de cours nécessite un projet pour conserver les diapositives et les exports PPTX dans le même espace de travail.",
+      "Correction de l’extraction de Python lors de la compilation des installateurs Windows.",
+    ],
+  },
+  {
     version: "0.17.1",
     date: "2026-10-08",
     highlights: [

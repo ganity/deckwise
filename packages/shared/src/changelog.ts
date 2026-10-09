@@ -29,6 +29,15 @@ export type ChangelogEntry = {
 
 const enEntries: ChangelogEntry[] = [
   {
+    version: "0.17.2",
+    date: "2026-10-09",
+    highlights: [
+      "Correct the macOS installer background to display DeckWise.",
+      "Require a project before generating courseware so slides and PPTX exports share a workspace.",
+      "Fix Windows Python runtime extraction during installer builds.",
+    ],
+  },
+  {
     version: "0.17.1",
     date: "2026-10-08",
     highlights: [
@@ -802,6 +811,15 @@ const enEntries: ChangelogEntry[] = [
 
 const zhCNEntries: ChangelogEntry[] = [
   {
+    version: "0.17.2",
+    date: "2026-10-09",
+    highlights: [
+      "修正 macOS 安装程序背景中的名称，统一显示 DeckWise。",
+      "生成课件前要求创建项目，让页面稿和 PPTX 导出文件保存在同一工作区。",
+      "修复 Windows 安装包构建时的 Python 运行时解压问题。",
+    ],
+  },
+  {
     version: "0.17.1",
     date: "2026-10-08",
     highlights: [
@@ -1574,6 +1592,15 @@ const zhCNEntries: ChangelogEntry[] = [
 ];
 
 const zhTWEntries: ChangelogEntry[] = [
+  {
+    version: "0.17.2",
+    date: "2026-10-09",
+    highlights: [
+      "修正 macOS 安裝程式背景中的名稱，統一顯示 DeckWise。",
+      "產生課件前要求建立專案，讓頁面稿和 PPTX 匯出檔案儲存在同一工作區。",
+      "修復 Windows 安裝包建置時的 Python 執行環境解壓縮問題。",
+    ],
+  },
   {
     version: "0.17.1",
     date: "2026-10-08",

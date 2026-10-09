@@ -2,6 +2,15 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const trEntries: ChangelogEntry[] = [
   {
+    version: "0.17.2",
+    date: "2026-10-09",
+    highlights: [
+      "macOS yükleyici arka planı artık DeckWise adını gösteriyor.",
+      "Slaytların ve PPTX dışa aktarımlarının aynı çalışma alanında kalması için ders içeriği oluşturmadan önce bir proje gerekiyor.",
+      "Windows yükleyici derlemelerinde Python çalışma zamanının açılması düzeltildi.",
+    ],
+  },
+  {
     version: "0.17.1",
     date: "2026-10-08",
     highlights: [
