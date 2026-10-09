@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="下载 DeckWise 桌面客户端，支持 macOS、Windows 和 Linux。">
+  <meta name="color-scheme" content="light">
+  <title>下载 DeckWise</title>
+  <link rel="icon" href="./logo.png" type="image/png">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./downloads.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="./" aria-label="DeckWise 下载首页">
+      <img src="./logo.png" width="34" height="34" alt="">
+      <span>DeckWise</span>
+    </a>
+    <a class="header-link" href="#install">安装说明 <img src="./arrow.svg" alt="" width="16" height="16"></a>
+  </header>
+  <main>
+    <section class="intro" aria-labelledby="title">
+      <div>
+        <p class="eyebrow">桌面客户端</p>
+        <h1 id="title">下载 DeckWise</h1>
+        <p class="intro-copy">从想法到课件，在你的桌面上完成。</p>
+      </div>
+      <div class="release-meta" aria-live="polite">
+        <span class="release-badge"><span class="status-dot"></span>稳定版 <strong id="version">—</strong></span>
+        <span class="release-date" id="release-date">正在获取版本信息</span>
+      </div>
+    </section>
+
+    <div class="load-error" id="load-error" role="alert" hidden>
+      <span>暂时无法获取下载信息，请稍后重试。</span>
+      <button id="retry" type="button">重新加载</button>
+    </div>
+
+    <section class="platforms" aria-label="选择操作系统">
+      <article class="platform" data-platform="mac">
+        <div class="platform-label">
+          <img class="platform-icon" src="./mac.svg" width="28" height="28" alt="">
+          <div><h2>macOS <span class="device-badge" hidden>当前设备</span></h2><p>Apple 芯片与 Intel 芯片</p></div>
+        </div>
+        <div class="platform-options">
+          <div class="download-option">
+            <a class="download-button" data-file="mac-arm64" aria-disabled="true"><img src="./download.svg" alt="">Apple 芯片</a>
+            <span class="file-meta" data-meta="mac-arm64">M 系列芯片 · DMG</span>
+          </div>
+          <div class="download-option">
+            <a class="download-button secondary" data-file="mac-x64" aria-disabled="true"><img src="./download.svg" alt="">Intel 芯片</a>
+            <span class="file-meta" data-meta="mac-x64">Intel 处理器 · DMG</span>
+          </div>
+          <p class="platform-note" id="mac-note">下载后拖入「应用程序」文件夹。</p>
+        </div>
+      </article>
+
+      <article class="platform" data-platform="windows">
+        <div class="platform-label">
+          <img class="platform-icon" src="./windows.svg" width="28" height="28" alt="">
+          <div><h2>Windows <span class="device-badge" hidden>当前设备</span></h2><p>64 位 · x64</p></div>
+        </div>
+        <div class="platform-options">
+          <div class="download-option">
+            <a class="download-button" data-file="windows-setup" aria-disabled="true"><img src="./download.svg" alt="">下载安装版</a>
+            <span class="file-meta" data-meta="windows-setup">EXE 安装程序</span>
+          </div>
+          <div class="download-option">
+            <a class="download-button secondary" data-file="windows-portable" aria-disabled="true"><img src="./download.svg" alt="">下载便携版</a>
+            <span class="file-meta" data-meta="windows-portable">无需安装 · EXE</span>
+          </div>
+          <p class="platform-note">安装版支持在软件内下载更新。</p>
+        </div>
+      </article>
+
+      <article class="platform" data-platform="linux">
+        <div class="platform-label">
+          <img class="platform-icon" src="./linux.svg" width="28" height="28" alt="">
+          <div><h2>Linux <span class="device-badge" hidden>当前设备</span></h2><p>64 位 · x86_64 · glibc 2.35+</p></div>
+        </div>
+        <div class="platform-options">
+          <div class="download-option">
+            <a class="download-button" data-file="linux-appimage" aria-disabled="true"><img src="./download.svg" alt="">下载 AppImage</a>
+            <span class="file-meta" data-meta="linux-appimage">通用格式</span>
+          </div>
+          <div class="package-options">
+            <a class="package-link" data-file="linux-deb" aria-disabled="true">DEB <img src="./download.svg" alt=""></a>
+            <a class="package-link" data-file="linux-rpm" aria-disabled="true">RPM <img src="./download.svg" alt=""></a>
+            <span class="file-meta">Debian / Ubuntu · Fedora / RHEL</span>
+          </div>
+          <p class="platform-note">AppImage 支持在软件内下载更新。</p>
+        </div>
+      </article>
+    </section>
+
+    <section class="installation" id="install" aria-labelledby="install-title">
+      <h2 id="install-title">安装与更新</h2>
+      <details>
+        <summary>Mac 应该选择哪个版本？</summary>
+        <p>打开屏幕左上角的 Apple 菜单，选择「关于本机」。如果显示「芯片 Apple M…」，选择 Apple 芯片版；如果显示「处理器 Intel…」，选择 Intel 芯片版。</p>
+      </details>
+      <details>
+        <summary>macOS 首次打开提示无法验证开发者怎么办？</summary>
+        <p>先将 DeckWise 拖入「应用程序」，再打开它。当前未签名版本可能被系统阻止；确认安装包来自本页后，可在「系统设置 → 隐私与安全性」中找到 DeckWise 并点击「仍要打开」。</p>
+      </details>
+      <details>
+        <summary>已有旧版本，如何升级？</summary>
+        <p>先退出 DeckWise，再安装新版本。macOS 拖入「应用程序」并选择替换；Windows 运行新安装程序。项目文件和账户无需重新创建。便携版和 Linux DEB / RPM 需要手动更换；Windows 安装版与 AppImage 可通过软件内的更新提示升级。</p>
+      </details>
+    </section>
+    <noscript><p class="noscript">请启用 JavaScript 后查看各平台下载链接。</p></noscript>
+  </main>
+  <footer><span>DeckWise <span class="footer-separator">/</span> TrainWise</span><span>让课件创作更专注</span></footer>
+</body>
+</html>

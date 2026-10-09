@@ -450,6 +450,13 @@ Shell smoke on each native runner:
 
 ## 7. Known limitations
 
+The public download page is `https://trainwise.efrobot.com/deckwise/`, served
+by TrainWise OpenResty. The app's View release action opens this HTML page;
+the generic updater feed remains on OSS. The publish job generates
+`downloads.json` from seven nonempty installers and uploads it after the
+installers and `latest*.yml` metadata, with no-cache headers. OpenResty proxies
+that manifest for the page, whose download links point directly to OSS.
+
 - macOS, Linux deb/rpm, and the Windows portable exe remain notify-and-link
   update modes.
 - Linux x64 packages are built on Ubuntu 22.04 so host-core needs glibc 2.35

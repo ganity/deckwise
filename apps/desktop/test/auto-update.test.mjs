@@ -126,7 +126,7 @@ test("updater gates delivery mode by platform and delivery policy", () => {
   assert.match(updaterSource, /autoUpdater\.on\("error"/);
   assert.match(
     updaterSource,
-    /https:\/\/trainwise\.oss-cn-beijing\.aliyuncs\.com\/deckwise\//,
+    /https:\/\/trainwise\.efrobot\.com\/deckwise\//,
     "releases fallback URL",
   );
   assert.match(

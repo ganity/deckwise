@@ -407,6 +407,12 @@ electron DeckWise-<version>-linux-x64.asar
 
 ## 7. 已知限制
 
+公开下载页为 `https://trainwise.efrobot.com/deckwise/`，由 TrainWise OpenResty
+提供。应用的「查看发布页」打开该 HTML 页面，自动更新源仍保留在 OSS。
+发布任务从七个非空安装包生成 `downloads.json`，在安装包和 `latest*.yml`
+元数据上传后，以禁止缓存的响应头发布清单。OpenResty 代理清单供页面读取，
+页面下载链接直接指向 OSS。
+
 - macOS、Linux deb/rpm 和 Windows 便携版 exe 仍保持通知和链接更新模式。
 - Linux x64 包在 Ubuntu 22.04 上构建，因此 host-core 需要 glibc 2.35 或更高
   版本（Ubuntu 22.04、Debian 12、Fedora 36+）。标签作业运行

@@ -31,7 +31,7 @@ import {
 
 const { autoUpdater } = electronUpdaterPkg;
 
-export const RELEASES_URL = "https://trainwise.oss-cn-beijing.aliyuncs.com/deckwise/";
+export const RELEASES_URL = "https://trainwise.efrobot.com/deckwise/";
 
 const AUTO_CHECK_INITIAL_DELAY_MS = 15_000;
 const AUTO_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;

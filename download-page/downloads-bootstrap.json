@@ -1,0 +1,35 @@
+{
+  "version": "0.17.4",
+  "publishedAt": "2026-10-09T02:55:15.056Z",
+  "macSigned": false,
+  "files": {
+    "mac-arm64": {
+      "name": "DeckWise-0.17.4-arm64.dmg",
+      "size": 245806466
+    },
+    "mac-x64": {
+      "name": "DeckWise-0.17.4-x64.dmg",
+      "size": 246778091
+    },
+    "windows-setup": {
+      "name": "DeckWise-Setup-0.17.4.exe",
+      "size": 206468949
+    },
+    "windows-portable": {
+      "name": "DeckWise-Portable-0.17.4.exe",
+      "size": 206216031
+    },
+    "linux-appimage": {
+      "name": "DeckWise-0.17.4.AppImage",
+      "size": 264162630
+    },
+    "linux-deb": {
+      "name": "deckwise_0.17.4_amd64.deb",
+      "size": 216964164
+    },
+    "linux-rpm": {
+      "name": "deckwise-0.17.4-x86_64.rpm",
+      "size": 194263201
+    }
+  }
+}

@@ -288,6 +288,8 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v7
+
       - uses: actions/download-artifact@v8
         with:
           path: dist
@@ -328,6 +330,17 @@ jobs:
           RUBY
           rm latest-mac-arm64.yml latest-mac-x64.yml
 
+      - name: Generate download page manifest
+        if: ${{ !contains(github.ref_name, '-') }}
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          MAC_SIGNED: ${{ inputs.sign_macos == true }}
+        run: |
+          set -euo pipefail
+          signing_flag=()
+          if [[ "$MAC_SIGNED" == "true" ]]; then signing_flag=(--mac-signed); fi
+          node scripts/create-download-manifest.mjs dist "${RELEASE_TAG#v}" "${signing_flag[@]}"
+
       - name: Install ossutil
         run: |
           set -euo pipefail
@@ -349,7 +362,7 @@ jobs:
           : "${OSS_ACCESS_KEY_SECRET:?Configure the OSS_ACCESS_KEY_SECRET repository secret}"
           for artifact in dist/*; do
             case "$artifact" in
-              dist/latest*.yml) continue ;;
+              dist/latest*.yml|dist/downloads.json) continue ;;
             esac
             "$RUNNER_TEMP/ossutil-bin" cp "$artifact" "oss://trainwise/deckwise/$(basename "$artifact")" \
               -f --cache-control "public,max-age=31536000,immutable"
@@ -358,6 +371,10 @@ jobs:
             "$RUNNER_TEMP/ossutil-bin" cp "$metadata" "oss://trainwise/deckwise/$(basename "$metadata")" \
               -f --cache-control "no-cache,max-age=0,must-revalidate" --content-type "application/yaml"
           done
+          if [[ -f dist/downloads.json ]]; then
+            "$RUNNER_TEMP/ossutil-bin" cp dist/downloads.json oss://trainwise/deckwise/downloads.json \
+              -f --cache-control "no-cache,max-age=0,must-revalidate" --content-type "application/json"
+          fi
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
