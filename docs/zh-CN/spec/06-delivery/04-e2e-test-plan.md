@@ -11,6 +11,23 @@
 
 ## 1. 目标
 
+### E2E-DECKWISE-PROJECT-REQUIRED：课件任务拒绝临时会话
+
+- **前置条件：** DeckWise 未选择项目，且保留历史临时会话。
+- **步骤：** 点击 **新建任务**，在空白首页提交课件请求，并在会话创建前附加文档。
+  打开其他工作区时，尝试在旧临时会话中发送、排队和引导消息。
+  创建或打开项目，然后在绑定项目的任务中重新提交请求。
+- **预期：** 缺失或空白的项目绑定显示项目必需提示并打开现有项目对话框，
+  不创建临时会话、不清除当前项目、不插入消息，也不启动生成。
+  被拒绝的草稿保持可用。旧临时历史仍可阅读，但不能生成课件。
+  绑定项目的提交正常启动 PPT 工作台，并使用该会话自身的项目绑定。
+- **关联规格：** `04-ux/01-ui-ia.md` §5；`04-ux/08-component-spec.md` §5.2.3。
+- **验收标准：** C（对话）、D（课件执行）。
+- **里程碑：** DeckWise 产品增量。
+- **状态：** `apps/desktop/test/courseware-project-required.test.mjs` 自动验证 store 交互回归；
+  `apps/desktop/test/composer-send-state.test.mjs` 覆盖草稿恢复契约。
+  打包后的 macOS 对话框和草稿流程仍需手动验证。
+
 ### E2E-DECKWISE-MANAGED-GATEWAY：内置 AI 使用线上网关
 
 - **前置条件：** DeckWise 已登录，未设置 `DECKWISE_LLM_BASE_URL`。
@@ -5019,6 +5036,7 @@ IPC 请求无法关闭。
 | 验收 | 应用场景 |
 |---|---|
 | B / C — 托管线上网关 | E2E-DECKWISE-MANAGED-GATEWAY |
+| C / D — 绑定项目的课件任务 | E2E-DECKWISE-PROJECT-REQUIRED |
 | A / C — Unicode stdio 成帧 | E2E-RPC-unicode-separators |
 | C / G / Quality — Plugins navigation | E2E-NAV-plugins-button-goes-back |
 | C / D / Quality — 侧边栏行状态 | E2E-LAYOUT-sidebar-row-states |
