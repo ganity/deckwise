@@ -1064,6 +1064,7 @@ sklm: {
     "modelAliasHint": "Se muestra dondequiera que se nombre el modelo; el id sigue siendo la identidad de la solicitud.",
     "modelAliasPlaceholder": "p. ej. rápido",
     "contextWindow": "Ventana de contexto",
+    managedContextWindowHint: "Se aplica a todos los modelos de IA integrados desde la siguiente solicitud. Predeterminado: 128K. Use el límite admitido por su servicio; un valor mayor no aumenta la capacidad del servidor.",
     "maxOutput": "Salida máxima",
     "supportedThinkingLevels": "Niveles de pensamiento",
     "defaultThinkingLevel": "Nivel de pensamiento predeterminado",

@@ -1081,6 +1081,7 @@ sklm: {
     modelAliasHint: "모델 이름이 표시되는 곳마다 사용됩니다. ID는 요청 식별자로 유지됩니다.",
     modelAliasPlaceholder: "예: fast",
     contextWindow: "컨텍스트 창",
+    managedContextWindowHint: "저장 후 다음 요청부터 모든 내장 AI 모델에 적용됩니다. 기본값: 128K. 서비스가 지원하는 한도로 설정하세요. 값을 늘려도 서버 용량은 증가하지 않습니다.",
     maxOutput: "최대 출력",
     supportedThinkingLevels: "생각 수준",
     defaultThinkingLevel: "기본 생각 수준",

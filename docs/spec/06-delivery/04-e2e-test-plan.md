@@ -7692,6 +7692,7 @@ identify the platform validation still needed.
 | Acceptance | Scenarios |
 |---|---|
 | B / C — Managed production gateway | E2E-DECKWISE-MANAGED-GATEWAY |
+| B / F — Built-in AI context override | E2E-DECKWISE-MANAGED-CONTEXT |
 | C / D — Project-bound courseware tasks | E2E-DECKWISE-PROJECT-REQUIRED |
 | A / C — Unicode stdio framing | E2E-RPC-unicode-separators |
 | C / G / Quality — Plugins navigation | E2E-NAV-plugins-button-goes-back |
@@ -13315,3 +13316,26 @@ plugin-form fixtures in an isolated temporary directory at runtime.
   `apps/desktop/test/settings-general.test.mjs`, and
   `apps/desktop/test/auth-gate.test.mjs`; live two-endpoint verification remains
   manual.
+
+### E2E-DECKWISE-MANAGED-CONTEXT: Save the built-in AI context window
+
+- **Preconditions:** Isolated renderer fixture with built-in AI and host settings.
+- **Steps:** Open Settings → Models in English and Chinese. Select 1M and save;
+  reopen the page. Enter 262144 and save. Try blank, zero, negative and fractional
+  values, then simulate a save failure. Restore 128K. Refresh the managed model
+  catalog, simulate offline discovery and recreate the provider runtime.
+- **Expected:** Valid settings survive reopening/runtime recreation and apply
+  to every managed text model and resolved runtime model. Invalid input never
+  writes settings. Save failures are visible and preserve the previous value.
+  Custom-provider windows, credentials, transport and output limits do not change.
+- **Specs:** `03-runtime/11-provider-model-system.md` §10;
+  `04-ux/06-settings-ia.md` §3.
+- **Acceptance:** B (model config), F (persistence).
+- **Milestone:** DeckWise product increment.
+- **Automation:** `node scripts/e2e-managed-context-window.mjs` (real React and
+  Chromium, stubbed app API); `apps/desktop/test/provider-catalog-runtime.test.mjs`
+  (settings validation, refresh, fallback and effective runtime limits);
+  `node scripts/e2e-managed-context-persistence.mjs` (real host SQLite settings,
+  process restart and unrelated partial settings writes).
+- **Status:** Automated. Live-model capacity and packaged-app UI are not
+  exercised by these fixtures.

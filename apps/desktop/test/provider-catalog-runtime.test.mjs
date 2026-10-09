@@ -277,3 +277,62 @@ test("the managed provider preserves a gateway URL override", async () => {
     else process.env.DECKWISE_LLM_BASE_URL = originalBaseUrl;
   }
 });
+
+test("managed context settings survive catalog refresh and runtime recreation", async () => {
+  const { catalog } = await fixtureRuntime();
+  let settings = {};
+  const custom = { id: "custom", models: [{ id: "other", contextWindow: 64_000 }] };
+  const create = () => createProviderCatalogRuntime({
+    getHost: () => ({ call: async (method) => method === "settings.get"
+      ? structuredClone(settings) : { providers: [custom] } }),
+    modelsDevCatalog: catalog,
+  });
+  const runtime = create();
+  assert.equal((await runtime.listRuntimeProviders())[0].models[0].contextWindow, 128_000);
+  settings = runtime.validateSettingsWrite({ managedContextWindow: 1_000_000 });
+  for (const current of [runtime, create()]) {
+    const providers = await current.listRuntimeProviders();
+    const managed = providers[0];
+    assert.equal(managed.models[0].contextWindow, 1_000_000);
+    assert.equal(managed.models[0].contextWindowSource, "user");
+    const effective = current.effectiveSubagentModelConfig(managed, managed.models[0].id, {
+      modelId: managed.models[0].id, contextWindow: 128_000, maxTokens: 32_768,
+      input: ["text", "image"],
+    });
+    assert.equal(effective.modelConfig.contextWindow, 1_000_000);
+    assert.equal(effective.modelConfig.maxTokens, 32_768);
+    assert.equal(providers[1].models[0].contextWindow, 64_000);
+  }
+  settings = runtime.validateSettingsWrite({ managedContextWindow: 128_000 });
+  assert.equal((await runtime.listRuntimeProviders())[0].models[0].contextWindow, 128_000);
+});
+
+test("managed context overrides apply to every discovered model and offline fallback", async () => {
+  const { catalog } = await fixtureRuntime();
+  const originalFetch = globalThis.fetch;
+  let available = true;
+  globalThis.fetch = async () => available
+    ? new Response(JSON.stringify({ data: [{ id: "one" }, { id: "two" }] }))
+    : new Response("offline", { status: 503 });
+  try {
+    const runtime = createProviderCatalogRuntime({
+      getHost: () => ({ call: async (method) => method === "settings.get"
+        ? { managedContextWindow: 256_000 } : { providers: [] } }),
+      modelsDevCatalog: catalog,
+      resolvePlatformAccessToken: async () => "fixture-token",
+    });
+    const models = (await runtime.listRuntimeProviders())[0].models;
+    assert.deepEqual(models.map((model) => model.contextWindow), [256_000, 256_000]);
+    available = false;
+    assert.equal((await runtime.listRuntimeProviders())[0].models[0].contextWindow, 256_000);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test("settings boundary rejects invalid managed context windows", async () => {
+  const { runtime } = await fixtureRuntime();
+  for (const value of [0, -1, 1.5, "256000", null, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
+    assert.throws(() => runtime.validateSettingsWrite({ managedContextWindow: value }),
+      (error) => error.errorCode === "INVALID_ARGUMENT");
+  }
+  assert.deepEqual(runtime.validateSettingsWrite({ theme: "dark" }), { theme: "dark" });
+});

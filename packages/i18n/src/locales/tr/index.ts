@@ -1082,6 +1082,7 @@ sklm: {
     modelAliasHint: "Modelin adlandırıldığı her yerde gösterilir; istek kimliği model ID olarak kalır.",
     modelAliasPlaceholder: "örn. hızlı",
     contextWindow: "Bağlam penceresi",
+    managedContextWindowHint: "Bir sonraki istekten itibaren tüm yerleşik AI modellerine uygulanır. Varsayılan: 128K. Hizmetinizin desteklediği sınırı kullanın; daha yüksek bir değer sunucu kapasitesini artırmaz.",
     maxOutput: "En fazla çıktı",
     supportedThinkingLevels: "Düşünme düzeyleri",
     defaultThinkingLevel: "Varsayılan düşünme düzeyi",

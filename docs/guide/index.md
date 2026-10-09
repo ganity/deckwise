@@ -24,6 +24,14 @@ inspectable while still making everyday coding work feel direct.
 The Chinese entry follows this same path: [open the bilingual guide](/zh-CN/guide/)
 to read the localized orientation and jump into the matching topic map.
 
+## Built-in AI context window
+
+In DeckWise, open **Settings → Models → DeckWise built-in AI**. Choose a
+context-window preset or enter a token count, then click **Save**. The default
+is 128K. The saved value applies to all built-in text models from the next
+request and survives restarting the app. Use a value your service actually
+supports: increasing this setting does not increase the server's capacity.
+
 ## The mental model
 
 ```text

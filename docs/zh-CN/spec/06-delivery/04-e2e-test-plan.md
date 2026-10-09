@@ -5036,6 +5036,7 @@ IPC 请求无法关闭。
 | 验收 | 应用场景 |
 |---|---|
 | B / C — 托管线上网关 | E2E-DECKWISE-MANAGED-GATEWAY |
+| B / F — 内置 AI 上下文设置 | E2E-DECKWISE-MANAGED-CONTEXT |
 | C / D — 绑定项目的课件任务 | E2E-DECKWISE-PROJECT-REQUIRED |
 | A / C — Unicode stdio 成帧 | E2E-RPC-unicode-separators |
 | C / G / Quality — Plugins navigation | E2E-NAV-plugins-button-goes-back |
@@ -7864,3 +7865,21 @@ runner 会在运行时的隔离临时目录中生成六个插件形态 fixture�
 - **验收**：A（运行时），C（会话）。
 - **里程碑**：M6+。
 - **状态**：已自动化；针对 task/PR 集成候选运行。
+
+
+### E2E-DECKWISE-MANAGED-CONTEXT：保存内置 AI 上下文长度
+
+- **前提：** 使用隔离的界面测试配置和宿主设置。
+- **步骤：** 在中英文设置 → 模型中选择 1M 并保存，重新打开页面；输入
+  262144 并保存，尝试空值、零、负数、小数以及保存失败，再恢复 128K。
+  刷新模型目录，模拟离线目录并重建运行时；重启真实宿主进程。
+- **预期：** 合法设置在重新打开和重启后保留，对所有内置文本模型及其运行时
+  生效。非法值不写入，失败可见且保留旧值。普通服务、凭据和输出上限不变。
+- **规格：** `03-runtime/11-provider-model-system.md` §10；
+  `04-ux/06-settings-ia.md` §3。
+- **验收：** B（模型配置）、F（持久化）。
+- **自动化：** `node scripts/e2e-managed-context-window.mjs` 使用真实 React、
+  Chromium 和模拟应用 API；`apps/desktop/test/provider-catalog-runtime.test.mjs`
+  覆盖验证、目录刷新和回退；`node scripts/e2e-managed-context-persistence.mjs`
+  验证真实宿主 SQLite 的保存与重启。
+- **状态：** 已自动化，不调用线上模型。

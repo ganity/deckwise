@@ -10,6 +10,16 @@ export const DECKWISE_MANAGED_BASE_URL = "https://trainwise.efrobot.com/llm-ha/v
 // Public model id exposed by llm-ha. The upstream deployment model name is
 // kept server-side and may differ from this stable client-facing id.
 export const DECKWISE_MANAGED_MODEL_ID = "deepseek-v4-1-flash";
+export const DECKWISE_DEFAULT_CONTEXT_WINDOW = 128_000;
+
+/** Validate the local managed-service window; it does not change server capacity. */
+export function validateManagedContextWindow(value: unknown): number {
+  if (value === undefined) return DECKWISE_DEFAULT_CONTEXT_WINDOW;
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1) {
+    throw new Error("managedContextWindow must be a positive safe integer");
+  }
+  return value;
+}
 
 export type NamedEndpointPreset = {
   id: string;

@@ -1064,6 +1064,7 @@ sklm: {
     "modelAliasHint": "Wird überall angezeigt, wo das Modell benannt wird; die ID bleibt die Identität der Anfrage.",
     "modelAliasPlaceholder": "z. B. schnell",
     "contextWindow": "Kontextfenster",
+    managedContextWindowHint: "Gilt ab der nächsten Anfrage für alle integrierten KI-Modelle. Standard: 128K. Verwenden Sie das Limit Ihres Dienstes; ein höherer Wert erhöht nicht die Serverkapazität.",
     "maxOutput": "Maximale Ausgabe",
     "supportedThinkingLevels": "Denkebenen",
     "defaultThinkingLevel": "Standard-Denkebene",

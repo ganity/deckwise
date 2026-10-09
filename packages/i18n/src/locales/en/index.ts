@@ -1081,6 +1081,7 @@ sklm: {
     modelAliasHint: "Shown wherever the model is named. The id stays the request identity.",
     modelAliasPlaceholder: "e.g. fast",
     contextWindow: "Context window",
+    managedContextWindowHint: "Applies to all built-in AI models from the next request. Default: 128K. Set this to the limit supported by your service; a larger value does not increase server capacity.",
     maxOutput: "Max output",
     supportedThinkingLevels: "Thinking levels",
     defaultThinkingLevel: "Default thinking level",

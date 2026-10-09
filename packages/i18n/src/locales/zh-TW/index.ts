@@ -1065,6 +1065,7 @@ sklm: {
     modelAliasHint: "在顯示模型名稱的地方生效；請求仍使用模型 ID。",
     modelAliasPlaceholder: "例如 fast",
     contextWindow: "上下文視窗",
+    managedContextWindowHint: "對所有內建 AI 模型生效，儲存後從下一次請求開始使用。預設 128K，請依服務實際支援的上限設定；調大數值不會增加伺服器容量。",
     maxOutput: "最大輸出",
     supportedThinkingLevels: "思考等級",
     defaultThinkingLevel: "預設思考等級",
