@@ -2,7 +2,7 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const koEntries: ChangelogEntry[] = [
   {
-    version: "0.17.2",
+    version: "0.17.3",
     date: "2026-10-09",
     highlights: [
       "macOS 설치 프로그램 배경에 DeckWise가 표시되도록 수정했습니다.",

@@ -2,7 +2,7 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const trEntries: ChangelogEntry[] = [
   {
-    version: "0.17.2",
+    version: "0.17.3",
     date: "2026-10-09",
     highlights: [
       "macOS yükleyici arka planı artık DeckWise adını gösteriyor.",

@@ -29,7 +29,7 @@ export type ChangelogEntry = {
 
 const enEntries: ChangelogEntry[] = [
   {
-    version: "0.17.2",
+    version: "0.17.3",
     date: "2026-10-09",
     highlights: [
       "Correct the macOS installer background to display DeckWise.",
@@ -811,7 +811,7 @@ const enEntries: ChangelogEntry[] = [
 
 const zhCNEntries: ChangelogEntry[] = [
   {
-    version: "0.17.2",
+    version: "0.17.3",
     date: "2026-10-09",
     highlights: [
       "修正 macOS 安装程序背景中的名称，统一显示 DeckWise。",
@@ -1593,7 +1593,7 @@ const zhCNEntries: ChangelogEntry[] = [
 
 const zhTWEntries: ChangelogEntry[] = [
   {
-    version: "0.17.2",
+    version: "0.17.3",
     date: "2026-10-09",
     highlights: [
       "修正 macOS 安裝程式背景中的名稱，統一顯示 DeckWise。",

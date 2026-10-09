@@ -2,7 +2,7 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const esEntries: ChangelogEntry[] = [
   {
-    version: "0.17.2",
+    version: "0.17.3",
     date: "2026-10-09",
     highlights: [
       "El fondo del instalador de macOS ahora muestra DeckWise.",
