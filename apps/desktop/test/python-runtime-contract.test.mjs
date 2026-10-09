@@ -43,6 +43,9 @@ test("release scripts stage a pinned runtime for every supported desktop target"
   assert.match(prepare, /PPT_MASTER_COMMIT = "6e3ce9c5a3b994a0e223a14a0f7eddf42fd0b9f5"/);
   assert.match(prepare, /PPT_MASTER_ARCHIVE_SHA256 = "8064591bba8ed97cd1dc77987232157be31fe088d5821c6ffb05a178084c83df"/);
   assert.match(prepare, /github\.com\/hugohe3\/ppt-master\/archive/);
+  assert.match(prepare, /patchPptMaster/);
+  assert.match(prepare, /SEEDREAM_MAX_REFERENCE_IMAGES/);
+  assert.match(prepare, /field 'reference_images'/);
   assert.ok(
     packageJson.build.extraResources.some(
       (entry) => entry.from === "dist/runtime/current" && entry.to === "runtime",
