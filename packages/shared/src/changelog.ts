@@ -29,6 +29,13 @@ export type ChangelogEntry = {
 
 const enEntries: ChangelogEntry[] = [
   {
+    version: "0.17.4",
+    date: "2026-10-09",
+    highlights: [
+      "Hide the GitHub feedback entry from Settings and settings search.",
+    ],
+  },
+  {
     version: "0.17.3",
     date: "2026-10-09",
     highlights: [
@@ -811,6 +818,13 @@ const enEntries: ChangelogEntry[] = [
 
 const zhCNEntries: ChangelogEntry[] = [
   {
+    version: "0.17.4",
+    date: "2026-10-09",
+    highlights: [
+      "隐藏设置中的问题反馈入口及其搜索结果。",
+    ],
+  },
+  {
     version: "0.17.3",
     date: "2026-10-09",
     highlights: [
@@ -1592,6 +1606,13 @@ const zhCNEntries: ChangelogEntry[] = [
 ];
 
 const zhTWEntries: ChangelogEntry[] = [
+  {
+    version: "0.17.4",
+    date: "2026-10-09",
+    highlights: [
+      "隱藏設定中的問題回饋入口及其搜尋結果。",
+    ],
+  },
   {
     version: "0.17.3",
     date: "2026-10-09",

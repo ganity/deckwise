@@ -2,6 +2,13 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const esEntries: ChangelogEntry[] = [
   {
+    version: "0.17.4",
+    date: "2026-10-09",
+    highlights: [
+      "Ocultar la opción de comentarios de GitHub en Ajustes y en su búsqueda.",
+    ],
+  },
+  {
     version: "0.17.3",
     date: "2026-10-09",
     highlights: [

@@ -2,6 +2,13 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const frEntries: ChangelogEntry[] = [
   {
+    version: "0.17.4",
+    date: "2026-10-09",
+    highlights: [
+      "Masquer l’entrée de retour GitHub dans les paramètres et leur recherche.",
+    ],
+  },
+  {
     version: "0.17.3",
     date: "2026-10-09",
     highlights: [

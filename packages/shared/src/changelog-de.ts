@@ -2,6 +2,13 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const deEntries: ChangelogEntry[] = [
   {
+    version: "0.17.4",
+    date: "2026-10-09",
+    highlights: [
+      "Der GitHub-Feedback-Eintrag wird in den Einstellungen und der Einstellungssuche ausgeblendet.",
+    ],
+  },
+  {
     version: "0.17.3",
     date: "2026-10-09",
     highlights: [

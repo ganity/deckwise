@@ -2,6 +2,13 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const koEntries: ChangelogEntry[] = [
   {
+    version: "0.17.4",
+    date: "2026-10-09",
+    highlights: [
+      "설정과 설정 검색에서 GitHub 피드백 항목을 숨깁니다.",
+    ],
+  },
+  {
     version: "0.17.3",
     date: "2026-10-09",
     highlights: [
