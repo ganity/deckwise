@@ -2053,6 +2053,7 @@ importConfirm: "Imported extensions run inside the agent process with the same a
       "The model finished its turn without saying anything, twice in a row. Try again, or rephrase your request.",
     MUTATION_RETRY_BUDGET_EXHAUSTED:
       "The same edit failed three times, so this turn stopped instead of retrying blind. Ask again to continue.",
+    PAYLOAD_TOO_LARGE: "The request exceeds the server size limit. Reduce image or attachment sizes and try again.",
     CONTEXT_TOO_LARGE: "This chat is still too long after context recovery. Shorten your message or start a new chat.",
     CONTEXT_COMPACTION_FAILED: "Couldn't compact this conversation's model context.",
     AGENT_BUSY: "This chat is already working. Wait for it to finish, or stop it first.",

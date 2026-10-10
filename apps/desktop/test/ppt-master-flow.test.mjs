@@ -90,6 +90,15 @@ test("PPT Master asks only for genuinely missing input in at most three rounds",
   assert.match(skill, /proceed with conservative assumptions/);
 });
 
+test("fixed-identity design sheets guide new scene generation instead of slide placement", () => {
+  assert.match(skill, /reference-only inputs before planning/);
+  assert.match(skill, /Do not place or crop the original sheet/);
+  assert.match(skill, /reference_images/);
+  assert.match(skill, /single scene/);
+  assert.match(skill, /explicitly asks to display the original/);
+  assert.match(skill, /generation fails/);
+});
+
 test("settings do not expose agent behavior customization", () => {
   for (const id of ["instructions", "skills", "mcp", "subagents"]) {
     assert.doesNotMatch(settingsSearch, new RegExp(`id: "${id}"`));

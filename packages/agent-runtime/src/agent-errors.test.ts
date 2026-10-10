@@ -41,6 +41,22 @@ describe("classifyAgentError", () => {
       .toMatchObject({ code: "CONTEXT_TOO_LARGE" });
   });
 
+  it.each([
+    "OpenAI API error (413): 413 length limit exceeded",
+    '413: {"error":{"type":"request_too_large","message":"Request exceeds the maximum size"}}',
+    "413: Request Entity Too Large",
+  ])("distinguishes request byte limits from context limits: %s", (message) => {
+    expect(classifyAgentError(message)).toMatchObject({
+      code: "PAYLOAD_TOO_LARGE", retriable: false,
+    });
+  });
+
+  it("keeps explicit 413 token overflows eligible for context recovery", () => {
+    expect(classifyAgentError("413: context length exceeded")).toMatchObject({
+      code: "CONTEXT_TOO_LARGE", retriable: false,
+    });
+  });
+
   it("keeps context checkpoint failures distinct from provider failures", () => {
     expect(
       classifyAgentError(

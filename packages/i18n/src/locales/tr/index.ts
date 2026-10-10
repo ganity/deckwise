@@ -2011,6 +2011,7 @@ importConfirm: "İçe aktarılan uzantılar ajan sürecinde, ajanın kendi araç
       "Model iki tur üst üste hiçbir şey söylemeden bitirdi. Yeniden deneyin veya isteği başka türlü sorun.",
     MUTATION_RETRY_BUDGET_EXHAUSTED:
       "Aynı düzenleme üç kez başarısız oldu, bu yüzden körü körüne yeniden denemek yerine tur durdu. Devam etmek için yeniden sorun.",
+    PAYLOAD_TOO_LARGE: "İstek sunucunun boyut sınırını aşıyor. Görselleri veya ekleri küçültüp tekrar deneyin.",
     CONTEXT_TOO_LARGE: "Bağlam kurtarmadan sonra bu sohbet hâlâ çok uzun. İletinizi kısaltın veya yeni sohbet açın.",
     CONTEXT_COMPACTION_FAILED: "Bu sohbetin model bağlamı sıkıştırılamadı.",
     AGENT_BUSY: "Bu sohbet zaten çalışıyor. Bitmesini bekleyin veya önce durdurun.",

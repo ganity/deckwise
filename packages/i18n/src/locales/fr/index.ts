@@ -1970,6 +1970,7 @@ sklm: {
     "STREAM_FAILED": "La réponse a été interrompue.",
     "EMPTY_MODEL_RESPONSE": "Le modèle a terminé son tour sans rien dire, deux fois de suite. Réessayez ou reformulez votre demande.",
     "MUTATION_RETRY_BUDGET_EXHAUSTED": "La même modification a échoué trois fois, donc ce tour s'est arrêté au lieu de réessayer en aveugle. Demandez à nouveau pour continuer.",
+    PAYLOAD_TOO_LARGE: "La requête dépasse la limite de taille du serveur. Réduisez la taille des images ou des pièces jointes, puis réessayez.",
     "CONTEXT_TOO_LARGE": "Ce chat est encore trop long après la récupération du contexte. Raccourcissez votre message ou démarrez une nouvelle discussion.",
     "CONTEXT_COMPACTION_FAILED": "Impossible de compacter le contexte du modèle de cette conversation.",
     "AGENT_BUSY": "Ce chat fonctionne déjà. Attendez qu'il se termine ou arrêtez-le d'abord.",

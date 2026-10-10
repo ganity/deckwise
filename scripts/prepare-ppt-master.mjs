@@ -84,6 +84,30 @@ async function localSkillRoot() {
 
 
 async function patchPptMaster(skillRoot) {
+  // Planning must distinguish identity references before the provided-asset fast path.
+  const referencePolicy = `## DeckWise Fixed-identity Reference Policy (mandatory)
+
+Uploaded character, spacecraft, vehicle, or object design/model sheets used to preserve identity are reference-only inputs, not ready-made slide illustrations. This rule overrides the provided-image fast path in Default and Quick. Direct use remains valid for ordinary supplied photos/screenshots/diagrams and when the user explicitly requests display of the original sheet.
+
+Before resource planning, identify the reference subjects from the user's intent and inspect relevant sheets when needed. Plan each affected final illustration with Acquire Via: ai, Status: Pending, and a distinct output filename. Keep the original reference paths separate from placed assets and out of spec_lock.md images; Quick uses the same distinction in active context. Never embed the original design sheet in SVG/PPTX or crop a pose out of it as a substitute for the requested new scene.
+
+For every affected image_prompts.json item, pass the relevant original paths in reference_images (relative to the manifest). Map each reference to its subject and specify identity anchors plus the slide's action, pose, expression, camera, setting, and composition. Generate a single scene: preserve faces, hair, clothing, proportions, colors, spacecraft hull and markings; do not reproduce multi-view layouts, pose/expression grids, swatches, labels, or captions from the sheet. Identity requirements take precedence over generic deck styling. Use only references whose subjects appear in that scene. A face-capture lesson, for example, needs the referenced character facing a camera in a capture scene, not the character's model sheet with a scan icon over it.
+
+Use the configured reference-capable Seedream backend and the existing multi-reference limits. Text-only descriptions of filenames do not count as reference-image generation. Only the generated output becomes a placed asset; inspect it for subject identity and scene fit before preview/export. If generation fails, or reference-image support is unavailable, report the affected required image as incomplete. Never silently fall back to the original sheet, a cropped pose, or a generic replacement character. Existing incorrect slides require regeneration of their illustrations, not merely a new PPTX export.
+`;
+  for (const relativePath of [
+    "references/strategist-image.md",
+    "workflows/profiles/quick-generate.md",
+    "references/image-generator.md",
+  ]) {
+    const path = join(skillRoot, relativePath);
+    if (!(await exists(path))) continue;
+    const body = await readFile(path, "utf8");
+    if (!body.includes("## DeckWise Fixed-identity Reference Policy (mandatory)")) {
+      await writeFile(path, `${body.trimEnd()}\n\n${referencePolicy}`);
+    }
+  }
+
   const backendPath = join(skillRoot, "scripts", "image_backends", "backend_openai.py");
   const imageGenPath = join(skillRoot, "scripts", "image_gen.py");
   if (!(await exists(backendPath)) || !(await exists(imageGenPath))) return;

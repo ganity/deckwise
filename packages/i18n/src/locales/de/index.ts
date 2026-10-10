@@ -1970,6 +1970,7 @@ sklm: {
     "STREAM_FAILED": "Die Antwort wurde unterbrochen.",
     "EMPTY_MODEL_RESPONSE": "Das Modell beendete seinen Zug zweimal hintereinander, ohne etwas zu sagen. Versuchen Sie es erneut oder formulieren Sie Ihre Anfrage um.",
     "MUTATION_RETRY_BUDGET_EXHAUSTED": "Die gleiche Bearbeitung schlug dreimal fehl, daher wurde dieser Zug abgebrochen, anstatt es erneut zu versuchen. Bitten Sie erneut, fortzufahren.",
+    PAYLOAD_TOO_LARGE: "Die Anfrage überschreitet das Größenlimit des Servers. Verkleinere Bilder oder Anhänge und versuche es erneut.",
     "CONTEXT_TOO_LARGE": "Dieser Chat ist nach der Kontextwiederherstellung immer noch zu lang. Kürzen Sie Ihre Nachricht oder starten Sie einen neuen Chat.",
     "CONTEXT_COMPACTION_FAILED": "Der Modellkontext dieser Konversation konnte nicht komprimiert werden.",
     "AGENT_BUSY": "Dieser Chat funktioniert bereits. Warten Sie, bis der Vorgang abgeschlossen ist, oder stoppen Sie ihn zuerst.",

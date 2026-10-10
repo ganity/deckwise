@@ -8,6 +8,22 @@
 
 ## 1. Goals
 
+### E2E-DECKWISE-REQUEST-BODY-LIMIT: Separate payload size from model context
+
+- **Steps:** Return HTTP 413 with `length limit exceeded` or
+  `request_too_large` from the managed gateway while sending image attachments.
+  Repeat with HTTP 413 explicitly reporting `context length exceeded`.
+- **Expected:** Byte-size failures show the localized `PAYLOAD_TOO_LARGE`
+  message with advice to reduce image/attachment sizes, preserve the transcript,
+  and do not compact or automatically replay the rejected request. Explicit
+  model token overflows retain the existing context recovery behavior.
+- **Automation:** `packages/agent-runtime/src/agent-errors.test.ts` and
+  `packages/agent-runtime/src/runtime.test.ts` exercise the classifier and
+  final streamed assistant error events. Real provider generation is not
+  needed to verify this error path.
+- **Spec:** `03-runtime/08-error-codes.md` §3.1.
+
+
 ### E2E-DECKWISE-PROJECT-REQUIRED: Courseware tasks refuse temporary sessions
 
 - **Preconditions:** DeckWise has no project selected and retains a historical
@@ -46,6 +62,28 @@
   `apps/desktop/test/provider-catalog-runtime.test.mjs`; authentication wiring
   is covered by `apps/desktop/test/auth-gate.test.mjs`. Live conversation and
   image-generation journeys remain manual.
+
+### E2E-DECKWISE-REFERENCE-SCENES: Design sheets guide new illustrations
+
+- **Preconditions:** A reference-capable Seedream image service is available.
+  Attach multi-pose character sheets and a multi-view spacecraft sheet.
+- **Steps:** Request a space-themed lesson using those fixed identities,
+  including a face-capture scene. Generate and preview through both Default
+  and Quick, then export PPTX. Inspect image manifests and slide image paths.
+  Repeat with image generation failing and with an ordinary photo intended
+  for direct placement; explicitly request display of a model sheet once.
+- **Expected:** Affected AI manifest items carry the relevant original paths
+  in `reference_images` and produce distinct scene assets. Face capture shows
+  the referenced character facing a camera; spacecraft retains its hull and
+  markings in the requested setting. Neither SVG nor PPTX embeds the original
+  pose/view grid or a cropped pose as a substitute. Failed generation is
+  reported as incomplete without a silent original-image fallback. Ordinary
+  direct-use photos and explicitly requested sheet displays remain supported.
+- **Specs linked:** `04-ux/08-component-spec.md` §5.2.3.
+- **Status:** Host instruction and packaging/idempotency contracts automated
+  by `apps/desktop/test/ppt-master-flow.test.mjs` and
+  `apps/desktop/test/python-runtime-contract.test.mjs`; live generated-image
+  identity, scene quality, and end-to-end export remain manual.
 
 ### E2E-DECKWISE-NO-EXTENSIONS-MARKET: Extensions stay internal
 
