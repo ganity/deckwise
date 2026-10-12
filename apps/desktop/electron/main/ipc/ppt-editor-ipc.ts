@@ -7,9 +7,10 @@ export function registerPptEditorIpc(input: {
   registrar: IpcRegistrar;
   getMainWindow: () => BrowserWindow | null;
   getWorkspaceRoot: () => Promise<string | null>;
+  getExtraRoots: (workspaceRoot: string | null) => Promise<string[]>;
   sendToRenderer: (channel: string, payload: unknown) => void;
 }): void {
-  const { registrar, getMainWindow, getWorkspaceRoot, sendToRenderer } = input;
+  const { registrar, getMainWindow, getWorkspaceRoot, getExtraRoots, sendToRenderer } = input;
   const editor = new PptEditorController(registrar.ipcMain, (state: PptEditorState) => {
     sendToRenderer(IPC.event.pptEditorState, state);
   });
@@ -19,13 +20,13 @@ export function registerPptEditorIpc(input: {
 
   registrar.handleWithEvent(
     IPC.invoke.pptEditorOpen,
-    async (event, payload: { path?: string } = {}) => {
+    async (event, payload: { path?: string; mimeType?: string } = {}) => {
       assertSender(event);
       const window = getMainWindow();
       const workspaceRoot = await getWorkspaceRoot();
       const path = String(payload.path ?? "").trim();
-      if (!window || !workspaceRoot || !path) throw new Error("当前工作区没有可编辑的 PPTX");
-      return editor.open(window, workspaceRoot, path);
+      if (!window || !workspaceRoot || !path) throw new Error("No document is available in the current workspace");
+      return editor.open(window, workspaceRoot, path, payload.mimeType, await getExtraRoots(workspaceRoot));
     },
   );
   registrar.handleWithEvent(IPC.invoke.pptEditorSave, async (event) => {

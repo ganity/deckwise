@@ -8,6 +8,26 @@
 
 ## 1. Goals
 
+### E2E-DECKWISE-PPT-EDITOR-STARTUP-RECOVERY: Failed embed startup can be retried
+
+- **Steps:** Open a workspace PPTX with the embed peer silent, then returning
+  `document:error`. Retry with the peer reporting `document:ready` and the
+  matching `document:opened` ID. Reopen the ready session; close another open
+  attempt while it is waiting.
+- **Expected:** Opening keeps Save disabled and leaves native editor content
+  detached. Timeout or protocol failure releases the failed view and offers
+  Retry. Retry creates a working session using the same revision and source
+  bytes; a successful same-file reopen reuses that session. Close cancels
+  pending listeners without a late error state.
+- **Automation:** `apps/desktop/test/ppt-editor-handshake.test.mjs` covers
+  sender/command correlation, errors, timeout, and cancellation.
+  `xvfb-run -a node scripts/e2e-ppt-editor-loading.mjs --no-sandbox` runs the
+  actual controller, preload, and host in isolated Electron data against a
+  controlled embed peer. Its test bundle shortens the 60-second deadline to
+  two seconds. Real WiseOffice conversion and presentation UI require a live
+  smoke test.
+- **Spec:** `04-ux/09-interaction-patterns.md` §8a.2.
+
 ### E2E-DECKWISE-REQUEST-BODY-LIMIT: Separate payload size from model context
 
 - **Steps:** Return HTTP 413 with `length limit exceeded` or
@@ -3520,24 +3540,33 @@ identify the platform validation still needed.
 #### E2E-060: Files tab browsing stays inside the workspace
 
 - **Preconditions**: Workspace with file artifacts for nested source, large
-  (>512KB), image, and binary files.
+  (>512KB), image, PDF, and binary files; an extensionless PDF attachment above
+  32 MiB and a PDF larger than 256 MiB.
 - **Steps**: 1) Activate each file artifact and verify a distinct path-keyed
   resource in the header switcher; browse the tree, expanding nested folders.
   2) Open a source
-  file, the image, the binary, and the large file. 3) Use reveal-in-Finder.
+  file, the image, the binary, and the large file. Open both PDF attachments.
+  3) Use reveal-in-Finder.
   4) Attempt a traversal read (`../outside`) via devtools IPC. 5) Switch
   workspaces.
 - **Expected**: Directories list lazily, folders first, with `.git` /
   `node_modules` / build outputs hidden; text renders with syntax highlight
-  (capped at 5000 lines), images preview inline, binary and oversized files
-  show fallbacks with reveal still available. Traversal attempts are
+  (capped at 5000 lines), images preview inline; supported Office formats and
+  PDFs use built-in WiseOffice (cap: 256 MiB),
+  binary and oversized files show an OS-default-app fallback with reveal still
+  available. MIME metadata identifies extensionless PDFs. WiseOffice opening
+  errors retain an explicit system-default-app action.
+  Traversal attempts are
   rejected with `INVALID_ARGUMENT`; no workspace → empty state; switching
   workspaces resets the tree and viewer.
 - **Specs linked**: `03-runtime/01-ipc-protocol.md` §13a, ADR 0019,
   `03-runtime/15-workspace-ignore-rules.md`
 - **Acceptance**: D (workspace), Security
 - **Milestone**: M5
-- **Status**: Unit-covered (`fs-panel-guard.test.mjs`); full UI scenario Draft
+- **Status**: Read/containment/size limits covered by `fs-panel-guard.test.mjs`;
+  classifier PDF loading under the production renderer CSP covered by
+  `node scripts/e2e-file-preview.mjs`; editor lifecycle and save checks by
+  `node scripts/e2e-ppt-editor-loading.mjs`. Full UI scenario remains manual.
 
 ---
 
@@ -13377,3 +13406,17 @@ plugin-form fixtures in an isolated temporary directory at runtime.
   process restart and unrelated partial settings writes).
 - **Status:** Automated. Live-model capacity and packaged-app UI are not
   exercised by these fixtures.
+
+### Built-in WiseOffice format routing
+
+- Open DOC/DOCX, XLS/XLSX, PPT/PPTX, ODT/ODS/ODP, RTF, CSV, and PDF
+  from chat references and the host file tree. All use the built-in editor.
+- Open TXT and extensionless `text/plain` attachments in the local text
+  viewer and verify exact Chinese/English content without Office conversion.
+- Save edited DOCX/XLSX/PPTX and verify source bytes and revision history.
+  Save DOC/XLS/PPT and verify a new OOXML sibling; the legacy original remains
+  intact and existing siblings are never overwritten.
+- Open extensionless attachments with MIME metadata; they and PDFs are
+  read-only. Reject unsupported formats and paths outside allowed roots.
+- Retain startup timeout, failed iframe load, retry and cancellation checks
+  in `scripts/e2e-ppt-editor-loading.mjs`.

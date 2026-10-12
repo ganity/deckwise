@@ -1628,7 +1628,10 @@ Renderer IPC kept for the Plan-safe preview facade and URL fallback:
   `node_modules`, and the default ignore subset of
   [15-workspace-ignore-rules](15-workspace-ignore-rules.md)
 - `fs/read({path, mimeType?})` → text (≤512KB) / image data URL (≤5MB) /
-  binary / tooLarge. Relative paths resolve inside the workspace root;
+  PDF data URL (≤256 MiB) / binary / tooLarge. PDF detection accepts `.pdf`
+  paths or `application/pdf` MIME metadata, including extensionless blobs.
+  Binary and oversized files return no content bytes.
+  Relative paths resolve inside the workspace root;
   `attachments/<sha256>` blobs and absolute paths already inside the
   workspace, `<data_dir>/scratch/`, or `<data_dir>/attachments/` are also
   accepted after a realpath check (D334 / ADR 0172), as is an absolute path in
@@ -1667,6 +1670,24 @@ Renderer IPC kept for the Plan-safe preview facade and URL fallback:
   nothing returns `match: null`; resolving never opens anything (ADR 0262).
 - `fs/list` stays workspace-only; traversal outside is rejected
   (`INVALID_ARGUMENT`).
+
+### Built-in WiseOffice editor
+
+- `deckwise/ppt-editor/open({path, mimeType?})` accepts supported Office formats
+  within the workspace or the existing file-reader extra roots
+  and resolves with `PptEditorState` only after `document:ready` and the
+  matching `document:opened` response. It rejects on startup errors, close
+  cancellation, or a 60-second handshake deadline.
+- `deckwise/ppt-editor/event/state` reports `opening`, `ready`, `saving`,
+  `saved`, `error`, or `closed`, with optional `path`, revision metadata, and
+  `message`. `canRetry?: boolean` is true for failed startup after the native
+  view has been released. Calling Open again creates a fresh view for the
+  existing revision; only a successfully opened same-file view is reused.
+- `readOnly?: boolean` disables saving for PDF and files outside the primary
+  workspace. `savedPath?: string` reports the written file. Legacy DOC/XLS/PPT
+  saves create a new OOXML sibling; source-format saves replace the source.
+- Save requires a ready, editable editor. Visibility requests during opening retain
+  intent but attach native editor content only after the open acknowledgement.
 
 ## 13b. Desktop Menu and Window APIs
 

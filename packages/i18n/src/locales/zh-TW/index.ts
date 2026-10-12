@@ -1377,6 +1377,19 @@ sklm: {
     },
     browser: {
     },
+    pptEditor: {
+      loading: "正在開啟文件…",
+      error: "無法開啟編輯器",
+      retry: "重試",
+      saving: "正在儲存…",
+      saved: "已儲存 · Revision {{revision}}",
+      revision: "Revision {{revision}}",
+      restore: "退出全螢幕",
+      maximize: "全螢幕編輯",
+      saveCopy: "另存副本",
+      save: "儲存至原始檔案",
+      close: "關閉 Office 編輯器",
+    },
     files: {
       noWorkspace: "開啟專案後即可瀏覽檔案",
       noWorkspaceHint: "僅可瀏覽當前專案。",
@@ -1385,6 +1398,7 @@ sklm: {
       error: "無法讀取此位置",
       back: "返回檔案列表",
       reveal: "在 Finder 中顯示",
+      openExternally: "將使用系統預設應用程式開啟",
       binary: "二進位制檔案，無法預覽",
       tooLarge: "檔案過大，無法預覽",
     },

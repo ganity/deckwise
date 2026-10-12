@@ -1200,6 +1200,26 @@ Project drag/drop follows these patterns:
   where it resolved (ADR 0262). A tool surface therefore picks no destination of
   its own, and a reference it cannot resolve reports itself instead of opening a
   panel.
+- File references and the host file tree open WiseOffice-supported formats in
+  the built-in editor: DOC/DOCX, XLS/XLSX, PPT/PPTX, ODT/ODS/ODP, RTF,
+  CSV, and PDF (maximum 256 MiB). Extensionless attachment blobs use stored
+  MIME metadata. PDF and files outside the primary workspace open read-only.
+  TXT files and extensionless `text/plain` attachments use the local text
+  viewer (512 KiB text limit) without document conversion. Other binary
+  formats retain the system-default-application fallback.
+- Editable workspace documents keep immutable revisions. Same-format saves
+  replace the source; DOC/XLS/PPT save a new `-edited-rN` DOCX/XLSX/PPTX sibling
+  without overwriting the legacy original or another existing file. PPTX uses
+  the existing revision directory and DeckWise embed mode; other formats use
+  WiseOffice's generic embed interface and `.deckwise-office/revisions`.
+- The built-in document editor shows an opening state until its embed peer has
+  acknowledged both `document:ready` and the matching `document:opened`
+  command. Save remains disabled during opening. Native editor content is
+  attached only after that acknowledgement; iframe navigation alone is not
+  readiness. Startup errors or a 60-second handshake deadline release the
+  failed view and expose **Retry**, which creates a fresh editor session for
+  the same revision without changing the source document. Closing cancels a pending
+  handshake. A ready session can still be reused when reopening the same file.
 
 ### 8a.3 Keyboard while open
 

@@ -104,7 +104,7 @@ export function registerWorkspaceIpc({
   setCurrentWorkspacePath,
   withGitBranch,
   stripWinLongPrefix,
-}: WorkspaceIpcDependencies): void {
+}: WorkspaceIpcDependencies): { fsExtraRoots: (workspaceRoot: string | null) => Promise<string[]> } {
   let host: HostProcess | null = null;
   const handle = (channel: string, fn: (...args: any[]) => Promise<any>) => {
     registrar.handle(channel, async (...args) => {
@@ -868,5 +868,7 @@ export function registerWorkspaceIpc({
       };
     },
   );
+
+  return { fsExtraRoots };
 
 }

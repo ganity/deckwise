@@ -157,6 +157,9 @@ export type PptEditorState = {
   revisionPath?: string;
   sha256?: string;
   message?: string;
+  canRetry?: boolean;
+  readOnly?: boolean;
+  savedPath?: string;
 };
 
 export type PptPreviewState = {
@@ -1078,8 +1081,8 @@ export const api = {
     invoke<PptPreviewState>(IPC.invoke.pptPreviewOpen, { path }),
   pptPreviewRequest: <T = unknown>(path: string, route: string, method: "GET" | "POST" | "DELETE" = "GET", body?: unknown) =>
     invoke<T>(IPC.invoke.pptPreviewRequest, { path, route, method, body }),
-  pptEditorOpen: (path: string) =>
-    invoke<PptEditorState>(IPC.invoke.pptEditorOpen, { path }),
+  pptEditorOpen: (path: string, mimeType?: string) =>
+    invoke<PptEditorState>(IPC.invoke.pptEditorOpen, { path, ...(mimeType ? { mimeType } : {}) }),
   pptEditorSave: () => invoke<{ ok: boolean }>(IPC.invoke.pptEditorSave),
   pptEditorClose: () => invoke<{ ok: boolean }>(IPC.invoke.pptEditorClose),
   pptEditorSetBounds: (bounds: { x: number; y: number; width: number; height: number }) =>

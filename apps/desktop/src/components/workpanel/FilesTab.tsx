@@ -7,7 +7,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { useTranslation } from "react-i18next";
-import type { FsEntry, FsReadResult } from "@pi-desktop/shared";
+import { getOfficePreviewExtension, type FsEntry, type FsReadResult } from "@pi-desktop/shared";
 import { useAppStore } from "../../stores/app-store";
 import { api } from "../../lib/api";
 import { Markdown } from "../Markdown";
@@ -139,6 +139,35 @@ function HighlightedText({ path, content }: { path: string; content: string }) {
   );
 }
 
+function PdfViewer({ dataUrl, title }: { dataUrl?: string; title: string }) {
+  const { t } = useTranslation();
+  const [src, setSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSrc(null);
+    if (!dataUrl) return;
+    const separator = dataUrl.indexOf(",");
+    if (separator < 0) return;
+    try {
+      const binary = atob(dataUrl.slice(separator + 1));
+      const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+      const url = URL.createObjectURL(
+        new Blob([bytes], { type: "application/pdf" }),
+      );
+      setSrc(url);
+      return () => URL.revokeObjectURL(url);
+    } catch {
+      return;
+    }
+  }, [dataUrl]);
+
+  return src ? (
+    <iframe className="file-viewer-pdf" src={src} title={title} />
+  ) : (
+    <div className="file-tree-note">{t("panel.files.loading")}</div>
+  );
+}
+
 type DirState = { entries: FsEntry[]; error?: boolean };
 
 // Module-level so a chat preview request fires once, not again on every
@@ -206,6 +235,10 @@ export function FilesTab() {
   );
 
   const openFile = useCallback(async (rel: string, mimeType?: string) => {
+    if (getOfficePreviewExtension(rel, mimeType)) {
+      useAppStore.getState().openFileInWorkPanel(rel, mimeType);
+      return;
+    }
     setSelected(rel);
     setFile(null);
     setFileError(false);
@@ -360,15 +393,28 @@ export function FilesTab() {
             <div className="file-viewer-image">
               <img src={file.dataUrl} alt={selected} />
             </div>
+          ) : file.kind === "pdf" ? (
+            <PdfViewer dataUrl={file.dataUrl} title={selected} />
           ) : (
-            <WorkTabEmpty
-              icon={IconFileText}
-              title={
-                file.kind === "tooLarge"
-                  ? t("panel.files.tooLarge")
-                  : t("panel.files.binary")
-              }
-            />
+            <div className="file-viewer-fallback">
+              <WorkTabEmpty
+                icon={IconFileText}
+                title={t("panel.files.openExternally")}
+                body={
+                  file.kind === "tooLarge"
+                    ? t("panel.files.tooLarge")
+                    : t("panel.files.binary")
+                }
+              />
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => void api.fsOpen(selected)}
+              >
+                <IconExternal size={14} />
+                {t("chat.openFile")}
+              </button>
+            </div>
           )}
         </div>
       </div>

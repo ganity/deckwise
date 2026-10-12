@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { readOpenableFile } from "../electron/main/fs-panel.ts";
 
 const {
   activateWorkPanelTabState,
@@ -228,4 +232,32 @@ test("a newer retained artifact is not overwritten by a stale visible projection
 
   assert.deepEqual(switched.contexts["session-a"], retained);
   assert.deepEqual(switched.visible, emptyWorkPanelContext());
+});
+
+ test("supported Office paths route to the editor while source files remain file tabs", () => {
+  for (const ext of ["doc", "docx", "xls", "xlsx", "ppt", "pptx", "odt", "ods", "odp", "rtf", "csv", "pdf"]) {
+    const tab = fileWorkPanelTab(`./docs/example.${ext.toUpperCase()}`);
+    assert.equal(tab.kind, "editor");
+    assert.equal(tab.resource, `docs/example.${ext.toUpperCase()}`);
+  }
+  assert.equal(fileWorkPanelTab("attachments/" + "a".repeat(64), "application/pdf").kind, "editor");
+  assert.equal(fileWorkPanelTab("code.ts", "text/plain").kind, "file");
+  assert.equal(fileWorkPanelTab("drawing.svg").kind, "file");
+});
+
+test("TXT files and plain-text attachments open the text viewer with their content", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "deckwise-txt-preview-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const attachments = join(root, "attachments");
+  await mkdir(attachments);
+  const content = "中文文本\nPlain text <b>stays text</b>\n";
+  const blob = `attachments/${"e".repeat(64)}`;
+  for (const path of ["note.TXT", blob]) {
+    await writeFile(join(root, path), content);
+    const tab = fileWorkPanelTab(path, "text/plain; charset=utf-8");
+    assert.equal(tab.kind, "file");
+    const preview = await readOpenableFile(tab.resource, root, [attachments], tab.mimeType);
+    assert.equal(preview.kind, "text");
+    assert.equal(preview.content, content);
+  }
 });

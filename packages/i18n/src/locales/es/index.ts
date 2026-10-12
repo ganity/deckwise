@@ -1376,6 +1376,19 @@ sklm: {
     },
     "browser": {
     },
+    pptEditor: {
+      loading: "Abriendo documento…",
+      error: "No se pudo abrir el editor",
+      retry: "Reintentar",
+      saving: "Guardando…",
+      saved: "Guardado · Revisión {{revision}}",
+      revision: "Revisión {{revision}}",
+      restore: "Salir de pantalla completa",
+      maximize: "Editar a pantalla completa",
+      saveCopy: "Guardar una copia",
+      save: "Guardar en el archivo original",
+      close: "Cerrar editor Office",
+    },
     "files": {
       "noWorkspace": "Abrir un proyecto para buscar archivos",
       "noWorkspaceHint": "La navegación está limitada al proyecto abierto.",
@@ -1384,6 +1397,7 @@ sklm: {
       "error": "No se pudo leer esta ubicación",
       "back": "Volver a los archivos",
       "reveal": "Mostrar en el Finder",
+      "openExternally": "Se abrirá con la aplicación predeterminada del sistema",
       "binary": "Archivo binario: vista previa no disponible",
       "tooLarge": "El archivo es demasiado grande para obtener una vista previa"
     }

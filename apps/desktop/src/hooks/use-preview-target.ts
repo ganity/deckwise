@@ -1,3 +1,4 @@
+import { getOfficePreviewExtension } from "@pi-desktop/shared";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "../stores/app-store";
@@ -103,7 +104,7 @@ export function useOpenChatFileRef() {
             openUrl(match.relativePath);
             return;
           }
-          if (fileViewAvailable) {
+          if (fileViewAvailable && !getOfficePreviewExtension(target, mimeType)) {
             openTab(fileManagerPluginTab(target));
             return;
           }

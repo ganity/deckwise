@@ -1,4 +1,4 @@
-import { readFile, readdir, realpath, stat } from "node:fs/promises";
+import { open, readFile, readdir, realpath, stat } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { FsEntry, FsImageDataUrlResult, FsReadResult } from "@pi-desktop/shared";
 
@@ -26,6 +26,7 @@ const IGNORED_NAMES = new Set([
 
 export const MAX_TEXT_BYTES = 512 * 1024;
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+export const MAX_PDF_BYTES = 256 * 1024 * 1024;
 
 export const IMAGE_MIME: Record<string, string> = {
   png: "image/png",
@@ -40,6 +41,13 @@ export const IMAGE_MIME: Record<string, string> = {
 };
 
 const ALLOWED_IMAGE_MIME = new Set(Object.values(IMAGE_MIME));
+
+function isPdfPath(displayPath: string, mimeType?: string): boolean {
+  return (
+    String(mimeType ?? "").trim().toLowerCase() === "application/pdf" ||
+    /\.pdf$/i.test(displayPath)
+  );
+}
 
 /** Content-addressed paste/upload blobs: `attachments/<sha256>`. */
 const ATTACHMENT_BLOB_RE = /^attachments\/[0-9a-f]{64}$/i;
@@ -265,6 +273,17 @@ function looksBinary(buffer: Buffer): boolean {
   return false;
 }
 
+async function readBinaryProbe(fullPath: string, size: number): Promise<Buffer> {
+  const handle = await open(fullPath, "r");
+  try {
+    const probe = Buffer.allocUnsafe(Math.min(size, 8000));
+    const { bytesRead } = await handle.read(probe, 0, probe.length, 0);
+    return probe.subarray(0, bytesRead);
+  } finally {
+    await handle.close();
+  }
+}
+
 /**
  * Image MIME for in-app preview. A known image extension always wins so a
  * client cannot reclassify `notes.md` as `image/png`. Extension-less
@@ -311,8 +330,25 @@ export async function previewFile(
     };
   }
 
+  if (isPdfPath(rel, mimeType)) {
+    if (info.size > MAX_PDF_BYTES) {
+      return { kind: "tooLarge", size: info.size };
+    }
+    const buffer = await readFile(fullPath);
+    if (buffer.length > MAX_PDF_BYTES) {
+      return { kind: "tooLarge", size: buffer.length };
+    }
+    return {
+      kind: "pdf",
+      dataUrl: `data:application/pdf;base64,${buffer.toString("base64")}`,
+      size: buffer.length,
+    };
+  }
+
   if (info.size > MAX_TEXT_BYTES) {
-    return { kind: "tooLarge", size: info.size };
+    return (await readBinaryProbe(fullPath, info.size)).some((byte) => byte === 0)
+      ? { kind: "binary", size: info.size }
+      : { kind: "tooLarge", size: info.size };
   }
   const buffer = await readFile(fullPath);
   if (looksBinary(buffer)) {

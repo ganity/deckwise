@@ -2,6 +2,15 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const esEntries: ChangelogEntry[] = [
   {
+    version: "0.17.6",
+    date: "2026-10-12",
+    highlights: [
+      "Previsualiza Word, Excel, PowerPoint y PDF en WiseOffice; abre TXT como texto plano.",
+      "Recupera los fallos de inicio del editor con un indicador de carga y reintento; conserva versiones y adjuntos de solo lectura.",
+      "Añade varias imágenes de referencia, límites de contexto configurables y mensajes más claros para solicitudes demasiado grandes.",
+    ],
+  },
+  {
     version: "0.17.5",
     date: "2026-10-09",
     highlights: [
