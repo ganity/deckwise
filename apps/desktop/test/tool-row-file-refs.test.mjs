@@ -4,6 +4,7 @@ import test from "node:test";
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import ts from "typescript";
+import * as shared from "@pi-desktop/shared";
 
 /*
  * The opener a tool row's summary and a tool result's file/match list call.
@@ -58,8 +59,9 @@ const state = {
 let nextMatch = null;
 let resolveFails = false;
 
-const workPanelTabs = loadModule("../src/lib/work-panel-tabs.ts", {});
+const workPanelTabs = loadModule("../src/lib/work-panel-tabs.ts", { "@pi-desktop/shared": shared });
 const { useOpenPreviewTarget } = loadModule("../src/hooks/use-preview-target.ts", {
+  "@pi-desktop/shared": shared,
   react: React,
   "react-i18next": { useTranslation: () => ({ t: (key, values) => `${key}:${values?.name ?? ""}` }) },
   "../stores/app-store": { useAppStore: (selector) => selector(state) },
@@ -141,6 +143,23 @@ test("without the file view a project file keeps falling back to the host file t
   assert.deepEqual(calls.tabs, []);
   assert.equal(calls.files.length, 1);
   assert.equal(calls.files[0][0], "src/dir/a.ts");
+});
+
+test("TXT uses the file view while Office documents use the built-in editor", async () => {
+  for (const extension of ["txt", "docx", "xlsx", "pptx", "pdf"]) {
+    reset({ pluginView: true });
+    const path = `docs/example.${extension}`;
+    nextMatch = projectMatch({ relativePath: path, absolutePath: `C:/project/${path}` });
+    await click({ kind: "file", path });
+    if (extension === "txt") {
+      assert.equal(calls.tabs[0]?.location, path);
+      assert.deepEqual(calls.files, []);
+    } else {
+      assert.deepEqual(calls.tabs, []);
+      assert.equal(calls.files[0]?.[0], path);
+      assert.equal(workPanelTabs.fileWorkPanelTab(path).kind, "editor");
+    }
+  }
 });
 
 test("a scratch or attachment file a tool surface names opens on the host file tab", async () => {

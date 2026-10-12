@@ -891,10 +891,10 @@ export type PluginWebSocketErrorEvent = {
 
 /** Classified preview returned by `fs.readPreview`. */
 export type PluginFsPreview = {
-  kind: "text" | "image" | "binary" | "tooLarge";
+  kind: "text" | "image" | "pdf" | "binary" | "tooLarge";
   /** UTF-8 file content when kind is `"text"`. */
   content?: string;
-  /** Base64 data URL when kind is `"image"`. */
+  /** Base64 data URL when kind is `"image"` or `"pdf"`. */
   dataUrl?: string;
   size: number;
 };
@@ -1039,7 +1039,7 @@ export type PluginHostApi = {
       grantId?: string,
     ) => Promise<PluginFsRange>;
     /**
-     * Bounded classified preview of one existing readable file. Images return
+     * Bounded classified preview of one existing readable file. Images and PDFs return
      * a data URL; text is capped; binary and oversized files are reported
      * without dumping their bytes.
      */

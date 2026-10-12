@@ -1064,6 +1064,7 @@ sklm: {
     "modelAliasHint": "Affiché partout où le modèle est nommé ; l'id reste l'identité de la requête.",
     "modelAliasPlaceholder": "ex. rapide",
     "contextWindow": "Fenêtre contextuelle",
+    managedContextWindowHint: "S’applique à tous les modèles IA intégrés dès la prochaine requête. Par défaut : 128K. Utilisez la limite prise en charge par votre service ; une valeur supérieure n’augmente pas la capacité du serveur.",
     "maxOutput": "Sortie maximale",
     "supportedThinkingLevels": "Niveaux de réflexion",
     "defaultThinkingLevel": "Niveau de réflexion par défaut",
@@ -1375,6 +1376,19 @@ sklm: {
     },
     "browser": {
     },
+    pptEditor: {
+      loading: "Ouverture du document…",
+      error: "Impossible d’ouvrir l’éditeur",
+      retry: "Réessayer",
+      saving: "Enregistrement…",
+      saved: "Enregistré · Révision {{revision}}",
+      revision: "Révision {{revision}}",
+      restore: "Quitter le plein écran",
+      maximize: "Modifier en plein écran",
+      saveCopy: "Enregistrer une copie",
+      save: "Enregistrer dans le fichier d’origine",
+      close: "Fermer l’éditeur Office",
+    },
     "files": {
       "noWorkspace": "Ouvrir un projet pour parcourir les fichiers",
       "noWorkspaceHint": "La navigation est limitée au projet ouvert.",
@@ -1383,6 +1397,7 @@ sklm: {
       "error": "Impossible de lire cet emplacement",
       "back": "Retour aux fichiers",
       "reveal": "Révéler dans le Finder",
+      "openExternally": "Ouverture avec l’application système par défaut",
       "binary": "Fichier binaire — aperçu indisponible",
       "tooLarge": "Le fichier est trop volumineux pour être prévisualisé"
     }
@@ -1969,6 +1984,7 @@ sklm: {
     "STREAM_FAILED": "La réponse a été interrompue.",
     "EMPTY_MODEL_RESPONSE": "Le modèle a terminé son tour sans rien dire, deux fois de suite. Réessayez ou reformulez votre demande.",
     "MUTATION_RETRY_BUDGET_EXHAUSTED": "La même modification a échoué trois fois, donc ce tour s'est arrêté au lieu de réessayer en aveugle. Demandez à nouveau pour continuer.",
+    PAYLOAD_TOO_LARGE: "La requête dépasse la limite de taille du serveur. Réduisez la taille des images ou des pièces jointes, puis réessayez.",
     "CONTEXT_TOO_LARGE": "Ce chat est encore trop long après la récupération du contexte. Raccourcissez votre message ou démarrez une nouvelle discussion.",
     "CONTEXT_COMPACTION_FAILED": "Impossible de compacter le contexte du modèle de cette conversation.",
     "AGENT_BUSY": "Ce chat fonctionne déjà. Attendez qu'il se termine ou arrêtez-le d'abord.",

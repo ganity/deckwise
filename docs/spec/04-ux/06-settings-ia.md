@@ -216,7 +216,9 @@ a usage tab.
 
 ### Model configuration (`agent` tab)
 - **Built-in AI services** card: DeckWise shows the courseware-generation and
-  courseware-image services as platform-managed, read-only rows. The desktop
+  courseware-image services as platform-managed rows. A local context-window
+  setting for built-in text models is editable and persisted in app settings;
+  its presets, custom input and Save behavior are defined in §3 below. The desktop
   does not expose model IDs, API keys, routing, billing, or edit controls for
   these services; their concrete provider models remain server-owned.
   Model discovery, conversations (including subagents), and PPT image generation
@@ -665,7 +667,12 @@ system while preserving their different data ownership:
 7. Provider secrets never display raw key values
 8. Model configuration shows compact Defaults, separate vendor accounts, the
    account edit/add dialogs, and AI service cards rather than a dense always-on
-   form dump
+   form dump. The built-in DeckWise AI card exposes a context-window field,
+   the shared token-limit presets, and Save. Empty, non-positive, fractional
+   or unsafe values cannot be saved; errors remain visible and failed saves
+   leave the stored window intact. Connection and credential controls stay
+   platform-owned. The hint states the 128K default, next-request application,
+   and the distinction between a local budget and server capacity.
 9. Row descriptions use semantic secondary text and maintain at least 4.5:1
    contrast against their card surface in both light and dark themes
 10. Dragging the empty top band from either side of Settings moves the native

@@ -1081,6 +1081,7 @@ sklm: {
     modelAliasHint: "모델 이름이 표시되는 곳마다 사용됩니다. ID는 요청 식별자로 유지됩니다.",
     modelAliasPlaceholder: "예: fast",
     contextWindow: "컨텍스트 창",
+    managedContextWindowHint: "저장 후 다음 요청부터 모든 내장 AI 모델에 적용됩니다. 기본값: 128K. 서비스가 지원하는 한도로 설정하세요. 값을 늘려도 서버 용량은 증가하지 않습니다.",
     maxOutput: "최대 출력",
     supportedThinkingLevels: "생각 수준",
     defaultThinkingLevel: "기본 생각 수준",
@@ -1392,6 +1393,19 @@ sklm: {
     },
     browser: {
     },
+    pptEditor: {
+      loading: "문서 여는 중…",
+      error: "편집기를 열 수 없습니다",
+      retry: "다시 시도",
+      saving: "저장 중…",
+      saved: "저장됨 · 버전 {{revision}}",
+      revision: "버전 {{revision}}",
+      restore: "전체 화면 종료",
+      maximize: "전체 화면 편집",
+      saveCopy: "사본 저장",
+      save: "원본 파일에 저장",
+      close: "Office 편집기 닫기",
+    },
     files: {
       noWorkspace: "파일을 탐색하려면 프로젝트를 여세요",
       noWorkspaceHint: "탐색은 열린 프로젝트로 제한됩니다.",
@@ -1400,6 +1414,7 @@ sklm: {
       error: "이 위치를 읽을 수 없습니다",
       back: "파일로 돌아가기",
       reveal: "Finder에서 보기",
+      openExternally: "시스템 기본 애플리케이션으로 엽니다",
       binary: "바이너리 파일 — 미리 볼 수 없음",
       tooLarge: "파일이 너무 커서 미리 볼 수 없음",
     },
@@ -2009,6 +2024,7 @@ importConfirm: "가져온 확장은 에이전트 프로세스 안에서 에이�
       "모델이 두 번 연속 아무 말 없이 턴을 완료했습니다. 다시 시도하거나 요청을 바꿔 표현하세요.",
     MUTATION_RETRY_BUDGET_EXHAUSTED:
       "같은 편집이 세 번 실패하여 무작정 재시도하지 않고 이 턴을 중지했습니다. 계속하려면 다시 요청하세요.",
+    PAYLOAD_TOO_LARGE: "요청이 서버 크기 제한을 초과했습니다. 이미지나 첨부 파일 크기를 줄인 후 다시 시도하세요.",
     CONTEXT_TOO_LARGE: "컨텍스트를 복구한 후에도 이 채팅이 너무 깁니다. 메시지를 줄이거나 새 채팅을 시작하세요.",
     CONTEXT_COMPACTION_FAILED: "이 대화의 모델 컨텍스트를 압축할 수 없습니다.",
     AGENT_BUSY: "이 채팅은 이미 작업 중입니다. 완료될 때까지 기다리거나 먼저 중지하세요.",

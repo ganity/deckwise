@@ -3493,6 +3493,31 @@ describe("DesktopAgentRuntime assistant thinking events", () => {
     await runtime.dispose();
   });
 
+  it.each([
+    "OpenAI API error (413): 413 length limit exceeded",
+    '413: {"error":{"type":"request_too_large"}}',
+  ])("does not compact byte-size failures: %s", async (errorMessage) => {
+    const onEvent = vi.fn();
+    const runtime = createRuntime({ onEvent });
+    const handleAgentEvent = (runtime as any).handleAgentEvent.bind(runtime);
+    await handleAgentEvent({
+      type: "message_start",
+      message: { role: "assistant", content: [] },
+    });
+    await handleAgentEvent({
+      type: "message_end",
+      message: { role: "assistant", content: [], stopReason: "error", errorMessage },
+    });
+    expect((runtime as any).pendingOverflow).toBe(false);
+    expect(onEvent.mock.calls.map(([envelope]) => (envelope as any).event)).toContainEqual(
+      expect.objectContaining({
+        type: "error",
+        error: expect.objectContaining({ code: "PAYLOAD_TOO_LARGE", retriable: false }),
+      }),
+    );
+    await runtime.dispose();
+  });
+
   it("does not recover provider overflow when automatic compaction is disabled", async () => {
     const onEvent = vi.fn();
     const runtime = createRuntime({

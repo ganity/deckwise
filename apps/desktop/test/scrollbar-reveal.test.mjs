@@ -59,19 +59,20 @@ test("scroll marks the scrolling element and clears it after the hold", async ()
   dispose();
 });
 
-test("continuous scrolling keeps the mark until the element goes quiet", async () => {
+test("continuous scrolling keeps the mark until the element goes quiet", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
   const root = fakeRoot();
   const pane = fakeElement();
   const dispose = installScrollbarReveal(root, { holdMs: 20 });
 
   root.scroll(pane);
-  await sleep(12);
+  t.mock.timers.tick(12);
   root.scroll(pane);
-  await sleep(12);
+  t.mock.timers.tick(12);
   // 24ms after the first scroll but only 12ms after the last: still marked.
   assert.equal(pane.attrs.has(SCROLLING_ATTRIBUTE), true);
 
-  await sleep(20);
+  t.mock.timers.tick(20);
   assert.equal(pane.attrs.has(SCROLLING_ATTRIBUTE), false);
   dispose();
 });

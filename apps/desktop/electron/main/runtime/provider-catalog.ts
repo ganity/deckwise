@@ -3,6 +3,7 @@ import {
   DECKWISE_MANAGED_BASE_URL,
   DECKWISE_MANAGED_MODEL_ID,
   DECKWISE_MANAGED_PROVIDER_ID,
+  DECKWISE_DEFAULT_CONTEXT_WINDOW,
   OAUTH_AUTH_KIND,
   THINKING_LEVELS,
   defaultCommandShellForPlatform,
@@ -11,6 +12,7 @@ import {
   resolveBindingContextWindow,
   validateNetworkProxy,
   validateSpeechSettings,
+  validateManagedContextWindow,
   type CommandShellId,
   type ModelBinding,
   type ThinkingLevel,
@@ -33,7 +35,6 @@ const ErrorCodes = {
   COMMAND_SHELL_INVALID: "COMMAND_SHELL_INVALID",
 } as const;
 
-const MANAGED_CONTEXT_WINDOW = 128_000;
 const MANAGED_MAX_TOKENS = 32_768;
 const MANAGED_THINKING_LEVELS = ["off", "low", "medium", "high"] as const;
 
@@ -105,7 +106,7 @@ export function createProviderCatalogRuntime({
       {
         id: managedModelId,
         alias: "DeckWise AI",
-        contextWindow: MANAGED_CONTEXT_WINDOW,
+        contextWindow: DECKWISE_DEFAULT_CONTEXT_WINDOW,
         maxTokens: MANAGED_MAX_TOKENS,
         supportsImages: true,
         thinkingLevels: [...MANAGED_THINKING_LEVELS],
@@ -138,7 +139,7 @@ export function createProviderCatalogRuntime({
             // llm-ha's public model id is the stable alias selected by the
             // administrator; upstream deployment names stay server-side.
             alias: id,
-            contextWindow: MANAGED_CONTEXT_WINDOW,
+            contextWindow: DECKWISE_DEFAULT_CONTEXT_WINDOW,
             maxTokens: MANAGED_MAX_TOKENS,
             supportsImages: true,
             thinkingLevels: [...MANAGED_THINKING_LEVELS],
@@ -296,7 +297,17 @@ export function createProviderCatalogRuntime({
     const value = settings as T & {
       defaultCommandShell?: unknown;
       networkProxy?: unknown;
+      managedContextWindow?: unknown;
     };
+    if (value.managedContextWindow !== undefined) {
+      try {
+        validateManagedContextWindow(value.managedContextWindow);
+      } catch (error) {
+        throw Object.assign(error instanceof Error ? error : new Error(String(error)), {
+          errorCode: ErrorCodes.INVALID_ARGUMENT,
+        });
+      }
+    }
     if (
       Object.prototype.hasOwnProperty.call(value, "defaultCommandShell") &&
       !isCommandShellId(value.defaultCommandShell)
@@ -330,7 +341,18 @@ export function createProviderCatalogRuntime({
       { includeDisabled },
     );
     await modelsDevCatalog.ensureLoaded();
-    const models = await managedModels();
+    const [discoveredModels, settings] = await Promise.all([
+      managedModels(),
+      host.call<{ managedContextWindow?: number }>("settings.get"),
+    ]);
+    const contextWindow = validateManagedContextWindow(settings?.managedContextWindow);
+    const models = discoveredModels.map((model) => ({
+      ...model,
+      contextWindow,
+      ...(settings?.managedContextWindow !== undefined
+        ? { contextWindowSource: "user" as const }
+        : {}),
+    }));
     return [
       {
         ...managedProvider,

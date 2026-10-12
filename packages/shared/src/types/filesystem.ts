@@ -7,10 +7,10 @@ export type FsEntry = {
 };
 
 export type FsReadResult = {
-  kind: "text" | "image" | "binary" | "tooLarge";
+  kind: "text" | "image" | "pdf" | "binary" | "tooLarge";
   /** UTF-8 file content when kind is "text". */
   content?: string;
-  /** Base64 data URL when kind is "image". */
+  /** Base64 data URL when kind is "image" or "pdf". */
   dataUrl?: string;
   size: number;
 };

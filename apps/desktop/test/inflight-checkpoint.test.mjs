@@ -27,14 +27,15 @@ test("only assistant messages with visible text are checkpointable", () => {
   );
 });
 
-test("first snapshot is written immediately and a burst collapses to one trailing write", async () => {
+test("first snapshot is written immediately and a burst collapses to one trailing write", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
   const saved = [];
   const checkpointer = new InflightCheckpointer(async (checkpoint) => {
     saved.push(checkpoint.message.content);
   }, 30);
 
   checkpointer.observe({ sessionId: "s", turnId: "t", message: assistant("a", "h") });
-  await sleep(0);
+  await checkpointer.flush("s");
   assert.deepEqual(saved, ["h"]);
 
   checkpointer.observe({ sessionId: "s", turnId: "t", message: assistant("a", "he") });
@@ -42,7 +43,9 @@ test("first snapshot is written immediately and a burst collapses to one trailin
   checkpointer.observe({ sessionId: "s", turnId: "t", message: assistant("a", "hell") });
   assert.deepEqual(saved, ["h"], "throttled inside the interval");
 
-  await sleep(60);
+  t.mock.timers.tick(29);
+  assert.deepEqual(saved, ["h"]);
+  t.mock.timers.tick(1);
   assert.deepEqual(saved, ["h", "hell"], "newest snapshot wins the trailing write");
   checkpointer.dispose();
 });

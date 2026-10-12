@@ -1064,6 +1064,7 @@ sklm: {
     "modelAliasHint": "Wird überall angezeigt, wo das Modell benannt wird; die ID bleibt die Identität der Anfrage.",
     "modelAliasPlaceholder": "z. B. schnell",
     "contextWindow": "Kontextfenster",
+    managedContextWindowHint: "Gilt ab der nächsten Anfrage für alle integrierten KI-Modelle. Standard: 128K. Verwenden Sie das Limit Ihres Dienstes; ein höherer Wert erhöht nicht die Serverkapazität.",
     "maxOutput": "Maximale Ausgabe",
     "supportedThinkingLevels": "Denkebenen",
     "defaultThinkingLevel": "Standard-Denkebene",
@@ -1375,6 +1376,19 @@ sklm: {
     },
     "browser": {
     },
+    pptEditor: {
+      loading: "Dokument wird geöffnet…",
+      error: "Editor konnte nicht geöffnet werden",
+      retry: "Erneut versuchen",
+      saving: "Wird gespeichert…",
+      saved: "Gespeichert · Revision {{revision}}",
+      revision: "Revision {{revision}}",
+      restore: "Vollbild verlassen",
+      maximize: "Im Vollbild bearbeiten",
+      saveCopy: "Kopie speichern",
+      save: "In Originaldatei speichern",
+      close: "Office-Editor schließen",
+    },
     "files": {
       "noWorkspace": "Öffnen Sie ein Projekt, um Dateien zu durchsuchen",
       "noWorkspaceHint": "Das Durchsuchen ist auf das Öffnen beschränkt Projekt.",
@@ -1383,6 +1397,7 @@ sklm: {
       "error": "Dieser Speicherort konnte nicht gelesen werden",
       "back": "Zurück zu Dateien",
       "reveal": "Im Finder anzeigen",
+      "openExternally": "Wird mit der Standardsystemanwendung geöffnet",
       "binary": "Binärdatei – Vorschau nicht verfügbar",
       "tooLarge": "Datei ist zu groß für die Vorschau"
     }
@@ -1969,6 +1984,7 @@ sklm: {
     "STREAM_FAILED": "Die Antwort wurde unterbrochen.",
     "EMPTY_MODEL_RESPONSE": "Das Modell beendete seinen Zug zweimal hintereinander, ohne etwas zu sagen. Versuchen Sie es erneut oder formulieren Sie Ihre Anfrage um.",
     "MUTATION_RETRY_BUDGET_EXHAUSTED": "Die gleiche Bearbeitung schlug dreimal fehl, daher wurde dieser Zug abgebrochen, anstatt es erneut zu versuchen. Bitten Sie erneut, fortzufahren.",
+    PAYLOAD_TOO_LARGE: "Die Anfrage überschreitet das Größenlimit des Servers. Verkleinere Bilder oder Anhänge und versuche es erneut.",
     "CONTEXT_TOO_LARGE": "Dieser Chat ist nach der Kontextwiederherstellung immer noch zu lang. Kürzen Sie Ihre Nachricht oder starten Sie einen neuen Chat.",
     "CONTEXT_COMPACTION_FAILED": "Der Modellkontext dieser Konversation konnte nicht komprimiert werden.",
     "AGENT_BUSY": "Dieser Chat funktioniert bereits. Warten Sie, bis der Vorgang abgeschlossen ist, oder stoppen Sie ihn zuerst.",

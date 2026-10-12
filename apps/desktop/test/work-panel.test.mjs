@@ -283,7 +283,7 @@ test("work panel header exposes a scrollable tab strip without a new-page action
 
 test("PPTX and Browser editing surfaces expose an in-app full-screen mode", () => {
   assert.match(panelSource, /return "预览编辑"/);
-  assert.match(panelSource, /if \(tab\.kind === "editor"\) return "编辑 PPT"/);
+  assert.match(panelSource, /if \(tab\.kind === "editor"\) return tab\.resource\?\.replaceAll\([\s\S]*?\.at\(-1\) \|\| t\("panel\.tabs\.file"\)/);
   assert.match(panelSource, /BROWSER_PLUGIN_TAB\.pluginId/);
   assert.match(panelSource, /event\.key !== "Escape"/);
   assert.match(appSource, /!workPanelMaximized && \(!sidebarCollapsed \|\| sidebarExiting\)/);
@@ -292,7 +292,7 @@ test("PPTX and Browser editing surfaces expose an in-app full-screen mode", () =
   assert.match(appSource, /sidebarCollapsed=\{workPanelMaximized \|\| sidebarCollapsed\}/);
   assert.match(panelSource, /<PptEditorTab[\s\S]*maximized=\{maximized\}/);
   assert.match(panelSource, /onToggleMaximize=\{onToggleMaximize\}/);
-  assert.match(pptEditorSource, /maximized \? "退出全屏" : "全屏编辑"/);
+  assert.match(pptEditorSource, /maximized \? t\("panel\.pptEditor\.restore"\) : t\("panel\.pptEditor\.maximize"\)/);
 });
 
 test("internal blank pages still let launcher rows open tools", () => {

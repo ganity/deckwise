@@ -2,6 +2,15 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const koEntries: ChangelogEntry[] = [
   {
+    version: "0.17.6",
+    date: "2026-10-12",
+    highlights: [
+      "WiseOffice에서 Word, Excel, PowerPoint 및 PDF를 미리 보고 TXT는 일반 텍스트로 엽니다.",
+      "로딩 표시와 재시도로 편집기 시작 실패를 복구하고 문서 버전과 첨부 파일의 읽기 전용 보호를 유지합니다.",
+      "여러 참조 이미지와 모델 컨텍스트 한도 설정을 지원하고 큰 요청 실패의 복구 안내를 개선합니다.",
+    ],
+  },
+  {
     version: "0.17.5",
     date: "2026-10-09",
     highlights: [

@@ -1577,6 +1577,27 @@
   border-top: 1px solid var(--ds-border-subtle);
 }
 
+.managed-context-window {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-basis: 100%;
+  min-width: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--ds-border-subtle);
+}
+
+.managed-context-window-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.managed-context-window-input input {
+  min-width: 0;
+  flex: 1;
+}
+
 .model-provider-key-entry > label {
   flex: 1 1 auto;
   min-width: 0;

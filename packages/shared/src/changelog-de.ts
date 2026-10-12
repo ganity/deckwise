@@ -2,6 +2,15 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const deEntries: ChangelogEntry[] = [
   {
+    version: "0.17.6",
+    date: "2026-10-12",
+    highlights: [
+      "Word, Excel, PowerPoint und PDF in WiseOffice anzeigen; TXT als Klartext öffnen.",
+      "Fehlgeschlagene Editorstarts mit Ladeanzeige und erneutem Versuch beheben; Dateiversionen und schreibgeschützte Anhänge bewahren.",
+      "Mehrere Referenzbilder, einstellbare Modell-Kontextgrenzen und verständlichere Hinweise bei zu großen Anfragen unterstützen.",
+    ],
+  },
+  {
     version: "0.17.5",
     date: "2026-10-09",
     highlights: [

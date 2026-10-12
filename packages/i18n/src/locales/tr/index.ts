@@ -1082,6 +1082,7 @@ sklm: {
     modelAliasHint: "Modelin adlandırıldığı her yerde gösterilir; istek kimliği model ID olarak kalır.",
     modelAliasPlaceholder: "örn. hızlı",
     contextWindow: "Bağlam penceresi",
+    managedContextWindowHint: "Bir sonraki istekten itibaren tüm yerleşik AI modellerine uygulanır. Varsayılan: 128K. Hizmetinizin desteklediği sınırı kullanın; daha yüksek bir değer sunucu kapasitesini artırmaz.",
     maxOutput: "En fazla çıktı",
     supportedThinkingLevels: "Düşünme düzeyleri",
     defaultThinkingLevel: "Varsayılan düşünme düzeyi",
@@ -1393,6 +1394,19 @@ sklm: {
     },
     browser: {
     },
+    pptEditor: {
+      loading: "Belge açılıyor…",
+      error: "Düzenleyici açılamadı",
+      retry: "Yeniden dene",
+      saving: "Kaydediliyor…",
+      saved: "Kaydedildi · Revizyon {{revision}}",
+      revision: "Revizyon {{revision}}",
+      restore: "Tam ekrandan çık",
+      maximize: "Tam ekranda düzenle",
+      saveCopy: "Kopyasını kaydet",
+      save: "Özgün dosyaya kaydet",
+      close: "Office düzenleyicisini kapat",
+    },
     files: {
       noWorkspace: "Dosyalara göz atmak için bir proje açın",
       noWorkspaceHint: "Göz atma açık projeyle sınırlıdır.",
@@ -1401,6 +1415,7 @@ sklm: {
       error: "Bu konum okunamadı",
       back: "Dosyalara dön",
       reveal: "Finder’da göster",
+      openExternally: "Sistem varsayılan uygulamasıyla açılacak",
       binary: "İkili dosya — önizleme yok",
       tooLarge: "Dosya önizlemek için çok büyük",
     },
@@ -2010,6 +2025,7 @@ importConfirm: "İçe aktarılan uzantılar ajan sürecinde, ajanın kendi araç
       "Model iki tur üst üste hiçbir şey söylemeden bitirdi. Yeniden deneyin veya isteği başka türlü sorun.",
     MUTATION_RETRY_BUDGET_EXHAUSTED:
       "Aynı düzenleme üç kez başarısız oldu, bu yüzden körü körüne yeniden denemek yerine tur durdu. Devam etmek için yeniden sorun.",
+    PAYLOAD_TOO_LARGE: "İstek sunucunun boyut sınırını aşıyor. Görselleri veya ekleri küçültüp tekrar deneyin.",
     CONTEXT_TOO_LARGE: "Bağlam kurtarmadan sonra bu sohbet hâlâ çok uzun. İletinizi kısaltın veya yeni sohbet açın.",
     CONTEXT_COMPACTION_FAILED: "Bu sohbetin model bağlamı sıkıştırılamadı.",
     AGENT_BUSY: "Bu sohbet zaten çalışıyor. Bitmesini bekleyin veya önce durdurun.",

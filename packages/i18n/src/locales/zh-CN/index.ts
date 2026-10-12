@@ -1065,6 +1065,7 @@ sklm: {
     modelAliasHint: "在显示模型名称的地方生效；请求仍使用模型 ID。",
     modelAliasPlaceholder: "例如 fast",
     contextWindow: "上下文窗口",
+    managedContextWindowHint: "对所有内置 AI 模型生效，保存后从下一次请求开始使用。默认 128K，请按服务实际支持的上限设置；调大数值不会增加服务器容量。",
     maxOutput: "最大输出",
     supportedThinkingLevels: "思考等级",
     defaultThinkingLevel: "默认思考等级",
@@ -1376,6 +1377,19 @@ sklm: {
     },
     browser: {
     },
+    pptEditor: {
+      loading: "正在打开文档…",
+      error: "编辑器打开失败",
+      retry: "重试",
+      saving: "正在保存…",
+      saved: "已保存 · Revision {{revision}}",
+      revision: "Revision {{revision}}",
+      restore: "退出全屏",
+      maximize: "全屏编辑",
+      saveCopy: "保存副本",
+      save: "保存到原文件",
+      close: "关闭 Office 编辑器",
+    },
     files: {
       noWorkspace: "打开项目后即可浏览文件",
       noWorkspaceHint: "仅可浏览当前项目。",
@@ -1384,6 +1398,7 @@ sklm: {
       error: "无法读取此位置",
       back: "返回文件列表",
       reveal: "在 Finder 中显示",
+      openExternally: "将使用系统默认应用打开",
       binary: "二进制文件，无法预览",
       tooLarge: "文件过大，无法预览",
     },
@@ -1974,6 +1989,7 @@ sklm: {
     EMPTY_MODEL_RESPONSE: "模型连续两轮都没有输出内容。可以重试，或换一种说法。",
     MUTATION_RETRY_BUDGET_EXHAUSTED:
       "同一处修改连续失败三次，本轮已停止，不再盲目重试。再说一次即可继续。",
+    PAYLOAD_TOO_LARGE: "请求大小超过服务端限制。请缩小图片或附件后重试。",
     CONTEXT_TOO_LARGE: "上下文恢复后对话仍然过长。请缩短消息内容或新开对话。",
     CONTEXT_COMPACTION_FAILED: "无法压缩当前对话的模型上下文。",
     AGENT_BUSY: "此对话正在处理中。请等待完成，或先停止当前任务。",

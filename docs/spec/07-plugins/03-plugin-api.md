@@ -209,9 +209,9 @@ pi.fs.readRange(
   grantId?: string,
 ): Promise<{ bytes: Uint8Array; totalSize: number }>
 pi.fs.readPreview(pathFromRoot: string): Promise<{
-  kind: "text" | "image" | "binary" | "tooLarge"
+  kind: "text" | "image" | "pdf" | "binary" | "tooLarge"
   content?: string     // UTF-8 when kind is "text"
-  dataUrl?: string     // data URL when kind is "image"
+  dataUrl?: string     // data URL when kind is "image" or "pdf"
   size: number
 }>
 pi.fs.openDefault(pathFromRoot: string): Promise<void>
@@ -242,7 +242,8 @@ SDK method.
 `fs.readPreview` classifies one existing readable file for in-app display. It
 uses the same `fs.read` checks as `fs.readText`, rejects directories, and
 returns `text` (capped at 512 KiB), `image` (capped at 5 MiB, as a data URL),
-`binary`, or `tooLarge`. The plugin never receives an absolute path.
+`pdf` (capped at 256 MiB, as a data URL), `binary`, or `tooLarge`. Binary and
+oversized files return no content bytes. The plugin never receives an absolute path.
 
 `fs.openDefault` opens one existing file with the operating system's default
 associated application. It uses the same `fs.read` root, symlink, protected-path,

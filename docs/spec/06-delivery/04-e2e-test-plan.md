@@ -8,6 +8,42 @@
 
 ## 1. Goals
 
+### E2E-DECKWISE-PPT-EDITOR-STARTUP-RECOVERY: Failed embed startup can be retried
+
+- **Steps:** Open a workspace PPTX with the embed peer silent, then returning
+  `document:error`. Retry with the peer reporting `document:ready` and the
+  matching `document:opened` ID. Reopen the ready session; close another open
+  attempt while it is waiting.
+- **Expected:** Opening keeps Save disabled and leaves native editor content
+  detached. Timeout or protocol failure releases the failed view and offers
+  Retry. Retry creates a working session using the same revision and source
+  bytes; a successful same-file reopen reuses that session. Close cancels
+  pending listeners without a late error state.
+- **Automation:** `apps/desktop/test/ppt-editor-handshake.test.mjs` covers
+  sender/command correlation, errors, timeout, and cancellation.
+  `xvfb-run -a node scripts/e2e-ppt-editor-loading.mjs --no-sandbox` runs the
+  actual controller, preload, and host in isolated Electron data against a
+  controlled embed peer. Its test bundle shortens the 60-second deadline to
+  two seconds. Real WiseOffice conversion and presentation UI require a live
+  smoke test.
+- **Spec:** `04-ux/09-interaction-patterns.md` §8a.2.
+
+### E2E-DECKWISE-REQUEST-BODY-LIMIT: Separate payload size from model context
+
+- **Steps:** Return HTTP 413 with `length limit exceeded` or
+  `request_too_large` from the managed gateway while sending image attachments.
+  Repeat with HTTP 413 explicitly reporting `context length exceeded`.
+- **Expected:** Byte-size failures show the localized `PAYLOAD_TOO_LARGE`
+  message with advice to reduce image/attachment sizes, preserve the transcript,
+  and do not compact or automatically replay the rejected request. Explicit
+  model token overflows retain the existing context recovery behavior.
+- **Automation:** `packages/agent-runtime/src/agent-errors.test.ts` and
+  `packages/agent-runtime/src/runtime.test.ts` exercise the classifier and
+  final streamed assistant error events. Real provider generation is not
+  needed to verify this error path.
+- **Spec:** `03-runtime/08-error-codes.md` §3.1.
+
+
 ### E2E-DECKWISE-PROJECT-REQUIRED: Courseware tasks refuse temporary sessions
 
 - **Preconditions:** DeckWise has no project selected and retains a historical
@@ -46,6 +82,28 @@
   `apps/desktop/test/provider-catalog-runtime.test.mjs`; authentication wiring
   is covered by `apps/desktop/test/auth-gate.test.mjs`. Live conversation and
   image-generation journeys remain manual.
+
+### E2E-DECKWISE-REFERENCE-SCENES: Design sheets guide new illustrations
+
+- **Preconditions:** A reference-capable Seedream image service is available.
+  Attach multi-pose character sheets and a multi-view spacecraft sheet.
+- **Steps:** Request a space-themed lesson using those fixed identities,
+  including a face-capture scene. Generate and preview through both Default
+  and Quick, then export PPTX. Inspect image manifests and slide image paths.
+  Repeat with image generation failing and with an ordinary photo intended
+  for direct placement; explicitly request display of a model sheet once.
+- **Expected:** Affected AI manifest items carry the relevant original paths
+  in `reference_images` and produce distinct scene assets. Face capture shows
+  the referenced character facing a camera; spacecraft retains its hull and
+  markings in the requested setting. Neither SVG nor PPTX embeds the original
+  pose/view grid or a cropped pose as a substitute. Failed generation is
+  reported as incomplete without a silent original-image fallback. Ordinary
+  direct-use photos and explicitly requested sheet displays remain supported.
+- **Specs linked:** `04-ux/08-component-spec.md` §5.2.3.
+- **Status:** Host instruction and packaging/idempotency contracts automated
+  by `apps/desktop/test/ppt-master-flow.test.mjs` and
+  `apps/desktop/test/python-runtime-contract.test.mjs`; live generated-image
+  identity, scene quality, and end-to-end export remain manual.
 
 ### E2E-DECKWISE-NO-EXTENSIONS-MARKET: Extensions stay internal
 
@@ -3482,24 +3540,33 @@ identify the platform validation still needed.
 #### E2E-060: Files tab browsing stays inside the workspace
 
 - **Preconditions**: Workspace with file artifacts for nested source, large
-  (>512KB), image, and binary files.
+  (>512KB), image, PDF, and binary files; an extensionless PDF attachment above
+  32 MiB and a PDF larger than 256 MiB.
 - **Steps**: 1) Activate each file artifact and verify a distinct path-keyed
   resource in the header switcher; browse the tree, expanding nested folders.
   2) Open a source
-  file, the image, the binary, and the large file. 3) Use reveal-in-Finder.
+  file, the image, the binary, and the large file. Open both PDF attachments.
+  3) Use reveal-in-Finder.
   4) Attempt a traversal read (`../outside`) via devtools IPC. 5) Switch
   workspaces.
 - **Expected**: Directories list lazily, folders first, with `.git` /
   `node_modules` / build outputs hidden; text renders with syntax highlight
-  (capped at 5000 lines), images preview inline, binary and oversized files
-  show fallbacks with reveal still available. Traversal attempts are
+  (capped at 5000 lines), images preview inline; supported Office formats and
+  PDFs use built-in WiseOffice (cap: 256 MiB),
+  binary and oversized files show an OS-default-app fallback with reveal still
+  available. MIME metadata identifies extensionless PDFs. WiseOffice opening
+  errors retain an explicit system-default-app action.
+  Traversal attempts are
   rejected with `INVALID_ARGUMENT`; no workspace → empty state; switching
   workspaces resets the tree and viewer.
 - **Specs linked**: `03-runtime/01-ipc-protocol.md` §13a, ADR 0019,
   `03-runtime/15-workspace-ignore-rules.md`
 - **Acceptance**: D (workspace), Security
 - **Milestone**: M5
-- **Status**: Unit-covered (`fs-panel-guard.test.mjs`); full UI scenario Draft
+- **Status**: Read/containment/size limits covered by `fs-panel-guard.test.mjs`;
+  classifier PDF loading under the production renderer CSP covered by
+  `node scripts/e2e-file-preview.mjs`; editor lifecycle and save checks by
+  `node scripts/e2e-ppt-editor-loading.mjs`. Full UI scenario remains manual.
 
 ---
 
@@ -7692,6 +7759,7 @@ identify the platform validation still needed.
 | Acceptance | Scenarios |
 |---|---|
 | B / C — Managed production gateway | E2E-DECKWISE-MANAGED-GATEWAY |
+| B / F — Built-in AI context override | E2E-DECKWISE-MANAGED-CONTEXT |
 | C / D — Project-bound courseware tasks | E2E-DECKWISE-PROJECT-REQUIRED |
 | A / C — Unicode stdio framing | E2E-RPC-unicode-separators |
 | C / G / Quality — Plugins navigation | E2E-NAV-plugins-button-goes-back |
@@ -13315,3 +13383,40 @@ plugin-form fixtures in an isolated temporary directory at runtime.
   `apps/desktop/test/settings-general.test.mjs`, and
   `apps/desktop/test/auth-gate.test.mjs`; live two-endpoint verification remains
   manual.
+
+### E2E-DECKWISE-MANAGED-CONTEXT: Save the built-in AI context window
+
+- **Preconditions:** Isolated renderer fixture with built-in AI and host settings.
+- **Steps:** Open Settings → Models in English and Chinese. Select 1M and save;
+  reopen the page. Enter 262144 and save. Try blank, zero, negative and fractional
+  values, then simulate a save failure. Restore 128K. Refresh the managed model
+  catalog, simulate offline discovery and recreate the provider runtime.
+- **Expected:** Valid settings survive reopening/runtime recreation and apply
+  to every managed text model and resolved runtime model. Invalid input never
+  writes settings. Save failures are visible and preserve the previous value.
+  Custom-provider windows, credentials, transport and output limits do not change.
+- **Specs:** `03-runtime/11-provider-model-system.md` §10;
+  `04-ux/06-settings-ia.md` §3.
+- **Acceptance:** B (model config), F (persistence).
+- **Milestone:** DeckWise product increment.
+- **Automation:** `node scripts/e2e-managed-context-window.mjs` (real React and
+  Chromium, stubbed app API); `apps/desktop/test/provider-catalog-runtime.test.mjs`
+  (settings validation, refresh, fallback and effective runtime limits);
+  `node scripts/e2e-managed-context-persistence.mjs` (real host SQLite settings,
+  process restart and unrelated partial settings writes).
+- **Status:** Automated. Live-model capacity and packaged-app UI are not
+  exercised by these fixtures.
+
+### Built-in WiseOffice format routing
+
+- Open DOC/DOCX, XLS/XLSX, PPT/PPTX, ODT/ODS/ODP, RTF, CSV, and PDF
+  from chat references and the host file tree. All use the built-in editor.
+- Open TXT and extensionless `text/plain` attachments in the local text
+  viewer and verify exact Chinese/English content without Office conversion.
+- Save edited DOCX/XLSX/PPTX and verify source bytes and revision history.
+  Save DOC/XLS/PPT and verify a new OOXML sibling; the legacy original remains
+  intact and existing siblings are never overwritten.
+- Open extensionless attachments with MIME metadata; they and PDFs are
+  read-only. Reject unsupported formats and paths outside allowed roots.
+- Retain startup timeout, failed iframe load, retry and cancellation checks
+  in `scripts/e2e-ppt-editor-loading.mjs`.

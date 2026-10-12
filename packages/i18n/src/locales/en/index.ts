@@ -1081,6 +1081,7 @@ sklm: {
     modelAliasHint: "Shown wherever the model is named. The id stays the request identity.",
     modelAliasPlaceholder: "e.g. fast",
     contextWindow: "Context window",
+    managedContextWindowHint: "Applies to all built-in AI models from the next request. Default: 128K. Set this to the limit supported by your service; a larger value does not increase server capacity.",
     maxOutput: "Max output",
     supportedThinkingLevels: "Thinking levels",
     defaultThinkingLevel: "Default thinking level",
@@ -1433,6 +1434,19 @@ sklm: {
     },
     browser: {
     },
+    pptEditor: {
+      loading: "Opening document…",
+      error: "Could not open the editor",
+      retry: "Retry",
+      saving: "Saving…",
+      saved: "Saved · Revision {{revision}}",
+      revision: "Revision {{revision}}",
+      restore: "Exit full screen",
+      maximize: "Edit full screen",
+      saveCopy: "Save a copy",
+      save: "Save to original file",
+      close: "Close Office editor",
+    },
     files: {
       noWorkspace: "Open a project to browse files",
       noWorkspaceHint: "Browsing is limited to the open project.",
@@ -1441,6 +1455,7 @@ sklm: {
       error: "Couldn't read this location",
       back: "Back to files",
       reveal: "Reveal in Finder",
+      openExternally: "Will open with the default system application",
       binary: "Binary file — preview unavailable",
       tooLarge: "File is too large to preview",
     },
@@ -2052,6 +2067,7 @@ importConfirm: "Imported extensions run inside the agent process with the same a
       "The model finished its turn without saying anything, twice in a row. Try again, or rephrase your request.",
     MUTATION_RETRY_BUDGET_EXHAUSTED:
       "The same edit failed three times, so this turn stopped instead of retrying blind. Ask again to continue.",
+    PAYLOAD_TOO_LARGE: "The request exceeds the server size limit. Reduce image or attachment sizes and try again.",
     CONTEXT_TOO_LARGE: "This chat is still too long after context recovery. Shorten your message or start a new chat.",
     CONTEXT_COMPACTION_FAILED: "Couldn't compact this conversation's model context.",
     AGENT_BUSY: "This chat is already working. Wait for it to finish, or stop it first.",

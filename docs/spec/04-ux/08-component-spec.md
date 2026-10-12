@@ -1039,6 +1039,21 @@ SVG is newer, the old editor entry is replaced by **Regenerate PPTX**. While a
 revision turn is active, the old export is not presented as complete or as the
 current editor target.
 
+Uploaded character, spacecraft, vehicle, and object design/model sheets used
+to preserve identity are reference-only inputs in both Default and Quick
+generation. Plan affected illustrations as new AI outputs and pass the
+relevant original images through Seedream's `reference_images`; text-only
+filename mentions do not satisfy this requirement. Each prompt preserves the
+subject's identity while specifying the slide's scene, pose, action, camera,
+and composition. Place only visually reviewed generated results, never the
+original multi-view sheet or a cropped pose as a substitute. Keep references
+out of the placed-image lock. Ordinary user photos, screenshots, and diagrams
+retain direct-use behavior, as does an explicit request to display a sheet.
+An unavailable reference-capable backend or failed generation leaves the
+affected required illustration incomplete and is reported; it must not
+silently replace the subject. Existing incorrect slides need new illustration
+generation before SVG preview and PPTX export.
+
 Once SVG source exists, the workbench exposes **Preview SVG** independently of
 the agent turn. Each activation asks Electron main to validate the
 project-local `live_preview/lock.json` against the service `/api/health`

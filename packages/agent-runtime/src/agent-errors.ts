@@ -23,7 +23,7 @@ const NETWORK_PATTERN =
   /ECONNREFUSED|ECONNRESET|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|EPIPE|ENETUNREACH|EHOSTUNREACH|UND_ERR|fetch failed|socket hang up|network error|connection error|connection refused|dns/i;
 
 const CONTEXT_PATTERN =
-  /context[ _-]?length|maximum context|context window|too many tokens|prompt is too long|input token count|exceeds the (?:maximum|model)|token limit/i;
+  /context[ _-]?length|maximum context|context window|too many tokens|prompt is too long|input token count|exceeds (?:the )?model(?:'s)? (?:context|input|token|prompt)|maximum (?:number of )?tokens|token limit/i;
 
 const STREAM_TERMINATION_PATTERN =
   /\bterminated\b|stream ended without finish_reason|premature(?:ly)?\s+(?:closed|ended)|(?:stream|response).*(?:closed|interrupted)/i;
@@ -404,7 +404,12 @@ export function classifyAgentError(err: unknown): ClassifiedAgentError {
   if (status !== undefined) {
     if (status === 401 || status === 403) return result("PROVIDER_UNAUTHORIZED", false);
     if (status === 408) return result("TIMEOUT", true);
-    if (status === 413) return result("CONTEXT_TOO_LARGE", false);
+    if (status === 413) {
+      return result(
+        CONTEXT_PATTERN.test(rawMessage) ? "CONTEXT_TOO_LARGE" : "PAYLOAD_TOO_LARGE",
+        false,
+      );
+    }
     if (status === 429) return result("PROVIDER_RATE_LIMITED", true);
     if (status === 404) return result("MODEL_NOT_CONFIGURED", false);
     if (status >= 500) return result("PROVIDER_ERROR", true);

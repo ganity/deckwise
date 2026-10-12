@@ -43,6 +43,9 @@ test("release scripts stage a pinned runtime for every supported desktop target"
   assert.match(prepare, /PPT_MASTER_COMMIT = "6e3ce9c5a3b994a0e223a14a0f7eddf42fd0b9f5"/);
   assert.match(prepare, /PPT_MASTER_ARCHIVE_SHA256 = "8064591bba8ed97cd1dc77987232157be31fe088d5821c6ffb05a178084c83df"/);
   assert.match(prepare, /github\.com\/hugohe3\/ppt-master\/archive/);
+  assert.match(prepare, /patchPptMaster/);
+  assert.match(prepare, /SEEDREAM_MAX_REFERENCE_IMAGES/);
+  assert.match(prepare, /field 'reference_images'/);
   assert.ok(
     packageJson.build.extraResources.some(
       (entry) => entry.from === "dist/runtime/current" && entry.to === "runtime",
@@ -61,7 +64,12 @@ test("the desktop packaging command stages PPT Master beside the Python runtime"
     join(root, "scripts", "prepare-ppt-master.mjs"));
   await cp(new URL("../../../scripts/extract-tar.mjs", import.meta.url),
     join(root, "scripts", "extract-tar.mjs"));
-  for (const file of ["SKILL.md", "scripts/attribution_guard.py", "workflows/routing.md"]) {
+  const imageAuthorities = [
+    "references/strategist-image.md",
+    "workflows/profiles/quick-generate.md",
+    "references/image-generator.md",
+  ];
+  for (const file of ["SKILL.md", "scripts/attribution_guard.py", "workflows/routing.md", ...imageAuthorities]) {
     await mkdir(dirname(join(localSkill, file)), { recursive: true });
     await writeFile(join(localSkill, file), `fixture: ${file}\n`);
   }
@@ -75,6 +83,26 @@ test("the desktop packaging command stages PPT Master beside the Python runtime"
   assert.ok(resource, "PPT Master must be bundled as a skill resource");
   assert.equal(await readFile(join(desktop, resource.from, "scripts", "attribution_guard.py"), "utf8"),
     "fixture: scripts/attribution_guard.py\n");
+  for (const file of imageAuthorities) {
+    const body = await readFile(join(desktop, resource.from, file), "utf8");
+    assert.match(body, /reference-only inputs/);
+    assert.match(body, /Acquire Via: ai/);
+    assert.match(body, /reference_images/);
+    assert.match(body, /Never embed the original design sheet/);
+    assert.match(body, /single scene/);
+    assert.match(body, /generation fails/);
+  }
+
+  // A developer may stage from an already patched local distribution.
+  const restaged = join(root, "restaged");
+  await execFileAsync(process.execPath, [...args, "--output", restaged], {
+    cwd: desktop,
+    env: { ...process.env, DECKWISE_PPT_MASTER_SKILL_ROOT: join(desktop, resource.from) },
+  });
+  for (const file of imageAuthorities) {
+    assert.equal(await readFile(join(restaged, file), "utf8"),
+      await readFile(join(desktop, resource.from, file), "utf8"));
+  }
 });
 
 test("packaging extracts archives from paths containing a drive colon and spaces", async (t) => {

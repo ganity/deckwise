@@ -1,12 +1,17 @@
 import { createHash, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { basename, dirname, extname, join, relative } from "node:path";
+import { getOfficeExtension, type OfficeExtension } from "@pi-desktop/shared";
+import { MAX_OFFICE_BYTES, validateOfficeBytes, officeSaveExtension } from "./office-file";
 import { session, WebContentsView, type BrowserWindow, type IpcMain } from "electron";
 import { resolveRealOpenablePath, resolveRealPathForCreateWithinRoot } from "./fs-panel";
 import { installEditorHostProtocol } from "./editor-host-protocol";
+import {
+  PPT_EDITOR_HANDSHAKE_TIMEOUT_MS,
+  waitForPptEditorMessage,
+} from "./ppt-editor-handshake";
 
 const HOST_PAGE = "deckwise-editor://host/index.html";
-const MAX_PPTX_BYTES = 256 * 1024 * 1024;
 const REVISION_DIR = ".deckwise-ppt/revisions";
 
 export type PptEditorState = {
@@ -16,6 +21,9 @@ export type PptEditorState = {
   revisionPath?: string;
   sha256?: string;
   message?: string;
+  canRetry?: boolean;
+  readOnly?: boolean;
+  savedPath?: string;
 };
 
 type Revision = {
@@ -25,28 +33,8 @@ type Revision = {
   file: string;
   size: number;
   sha256: string;
-  pptxPath: string;
+  documentPath: string;
 };
-
-function validatePptxName(fileName: string): void {
-  if (extname(fileName).toLowerCase() !== ".pptx") {
-    throw new Error("编辑器只接受 PPTX 文件");
-  }
-}
-
-function validatePptxBytes(value: Uint8Array): Buffer {
-  if (!value.byteLength || value.byteLength > MAX_PPTX_BYTES) {
-    throw new Error("PPTX 文件大小不允许");
-  }
-  const bytes = Buffer.from(value.buffer, value.byteOffset, value.byteLength);
-  if (bytes[0] !== 0x50 || bytes[1] !== 0x4b) {
-    throw new Error("文件不是 OOXML ZIP");
-  }
-  if (!bytes.includes("[Content_Types].xml") || !bytes.includes("ppt/presentation.xml")) {
-    throw new Error("文件不是有效的 PPTX 包");
-  }
-  return bytes;
-}
 
 function transferableBuffer(bytes: Buffer): ArrayBuffer {
   return bytes.buffer.slice(
@@ -79,8 +67,8 @@ async function listRevisions(root: string, jobId: string): Promise<Revision[]> {
     const directory = join(revisionsRoot, entry.name);
     const manifest = JSON.parse(
       await fs.readFile(join(directory, "revision.json"), "utf8"),
-    ) as Omit<Revision, "pptxPath">;
-    revisions.push({ ...manifest, pptxPath: join(directory, manifest.file) });
+    ) as Omit<Revision, "documentPath">;
+    revisions.push({ ...manifest, documentPath: join(directory, manifest.file) });
   }
   return revisions;
 }
@@ -89,10 +77,11 @@ async function publishRevision(input: {
   root: string;
   jobId: string;
   bytes: Uint8Array;
+  extension: OfficeExtension;
   cause: Revision["cause"];
   expectedRevision: number;
 }): Promise<Revision> {
-  const bytes = validatePptxBytes(input.bytes);
+  const bytes = validateOfficeBytes(input.bytes, input.extension);
   const revisions = await listRevisions(input.root, input.jobId);
   const current = revisions.at(-1)?.revision ?? 0;
   if (current !== input.expectedRevision) {
@@ -106,13 +95,13 @@ async function publishRevision(input: {
   const tempDirectory = join(jobRoot, `.${revisionName}.${randomUUID()}.tmp`);
   await fs.mkdir(tempDirectory, { recursive: true });
   try {
-    const pptxPath = join(tempDirectory, "document.pptx");
-    await fs.writeFile(pptxPath, bytes, { flag: "wx" });
+    const documentPath = join(tempDirectory, `document.${input.extension}`);
+    await fs.writeFile(documentPath, bytes, { flag: "wx" });
     const manifest = {
       revision,
       cause: input.cause,
       createdAt: new Date().toISOString(),
-      file: "document.pptx",
+      file: `document.${input.extension}`,
       size: bytes.byteLength,
       sha256: createHash("sha256").update(bytes).digest("hex"),
     };
@@ -122,15 +111,15 @@ async function publishRevision(input: {
       { flag: "wx" },
     );
     await fs.rename(tempDirectory, finalDirectory);
-    return { ...manifest, pptxPath: join(finalDirectory, manifest.file) };
+    return { ...manifest, documentPath: join(finalDirectory, manifest.file) };
   } catch (error) {
     await fs.rm(tempDirectory, { recursive: true, force: true });
     throw error;
   }
 }
 
-async function replaceSourcePptx(sourcePath: string, bytes: Uint8Array): Promise<void> {
-  const validated = validatePptxBytes(bytes);
+async function replaceSourceFile(sourcePath: string, bytes: Uint8Array, extension: OfficeExtension): Promise<void> {
+  const validated = validateOfficeBytes(bytes, extension);
   const temporaryPath = join(
     dirname(sourcePath),
     `.${basename(sourcePath)}.${randomUUID()}.tmp`,
@@ -155,10 +144,13 @@ export class PptEditorController {
   private visible = false;
   private bounds = { x: 0, y: 0, width: 0, height: 0 };
   private current:
-    | { workspaceRoot: string; sourcePath: string; revisionRoot: string; jobId: string; revision: Revision }
+    | { workspaceRoot: string; sourcePath: string; revisionRoot: string; jobId: string; revision: Revision; extension: OfficeExtension; readOnly: boolean; savedPath?: string }
     | null = null;
   private pendingSave = false;
   private commandSequence = 0;
+  private ready = false;
+  private opening = false;
+  private openAbort: AbortController | null = null;
   private readonly editorUrl: URL;
   private readonly onDownload = (event: Electron.Event) => event.preventDefault();
 
@@ -174,13 +166,16 @@ export class PptEditorController {
     this.ipcMain.on("deckwise-editor:event", this.onEditorEvent);
   }
 
-  async open(window: BrowserWindow, workspaceRoot: string, requestedPath: string) {
-    const sourcePath = await resolveRealOpenablePath(requestedPath, workspaceRoot);
-    if (!sourcePath) throw new Error("PPTX 文件不在当前工作区内");
-    validatePptxName(sourcePath);
+  async open(window: BrowserWindow, workspaceRoot: string, requestedPath: string, mimeType?: string, extraRoots: string[] = []) {
+    const sourcePath = await resolveRealOpenablePath(requestedPath, workspaceRoot, extraRoots);
+    if (!sourcePath) throw new Error("Document is outside allowed roots");
+    const extension = getOfficeExtension(sourcePath, mimeType);
+    if (!extension) throw new Error("Unsupported WiseOffice document format");
+    const readOnly = extension === "pdf" || !await resolveRealOpenablePath(sourcePath, workspaceRoot);
     if (
       this.current?.sourcePath === sourcePath &&
       this.view &&
+      this.ready &&
       !this.view.webContents.isDestroyed()
     ) {
       this.window = window;
@@ -188,8 +183,9 @@ export class PptEditorController {
       this.emit(state);
       return state;
     }
-    const sourceBytes = validatePptxBytes(await fs.readFile(sourcePath));
-    const revisionRoot = await resolveRealPathForCreateWithinRoot(workspaceRoot, REVISION_DIR);
+    if ((await fs.stat(sourcePath)).size > MAX_OFFICE_BYTES) throw new Error("Document exceeds 256 MiB");
+    const sourceBytes = validateOfficeBytes(await fs.readFile(sourcePath), extension);
+    const revisionRoot = await resolveRealPathForCreateWithinRoot(workspaceRoot, extension === "pptx" ? REVISION_DIR : ".deckwise-office/revisions");
     if (!revisionRoot) throw new Error("Revision 目录无法安全创建");
     const jobId = jobIdFor(workspaceRoot, sourcePath);
     let revisions = await listRevisions(revisionRoot, jobId);
@@ -199,42 +195,91 @@ export class PptEditorController {
         root: revisionRoot,
         jobId,
         bytes: sourceBytes,
+        extension,
         cause: "generated",
         expectedRevision: 0,
       });
       revisions = await listRevisions(revisionRoot, jobId);
     }
     const revision = revisions.at(-1);
-    if (!revision) throw new Error("无法建立 PPTX revision");
+    if (!revision) throw new Error("Cannot establish document revision");
 
     this.closeView();
     this.window = window;
-    this.current = { workspaceRoot, sourcePath, revisionRoot, jobId, revision };
+    this.current = { workspaceRoot, sourcePath, revisionRoot, jobId, revision, extension, readOnly };
+    this.opening = true;
+    this.ready = false;
     this.emit({ status: "opening", path: requestedPath, revision: revision.revision });
     const view = this.createView();
     this.view = view;
     const hostUrl = new URL(HOST_PAGE);
     hostUrl.searchParams.set("editor", this.editorUrl.href.replace(/\/$/, ""));
     hostUrl.searchParams.set("editorOrigin", this.editorUrl.origin);
-    await view.webContents.loadURL(hostUrl.href);
-    const revisionBytes = await fs.readFile(revision.pptxPath);
-    this.sendCommand("document:open-buffer", {
-      fileName: basename(sourcePath),
-      buffer: transferableBuffer(revisionBytes),
-      readonly: false,
-    });
-    if (this.visible) this.attach();
-    const state = this.state("ready");
-    this.emit(state);
-    return state;
+    if (extension === "pptx") hostUrl.searchParams.set("deckwise", "1");
+    view.setBounds(this.bounds);
+    const abort = new AbortController();
+    this.openAbort = abort;
+    const deadline = Date.now() + PPT_EDITOR_HANDSHAKE_TIMEOUT_MS;
+    try {
+      const ready = waitForPptEditorMessage(
+        this.ipcMain,
+        view.webContents.id,
+        "document:ready",
+        undefined,
+        Math.max(1, deadline - Date.now()),
+        abort.signal,
+      );
+      await Promise.all([ready, view.webContents.loadURL(hostUrl.href)]);
+      const revisionBytes = await fs.readFile(revision.documentPath);
+      if (this.view !== view || abort.signal.aborted) throw new Error("Editor opening was cancelled");
+      const commandId = this.sendCommand("document:open-buffer", {
+        fileName: `${basename(sourcePath, extname(sourcePath))}.${getOfficeExtension(revision.file) ?? extension}`,
+        buffer: transferableBuffer(revisionBytes),
+        readonly: readOnly,
+      });
+      await waitForPptEditorMessage(
+        this.ipcMain,
+        view.webContents.id,
+        "document:opened",
+        commandId,
+        Math.max(1, deadline - Date.now()),
+        abort.signal,
+      );
+      if (this.view !== view) throw new Error("Editor opening was cancelled");
+      this.opening = false;
+      this.ready = true;
+      if (this.visible) this.attach();
+      const state = this.state("ready");
+      this.emit(state);
+      return state;
+    } catch (error) {
+      if (this.view === view) {
+        this.opening = false;
+        this.ready = false;
+        this.closeView();
+        this.current = null;
+        this.emit({
+          status: "error",
+          path: requestedPath,
+          revision: revision.revision,
+          canRetry: true,
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+      throw error;
+    } finally {
+      abort.abort();
+      if (this.openAbort === abort) this.openAbort = null;
+    }
   }
 
   save(): void {
-    if (!this.view || !this.current) throw new Error("没有打开的 PPTX 编辑会话");
-    if (this.pendingSave) throw new Error("PPTX 正在保存");
+    if (!this.view || !this.current || !this.ready) throw new Error("No ready document editor session");
+    if (this.current.readOnly) throw new Error("Document is read-only");
+    if (this.pendingSave) throw new Error("Document is being saved");
     this.pendingSave = true;
     this.emit(this.state("saving"));
-    this.sendCommand("document:save", { targetExt: "PPTX" });
+    this.sendCommand("document:save", { targetExt: officeSaveExtension(this.current.extension).toUpperCase() });
   }
 
   setBounds(bounds: { x: number; y: number; width: number; height: number }): void {
@@ -244,12 +289,12 @@ export class PptEditorController {
       width: Math.max(0, Math.round(Number(bounds.width) || 0)),
       height: Math.max(0, Math.round(Number(bounds.height) || 0)),
     };
-    if (this.view && this.visible) this.view.setBounds(this.bounds);
+    if (this.view) this.view.setBounds(this.bounds);
   }
 
   setVisible(visible: boolean): void {
     this.visible = visible;
-    if (visible) this.attach();
+    if (visible && this.ready) this.attach();
     else this.detach();
   }
 
@@ -267,35 +312,50 @@ export class PptEditorController {
 
   private readonly onEditorEvent = (
     event: Electron.IpcMainEvent,
-    message: { type?: string; bytes?: ArrayBuffer; message?: string },
+    message: { type?: string; bytes?: ArrayBuffer; message?: string | { type?: string; payload?: { message?: string } } },
   ) => {
     if (!this.view || event.sender.id !== this.view.webContents.id || !message) return;
-    if (message.type === "error") {
-      this.emit({ ...this.state("error"), message: message.message || "编辑器加载失败" });
+    if (message.type === "error" || (message.type === "message" && typeof message.message === "object" && message.message?.type === "document:error")) {
+      this.pendingSave = false;
+      this.emit({
+        ...this.state("error"),
+        canRetry: this.opening,
+        message: typeof message.message === "string" ? message.message : message.message?.payload?.message || "编辑器加载失败",
+      });
       return;
     }
     if (message.type === "save-requested") {
-      if (!this.pendingSave && this.current) this.save();
+      if (!this.pendingSave && this.current && !this.current.readOnly && this.ready) this.save();
       return;
     }
     if (message.type !== "saved" || !this.pendingSave || !this.current) return;
-    this.pendingSave = false;
     const current = this.current;
     const bytes = new Uint8Array(message.bytes ?? new ArrayBuffer(0));
     void publishRevision({
       root: current.revisionRoot,
       jobId: current.jobId,
       bytes,
+      extension: officeSaveExtension(current.extension),
       cause: "edited",
       expectedRevision: current.revision.revision,
     }).then(async (revision) => {
       current.revision = revision;
-      await replaceSourcePptx(current.sourcePath, bytes);
+      const extension = officeSaveExtension(current.extension);
+      const target = extension === current.extension
+        ? current.sourcePath
+        : join(dirname(current.sourcePath), `${basename(current.sourcePath, extname(current.sourcePath))}-edited-r${revision.revision}.${extension}`);
+      const safeTarget = await resolveRealPathForCreateWithinRoot(current.workspaceRoot, relative(current.workspaceRoot, target));
+      if (!safeTarget || safeTarget !== target) throw new Error("Save target is outside the workspace");
+      if (extension === current.extension) await replaceSourceFile(target, bytes, extension);
+      else await fs.writeFile(target, bytes, { flag: "wx" });
+      current.savedPath = relative(current.workspaceRoot, target);
       if (this.current !== current) return;
+      this.pendingSave = false;
       this.emit(this.state("saved"));
     }).catch(
       (error) => {
         if (this.current !== current) return;
+        this.pendingSave = false;
         this.emit({
           ...this.state("error"),
           message: error instanceof Error ? error.message : String(error),
@@ -308,23 +368,25 @@ export class PptEditorController {
     const revision = this.current?.revision;
     return {
       status,
-      ...(this.current ? { path: relative(this.current.workspaceRoot, this.current.sourcePath) } : {}),
+      ...(this.current ? { path: relative(this.current.workspaceRoot, this.current.sourcePath), readOnly: this.current.readOnly, savedPath: this.current.savedPath } : {}),
       ...(revision
         ? {
             revision: revision.revision,
-            revisionPath: relative(this.current!.workspaceRoot, revision.pptxPath),
+            revisionPath: relative(this.current!.workspaceRoot, revision.documentPath),
             sha256: revision.sha256,
           }
         : {}),
     };
   }
 
-  private sendCommand(type: string, payload: Record<string, unknown>): void {
+  private sendCommand(type: string, payload: Record<string, unknown>): string {
+    const id = `deckwise-${++this.commandSequence}`;
     this.view?.webContents.send("deckwise-editor:command", {
-      id: `deckwise-${++this.commandSequence}`,
+      id,
       type,
       payload,
     });
+    return id;
   }
 
   private createView(): WebContentsView {
@@ -356,10 +418,14 @@ export class PptEditorController {
     };
     contents.on("will-navigate", blockNavigation);
     contents.on("will-redirect", blockNavigation);
-    contents.on("did-fail-load", (_event, code, description, _url, isMainFrame) => {
-      if (isMainFrame === false) return;
+    const editorPage = `${this.editorUrl.href.replace(/\/$/, "")}/editor`;
+    contents.on("did-fail-load", (_event, code, description, url, isMainFrame) => {
+      if (isMainFrame === false && url.split("?")[0] !== editorPage) return;
+      if (this.view !== view) return;
       console.error(`[ppt-editor] did-fail-load code=${code} description=${description}`);
-      this.emit({ ...this.state("error"), message: `编辑器加载失败 (${code}): ${description}` });
+      const error = new Error(`Editor failed to load (${code}): ${description}`);
+      if (this.opening) this.openAbort?.abort(error);
+      else this.emit({ ...this.state("error"), message: error.message });
     });
     editorSession.on("will-download", this.onDownload);
     editorSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
@@ -381,7 +447,11 @@ export class PptEditorController {
   }
 
   private closeView(): void {
+    this.openAbort?.abort();
+    this.openAbort = null;
+    this.opening = false;
     this.pendingSave = false;
+    this.ready = false;
     this.detach();
     if (this.view && !this.view.webContents.isDestroyed()) {
       this.view.webContents.session.removeListener("will-download", this.onDownload);

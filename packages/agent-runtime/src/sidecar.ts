@@ -231,16 +231,16 @@ async function hydrateAttachmentHistory(
         shouldInline && size <= MAX_INLINE_IMAGE_BYTES
           ? await readFile(canonical)
           : undefined;
+      const fallbackPath = await replayedAttachmentPath(params, attachment, canonical);
       if (attachment.kind === "image" && supportsVision && bytes) {
-        return { attachment: { ...attachment, data: bytes.toString("base64") } };
+        return {
+          attachment: { ...attachment, data: bytes.toString("base64") },
+          fallbackPath,
+        };
       }
       return {
         attachment,
-        fallbackPath: await replayedAttachmentPath(
-          params,
-          attachment,
-          canonical,
-        ),
+        fallbackPath,
       };
     } catch {
       return { attachment };

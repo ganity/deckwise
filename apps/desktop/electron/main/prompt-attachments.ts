@@ -285,14 +285,10 @@ export async function preparePromptAttachments(
         : bytes
           ? ensureAttachmentBlob(dataRoot, bytes)
           : await ensureAttachmentBlobFromFile(dataRoot, source.absolute);
-    const fallbackPath = inline
-      ? displayPromptPath(source, projectPath)
-      : await fallbackPathForStoredAttachment(
-          dataRoot,
-          sessionId,
-          source,
-          name,
-        );
+    const fallbackPath =
+      source.root === "attachment"
+        ? await fallbackPathForStoredAttachment(dataRoot, sessionId, source, name)
+        : displayPromptPath(source, projectPath);
     prepared.push({
       message: {
         kind: "image",
@@ -338,7 +334,6 @@ export function appendPromptFallbackPaths(
   attachments: readonly PreparedPromptAttachment[],
 ): string {
   const paths = attachments
-    .filter((attachment) => !attachment.inlineData)
     .map((attachment) => formatFileInsert(attachment.fallbackPath, "file"))
     .join("")
     .trim();

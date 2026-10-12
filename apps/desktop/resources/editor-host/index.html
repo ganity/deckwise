@@ -10,7 +10,7 @@
     </style>
   </head>
   <body>
-    <iframe id="editor" title="演示文稿编辑器" allow="clipboard-read; clipboard-write"></iframe>
+    <iframe id="editor" title="Document editor" allow="clipboard-read; clipboard-write"></iframe>
     <script>
       (() => {
         const params = new URLSearchParams(location.search);
@@ -37,11 +37,9 @@
           while (pending.length) post(pending.shift());
         };
 
-        editor.addEventListener("load", flush);
-        editor.src = `${editorUrl.replace(/\/$/, "")}/editor?embed=1&deckwise=1&embedOrigin=${encodeURIComponent(location.origin)}`;
+        editor.src = `${editorUrl.replace(/\/$/, "")}/editor?embed=1${params.get("deckwise") === "1" ? "&deckwise=1" : ""}&embedOrigin=${encodeURIComponent(location.origin)}`;
         bridge.onCommand((command) => {
           if (!command || typeof command.type !== "string") return;
-          if (command.type === "document:save" && command.payload?.targetExt !== "PPTX") return;
           post(command);
         });
         window.addEventListener("message", async (event) => {

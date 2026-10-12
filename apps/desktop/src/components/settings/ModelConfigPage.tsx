@@ -10,6 +10,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   DECKWISE_MANAGED_PROVIDER_ID,
+  DECKWISE_DEFAULT_CONTEXT_WINDOW,
   OAUTH_AUTH_KIND,
   modelIdsMatch,
   type ModelBinding,
@@ -40,6 +41,7 @@ import {
 import { copyProviderConfiguration, type ProviderCopyDraft } from "./provider-copy";
 import { ProviderSetupDialog } from "./ProviderSetupDialog";
 import { VendorAccountsSection } from "./VendorAccountsSection";
+import { ManagedContextWindowField } from "./ManagedContextWindowField";
 
 const DELETE_CONFIRM_MS = 3000;
 
@@ -165,6 +167,14 @@ export function ModelConfigPage() {
       setBusyId(null);
       setPickingDefault(false);
     }
+  };
+
+  const saveManagedContextWindow = async (value: number) => {
+    const current = useAppStore.getState().settings;
+    if (!current) throw new Error("settings unavailable");
+    await api.setSettings({ ...current, managedContextWindow: value });
+    await refreshProviders();
+    showToast(t("settings.providerUpdated"), { variant: "success" });
   };
 
   /**
@@ -652,6 +662,12 @@ export function ModelConfigPage() {
                         </>
                       ) : null}
                     </div>
+                    {isManaged ? (
+                      <ManagedContextWindowField
+                        value={settings.managedContextWindow ?? DECKWISE_DEFAULT_CONTEXT_WINDOW}
+                        onSave={saveManagedContextWindow}
+                      />
+                    ) : null}
                     {!isManaged && keyEntry ? (
                       <div className="model-provider-key-entry">
                         <Field

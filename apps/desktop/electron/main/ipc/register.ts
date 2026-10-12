@@ -201,12 +201,6 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     safeOpenExternal,
     updater,
   });
-  registerPptEditorIpc({
-    registrar,
-    getMainWindow,
-    getWorkspaceRoot: optionalWorkspaceRoot,
-    sendToRenderer,
-  });
   registerPptPreviewIpc({
     registrar,
     getWorkspaceRoot: optionalWorkspaceRoot,
@@ -287,7 +281,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     getHost,
     scheduledRunsBySession,
   });
-  registerWorkspaceIpc({
+  const { fsExtraRoots } = registerWorkspaceIpc({
     registrar,
     getHost,
     getSidecar,
@@ -302,6 +296,14 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     setCurrentWorkspacePath,
     withGitBranch,
     stripWinLongPrefix,
+  });
+
+  registerPptEditorIpc({
+    registrar,
+    getMainWindow,
+    getWorkspaceRoot: optionalWorkspaceRoot,
+    sendToRenderer,
+    getExtraRoots: fsExtraRoots,
   });
 
   registerAgentExtensionIpc({

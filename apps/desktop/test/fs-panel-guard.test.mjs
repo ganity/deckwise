@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, open, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
@@ -15,6 +15,7 @@ import {
   resolveOpenablePath,
   resolveRealOpenablePath,
   resolveWithinRoot,
+  MAX_PDF_BYTES,
   MAX_TEXT_BYTES,
 } from "../electron/main/fs-panel.ts";
 
@@ -129,12 +130,15 @@ test("resolveOpenablePath maps attachment blobs onto the attachments extra root"
   assert.equal(resolveOpenablePath("/etc/passwd", ROOT, [attachments]), null);
 });
 
-test("previewFile classifies text, images, binary, and oversized files", async (t) => {
+test("previewFile classifies text, images, PDF, binary, and oversized files", async (t) => {
+  assert.equal(MAX_PDF_BYTES, 256 * 1024 * 1024);
   const fixture = await mkdtemp(join(tmpdir(), "pi-fs-preview-"));
   t.after(() => rm(fixture, { recursive: true, force: true }));
   const textPath = join(fixture, "note.md");
   const imagePath = join(fixture, "pixel.png");
   const binaryPath = join(fixture, "blob.bin");
+  const largeBinaryPath = join(fixture, "large.doc");
+  const pdfPath = join(fixture, "guide.pdf");
   const largePath = join(fixture, "large.txt");
   await writeFile(textPath, "hello\n");
   await writeFile(
@@ -145,6 +149,14 @@ test("previewFile classifies text, images, binary, and oversized files", async (
     ),
   );
   await writeFile(binaryPath, Buffer.from([0, 1, 2, 0]));
+  await writeFile(largeBinaryPath, Buffer.from([0, 1, 2, 0]));
+  const largeBinaryHandle = await open(largeBinaryPath, "r+");
+  try {
+    await largeBinaryHandle.truncate(MAX_TEXT_BYTES + 1);
+  } finally {
+    await largeBinaryHandle.close();
+  }
+  await writeFile(pdfPath, Buffer.from("%PDF-1.7\nminimal fixture\n"));
   await writeFile(largePath, "x".repeat(MAX_TEXT_BYTES + 1));
 
   const text = await previewFile(textPath, "note.md");
@@ -155,8 +167,41 @@ test("previewFile classifies text, images, binary, and oversized files", async (
   assert.equal(image.kind, "image");
   assert.match(String(image.dataUrl), /^data:image\/png;base64,/);
 
+  const pdf = await previewFile(pdfPath, "guide.pdf", "application/pdf");
+  assert.equal(pdf.kind, "pdf");
+  assert.match(String(pdf.dataUrl), /^data:application\/pdf;base64,/);
+
   assert.equal((await previewFile(binaryPath, "blob.bin")).kind, "binary");
+  assert.equal((await previewFile(largeBinaryPath, "large.doc")).kind, "binary");
   assert.equal((await previewFile(largePath, "large.txt")).kind, "tooLarge");
+});
+
+test("PDF attachments above 32 MiB preview, while those above 256 MiB return no bytes", async (t) => {
+  const fixture = await mkdtemp(join(tmpdir(), "pi-pdf-attachment-"));
+  t.after(() => rm(fixture, { recursive: true, force: true }));
+  const attachments = join(fixture, "attachments");
+  await mkdir(attachments);
+  const hash = "d".repeat(64);
+  const path = join(attachments, hash);
+  const handle = await open(path, "w");
+  try {
+    await handle.write("%PDF-1.7\n");
+    await handle.truncate(32 * 1024 * 1024 + 1);
+    const preview = await readOpenableFile(
+      `attachments/${hash}`, null, [attachments], "application/pdf",
+    );
+    assert.equal(preview.kind, "pdf");
+    assert.equal(preview.size, 32 * 1024 * 1024 + 1);
+    assert.match(preview.dataUrl, /^data:application\/pdf;base64,JVBER/);
+
+    await handle.truncate(MAX_PDF_BYTES + 1);
+    assert.deepEqual(
+      await readOpenableFile(`attachments/${hash}`, null, [attachments], "application/pdf"),
+      { kind: "tooLarge", size: MAX_PDF_BYTES + 1 },
+    );
+  } finally {
+    await handle.close();
+  }
 });
 
 test("imageMimeFor prefers a known extension and allowlists declared mime for blobs", () => {

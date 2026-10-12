@@ -6963,6 +6963,7 @@ Delegation rules:
           const canRecoverOverflow =
             this.compactionEnabled &&
             overflow &&
+            classifiedError?.code !== "PAYLOAD_TOO_LARGE" &&
             !this.overflowRecoveryAttempted;
           if (exemptSilence) {
             // Accepted silence is still nothing worth resending: keep it out

@@ -34,7 +34,7 @@ We standardize on pi’s multi-provider layer and add product-level configuratio
 
 ```text
 Settings / UI
-  → DeckWise managed provider (read-only, Electron main)
+  → DeckWise managed provider (platform connection, local context override)
   → ProviderConfigStore (Rust host DB, user-configured providers)
   → AgentRuntime (Node/pi)
       ├─ built-in vendor providers (via pi-ai)
@@ -484,9 +484,20 @@ type ModelDescriptor = {
 ## 10. UI requirements
 
 ### Settings → Agent → Providers
-- show `DeckWise built-in AI` first as a read-only provider. It exposes only a
-  friendly model name, cannot be edited/copied/deleted/disabled, and becomes
+- show `DeckWise built-in AI` first. Its connection and credentials remain
+  platform-owned and cannot be edited/copied/deleted/disabled; it becomes
   the default only when no explicit provider default exists
+- expose a context-window input with the existing 128K, 256K, 312K, 500K and
+  1M presets plus a custom positive integer. Save `AppSettings.managedContextWindow`
+  in the existing host-owned app settings; absence keeps the 128,000 default.
+  Apply it to every managed text-model binding, including offline catalog
+  fallback, and mark explicit values `contextWindowSource: user`. New requests,
+  subagents and their compaction budgets use this effective window; an active
+  turn retains its pinned configuration. Model refresh and app restart retain
+  the setting. Custom providers and maximum output tokens remain unchanged.
+  The control explains that increasing a client budget does not increase the
+  server's actual model capacity. Invalid, fractional or unsafe integers are
+  rejected at the Electron settings boundary.
 - route only that managed provider through the configured DeckWise gateway
   with the signed-in platform access token; user-configured providers keep
   their own endpoint and credential path
