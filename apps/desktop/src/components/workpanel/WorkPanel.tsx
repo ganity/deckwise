@@ -97,7 +97,7 @@ function tabLabel(
   if (tab.kind === "new") return t("panel.new.title");
   if (tab.kind === "ppt") return "课件工作台";
   if (tab.kind === "svg-editor") return tab.resource?.split("/").filter(Boolean).at(-1) || t("panel.tabs.svgEditor");
-  if (tab.kind === "editor") return "编辑 PPT";
+  if (tab.kind === "editor") return tab.resource?.replaceAll("\\", "/").split("/").at(-1) || t("panel.tabs.file");
   if (tab.kind !== "file") return t(`panel.tabs.${tab.kind}`);
   const path = tab.resource ?? "";
   return path.split("/").filter(Boolean).pop() || t("panel.tabs.file");
@@ -636,6 +636,7 @@ export function WorkPanel({
             >
               <PptEditorTab
                 path={activeTab.resource}
+                mimeType={activeTab.mimeType}
                 tabId={activeTab.id}
                 maximized={maximized}
                 onToggleMaximize={onToggleMaximize}

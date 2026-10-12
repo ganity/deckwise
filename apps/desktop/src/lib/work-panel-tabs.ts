@@ -1,3 +1,5 @@
+import { getOfficePreviewExtension } from "@pi-desktop/shared";
+
 export type WorkPanelTabKind =
   | "new"
   | "review"
@@ -227,9 +229,10 @@ export function normalizeWorkPanelFilePath(path: string): string {
 
 export function fileWorkPanelTab(path: string, mimeType?: string): WorkPanelTab {
   const resource = normalizeWorkPanelFilePath(path);
+  const office = getOfficePreviewExtension(resource, mimeType);
   return {
-    id: `file:${resource}`,
-    kind: "file",
+    id: `${office ? "editor" : "file"}:${resource}`,
+    kind: office ? "editor" : "file",
     resource,
     ...(mimeType ? { mimeType } : {}),
   };

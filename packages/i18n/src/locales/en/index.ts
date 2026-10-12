@@ -1434,6 +1434,19 @@ sklm: {
     },
     browser: {
     },
+    pptEditor: {
+      loading: "Opening document…",
+      error: "Could not open the editor",
+      retry: "Retry",
+      saving: "Saving…",
+      saved: "Saved · Revision {{revision}}",
+      revision: "Revision {{revision}}",
+      restore: "Exit full screen",
+      maximize: "Edit full screen",
+      saveCopy: "Save a copy",
+      save: "Save to original file",
+      close: "Close Office editor",
+    },
     files: {
       noWorkspace: "Open a project to browse files",
       noWorkspaceHint: "Browsing is limited to the open project.",
@@ -1442,6 +1455,7 @@ sklm: {
       error: "Couldn't read this location",
       back: "Back to files",
       reveal: "Reveal in Finder",
+      openExternally: "Will open with the default system application",
       binary: "Binary file — preview unavailable",
       tooLarge: "File is too large to preview",
     },

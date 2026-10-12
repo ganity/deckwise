@@ -44,6 +44,19 @@ missing or broken:
 
 ## Consequences
 
+### PDF preview amendment (2026-10-12)
+
+The shared classifier and plugin preview type add `pdf`, returning an
+`application/pdf` data URL for files up to 256 MiB. The host file viewer turns
+that payload into a Blob URL before embedding Chromium's PDF viewer, avoiding
+long data-URL limits; its CSP allows local data and Blob frames while retaining
+the existing script, network, and filesystem boundaries. Older plugin renderers
+may show their unsupported-file fallback for this additive kind. Host file entry points now route supported Office formats (including PDF)
+to built-in WiseOffice. The classifier remains available to plugin consumers;
+attachments open read-only, while workspace documents retain revision history.
+TXT files and extensionless plain-text attachments use the existing local text
+viewer instead of Office conversion.
+
 - Third-party plugins can preview images and oversized files without inventing
   a second read API.
 - A docked view follows theme, locale, and project switches live.

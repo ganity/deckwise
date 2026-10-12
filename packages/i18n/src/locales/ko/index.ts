@@ -1393,6 +1393,19 @@ sklm: {
     },
     browser: {
     },
+    pptEditor: {
+      loading: "문서 여는 중…",
+      error: "편집기를 열 수 없습니다",
+      retry: "다시 시도",
+      saving: "저장 중…",
+      saved: "저장됨 · 버전 {{revision}}",
+      revision: "버전 {{revision}}",
+      restore: "전체 화면 종료",
+      maximize: "전체 화면 편집",
+      saveCopy: "사본 저장",
+      save: "원본 파일에 저장",
+      close: "Office 편집기 닫기",
+    },
     files: {
       noWorkspace: "파일을 탐색하려면 프로젝트를 여세요",
       noWorkspaceHint: "탐색은 열린 프로젝트로 제한됩니다.",
@@ -1401,6 +1414,7 @@ sklm: {
       error: "이 위치를 읽을 수 없습니다",
       back: "파일로 돌아가기",
       reveal: "Finder에서 보기",
+      openExternally: "시스템 기본 애플리케이션으로 엽니다",
       binary: "바이너리 파일 — 미리 볼 수 없음",
       tooLarge: "파일이 너무 커서 미리 볼 수 없음",
     },

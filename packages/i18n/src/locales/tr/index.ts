@@ -1394,6 +1394,19 @@ sklm: {
     },
     browser: {
     },
+    pptEditor: {
+      loading: "Belge açılıyor…",
+      error: "Düzenleyici açılamadı",
+      retry: "Yeniden dene",
+      saving: "Kaydediliyor…",
+      saved: "Kaydedildi · Revizyon {{revision}}",
+      revision: "Revizyon {{revision}}",
+      restore: "Tam ekrandan çık",
+      maximize: "Tam ekranda düzenle",
+      saveCopy: "Kopyasını kaydet",
+      save: "Özgün dosyaya kaydet",
+      close: "Office düzenleyicisini kapat",
+    },
     files: {
       noWorkspace: "Dosyalara göz atmak için bir proje açın",
       noWorkspaceHint: "Göz atma açık projeyle sınırlıdır.",
@@ -1402,6 +1415,7 @@ sklm: {
       error: "Bu konum okunamadı",
       back: "Dosyalara dön",
       reveal: "Finder’da göster",
+      openExternally: "Sistem varsayılan uygulamasıyla açılacak",
       binary: "İkili dosya — önizleme yok",
       tooLarge: "Dosya önizlemek için çok büyük",
     },

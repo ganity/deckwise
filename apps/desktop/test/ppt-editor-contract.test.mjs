@@ -27,12 +27,24 @@ test("PPTX editor is embedded and all normal escape routes are denied", () => {
 test("editor host accepts messages only from the configured top-level editor frame", () => {
   assert.match(host, /event\.origin !== expectedOrigin/);
   assert.match(host, /event\.source !== editor\.contentWindow/);
-  assert.match(host, /targetExt !== "PPTX"/);
+  assert.doesNotMatch(host, /targetExt !== "PPTX"/);
   assert.match(host, /deckwise=1/);
   assert.match(host, /document:save-requested/);
   assert.match(host, /document:saved/);
   assert.match(controller, /message\.type === "save-requested"/);
   assert.match(controller, /this\.save\(\)/);
+});
+
+test("iframe load cannot mark the editor ready and startup failures offer retry", () => {
+  assert.doesNotMatch(host, /addEventListener\("load",\s*flush\)/);
+  assert.match(host, /message\.type === "document:ready"\) flush\(\)/);
+  assert.match(controller, /"document:opened"/);
+  assert.match(controller, /this\.ready &&/);
+  assert.match(controller, /visible && this\.ready/);
+  assert.match(controller, /canRetry: true/);
+  assert.match(component, /state\.canRetry/);
+  assert.match(component, /panel\.pptEditor\.loading/);
+  assert.match(component, /panel\.pptEditor\.retry/);
 });
 
 test("editor host protocol delegates HTML loading to Electron's network stack", () => {
@@ -46,7 +58,7 @@ test("editor archives revisions and replaces the original PPTX with stale-write 
   assert.match(controller, /expectedRevision: current\.revision\.revision/);
   assert.match(controller, /\.deckwise-ppt\/revisions/);
   assert.match(controller, /sha256/);
-  assert.match(controller, /replaceSourcePptx/);
+  assert.match(controller, /replaceSourceFile/);
   assert.match(controller, /current\.sourcePath/);
   assert.match(controller, /fs\.rename\(temporaryPath, sourcePath\)/);
 });

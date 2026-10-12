@@ -1376,6 +1376,19 @@ sklm: {
     },
     "browser": {
     },
+    pptEditor: {
+      loading: "Dokument wird geöffnet…",
+      error: "Editor konnte nicht geöffnet werden",
+      retry: "Erneut versuchen",
+      saving: "Wird gespeichert…",
+      saved: "Gespeichert · Revision {{revision}}",
+      revision: "Revision {{revision}}",
+      restore: "Vollbild verlassen",
+      maximize: "Im Vollbild bearbeiten",
+      saveCopy: "Kopie speichern",
+      save: "In Originaldatei speichern",
+      close: "Office-Editor schließen",
+    },
     "files": {
       "noWorkspace": "Öffnen Sie ein Projekt, um Dateien zu durchsuchen",
       "noWorkspaceHint": "Das Durchsuchen ist auf das Öffnen beschränkt Projekt.",
@@ -1384,6 +1397,7 @@ sklm: {
       "error": "Dieser Speicherort konnte nicht gelesen werden",
       "back": "Zurück zu Dateien",
       "reveal": "Im Finder anzeigen",
+      "openExternally": "Wird mit der Standardsystemanwendung geöffnet",
       "binary": "Binärdatei – Vorschau nicht verfügbar",
       "tooLarge": "Datei ist zu groß für die Vorschau"
     }

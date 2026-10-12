@@ -29,6 +29,15 @@ export type ChangelogEntry = {
 
 const enEntries: ChangelogEntry[] = [
   {
+    version: "0.17.6",
+    date: "2026-10-12",
+    highlights: [
+      "Preview Word, Excel, PowerPoint and PDF files in built-in WiseOffice, and open TXT files as plain text.",
+      "Recover failed editor startup with loading feedback and Retry; keep workspace revisions and read-only attachments safe.",
+      "Add image reference sets, editable model context limits, and clearer recovery from large request failures.",
+    ],
+  },
+  {
     version: "0.17.5",
     date: "2026-10-09",
     highlights: [
@@ -826,6 +835,15 @@ const enEntries: ChangelogEntry[] = [
 
 const zhCNEntries: ChangelogEntry[] = [
   {
+    version: "0.17.6",
+    date: "2026-10-12",
+    highlights: [
+      "在内置 WiseOffice 中预览 Word、Excel、PowerPoint 和 PDF，TXT 文件直接显示为普通文本。",
+      "编辑器启动失败时显示加载反馈并支持重试，保留工作区文档版本和附件只读保护。",
+      "支持多张参考图、模型上下文上限设置，并改善大请求失败后的恢复提示。",
+    ],
+  },
+  {
     version: "0.17.5",
     date: "2026-10-09",
     highlights: [
@@ -1622,6 +1640,15 @@ const zhCNEntries: ChangelogEntry[] = [
 ];
 
 const zhTWEntries: ChangelogEntry[] = [
+  {
+    version: "0.17.6",
+    date: "2026-10-12",
+    highlights: [
+      "在內建 WiseOffice 中預覽 Word、Excel、PowerPoint 和 PDF，TXT 檔案直接顯示為純文字。",
+      "編輯器啟動失敗時顯示載入回饋並支援重試，保留工作區文件版本和附件唯讀保護。",
+      "支援多張參考圖片、模型上下文上限設定，並改善大型請求失敗後的復原提示。",
+    ],
+  },
   {
     version: "0.17.5",
     date: "2026-10-09",
