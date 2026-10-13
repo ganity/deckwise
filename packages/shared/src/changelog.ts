@@ -29,6 +29,13 @@ export type ChangelogEntry = {
 
 const enEntries: ChangelogEntry[] = [
   {
+    version: "0.17.7",
+    date: "2026-10-13",
+    highlights: [
+      "Restore installer downloads and update feeds with direct OSS publishing.",
+    ],
+  },
+  {
     version: "0.17.6",
     date: "2026-10-12",
     highlights: [
@@ -835,6 +842,13 @@ const enEntries: ChangelogEntry[] = [
 
 const zhCNEntries: ChangelogEntry[] = [
   {
+    version: "0.17.7",
+    date: "2026-10-13",
+    highlights: [
+      "通过直接发布到 OSS，恢复安装包下载和版本更新信息。",
+    ],
+  },
+  {
     version: "0.17.6",
     date: "2026-10-12",
     highlights: [
@@ -1640,6 +1654,13 @@ const zhCNEntries: ChangelogEntry[] = [
 ];
 
 const zhTWEntries: ChangelogEntry[] = [
+  {
+    version: "0.17.7",
+    date: "2026-10-13",
+    highlights: [
+      "透過直接發佈至 OSS，恢復安裝套件下載與版本更新資訊。",
+    ],
+  },
   {
     version: "0.17.6",
     date: "2026-10-12",
