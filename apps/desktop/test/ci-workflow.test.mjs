@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
@@ -109,11 +112,17 @@ test("release builds are gated on the CI checks and least-privilege permissions"
   assert.match(publishJob, /^    permissions:\n      contents: write$/m);
 });
 
-test("release artifacts bypass redundant Actions compression", () => {
-  assert.match(
-    releaseWorkflowSource,
-    /uses: actions\/upload-artifact@v6[\s\S]*?compression-level: 0/,
-  );
+test("release artifacts use isolated OSS staging instead of Actions storage", () => {
+  assert.doesNotMatch(releaseWorkflowSource, /actions\/(?:upload|download)-artifact/);
+  assert.match(releaseWorkflowSource, /OSS_STAGING_PREFIX: oss:\/\/trainwise\/deckwise\/builds\/\$\{\{ github\.run_id \}\}\/\$\{\{ matrix\.artifact \}\}/);
+  assert.match(releaseWorkflowSource, /No release artifacts found/);
+  assert.match(releaseWorkflowSource, /ossutil cp "\$artifact" "\$OSS_STAGING_PREFIX\//);
+  const publish = releaseWorkflowSource.slice(releaseWorkflowSource.indexOf("  publish:"));
+  assert.match(publish, /needs: build/);
+  assert.match(publish, /for platform in mac-arm64 mac-x64 windows-x64 linux-x64/);
+  assert.match(publish, /ossutil cp "\$OSS_STAGING_PREFIX\/\$platform\/" dist\/ -r -f/);
+  assert.ok(publish.indexOf("Create GitHub Release") < publish.indexOf("Remove published OSS staging artifacts"));
+  assert.match(publish, /ossutil rm "\$OSS_STAGING_PREFIX\/" -r -f/);
 });
 
 test("manual Linux package validation covers the RPM desktop identity", () => {
@@ -253,4 +262,59 @@ test("the signed local macOS lane selects the native runner architecture", () =>
     /-c\.(?:dmg|zip)\.artifactName/,
     "the signed local macOS lane uses the shared artifact naming config",
   );
+});
+
+test("OSS transfer stages only release files and merges all platform outputs", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "deckwise-oss-transfer-"));
+  try {
+    const bin = path.join(root, "bin");
+    const release = path.join(root, "apps/desktop/release");
+    await mkdir(bin);
+    await mkdir(release, { recursive: true });
+    await writeFile(path.join(bin, "ossutil"), `#!/usr/bin/env node
+const fs = require("node:fs"), path = require("node:path");
+const [operation, source, destination, ...flags] = process.argv.slice(2);
+const local = value => value.replace("oss://trainwise/", process.env.MOCK_OSS + "/");
+if (operation === "rm") fs.rmSync(local(source), { recursive: true });
+else if (flags.includes("-r")) {
+  fs.mkdirSync(destination, { recursive: true });
+  for (const name of fs.readdirSync(local(source)))
+    fs.copyFileSync(path.join(local(source), name), path.join(destination, name));
+} else {
+  fs.mkdirSync(path.dirname(local(destination)), { recursive: true });
+  fs.copyFileSync(source, local(destination));
+}
+`, { mode: 0o755 });
+    const script = name => {
+      const block = releaseWorkflowSource.split(`      - name: ${name}\n`)[1]?.split("\n      - name:")[0];
+      assert.ok(block, `Missing workflow step: ${name}`);
+      const lines = block.split(/        run: \|\n/)[1];
+      assert.ok(lines, `Missing shell script: ${name}`);
+      return lines.split(/\n(?= {0,9}\S)/)[0].replace(/^          /gm, "");
+    };
+    const staging = "oss://trainwise/deckwise/builds/123";
+    const env = { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}`,
+      MOCK_OSS: path.join(root, "mock-oss"), OSS_ACCESS_KEY_ID: "test", OSS_ACCESS_KEY_SECRET: "test" };
+    const run = (source, prefix) => execFileSync("bash", ["-c", source], {
+      cwd: root, env: { ...env, OSS_STAGING_PREFIX: prefix }, stdio: "pipe",
+    });
+    const upload = script("Upload artifacts to OSS staging");
+    assert.throws(() => run(upload, `${staging}/linux-x64`), /No release artifacts found/);
+    await mkdir(path.join(release, "linux-unpacked"));
+    await writeFile(path.join(release, "builder-debug.yml"), "not an asset");
+    for (const platform of ["mac-arm64", "mac-x64", "windows-x64", "linux-x64"]) {
+      const file = `${platform}.zip`;
+      await writeFile(path.join(release, file), platform);
+      run(upload, `${staging}/${platform}`);
+      await rm(path.join(release, file));
+    }
+    run(script("Download staged artifacts from OSS"), staging);
+    assert.deepEqual((await readdir(path.join(root, "dist"))).sort(),
+      ["linux-x64.zip", "mac-arm64.zip", "mac-x64.zip", "windows-x64.zip"]);
+    assert.equal(await readFile(path.join(root, "dist/mac-arm64.zip"), "utf8"), "mac-arm64");
+    run('ossutil rm "$OSS_STAGING_PREFIX/" -r -f', staging);
+    await assert.rejects(readFile(path.join(env.MOCK_OSS, "deckwise/builds/123/mac-arm64/mac-arm64.zip")), /ENOENT/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });

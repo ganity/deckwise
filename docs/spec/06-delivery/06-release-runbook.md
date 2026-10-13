@@ -188,10 +188,10 @@ host. This keeps the native Rust host sidecar and Electron package aligned.
 
 ### 4.3 GitHub tag and manual workflow
 
-The GitHub Release workflow starts all native platform runners without a
-separate validation-job barrier. Each runner validates that the pushed tag
-matches `apps/desktop/package.json` immediately after checkout, before package
-inputs are prepared.
+The GitHub Release workflow gates the native platform matrix on the shared
+build, typecheck, lint, unit-test, and Rust-test verification job. Each runner
+validates that the pushed tag matches `apps/desktop/package.json` immediately
+after checkout, before package inputs are prepared.
 
 On every platform, the release preparation step starts the locked Rust host
 build in parallel with pnpm installation and native dependency rebuilding. It
@@ -221,7 +221,7 @@ authority, code-signing integrity, Gatekeeper assessment, and stapled app
 ticket, and explicitly staples and validates the generated DMG before any
 artifact upload. The per-architecture
 `latest-mac.yml` files are renamed before upload; the publish job merges them
-into one feed after downloading both artifacts.
+into one feed after downloading both architectures from OSS staging.
 
 The shared electron-builder configuration applies the architecture-labelled
 pattern at the macOS platform level for ZIPs and overrides it at the DMG target
@@ -259,14 +259,26 @@ xattr -r -d com.apple.quarantine /Applications/DeckWise.app
 This helper is only for a trusted unsigned artifact when macOS reports that the
 app is damaged. Signed and notarized builds should open without it.
 
-DMG, ZIP, NSIS, AppImage, deb, rpm, blockmap, and updater feed outputs are already
-compressed or compression-insensitive. The workflow therefore uploads their
-temporary Actions artifacts with compression level zero before the publish job
-assembles the GitHub Release. The Linux runner also copies
-`linux-unpacked/resources/app.asar` to the versioned
-`DeckWise-<version>-linux-x64.asar` asset before upload. This preserves the
-exact archive used by the Linux installers for downstream repackaging with a
-system Electron.
+Each native runner uploads only installer, ASAR, blockmap, and updater feed
+outputs to `oss://trainwise/deckwise/builds/<run-id>/<platform>/`. The release
+workflow does not use Actions artifact storage. The existing OSS repository
+secrets are supplied only to transfer steps; the shared setup action installs
+ossutil 2.4.0 with the vendor's SHA-256 checksum for each native runner.
+
+After every platform succeeds, the publish job downloads that run's four
+platform directories, merges the macOS feeds, and validates all installers
+when generating the stable download manifest. It uploads versioned assets to
+the existing `oss://trainwise/deckwise/` paths before changing mutable updater
+feeds and `downloads.json`. GitHub Release assets remain a backup. Successful
+publication removes only that run's staging prefix. Failed runs retain staging
+for retries; the run ID stays constant across reruns, and each platform
+replaces its own files. Failed staging can be removed manually after a run is
+abandoned; never remove an active run's prefix. The OSS RAM policy must allow
+PutObject, GetObject, ListObjects, and DeleteObject under the release prefix.
+
+The Linux runner copies `linux-unpacked/resources/app.asar` to the versioned
+`DeckWise-<version>-linux-x64.asar` asset before upload, preserving the exact
+archive used by the Linux installers for downstream system-Electron repackaging.
 
 ## 5. Verification gates
 

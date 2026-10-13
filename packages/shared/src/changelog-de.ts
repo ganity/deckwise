@@ -2,6 +2,13 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const deEntries: ChangelogEntry[] = [
   {
+    version: "0.17.7",
+    date: "2026-10-13",
+    highlights: [
+      "Installationsdownloads und Update-Informationen durch direkte OSS-Veröffentlichung wiederherstellen.",
+    ],
+  },
+  {
     version: "0.17.6",
     date: "2026-10-12",
     highlights: [

@@ -2,6 +2,13 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const koEntries: ChangelogEntry[] = [
   {
+    version: "0.17.7",
+    date: "2026-10-13",
+    highlights: [
+      "OSS에 직접 게시하여 설치 파일 다운로드와 업데이트 정보를 복구합니다.",
+    ],
+  },
+  {
     version: "0.17.6",
     date: "2026-10-12",
     highlights: [
