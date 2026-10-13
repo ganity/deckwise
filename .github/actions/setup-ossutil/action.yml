@@ -1,0 +1,7 @@
+name: Set up ossutil
+description: Install the checksum-verified OSS CLI for the native runner
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: node scripts/install-ossutil.mjs

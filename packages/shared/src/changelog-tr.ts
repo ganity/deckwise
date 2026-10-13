@@ -2,6 +2,13 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const trEntries: ChangelogEntry[] = [
   {
+    version: "0.17.7",
+    date: "2026-10-13",
+    highlights: [
+      "Doğrudan OSS yayınlamasıyla kurulum dosyası indirmelerini ve güncelleme bilgilerini geri yükleyin.",
+    ],
+  },
+  {
     version: "0.17.6",
     date: "2026-10-12",
     highlights: [
