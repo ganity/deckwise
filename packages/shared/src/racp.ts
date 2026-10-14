@@ -103,6 +103,34 @@ export const RacpRequestContextSchema = Type.Object({
 });
 export type RacpRequestContext = Static<typeof RacpRequestContextSchema>;
 
+export const WorkspaceFilesRequestSchema = Type.Object({
+  path: Type.String({ minLength: 1, maxLength: 4096 }),
+  operation: Type.Union([Type.Literal("list"), Type.Literal("read"), Type.Literal("index"), Type.Literal("resolve"), Type.Literal("image"), Type.Literal("diff"), Type.Literal("instructions")]),
+  ref: Type.Optional(Type.String({ maxLength: 4096 })),
+  mimeType: Type.Optional(Type.String({ maxLength: 256 })),
+}, { additionalProperties: false });
+export type WorkspaceFilesRequest = Static<typeof WorkspaceFilesRequestSchema>;
+
+/** Narrow owner-only tool service; model configuration and credentials never cross it. */
+export const WorkspaceToolExecuteSchema = Type.Object({
+  path: Type.String({ minLength: 1, maxLength: 4096 }),
+  sessionId: Type.String({ minLength: 1, maxLength: 256 }),
+  turnId: Type.String({ minLength: 1, maxLength: 256 }),
+  toolCallId: Type.String({ minLength: 1, maxLength: 256 }),
+  toolName: Type.Union([Type.Literal("Read"), Type.Literal("Glob"), Type.Literal("Grep"), Type.Literal("Write"), Type.Literal("Edit"), Type.Literal("Bash")]),
+  args: Type.Record(Type.String(), Type.Unknown()),
+  timeoutMs: Type.Optional(Type.Integer({ minimum: 1, maximum: 21_600_000 })),
+  expectedCommandShellId: Type.Optional(Type.String({ minLength: 1, maxLength: 256 })),
+  expectedCommandShellDialect: Type.Optional(Type.Union([Type.Literal("posix"), Type.Literal("powershell"), Type.Literal("cmd")])),
+}, { additionalProperties: false });
+export type WorkspaceToolExecute = Static<typeof WorkspaceToolExecuteSchema>;
+export const WorkspaceToolAbortSchema = Type.Object({
+  sessionId: Type.String({ minLength: 1, maxLength: 256 }),
+  toolCallId: Type.String({ minLength: 1, maxLength: 256 }),
+}, { additionalProperties: false });
+export type WorkspaceToolAbort = Static<typeof WorkspaceToolAbortSchema>;
+export type WorkspaceToolResult = { ok: boolean; content: unknown; isError?: boolean; errorCode?: string; toolCallId?: string };
+
 // ---------------------------------------------------------------------------
 // Canonical resources (spec §5)
 // ---------------------------------------------------------------------------
@@ -213,6 +241,7 @@ export const RacpEventEnvelopeSchema = Type.Object({
   kind: RacpEventKindSchema,
   occurredAt: Type.String(),
   parentToolCallId: Type.Optional(Type.String()),
+  nestedParentToolCallId: Type.Optional(Type.String()),
   agentName: Type.Optional(Type.String()),
   payload: Type.Unknown(),
 });
@@ -237,6 +266,7 @@ export const RacpItemSummarySchema = Type.Object({
   sequence: Type.Optional(Type.Integer({ minimum: 1 })),
   createdAt: Type.String(),
   parentToolCallId: Type.Optional(Type.String()),
+  nestedParentToolCallId: Type.Optional(Type.String()),
   agentName: Type.Optional(Type.String()),
   content: Type.Unknown(),
 });
@@ -270,6 +300,7 @@ export const RacpApprovalRequestSchema = Type.Object({
   risk: Type.Optional(Type.Union([Type.Literal("low"), Type.Literal("medium"), Type.Literal("high")])),
   agentName: Type.Optional(Type.String()),
   parentToolCallId: Type.Optional(Type.String()),
+  nestedParentToolCallId: Type.Optional(Type.String()),
   title: Type.Optional(Type.String()),
   question: Type.Optional(Type.String()),
   artifact: Type.Optional(
@@ -326,6 +357,7 @@ export const RacpInputRequestSchema = Type.Object({
   expiresAt: Type.String(),
   agentName: Type.Optional(Type.String()),
   parentToolCallId: Type.Optional(Type.String()),
+  nestedParentToolCallId: Type.Optional(Type.String()),
   questions: Type.Array(
     Type.Object({
       id: Type.String({ minLength: 1 }),
@@ -418,6 +450,8 @@ export const RacpServerCapabilitiesSchema = Type.Object({
   remoteHostProfile: Type.Boolean(),
   toolRelay: Type.Boolean(),
   terminal: Type.Boolean(),
+  workspaceTools: Type.Optional(Type.Boolean()),
+  workspaceFiles: Type.Optional(Type.Boolean()),
   notifications: Type.Boolean(),
   bindings: Type.Array(Type.Union([Type.Literal("RACP-WS"), Type.Literal("RACP-HTTP"), Type.Literal("RACP-GRPC")])),
 });
@@ -480,7 +514,12 @@ export type RacpInitializeParams = Static<typeof RacpInitializeParamsSchema>;
 
 export const RacpInitializeResultSchema = Type.Object({
   protocolVersion: Type.String({ minLength: 1 }),
-  server: Type.Object({ name: Type.String(), version: Type.String() }),
+  server: Type.Object({
+    name: Type.String(),
+    version: Type.String(),
+    /** Stable identity of this Host, minted once at first start (D448). */
+    hostId: Type.Optional(Type.String({ minLength: 1 })),
+  }),
   connectionId: Type.String({ minLength: 1 }),
   principal: Type.Object({
     subject: Type.String({ minLength: 1 }),
@@ -543,15 +582,27 @@ export const RACP_OPERATIONS = {
   "session/configure": { role: "controller", profile: "remote-host", mutation: true },
   "session/fork": { role: "controller", profile: "remote-host", mutation: true },
   "session/rename": { role: "controller", profile: "remote-host", mutation: true },
+  /** The Host's own deterministic first-prompt title; never a controller choice. */
+  "session/deriveTitle": { role: "controller", profile: "remote-host", mutation: true },
   "session/delete": { role: "owner", profile: "remote-host", mutation: true },
   "session/compact": { role: "controller", profile: "remote-host", mutation: true },
   "workspace/list": { role: "viewer", profile: "remote-host", mutation: false },
   "workspace/read": { role: "viewer", profile: "remote-host", mutation: false },
   "workspace/diff": { role: "viewer", profile: "remote-host", mutation: false },
+  "workspace/toolExecute": { role: "owner", profile: "remote-host", mutation: true },
+  "workspace/toolAbort": { role: "owner", profile: "remote-host", mutation: true },
+  "workspace/toolShell": { role: "owner", profile: "remote-host", mutation: false },
+  "workspace/files": { role: "owner", profile: "remote-host", mutation: false },
   "terminal/open": { role: "controller", profile: "remote-host", mutation: true },
   "terminal/input": { role: "controller", profile: "remote-host", mutation: true },
   "terminal/resize": { role: "controller", profile: "remote-host", mutation: true },
   "terminal/close": { role: "controller", profile: "remote-host", mutation: true },
+  /** Exchange a single-use pairing token for a device credential (security §3.4). */
+  "connection/pair": { role: "authenticated", profile: "remote-host", mutation: true },
+  /** Register a Host directory as a project; the Host canonicalizes and validates the path. */
+  "project/register": { role: "owner", profile: "remote-host", mutation: true },
+  /** List directories under a Host path, for the remote folder picker; bounded and owner-only. */
+  "project/browse": { role: "owner", profile: "remote-host", mutation: false },
 } as const satisfies Record<string, RacpOperationSpec>;
 export type RacpOperation = keyof typeof RACP_OPERATIONS;
 
@@ -561,6 +612,14 @@ export type RacpServerRequest = (typeof RACP_SERVER_REQUESTS)[number];
 
 /** Notification method that carries an `EventEnvelope` on the WS binding. */
 export const RACP_EVENT_NOTIFICATION = "session/event" as const;
+/** Notification the Host sends when it closes one subscription (`CLIENT_TOO_SLOW`, §8). */
+export const RACP_SUBSCRIPTION_CLOSED_NOTIFICATION = "events/closed" as const;
+/** Client notification that completes initialization (§3). */
+export const RACP_INITIALIZED_NOTIFICATION = "notifications/initialized" as const;
+
+/** Bearer scheme prefixes on the upgrade request (security §3.4). */
+export const RACP_DEVICE_TOKEN_PREFIX = "pdt1." as const;
+export const RACP_PAIRING_TOKEN_PREFIX = "ppt1." as const;
 
 /** Operations the desktop offers locally that RACP reserves but does not expose. */
 export const RACP_DEFERRED_OPERATIONS = [
@@ -660,6 +719,8 @@ export function racpKindForAgentEvent(
       return { kind: options.interrupted ? "turn.interrupted" : "turn.completed", durable: true };
     case "error":
       return { kind: "turn.failed", durable: true };
+    case "usage":
+      return { kind: "turn.activity", durable: false };
     case "turn_start":
     case "turn_end":
     case "status":
@@ -700,6 +761,7 @@ export const LOCAL_AGENT_EVENT_TYPES: readonly AgentEvent["type"][] = [
   "agent_end",
   "turn_start",
   "turn_end",
+  "usage",
   "message_start",
   "message_update",
   "message_end",
@@ -758,6 +820,11 @@ export type RacpErrorSpec = { retriable: boolean | "maybe" };
 
 export const RACP_ERROR_CODES = {
   UNAUTHORIZED: { retriable: false },
+  PAIRING_FAILED: { retriable: false },
+  PAIRING_TOKEN_EXPIRED: { retriable: false },
+  CAPABILITY_UNAVAILABLE: { retriable: false },
+  REMOTE_PATH_NOT_FOUND: { retriable: false },
+  REMOTE_PATH_FORBIDDEN: { retriable: false },
   FORBIDDEN: { retriable: false },
   PROTOCOL_MISMATCH: { retriable: false },
   METHOD_NOT_FOUND: { retriable: false },

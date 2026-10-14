@@ -65,6 +65,32 @@ export const ErrorCodes = {
    * same request succeed.
    */
   NETWORK_RESOLVE_FAILED: "NETWORK_RESOLVE_FAILED",
+  LIVE_DISABLED: "LIVE_DISABLED",
+  LIVE_NOT_CONFIGURED: "LIVE_NOT_CONFIGURED",
+  LIVE_PROVIDER_NOT_FOUND: "LIVE_PROVIDER_NOT_FOUND",
+  LIVE_AUTH_KIND_UNSUPPORTED: "LIVE_AUTH_KIND_UNSUPPORTED",
+  LIVE_AUTH_REQUIRED: "LIVE_AUTH_REQUIRED",
+  LIVE_ACCOUNT_ID_MISSING: "LIVE_ACCOUNT_ID_MISSING",
+  LIVE_ACCESS_DENIED: "LIVE_ACCESS_DENIED",
+  LIVE_RATE_LIMITED: "LIVE_RATE_LIMITED",
+  LIVE_PROTOCOL_UNSUPPORTED: "LIVE_PROTOCOL_UNSUPPORTED",
+  LIVE_PROTOCOL_ERROR: "LIVE_PROTOCOL_ERROR",
+  LIVE_ALREADY_ACTIVE: "LIVE_ALREADY_ACTIVE",
+  LIVE_REQUEST_CONFLICT: "LIVE_REQUEST_CONFLICT",
+  LIVE_SETTINGS_IN_USE: "LIVE_SETTINGS_IN_USE",
+  LIVE_MEDIA_RELEASE_UNCONFIRMED: "LIVE_MEDIA_RELEASE_UNCONFIRMED",
+  LIVE_STALE_CALL: "LIVE_STALE_CALL",
+  LIVE_INVALID_OWNER: "LIVE_INVALID_OWNER",
+  LIVE_MICROPHONE_BUSY: "LIVE_MICROPHONE_BUSY",
+  LIVE_MICROPHONE_DENIED: "LIVE_MICROPHONE_DENIED",
+  LIVE_MICROPHONE_UNAVAILABLE: "LIVE_MICROPHONE_UNAVAILABLE",
+  LIVE_MEDIA_UNSUPPORTED: "LIVE_MEDIA_UNSUPPORTED",
+  LIVE_PLAYBACK_BLOCKED: "LIVE_PLAYBACK_BLOCKED",
+  LIVE_TIMEOUT: "LIVE_TIMEOUT",
+  LIVE_NETWORK_ERROR: "LIVE_NETWORK_ERROR",
+  LIVE_NETWORK_POLICY_UNSUPPORTED: "LIVE_NETWORK_POLICY_UNSUPPORTED",
+  LIVE_AUDIO_BACKPRESSURE: "LIVE_AUDIO_BACKPRESSURE",
+  LIVE_EXECUTION_NOT_CONNECTED: "LIVE_EXECUTION_NOT_CONNECTED",
   AGENT_BUSY: "AGENT_BUSY",
   AGENT_NOT_FOUND: "AGENT_NOT_FOUND",
   TURN_NOT_FOUND: "TURN_NOT_FOUND",
@@ -79,18 +105,43 @@ export const ErrorCodes = {
   CONTEXT_COMPACTION_FAILED: "CONTEXT_COMPACTION_FAILED",
   STREAM_FAILED: "STREAM_FAILED",
   EMPTY_MODEL_RESPONSE: "EMPTY_MODEL_RESPONSE",
+  /**
+   * The Node agent sidecar process died mid-turn (native crash, kill, or an
+   * unclassified abort). Main and the headless runtime settle the owning turn
+   * with this code so a crash is visible in the durable transcript instead of
+   * reading as a plan-approval interruption.
+   */
+  AGENT_SIDECAR_CRASHED: "AGENT_SIDECAR_CRASHED",
+  /**
+   * The Node agent sidecar died after its JavaScript heap hit the configured
+   * cap (`--max-old-space-size`): the turn's context, tool output, or stream
+   * grew past what the runtime process can hold. Diagnosed from the child's
+   * stderr tail (`Reached heap limit` / `heap out of memory`); retrying the
+   * same turn fails the same way until the input shrinks.
+   */
+  AGENT_SIDECAR_OOM: "AGENT_SIDECAR_OOM",
   PROMPT_ENHANCEMENT_EMPTY: "PROMPT_ENHANCEMENT_EMPTY",
   SPEECH_NOT_CONFIGURED: "SPEECH_NOT_CONFIGURED",
   SPEECH_PROTOCOL_UNSUPPORTED: "SPEECH_PROTOCOL_UNSUPPORTED",
   SPEECH_INPUT_TOO_LARGE: "SPEECH_INPUT_TOO_LARGE",
   SUBAGENT_IDLE_TIMEOUT: "SUBAGENT_IDLE_TIMEOUT",
   SUBAGENT_DURATION_TIMEOUT: "SUBAGENT_DURATION_TIMEOUT",
+  /**
+   * A delegate's own model context exceeded the safe budget: automatic
+   * compaction and the degraded retry both failed to bring the subagent's
+   * input back under its model's limit. Not retriable — the task itself, the
+   * delegate's model, or how much it reads at once has to change.
+   */
+  SUBAGENT_CONTEXT_OVERFLOW: "SUBAGENT_CONTEXT_OVERFLOW",
+  SUBAGENT_OUTPUT_TRUNCATED: "SUBAGENT_OUTPUT_TRUNCATED",
   WORKSPACE_REQUIRED: "WORKSPACE_REQUIRED",
   PATH_OUTSIDE_WORKSPACE: "PATH_OUTSIDE_WORKSPACE",
   TOOL_NOT_FOUND: "TOOL_NOT_FOUND",
   TOOL_DENIED: "TOOL_DENIED",
   TOOL_TIMEOUT: "TOOL_TIMEOUT",
   TOOL_FAILED: "TOOL_FAILED",
+  /** Read/Write/Edit target path does not exist. Distinct from TOOL_DENIED. */
+  FILE_NOT_FOUND: "FILE_NOT_FOUND",
   /**
    * The mutation recovery guard stopped the turn after repeated same-path Edit
    * or patch-command failures (spec 18-line-anchored-edit-contract §9.3). Retriable: the user may continue.
@@ -99,6 +150,7 @@ export const ErrorCodes = {
   PROCESS_RESOURCE_EXHAUSTED: "PROCESS_RESOURCE_EXHAUSTED",
   TOOL_ABORTED: "TOOL_ABORTED",
   EDIT_TAG_REQUIRED: "EDIT_TAG_REQUIRED",
+  EDIT_LEGACY_MATCH_FAILED: "EDIT_LEGACY_MATCH_FAILED",
   EDIT_TAG_MISMATCH: "EDIT_TAG_MISMATCH",
   EDIT_TAG_UNKNOWN: "EDIT_TAG_UNKNOWN",
   EDIT_LINES_UNSEEN: "EDIT_LINES_UNSEEN",
@@ -171,6 +223,31 @@ export const ErrorCodes = {
   APPROVAL_STALE: "APPROVAL_STALE",
   PAYLOAD_TOO_LARGE: "PAYLOAD_TOO_LARGE",
   RATE_LIMITED: "RATE_LIMITED",
+  /**
+   * Remote Host connection codes (D448 / ADR 0284). The desktop adapter and
+   * the `pi-host` bootstrap classify a remote failure by these, never by
+   * matching message text.
+   */
+  /** The transport to a paired Host dropped; the Host itself may still be running. */
+  HOST_DISCONNECTED: "HOST_DISCONNECTED",
+  /** Installing or starting `pi-host` over the bootstrap channel failed. */
+  HOST_BOOTSTRAP_FAILED: "HOST_BOOTSTRAP_FAILED",
+  /** The paired Host runs a different release than this client. */
+  HOST_VERSION_MISMATCH: "HOST_VERSION_MISMATCH",
+  /** The device credential was refused by the Host. */
+  REMOTE_AUTH_FAILED: "REMOTE_AUTH_FAILED",
+  /** The RACP connection could not be established. */
+  REMOTE_CONNECTION_FAILED: "REMOTE_CONNECTION_FAILED",
+  /** The transport's port forward could not be set up. */
+  REMOTE_FORWARD_FAILED: "REMOTE_FORWARD_FAILED",
+  /** A Host-side path does not exist. */
+  REMOTE_PATH_NOT_FOUND: "REMOTE_PATH_NOT_FOUND",
+  /** A Host-side path is outside what the principal may reach. */
+  REMOTE_PATH_FORBIDDEN: "REMOTE_PATH_FORBIDDEN",
+  PAIRING_FAILED: "PAIRING_FAILED",
+  PAIRING_TOKEN_EXPIRED: "PAIRING_TOKEN_EXPIRED",
+  /** The Host does not advertise the capability the operation needs. */
+  CAPABILITY_UNAVAILABLE: "CAPABILITY_UNAVAILABLE",
   // Host-core RPC detail codes (spec 06 §7, 08 §3.1/§3.6). Electron surfaces
   // them unchanged through `AppError.code`.
   INVALID_PARAMS: "INVALID_PARAMS",

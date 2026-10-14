@@ -15,7 +15,7 @@ const [composer, api, main, attachments, saver, protocol, sidecar, picker] = awa
   read("../electron/main/prompt-attachments.ts"),
   read("../electron/main/composer-paste.ts"),
   read("../../../packages/shared/src/protocol.ts"),
-  read("../../../packages/agent-runtime/src/sidecar.ts"),
+  Promise.all([read("../../../packages/agent-runtime/src/sidecar.ts"),read("../../../packages/agent-runtime/src/attachment-history.ts")]).then(parts => parts.join("\n")),
   read("../electron/main/composer-picker.ts"),
 ]);
 
@@ -249,7 +249,7 @@ test("large image attachments avoid whole-file startup reads", () => {
   assert.match(attachments, /await copyFile\(source, target, fsConstants\.COPYFILE_EXCL\)/);
   assert.doesNotMatch(attachments, /const bytes = readFileSync\(source\.absolute\)/);
   assert.match(sidecar, /const size = \(await stat\(canonical\)\)\.size/);
-  assert.match(sidecar, /shouldInline && size <= MAX_INLINE_IMAGE_BYTES/);
+  assert.match(sidecar, /const canInline =[\s\S]*?size <= MAX_INLINE_IMAGE_BYTES/);
   assert.match(sidecar, /await copyFile\(source, target, fsConstants\.COPYFILE_EXCL\)/);
 });
 

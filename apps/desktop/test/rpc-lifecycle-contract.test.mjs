@@ -158,9 +158,9 @@ test("Bash defaults are finite and the tool advertises the effective timeout", (
   assert.match(runtimeSource, /DEFAULT_COMMAND_TIMEOUT_MS/);
   assert.match(runtimeSource, /defaults to a 60-second timeout/);
   assert.match(runtimeSource, /timeoutMs,\n\s+}/);
-  assert.match(rpcTimeoutSource, /DEFAULT_BASH_RPC_TIMEOUT_MS/);
-  assert.match(rpcTimeoutSource, /return DEFAULT_BASH_RPC_TIMEOUT_MS/);
-  assert.doesNotMatch(rpcTimeoutSource, /return undefined/);
+  assert.match(rpcTimeoutSource, /DEFAULT_COMMAND_TIMEOUT_MS/);
+  assert.match(rpcTimeoutSource, /DEFAULT_COMMAND_TIMEOUT_MS/);
+  assert.match(rpcTimeoutSource, /method === "tools.execute"[\s\S]*?return undefined/);
 });
 
 test("turn ownership and execution queue wake only after durable turn settlement", () => {

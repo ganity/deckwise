@@ -135,11 +135,11 @@ export function createTranscriptSlice({
       const optimisticMessage = optimisticUserMessage(
         crypto.randomUUID(),
         prompt,
-        (attachments ?? state.messages[userIndex].attachments ?? []).map(
+        (attachments ?? state.messages[userIndex].attachments ?? []).filter((attachment) => attachment.kind !== "session").map(
           (attachment) => ({
             path: attachment.ref,
             name: attachment.name,
-            kind: attachment.kind,
+            kind: attachment.kind === "image" ? "image" as const : "file" as const,
             mimeType: attachment.mimeType,
           }),
         ),

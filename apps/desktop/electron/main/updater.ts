@@ -96,6 +96,9 @@ export class AppUpdaterController {
     );
     this.state = {
       mode,
+      preference: mode === "in-app" ? "automatic" : "manual",
+      defaultPreference: mode === "in-app" ? "automatic" : "manual",
+      automaticSupported: mode === "in-app",
       status: "idle",
       currentVersion: options.currentVersion,
       releasesUrl: RELEASES_URL,

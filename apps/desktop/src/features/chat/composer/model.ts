@@ -4,6 +4,7 @@ import type {
   PermissionMode,
   ProviderPublic,
   ThinkingLevel,
+  SessionThinkingLevel,
 } from "@pi-desktop/shared";
 import {
   modelIdsMatch,
@@ -72,8 +73,8 @@ export type PromptEnhancementError = {
   code: string;
 };
 
-export function isThinkingLevel(value: unknown): value is ThinkingLevel {
-  return typeof value === "string" && THINKING_LEVELS.includes(value as ThinkingLevel);
+export function isThinkingLevel(value: unknown): value is SessionThinkingLevel {
+  return value === "omit" || (typeof value === "string" && THINKING_LEVELS.includes(value as ThinkingLevel));
 }
 
 export function isPermissionMode(value: unknown): value is PermissionMode {
@@ -89,10 +90,11 @@ export function isPermissionMode(value: unknown): value is PermissionMode {
  */
 export function thinkingLevelForProvider(
   provider: ProviderPublic | null | undefined,
-  current: ThinkingLevel,
-): ThinkingLevel {
+  current: SessionThinkingLevel,
+): SessionThinkingLevel {
   const available = providerThinkingLevels(provider);
   if (!provider?.supportsReasoning) return "off";
+  if (current === "omit") return current;
   if (available.includes(current)) return current;
   const requestedIndex = THINKING_LEVELS.indexOf(current);
   for (let index = requestedIndex; index < THINKING_LEVELS.length; index += 1) {

@@ -62,6 +62,8 @@ export type McpServerRecord = {
   /** http: absolute endpoint; HTTP is allowed for local and LAN servers. */
   url?: string;
   headers?: Record<string, string>;
+  /** Handshake/connection timeout in seconds (optional override). */
+  timeoutSeconds?: number;
   enabled: boolean;
   scope?: ActivationScope;
   createdAt: string;
@@ -81,6 +83,8 @@ export type McpServerInput = {
   env?: Record<string, string>;
   url?: string;
   headers?: Record<string, string>;
+  /** Set to null to clear an existing server-specific timeout override. */
+  timeoutSeconds?: number | null;
   enabled?: boolean;
   scope?: ActivationScope;
 };
@@ -96,12 +100,26 @@ export type McpServerStatus = {
   toolNames?: string[];
   message?: string;
   updatedAt: number;
+  hasOauth?: boolean;
+  authRequired?: boolean;
 };
 
 /** A user MCP server plus whatever the runtime knows about its connection. */
 export type McpServerView = McpServerRecord & {
   status?: McpServerStatus;
 };
+
+/** Progress of one MCP OAuth login attempt, pushed to the renderer. */
+export type McpOAuthLoginEvent = {
+  loginId: string;
+  serverId: string;
+} & (
+  | { kind: "authUrl"; url: string; instructions?: string; opened: boolean }
+  | { kind: "progress"; message: string }
+  | { kind: "done"; status: McpServerStatus }
+  | { kind: "error"; message: string }
+  | { kind: "cancelled" }
+);
 
 /**
  * A skill document the user owns, stored under `~/.agents/skills` or a
@@ -129,6 +147,14 @@ export type UserSkillRecord = {
   sizeBytes: number;
   createdAt: string;
   updatedAt: string;
+};
+
+/** A skill bundled with PI-Desktop and enabled globally by default. */
+export type BuiltinSkillRecord = {
+  id: string;
+  name: string;
+  description?: string;
+  enabled: boolean;
 };
 
 export type UserSkillInput = {

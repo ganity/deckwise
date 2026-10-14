@@ -47,6 +47,7 @@ const GROUP_KEYS: Record<ComposerCommand["kind"], string> = {
   plugin: "chat.slashGroupPlugins",
   extension: "chat.slashGroupExtensions",
   skill: "chat.slashGroupSkills",
+  mcp: "chat.slashGroupMcp",
 };
 
 function CommandIcon({ kind }: { kind: ComposerCommand["kind"] }) {
@@ -144,7 +145,7 @@ export function ComposerAutocomplete({
         lastGroup = group;
         rows.push(
           <div key={`g:${group}`} className="composer-model-group-label">
-            {t(GROUP_KEYS[group])}
+            {group === "mcp" ? "MCP" : t(GROUP_KEYS[group])}
           </div>,
         );
       }
