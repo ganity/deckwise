@@ -13420,3 +13420,12 @@ plugin-form fixtures in an isolated temporary directory at runtime.
   read-only. Reject unsupported formats and paths outside allowed roots.
 - Retain startup timeout, failed iframe load, retry and cancellation checks
   in `scripts/e2e-ppt-editor-loading.mjs`.
+
+
+### Restored tool calls across system records
+
+A model system record persisted between an assistant tool call and its result
+must not detach the call from its original assistant during history restore.
+The restored provider request preserves the live call/result ownership.
+Regression: `packages/agent-runtime/src/system-transcript-runtime.test.ts`.
+Upstream source: `f1778a193`.
