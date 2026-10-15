@@ -1471,3 +1471,12 @@ the sidecar.
 The first slice has no projection cache or async scan bound; every list still
 reads/parses complete files. Caching by canonical path/file identity/size/mtime
 and bounded asynchronous scanning remain deferred performance work.
+
+
+### Tolerant transcript reads
+
+Transcript and revision readers skip malformed records, decode invalid UTF-8
+best effort, and preserve physical byte offsets for bounded reads. Torn tails
+are excluded without rewriting user data. Regression coverage lives in
+`crates/host-core/src/transcripts_layout_tests.rs` and
+`scripts/e2e-transcript-cache.mjs` (upstream `80dc767b0`).
