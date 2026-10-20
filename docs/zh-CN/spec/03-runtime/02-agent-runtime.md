@@ -1038,3 +1038,11 @@ must not detach the call from its original assistant during history restore.
 The restored provider request preserves the live call/result ownership.
 Regression: `packages/agent-runtime/src/system-transcript-runtime.test.ts`.
 Upstream source: `f1778a193`.
+
+
+### Provider retry after compaction
+
+A provider retry uses the current transcript after compaction, whether or not
+the failed assistant remains. Both parent and subagent paths remove any
+trailing failed assistants before continuing. Upstream: `77a706acb`; regression
+coverage in runtime and subagent tests.

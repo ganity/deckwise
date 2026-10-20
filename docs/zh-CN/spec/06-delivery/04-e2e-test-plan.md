@@ -7901,3 +7901,11 @@ best effort, and preserve physical byte offsets for bounded reads. Torn tails
 are excluded without rewriting user data. Regression coverage lives in
 `crates/host-core/src/transcripts_layout_tests.rs` and
 `scripts/e2e-transcript-cache.mjs` (upstream `80dc767b0`).
+
+
+### Provider retry after compaction
+
+A provider retry uses the current transcript after compaction, whether or not
+the failed assistant remains. Both parent and subagent paths remove any
+trailing failed assistants before continuing. Upstream: `77a706acb`; regression
+coverage in runtime and subagent tests.
