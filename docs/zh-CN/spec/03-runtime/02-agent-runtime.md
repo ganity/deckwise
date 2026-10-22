@@ -1046,3 +1046,10 @@ A provider retry uses the current transcript after compaction, whether or not
 the failed assistant remains. Both parent and subagent paths remove any
 trailing failed assistants before continuing. Upstream: `77a706acb`; regression
 coverage in runtime and subagent tests.
+
+
+### System certificate expiry
+
+Only unexpired OS trust anchors are added to the bundled and explicitly supplied
+CA sets. TLS chain and hostname verification remain enabled. Deterministic
+coverage: `packages/agent-runtime/src/system-ca.test.ts`; upstream `8c267ab24`.
