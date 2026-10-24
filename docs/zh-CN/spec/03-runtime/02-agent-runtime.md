@@ -1029,3 +1029,27 @@ sidecar 序列化针对相同标准化路径的 IPC/`sequential` 调用
 
 跟踪差距（MVP 后积压）：更丰富的系统提示组成 (§7) 和
 provider/model 目录发现超出当前有线路径。
+
+
+### Restored tool calls across system records
+
+A model system record persisted between an assistant tool call and its result
+must not detach the call from its original assistant during history restore.
+The restored provider request preserves the live call/result ownership.
+Regression: `packages/agent-runtime/src/system-transcript-runtime.test.ts`.
+Upstream source: `f1778a193`.
+
+
+### Provider retry after compaction
+
+A provider retry uses the current transcript after compaction, whether or not
+the failed assistant remains. Both parent and subagent paths remove any
+trailing failed assistants before continuing. Upstream: `77a706acb`; regression
+coverage in runtime and subagent tests.
+
+
+### System certificate expiry
+
+Only unexpired OS trust anchors are added to the bundled and explicitly supplied
+CA sets. TLS chain and hostname verification remain enabled. Deterministic
+coverage: `packages/agent-runtime/src/system-ca.test.ts`; upstream `8c267ab24`.

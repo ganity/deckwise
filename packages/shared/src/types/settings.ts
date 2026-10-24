@@ -2,13 +2,30 @@
 import type { CommandShellId } from "../command-shells.js";
 import type { KeybindingOverrides } from "../keyboard-shortcuts.js";
 import type { NetworkProxySettings } from "../network-proxy.js";
+import type { NetworkPolicySettings } from "../network-policy.js";
 import type { ContextCompactionSettings } from "./sessions.js";
 import type { Mode } from "./common.js";
 import type { GlobalPermissionMode } from "./permissions.js";
 import type { PluginMarketSource } from "./plugins.js";
 import type { SpeechSettings } from "./speech.js";
+import type { ThinkingLevel } from "./models.js";
+import type { UpdatePreference } from "./platform.js";
+import type { LiveVoiceSettings } from "./live-voice.js";
 
 export type ThemePreference = "system" | "light" | "dark" | `plugin:${string}`;
+
+/**
+ * What a TypeSafe key check answered.
+ *
+ * `ok` means the classifier answered this key at its own address. A refusal
+ * carries the HTTP `status` and `message` when TypeSafe sent one; `message` is
+ * provider text with the key already redacted.
+ */
+export type JevKeyCheckResult = {
+  ok: boolean;
+  status?: number;
+  message?: string;
+};
 
 /**
  * What closing the main window does on Windows/Linux. macOS keeps the native
@@ -21,16 +38,43 @@ export type ThemePreference = "system" | "light" | "dark" | `plugin:${string}`;
 export type CloseBehavior = "ask" | "tray" | "quit";
 
 export type AppSettings = {
+  imageGeneration?: import("../image-generation.js").ImageGenerationBinding | null;
+  /** All models marked for image generation; absent falls back to imageGeneration. */
+  imageGenerationModels?: import("../image-generation.js").ImageGenerationBinding[] | null;
   defaultProviderId?: string;
   defaultModelId?: string;
   /** Local context-window override for all DeckWise managed text models. */
   managedContextWindow?: number;
+  /** Per-install update behavior; absent uses the package's safe default. */
+  updatePreference?: UpdatePreference;
+  /** Last manually announced release; kept local to avoid repeating notices. */
+  lastNotifiedUpdateVersion?: string;
   /** Host speech bindings. Absent means voice actions stay disabled. */
   speech?: SpeechSettings;
+  /** App-owned real-time voice bindings; separate from local dictation. */
+  liveVoice?: LiveVoiceSettings;
   defaultMode: Mode;
+  /**
+   * Keep retryable provider/network failures retrying until the request succeeds.
+   * Absent and false use the bounded ten-retry policy.
+   */
+  infiniteProviderRetry?: boolean;
+  /** Allow Agent mode to call TypeSafe Jev for explicit structured classifications. */
+  jevEnabled?: boolean;
+  /** Prevent idle system sleep while this desktop app runs; off when absent. */
+  keepAwakeWhileRunning?: boolean;
   /** Configured command shell for the agent Bash protocol tool. */
   defaultCommandShell?: CommandShellId;
-  /** Global permission mode default; sessions with `inherit` follow this. */
+  /** @deprecated Retained for one-time migration into pi.prompt-enhancement. */
+  promptEnhancementCustomTemplate?: boolean;
+  /** @deprecated Retained for one-time migration into pi.prompt-enhancement. */
+  promptEnhancementUserTemplate?: string;
+  /** @deprecated Retained for one-time migration into pi.prompt-enhancement. */
+  promptEnhancementProviderId?: string;
+  /** @deprecated Retained for one-time migration into pi.prompt-enhancement. */
+  promptEnhancementModelId?: string;
+  /** @deprecated Retained for one-time migration into pi.prompt-enhancement. */
+  promptEnhancementThinkingLevel?: ThinkingLevel;
   defaultPermissionMode?: GlobalPermissionMode;
   theme: ThemePreference;
   /** UI language; `auto` (and absent) follows the OS locale. */
@@ -66,13 +110,9 @@ export type AppSettings = {
   keybindings?: KeybindingOverrides;
   /** Unlocks the devtools console (settings button, F12, macOS View menu). */
   developerMode?: boolean;
-  /**
-   * Extension marketplace provider. `mirror` targets the cnb.cool copy for
-   * networks that cannot reach `raw.githubusercontent.com`; both serve the
-   * same catalog and packages.
-   */
+  /** Saved marketplace channel. */
   pluginMarketSource?: PluginMarketSource;
-  /** Catalog URL used when `pluginMarketSource` is `custom`. */
+  /** Catalog URL used for the custom marketplace channel. */
   pluginMarketCustomUrl?: string;
   /**
    * Outbound proxy for app-owned HTTP (D340). Absent means System: Chromium
@@ -80,6 +120,12 @@ export type AppSettings = {
    * is set. See `network-proxy.ts`.
    */
   networkProxy?: NetworkProxySettings;
+  /**
+   * Trust policy for the network endpoints the user enters themselves: how a
+   * user-supplied model base URL, MCP server, or market source is judged.
+   * Absent means the defaults in `network-policy.ts`.
+   */
+  networkPolicy?: NetworkPolicySettings;
   /**
    * Preferred destination when clicking HTTP/HTTPS links in chat messages.
    * `workpanel`: Preview in the Work Panel browser tab (default).
@@ -99,7 +145,37 @@ export type AppSettings = {
    * or work panel compresses without rewriting the preference.
    */
   chatContentMaxWidth?: number;
+  /**
+   * Opt-in smooth streaming display (D152 amendment). When enabled, incoming
+   * stream chunks are released character-by-character through a
+   * requestAnimationFrame loop instead of appearing as whole blocks.
+   * Absent and true enable smooth rendering; false disables it. Automatically
+   * disabled when the system prefers reduced motion.
+   */
+  smoothStreaming?: boolean;
+  /**
+   * Prevent the display from sleeping while the app is running. Uses
+   * Electron's `powerSaveBlocker` with `prevent-display-sleep` on all
+   * platforms. Absent and false mean the system manages sleep normally.
+   */
+  preventScreenSleep?: boolean;
+  /** Voice input settings (D-voice-runtime). */
+  voice?: VoiceInputSettings;
   onboardingDismissed: boolean;
+};
+
+export type ChineseVariant = "simplified" | "traditional-taiwan" | "traditional-hong-kong";
+
+export type VoiceInputSettings = {
+  enabled: boolean;
+  /** Microphone device ID; null means system default. */
+  deviceId: string | null;
+  /** Language codes for recognition, e.g. ["zh", "en"]. */
+  languages: string[];
+  /** Chinese output variant. */
+  chineseVariant: ChineseVariant;
+  /** Catalog model ID. Empty string means no model selected yet. */
+  modelId: string;
 };
 
 export type LinkOpenTarget = "workpanel" | "external";

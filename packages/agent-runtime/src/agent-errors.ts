@@ -8,12 +8,18 @@
  * "error") and the rejected-promise paths.
  */
 
+import { isContextOverflow, type AssistantMessage } from "@earendil-works/pi-ai";
+import { ErrorCodes, isCertificateVerificationError } from "@pi-desktop/shared";
+import { readLocalRequestErrorDetails } from "./local-request-errors.js";
+
 export type ClassifiedAgentError = {
   code: string;
   message: string;
   retriable: boolean;
   /** Safe, low-cardinality diagnostics for logs and the error details panel. */
   details?: Record<string, unknown>;
+  /** Local-only original failure; non-enumerable so UI/JSON never receives it. */
+  cause?: unknown;
 };
 
 /** Keep envelopes/persisted rows small; provider bodies can be huge. */
@@ -25,8 +31,43 @@ const NETWORK_PATTERN =
 const CONTEXT_PATTERN =
   /context[ _-]?length|maximum context|context window|too many tokens|prompt is too long|input token count|exceeds (?:the )?model(?:'s)? (?:context|input|token|prompt)|maximum (?:number of )?tokens|token limit/i;
 
+/**
+ * Rate limiting worded without a 429. Probed before overflow wording: Bedrock
+ * reports its tokens-per-minute throttle as "Throttling error: Too many tokens,
+ * please wait before trying again.", which `CONTEXT_PATTERN` would otherwise
+ * read as an overflow (pi-ai's `isContextOverflow` excludes it the same way).
+ */
+const RATE_LIMIT_PATTERN = /rate.?limit|too many requests|quota|overloaded|throttl/i;
+
+/**
+ * Whether a provider message reports a context overflow.
+ *
+ * The runtime decides overflow *recovery* with pi-ai's `isContextOverflow`, so
+ * the classifier asks the same question first; otherwise a provider whose
+ * wording only pi-ai knows (DashScope/Qwen "Range of input length", z.ai
+ * "Prompt exceeds max length", xAI "maximum prompt length", Groq, llama.cpp,
+ * Bedrock "Input is too long for requested model") is recovered as an overflow
+ * but reported, and retried by delegates, as a generic provider error.
+ * `CONTEXT_PATTERN` keeps the wording this classifier already accepted. Only
+ * the message text is consulted: no provider id, usage, or context window, so
+ * pi-ai's silent-overflow and provider-specific bodyless checks stay with the
+ * runtime, which has those facts.
+ */
+function isContextOverflowMessage(message: string): boolean {
+  const probe = {
+    role: "assistant",
+    stopReason: "error",
+    errorMessage: message,
+  } as AssistantMessage;
+  return isContextOverflow(probe) || CONTEXT_PATTERN.test(message);
+}
+
 const STREAM_TERMINATION_PATTERN =
   /\bterminated\b|stream ended without finish_reason|premature(?:ly)?\s+(?:closed|ended)|(?:stream|response).*(?:closed|interrupted)/i;
+
+/** An adapter refusing a request option, e.g. "Custom fetch is not supported
+ * by the Google Generative AI adapter" (issue #1072). */
+const UNSUPPORTED_ADAPTER_OPTION_PATTERN = /is not supported by the .{0,60}adapter/i;
 
 function redactSensitiveErrorText(message: string): string {
   return message
@@ -84,6 +125,9 @@ function hasNetworkCause(err: unknown, message: string): boolean {
 function extractErrorCode(err: unknown): string | number | undefined {
   let current: any = err;
   for (let depth = 0; depth < 4 && current; depth += 1) {
+    if (typeof current.errorCode === "string" && /^[A-Za-z0-9_.:-]{1,64}$/.test(current.errorCode)) {
+      return current.errorCode;
+    }
     if (typeof current.code === "number") {
       return Number.isSafeInteger(current.code) ? current.code : undefined;
     }
@@ -170,6 +214,7 @@ const NETWORK_CATEGORY_PATTERNS: ReadonlyArray<
 function networkCategoryForCode(
   code: string,
 ): NetworkFailureCategory | undefined {
+  if (isCertificateVerificationError(code)) return "tls";
   for (const [pattern, category] of NETWORK_CATEGORY_PATTERNS) {
     if (pattern.test(code)) return category;
   }
@@ -177,14 +222,15 @@ function networkCategoryForCode(
 }
 
 /**
- * Pick the errno worth reporting and its category. A code naming the proxy wins
- * wherever it sits in the chain, because that is the layer that actually failed
- * — undici reports the proxy's own socket errno as a deeper cause.
+ * A concrete certificate rejection wins over a generic socket/proxy wrapper:
+ * retrying cannot repair trust. Otherwise prefer the proxy layer's own code.
  */
 function pickNetworkCode(codes: readonly string[]): {
   code?: string;
   category?: NetworkFailureCategory;
 } {
+  const certificate = codes.find(isCertificateVerificationError);
+  if (certificate) return { code: certificate, category: "tls" };
   for (const candidate of codes) {
     if (networkCategoryForCode(candidate) === "proxy") {
       return { code: candidate, category: "proxy" };
@@ -292,10 +338,12 @@ export function describeNetworkFailure(
   // errno (bounded, errno-shaped) before it can be reported; the object chain
   // above is probed first and its codes are kept.
   for (const match of message.matchAll(
-    /\b(?:E[A-Z]{3,}|UND_ERR_[A-Z_]+|ERR_[A-Z0-9_]+|HPE_[A-Z_]+)\b/g,
+    /\b[A-Z][A-Z0-9_]{2,63}\b/g,
   )) {
     if (codes.length >= 16) break;
-    if (SAFE_NETWORK_CODE_PATTERN.test(match[0])) codes.push(match[0]);
+    if (networkCategoryForCode(match[0]) !== undefined || NETWORK_PATTERN.test(match[0])) {
+      codes.push(match[0]);
+    }
   }
   if (hostname === undefined) {
     const dnsHost = message.match(
@@ -336,13 +384,45 @@ export function networkFailureDiagnostics(
 }
 
 export function classifyAgentError(err: unknown): ClassifiedAgentError {
+  const envelope = err !== null && typeof err === "object"
+    ? err as Record<string, unknown> : undefined;
+  const local = readLocalRequestErrorDetails(err);
+  // Cancellation outranks local diagnostics: pi-ai wraps a synchronous AbortError
+  // that fired before `signal.aborted` flipped in a LocalRequestError, whose own
+  // name says nothing about it, so the marker's preserved cause name is the only
+  // trace of the user's Stop — the same field the runtime reads off a settled
+  // message.
+  const explicitlyAborted =
+    (err instanceof Error && err.name === "AbortError") ||
+    envelope?.stopReason === "aborted" ||
+    local?.causeName === "AbortError";
+  if (local && !explicitlyAborted) {
+    // Local preparation cannot be repaired by provider retries. Keep the
+    // original chain in-process, but never copy its payload/message/stack to UI.
+    const classified: ClassifiedAgentError = {
+      code: "INTERNAL",
+      message: local.message,
+      retriable: false,
+      details: {
+        origin: "local",
+        phase: local.phase,
+        ...(local.causeName ? { causeName: local.causeName } : {}),
+      },
+    };
+    return Object.defineProperty(classified, "cause", { value: err });
+  }
   const rawMessage =
     typeof err === "string"
       ? err
       : err instanceof Error
         ? err.message
-        : String(err);
-  const safeMessage = redactSensitiveErrorText(rawMessage);
+        : typeof envelope?.errorMessage === "string"
+          ? envelope.errorMessage
+          : envelope?.role === "assistant"
+            ? "provider stream failed"
+            : String(err);
+  const safeMessage = local && explicitlyAborted
+    ? "Request aborted" : redactSensitiveErrorText(rawMessage);
   const message =
     safeMessage.length > MAX_ERROR_MESSAGE_CHARS
       ? `${safeMessage.slice(0, MAX_ERROR_MESSAGE_CHARS)}…`
@@ -381,7 +461,7 @@ export function classifyAgentError(err: unknown): ClassifiedAgentError {
   // while a checkpoint is being summarized fails the compaction with an abort
   // cause, and that turn must read as stopped, not as a compaction failure.
   if (
-    (err instanceof Error && err.name === "AbortError") ||
+    explicitlyAborted ||
     /\babort/i.test(rawMessage)
   ) {
     return result("TURN_ABORTED", false);
@@ -393,12 +473,34 @@ export function classifyAgentError(err: unknown): ClassifiedAgentError {
   // "fetch failed" causes don't fall through to the generic bucket. The cause
   // chain is summarized as a coarse category plus the transport errno, so the
   // failing layer is identifiable without a user-visible code per layer.
-  if (hasNetworkCause(err, rawMessage)) {
+  const network = describeNetworkFailure(err, rawMessage);
+  const certificateFailure = isCertificateVerificationError(network.code);
+  if (hasNetworkCause(err, rawMessage) || (status === undefined && certificateFailure)) {
     return result(
       "NETWORK_ERROR",
-      true,
-      networkDetailFields(describeNetworkFailure(err, rawMessage)),
+      !certificateFailure,
+      networkDetailFields(network),
     );
+  }
+
+  if (
+    providerCode === ErrorCodes.HOST_OVERLOADED ||
+    /host RPC capacity is exhausted|HOST_OVERLOADED/i.test(rawMessage)
+  ) {
+    return result(ErrorCodes.HOST_OVERLOADED, true, { origin: "host" });
+  }
+  if (
+    providerCode === ErrorCodes.HOST_UNAVAILABLE ||
+    /host RPC unavailable|host-core is unavailable|host RPC timeout/i.test(rawMessage)
+  ) {
+    return result(ErrorCodes.HOST_UNAVAILABLE, true, { origin: "host" });
+  }
+
+  // The adapter itself refuses how the request was built, so re-sending it
+  // produces the identical failure. Probed before the status table so a status
+  // some layer attached to the same message cannot re-arm the retry budget.
+  if (UNSUPPORTED_ADAPTER_OPTION_PATTERN.test(rawMessage)) {
+    return result("PROVIDER_ERROR", false);
   }
 
   if (status !== undefined) {
@@ -417,7 +519,7 @@ export function classifyAgentError(err: unknown): ClassifiedAgentError {
     if (status === 404) return result("MODEL_NOT_CONFIGURED", false);
     if (status >= 500) return result("PROVIDER_ERROR", true);
     if (status === 400 || status === 422) {
-      if (CONTEXT_PATTERN.test(rawMessage)) return result("CONTEXT_TOO_LARGE", false);
+      if (isContextOverflowMessage(rawMessage)) return result("CONTEXT_TOO_LARGE", false);
       // Malformed request (wrong apiStyle, bad params) — retrying won't help.
       return result("PROVIDER_ERROR", false);
     }
@@ -427,10 +529,10 @@ export function classifyAgentError(err: unknown): ClassifiedAgentError {
   if (/invalid[ _]api[ _]key|api key not valid|unauthorized|authentication|permission denied/i.test(rawMessage)) {
     return result("PROVIDER_UNAUTHORIZED", false);
   }
-  if (/rate.?limit|too many requests|quota|overloaded/i.test(rawMessage)) {
+  if (RATE_LIMIT_PATTERN.test(rawMessage)) {
     return result("PROVIDER_RATE_LIMITED", true);
   }
-  if (CONTEXT_PATTERN.test(rawMessage)) {
+  if (isContextOverflowMessage(rawMessage)) {
     return result("CONTEXT_TOO_LARGE", false);
   }
   if (/model.{0,20}(not found|does not exist|unknown)|unknown model/i.test(rawMessage)) {

@@ -22,7 +22,7 @@ export type SessionThinkingSnapshot = {
 export type OptimisticSessionConfiguration = {
   providerId?: string;
   modelId?: string;
-  thinkingLevel?: ThinkingLevel;
+  thinkingLevel?: ThinkingLevel | "omit";
   mode?: unknown;
   permissionMode?: unknown;
 };

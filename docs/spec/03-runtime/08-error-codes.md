@@ -64,13 +64,21 @@ registered; reserved codes in §3.7 remain intentionally absent from
 | `CLIENT_TOO_SLOW` | yes | RACP: the client fell behind the event stream and was disconnected |
 | `APPROVAL_EXPIRED` | no | RACP: the approval deadline passed before an answer arrived |
 | `APPROVAL_STALE` | no | RACP: the approval was already settled or belongs to an older turn |
-| `PAYLOAD_TOO_LARGE` | no | an HTTP request exceeded the gateway/provider byte-size limit, or a RACP frame exceeded the negotiated size bound. HTTP 413 only maps to `CONTEXT_TOO_LARGE` when the provider explicitly identifies a model context/token limit; byte-size failures do not trigger context compaction |
+| `PAYLOAD_TOO_LARGE` | no | RACP: a frame exceeded the negotiated size bound |
 | `TIMEOUT` | yes | generic timeout |
-| `NETWORK_POLICY_BLOCKED` | no | the main-process public-network guard refused a fetch because it *judged* the target: the URL failed the syntactic public-HTTPS check, or the local DNS lookup returned an address the policy classifies as non-public — including a fake-IP placeholder a local proxy invented (ADR 0243). A desktop-only code; a refusal is a verdict, so retrying cannot succeed until the address changes. A resolver that returned no answer at all is `NETWORK_RESOLVE_FAILED` instead (issue #419). |
+| `NETWORK_POLICY_BLOCKED` | no | the main-process public-network guard refused a fetch because it *judged* the target: the URL failed the syntactic public-HTTPS check, or the local DNS lookup returned an address the policy classifies as non-public — including a fake-IP placeholder a local proxy invented (ADR 0243). A desktop-only code; a refusal is a verdict, so retrying cannot succeed until the address changes. A resolver that returned no answer at all is `NETWORK_RESOLVE_FAILED` instead (issue #419). Since ADR 0304 an endpoint the user typed themselves may resolve to their own loopback or LAN, so this code now reports a first hop only for the classes that name no service at all (cloud metadata, unspecified, multicast, reserved) or for a third-party hop — a redirect target, a catalog body, a registry record. |
 | `NETWORK_RESOLVE_FAILED` | yes | the main-process public-network guard could not classify the target host: the local DNS lookup returned no answer, or threw before returning one. The request is refused exactly as a policy refusal is, but no address was judged, so no page or log may report it as an address-check decision. Distinct from `NETWORK_ERROR`, which is a failure of the request itself. Retriable: a resolver or proxy that starts answering the same host makes the same request succeed (ADR 0243, issue #419). |
 | `HOST_SHUTTING_DOWN` | yes | the host received EOF and is draining; the call was refused rather than started |
 | `RATE_LIMITED` | yes | a per-caller host budget (plugin session import, batch operations) was exceeded inside its window |
 | `LIMIT_EXCEEDED` | no | a payload exceeded a fixed host bound (item count, byte size, or a 64 MiB NDJSON request line) and was refused |
+| `CONFIG_SYNC_INVALID` | no | invalid sync configuration, password, path, request, or approval input |
+| `CONFIG_SYNC_LOCKED` | no | the local encrypted sync vault is not unlocked |
+| `CONFIG_SYNC_UNSUPPORTED` | no | the vault format or S3 conditional-write capability is unsupported |
+| `CONFIG_SYNC_REMOTE` | maybe | S3 object, authentication, quota, or availability failure |
+| `CONFIG_SYNC_CONFLICT` | maybe | remote head, vault identity, or approval digest conflict |
+| `CONFIG_SYNC_CRYPTO` | no | authenticated encryption, object identity, or ciphertext validation failed |
+| `CONFIG_SYNC_MAPPING_REQUIRED` | no | imported project-scoped configuration needs an explicit local folder/group mapping |
+| `CONFIG_SYNC_LIMIT_EXCEEDED` | no | encrypted sync state exceeded an entity, object, resource, archive, or decompression bound |
 
 
 `HOST_UNAVAILABLE` is reserved for a missing or broken host process/transport,
@@ -88,8 +96,10 @@ does not turn temporary thread pressure into a host process exit.
 | `AGENT_NOT_FOUND` | no | session missing |
 | `TURN_NOT_FOUND` | no | turn id invalid |
 | `TURN_ABORTED` | no | turn aborted by user/system |
+| `AGENT_SIDECAR_CRASHED` | no | the Node agent sidecar process died mid-turn; the owning turn settles as aborted with this code instead of an unrelated plan-approval code (issue #1077) |
+| `AGENT_SIDECAR_OOM` | no | the sidecar died after its JavaScript heap hit the configured cap, diagnosed from the V8 fatal-error banner in its stderr tail; the same turn fails the same way until the input shrinks (issue #1077) |
 | `MODEL_NOT_CONFIGURED` | no | no usable model selected, or provider rejects the selected model as unknown |
-| `PROVIDER_ERROR` | yes | upstream provider failure; a retryable one (5xx gateway) gets up to ten same-turn retries, a malformed 400/422 request is terminal |
+| `PROVIDER_ERROR` | yes | upstream provider failure; a retryable one (5xx gateway) gets up to ten same-turn retries, while a malformed 400/422 request or a request option the adapter itself refuses (a custom `fetch` for the Google adapters, issue #1072) is terminal |
 | `PROVIDER_UNAUTHORIZED` | no | bad/missing provider credentials |
 | `TEAM_LLM_PERMISSION_DENIED` | no | managed project request received HTTP 403 with the dedicated team-refusal marker; show project access guidance without API-key settings. Other 401/403 errors retain their existing meaning. |
 | `PROVIDER_RATE_LIMITED` | yes | provider rate limited; runtime silently retries up to ten times across setup/stream before the terminal event |
@@ -103,6 +113,9 @@ does not turn temporary thread pressure into a host process exit.
 | `SPEECH_INPUT_TOO_LARGE` | no | speech input exceeds 25 MB |
 | `SUBAGENT_IDLE_TIMEOUT` | no | withdrawn (D328): idle watchdogs are not armed; the code remains for stored results |
 | `SUBAGENT_DURATION_TIMEOUT` | no | withdrawn (D328): duration watchdogs are not armed; the code remains for stored results |
+| `SUBAGENT_CONTEXT_OVERFLOW` | no | a delegate's own model context exceeded its safe budget and neither automatic turn-boundary compaction nor the degraded retry that keeps only the task brief and the most recent messages brought it back below the limit; the failure names the actionable recovery instead of the provider's overflow text |
+| `SUBAGENT_OUTPUT_TRUNCATED` | no | a delegate's report ended at the model output-token limit; the partial report is preserved for diagnosis, but the run is failed rather than presented as a completed delegation |
+| `SUBAGENT_PARENT_FAILED` | no | parent failure interrupted a running delegate; its chain remains manually resumable with Task, subject to the existing history and read-budget gates |
 ### 3.3 Workspace / tools / permissions
 
 | code | retriable | meaning |
@@ -116,13 +129,14 @@ does not turn temporary thread pressure into a host process exit.
 | `TOOL_DENIED` | no | permission denied / mode forbidden |
 | `TOOL_TIMEOUT` | yes | tool execution timeout |
 | `TOOL_FAILED` | maybe | tool executed but failed |
+| `FILE_NOT_FOUND` | no | Read/Write/Edit target path does not exist (distinct from `TOOL_DENIED`) |
 | `TOOL_ABORTED` | no | the tool was cancelled by a user stop or a turn abort before it finished |
-| `MUTATION_RETRY_BUDGET_EXHAUSTED` | yes | the repeat guard ended the turn after same-path `Edit` or shell patch failures, including an unchanged consecutive `EDIT_PARSE_FAILED` payload; carries `details.kind` (`edit` or `patch-command`), the last tool error code, and a class-specific `details.recovery` hint |
+| `MUTATION_RETRY_BUDGET_EXHAUSTED` | yes | the repeat guard ended the turn after same-path `Edit` or shell patch failures; carries `details.kind` (`edit` or `patch-command`), the last tool error code, and a class-specific `details.recovery` hint |
 | `PROCESS_RESOURCE_EXHAUSTED` | yes | shell process could not start because the OS temporarily exhausted process resources |
 | `SHELL_NOT_FOUND` | no | no effective platform shell is available after catalog fallback; message carries guidance |
 | `COMMAND_SHELL_CHANGED` | no | pinned shell ID or dialect changed before execution |
 | `COMMAND_SHELL_INVALID` | no | settings supplied an unknown, unavailable, or wrong-platform shell ID |
-| `PERMISSION_TIMEOUT` | no | permission prompt timed out (mapped to deny) |
+| `PERMISSION_TIMEOUT` | no | legacy compatibility code for an older permission prompt timeout; current local prompts remain pending instead |
 | `PERMISSION_REQUIRED` | no | waiting for user decision |
 | `WRITE_DISABLED_IN_PLAN` | no | contract-mode hard-deny for Write |
 | `EDIT_DISABLED_IN_PLAN` | no | contract-mode hard-deny for Edit |
@@ -183,6 +197,7 @@ loses that. See
 | code | retriable | meaning |
 |---|---|---|
 | `EDIT_TAG_REQUIRED` | no | `tag` missing or not 4 hex digits |
+| `EDIT_LEGACY_MATCH_FAILED` | yes after a `Read` | legacy `old_string` was not found or matched multiple times; model must re-read or provide unique context |
 | `EDIT_TAG_MISMATCH` | yes after a `Read` | tag does not hash the live file and drift recovery declined; carries the live tag and current content at the anchors |
 | `EDIT_TAG_UNKNOWN` | yes after a `Read` | tag is well-formed but the session recorded no such content for the path |
 | `EDIT_LINES_UNSEEN` | yes | anchors reference lines the session never displayed; carries the revealed content |
@@ -192,7 +207,7 @@ loses that. See
 | `EDIT_REGISTER_EMPTY` | no | paste from an unset register |
 | `EDIT_REGISTER_AMBIGUOUS` | no | anonymous paste with more than one pending anonymous capture |
 | `EDIT_REPAIR_AMBIGUOUS` | no | boundary-repair candidates tied at minimum cost |
-| `EDIT_NO_CHANGE` | no | the apply produced text identical to the input |
+| `EDIT_NO_CHANGE` | no | the apply produced text identical to the input, or `MV` resolved to the source path; the entire call leaves the source bytes untouched |
 | `EDIT_AMPLIFICATION_LIMIT` | no | lowering exceeded the expansion cap |
 
 `EDIT_LINES_UNSEEN` is retriable **without** a further `Read` when its message
@@ -216,6 +231,7 @@ malformed.
 |---|---|---|
 | `PROVIDER_SECRET_MISSING` | no | enabled provider requires an API key |
 | `MODEL_ALIAS_TOO_LONG` | no | configured model alias exceeds 60 Unicode characters |
+| `MODEL_BINDINGS_DEGRADED` | no | stored model bindings are unreadable; explicit model-array replacement is blocked to prevent data loss |
 | `SECRET_STORE_UNAVAILABLE` | maybe | OS secure storage unavailable (reserved) |
 | `SETTINGS_INVALID` | no | settings payload invalid (reserved) |
 
@@ -275,6 +291,65 @@ carries a marker naming which end survived and where the rest is, or reports
 the bounded window in sibling result fields
 (see [16-tool-result-limits](16-tool-result-limits.md)).
 
+### 3.8 Remote control (RACP-WS / SSH bootstrap)
+
+Emitted by the desktop's remote-host client and the `pi-host` server when a
+session lives on a paired remote machine driven over `RACP-WS`
+(see [19-remote-agent-control-protocol](19-remote-agent-control-protocol.md),
+[../05-security/02-remote-control-security](../05-security/02-remote-control-security.md),
+ADR 0285). The renderer never sees the local/remote split beyond a badge; these
+codes surface through the same error object as any other call.
+
+| code | retriable | meaning |
+|---|---|---|
+| `HOST_DISCONNECTED` | yes | the remote host connection dropped; in-flight calls are rejected and the client reconnects and resubscribes by cursor |
+| `HOST_BOOTSTRAP_FAILED` | no | provisioning the remote `pi-host` over SSH failed (download, checksum mismatch, or `install.sh`); `details.reason` names the stage |
+| `HOST_VERSION_MISMATCH` | no | the remote `pi-host` version does not match the desktop; the desktop refuses to drive an incompatible host |
+| `REMOTE_AUTH_FAILED` | no | the device or pairing token was rejected on the RACP-WS upgrade |
+| `REMOTE_CONNECTION_FAILED` | yes | the RACP-WS transport could not connect (non-loopback URL, refused socket) |
+| `REMOTE_FORWARD_FAILED` | yes | the SSH loopback port forward could not be established |
+| `REMOTE_PATH_NOT_FOUND` | no | a remote project/workspace path does not exist on the host |
+| `REMOTE_PATH_FORBIDDEN` | no | a remote path is outside the host's permitted roots |
+| `PAIRING_FAILED` | no | `connection/pair` could not mint a device credential |
+| `PAIRING_TOKEN_EXPIRED` | no | the single-use pairing token expired before pairing completed |
+| `CAPABILITY_UNAVAILABLE` | no | an operation was requested for a capability the host advertised as unavailable (e.g. attachments, tool relay) |
+
+### 3.9 Live Voice
+
+Live Voice errors are returned through app-owned IPC and provider adapter
+events. They do not represent Agent turn failures. A retriable error means the
+user may retry the same call after the stated transient condition clears; it
+does not trigger automatic provider or billing fallback.
+
+| code | retriable | meaning |
+|---|---|---|
+| `LIVE_DISABLED` | no | Live Voice is disabled in settings |
+| `LIVE_NOT_CONFIGURED` | no | no valid Live Voice binding is selected |
+| `LIVE_PROVIDER_NOT_FOUND` | no | the selected Provider is missing, disabled, or changed while resolving credentials |
+| `LIVE_AUTH_KIND_UNSUPPORTED` | no | the selected Provider credential type is incompatible with the adapter |
+| `LIVE_AUTH_REQUIRED` | no | required OAuth or API-key credentials are absent or rejected |
+| `LIVE_ACCOUNT_ID_MISSING` | no | Codex OAuth account identity is absent or inconsistent |
+| `LIVE_ACCESS_DENIED` | no | the provider denied access or entitlement |
+| `LIVE_RATE_LIMITED` | yes | the provider returned a rate-limit response |
+| `LIVE_PROTOCOL_UNSUPPORTED` | no | endpoint, model, or requested protocol profile is unsupported |
+| `LIVE_PROTOCOL_ERROR` | no | a provider or IPC message is malformed or violates the selected protocol |
+| `LIVE_ALREADY_ACTIVE` | no | another Live Voice call or microphone-release quarantine owns the single-call slot |
+| `LIVE_REQUEST_CONFLICT` | no | an idempotency request ID was reused with different call parameters |
+| `LIVE_SETTINGS_IN_USE` | no | settings changed during preparation or the active binding cannot be rewritten |
+| `LIVE_MEDIA_RELEASE_UNCONFIRMED` | no | renderer media release was not acknowledged; Main quarantines the microphone lease |
+| `LIVE_STALE_CALL` | no | the call, request, or capture epoch is no longer current |
+| `LIVE_INVALID_OWNER` | no | IPC or media-port ownership does not match the trusted main frame |
+| `LIVE_MICROPHONE_BUSY` | no | Dictation, another Live call, or an unconfirmed prior release owns the shared capture lease |
+| `LIVE_MICROPHONE_DENIED` | no | the user or operating system denied microphone permission |
+| `LIVE_MICROPHONE_UNAVAILABLE` | no | no usable microphone device is available |
+| `LIVE_MEDIA_UNSUPPORTED` | no | required browser media or AudioWorklet support is unavailable |
+| `LIVE_PLAYBACK_BLOCKED` | maybe | browser audio playback needs a user gesture or could not resume |
+| `LIVE_TIMEOUT` | yes | a bounded startup, handshake, heartbeat, control, or cleanup stage timed out |
+| `LIVE_NETWORK_ERROR` | yes | a transient provider transport connection failed |
+| `LIVE_NETWORK_POLICY_UNSUPPORTED` | no | the desktop proxy route cannot be represented safely by the Live transport |
+| `LIVE_AUDIO_BACKPRESSURE` | no | bounded PCM or playback credits were exhausted |
+| `LIVE_EXECUTION_NOT_CONNECTED` | no | a provider requested an unsupported function/delegation execution path |
+
 ## 4. Mapping rules
 
 ### Host RPC numeric → AppError.code
@@ -286,10 +361,24 @@ Node sidecar maps provider SDK errors into:
 
 - `PROVIDER_UNAUTHORIZED`
 - `PROVIDER_RATE_LIMITED`
+- `CONTEXT_TOO_LARGE`
 - `MODEL_NOT_CONFIGURED` (provider rejects the selected model with 404)
 - `PROVIDER_ERROR`
 - `NETWORK_ERROR`
 - `STREAM_FAILED`
+
+A provider message is `CONTEXT_TOO_LARGE` when pi-ai's `isContextOverflow`
+recognizes it from the message text — the same check that starts provider
+overflow recovery — or when it carries the context-length wording the
+classifier already matched (HTTP 413 always). The terminal code therefore
+agrees with the recovery decision for every overflow wording pi-ai knows, for
+example DashScope/Qwen `Range of input length should be`, z.ai `Prompt
+exceeds max length`, xAI `maximum prompt length is`, Groq, llama.cpp, and
+Bedrock `Input is too long for requested model`. `CONTEXT_TOO_LARGE` is never
+replayed by either retry budget, and a delegate reports it as
+`SUBAGENT_CONTEXT_OVERFLOW`. Rate-limit wording, including Bedrock's
+`Throttling error: Too many tokens, please wait before trying again.`, is
+classified first and stays `PROVIDER_RATE_LIMITED`.
 
 An exact `terminated` provider message and equivalent premature stream-close
 messages map to `STREAM_FAILED`. A request-setup or post-response
@@ -299,13 +388,21 @@ transient failures — `STREAM_FAILED`, `NETWORK_ERROR`, `TIMEOUT`, and retryabl
 `PROVIDER_ERROR` such as an upstream gateway 502/503/504 — share their own
 bounded budget of ten retries after the initial attempt, also counted together
 across setup and stream, and separate from the 429 budget. Both budgets are
-abortable. The 429 path honors `retry-after-ms`, `retry-after` seconds, and
+abortable and reset after a complete successful model response, including a
+tool-call response, in both the main session and builtin subagents. Headers,
+partial output, and phase changes do not replenish them. Terminal exhaustion
+reports `retryAttempt: 10` from the applicable budget even after retry activity
+cleanup. The 429 path honors `retry-after-ms`, `retry-after` seconds, and
 HTTP-date headers before client backoff and caps a wait at 30 seconds; the
 non-429 path applies the same precedence with an 8-second cap and otherwise
 waits 1, 2, 4, then remains at 8 seconds for later retries. Only the failed
 request is replayed; the session and its tool state are untouched. A
 non-retryable `PROVIDER_ERROR` from a
-malformed 400/422 request never enters either budget.
+malformed 400/422 request never enters either budget. The persisted
+`infiniteProviderRetry` setting is false by default; when true it removes only
+the retry-count ceiling for the admitted transient/network classes (including
+429). Backoff, `Retry-After`, cancellation, and terminal classification remain
+unchanged, and the setting may continue API usage until the user stops the turn.
 
 A `NETWORK_ERROR` carries the failing transport layer as bounded `details`:
 `networkCategory` (`dns`, `tls`, `timeout`, `refused`, `unreachable`, `reset`,
@@ -328,7 +425,10 @@ phase: the fault is reported as `phase: request` because no response ever
 arrived, which is what distinguishes it from a stream that ended mid-response.
 `networkRoute` (`direct`, `environment-proxy`, `http-proxy`, `socks5-proxy`)
 names the hop the request was taking, so a failure at the proxy is readable
-without guessing from an errno.
+without guessing from an errno. A request bound for pi-ai's Google adapters
+carries no fetch wrapper and never reaches `onResponse` (issue #1072), so it
+reports neither field: it keeps the provider's own message, its `Retry-After`
+falls back to the bounded ladder, and the rebuild below does not fire for it.
 
 When one origin fails this way repeatedly inside a turn — twice in a row,
 without any response — the provider transport is rebuilt before the next attempt
@@ -341,7 +441,9 @@ the pool it started on. The route in effect is reproduced, never downgraded to a
 direct connection.
 
 ### Permission timeout
-UI/host timeout emits `PERMISSION_TIMEOUT` internally, tool result presented as denied (`TOOL_DENIED`) to agent.
+`PERMISSION_TIMEOUT` is a legacy compatibility code and is no longer emitted
+for local desktop permission requests. An unresolved local permission remains
+pending; explicit denial or cancellation is reported as `TOOL_DENIED`.
 
 ### Shell and Plan/Goal checkpoint failures
 
@@ -354,6 +456,29 @@ absolute pending deadline;
 execution interrupted by abort or host recovery. `PLAN_KIND_MISMATCH` is a
 terminating tool error like `PLAN_NOT_ACTIVE`: the submit tool ran against the
 wrong contract, so no artifact is written and no approval row is created.
+
+### Local request preparation failures
+
+A structured `LOCAL_REQUEST_ERROR` from context validation, context estimation,
+or request preparation maps to the existing `INTERNAL` code with
+`retriable: false`. Preserve its local origin and phase before adapter errors
+are flattened to text. Diagnostics may retain the cause type, but must not
+copy request content, search results, credentials or arbitrary cause messages
+into the UI. Do not identify these failures by matching an exception sentence
+or by treating all JavaScript `TypeError`s alike: fetch transport failures
+retain the existing network/retry and cancellation behavior.
+
+Restored-history validation may fail before a runtime stream exists. In that case
+the existing RPC error `data` carries `errorCode`, `retriable: false`, and safe
+`details` (`origin`, `phase`, optional cause type). No provider request is made,
+the sidecar stays available, and a stored record is never rewritten. A container
+that is not a stored block list still fails this way.
+
+A single stored block that cannot be replayed is a different case: this app itself
+stores display-only blocks when a gateway drops ids, so the whole stored replay for
+that message degrades to "no replay" instead of failing every later turn. The turn
+continues, display rounds are unchanged, and the diagnostic records the block count
+and phases without copying search content, results or credentials.
 
 ## 5. UI handling guidelines
 
@@ -414,3 +539,20 @@ Examples:
    expiry, scheduled-rejection, and restart-interruption paths map to stable
    codes; only the documented pre-turn catalog fallback is allowed and no work
    is replayed
+
+### Certificate verification failures (issue #714)
+
+`NETWORK_ERROR` is non-retriable when `details.networkCode` is a recognized
+certificate verification failure, including an untrusted/self-signed chain,
+an expired/not-yet-valid certificate, or `ERR_TLS_CERT_ALTNAME_INVALID`.
+A concrete certificate cause takes precedence over generic socket/proxy
+wrapper codes. Captured fetch causes apply this policy after adapter error
+flattening as well as during direct classification. Unknown and non-certificate
+TLS/protocol errors retain existing recovery behavior.
+
+The transcript keeps the stable error code, transport errno and raw details,
+but uses localized certificate guidance instead of the generic connectivity
+summary. It asks the user to check the certificate, clock, and trusted roots
+used by security software/proxies, then restart after changing trust. It does
+not claim that interception is the only possible cause or offer a TLS bypass.
+Manual Continue remains available after the cause is corrected.

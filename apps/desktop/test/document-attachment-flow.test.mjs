@@ -31,9 +31,10 @@ test("parsed document paths are removed from the model-facing prompt", () => {
   );
 });
 
-test("parsed document paths are not restored from persisted history", () => {
+test("parsed document paths are not restored from persisted history", async () => {
   assert.match(agentIpc, /content: stripPromptAttachmentReferences\(promptContent, structuredDocuments\)/);
-  assert.match(sidecar, /const structuredDocuments = message\.attachments\.filter/);
-  assert.match(sidecar, /restoredContent = restoredContent\.replaceAll\(reference, ""\)/);
-  assert.match(sidecar, /const resolved = await Promise\.all\(agentAttachments\.map\(resolveAttachment\)\)/);
+  const history = await readFile(new URL("../../../packages/agent-runtime/src/attachment-history.ts", import.meta.url), "utf8");
+  assert.match(sidecar, /hydrateAttachmentHistory/);
+  assert.match(history, /attachment.kind !== "file" \|\| !/);
+  assert.match(history, /replaceAll\(reference, ""\)/);
 });

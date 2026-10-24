@@ -37,7 +37,7 @@ const [
   read("../src/lib/api.ts"),
   readStoreSource(),
   readStoreModule("slices/events-slice.ts"),
-  read("../../../packages/agent-runtime/src/runtime.ts"),
+  Promise.all([read("../../../packages/agent-runtime/src/runtime.ts"),read("../../../packages/agent-runtime/src/context-budget.ts"),read("../../../packages/agent-runtime/src/compaction-tail.ts")]).then(parts => parts.join("\n")),
   read("../electron/main/builtin-commands.ts"),
   read("../../../crates/host-core/src/rpc/mod.rs"),
   read("../../../crates/host-core/src/permissions.rs"),
@@ -103,7 +103,7 @@ test("the hard boundary is enforced by the host, with a model-side escape hatch"
   // The reminder is a per-turn append, so it never reaches the transcript.
   assert.match(
     runtime,
-    /systemPrompt: `\$\{context\.systemPrompt\}\\n\\n\$\{reminder\}`/,
+    /legacyContext.systemPrompt[\s\S]*?reminder/,
   );
   assert.match(hostPermissions, /"new_context"/);
 });
@@ -246,7 +246,7 @@ test("a failed compaction checkpoint still restores a non-empty context", () => 
   // the session reads as if it had just started (#224).
   assert.match(
     runtime,
-    /const retainedTail =\s*preparation\.retainedTail\.length > 0\s*\? preparation\.retainedTail\s*: selectRetainedUserMessages\(/,
+    /const retainedTail = this\.fallbackRetainedTail\(/,
   );
   assert.match(
     runtime,

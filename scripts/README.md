@@ -87,3 +87,12 @@ then removes that run's staging files. Actions artifact storage is not used.
 The release workflow defaults to unsigned macOS artifacts; manually dispatch
 it with `sign_macos: true` to opt into signing and notarization. See the [release
 runbook](../docs/spec/06-delivery/06-release-runbook.md).
+
+
+### Tolerant transcript reads
+
+Transcript and revision readers skip malformed records, decode invalid UTF-8
+best effort, and preserve physical byte offsets for bounded reads. Torn tails
+are excluded without rewriting user data. Regression coverage lives in
+`crates/host-core/src/transcripts_layout_tests.rs` and
+`scripts/e2e-transcript-cache.mjs` (upstream `80dc767b0`).

@@ -5,7 +5,7 @@ import type {
   Model,
   SimpleStreamOptions,
 } from "@earendil-works/pi-ai";
-import type { ThinkingLevel } from "@pi-desktop/shared";
+import type { SessionThinkingLevel } from "@pi-desktop/shared";
 import { completeOneShot } from "./one-shot-complete.js";
 import {
   PROMPT_ENHANCEMENT_SYSTEM_PROMPT,
@@ -47,7 +47,7 @@ export function promptEnhancementContext(draft: string): Context {
 export async function enhancePromptDraft(
   provider: RuntimeProviderConfig,
   draft: string,
-  thinkingLevel: ThinkingLevel,
+  thinkingLevel: SessionThinkingLevel,
   options: PromptEnhancementOptions = {},
 ): Promise<string> {
   const result = await completeOneShot(

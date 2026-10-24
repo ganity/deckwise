@@ -15934,3 +15934,35 @@ uses identity/media fixtures and does not replace the real Spring boundary.
   `courseware-online-editor-ui.test.mjs`, `courseware-online-clients.test.mjs` and
   `courseware-online-view.test.mjs`. These checks and isolated Platform SQL tests
   do not substitute for the real multi-process E2E scenario above.
+
+### Restored tool calls across system records
+
+A model system record persisted between an assistant tool call and its result
+must not detach the call from its original assistant during history restore.
+The restored provider request preserves the live call/result ownership.
+Regression: `packages/agent-runtime/src/system-transcript-runtime.test.ts`.
+Upstream source: `f1778a193`.
+
+
+### Tolerant transcript reads
+
+Transcript and revision readers skip malformed records, decode invalid UTF-8
+best effort, and preserve physical byte offsets for bounded reads. Torn tails
+are excluded without rewriting user data. Regression coverage lives in
+`crates/host-core/src/transcripts_layout_tests.rs` and
+`scripts/e2e-transcript-cache.mjs` (upstream `80dc767b0`).
+
+
+### Provider retry after compaction
+
+A provider retry uses the current transcript after compaction, whether or not
+the failed assistant remains. Both parent and subagent paths remove any
+trailing failed assistants before continuing. Upstream: `77a706acb`; regression
+coverage in runtime and subagent tests.
+
+
+### System certificate expiry
+
+Only unexpired OS trust anchors are added to the bundled and explicitly supplied
+CA sets. TLS chain and hostname verification remain enabled. Deterministic
+coverage: `packages/agent-runtime/src/system-ca.test.ts`; upstream `8c267ab24`.

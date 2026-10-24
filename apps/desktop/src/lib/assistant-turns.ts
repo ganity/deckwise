@@ -521,7 +521,7 @@ export function assistantTurnUsage(
   if (usages.length === 0) return undefined;
 
   const sum = (field: keyof MessageUsage) =>
-    usages.reduce((total, usage) => total + (usage[field] ?? 0), 0);
+    usages.reduce((total, usage) => total + (typeof usage[field] === "number" ? usage[field] : 0), 0);
   const optionalSum = (
     field: "cacheReadTokens" | "cacheWriteTokens" | "reasoningTokens",
   ) =>

@@ -165,7 +165,7 @@ export type OAuthLoginEvent = {
   /** The flow resolved a prompt on its own — e.g. the callback beat the paste box. */
   | { kind: "promptCancelled"; promptId: string }
   | { kind: "done"; providerId: string; accountLabel?: string }
-  | { kind: "error"; message: string }
+  | { kind: "error"; message: string; code?: "PLUGIN_OAUTH_FAILED" }
   | { kind: "cancelled" }
 );
 
@@ -178,4 +178,11 @@ export type OAuthRespondInput = {
   promptId: string;
   /** Absent cancels the prompt, which aborts the login flow. */
   value?: string;
+};
+
+/** Move one provider relative to another; applies atomically to the current host list. */
+export type ProviderReorderInput = {
+  id: string;
+  targetId: string;
+  placement: "before" | "after";
 };

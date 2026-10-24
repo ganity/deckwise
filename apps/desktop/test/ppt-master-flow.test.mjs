@@ -139,7 +139,6 @@ test("DeckWise startup skips native Pi history and uses its own data directory",
     pluginServices,
     pluginRuntime,
     hostMain,
-    marketplaceCatalog,
     ignoreRules,
   ]) {
     assert.match(source, /\.deckwise/);

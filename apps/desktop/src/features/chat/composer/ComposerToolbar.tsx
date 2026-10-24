@@ -2,7 +2,7 @@ import type { TFunction } from "i18next";
 import {
   keybindingDisplayParts,
   type ShortcutPlatform,
-  type ThinkingLevel,
+  type SessionThinkingLevel,
 } from "@pi-desktop/shared";
 import type { AppState } from "../../../stores/app-store";
 import { ContextUsageInspector } from "../../../components/ContextUsageInspector";
@@ -25,7 +25,7 @@ export type ComposerToolbarProps = {
   t: TFunction;
   providerId?: string;
   modelId?: string;
-  thinkingLevel: ThinkingLevel;
+  thinkingLevel: SessionThinkingLevel;
   webSearchEnabled: boolean;
   setWebSearchEnabled: (enabled: boolean) => void;
   controlsBlocked: boolean;

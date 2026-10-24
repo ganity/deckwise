@@ -1,7 +1,7 @@
 use super::*;
 
 pub mod catalog;
-pub(crate) use catalog::{built_in_catalog, bundled_package_bytes};
+pub(crate) use catalog::{built_in_catalog_at, bundled_package_bytes};
 
 /// Official channel: the plugin center.
 ///
@@ -178,7 +178,7 @@ impl PluginManager {
                 if let Some(parent) = path.parent() {
                     fs::create_dir_all(parent)?;
                 }
-                let catalog = built_in_catalog();
+                let catalog = built_in_catalog_at(&self.data_dir);
                 fs::write(&path, serde_json::to_string_pretty(&catalog)?)?;
                 self.materialize_local_package_urls(&catalog)?;
                 let _ = remote_err;
@@ -268,9 +268,8 @@ impl PluginManager {
 
     /// Whether the snapshot on disk came from the source currently in effect.
     ///
-    /// Package URLs are rewritten to absolute form against the catalog they
-    /// arrived with, so a snapshot from another provider would keep installs
-    /// pointed at the source the user just switched away from.
+    /// Package URLs are rewritten to absolute form against their catalog, so a
+    /// snapshot left by an older source must not drive current installs.
     pub(crate) fn cached_catalog_matches_source(&self, catalog_url: &str) -> bool {
         match self.cached_catalog_source() {
             Some(cached) => cached == catalog_url,
@@ -354,8 +353,8 @@ impl PluginManager {
     /// refresh remains responsible for fetching the latest catalog.
     ///
     /// A snapshot left by a different source is skipped rather than deleted,
-    /// so switching back to a previously used provider recovers its catalog
-    /// without a round trip.
+    /// so its package URLs and checksums cannot be paired with the official
+    /// catalog.
     fn load_cached_catalog(&self) -> Result<MarketCatalogFile> {
         if self.cached_catalog_matches_source(&self.market_source_url()) {
             if let Ok(raw) = fs::read_to_string(self.catalog_path()) {
@@ -367,7 +366,7 @@ impl PluginManager {
             }
         }
 
-        let catalog = built_in_catalog();
+        let catalog = built_in_catalog_at(&self.data_dir);
         self.materialize_local_package_urls(&catalog)?;
         Ok(catalog)
     }
@@ -415,7 +414,6 @@ impl PluginManager {
             }
             out.push(self.to_market_summary(&entry));
         }
-        out.sort_by_key(|plugin| plugin.name.to_lowercase());
         Ok(out)
     }
 
@@ -681,18 +679,13 @@ impl PluginManager {
         }
     }
 
-    /// Whether the catalog in effect is one this project issues.
+    /// Whether the catalog in effect is the official catalog.
     ///
-    /// The three channels are the project's own catalogs; a URL somebody typed
-    /// into `custom` may describe its own plugins but cannot assert a tier. The
-    /// comparison stays on the effective URL rather than on the setting, so a
-    /// catalog reached through `PI_DESKTOP_PLUGIN_MARKET_URL` counts only when
-    /// it actually names one of them.
+    /// The comparison stays on the effective URL, so a catalog reached through
+    /// `PI_DESKTOP_PLUGIN_MARKET_URL` is trusted only when it names the official
+    /// source.
     fn is_trusted_channel(&self) -> bool {
-        let url = self.market_source_url();
-        url == OFFICIAL_CHANNEL_CATALOG_URL
-            || url == GITHUB_BACKUP_CHANNEL_CATALOG_URL
-            || url == MIRROR_MARKET_CATALOG_URL
+        self.market_source_url() == OFFICIAL_CHANNEL_CATALOG_URL
     }
 }
 

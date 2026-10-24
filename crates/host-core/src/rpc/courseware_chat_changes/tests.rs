@@ -6,7 +6,7 @@ fn setup(dir: &Path) -> (AppState, String, Value) {
     std::fs::create_dir_all(&market).unwrap();
     std::fs::write(
         market.join("catalog.json"),
-        serde_json::to_vec(&crate::plugins::built_in_catalog()).unwrap(),
+        serde_json::to_vec(&crate::plugins::built_in_catalog_at(dir)).unwrap(),
     )
     .unwrap();
     let mut state = AppState::open(dir).unwrap();

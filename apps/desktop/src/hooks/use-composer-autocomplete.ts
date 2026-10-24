@@ -46,7 +46,7 @@ const COMMAND_GROUP_ORDER = {
   builtin: 1,
   plugin: 2,
   extension: 3,
-  skill: 4,
+  skill: 4, mcp: 5,
 } as const;
 
 function filterCommands(

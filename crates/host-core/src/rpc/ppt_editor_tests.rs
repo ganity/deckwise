@@ -35,7 +35,7 @@ async fn assert_ppt_tool(tool_name: &str) {
     std::fs::create_dir_all(&market).unwrap();
     std::fs::write(
         market.join("catalog.json"),
-        serde_json::to_vec(&crate::plugins::built_in_catalog()).unwrap(),
+        serde_json::to_vec(&crate::plugins::built_in_catalog_at(dir.path())).unwrap(),
     )
     .unwrap();
     let mut app = AppState::open(dir.path()).unwrap();

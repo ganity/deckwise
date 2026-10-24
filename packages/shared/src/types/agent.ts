@@ -3,9 +3,10 @@ import type { AppError } from "../errors.js";
 import type { PlanExecution, PlanningStateEvent } from "./plans.js";
 import type { ContextCompactionFallback, ContextCompactionMark, ContextCompactionReason } from "./sessions.js";
 import type { AgentStatus } from "./sessions.js";
-import type { MessageUsage, ToolTokenUsage, UiMessage } from "./messages.js";
+import type { MessageUsage, ToolTokenUsage, UiMessage, VoiceOrigin } from "./messages.js";
 import type { PermissionDecision, Risk } from "./permissions.js";
-import type { ThinkingLevel } from "./models.js";
+import type { ThinkingLevel, SessionThinkingLevel } from "./models.js";
+import type { RacpPermissionMode } from "../racp.js";
 
 export type AgentPromptRequest = {
   sessionId: string;
@@ -40,12 +41,25 @@ export type AgentPromptRequest = {
    * mints its own.
    */
   messageId?: string;
+  /** Main-trusted source metadata for a Live Voice work admission. */
+  voiceOrigin?: VoiceOrigin;
   /**
    * Renderer snapshot of the chat session visible when the prompt was sent.
    * Electron installs it before asynchronous turn setup for notification
    * suppression; missing, null, or mismatched values fail safe.
    */
   viewingSessionId?: string | null;
+  /**
+   * Per-turn permission ceiling override (spec §7.3): the effective mode the
+   * remote layer computed for this specific turn, which the runtime must apply
+   * for tool decisions instead of the session's stored mode. Absent means the
+   * session's stored mode is used. Accepted only when the requested mode is
+   * narrower than or equal to the session's mode; a wider request is refused
+   * before the turn starts. The bridge forwards this end-to-end so the
+   * host-core scoping (still pending, R1 leftover) can enforce it turn-locally
+   * once it lands.
+   */
+  permissionMode?: RacpPermissionMode;
 };
 
 export type AgentPromptAttachment = {
@@ -54,11 +68,18 @@ export type AgentPromptAttachment = {
   kind: "image" | "file";
   mimeType?: string;
   size?: number;
+  /**
+   * The `@path` text this attachment occupies inline in `content`. Electron main
+   * fills it for an attachment the user's draft placed between words, so the
+   * runtime keeps the image block at that position instead of trailing the
+   * prompt text. Absent for older callers and formatted messages.
+   */
+  inlinePath?: string;
 };
 
 export type AgentSteerRequest = Pick<
   AgentPromptRequest,
-  "sessionId" | "content" | "attachments" | "messageId"
+  "sessionId" | "content" | "attachments" | "messageId" | "voiceOrigin"
 > & {
   expectedTurnId: string;
 };
@@ -66,33 +87,6 @@ export type AgentSteerRequest = Pick<
 export type AgentPromptResponse = {
   accepted: boolean;
   turnId: string;
-};
-
-/** One-shot Composer draft enhancement; this never reads session history. */
-export type PromptEnhancementRequest = {
-  sessionId?: string | null;
-  draft: string;
-  /** Renderer snapshot of the model currently shown in the Composer. */
-  providerId?: string;
-  modelId?: string;
-  thinkingLevel?: ThinkingLevel;
-};
-
-export type PromptEnhancementResponse = {
-  enhancedDraft: string;
-};
-
-export type SessionSummarizeTitleRequest = {
-  sessionId: string;
-  userPrompt: string;
-  assistantReply?: string;
-  providerId?: string;
-  modelId?: string;
-  thinkingLevel?: ThinkingLevel;
-};
-
-export type SessionSummarizeTitleResponse = {
-  title: string;
 };
 
 export type AgentExecuteApprovedPlanRequest = {
@@ -127,6 +121,8 @@ export type QueuedTurnSummary = {
   sessionId: string;
   content: string;
   sessionMessageId?: string;
+  userMessageId?: string;
+  voiceOrigin?: VoiceOrigin;
   attachments?: AgentPromptAttachment[];
   position: number;
   /** Set only for promoted entries; entries arrive in delivery order. */
@@ -138,6 +134,8 @@ export type AgentQueuePushRequest = {
   sessionId: string;
   content: string;
   sessionMessageId?: string;
+  userMessageId?: string;
+  voiceOrigin?: VoiceOrigin;
   attachments?: AgentPromptAttachment[];
   idempotencyKey?: string;
 };
@@ -167,6 +165,8 @@ export type ToolPermissionRequest = {
   agentName?: string;
   /** `Task` call that spawned the asking delegate. */
   parentToolCallId?: string;
+  /** Immediate tool parent when this request came from nested execution. */
+  nestedParentToolCallId?: string;
 };
 
 export type ToolPermissionResolution = {
@@ -174,10 +174,57 @@ export type ToolPermissionResolution = {
   decision: PermissionDecision;
 };
 
+/** A selectable asktool answer: a plain label or a label with supporting copy. */
+export type AskToolOption =
+  | string
+  | {
+      label: string;
+      description?: string;
+    };
+
+/** Maximum length of one asktool prompt, counted in Unicode code points. */
+export const MAX_ASK_TOOL_QUESTION_CHARS = 300;
+
+export function isAskToolQuestionWithinLimit(question: string): boolean {
+  let characterCount = 0;
+  for (const _character of question) {
+    if (characterCount >= MAX_ASK_TOOL_QUESTION_CHARS) return false;
+    characterCount += 1;
+  }
+  return true;
+}
+
+/** Normalize a model-provided asktool option and discard malformed/empty values. */
+export function normalizeAskToolOption(value: unknown): AskToolOption | undefined {
+  if (typeof value === "string") {
+    const label = value.trim();
+    return label || undefined;
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const option = value as Record<string, unknown>;
+  const label = typeof option.label === "string" ? option.label.trim() : "";
+  if (!label) return undefined;
+  const description =
+    typeof option.description === "string" ? option.description.trim() : "";
+  return description ? { label, description } : { label };
+}
+
+export function askToolOptionLabel(option: AskToolOption): string {
+  return typeof option === "string" ? option : option.label;
+}
+
+export function askToolOptionDescription(
+  option: AskToolOption,
+): string | undefined {
+  if (typeof option === "string") return undefined;
+  const description = option.description?.trim();
+  return description || undefined;
+}
+
 /** A model-created question shown in the inline asktool card. */
 export type AskToolQuestion = {
   question: string;
-  options: string[];
+  options: AskToolOption[];
   multiSelect?: boolean;
 };
 
@@ -186,6 +233,17 @@ export type AskToolRequest = {
   sessionId: string;
   toolCallId: string;
   questions: AskToolQuestion[];
+};
+
+/**
+ * Every interactive request one session is currently waiting on. Host state,
+ * not connection state: a renderer that reloaded reads this instead of holding
+ * a card that no longer exists, and it stays empty for a session with nothing
+ * pending.
+ */
+export type PendingInteractiveRequests = {
+  asks: AskToolRequest[];
+  permissions: ToolPermissionRequest[];
 };
 
 /** `null` means the user skipped that question or declined the whole prompt. */
@@ -212,6 +270,7 @@ export type AgentEvent =
   | { type: "agent_start" }
   | { type: "agent_end"; messageIds: string[] }
   | { type: "turn_start" }
+  | { type: "usage"; usage: MessageUsage }
   | { type: "turn_end"; subagentUsage?: MessageUsage }
   | { type: "message_start"; message: UiMessage }
   | {
@@ -273,6 +332,44 @@ export type AgentEventEnvelope = {
    * skips the turn-lifecycle handling that belongs to the parent alone.
    */
   parentToolCallId?: string;
+  /** Immediate nested-tool parent; never identifies subagent ownership. */
+  nestedParentToolCallId?: string;
   /** Definition name of the emitting subagent. */
   agentName?: string;
+};
+
+/** Explicit user cancellation; omitted IDs select this session's running delegates. */
+export type AgentStopSubagentsRequest = {
+  sessionId: string;
+  delegationIds?: string[];
+};
+
+export type AgentStopSubagentsResponse = {
+  pending: string[];
+};
+
+export type PromptEnhancementRequest = {
+  sessionId?: string | null;
+  draft: string;
+  /** Renderer snapshot of the model currently shown in the Composer. */
+  providerId?: string;
+  modelId?: string;
+  thinkingLevel?: SessionThinkingLevel;
+};
+
+export type PromptEnhancementResponse = {
+  enhancedDraft: string;
+};
+
+export type SessionSummarizeTitleRequest = {
+  sessionId: string;
+  userPrompt: string;
+  assistantReply?: string;
+  providerId?: string;
+  modelId?: string;
+  thinkingLevel?: SessionThinkingLevel;
+};
+
+export type SessionSummarizeTitleResponse = {
+  title: string;
 };

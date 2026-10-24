@@ -19,7 +19,10 @@ export type NotificationListResult = {
   unreadCount: number;
 };
 
+export type RemoteWorkspace = { hostKey: string; path: string };
+
 export type ProjectWorkspace = {
+  remote?: RemoteWorkspace;
   path: string;
   name: string;
   /** Best-effort git branch from .git/HEAD when available. */
@@ -42,6 +45,7 @@ export type ProjectGroupRoot = {
 };
 
 export type ProjectGroupRecord = {
+  remote?: RemoteWorkspace;
   id: string;
   name: string;
   primaryPath: string;
@@ -57,11 +61,18 @@ export type ProjectGroupRecord = {
 };
 
 export type ProjectGroupContext = {
+  remote?: RemoteWorkspace;
   groupId: string;
   roots: ProjectGroupRoot[];
   instructions: string;
   memory: ProjectMemory;
 };
+
+/**
+ * `authKind` for a provider row whose credential is a vendor-account OAuth
+ * login rather than a pasted API key. Shared so main, the sidecar runtime and
+ * the renderer all branch on the same spelling.
+ */
 
 export type PullRequestSummary = {
   number: number;
@@ -73,9 +84,3 @@ export type PullRequestSummary = {
   updatedAt?: string;
   isDraft?: boolean;
 };
-
-/**
- * `authKind` for a provider row whose credential is a vendor-account OAuth
- * login rather than a pasted API key. Shared so main, the sidecar runtime and
- * the renderer all branch on the same spelling.
- */
