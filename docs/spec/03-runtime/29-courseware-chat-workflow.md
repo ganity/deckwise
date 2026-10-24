@@ -1,7 +1,9 @@
 # Main Chat courseware generation
 
-Status: implemented locally. Targeted renderer, Agent, Main and Host tests run
-against fixtures. Live provider-to-WiseOffice acceptance remains pending.
+Status: implemented locally. Source Electron/Host/Agent-to-WiseOffice plain,
+scene and import gates pass with loopback provider/media fixtures. Ordinary
+generation/repair/export uses the actual official tools. Production-model
+quality, complex decks and release acceptance remain separate.
 
 ## Ownership
 
@@ -10,9 +12,59 @@ panel remains an inspection/editing entrance. Task types remain `plain`, `scene`
 and `import`; school stage is guidance, not routing. No second assistant, model
 loop in the renderer, database owner or generation engine is introduced.
 
+Successful same-session `ppt_propose_page_narration` tool receipts also expose
+review buttons inside the main Chat stage card. The existing structured-result
+decoder reads only the current Chat transcript; assistant prose, failed calls
+and delegate calls cannot create entrances. A receipt's baseline session ID is
+the native Office mount ID, not the Chat ID. Main validates Chat ownership when
+reading the saved candidate. Candidate IDs are internal, never a
+required copy/paste step. Opening a review explicitly calls the existing Main
+review API; it rereads saved candidate status and enforces current Office page,
+source identity, manual locks and revision checks. The existing comparison and
+confirmation component renders in Chat without opening another workbench.
+Adoption/rejection uses the same Main/Host decision and storage path as the editor.
+Successful adoption publishes an in-memory revision invalidation hint, containing
+no teaching content. A clean, idle teaching sidebar rereads Host through its
+existing open/apply path. Busy views and manual drafts are never overwritten by
+this hint; their normal revision checks remain. No duplicate teaching store is
+introduced.
+Review and decision check for a stored manual narration draft and refuse to
+supersede it. A failed decision closes the transient review and requires a fresh
+read of persisted status before another decision; it is never replayed silently.
+Session navigation and active model turns fence actions. The editor's manual
+candidate-ID lookup remains available for older or off-window receipts. Chat
+receipt visibility follows the existing transcript window; this is not an
+independent complete candidate-history browser.
+
 The main-window-only `deckwise/courseware/workflow/get` IPC accepts exactly
 `{sessionId}`. Main validates the active viewing Chat, stable Host and workspace.
 Generic Chats without a saved task show no card. Failed reads remain actionable.
+The shell publishes the viewing session in its layout effect before child
+passive effects read scoped workflow state. Reloading or reopening a saved Chat
+must not depend on a new Agent turn to establish its owner.
+
+Sending a Chat request does not open or switch the work panel. A panel the user
+opened deliberately, including its active Office/canvas tab and collapsed state,
+is preserved. Preview and editor controls remain explicit artifact entrances.
+The current-stage card lives inside the existing measured composer dock. Its
+height contributes to the transcript reserve, keeping plan/quote controls above
+the input rather than underneath the floating composer, also in smaller windows.
+
+## Task creation and handoff
+
+The three-route creation dialog accepts an optional brief, audience/grade and
+subject. Textbook, chapter and lesson type are under expandable teaching details.
+Changing stage or subject preserves entered grade/custom-subject text; an
+incompatible full-English option is reset. The dialog traps keyboard focus,
+including its textarea and expandable details, and blocks duplicate submission.
+
+Creation saves the task and teaching settings before activation, then puts the
+exact brief in the owning Chat composer for review and explicit send. It does
+not automatically submit a model request, import a file or pay for media. The
+existing home draft and attachments are retained. Empty briefs do not replace
+drafts, failed creation leaves the form available, and navigation fences prevent
+late results from installing a brief into another Chat. Unsent text retains the
+existing in-memory composer-draft lifetime; only submitted messages are durable.
 
 ## Finite Agent operations
 
@@ -55,6 +107,19 @@ unchanged. Later teaching changes use existing reviewed revisions. No migration.
 - **Ordinary PPT:** keep PPT Master and SVG/notes/final-quality gates. Main Chat
   opens page preview/editing, requests checked final export and opens saved PPTX.
   Card and workbench share project inspection; quality rules are not duplicated.
+  **Refresh status** re-inspects the ordinary project's saved inputs/report and
+  exports even when Chat is idle. A failed or stale quality report disables
+  export and offers **Repair current pages in Chat**, using the same bounded
+  report excerpts and repair request as the retained workbench. Repair preserves
+  the current project/pages and requires both official planning and final SVG
+  checks plus saved page narration. It does not synthesize a passing report in
+  the renderer. A later refresh or completed Agent turn exposes the new result.
+  The ordinary project inspector also owns the card's stage and initial hint;
+  the parent does not infer ordinary readiness from the task attachment flag.
+  Before a project is referenced, the stage is requirements; an active Agent shows working;
+  inspection, pending pages, failed/stale quality, a changed export, preview-ready
+  pages and a current PPTX each have distinct translated stages. Once a project
+  is referenced, the card stops asking the user to supply a topic again.
 - **Scene:** show actual draft text, visual intent and narration. Trusted UI pins
   approval to the reviewed hash, verifies its receipt, then prompts the same Chat
   to advance. Readiness names missing reference, clean background and foreground
@@ -66,9 +131,17 @@ unchanged. Later teaching changes use existing reviewed revisions. No migration.
   existing selected-intent CAS and then continues Chat. Preparing never pays;
   readiness never selects. Revised prompts may create new intents; exact dedup
   and recovery remain service-owned.
+  Image rows show the saved submission phase, task/fee status and provider error
+  code. Unknown receipts stay query-only; a definite rejection does not offer a
+  status retry or silently create another paid request.
 - **Import:** use the existing authorized picker/token import, then open saved
   PPTX. Cancellation preserves the same task for retry. The model cannot choose
-  arbitrary file paths. Existing notes, narration and effects use editor APIs.
+  arbitrary file paths. Before selection or an active Office binding, Chat may
+  collect requirements and save pre-import teaching settings. It reads task
+  readiness and requests the in-Chat picker or Open PPT editor action; it cannot
+  claim to have inspected pages/notes. Source inspection and editing still need
+  native-bound tools; file/shell tools and local converters are not an import or
+  editing substitute. Existing notes, narration and effects use editor APIs.
 
 Preview/Office may open their artifact work panel; no workbench form is needed
 for generation. Existing narration/effect review and publication controls are
@@ -78,8 +151,78 @@ Status refresh is explicit or Chat-driven, not indefinite polling. Whole-plan
 approval/asset invalidation remains unchanged; narration-only draft changes do
 not gain automatic reuse of paid assets.
 
-Tests: `courseware-chat-workflow-ui.test.mjs`,
-`courseware-chat-workflow.test.mjs`, `courseware-workflow-tools.test.ts`,
+## Compilation model and local resources
+
+Tasks may inherit the application model instead of storing an explicit
+provider/model pair. Compilation resolves that inheritance through the same Main
+launch resolver as Chat; it does not rewrite session configuration or invent a
+model. Explicit selections retain their existing priority. Captured inputs and
+image completion recheck the effective model/thinking level, mode and Host; a
+changed default during generation invalidates the attempt before adoption.
+Image capability and credential checks remain in the existing completion path.
+
+Development source launches discover the staged `resources/pptx-worker` beside
+the built Desktop, after checking installed resources. An explicit worker
+override retains priority and a missing explicit path fails without falling back.
+The adjacent compiler and actual worker must both exist; discovery never downloads
+or installs a runtime. Packaging support remains a separate validation gate.
+
+## Editing after generation
+
+After opening Office, the same Chat switches to the existing `ppt-edit` skill
+and finite native tools for all three task types. An ordinary task must not
+return to its older SVG to apply a native edit. Native edits are unsaved until
+the user explicitly saves; changed source bytes require the existing reviewed
+page association before teaching can be edited again.
+
+Narration and reviewed page candidates resolve their effective model through
+the same Main launch resolver as Chat and scene compilation, including inherited
+defaults and thinking level. They do not write provider/model fields into the
+session. Before completion and before staging/retaining a result, recheck saved
+session configuration, effective defaults, active scope and current source/teaching.
+A changed model or thinking level rejects the candidate. Unavailable resolution
+does not start a completion. Narration candidates use the saved Office page text
+and remain pending until explicit human review/adoption; this neither rewrites
+the PPTX nor generates audio.
+
+Tests: `courseware-chat-workflow-ui.test.mjs`, `courseware-narration.test.mjs`,
+`courseware-task-creation.test.mjs`, `courseware-project-required.test.mjs`,
+`courseware-scene-plan.test.mjs`, `courseware-chat-workflow.test.mjs`, `courseware-workflow-tools.test.ts`,
 `courseware-workflow.test.ts`, Host `chat_requirements_*`, and scene/PPT Master
 regressions. Fixtures do not certify actual provider behavior or real Office
 integration. See the corresponding delivery E2E scenario.
+
+On 2026-10-25 the source Electron gate passed nine scenarios: three-route
+creation/unsent-brief handoff, Agent/Host plan writing, exact approval leading to
+image preparation, unchecked quotation, full process restart without replay,
+three explicit fixture image submissions/reviews advancing automatically into
+actual PPTX compilation, real WiseOffice opening with separate text/image objects
+and planned narration, import requirements before source selection, and picker
+cancellation/retry importing unchanged bytes into Office. Ordinary-route coverage
+in this gate is creation/handoff, not its complete generation path.
+
+The extended gate later passed twelve scenarios. A one-page ordinary task used
+the actual loaded skill, Agent file/shell tools and bundled Python to author
+planning, SVG and narration, run official project/final quality checks, start the
+preview and navigate the real Browser plugin. A deliberately changed page blocked
+export after an idle refresh. The same Chat repaired it and reran both official
+checks. Explicit export ran the official notes splitter, finalizer and native
+SVG-to-PPTX exporter. Independent ZIP inspection matched the editor's source hash,
+native text and notes; actual WiseOffice readback found three independent native
+objects, including the explanatory text. The exact narration remained page-bound.
+The loopback model supplied deterministic page content/tool choices; this proves
+the integrated path, not unattended real-model authoring or design quality.
+
+The post-generation extension passed fifteen scenarios, continuing the same
+ordinary Chat through a native text addition, explicit source save/association,
+pending narration rewrite, explicit adoption and full Desktop/Host restart.
+Native readback and saved hashes prove the text persisted; the completion
+received the saved edited page, and adopted teaching retained its logical page,
+speech and pause. Restart made no new model requests. The gate also exposed and
+closed candidate generation's inherited-model gap described above.
+
+The right generation form stayed unmounted; only artifact editing opened there.
+At 1080x760, the workflow stayed above the composer. Identity, model JSON and
+media used loopback fixtures; no real cost, production-model quality, audio,
+publication or packaged-release acceptance is claimed. Evidence is recorded in
+`../../validation/courseware/chat-first-20261025/README.md`.

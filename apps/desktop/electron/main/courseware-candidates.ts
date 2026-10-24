@@ -11,11 +11,13 @@ import type { CoursewareStyleReviewCoordinator } from "./courseware-style-review
 
 export type NarrationComplete = (input: PluginCompleteInput & { sessionId?: string; signal?: AbortSignal }) => Promise<PluginCompleteResult>;
 export type SceneComplete = Parameters<typeof stagePageRedoCandidate>[0]["complete"];
+export type CandidateModelResolver = (sessionId: string) => Promise<{ modelKey: string; thinkingLevel?: string }>;
 
 /** Main pins source/project/policy; model and renderer cannot choose paths or target pages. */
 export class CoursewareCandidateCoordinator {
   constructor(private teaching: CoursewareTeachingCoordinator, private complete: NarrationComplete,
-    private redo?: { visuals: CoursewareVisualReview; completeScene: SceneComplete; style?: CoursewareStyleReviewCoordinator; render: Parameters<typeof stagePageStyleBatchCandidate>[0]["render"] }) {}
+    private redo?: { visuals: CoursewareVisualReview; completeScene: SceneComplete; style?: CoursewareStyleReviewCoordinator; render: Parameters<typeof stagePageStyleBatchCandidate>[0]["render"] },
+    private resolveModel?: CandidateModelResolver) {}
 
   async execute(sessionId: string, name: string, args: unknown, canDispatch: () => boolean): Promise<unknown> {
     return this.run(sessionId, name, args, canDispatch);
@@ -98,10 +100,19 @@ export class CoursewareCandidateCoordinator {
         if (selectedNarration) return stageNarration(async () => selectedNarration, async () => { checkTurn(); });
         const detail = await host.call<{ session?: { providerId?: string; modelId?: string; thinkingLevel?: string; mode?: string } }>("session.get", { id: sessionId });
         const session = detail.session;
-        if (!session?.providerId || !session.modelId || session.mode !== "agent") throw new Error("An active Agent model is required");
+        if (session?.mode !== "agent") throw new Error("An active Agent model is required");
+        const resolveModel = async () => {
+          if (this.resolveModel) return this.resolveModel(sessionId);
+          if (!session.providerId || !session.modelId) throw new Error("An active Agent model is required");
+          return { modelKey: `${session.providerId}/${session.modelId}`, thinkingLevel: session.thinkingLevel };
+        };
+        const model = await resolveModel();
+        checkTurn();
         const assertModel = async () => {
           const latest = await host.call<typeof detail>("session.get", { id: sessionId });
           if (!latest.session || ["providerId", "modelId", "thinkingLevel", "mode"].some((key) => Reflect.get(latest.session!, key) !== Reflect.get(session, key))) throw new Error("Chat model changed during generation");
+          const effective = await resolveModel();
+          if (effective.modelKey !== model.modelKey || effective.thinkingLevel !== model.thinkingLevel) throw new Error("Chat model changed during generation");
           checkTurn();
         };
         if (batch) {
@@ -113,7 +124,7 @@ export class CoursewareCandidateCoordinator {
               JSON.stringify(Reflect.get(requestedScope, "pageIds")) !== JSON.stringify(scope.pageIds) || Object.hasOwn(args, "instruction"))
             throw new Error("Confirmed batch scope changed; review the representative and pages again");
           const receipt = await stagePageStyleBatchCandidate({ sessionId, jobId, style: this.redo.style, scope,
-            modelKey: `${session.providerId}/${session.modelId}`, thinkingLevel: session.thinkingLevel,
+            ...model,
             render: this.redo.render, complete: this.redo.completeScene, parseOutput, signal: controller.signal,
             assertCurrent: async () => { await assertModel(); await current(); },
           });
@@ -126,7 +137,7 @@ export class CoursewareCandidateCoordinator {
           const style = this.redo.style;
           const receipt = await stagePageRedoCandidate({ host, sessionId, jobId, sourcePath: snapshot.path, baseline,
             generationBaseline, pageText: text, instruction: Reflect.get(args, "instruction"), reviewed,
-            modelKey: `${session.providerId}/${session.modelId}`, thinkingLevel: session.thinkingLevel,
+            ...model,
             retain: style ? async result => {
               try { await assertModel(); await current(); await style.retain({ ...result, host, sessionId, snapshot, context: editor, project }); await assertModel(); await current(); }
               catch (error) { style.clear(); throw error; }
@@ -139,7 +150,7 @@ export class CoursewareCandidateCoordinator {
             await current();
             await assertModel();
             // Same Main auth resolver as existing plugin/title completions; no keys cross renderer IPC.
-            const output = await this.complete({ sessionId, modelKey: `${session.providerId}/${session.modelId}`, thinkingLevel: session.thinkingLevel,
+            const output = await this.complete({ sessionId, ...model,
               system,
               messages: [{ role: "user", content: data }], includeSessionContext: false, signal: controller.signal });
             checkTurn();

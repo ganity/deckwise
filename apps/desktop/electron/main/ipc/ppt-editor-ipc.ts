@@ -26,6 +26,7 @@ export function registerPptEditorIpc(input: {
   registrar: IpcRegistrar;
   completeNarration: import("../courseware-candidates").NarrationComplete;
   completeScene: import("../courseware-candidates").SceneComplete;
+  resolveModel?: import("../courseware-candidates").CandidateModelResolver;
   authSession: DesktopAuthSession;
   activeTurns: ReadonlyMap<string, string>;
   getMainWindow: () => BrowserWindow | null;
@@ -100,7 +101,7 @@ export function registerPptEditorIpc(input: {
     });
   }
   const candidates = new CoursewareCandidateCoordinator(teaching, input.completeNarration, { visuals, style, completeScene: input.completeScene,
-    render: request => renderCoursewareSourceVisuals({ ...request, ipcMain: registrar.ipcMain }) });
+    render: request => renderCoursewareSourceVisuals({ ...request, ipcMain: registrar.ipcMain }) }, input.resolveModel);
   const tts = new CoursewareTtsCoordinator(teaching, input.authSession, decodeCoursewareAudio);
   for (const [channel, method] of [[IPC.invoke.pptEditorTtsModels, "models"], [IPC.invoke.pptEditorTtsQuote, "quote"],
     [IPC.invoke.pptEditorTtsSubmitConfirmed, "submitConfirmed"], [IPC.invoke.pptEditorTtsPrepare, "prepare"], [IPC.invoke.pptEditorTtsSubmit, "submit"],

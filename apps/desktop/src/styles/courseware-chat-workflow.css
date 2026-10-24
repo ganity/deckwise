@@ -11,7 +11,7 @@
   font-size: var(--text-sm);
   overflow-wrap: anywhere;
 }
-.home-composer-wrap .courseware-chat-workflow { width: 100%; }
+.composer-stack > .courseware-chat-workflow { width: 100%; margin: 0 0 8px; }
 .courseware-chat-workflow header, .courseware-workflow-actions, .courseware-chat-image-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .courseware-chat-workflow header { justify-content: space-between; }
 .courseware-chat-workflow header span, .courseware-chat-workflow p { color: var(--ds-text-muted); }
@@ -23,7 +23,12 @@
 .courseware-workflow-actions { margin-top: 8px; }
 .courseware-chat-image-row { padding: 8px 0; border-bottom: 1px solid var(--ds-border-default); }
 .courseware-chat-image-row span { flex: 1; }
+.courseware-chat-image-row small { display: block; color: var(--ds-text-muted); margin-top: 4px; }
+.courseware-chat-image-row [role="alert"] { color: var(--ds-error); }
 .courseware-chat-approval { margin: 12px 0; padding-top: 8px; border-top: 1px solid var(--ds-border-default); }
 .courseware-chat-approval img { display: block; max-width: 100%; max-height: 200px; object-fit: contain; margin: 8px 0; }
 .courseware-chat-approval label { display: flex; align-items: start; gap: 8px; margin: 8px 0; }
 .courseware-chat-workflow .courseware-workflow-error { color: var(--ds-error); }
+.courseware-chat-narration { margin-top: 8px; border-top: 1px solid var(--ds-border-default); }
+.courseware-chat-narration label { display: flex; align-items: start; gap: 8px; margin: 8px 0; }
+.courseware-chat-narration .courseware-teaching-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }

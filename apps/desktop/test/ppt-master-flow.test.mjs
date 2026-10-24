@@ -146,8 +146,8 @@ test("DeckWise startup skips native Pi history and uses its own data directory",
   }
 });
 
-test("PPT tasks open PPT Master without workspace edits opening Review", () => {
-  assert.match(queue, /openWorkPanelTabForSession\(startedIn, toolWorkPanelTab\("ppt"\)\)/);
+test("Chat submission does not open a workbench and workspace edits do not open Review", () => {
+  assert.doesNotMatch(queue, /openWorkPanelTabForSession\(startedIn, toolWorkPanelTab\("ppt"\)\)/);
   assert.doesNotMatch(events, /shouldOpenReviewArtifact|toolWorkPanelTab\("review"\)/);
 });
 
@@ -174,7 +174,8 @@ test("the workbench blocks PPTX export while the generated pages fail the final 
   assert.match(projectInspection, /notes\.find\(.*total\.md/);
   assert.match(panel, /!project\?\.qualityIssue/);
   assert.match(panel, /继续修复生成结果/);
-  assert.match(panel, /不要新建项目或丢弃现有页面/);
+  assert.match(panel, /pptMasterRepairPrompt\(project\)/);
+  assert.match(projectInspection, /不要新建项目或丢弃现有页面/);
 });
 
 test("Office edits supersede SVG generation candidates", () => {

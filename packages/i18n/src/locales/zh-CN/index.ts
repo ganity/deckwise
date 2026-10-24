@@ -2,12 +2,19 @@ import type { EnglishCatalog } from "../en/index.js";
 
 export const zhCN = {
   coursewareWorkflow: {
+    reviewDraftFirst: "请先在编辑器保存或处理本页讲解草稿，再审阅候选。",
     previewPages: "预览与修改页面",
     buildPpt: "生成可编辑 PPT",
+    repairPages: "在 Chat 中修复当前页面",
     exportPrompt: "页面内容已确认，请完成最终检查并生成可编辑的 PPT 文件，无需再次确认。",
     title: "当前课件任务",
     working: "执行中",
     editable: "可以编辑",
+    checkingPages: "检查已保存页面",
+    previewReady: "页面可预览",
+    needsRepair: "页面待修复",
+    pagesChanged: "页面已修改，需重新导出",
+    pagesPending: "页面尚未生成完成",
     assets: "准备素材",
     reviewPlan: "等待确认规划",
     requirements: "确认需求",
@@ -46,6 +53,10 @@ export const zhCN = {
     selectContinue: "选用图片并继续"
   },
   coursewareTask: {
+    brief: "课件需求（选填）",
+    briefHint: "例如：给三年级制作认识分数的课件，约 12 页，讲解生动一些。",
+    briefReview: "创建后带入主 Chat，确认并发送后开始；也可以稍后补充。",
+    moreDetails: "更多教学信息（选填）",
     "title": "新建课件任务",
     "description": "选择任务类型并填写已知信息，后续在主 Chat 中补充需求并推进生成。",
     "type": "任务类型",

@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactNode,
 } from "react";
 import { useTranslation } from "react-i18next";
 import type { Mode } from "@pi-desktop/shared";
@@ -74,9 +75,11 @@ export {
 export function Composer({
   variant = "docked",
   prefill,
+  children,
 }: {
   variant?: "home" | "docked";
   prefill?: ComposerPrefill | null;
+  children?: ReactNode;
 }) {
   const { t } = useTranslation();
   const sendPrompt = useAppStore((s) => s.sendPrompt);
@@ -508,6 +511,7 @@ export function Composer({
       data-composer-dock={variant}
     >
       <div className="composer-stack">
+        {children}
         {planCheckpoint?.status === "pending" ? (
           <PlanApprovalBar proposal={planCheckpoint} />
         ) : null}

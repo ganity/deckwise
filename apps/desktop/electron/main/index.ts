@@ -1243,7 +1243,7 @@ function registerIpc() {
     authSession,
     mediaCanvas,
     registerDocumentCleanup,
-    sceneGeneration: { build: pluginServices.buildSceneCourseware, stage: pluginServices.stageSceneCourseware },
+    sceneGeneration: { resolveModel: pluginServices.resolveSceneModel, build: pluginServices.buildSceneCourseware, stage: pluginServices.stageSceneCourseware },
     completeNarration: async (input: Parameters<typeof pluginServices.complete>[0]) => {
       const result = await pluginServices.complete(input);
       if (input.sessionId) addActiveTurnUsage(input.sessionId, result.usage);

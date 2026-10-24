@@ -4,6 +4,7 @@ import type { CoursewareSceneImages } from "./courseware-scene-images";
 import { sceneImageForCompiler } from "./courseware-scene-image-assets";
 
 export type SceneCourseGenerationServices = {
+  resolveModel?: (sessionId: string) => Promise<{ modelKey: string; thinkingLevel?: string }>;
   build: (input: Parameters<typeof buildSceneCourseDeck>[0]) => ReturnType<typeof buildSceneCourseDeck>;
   stage: (input: Omit<Parameters<typeof stageGeneratedSceneCourse>[0], "host">) => ReturnType<typeof stageGeneratedSceneCourse>;
 };
@@ -28,7 +29,7 @@ export class CoursewareSceneGeneration {
     let timer: ReturnType<typeof setInterval> | undefined;
     const timeout = setTimeout(() => controller.abort(new Error("COURSEWARE_SCENE_GENERATION_TIMEOUT")), 15 * 60_000);
     try {
-      const selected = await this.images.captureSelected(value);
+      const selected = await this.images.captureSelected(value, this.services.resolveModel);
       const assertCurrent = async () => { signal.throwIfAborted(); await selected.assertCurrent(); signal.throwIfAborted(); };
       timer = setInterval(() => { try { selected.assertScope(); } catch (error) { controller.abort(error); } }, 100);
       await assertCurrent();

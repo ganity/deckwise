@@ -44,6 +44,18 @@ export function createMainCompletion({
   resolvePlatformAccessToken,
   resolveTeamSceneImages,
 }: Dependencies) {
+  const resolveSceneModel = async (sessionId: string) => {
+    const host = getHost();
+    if (!host) throw new Error("Host is unavailable");
+    const [{ session }, settings] = await Promise.all([
+      host.call<{ session?: { mode?: string } }>("session.get", { id: sessionId }),
+      host.call<any>("settings.get"),
+    ]);
+    if (session?.mode !== "agent") throw new Error("Scene completion model or mode changed");
+    const launch = await resolveAgentRuntimeLaunch(sessionId, session, settings, { mode: "agent", captureEditor: false });
+    if (getHost() !== host) throw new Error("Scene completion Host changed");
+    return { modelKey: `${launch.providerId}/${launch.modelId}`, thinkingLevel: launch.sidecarParams.thinkingLevel };
+  };
   const completeWithContext = async (
     input: MainCompleteInput,
     sceneContext?: Context,
@@ -72,11 +84,13 @@ export function createMainCompletion({
           session?: { mode?: string; providerId?: string; modelId?: string; thinkingLevel?: string };
         }>("session.get", { id: input.sessionId })
       ).session;
+      const model = current?.providerId && current.modelId
+        ? { modelKey: `${current.providerId}/${current.modelId}`, thinkingLevel: current.thinkingLevel }
+        : await resolveSceneModel(String(input.sessionId));
       if (
         current?.mode !== "agent" ||
-        current.providerId !== parsed.providerId ||
-        current.modelId !== parsed.modelId ||
-        asPluginThinkingLevel(current.thinkingLevel) !== thinkingLevel
+        model.modelKey !== `${parsed.providerId}/${parsed.modelId}` ||
+        asPluginThinkingLevel(model.thinkingLevel) !== thinkingLevel
       )
         throw new Error("Scene completion model or mode changed");
       if (getHost() !== host) throw new Error("Scene completion Host changed");
@@ -184,5 +198,5 @@ export function createMainCompletion({
       if (await read() !== baseline) throw new Error("Scene task or model changed during generation");
     });
   };
-  return { complete, completeScene, createSceneGenerator, planSceneCourseware, resolveSceneCourseAssets, buildSceneCourseware, stageSceneCourseware, assembleSceneCourseware };
+  return { complete, completeScene, resolveSceneModel, createSceneGenerator, planSceneCourseware, resolveSceneCourseAssets, buildSceneCourseware, stageSceneCourseware, assembleSceneCourseware };
 }

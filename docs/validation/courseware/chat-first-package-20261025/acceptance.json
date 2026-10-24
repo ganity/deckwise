@@ -1,0 +1,42 @@
+{
+  "status": "PASS_BOUNDED_PACKAGED_CHAT_CORE",
+  "appImage": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop/release/chat-first-20261025/DeckWise-0.17.7.AppImage",
+  "appImageBytes": 340901242,
+  "appImageSha256": "4c4f79cb259e84ddf73429c6128cb74a11ee08c7fb5397471e4136d51e9a4ea3",
+  "gitHead": "17af10c60523bbb8e00936c816ed88514d37b439",
+  "baseRevision": "58a9c4f57203c93da3f590e426b42ebba1072fb6",
+  "candidateState": "Existing uncommitted task worktree; source manifest pins exact product inputs. Not a committed PR integration candidate.",
+  "sourceFiles": 1121,
+  "sourceSha256": "64d4fbc98a256855b1719ac745490625bd9c26db8ff75cf0fd6198c2915fcf7e",
+  "sourceUnchangedDuringBuildAndValidation": true,
+  "e2eChecksPassed": 15,
+  "fixtureModelRequests": 59,
+  "paidCalls": false,
+  "appImageSmoke": "PASS_APPIMAGE_LAUNCH_AND_PAYLOAD",
+  "credentialGate": {
+    "passed": true,
+    "files": 18955,
+    "links": 1047
+  },
+  "office": {
+    "status": "PASS_PINNED_OFFICE_FILES",
+    "root": "/home/jhz/code/train/document-worktrees/courseware-par-A-preview/dist-w15-canvas-target-20261023",
+    "filesMatched": 2899,
+    "pinnedInventory": "/home/jhz/code/train/docs/validation/courseware/parallel/A/a-attention-delivery-20261023/office-inputs.json",
+    "pinnedInventoryAggregateSha256": "3694a6fd50420b8dd3010bb8daec45975d9b998f71f7808298e7905c466357d3",
+    "previewUrl": "http://127.0.0.1:4368",
+    "scope": "Exact preexisting WiseOffice output; separately served, not embedded in AppImage."
+  },
+  "notAccepted": [
+    "Real teacher identity with deployed Platform/MAIC/llm-ha",
+    "Representative real scene pedagogy, generated media and matching speech",
+    "Approved managed-text atomic budget and fallback price policy",
+    "Audio/playback/publication paths not rerun by this Chat-specific gate; inherit older evidence only",
+    "Full Plan 007 and release/PR integration gates"
+  ],
+  "deferred": [
+    "Team sharing/collaboration and collaborative publication",
+    "W16 virtual classroom",
+    "Chat master automation"
+  ]
+}

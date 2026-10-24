@@ -123,16 +123,20 @@ export class CoursewareSceneImages {
   }
 
   /** Main-only compiler input. Private archives never become team assets or renderer paths. */
-  async captureSelected(value: unknown) {
+  async captureSelected(value: unknown, resolveModel?: (sessionId: string) => Promise<{ modelKey: string; thinkingLevel?: string }>) {
     const p = input(value, ["planSha256"]), c = this.context(p);
     if (!hash(p.planSha256)) throw new Error("COURSEWARE_SCENE_IMAGE_INVALID_REQUEST");
     const plan = await this.approved(c.host, p.sessionId, p.planSha256);
     const session = async () => {
       const { session } = await c.host.call<{ session?: { projectPath?: string; providerId?: string; modelId?: string; thinkingLevel?: string; mode?: string } }>(
         "session.get", { id: p.sessionId, messageLimit: 1 });
-      if (!session?.projectPath || !session.providerId || !session.modelId || session.mode !== "agent")
+      if (!session?.projectPath || session.mode !== "agent")
         throw new Error("COURSEWARE_SCENE_GENERATION_MODEL_REQUIRED");
-      return { workspace: session.projectPath, modelKey: `${session.providerId}/${session.modelId}`, thinkingLevel: session.thinkingLevel };
+      const model = session.providerId && session.modelId
+        ? { modelKey: `${session.providerId}/${session.modelId}`, thinkingLevel: session.thinkingLevel }
+        : await resolveModel?.(p.sessionId);
+      if (!model) throw new Error("COURSEWARE_SCENE_GENERATION_MODEL_REQUIRED");
+      return { workspace: session.projectPath, ...model };
     };
     const model = await session();
     const selected = async () => (await this.list({ sessionId: p.sessionId }))

@@ -21,7 +21,7 @@ new Function("require", "exports", outputText)((id) => {
 }, module.exports);
 const { CoursewareCandidateCoordinator } = module.exports;
 const fixture = JSON.parse(await readFile(new URL("../../../packages/shared/src/courseware-contract.fixtures/accepted.json", import.meta.url), "utf8"));
-function setup() {
+function setup(resolveModel) {
   const project = structuredClone(fixture.project);
   project.educationContext = { schoolStage: "KINDERGARTEN", subject: "ENGLISH", fullEnglishTeaching: false };
   project.pages[0].actions = [{ id: "old", type: "speech", text: "Existing narration" }];
@@ -40,7 +40,7 @@ function setup() {
   const teaching = { async withSaved(id, operation) { assert.equal(id, "chat"); await duringSaved?.(); return operation(host, "job", snapshot, structuredClone(editor)); },
     async assertCurrent(_snapshot, pinned) { if (changed || JSON.stringify(pinned) !== JSON.stringify(editor)) throw new Error("Source or native page changed"); } };
   const complete = async (input) => { requests.push(input); await duringComplete?.(input); return { text: JSON.stringify({ blocks: [{ type: "speech", text: "Look! A red apple." }, { type: "wait", durationMs: 4000 }, { type: "praise", text: "Thank you for trying." }] }), modelKey: "provider/model" }; };
-  const coordinator = new CoursewareCandidateCoordinator(teaching, complete);
+  const coordinator = new CoursewareCandidateCoordinator(teaching, complete, undefined, resolveModel);
   return { coordinator, project, session, editor, snapshot, calls, requests, async context() { return coordinator.execute("chat", "ppt_get_narration_context", {}, () => active); },
     async propose(context) { return coordinator.execute("chat", "ppt_propose_page_narration", { kind: "page-narration", baseline: context.baseline, instruction: "Use short sentences and simple English encouragement" }, () => active); },
     change: () => { changed = true; }, cancel: () => { active = false; }, during(fn) { duringComplete = fn; }, duringSaved(fn) { duringSaved = fn; }, teaching };
@@ -62,6 +62,47 @@ test("real B policy and structured blocks produce a durable proposal, never an a
   assert.equal(f.requests[0].includeSessionContext, false); assert.equal(f.requests[0].modelKey, "provider/model");
   const data = JSON.parse(f.requests[0].messages[0].content);
   assert.equal(data.existingNarration, "Existing narration"); assert(!JSON.stringify(data).includes("source"));
+});
+
+test("narration inherits the effective Chat model without writing session configuration", async () => {
+  const model = { modelKey: "default-provider/default-model", thinkingLevel: "low" };
+  const f = setup(async id => { assert.equal(id, "chat"); return { ...model }; });
+  delete f.session.providerId; delete f.session.modelId;
+  f.session.thinkingLevel = "inherit";
+  const before = structuredClone(f.session);
+  const receipt = await f.propose(await f.context());
+  assert.equal(receipt.reviewState, "needs-review");
+  assert.equal(f.requests[0].modelKey, model.modelKey);
+  assert.equal(f.requests[0].thinkingLevel, "low");
+  assert.deepEqual(f.session, before);
+  assert(!f.calls.some(([method]) => method === "session.configure"));
+});
+
+test("a changed inherited default model or thinking level never stages narration", async () => {
+  for (const field of ["modelKey", "thinkingLevel"]) {
+    const model = { modelKey: "default-provider/default-model", thinkingLevel: "low" };
+    const f = setup(async () => ({ ...model }));
+    delete f.session.providerId; delete f.session.modelId;
+    f.during(() => { model[field] = field === "modelKey" ? "other/model" : "high"; });
+    await assert.rejects(f.propose(await f.context()), /model changed/);
+    assert.equal(f.requests.length, 1);
+    assert(!f.calls.some(([method]) => method.endsWith(".stage")));
+  }
+});
+
+test("unavailable inherited models reject before a completion or candidate write", async () => {
+  const f = setup();
+  delete f.session.providerId; delete f.session.modelId;
+  await assert.rejects(f.propose(await f.context()), /active Agent model/);
+  assert.equal(f.requests.length, 0);
+  assert(!f.calls.some(([method]) => method.endsWith(".stage")));
+});
+
+test("cancellation during inherited model resolution never starts a completion", async () => {
+  const f = setup(async () => { f.cancel(); return { modelKey: "provider/model" }; });
+  await assert.rejects(f.propose(await f.context()), /cancelled|owner changed/);
+  assert.equal(f.requests.length, 0);
+  assert(!f.calls.some(([method]) => method.endsWith(".stage")));
 });
 
 test("Main can propose narration again after adopting a teacher-continue checkpoint", async () => {

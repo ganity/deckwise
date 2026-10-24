@@ -26,6 +26,12 @@
 .courseware-task-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
 .courseware-task-field { display: flex; flex-direction: column; gap: 6px; font-size: var(--text-xs-plus); }
 .courseware-task-field .field-input { width: 100%; min-width: 0; }
+.courseware-task-brief { margin-top: 20px; }
+.courseware-task-brief textarea { resize: vertical; min-height: 88px; }
+.courseware-task-brief small { color: var(--ds-text-muted); }
+.courseware-task-details { margin-top: 16px; }
+.courseware-task-details summary { cursor: pointer; font-size: var(--text-sm); }
+.courseware-task-details .courseware-task-fields { margin-top: 14px; }
 .courseware-task-english { display: flex; align-items: center; gap: 8px; margin-top: 16px; font-size: var(--text-sm); }
 .courseware-task-error { color: var(--ds-error); overflow-wrap: anywhere; font-size: var(--text-sm); }
 .courseware-task-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 24px; border-top: 1px solid var(--ds-border-default); }

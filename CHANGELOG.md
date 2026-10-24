@@ -2,6 +2,34 @@
 
 ## Unreleased
 
+- Review Chat-generated narration directly in the main Chat, compare the saved
+  and proposed text, and explicitly adopt or reject without copying candidate
+  IDs. Preserve manual drafts, reread uncertain decisions and refresh a clean
+  teaching sidebar once after adoption.
+
+- Reuse the effective Chat model for narration rewrites and reviewed page
+  candidates when the task inherits application defaults. Reject changed model
+  or thinking inputs before candidate persistence without rewriting task settings.
+
+- Show the ordinary courseware's actual saved-project stage in Chat, including
+  preview readiness, repair, changed pages and editable exports, instead of
+  leaving completed decks at requirement collection.
+
+- Refresh ordinary PPT inspection from the main Chat and offer in-place repair
+  when quality checks block export. Reuse the workbench repair request and keep
+  export disabled until the saved project passes inspection again.
+
+- Resolve inherited Chat models for scene compilation and reject changed model
+  inputs before adoption. Discover staged compiler resources in source launches,
+  and show image submission, billing and failure status in the main Chat.
+
+- Carry optional new-task requirements into the main Chat for review before
+  sending. Preserve entered teaching details and attachments. Allow import
+  requirements before file selection, and stop Chat submissions from
+  automatically opening the generation workbench.
+  Keep workflow actions above the composer and restore saved task state after
+  restart without needing a new Chat turn.
+
 - Advance courseware generation from the existing main Chat: review scene plans,
   confirm image costs and selections, continue compilation, import a PPTX, or open
   ordinary PPT preview/export. Save answered teaching requirements with stale

@@ -90,12 +90,12 @@ const { registerAgentIpc } = await loadSource("../electron/main/ipc/agent-ipc.ts
     ? { id, name: "scene-courseware", body: sceneSkill } : null },
 });
 
-async function dispatchChat(educationContext, { taskType = "scene", nativeEditing = false } = {}) {
+async function dispatchChat(educationContext, { taskType = "scene", nativeEditing = false, importPath } = {}) {
   const handlers = new Map(), requests = [], persisted = [];
   const host = { async call(method, params) {
     if (method === "settings.get") return {};
     if (method === "session.get") return { session: { id: input.sessionId, projectPath: "/workspace", messages: [] } };
-    if (method === "courseware.task.get") return { task: { taskType, educationContext } };
+    if (method === "courseware.task.get") return { task: { taskType, educationContext, importPath } };
     if (method === "session.beginTurn") return { turnId: "turn-1" };
     if (method === "session.appendMessage") { persisted.push(params.message); return {}; }
     assert.fail(`Unexpected RPC ${method}`);
@@ -148,6 +148,20 @@ test("the new scene planning policy does not change plain, import or native edit
     assert.match(content, /For kindergarten English, use 0–2 short English expressions/);
     assert.doesNotMatch(content, /Host-selected scene planning file/);
   }
+});
+
+test("import requirements can be discussed in main Chat before selection or opening Office", async () => {
+  for (const importPath of [undefined, "/workspace/imported.pptx"]) {
+    const content = await dispatchChat(input.education, { taskType: "import", importPath });
+    assert.match(content, /No Office editing binding is active/);
+    assert.match(content, /collect requirements/);
+    assert.match(content, /file picker in the main Chat/);
+    assert.match(content, /Do not inspect, parse or modify the PPTX with file or shell tools/);
+    assert.doesNotMatch(content, /Host-selected scene planning file|# Skill: scene-courseware/);
+  }
+  const native = await dispatchChat(input.education, { taskType: "import", nativeEditing: true });
+  assert.doesNotMatch(native, /No Office editing binding is active/);
+  assert.match(native, /read fresh context and use only operations advertised/);
 });
 
 test("initial scene plan rejects malformed, oversized and late output", async () => {

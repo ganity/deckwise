@@ -107,6 +107,7 @@ export type DraftSessionConfiguration = {
 export type CoursewareTaskSetup = {
   taskType: CoursewareTaskType;
   educationContext: CoursewareEducationContext;
+  initialPrompt?: string;
 };
 
 export type AppState = {
@@ -117,6 +118,8 @@ export type AppState = {
   sessions: SessionSummary[];
   /** Renderer-owned conversation presentation metadata. */
   sessionMeta: Record<string, SessionMeta>;
+  /** Invalidation hint only; teaching content remains owned by Host. */
+  coursewareTeachingRefresh?: { sessionId: string; teachingRevision: string };
   sessionView: SessionView;
   /** Open project tabs and the host's currently active workspace. */
   openProjects: ProjectWorkspace[];

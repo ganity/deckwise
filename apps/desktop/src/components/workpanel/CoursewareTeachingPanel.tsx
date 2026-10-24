@@ -22,6 +22,8 @@ const isTeacherContinue = (action: Record<string, unknown>) => action.type === "
 export function CoursewareTeachingPanel({ sessionId, enabled }: { sessionId?: string; enabled: boolean }) {
   const { t } = useTranslation();
   const sendPrompt = useAppStore((state) => state.sendPrompt);
+  const teachingRefresh = useAppStore(state => state.coursewareTeachingRefresh);
+  const refreshSeen = useRef<typeof teachingRefresh>(undefined);
   const [view, setView] = useState<CoursewareTeachingView | null>(null);
   const [actions, setActions] = useState<Array<Record<string, unknown>>>([]);
   const [working, setBusy] = useState(false);
@@ -128,6 +130,16 @@ export function CoursewareTeachingPanel({ sessionId, enabled }: { sessionId?: st
   }, [applyView]);
 
   useEffect(() => () => { ++request.current; }, []);
+
+  useEffect(() => {
+    if (!enabled || !sessionId || !view || teachingRefresh?.sessionId !== sessionId || refreshSeen.current === teachingRefresh ||
+        teachingRefresh.teachingRevision === view.project.teachingRevision || busy || changed ||
+        draftLoading || draftSaving || draftError || staleDraft || instructionPending || review || candidate || pptxCandidate || error) return;
+    // Consume once: a later manual save can legitimately be newer than this hint.
+    refreshSeen.current = teachingRefresh;
+    void run(() => api.pptEditorTeachingOpen(sessionId));
+  }, [enabled, sessionId, view, teachingRefresh, busy, changed, draftLoading, draftSaving,
+    draftError, staleDraft, instructionPending, review, candidate, pptxCandidate, error, run]);
 
   useEffect(() => {
     if (!enabled || !sessionId || !view || busy || draftLoading || draftSaving || draftError || staleDraft || changed || instructionPending || review || candidate || pptxCandidate || error) return;

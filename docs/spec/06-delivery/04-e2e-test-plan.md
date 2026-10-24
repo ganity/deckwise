@@ -3,21 +3,97 @@
 ## E2E-COURSEWARE-main-chat-generation
 
 - **Steps**: Create plain, scene and import tasks through the task dialog. Keep
-  the workbench unmounted while describing requirements in Chat. Answer missing
+  the workbench unmounted while describing requirements in Chat. Supply a brief,
+  verify it is carried to the composer without model dispatch, then send it.
+  Preserve an entered grade while changing stage and recover failed creation
+  without duplicate tasks. Discuss import requirements before picking a file.
+  Answer missing
   input and reopen to verify persistence. Review/approve the exact scene plan,
   continue reference preparation, confirm its real quote and submit. Select the
   reviewed result, continue dependent assets, compile and open saved PPTX. For
-  plain, open SVG preview and request checked final export from Chat. For import,
+  plain, open SVG preview, refresh after an idle source/report change, request
+  in-place repair from Chat for a failed/stale quality gate, then request checked
+  final export only after repair. Check that the ordinary card advances from
+  requirements to preview-ready, repair, preview-ready and editable, with one
+  status and no repeated topic hint after the project exists. For import,
   cancel the picker, retry and open the same task. Exercise stop, task switching,
   double clicks, changed plans and expired quotes.
+  After ordinary Office editing/save/reconciliation, ask the same Chat to rewrite
+  narration. Click its receipt-based review entrance in the main Chat, without
+  copying an ID into the editor. Compare the existing and proposed narration,
+  require an unchecked confirmation, adopt and restart. Check manual drafts,
+  stale-session clicks, failed or cross-session receipts and uncertain decisions:
+  drafts are preserved and uncertain decisions must reread persisted status.
 - **Expected**: Existing Chat Agent and finite services advance generation
-  without a workbench form. No prose can approve, pay or select. Unknown jobs
+  without a workbench form. Sending preserves the panel's visibility and active
+  tab rather than opening or switching it. No prose can approve, pay or select. Unknown jobs
   are queried, not replayed. Compilation uses current reviewed assets. Stale
   scope/requirements reject. Preview/Office may open an artifact panel. Existing
   quality and teaching-review gates remain. Unrelated Chats show no task card.
 - **Evidence**: Targeted renderer/Main/Agent/Host tests and scene/PPT Master
-  regressions with local fixtures. Live-model, paid-media and complete
-  Electron-to-WiseOffice acceptance for this new interaction are pending.
+  regressions with local fixtures. Scene compilation, actual WiseOffice and
+  Chat-driven picker import and one-page ordinary generation/repair/export pass
+  the bounded gate below. Live-model quality, paid media, complex ordinary decks
+  and release acceptance remain separate.
+
+`courseware-chat-workflow-ui.test.mjs` additionally exercises the ordinary
+preview -> quality failure -> same-Chat repair -> passing report -> explicit
+export -> editor entrance, using the real project inspector with filesystem
+API fixtures. Another source edit invalidates export; stale task clicks do
+nothing and refused Chat sends remain retryable. This interaction regression
+is not an Electron, official-checker or full PPT Master generation acceptance.
+
+The bounded source gate `scripts/e2e-courseware-chat-first.mjs` uses the actual
+Electron/Host/Agent, actual compiler/WiseOffice and loopback identity/model/media
+fixtures. After current
+Host, Agent dependencies, i18n and Desktop builds, run under `xvfb-run -a` with
+`PI_DESKTOP_HOST_BIN`, an isolated `DECKWISE_EDITOR_URL`, and a fresh
+`DECKWISE_E2E_OUTPUT` directory. Source runtime resources must be staged. It checks the
+creation handoff, Chat-only plan writing/approval, actual finite image preparation,
+unchecked quote, Desktop restart without replay, and import dialogue without an
+Office binding. Each of three fixture images requires explicit quotation and
+selection; the last review continues the same Chat into actual editable PPTX
+compilation. Open the artifact in real Office and verify separate objects and
+the original planned narration. Cancel the import picker, then select a test
+deck through its trusted token flow and verify unchanged source bytes in Office.
+The native picker answer is controlled by the test; its normal token/import path
+is real. No generation form is mounted, and no external paid request is sent.
+The extended ordinary path authors a deterministic one-page planning/SVG/notes
+fixture through real Agent tools and uses the actual bundled Python/official
+project and final quality checks. It starts/navigates the actual preview,
+invalidates a changed page via idle refresh, repairs through Chat, and runs the
+official notes splitter/finalizer/native exporter only after explicit export.
+Verify the source hash and native text/notes independently from the PPTX ZIP,
+and read the three native leaf objects in the actual WiseOffice document tree.
+The Browser tool must use its advertised plugin name, including its namespace;
+native readback must descend through group shapes.
+Continue the same ordinary Chat after opening Office: load the edit skill and
+add native page text through the advertised tool. Verify the live object changed
+while the saved PPTX hash did not. Explicitly save through the editor button,
+review the changed source and associate its page with the existing logical page.
+Require the original narration to survive that association. Ask the same Chat
+to rewrite narration; its completion must receive the newly saved page text.
+Generation must leave current teaching unchanged until the existing review's
+unchecked confirmation and explicit adoption. Check the adopted short speech,
+four-second pause, praise, logical page identity and unchanged PPTX bytes.
+Fully restart Desktop/Host, reopen from the Chat artifact action and read back
+both native text and exactly adopted teaching without model replay or SVG export.
+The external model remains a fixture; these checks exercise actual native tools,
+Main completion, Host candidate persistence, source review and narration adoption.
+No final PPTX or passing report is supplied by the fixture. Preview daemons
+are shut down using their owning project's official shutdown command.
+This gate does not establish production model quality, complex ordinary decks,
+audio, publication or release acceptance.
+The generation gate passed twelve scenarios on 2026-10-25; the post-generation
+editing extension passed fifteen, including saved native edits, adopted narration
+and full process restart without model replay. It also checks
+that the measured workflow dock stays above the input in a 1080x760 window.
+Keep the viewing-session publication ordered before child workflow reads;
+otherwise restart can show a stale-owner error despite valid durable data.
+See `../../validation/courseware/chat-first-20261025/README.md`. Model/decoder
+regressions include `e2e-courseware-scene-completion.mjs` (15 named cases),
+including inherited model resolution without configuration writes and refusal
+when the effective default changes during the request.
 
 ## E2E-COURSEWARE-development-schema24-startup
 

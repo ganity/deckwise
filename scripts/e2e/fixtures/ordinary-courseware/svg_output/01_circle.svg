@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" font-family="Arial" data-pptx-page-role="content">
+  <rect id="background" data-pptx-role="background" x="0" y="0" width="1280" height="720" fill="#FFFFFF"/>
+  <g id="title-group" data-pptx-bounds="64 64 1152 90"><text id="title" x="80" y="115" font-size="40" font-weight="700" fill="#173B65">Circle</text></g>
+  <g id="hero" data-pptx-bounds="480 190 320 320"><circle id="circle" cx="640" cy="350" r="145" fill="#E8F4FF" stroke="#173B65" stroke-width="4"/></g>
+  <g id="body" data-pptx-bounds="64 590 1152 66"><text id="explanation" x="80" y="635" font-size="28" fill="#222222">A circle has no corners.</text></g>
+</svg>

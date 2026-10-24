@@ -17,6 +17,13 @@ fidelity. Old good packages survive failures. No live Office memory is read.
 The worker process explicitly runs in Node mode under Electron. Dedicated worker
 staging includes native dependencies; only the tested OS/architecture is covered.
 
+Main discovers installed `pptx-worker/pptx-worker.mjs` first, then the staged
+Desktop `resources/pptx-worker` in source launches. The optional explicit
+`DECKWISE_PPTX_WORKER` remains authoritative even when missing, so a broken
+override cannot silently select another bundle. The authoring module must be
+adjacent to the selected worker. All paths remain Main-owned; discovery performs
+no download or installation and preserves optional-runtime boot behavior.
+
 The builder accepts an optional Host-owned AbortSignal. It checks cancellation
 before I/O, between bounded verification reads, around worker execution and
 immediately before atomic publication. Cancellation rejects with

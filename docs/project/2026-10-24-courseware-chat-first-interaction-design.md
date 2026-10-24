@@ -58,7 +58,11 @@ Do not require another “next” click merely to move between status messages.
 Pause for missing decisions, applicable human review, scoped cost confirmation
 or conflicts; completion must be established by tool results and persisted state.
 
-## 2. Observed implementation and actual gaps
+## 2. Initial implementation observations (historical)
+
+This table records the pre-implementation snapshot from 2026-10-24. Chat
+progression, typed requirement updates, plan approval and the optional creation
+brief are now implemented; use the runtime specification for current scope.
 
 | Evidence | What exists | Gap relevant to this design |
 | --- | --- | --- |
@@ -72,7 +76,7 @@ or conflicts; completion must be established by tool results and persisted state
 | `apps/desktop/src/components/AskToolCard.tsx` | Existing Chat questions support choices and custom answers. | Answer presentation is reusable; typed teaching-setting persistence still needs wiring. |
 | `docs/adr/host-owned-courseware-projects.md` | Host owns teaching records, revisions, drafts and adoption. | Do not introduce a second project model inside Chat messages or renderer storage. |
 
-These are source observations, not a new runtime acceptance result.
+These are historical source observations, not current acceptance results.
 
 ## 3. Page structure
 
@@ -104,20 +108,24 @@ These are source observations, not a new runtime acceptance result.
 
 ## 4. New-task interaction
 
-The dialog shows task type, a short optional brief, and optional audience/grade.
-An expandable **Teaching details** section keeps subject, textbook, chapter,
-lesson type and supported teaching-language settings. Existing entered values
+The dialog shows task type, a short optional brief, optional audience/grade and
+subject. An expandable **Teaching details** section keeps textbook, chapter and
+lesson type. The applicable teaching-language option stays with subject. Existing entered values
 must survive changing the visible options unless incompatible and explicitly
 explained. The user may create a task before the brief is complete.
 
-For import, offer the native file picker here and also **Select PPT** in Chat
-when no file was chosen. Reuse the authorized import operation and its picker
+For import, the delivered entrance is **Select PPT** in the main Chat after
+creation; selecting a file in the creation dialog remains future convenience.
+Reuse the authorized import operation and its picker
 token; do not treat a typed local path as an authorized file selection. A
 cancelled picker leaves a recoverable task rather than a failed generation.
 
 Creation saves the selected metadata, opens the task, and places focus in Chat.
-It does not submit paid media work. A supplied brief appears once as the initial
-user request; retries must not create duplicate sessions or duplicate messages.
+It does not submit model or paid media work. A supplied brief is carried into the
+owning Chat composer for review and explicit send, preserving existing text and
+attachments. It becomes the first user request only when sent; retries must not
+duplicate sessions or messages. Unsent drafts retain their existing in-memory
+lifetime and do not imply a durable conversation message.
 
 ## 5. Clarification in Chat
 
@@ -394,3 +402,60 @@ Inspected the listed local implementation, task dialog work in progress,
 existing question component, route policy, scene readiness and Host ownership
 ADR. The initial design delivery changed documentation only and did not establish runtime,
 paid-provider, visual or packaged-release acceptance.
+
+## 15. Creation and Chat handoff verification (2026-10-25)
+
+The real source Electron/Host/Agent gate
+`scripts/e2e-courseware-chat-first.mjs` passed with disposable local data and
+loopback identity/model/quotation fixtures. It exercised all three task-creation
+routes, optional brief review before sending, retained grade, keyboard focus,
+Chat-only plan writing and approval, actual image-intent preparation and an
+unchecked fee confirmation. A full process restart recovered the reviewed plan
+and image intent without a model replay or media submission. Import requirements
+could be discussed before selecting a source PPTX.
+
+The gate exposed and fixed two interaction failures: the floating composer
+covered workflow actions, and initial workflow reads raced viewing-session
+publication after restart. The workflow now participates in composer dock
+measurement, and the shell publishes ownership before child passive reads.
+Source screenshots were inspected at 1080x760. Targeted regressions, typechecking,
+lint and Desktop build remain required alongside the gate. This bounded check
+does not establish live-model generation, paid images, final PPTX compilation,
+real WiseOffice or packaged-release acceptance for the new interaction.
+
+The later 2026-10-25 gate extended this evidence through all three explicitly
+confirmed fixture images, actual PPTX compilation and real WiseOffice. Native
+text and an independent image object survived, with the exact planned narration
+attached to the page. It also cancelled/retried the main Chat import picker and
+opened unchanged source bytes in Office without mounting the generation form.
+This exposed and fixed inherited-model rejection during compilation and missing
+source-launch compiler discovery. See
+`../validation/courseware/chat-first-20261025/README.md` for the bounded evidence
+and remaining live-provider/ordinary-generation/release gaps.
+
+The ordinary Chat preview/export entrance now receives the parent refresh action,
+so idle status refresh rechecks saved SVG, narration, planning, quality report and
+export freshness. Failed or stale quality gates offer an in-place repair request
+in the same Chat. That request is shared with the retained workbench; its original
+project-preservation and official validation instructions are unchanged. Targeted
+interaction tests cover preview, failed inspection, repair, successful inspection,
+explicit export request, editor opening, invalidation after another source edit,
+stale task clicks and retry after a refused send. These component/inspection
+checks do not establish a complete model-driven ordinary generation run.
+
+The later twelve-case source gate extends ordinary acceptance beyond those
+component checks: actual Agent writes, official project/final SVG checks,
+real preview Browser navigation, deliberate source invalidation, same-Chat
+repair, explicit official SVG-to-PPTX export and actual native Office readback
+all pass. ZIP/source hashes and page notes are independently checked. The
+one-page content and model tool choices are deterministic loopback fixtures;
+production-model quality, longer decks and release acceptance remain open.
+See `../validation/courseware/chat-first-20261025/ordinary-full-report.json`.
+
+Ordinary task stage feedback now comes from that same project inspection rather
+than the generic task attachment flag: saved pages move to preview readiness,
+failed/stale quality to repair, changed inputs to re-export and a current PPTX
+to editable. Inspection and incomplete-page stages remain distinct from initial
+requirements. The ordinary child owns the single heading/status and initial
+hint, so a referenced project does not keep requesting a topic. Scene and import
+continue using their existing authoritative task/plan state.

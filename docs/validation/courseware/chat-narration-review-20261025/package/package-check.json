@@ -1,0 +1,50 @@
+{
+  "status": "PASS_EXACT_CHANGED_PACKAGE_RESOURCES",
+  "package": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop/release/chat-narration-review-20261025/linux-unpacked",
+  "asarFiles": 597,
+  "resources": {
+    "bin/pi-desktop-host-core": {
+      "files": 1,
+      "bytesMatched": true
+    },
+    "agent-runtime": {
+      "files": 78,
+      "bytesMatched": true
+    },
+    "skills": {
+      "files": 4,
+      "bytesMatched": true
+    },
+    "plugins": {
+      "files": 13,
+      "bytesMatched": true
+    },
+    "editor-host": {
+      "files": 2,
+      "bytesMatched": true
+    },
+    "pptx-worker": {
+      "files": 156,
+      "bytesMatched": true
+    },
+    "models.dev": {
+      "files": 1,
+      "bytesMatched": true
+    },
+    "tray-icon.png": {
+      "files": 1,
+      "bytesMatched": true
+    },
+    "pptx-worker/authoring.mjs": {
+      "sha256": "586ba532f841b0c59c1fdaebecc230bb1f31fec9118626556ff6927dfd10637c",
+      "bytesMatched": true
+    }
+  },
+  "scope": "Current ASAR and changed Host/Agent/worker/resources; unchanged Python and PPT Master dependency acceptance is inherited, not rerun",
+  "worker": {
+    "bundle": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop/release/chat-narration-review-20261025/linux-unpacked/resources/pptx-worker",
+    "files": 155,
+    "status": "VERIFIED"
+  },
+  "inheritedDependencies": "Python and PPT Master files present; no repeated inventory or dependency test"
+}

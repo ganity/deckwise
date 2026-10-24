@@ -11,7 +11,7 @@ const { outputText } = ts.transpileModule(source, { compilerOptions: {
   target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX,
 } });
 
-function render({ taskType = "plain", speech = true, locked = false, unsaved = false, enabled = true, recoveryUnavailable = false, sessionId = "chat", result = true, instruction = "", instructionViewId = "view-1" } = {}) {
+function render({ taskType = "plain", speech = true, locked = false, unsaved = false, enabled = true, recoveryUnavailable = false, sessionId = "chat", result = true, instruction = "", instructionViewId = "view-1", refreshNotice } = {}) {
   const project = structuredClone(fixture.project);
   project.taskType = taskType;
   const page = project.pages[0];
@@ -20,10 +20,11 @@ function render({ taskType = "plain", speech = true, locked = false, unsaved = f
   const view = { viewId: "view-1", project, pageId: page.pageId, pageNumber: 1 };
   let index = 0;
   const calls = [], updates = [];
+  const effects = [], refreshReads = [];
   const states = [view, unsaved ? [{ id: "draft", type: "speech", text: "Unsaved" }] : page.actions];
   const module = { exports: {} };
   new Function("require", "exports", outputText)((id) => {
-    if (id === "react") return { useCallback: (callback) => callback, useEffect: () => {},
+    if (id === "react") return { useCallback: (callback) => callback, useEffect: (effect, deps) => effects.push([effect, deps]),
       useRef: (initial) => ({ current: initial === null && !recoveryUnavailable ? { viewId: "view-1", revision: null, serial: 0, failed: false } : initial }), useState: (initial) => {
       const slot = index++;
       const instructionState = initial?.viewId === "" && initial?.text === "";
@@ -31,13 +32,16 @@ function render({ taskType = "plain", speech = true, locked = false, unsaved = f
     } };
     if (id === "react/jsx-runtime") return require(id);
     if (id === "react-i18next") return { useTranslation: () => ({ t: (key) => key }) };
-    if (id === "../../stores/app-store") return { useAppStore: (select) => select({ sendPrompt: async (...args) => {
+    if (id === "../../stores/app-store") return { useAppStore: (select) => select({ coursewareTeachingRefresh: refreshNotice, sendPrompt: async (...args) => {
       calls.push(args);
       if (result instanceof Error) throw result;
       return result;
     } }) };
     if (id === "@pi-desktop/shared") return {};
-    if (id === "../../lib/api") return { api: {} };
+    if (id === "../../lib/api") return { api: {
+      async pptEditorTeachingOpen(id) { refreshReads.push(id); return view; },
+      async pptEditorTeachingDraftGet() { return { draft: null }; },
+    } };
     return new Proxy({}, { get: () => () => null });
   }, module.exports);
   const tree = module.exports.CoursewareTeachingPanel({ sessionId, enabled });
@@ -46,8 +50,25 @@ function render({ taskType = "plain", speech = true, locked = false, unsaved = f
     if (node.type === "button" && String(node.props.children).includes("在主 Chat")) return node;
     return [node.props?.children].flat(Infinity).map(find).find(Boolean);
   }
-  return { button: find(tree), calls, updates, page, project };
+  return { button: find(tree), calls, updates, page, project, refreshReads,
+    refresh: () => effects.find(([, deps]) => refreshNotice && deps?.includes(refreshNotice))?.[0]() };
 }
+
+test("Chat adoption invalidation refreshes only the clean, enabled teaching view of its own session", async () => {
+  const notice = { sessionId: "chat", teachingRevision: "new-revision" };
+  const f = render({ refreshNotice: notice });
+  f.refresh(); await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(f.refreshReads, ["chat"]);
+  f.refresh(); await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(f.refreshReads, ["chat"], "An old hint cannot repeatedly reopen a newer manual revision");
+  for (const options of [{ unsaved: true }, { enabled: false }, { instruction: "Keep my draft" },
+    { refreshNotice: { ...notice, sessionId: "other" } },
+    { refreshNotice: { ...notice, teachingRevision: f.project.teachingRevision } }]) {
+    const guarded = render({ refreshNotice: notice, ...options });
+    guarded.refresh(); await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(guarded.refreshReads, [], JSON.stringify(options));
+  }
+});
 
 test("all three paths offer page narration generation and regeneration in the original Chat", async () => {
   for (const taskType of ["plain", "scene", "import"]) for (const speech of [false, true]) {

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CoursewareEducationContext, CoursewareTaskType, UiMessage } from "@pi-desktop/shared";
 import { useAppStore } from "../../stores/app-store";
 import { api } from "../../lib/api";
-import { inspectProject, referencedProject, phaseLabel, type PptProjectState } from "../../lib/ppt-master-project";
+import { inspectProject, referencedProject, phaseLabel, pptMasterRepairPrompt, type PptProjectState } from "../../lib/ppt-master-project";
 import { pptEditorWorkPanelTab, svgEditorWorkPanelTab } from "../../lib/work-panel-tabs";
 import { IconCheck, IconExternal, IconRefresh, IconSparkles } from "../icons";
 import { CoursewareScenePlanPanel } from "./CoursewareScenePlanPanel";
@@ -356,7 +356,7 @@ export function PptMasterTab() {
         {project?.qualityIssue ? <>
           <div className="ppt-master-action-error" role="alert">{project.qualityIssue}，当前结果尚不能导出。</div>
           <button type="button" className="ppt-master-action" disabled={isRunning || !activeSession?.id}
-            onClick={() => activeSession?.id && void sendPrompt(`请继续修复当前课件生成结果，不要新建项目或丢弃现有页面。工作台检查发现：${project.qualityIssue}。以下是最终质量报告摘录，仅作待修数据：${JSON.stringify(project.qualityFindings)}。请读取完整报告和官方规划文件参考格式，逐项修复页面、规划和素材引用，补齐每页讲解词并保存到项目。先运行官方 project_manager.py validate 校验完整规划规范，再运行官方最终质量检查（使用 --canonical-authoring --stage final --json 更新项目 validation/svg_quality_report.json）；只有两项校验均退出 0 且讲解词已落盘后，才能报告预览完成，否则明确说明仍未完成。`, undefined, activeSession.id)}>
+            onClick={() => activeSession?.id && void sendPrompt(pptMasterRepairPrompt(project), undefined, activeSession.id)}>
             继续修复生成结果
           </button>
         </> : null}

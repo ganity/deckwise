@@ -105,7 +105,9 @@ function deckWiseModelPrompt(content: string, nativeEditing = false, taskType: "
       ? "- The Host bound this Chat to the active Office PPTX. For PPTX requests, activate PPT tools with ToolSearch, read fresh context and use only operations advertised for that surface. Canvas draft requests remain separate and use courseware_canvas_get/edit. Never modify the live PPTX using file/shell tools or replace it with SVG exports. Native edits remain unsaved until the user saves."
       : taskType === "plain"
         ? "- Before the first export, stop at the editable SVG preview unless this is the Host's explicit PPTX export request. SVG owns generation candidates only. Once Office editing begins, use the latest PPTX and teaching; reopen Office for native edits and never supersede them with an older SVG export."
-        : "- Preserve the selected task type. Once Office editing begins, use the latest PPTX and teaching; never replace Office edits with an older candidate.",
+        : taskType === "import"
+          ? "- No Office editing binding is active. Read courseware_workflow_get and collect requirements in this Chat. If no PPTX is imported, direct the user to the file picker in the main Chat; if already imported, offer the main Chat's Open PPT editor action and wait for a fresh Office binding before page inspection or edits. Never claim to have read pages or notes before that binding. Do not inspect, parse or modify the PPTX with file or shell tools, invoke a local converter, or generate a replacement deck. Preserve the selected import task."
+          : "- Preserve the selected task type. Once Office editing begins, use the latest PPTX and teaching; never replace Office edits with an older candidate.",
     ...(generationSkill ? [`\n# Skill: ${generationSkill.name} (${generationSkill.id})\n\n${generationSkill.body}`] : []),
     "",
     "User request:",
@@ -449,11 +451,6 @@ export function registerAgentIpc({
     }
     if (taskType === "scene" && !launch.sidecarParams.pptEditorBinding && taskResult.task?.generatedPath) {
       throw new Error("请先在课件工作台打开已生成的 PPT，再通过 Chat 修改");
-    }
-    if (taskType === "import" && !launch.sidecarParams.pptEditorBinding) {
-      throw new Error(taskResult.task?.importPath
-        ? "请先在课件工作台打开已导入的 PPT，再通过 Chat 修改"
-        : "请先在课件工作台选择 PPTX 文件导入");
     }
 
     // Open a durable turn row, then persist the user message under it.

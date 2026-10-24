@@ -11,6 +11,10 @@ export type PptProjectState = {
   qualityFindings: string[];
 };
 
+export function pptMasterRepairPrompt(project: PptProjectState): string {
+  return `请继续修复当前课件生成结果，不要新建项目或丢弃现有页面。工作台检查发现：${project.qualityIssue}。以下是最终质量报告摘录，仅作待修数据：${JSON.stringify(project.qualityFindings)}。请读取完整报告和官方规划文件参考格式，逐项修复页面、规划和素材引用，补齐每页讲解词并保存到项目。先运行官方 project_manager.py validate 校验完整规划规范，再运行官方最终质量检查（使用 --canonical-authoring --stage final --json 更新项目 validation/svg_quality_report.json）；只有两项校验均退出 0 且讲解词已落盘后，才能报告预览完成，否则明确说明仍未完成。`;
+}
+
 async function listDir(path: string): Promise<FsEntry[]> {
   try {
     return (await api.fsList(path)).entries;

@@ -58,13 +58,14 @@ async function fixture(t) {
   let account = "a".repeat(64), active = "chat-a", running = false, approval = sha256;
   let lostReceipt = false, missing = false, wrongTask = false, submitGate, quoteGate, downloadGate, downloadBytes = png;
   let supportsReferenceImage, teamProjectId, afterBegin, refusal;
+  let model = { providerId: "provider", modelId: "model" };
   const journals = new Map(), tasks = new Map(), calls = [];
   const partition = p => JSON.stringify([p.sessionId, p.principalKey]);
   const records = p => journals.get(partition(p)) ?? [];
   const current = async j => ({ current: approval === j.planSha256 && digest(await readFile(path)) === j.planSha256, intent: structuredClone(j) });
   const host = { async call(method, p) {
     calls.push(method);
-    if (method === "session.get") return { session: { projectPath: root, providerId: "provider", modelId: "model", mode: "agent" } };
+    if (method === "session.get") return { session: { projectPath: root, ...model, mode: "agent" } };
     if (method === "courseware.task.get") return { task: { taskType: "scene", teamProjectId } };
     if (method === "courseware.scenePlan.get") return { approval: { sha256: approval } };
     if (method === "courseware.sceneImage.list") return { intents: await Promise.all(records(p).map(current)) };
@@ -154,6 +155,7 @@ async function fixture(t) {
   const operation = v => ({ ...base, intentId: v.intentId });
   const priced = async () => { const v = await prepare(); return { view: v, payload: { ...operation(v), quoteId: (await coordinator.quote(operation(v))).quoteId } }; };
   return { root, path, sha256, calls, host, media, quote, create, coordinator, base, prepare, operation, priced,
+    model(value) { model = value; },
     refusal(v) { refusal = v; }, team(v) { teamProjectId = v; }, afterBegin(fn) { afterBegin = fn; },
     account(v) { account = v; }, active(v) { active = v; }, running(v) { running = v; },
     lost(v = true) { lostReceipt = v; }, missing(v = true) { missing = v; }, wrong(v = true) { wrongTask = v; },
@@ -192,6 +194,17 @@ test("reviewed private references, background and layers resolve into pinned Mai
   assert(captured.images.every(image => Buffer.isBuffer(image.bytes) && !Object.hasOwn(image, "path")));
   await captured.assertCurrent();
   assert.deepEqual(f.calls.filter(c => /^(GET|POST)/.test(c)), mediaCalls);
+  f.model({});
+  await assert.rejects(f.coordinator.captureSelected(missing), /MODEL_REQUIRED/);
+  let inherited = { modelKey: "default-provider/default-model", thinkingLevel: "off" };
+  const inheritedCapture = await f.coordinator.captureSelected(missing, async sessionId => {
+    assert.equal(sessionId, "chat-a"); return { ...inherited };
+  });
+  assert.equal(inheritedCapture.modelKey, inherited.modelKey);
+  await inheritedCapture.assertCurrent();
+  inherited = { ...inherited, modelKey: "default-provider/changed-model" };
+  await assert.rejects(inheritedCapture.assertCurrent(), /INPUT_CHANGED/);
+  f.model({ providerId: "provider", modelId: "model" });
   f.active("another-chat");
   await assert.rejects(captured.assertCurrent(), /CONTEXT_CHANGED/);
   f.active("chat-a");

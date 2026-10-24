@@ -397,7 +397,8 @@ export function useAppShellRuntime() {
     return off;
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    // Publish the owner before child effects read session-scoped courseware state.
     const viewingSessionId = page === "chat" ? activeSessionId ?? null : null;
     void api
       .setNotificationViewingSession(viewingSessionId)

@@ -15,6 +15,7 @@ function TaskForm({ projectPath, onClose }: { projectPath: string; onClose: () =
   const { t } = useTranslation();
   const [taskType, setTaskType] = useState<CoursewareTaskType>("plain");
   const [education, setEducation] = useState<CoursewareEducationContext>({});
+  const [brief, setBrief] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const busyRef = useRef(false);
@@ -33,9 +34,9 @@ function TaskForm({ projectPath, onClose }: { projectPath: string; onClose: () =
         if (!busyRef.current) onClose();
       }
       if (event.key !== "Tab") return;
-      const items = dialogRef.current?.querySelectorAll<HTMLElement>(
-        'button:not(:disabled), input:not(:disabled), select:not(:disabled)',
-      );
+      const items = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(
+        'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), summary',
+      ) ?? []).filter(item => item.getClientRects().length > 0);
       if (!items?.length) { event.preventDefault(); return; }
       const first = items[0], last = items[items.length - 1];
       if (event.shiftKey && document.activeElement === first) {
@@ -58,7 +59,8 @@ function TaskForm({ projectPath, onClose }: { projectPath: string; onClose: () =
     setBusy(true);
     setError(null);
     try {
-      await useAppStore.getState().newSession({ projectPath, courseware: { taskType, educationContext: education } });
+      await useAppStore.getState().newSession({ projectPath, courseware: { taskType, educationContext: education,
+        ...(brief.trim() ? { initialPrompt: brief } : {}) } });
       onClose();
       requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>(".composer-input")?.focus());
     } catch (cause) {
@@ -101,12 +103,20 @@ function TaskForm({ projectPath, onClose }: { projectPath: string; onClose: () =
                 </label>
               ))}
             </fieldset>
+            <label className="courseware-task-field courseware-task-brief">
+              <span>{t("coursewareTask.brief")}</span>
+              <textarea className="field-input" value={brief} rows={3} maxLength={4000} disabled={busy}
+                placeholder={t("coursewareTask.briefHint")} aria-describedby="courseware-task-brief-hint"
+                onChange={event => setBrief(event.target.value)} />
+              <small id="courseware-task-brief-hint">{t("coursewareTask.briefReview")}</small>
+            </label>
             <fieldset disabled={busy} className="courseware-task-education">
               <legend>{t("coursewareTask.education")}</legend>
               <div className="courseware-task-fields">
                 <label className="courseware-task-field"><span>{t("coursewareTask.schoolStage")}</span>
                   <select className="field-input" value={education.schoolStage ?? ""} onChange={(event) =>
-                    setEducation({ ...education, schoolStage: event.target.value || undefined, grade: undefined, fullEnglishTeaching: false })}>
+                    setEducation({ ...education, schoolStage: event.target.value || undefined,
+                      fullEnglishTeaching: event.target.value === "kindergarten" && education.fullEnglishTeaching === true })}>
                     <option value="">{t("coursewareTask.unspecified")}</option>
                     {(["kindergarten", "primary", "junior_high", "senior_high"] as const).map((stage) =>
                       <option key={stage} value={stage}>{t(`coursewareTask.${stage}`)}</option>)}
@@ -114,18 +124,24 @@ function TaskForm({ projectPath, onClose }: { projectPath: string; onClose: () =
                 {field("grade")}
                 <label className="courseware-task-field"><span>{t("coursewareTask.subject")}</span>
                   <select className="field-input" value={education.subject ?? ""} onChange={(event) =>
-                    setEducation({ ...education, subject: event.target.value || undefined, customSubjectName: undefined, fullEnglishTeaching: false })}>
+                    setEducation({ ...education, subject: event.target.value || undefined,
+                      fullEnglishTeaching: event.target.value === "english" && education.fullEnglishTeaching === true })}>
                     <option value="">{t("coursewareTask.unspecified")}</option>
                     {(["chinese", "math", "english", "other"] as const).map((subject) =>
                       <option key={subject} value={subject}>{t(`coursewareTask.${subject}`)}</option>)}
                   </select></label>
                 {education.subject === "other" ? field("customSubjectName") : null}
-                {field("textbookVersion")}{field("chapter")}{field("lessonType")}
               </div>
               {education.schoolStage === "kindergarten" && education.subject === "english" ?
                 <label className="courseware-task-english"><input type="checkbox" checked={education.fullEnglishTeaching === true}
                   onChange={(event) => setEducation({ ...education, fullEnglishTeaching: event.target.checked })} />
                   {t("coursewareTask.fullEnglishTeaching")}</label> : null}
+              <details className="courseware-task-details">
+                <summary>{t("coursewareTask.moreDetails")}</summary>
+                <div className="courseware-task-fields">
+                  {field("textbookVersion")}{field("chapter")}{field("lessonType")}
+                </div>
+              </details>
             </fieldset>
             {error ? <p role="alert" className="courseware-task-error">{error}</p> : null}
           </div>

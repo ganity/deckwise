@@ -14,6 +14,7 @@ import { headAsk } from "../lib/pending-asks";
 import { CoursewareChatWorkflow } from "./courseware/CoursewareChatWorkflow";
 
 const StableComposer = memo(Composer);
+const coursewareWorkflow = <CoursewareChatWorkflow />;
 
 function i18nHasError(t: (key: string) => string, code: string) {
   const key = `errors.${code}`;
@@ -212,8 +213,7 @@ export const ChatSurface = memo(function ChatSurface() {
             </div>
           </div>
           <div className="home-composer-wrap">
-            <CoursewareChatWorkflow />
-            <StableComposer variant="home" prefill={quickstartPrefill} />
+            <StableComposer variant="home" prefill={quickstartPrefill}>{coursewareWorkflow}</StableComposer>
           </div>
         </div>
       ) : (
@@ -227,8 +227,7 @@ export const ChatSurface = memo(function ChatSurface() {
               />
             ))}
           </div>
-          <CoursewareChatWorkflow />
-          <StableComposer variant="docked" />
+          <StableComposer variant="docked">{coursewareWorkflow}</StableComposer>
         </>
       )}
 

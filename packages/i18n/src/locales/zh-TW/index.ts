@@ -2,12 +2,19 @@ import type { EnglishCatalog } from "../en/index.js";
 
 export const zhTW = {
   coursewareWorkflow: {
+    reviewDraftFirst: "請先在編輯器儲存或處理本頁講解草稿，再審閱候選。",
     previewPages: "Preview and edit pages",
     buildPpt: "Build editable PPT",
+    repairPages: "在 Chat 中修復目前頁面",
     exportPrompt: "The page content is confirmed. Complete final checks and generate the editable PPT without another confirmation.",
     title: "Courseware task",
     working: "Working",
     editable: "Ready to edit",
+    checkingPages: "檢查已儲存頁面",
+    previewReady: "頁面可預覽",
+    needsRepair: "頁面待修復",
+    pagesChanged: "頁面已修改，需重新匯出",
+    pagesPending: "頁面尚未產生完成",
     assets: "Preparing assets",
     reviewPlan: "Plan ready for review",
     requirements: "Requirements",
@@ -46,6 +53,10 @@ export const zhTW = {
     selectContinue: "Use image and continue"
   },
   coursewareTask: {
+    brief: "課件需求（選填）",
+    briefHint: "例如：為三年級製作認識分數的課件，約 12 頁，講解生動一些。",
+    briefReview: "建立後帶入主 Chat，確認並傳送後開始；也可以稍後補充。",
+    moreDetails: "更多教學資訊（選填）",
     "title": "New courseware task",
     "description": "Choose how to start. Continue requirements and generation in the main Chat.",
     "type": "Task type",

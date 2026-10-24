@@ -50,9 +50,14 @@ export function CoursewareChatImages({ sessionId, plan, disabled, refreshKey = 0
     {blockers.length > 0 && <details><summary>{t("coursewareWorkflow.missing", { count: blockers.length })}</summary>
       <ul>{blockers.map((item, i) => <li key={`${item.pageId}-${item.kind}-${i}`}>{plan.pages.find(page => page.pageId === item.pageId)?.title} · {t(`coursewareWorkflow.${item.kind}`)}</li>)}</ul>
     </details>}
-    {rows.filter(row => row.current && row.planSha256 === plan.sha256).map(row => <div className="courseware-chat-image-row" key={row.intentId}>
+    {rows.filter(row => row.current && row.planSha256 === plan.sha256).map(row => <div className="courseware-chat-image-row" key={row.intentId} data-scene-image-intent={row.intentId}>
       <span>{plan.pages.find(page => page.pageId === row.pageId)?.title} · {t(`coursewareWorkflow.${row.target.kind}`)}{row.target.kind === "layer" ? ` · ${row.target.name}` : ""}
-        {row.selected ? ` · ${t("coursewareWorkflow.selected")}` : ""}</span>
+        {row.selected ? ` · ${t("coursewareWorkflow.selected")}` : ""}
+        <small role="status">{t(`panel.sceneImages.${row.phase}`)}{row.task ? ` · ${t("panel.sceneImages.task", {
+          state: row.task.state, fee: row.task.feeState, reserved: row.task.reservedPoints, actual: row.task.actualPoints ?? "—",
+        })}` : ""}</small>
+        {row.task?.errorCode && <small role="alert">{row.task.errorCode}</small>}
+      </span>
       {row.phase === "prepared" && <button type="button" disabled={blocked} onClick={() => void run(async current => {
         setQuote(null); setConfirmed(false); setPreview(null); setReviewed(false);
         const value = await api.coursewareSceneImageQuote(sessionId, row.intentId);
@@ -63,7 +68,7 @@ export function CoursewareChatImages({ sessionId, plan, disabled, refreshKey = 0
           throw new Error(t("coursewareWorkflow.planChanged"));
         setQuote({ image: row, value, reference });
       })}>{t("coursewareWorkflow.quote")}</button>}
-      {row.phase !== "prepared" && <button type="button" disabled={blocked} onClick={() => void run(async current => {
+      {row.phase !== "prepared" && <button type="button" disabled={blocked || row.phase === "rejected"} onClick={() => void run(async current => {
         setPreview(null); setReviewed(false); setQuote(null); setConfirmed(false);
         const value = await api.coursewareSceneImageStatus(sessionId, row.intentId);
         if (!current()) return;

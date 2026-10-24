@@ -196,7 +196,7 @@ export function createPluginServices({
   const pluginSockets = new PluginWebSocketRegistry({
     onEvent: (pluginId, event) => plugins.deliverSocketEvent(pluginId, event),
   });
-  const { complete, completeScene, createSceneGenerator, planSceneCourseware, resolveSceneCourseAssets, buildSceneCourseware, stageSceneCourseware, assembleSceneCourseware } = createMainCompletion({ getHost, resolveAgentRuntimeLaunch, vendorOAuth, resolvePlatformAccessToken, resolveTeamSceneImages });
+  const { complete, completeScene, resolveSceneModel, createSceneGenerator, planSceneCourseware, resolveSceneCourseAssets, buildSceneCourseware, stageSceneCourseware, assembleSceneCourseware } = createMainCompletion({ getHost, resolveAgentRuntimeLaunch, vendorOAuth, resolvePlatformAccessToken, resolveTeamSceneImages });
   const plugins: PluginRuntime = new PluginRuntime({
     pluginShortcuts,
     pluginSockets,
@@ -546,6 +546,7 @@ export function createPluginServices({
     planSceneCourseware,
     resolveSceneCourseAssets,
     buildSceneCourseware,
+    resolveSceneModel,
     stageSceneCourseware,
     assembleSceneCourseware,
     plugins,

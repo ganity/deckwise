@@ -2,12 +2,19 @@ import type { EnglishCatalog } from "../en/index.js";
 
 export const de = {
   coursewareWorkflow: {
+    reviewDraftFirst: "Speichere oder bearbeite zuerst den Erklärungsentwurf dieser Seite im Editor, bevor du einen Vorschlag prüfst.",
     previewPages: "Preview and edit pages",
     buildPpt: "Build editable PPT",
+    repairPages: "Repair current pages in Chat",
     exportPrompt: "The page content is confirmed. Complete final checks and generate the editable PPT without another confirmation.",
     title: "Courseware task",
     working: "Working",
     editable: "Ready to edit",
+    checkingPages: "Checking saved pages",
+    previewReady: "Pages ready for preview",
+    needsRepair: "Pages need repair",
+    pagesChanged: "Pages changed; export again",
+    pagesPending: "Pages not ready yet",
     assets: "Preparing assets",
     reviewPlan: "Plan ready for review",
     requirements: "Requirements",
@@ -46,6 +53,10 @@ export const de = {
     selectContinue: "Use image and continue"
   },
   coursewareTask: {
+    brief: "Courseware request (optional)",
+    briefHint: "e.g. An illustrated 12-slide lesson about fractions for Grade 3, with lively narration.",
+    briefReview: "Review and send this in the main Chat after creation, or add it later.",
+    moreDetails: "More teaching details (optional)",
     "title": "New courseware task",
     "description": "Choose how to start. Continue requirements and generation in the main Chat.",
     "type": "Task type",

@@ -350,6 +350,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     onOnlinePreparationReady: preparation => { onlinePreparation = preparation; },
     completeNarration: dependencies.completeNarration,
     completeScene: dependencies.completeScene,
+    resolveModel: dependencies.sceneGeneration?.resolveModel,
     sendToRenderer,
     getExtraRoots: fsExtraRoots,
     onDeactivate: cancelCoursewarePlayback,

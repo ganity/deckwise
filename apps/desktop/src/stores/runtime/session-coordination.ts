@@ -12,7 +12,7 @@ import {
   normalizeMode,
 } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
-import { scheduleHomeDraftAdopt } from "../../lib/composer-draft-cache";
+import { readComposerDraft, scheduleHomeDraftAdopt } from "../../lib/composer-draft-cache";
 import {
   commitForkedSessionState,
   forkedSessionMessages,
@@ -340,6 +340,13 @@ export function createSessionCoordination({
       return null;
     }
     commitCreatedEmptySession(created.session, { activate: true });
+    if (options.courseware?.initialPrompt?.trim()) {
+      const draft = readComposerDraft(sessionId);
+      const brief = options.courseware.initialPrompt;
+      set({ composerPrefill: { sessionId,
+        text: draft?.text && draft.text !== brief ? `${brief}\n\n${draft.text}` : brief,
+        fileReferences: draft?.fileReferences ?? [] } });
+    }
     return sessionId;
   }
 

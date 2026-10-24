@@ -6,6 +6,7 @@ import { pptEditorWorkPanelTab } from "../../lib/work-panel-tabs";
 import { useAppStore } from "../../stores/app-store";
 import { CoursewareChatImages } from "./CoursewareChatImages";
 import { CoursewareChatPresentation } from "./CoursewareChatPresentation";
+import { CoursewareChatNarration } from "./CoursewareChatNarration";
 
 export function CoursewareChatWorkflow() {
   const sessionId = useAppStore(state => state.activeSessionId);
@@ -69,13 +70,14 @@ function Workflow({ sessionId }: { sessionId: string }) {
   const plan = view?.plan;
   const approved = !!plan && plan.sha256 === plan.approvedSha256;
   const blocked = busy || isRunning;
+  const ordinary = view.task.taskType === "plain" && !view.task.generated;
 
   return <section className="courseware-chat-workflow" aria-label={t("coursewareWorkflow.title")} aria-busy={blocked}>
-    <header><strong>{t("coursewareWorkflow.title")}</strong><span role="status">{t(isRunning ? "coursewareWorkflow.working" :
-      view?.task?.generated || view?.task?.imported ? "coursewareWorkflow.editable" : plan ? approved ? "coursewareWorkflow.assets" : "coursewareWorkflow.reviewPlan" : "coursewareWorkflow.requirements")}</span></header>
+    {!ordinary && <header><strong>{t("coursewareWorkflow.title")}</strong><span role="status">{t(isRunning ? "coursewareWorkflow.working" :
+      view?.task?.generated || view?.task?.imported ? "coursewareWorkflow.editable" : plan ? approved ? "coursewareWorkflow.assets" : "coursewareWorkflow.reviewPlan" : "coursewareWorkflow.requirements")}</span></header>}
     {error && <p role="alert" className="courseware-workflow-error">{error}</p>}
     <>
-      {!plan && !view.task.imported && !view.task.generated && <p>{t(view.task.taskType === "import" ? "coursewareWorkflow.importHint" : "coursewareWorkflow.briefHint")}</p>}
+      {!ordinary && !plan && !view.task.imported && !view.task.generated && <p>{t(view.task.taskType === "import" ? "coursewareWorkflow.importHint" : "coursewareWorkflow.briefHint")}</p>}
       {plan && <details><summary>{plan.title} · {t("coursewareWorkflow.pages", { count: plan.pages.length })}</summary>
         <ol>{plan.pages.map(page => <li key={page.pageId}><strong>{page.title}</strong>
           <p>{page.visibleText.join(" · ")}</p><p>{page.visualIntent}</p><p>{page.narration}</p></li>)}</ol>
@@ -96,7 +98,8 @@ function Workflow({ sessionId }: { sessionId: string }) {
         if (!current()) return;
         await openEditor();
       })}>{t("coursewareWorkflow.selectPpt")}</button>}
-      {view.task.taskType === "plain" && !view.task.generated && <CoursewareChatPresentation sessionId={sessionId} disabled={blocked} />}
+      {ordinary && <CoursewareChatPresentation sessionId={sessionId} disabled={blocked} refreshKey={refresh} />}
+      <CoursewareChatNarration sessionId={sessionId} disabled={blocked} />
       {(view.task.generated || view.task.imported) && <button type="button" disabled={blocked} onClick={() => void run(openEditor)}>{t("coursewareWorkflow.openEditor")}</button>}
     </>
     <div className="courseware-workflow-actions">

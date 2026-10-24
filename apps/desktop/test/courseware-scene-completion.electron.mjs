@@ -138,6 +138,17 @@ export async function withModel(run) {
   finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
 }
 
+test("scene completion resolves inherited models without writing session configuration", async () => withModel(async f => {
+  delete f.session.providerId; delete f.session.modelId;
+  assert.deepEqual(await f.services.resolveSceneModel("chat-1"), { modelKey: input().modelKey, thinkingLevel: "off" });
+  await f.services.completeScene(input());
+  assert.equal(f.requests.length, 1);
+  assert.equal(f.session.providerId, undefined); assert.equal(f.session.modelId, undefined);
+  f.hook(() => { f.provider.modelId = "changed-default"; });
+  await assert.rejects(f.services.completeScene(input()), /model or mode changed/);
+  assert.equal(f.requests.length, 2);
+}));
+
 test("managed narration and scene completion use the current team route and never retry personal after refusal", async () => withModel(async f => {
   const original = process.env.DECKWISE_LLM_BASE_URL;
   try {
