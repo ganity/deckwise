@@ -95,6 +95,31 @@ regressions include `e2e-courseware-scene-completion.mjs` (15 named cases),
 including inherited model resolution without configuration writes and refusal
 when the effective default changes during the request.
 
+## E2E-COURSEWARE-main-chat-pptx-review
+
+- **Steps**: From successful redo/fade/style-batch receipts, open the candidate
+  review inside the main Chat, without copying an ID. Preview the copy. Reject
+  one candidate; explicitly adopt another after unchecked replacement consent.
+  With retained attention cues, require each object association and a separate
+  attention confirmation. Preserve current-page narration drafts both before
+  review and when created after opening it. Lose an adoption response, reopen
+  and read its persisted terminal status without another write. Disable actions
+  during an Agent turn; navigate away while a review read is pending.
+- **Expected**: The existing review component and Main/Host APIs retain source,
+  lineage, teaching, scope and explicit-adoption safeguards. Definite decisions
+  hide the local entrance. Uncertain decisions require rereading. Failed,
+  delegated, malformed, mismatched-tool or assistant-prose receipts cannot
+  create entrances. No model or media request is made by opening a review.
+- **Evidence**: `courseware-chat-workflow-ui.test.mjs` covers receipt decoding,
+  action wiring, draft protection, repeated clicks, task fences and uncertainty.
+  `courseware-candidate-effects-ui.test.mjs` covers explicit distinct targets.
+  `node scripts/e2e-courseware-chat-pptx-review.mjs` bundles the actual React
+  component, candidate/style review components and Chinese locale into an
+  isolated Chromium page. Its five groups use in-memory store/IPC fixtures,
+  including a committed adoption with a lost response. It does not establish
+  actual file replacement, Office reopen, Host persistence, paid generation or
+  packaged-Electron acceptance. Those boundaries retain their existing gates.
+
 ## E2E-COURSEWARE-development-schema24-startup
 
 - **Steps**: Open a copied main v24 database with the A Host. Separately migrate

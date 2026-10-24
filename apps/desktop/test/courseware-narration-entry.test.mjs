@@ -70,6 +70,19 @@ test("Chat adoption invalidation refreshes only the clean, enabled teaching view
   }
 });
 
+test("Chat source adoption refreshes clean teaching once, preserving current or drafted views", async () => {
+  const notice = { sessionId: "chat", sourceSha256: "f".repeat(64) };
+  const f = render({ refreshNotice: notice }); f.refresh(); await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(f.refreshReads, ["chat"]);
+  f.refresh(); await new Promise(resolve => setImmediate(resolve)); assert.deepEqual(f.refreshReads, ["chat"]);
+  for (const options of [{ unsaved: true }, { enabled: false }, { instruction: "Keep my draft" },
+    { refreshNotice: { ...notice, sessionId: "other" } },
+    { refreshNotice: { ...notice, sourceSha256: f.project.source.sha256 } }]) {
+    const guarded = render({ refreshNotice: notice, ...options }); guarded.refresh(); await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(guarded.refreshReads, [], JSON.stringify(options));
+  }
+});
+
 test("all three paths offer page narration generation and regeneration in the original Chat", async () => {
   for (const taskType of ["plain", "scene", "import"]) for (const speech of [false, true]) {
     const f = render({ taskType, speech });

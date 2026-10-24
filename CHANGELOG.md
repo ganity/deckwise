@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Review Chat-generated page rebuilds, fade transitions and style batches in the
+  main Chat. Reuse the existing read-only preview, explicit object associations
+  and adoption flow; preserve current-page narration drafts and reread uncertain
+  results instead of repeating writes. Keep the editor lookup as a fallback.
+
 - Review Chat-generated narration directly in the main Chat, compare the saved
   and proposed text, and explicitly adopt or reject without copying candidate
   IDs. Preserve manual drafts, reread uncertain decisions and refresh a clean

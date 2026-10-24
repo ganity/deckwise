@@ -28,7 +28,7 @@ export function CoursewarePptxCandidateReview({ review, sessionId, disabled, pre
     kind === "shape" ? "panel.pptEditor.effectsObjectShape" : kind === "image" ? "panel.pptEditor.effectsObjectImage" : "panel.pptEditor.effectsObject", { number: index });
   return <section className="courseware-source-review" aria-label={t("panel.pptEditor.pptxCandidateTitle")}>
     <strong>{t("panel.pptEditor.pptxCandidateTitle")}</strong>
-    <p>{t("panel.pptEditor.pptxCandidateKind", { kind: review.kind })}</p>
+    <p>{t("panel.pptEditor.pptxCandidateKind", { kind: t(`coursewareWorkflow.${review.kind}`) })}</p>
     <ul>{review.targetPages.map(page => <li key={page.pageId}>{t("panel.pptEditor.pptxCandidateTarget", { page: page.pageNumber })}</li>)}</ul>
     <p>{t("panel.pptEditor.pptxCandidateLineage", { state: review.lineageVerified ? t("panel.pptEditor.pptxCandidateVerified") : t("panel.pptEditor.pptxCandidateUnverified") })}</p>
     {review.stale && <p role="alert">{t("panel.pptEditor.candidateStale")}</p>}

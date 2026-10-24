@@ -119,7 +119,9 @@ export type AppState = {
   /** Renderer-owned conversation presentation metadata. */
   sessionMeta: Record<string, SessionMeta>;
   /** Invalidation hint only; teaching content remains owned by Host. */
-  coursewareTeachingRefresh?: { sessionId: string; teachingRevision: string };
+  coursewareTeachingRefresh?: { sessionId: string } & (
+    { teachingRevision: string; sourceSha256?: never } | { sourceSha256: string; teachingRevision?: never }
+  );
   sessionView: SessionView;
   /** Open project tabs and the host's currently active workspace. */
   openProjects: ProjectWorkspace[];

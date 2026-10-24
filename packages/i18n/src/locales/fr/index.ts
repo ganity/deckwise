@@ -2,6 +2,9 @@ import type { EnglishCatalog } from "../en/index.js";
 
 export const fr = {
   coursewareWorkflow: {
+    "page-fade": "Page fade-in",
+    "page-pptx": "Rebuild page",
+    "page-style-batch": "Restyle selected pages",
     reviewDraftFirst: "Enregistrez ou traitez le brouillon de narration de cette page dans l’éditeur avant de consulter une proposition.",
     previewPages: "Preview and edit pages",
     buildPpt: "Build editable PPT",

@@ -29,6 +29,6 @@
 .courseware-chat-approval img { display: block; max-width: 100%; max-height: 200px; object-fit: contain; margin: 8px 0; }
 .courseware-chat-approval label { display: flex; align-items: start; gap: 8px; margin: 8px 0; }
 .courseware-chat-workflow .courseware-workflow-error { color: var(--ds-error); }
-.courseware-chat-narration { margin-top: 8px; border-top: 1px solid var(--ds-border-default); }
-.courseware-chat-narration label { display: flex; align-items: start; gap: 8px; margin: 8px 0; }
-.courseware-chat-narration .courseware-teaching-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.courseware-chat-narration, .courseware-chat-pptx { margin-top: 8px; border-top: 1px solid var(--ds-border-default); }
+.courseware-chat-narration label, .courseware-chat-pptx label { display: flex; align-items: start; gap: 8px; margin: 8px 0; }
+.courseware-chat-narration .courseware-teaching-actions, .courseware-chat-pptx .courseware-teaching-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }

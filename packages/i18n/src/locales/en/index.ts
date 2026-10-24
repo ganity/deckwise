@@ -1,5 +1,8 @@
 export const en = {
   coursewareWorkflow: {
+    "page-fade": "Page fade-in",
+    "page-pptx": "Rebuild page",
+    "page-style-batch": "Restyle selected pages",
     reviewDraftFirst: "Save or resolve this page’s narration draft in the editor before reviewing a candidate.",
     previewPages: "Preview and edit pages",
     buildPpt: "Build editable PPT",

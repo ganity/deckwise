@@ -2,6 +2,9 @@ import type { EnglishCatalog } from "../en/index.js";
 
 export const ko = {
   coursewareWorkflow: {
+    "page-fade": "Page fade-in",
+    "page-pptx": "Rebuild page",
+    "page-style-batch": "Restyle selected pages",
     reviewDraftFirst: "후보를 검토하기 전에 편집기에서 이 페이지의 설명 초안을 저장하거나 정리하세요.",
     previewPages: "Preview and edit pages",
     buildPpt: "Build editable PPT",

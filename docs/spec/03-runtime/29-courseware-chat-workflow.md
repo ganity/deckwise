@@ -36,6 +36,32 @@ candidate-ID lookup remains available for older or off-window receipts. Chat
 receipt visibility follows the existing transcript window; this is not an
 independent complete candidate-history browser.
 
+Successful `ppt_propose_page_redo`, `ppt_propose_page_fade` and
+`ppt_propose_page_style_batch` receipts also expose PPTX reviews in the main
+Chat. Tool names must match their candidate kind; a valid output hash and
+unapplied/unsaved pending receipt are required. The shared receipt decoder still
+grants no authority. Main rereads the retained candidate through the existing
+review API, including lineage, source, teaching and scope checks. The existing
+candidate component supplies read-only preview, unchecked replacement consent,
+explicit highlight/spotlight object reassociation and optional representative
+style-scope review. Confirmed adoption uses the existing recoverable source
+replacement and WiseOffice reopen. Successful adoption publishes the new source
+hash through the existing in-memory invalidation hint; a clean, idle teaching
+sidebar rereads Host once, preserving active drafts. No new generation or storage
+API is added.
+
+Current-page stored narration drafts block opening and adoption. Drafts on other
+pages retain their existing recovery semantics; this is not a new project-wide
+draft transaction. Definite adoption/rejection hides that receipt entrance for
+the mounted Chat view. Reloaded historical receipts must still read persisted
+status and may be outdated. Failed operations close the transient review and
+require a fresh read, never replay a write. Task switches, disabled actions,
+active Agent turns and repeated clicks fence asynchronous dispatch. The same
+edit skill directs the teacher to Chat review; the retained editor lookup is a
+fallback for off-window history. Preparing the original/native-textless visuals
+before redo remains in the existing teaching sidebar. This change does not
+relocate every editor operation or certify production model quality.
+
 The main-window-only `deckwise/courseware/workflow/get` IPC accepts exactly
 `{sessionId}`. Main validates the active viewing Chat, stable Host and workspace.
 Generic Chats without a saved task show no card. Failed reads remain actionable.
@@ -144,8 +170,9 @@ unchanged. Later teaching changes use existing reviewed revisions. No migration.
   editing substitute. Existing notes, narration and effects use editor APIs.
 
 Preview/Office may open their artifact work panel; no workbench form is needed
-for generation. Existing narration/effect review and publication controls are
-not relocated. Collaboration, animation coverage and media canvas are unchanged.
+for generation. Existing editor review and publication controls remain available;
+candidate review also has the main Chat entrances described above. Collaboration,
+animation coverage and media canvas are unchanged.
 Images retain individual confirmation/selection; no bulk spend or paid retry.
 Status refresh is explicit or Chat-driven, not indefinite polling. Whole-plan
 approval/asset invalidation remains unchanged; narration-only draft changes do

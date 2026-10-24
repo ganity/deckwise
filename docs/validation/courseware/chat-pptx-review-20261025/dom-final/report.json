@@ -1,0 +1,14 @@
+{
+  "status": "PASS",
+  "checks": [
+    "All three candidate kinds open the real review in Chat without an ID form",
+    "Adoption requires an unchecked confirmation and forwards explicit attention-object bindings",
+    "A current-page narration draft blocks both opening and adoption",
+    "Lost adoption responses reread persisted status without a duplicate write",
+    "Running Chat turns disable review; navigation discards late reads"
+  ],
+  "actualReact": true,
+  "actualReviewComponent": true,
+  "ipcFixture": true,
+  "paidCalls": false
+}

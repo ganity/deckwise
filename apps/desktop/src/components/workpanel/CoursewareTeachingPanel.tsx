@@ -133,7 +133,8 @@ export function CoursewareTeachingPanel({ sessionId, enabled }: { sessionId?: st
 
   useEffect(() => {
     if (!enabled || !sessionId || !view || teachingRefresh?.sessionId !== sessionId || refreshSeen.current === teachingRefresh ||
-        teachingRefresh.teachingRevision === view.project.teachingRevision || busy || changed ||
+        (teachingRefresh.sourceSha256 ? teachingRefresh.sourceSha256 === view.project.source.sha256 :
+          teachingRefresh.teachingRevision === view.project.teachingRevision) || busy || changed ||
         draftLoading || draftSaving || draftError || staleDraft || instructionPending || review || candidate || pptxCandidate || error) return;
     // Consume once: a later manual save can legitimately be newer than this hint.
     refreshSeen.current = teachingRefresh;

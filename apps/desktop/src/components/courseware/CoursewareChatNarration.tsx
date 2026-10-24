@@ -2,26 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { CoursewareNarrationReview, UiMessage } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
-import { toolResultPayload } from "../../lib/tool-presentation";
+import { chatCandidateReceipts } from "../../lib/courseware-chat-candidates";
 import { useAppStore } from "../../stores/app-store";
 import { CoursewareNarrationReview as NarrationReview } from "../workpanel/CoursewareNarrationReview";
 
 /** Transcript receipts are entrances only; Main reads and validates the saved candidate. */
 export function narrationCandidates(messages: UiMessage[]): string[] {
-  const ids = new Set<string>();
-  for (const message of [...messages].reverse()) {
-    if (message.role !== "tool" || message.toolName !== "ppt_propose_page_narration" ||
-        message.toolStatus !== "success" || message.isError || message.parentToolCallId) continue;
-    try {
-      const raw = toolResultPayload(message);
-      const result = typeof raw === "string" ? JSON.parse(raw) : raw;
-      if (result?.kind === "page-narration" && result.reviewState === "needs-review" &&
-          result.applied === false && result.saved === false && typeof result.baseline?.sessionId === "string" &&
-          /^[\w.-]{1,128}$/u.test(result.baseline.sessionId) &&
-          typeof result.candidateId === "string" && /^[\w.-]{1,128}$/u.test(result.candidateId)) ids.add(result.candidateId);
-    } catch { /* Incomplete or malformed tool output is not a candidate entrance. */ }
-  }
-  return [...ids];
+  return chatCandidateReceipts(messages).filter(candidate => candidate.kind === "page-narration").map(candidate => candidate.candidateId);
 }
 
 export function CoursewareChatNarration({ sessionId, disabled }: { sessionId: string; disabled: boolean }) {

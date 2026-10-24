@@ -7,6 +7,7 @@ import { useAppStore } from "../../stores/app-store";
 import { CoursewareChatImages } from "./CoursewareChatImages";
 import { CoursewareChatPresentation } from "./CoursewareChatPresentation";
 import { CoursewareChatNarration } from "./CoursewareChatNarration";
+import { CoursewareChatPptxCandidates } from "./CoursewareChatPptxCandidates";
 
 export function CoursewareChatWorkflow() {
   const sessionId = useAppStore(state => state.activeSessionId);
@@ -100,6 +101,7 @@ function Workflow({ sessionId }: { sessionId: string }) {
       })}>{t("coursewareWorkflow.selectPpt")}</button>}
       {ordinary && <CoursewareChatPresentation sessionId={sessionId} disabled={blocked} refreshKey={refresh} />}
       <CoursewareChatNarration sessionId={sessionId} disabled={blocked} />
+      <CoursewareChatPptxCandidates sessionId={sessionId} disabled={blocked} />
       {(view.task.generated || view.task.imported) && <button type="button" disabled={blocked} onClick={() => void run(openEditor)}>{t("coursewareWorkflow.openEditor")}</button>}
     </>
     <div className="courseware-workflow-actions">

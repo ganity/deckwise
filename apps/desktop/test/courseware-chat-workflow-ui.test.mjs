@@ -70,6 +70,10 @@ async function fixture(t, component, props, overrides = {}) {
   new Function("require", "exports", ts.transpileModule(await readFile(new URL("../src/lib/tool-presentation.ts", import.meta.url), "utf8"), {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
   }).outputText)(() => ({}), toolModule);
+  const candidateModule = {};
+  new Function("require", "exports", ts.transpileModule(await readFile(new URL("../src/lib/courseware-chat-candidates.ts", import.meta.url), "utf8"), {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+  }).outputText)(id => { assert.equal(id, "./tool-presentation"); return toolModule; }, candidateModule);
   const projectSource = await readFile(new URL("../src/lib/ppt-master-project.ts", import.meta.url), "utf8");
   new Function("require", "exports", ts.transpileModule(projectSource, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
@@ -88,12 +92,14 @@ async function fixture(t, component, props, overrides = {}) {
     if (id === "../../lib/api") return { api };
     if (id === "../../lib/ppt-master-project") return projectModule;
     if (id === "../../lib/tool-presentation") return toolModule;
+    if (id === "../../lib/courseware-chat-candidates") return candidateModule;
     if (id === "../workpanel/CoursewareNarrationReview") return { CoursewareNarrationReview: "narration-review" };
+    if (id === "../workpanel/CoursewarePptxCandidateReview") return { CoursewarePptxCandidateReview: "pptx-review" };
     if (id === "../../lib/work-panel-tabs") return { pptEditorWorkPanelTab: path => ({ path }), svgEditorWorkPanelTab: path => ({ svgPath: path }) };
     if (id === "../../stores/app-store" || id === "../stores/app-store") return { useAppStore };
     if (id === "./ui") return { Button: "button", TooltipButton: "button", portalOverlay: value => value };
     if (id === "./icons") return { IconClose: "icon" };
-    if (id === "./CoursewareChatImages" || id === "./CoursewareChatPresentation" || id === "./CoursewareChatNarration") return {};
+    if (id === "./CoursewareChatImages" || id === "./CoursewareChatPresentation" || id === "./CoursewareChatNarration" || id === "./CoursewareChatPptxCandidates") return {};
     assert.fail(id);
   }, exports);
   const render = () => { cursor = 0; tree = exports[component === "CoursewareChatWorkflow" ? "Workflow" : isDialog ? "TaskForm" : component](props);
@@ -198,6 +204,90 @@ test("narration actions fence stale clicks, running turns and late reads after n
   f.store.activeSessionId = "chat"; f.store.runningSessions.chat = true; button.props.onClick(); await f.flush(); assert.equal(reads, 0);
   f.store.runningSessions.chat = false; button.props.onClick(); await f.flush(); assert.equal(reads, 1);
   f.store.activeSessionId = "other"; complete(narrationView); await f.flush(); assert(!narrationReview(f));
+});
+
+const pptxReceipt = (kind = "page-fade", patch = {}) => ({ role: "tool", toolStatus: "success",
+  toolName: { "page-fade": "ppt_propose_page_fade", "page-pptx": "ppt_propose_page_redo", "page-style-batch": "ppt_propose_page_style_batch" }[kind],
+  toolResult: { details: { kind, candidateId: kind, reviewState: "needs-review", applied: false, saved: false,
+    outputSha256: "a".repeat(64), baseline: { sessionId: "native-office" } } }, ...patch });
+const pptxReview = f => f.nodes().find(node => node.type === "pptx-review");
+const pptxButtons = f => f.nodes().filter(node => node.type === "button");
+const pptxView = { reviewId: "pptx-review-1", candidateId: "page-fade", kind: "page-fade", targetPages: [{ pageNumber: 1 }], stale: false, lineageVerified: true, outputSha256: "a".repeat(64) };
+const pptxDraftApi = { async pptEditorTeachingOpen() { return { viewId: "current-page" }; }, async pptEditorTeachingDraftGet() { return { draft: null }; } };
+
+test("main Chat shows deduplicated redo, fade and batch receipts, without trusting prose or mismatched tools", async t => {
+  const f = await fixture(t, "CoursewareChatPptxCandidates", { sessionId: "chat", disabled: false });
+  const receipt = pptxReceipt();
+  f.store.messages = [receipt, receipt, pptxReceipt("page-pptx"), pptxReceipt("page-style-batch"),
+    pptxReceipt("page-fade", { role: "assistant" }), pptxReceipt("page-fade", { toolStatus: "error" }),
+    pptxReceipt("page-fade", { isError: true }), pptxReceipt("page-fade", { parentToolCallId: "delegate" }),
+    pptxReceipt("page-fade", { toolName: "ppt_propose_page_redo" }),
+    pptxReceipt("page-fade", { toolResult: { details: { ...receipt.toolResult.details, candidateId: "../outside" } } }),
+    pptxReceipt("page-fade", { toolResult: { details: { ...receipt.toolResult.details, outputSha256: "invalid" } } })];
+  f.render(); await f.flush(); assert.equal(pptxButtons(f).length, 3); assert.equal(f.calls.length, 0);
+  assert(!f.nodes().some(node => node.type === "input"));
+});
+
+test("main Chat opens a saved PPTX review, previews, forwards explicit effect choices and adopts once", async t => {
+  const calls = []; let complete;
+  const f = await fixture(t, "CoursewareChatPptxCandidates", { sessionId: "chat", disabled: false }, {
+    ...pptxDraftApi,
+    async pptEditorPptxCandidateReview(...args) { calls.push(["review", ...args]); return pptxView; },
+    async pptEditorPptxCandidatePreview(...args) { calls.push(["preview", ...args]); },
+    pptEditorPptxCandidateAdopt(...args) { calls.push(["adopt", ...args]); return new Promise(resolve => { complete = resolve; }); },
+  });
+  f.store.messages = [pptxReceipt()]; f.render(); await f.flush();
+  pptxButtons(f)[0].props.onClick(); pptxButtons(f)[0].props.onClick(); await f.flush();
+  assert.deepEqual(calls, [["review", "chat", "page-fade"]]);
+  pptxReview(f).props.preview(); await f.flush(); assert.deepEqual(calls.at(-1), ["preview", "pptx-review-1"]);
+  const choices = [{ pageIndex: 0, objectId: "shape", targetIndex: 2 }];
+  pptxReview(f).props.adopt(choices); pptxReview(f).props.adopt(choices); await f.flush();
+  assert.deepEqual(calls.at(-1), ["adopt", "pptx-review-1", choices]);
+  complete({ ok: true }); await f.flush(); assert(!pptxReview(f)); assert.equal(pptxButtons(f).length, 0);
+  assert.deepEqual(f.store.coursewareTeachingRefresh, { sessionId: "chat", sourceSha256: pptxView.outputSha256 });
+  assert(f.nodes().some(node => node.props?.role === "status" && node.props.children.endsWith("_adopted")));
+});
+
+test("PPTX review and adoption preserve stored narration drafts", async t => {
+  let draft = {}, reads = 0, adopts = 0;
+  const f = await fixture(t, "CoursewareChatPptxCandidates", { sessionId: "chat", disabled: false }, {
+    ...pptxDraftApi, async pptEditorTeachingDraftGet() { return { draft }; },
+    async pptEditorPptxCandidateReview() { reads++; return pptxView; },
+    async pptEditorPptxCandidateAdopt() { adopts++; },
+  });
+  f.store.messages = [pptxReceipt()]; f.render(); await f.flush(); pptxButtons(f)[0].props.onClick(); await f.flush();
+  assert.equal(reads, 0); assert(!pptxReview(f));
+  draft = null; pptxButtons(f)[0].props.onClick(); await f.flush(); assert(pptxReview(f));
+  draft = {}; pptxReview(f).props.adopt(); await f.flush(); assert.equal(adopts, 0); assert(!pptxReview(f));
+});
+
+test("uncertain PPTX adoption is never replayed and rejection uses the existing persisted decision", async t => {
+  let reads = 0, adopts = 0, rejected = 0;
+  const f = await fixture(t, "CoursewareChatPptxCandidates", { sessionId: "chat", disabled: false }, {
+    ...pptxDraftApi,
+    async pptEditorPptxCandidateReview() { reads++; return pptxView; },
+    async pptEditorPptxCandidateAdopt() { adopts++; throw new Error("Lost adoption response"); },
+    async pptEditorPptxCandidateReject(id) { assert.equal(id, pptxView.reviewId); rejected++; },
+  });
+  f.store.messages = [pptxReceipt()]; f.render(); await f.flush(); pptxButtons(f)[0].props.onClick(); await f.flush();
+  pptxReview(f).props.adopt(); await f.flush(); assert(!pptxReview(f)); assert.equal(adopts, 1);
+  assert(f.nodes().some(node => node.props?.role === "alert" && node.props.children.includes("Lost adoption response")));
+  pptxButtons(f)[0].props.onClick(); await f.flush(); assert.equal(reads, 2); assert.equal(adopts, 1);
+  pptxReview(f).props.reject(); await f.flush(); assert.equal(rejected, 1); assert.equal(pptxButtons(f).length, 0);
+});
+
+test("PPTX actions fence switched tasks, running turns, disabled state and late reads", async t => {
+  let complete, reads = 0;
+  const props = { sessionId: "chat", disabled: false };
+  const f = await fixture(t, "CoursewareChatPptxCandidates", props, { ...pptxDraftApi,
+    pptEditorPptxCandidateReview() { reads++; return new Promise(resolve => { complete = resolve; }); },
+  });
+  f.store.messages = [pptxReceipt()]; f.render(); await f.flush(); const button = pptxButtons(f)[0];
+  f.store.activeSessionId = "other"; button.props.onClick(); await f.flush(); assert.equal(reads, 0);
+  f.store.activeSessionId = "chat"; f.store.runningSessions.chat = true; button.props.onClick(); await f.flush(); assert.equal(reads, 0);
+  f.store.runningSessions.chat = false; props.disabled = true; f.render(); pptxButtons(f)[0].props.onClick(); await f.flush(); assert.equal(reads, 0);
+  props.disabled = false; f.render(); pptxButtons(f)[0].props.onClick(); await f.flush(); assert.equal(reads, 1);
+  f.store.activeSessionId = "other"; complete(pptxView); await f.flush(); assert(!pptxReview(f));
 });
 
 test("ordinary Chat preview, repair and export use the current project without the workbench", async t => {

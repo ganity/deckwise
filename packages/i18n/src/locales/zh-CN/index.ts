@@ -2,6 +2,9 @@ import type { EnglishCatalog } from "../en/index.js";
 
 export const zhCN = {
   coursewareWorkflow: {
+    "page-fade": "页面淡入",
+    "page-pptx": "重做页面",
+    "page-style-batch": "批量换风格",
     reviewDraftFirst: "请先在编辑器保存或处理本页讲解草稿，再审阅候选。",
     previewPages: "预览与修改页面",
     buildPpt: "生成可编辑 PPT",
