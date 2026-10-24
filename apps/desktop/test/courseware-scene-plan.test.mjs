@@ -85,6 +85,7 @@ const { registerAgentIpc } = await loadSource("../electron/main/ipc/agent-ipc.ts
   "@pi-desktop/shared": shared, "@pi-desktop/agent-runtime": runtime,
   "../oauth": {}, "../prompt-attachments": attachments, "../plan-execution": {},
   "../session-message-input": sessionInput, "../courseware-scene-plan": planning,
+  "../courseware-llm-auth": { resolveCoursewareLlmAuth: async () => ({}) },
   "../builtin-skills": { loadBuiltinSkillBody: (id) => id === "deckwise/scene-courseware"
     ? { id, name: "scene-courseware", body: sceneSkill } : null },
 });

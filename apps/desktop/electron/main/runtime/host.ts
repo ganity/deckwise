@@ -1,4 +1,4 @@
-import { ErrorCodes, IPC, type AgentEventEnvelope, type PlanExecutionFinishStatus, type Risk } from "@pi-desktop/shared";
+import { COURSEWARE_WORKFLOW_TOOLS, ErrorCodes, IPC, type AgentEventEnvelope, type PlanExecutionFinishStatus, type Risk } from "@pi-desktop/shared";
 import { assertLinuxGlibcSupported } from "../linux-glibc";
 import { HostProcess } from "../host-process";
 import type { Logger } from "../logger";
@@ -166,7 +166,7 @@ export function createHostRuntime({
           : null;
         const tool = plugins.getTools().find((t) => t.fullName === q.toolName);
         let payload: Record<string, unknown>;
-        if (["courseware_canvas_get", "courseware_canvas_edit", "ppt_get_context", "ppt_get_presentation_text", "ppt_replace_selection", "ppt_add_slide_text", "ppt_replace_slide_image_from_asset", "ppt_set_slide_text_bold", "ppt_set_slide_text_italic", "ppt_set_slide_text_box_size", "ppt_set_slide_image_size", "ppt_set_slide_image_position", "ppt_add_slide_object_animation", "ppt_insert_slide_image_from_asset", "ppt_set_slide_fade", "ppt_set_slide_font_family", "ppt_set_slide_font_size", "ppt_set_slide_text_color", "ppt_set_slide_text_box_position", "ppt_get_narration_context", "ppt_propose_page_narration", "ppt_propose_page_fade", "ppt_propose_page_redo", "ppt_propose_page_style_batch"].includes(q.toolName)) {
+        if ([...COURSEWARE_WORKFLOW_TOOLS, "courseware_canvas_get", "courseware_canvas_edit", "ppt_get_context", "ppt_get_presentation_text", "ppt_replace_selection", "ppt_add_slide_text", "ppt_replace_slide_image_from_asset", "ppt_set_slide_text_bold", "ppt_set_slide_text_italic", "ppt_set_slide_text_box_size", "ppt_set_slide_image_size", "ppt_set_slide_image_position", "ppt_add_slide_object_animation", "ppt_insert_slide_image_from_asset", "ppt_set_slide_fade", "ppt_set_slide_font_family", "ppt_set_slide_font_size", "ppt_set_slide_text_color", "ppt_set_slide_text_box_position", "ppt_get_narration_context", "ppt_propose_page_narration", "ppt_propose_page_fade", "ppt_propose_page_redo", "ppt_propose_page_style_batch"].includes(q.toolName)) {
           const execution = { cancelled: false };
           pptExecutions.set(q.executionId, execution);
           try {
@@ -175,7 +175,8 @@ export function createHostRuntime({
               () => !execution.cancelled && runtimeState.host === h && isTurnDispatchable(q.sessionId ?? "", q.turnId));
             payload = { executionId: q.executionId, ok: true, content };
           } catch (error) {
-            payload = { executionId: q.executionId, ok: false, errorCode: q.toolName.startsWith("courseware_canvas_") ? "MEDIA_CANVAS_REJECTED" : "PPT_EDITOR_REJECTED",
+            payload = { executionId: q.executionId, ok: false, errorCode: q.toolName.startsWith("courseware_canvas_") ? "MEDIA_CANVAS_REJECTED" :
+              COURSEWARE_WORKFLOW_TOOLS.some(name => name === q.toolName) ? "COURSEWARE_WORKFLOW_REJECTED" : "PPT_EDITOR_REJECTED",
               content: { error: error instanceof Error ? error.message : String(error) } };
           } finally { pptExecutions.delete(q.executionId); }
         } else if (q.toolName.startsWith("mcp_")) {

@@ -11,6 +11,7 @@ import { ConversationWidthHandles } from "./ConversationWidthHandles";
 import { useAppStore } from "../stores/app-store";
 import { headPermission } from "../lib/pending-permissions";
 import { headAsk } from "../lib/pending-asks";
+import { CoursewareChatWorkflow } from "./courseware/CoursewareChatWorkflow";
 
 const StableComposer = memo(Composer);
 
@@ -197,7 +198,7 @@ export const ChatSurface = memo(function ChatSurface() {
                       type="button"
                       className="deckwise-home-prompt"
                       onClick={async () => {
-                        if (!activeSessionId) await useAppStore.getState().newSession();
+                        if (!activeSessionId) await useAppStore.getState().openNewTaskDialog();
                         setQuickstartPrefill({ text: prompt, token: Date.now() });
                       }}
                     >
@@ -211,6 +212,7 @@ export const ChatSurface = memo(function ChatSurface() {
             </div>
           </div>
           <div className="home-composer-wrap">
+            <CoursewareChatWorkflow />
             <StableComposer variant="home" prefill={quickstartPrefill} />
           </div>
         </div>
@@ -225,6 +227,7 @@ export const ChatSurface = memo(function ChatSurface() {
               />
             ))}
           </div>
+          <CoursewareChatWorkflow />
           <StableComposer variant="docked" />
         </>
       )}

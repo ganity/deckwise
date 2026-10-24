@@ -64,6 +64,14 @@ test("creating a session reveals the empty destination before host IO", () => {
   assert.match(sessionCoordination, /scheduleHomeDraftAdopt/);
 });
 
+test("explicit courseware creation uses Agent mode and saves its task before activation", () => {
+  assert.match(sessionCoordination, /mode: options\.courseware \? "agent"/);
+  assert.match(sessionSlice, /!options\?\.courseware &&\s+latest &&/);
+  const save = sessionCoordination.indexOf("await api.coursewareTaskSet(sessionId");
+  const activate = sessionCoordination.indexOf("commitCreatedEmptySession(created.session, { activate: true })");
+  assert(save > 0 && activate > save);
+});
+
 test("send and paste wait for an in-flight New Task instead of creating a second session", () => {
   const materialize =
     sessionCoordination.match(

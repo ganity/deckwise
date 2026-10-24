@@ -487,6 +487,7 @@ export const IPC = {
     pptPreviewOpen: "deckwise/ppt-preview/open",
     pptPreviewRequest: "deckwise/ppt-preview/request",
     coursewareTaskGet: "deckwise/courseware/task/get",
+    coursewareWorkflowGet: "deckwise/courseware/workflow/get",
     coursewareTaskSet: "deckwise/courseware/task/set",
     coursewareTaskBindTeam: "deckwise/courseware/task/bind-team",
     coursewareMediaCanvasGet: "deckwise/courseware/media-canvas/get",

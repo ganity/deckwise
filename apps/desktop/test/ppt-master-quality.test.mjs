@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import ts from "typescript";
 
-const source = await readFile(new URL("../src/components/workpanel/PptMasterTab.tsx", import.meta.url), "utf8");
+const source = await readFile(new URL("../src/lib/ppt-master-project.ts", import.meta.url), "utf8");
 const compiled = ts.transpileModule(`${source}\nexports.inspectProject = inspectProject; exports.phaseLabel = phaseLabel;`, {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
 }).outputText;
@@ -21,7 +21,7 @@ function fixture() {
   let report = { stage: "final", summary: { errors: 0 } };
   const exports = {};
   new Function("require", "exports", compiled)((id) => {
-    if (id === "../../lib/api") return { api: {
+    if (id === "./api") return { api: {
       fsList: async (path) => ({ entries: directories[path] ?? [] }),
       fsRead: async (path) => {
         assert.equal(path, "project/validation/svg_quality_report.json");

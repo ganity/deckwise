@@ -64,6 +64,7 @@ import type { RuntimeState } from "./runtime/context";
 import { createHostRuntime } from "./runtime/host";
 import type { PptEditorChatBridge } from "./ppt-editor-chat";
 import { CoursewareMediaCanvasCoordinator } from "./courseware-media-canvas";
+import { CoursewareChatWorkflow } from "./courseware-chat-workflow";
 import { createSidecarRuntime } from "./runtime/sidecar";
 import { createEventPersistence } from "./runtime/event-persistence";
 import { createPlanRuntime, type PlanRuntimeState } from "./runtime/plans";
@@ -650,6 +651,7 @@ const {
 } = providerCatalogRuntime;
 
 let pptEditorChat: PptEditorChatBridge | undefined;
+let coursewareChatWorkflow: CoursewareChatWorkflow | undefined;
 const createdSessionLaunchRuntime = createSessionLaunchRuntime({
   runtimeState,
   logger,
@@ -1181,6 +1183,10 @@ const { wireSidecar, startSidecar } = sidecarRuntime;
 
 const { wireHost, startHost } = createHostRuntime({
   executePptEditorTool: async (...args) => {
+    if (args[1].startsWith("courseware_workflow_") || args[1].startsWith("courseware_scene_") || args[1] === "courseware_requirements_update") {
+      if (!coursewareChatWorkflow) throw new Error("Courseware workflow is unavailable");
+      return coursewareChatWorkflow.execute(...args);
+    }
     if (args[1].startsWith("courseware_canvas_")) return mediaCanvas.execute(...args);
     if (!pptEditorChat) throw new Error("PPT editor bridge is unavailable");
     return pptEditorChat.execute(...args);
@@ -1249,6 +1255,7 @@ function registerIpc() {
       return result;
     },
     onPptEditorChatReady: (bridge: PptEditorChatBridge) => { pptEditorChat = bridge; },
+    onCoursewareWorkflowReady: (workflow: CoursewareChatWorkflow) => { coursewareChatWorkflow = workflow; },
     getNotificationViewingSessionId: () => notificationViewingSessionId,
     setNotificationViewingSessionId: (sessionId: string | null) => {
       notificationViewingSessionId = sessionId;

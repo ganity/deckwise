@@ -22,6 +22,7 @@ import { registerCoursewareSceneImageIpc } from "./courseware-scene-image-ipc";
 import { registerCoursewareMediaCanvasIpc } from "./courseware-media-canvas-ipc";
 import { registerCoursewareCanvasImageIpc } from "./courseware-canvas-image-ipc";
 import type { CoursewareMediaCanvasCoordinator } from "../courseware-media-canvas";
+import { CoursewareChatWorkflow } from "../courseware-chat-workflow";
 import { registerSettingsIpc } from "./settings-ipc";
 import { registerSkillsIpc } from "./skills-ipc";
 import { fetchSkillMarketDocument, searchSkillMarket } from "../skill-market-catalog";
@@ -46,6 +47,7 @@ export type RegisterIpcDependencies = {
   getAgentHostBridge: () => AgentHostBridge | null;
   authSession: DesktopAuthSession;
   mediaCanvas: CoursewareMediaCanvasCoordinator;
+  onCoursewareWorkflowReady?: (workflow: CoursewareChatWorkflow) => void;
   getNotificationViewingSessionId: () => string | null;
   setNotificationViewingSessionId: (sessionId: string | null) => void;
   activeUserSubagentDocuments: (...args: any[]) => Promise<any>;
@@ -237,6 +239,15 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
   });
   registerCoursewareSceneImageIpc({ registrar, getHost, getViewingSessionId: getNotificationViewingSessionId,
     activeTurns, authSession, generation: dependencies.sceneGeneration });
+  const coursewareWorkflow = new CoursewareChatWorkflow(getHost, getNotificationViewingSessionId, authSession, dependencies.sceneGeneration);
+  dependencies.onCoursewareWorkflowReady?.(coursewareWorkflow);
+  registrar.handleWithEvent(IPC.invoke.coursewareWorkflowGet, async (event, value: unknown, ...extra: unknown[]) => {
+    registrar.assertMainWindowSender(event);
+    if (extra.length || !value || typeof value !== "object" || Array.isArray(value) ||
+        Object.keys(value).join(",") !== "sessionId" || typeof Reflect.get(value, "sessionId") !== "string")
+      throw new Error("Invalid courseware workflow request");
+    return coursewareWorkflow.read(Reflect.get(value, "sessionId"));
+  });
   registerCoursewareMediaCanvasIpc(registrar, dependencies.mediaCanvas);
   registerCoursewareCanvasImageIpc({ registrar, getHost, getViewingSessionId: getNotificationViewingSessionId,
     activeTurns, authSession });

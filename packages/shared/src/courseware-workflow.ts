@@ -1,0 +1,41 @@
+import type { CoursewareEducationContext, CoursewareTaskType } from "./courseware-contract.js";
+import type { CoursewareSceneImageView, CoursewareScenePlanSnapshot } from "./courseware-scene-plan.js";
+
+export const COURSEWARE_WORKFLOW_TOOLS = [
+  "courseware_workflow_get", "courseware_requirements_update", "courseware_scene_image_prepare",
+  "courseware_scene_image_refresh", "courseware_scene_compile",
+] as const;
+
+export type CoursewareWorkflowView = {
+  task: { taskType: CoursewareTaskType; educationContext?: CoursewareEducationContext;
+    imported: boolean; generated: boolean } | null;
+  plan: CoursewareScenePlanSnapshot | null;
+};
+
+export type CoursewareSceneAssetBlocker = {
+  pageId: string;
+  kind: "visualMaster" | "cleanPlate" | "layer" | "duplicate" | "distinctBackground" | "budget";
+};
+
+/** Presentation readiness only; compilation still revalidates the actual private bytes. */
+export function sceneAssetBlockers(plan: CoursewareScenePlanSnapshot, images: readonly CoursewareSceneImageView[]): CoursewareSceneAssetBlocker[] {
+  const selected = images.filter(row => row.current && row.selected && row.planSha256 === plan.sha256);
+  const blockers: CoursewareSceneAssetBlocker[] = [];
+  for (const page of plan.pages) {
+    const rows = selected.filter(row => row.pageId === page.pageId && row.asset);
+    const masters = rows.filter(row => row.target.kind === "visualMaster");
+    const backgrounds = rows.filter(row => row.target.kind === "cleanPlate");
+    const layers = rows.filter(row => row.target.kind === "layer");
+    if (!masters.length) blockers.push({ pageId: page.pageId, kind: "visualMaster" });
+    if (!backgrounds.length) blockers.push({ pageId: page.pageId, kind: "cleanPlate" });
+    if (!layers.length) blockers.push({ pageId: page.pageId, kind: "layer" });
+    if (masters.length > 1 || backgrounds.length > 1 || new Set(layers.map(row => row.target.kind === "layer" && row.target.name)).size !== layers.length)
+      blockers.push({ pageId: page.pageId, kind: "duplicate" });
+    if (masters.length === 1 && backgrounds.length === 1 && masters[0].asset!.sha256 === backgrounds[0].asset!.sha256)
+      blockers.push({ pageId: page.pageId, kind: "distinctBackground" });
+  }
+  if (selected.some(row => !row.asset || !plan.pages.some(page => page.pageId === row.pageId)) ||
+      selected.reduce((sum, row) => sum + (row.asset?.byteLength ?? 0), 0) > 32 * 1024 * 1024)
+    blockers.push({ pageId: "", kind: "budget" });
+  return blockers;
+}

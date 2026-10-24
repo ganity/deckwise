@@ -1,5 +1,24 @@
 # 04. E2E Test Plan
 
+## E2E-COURSEWARE-main-chat-generation
+
+- **Steps**: Create plain, scene and import tasks through the task dialog. Keep
+  the workbench unmounted while describing requirements in Chat. Answer missing
+  input and reopen to verify persistence. Review/approve the exact scene plan,
+  continue reference preparation, confirm its real quote and submit. Select the
+  reviewed result, continue dependent assets, compile and open saved PPTX. For
+  plain, open SVG preview and request checked final export from Chat. For import,
+  cancel the picker, retry and open the same task. Exercise stop, task switching,
+  double clicks, changed plans and expired quotes.
+- **Expected**: Existing Chat Agent and finite services advance generation
+  without a workbench form. No prose can approve, pay or select. Unknown jobs
+  are queried, not replayed. Compilation uses current reviewed assets. Stale
+  scope/requirements reject. Preview/Office may open an artifact panel. Existing
+  quality and teaching-review gates remain. Unrelated Chats show no task card.
+- **Evidence**: Targeted renderer/Main/Agent/Host tests and scene/PPT Master
+  regressions with local fixtures. Live-model, paid-media and complete
+  Electron-to-WiseOffice acceptance for this new interaction are pending.
+
 ## E2E-COURSEWARE-development-schema24-startup
 
 - **Steps**: Open a copied main v24 database with the A Host. Separately migrate

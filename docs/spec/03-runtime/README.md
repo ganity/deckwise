@@ -29,3 +29,4 @@
 | [25-courseware-source-candidates.md](25-courseware-source-candidates.md) | Internal Host PPTX baseline/output archives, generator mapping context and restart recovery |
 | [26-courseware-fixed-snapshots.md](26-courseware-fixed-snapshots.md) | Explicit per-page teaching confirmation and Host-owned immutable source/teaching/mapping/audio exports |
 | [27-courseware-authorized-media.md](27-courseware-authorized-media.md) | Main-only authenticated TTS transport; Host ingestion remains pending |
+| [29-courseware-chat-workflow.md](29-courseware-chat-workflow.md) | Main Chat generation, finite tools, human approvals and teaching requirements CAS |

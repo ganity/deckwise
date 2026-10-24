@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Advance courseware generation from the existing main Chat: review scene plans,
+  confirm image costs and selections, continue compilation, import a PPTX, or open
+  ordinary PPT preview/export. Save answered teaching requirements with stale
+  update protection. Keep existing workbench and Office editing entrances.
+
 - Review an online server save from the existing editor with explicit page and
   highlight/spotlight associations and original/saved page previews. Review keeps
   the live courseware unchanged and explicitly remains separate from publication.

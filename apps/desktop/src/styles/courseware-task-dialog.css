@@ -1,0 +1,36 @@
+.courseware-task-overlay { padding: 24px; }
+.courseware-task-dialog {
+  width: min(100%, 620px);
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-lg-plus);
+  background: var(--ds-bg-elevated-opaque);
+  box-shadow: var(--ds-shadow-dialog);
+}
+.courseware-task-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 24px 24px 16px; }
+.courseware-task-header h2 { margin: 0; font-size: var(--text-lg); font-weight: var(--font-weight-strong); }
+.courseware-task-header p { margin: 8px 0 0; color: var(--ds-text-muted); font-size: var(--text-sm); }
+.courseware-task-body { padding: 0 24px 20px; }
+.courseware-task-dialog fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+.courseware-task-dialog legend { margin-bottom: 12px; font-size: var(--text-sm); font-weight: var(--font-weight-strong); }
+.courseware-task-types { display: grid; gap: 8px; }
+.courseware-task-choice { display: flex; gap: 12px; align-items: center; padding: 12px 14px; border: 1px solid var(--ds-border-default); border-radius: var(--radius-md); cursor: pointer; }
+.courseware-task-choice.is-selected { border-color: var(--ds-text-primary); background: var(--ds-tile-hover); }
+.courseware-task-choice:focus-within { outline: 2px solid var(--ds-text-primary); outline-offset: 2px; }
+.courseware-task-choice input { flex-shrink: 0; accent-color: var(--ds-text-primary); }
+.courseware-task-choice strong { display: block; font-size: var(--text-sm); font-weight: var(--font-weight-strong); }
+.courseware-task-choice small { display: block; margin-top: 4px; color: var(--ds-text-muted); font-size: var(--text-xs-plus); }
+.courseware-task-dialog .courseware-task-education { margin-top: 24px; }
+.courseware-task-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
+.courseware-task-field { display: flex; flex-direction: column; gap: 6px; font-size: var(--text-xs-plus); }
+.courseware-task-field .field-input { width: 100%; min-width: 0; }
+.courseware-task-english { display: flex; align-items: center; gap: 8px; margin-top: 16px; font-size: var(--text-sm); }
+.courseware-task-error { color: var(--ds-error); overflow-wrap: anywhere; font-size: var(--text-sm); }
+.courseware-task-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 24px; border-top: 1px solid var(--ds-border-default); }
+@media (max-width: 520px) {
+  .courseware-task-overlay { padding: 12px; }
+  .courseware-task-dialog { max-height: calc(100dvh - 24px); }
+  .courseware-task-fields { grid-template-columns: minmax(0, 1fr); }
+}

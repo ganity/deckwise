@@ -1006,6 +1006,7 @@ pub fn is_desktop_dispatched(tool_name: &str) -> bool {
         || tool_name.starts_with("mcp_")
         || is_ppt_editor_tool(tool_name)
         || matches!(tool_name, "courseware_canvas_get" | "courseware_canvas_edit")
+        || matches!(tool_name, "courseware_workflow_get" | "courseware_requirements_update" | "courseware_scene_image_prepare" | "courseware_scene_image_refresh" | "courseware_scene_compile")
 }
 
 /// How long host-core waits for Electron main to answer an approved

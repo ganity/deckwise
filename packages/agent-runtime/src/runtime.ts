@@ -23,6 +23,7 @@ import { createAuthorizedPptCandidateTools } from "./ppt-candidate-host.js";
 import { createAuthorizedPptEditorTools } from "./ppt-editor-host.js";
 import { createPptChangePlanTool } from "./ppt-change-plan.js";
 import { createAuthorizedMediaCanvasTools } from "./courseware-media-canvas-tools.js";
+import { createCoursewareWorkflowTools } from "./courseware-workflow-tools.js";
 import type { PptEditorBinding } from "@pi-desktop/shared";
 import { mkdirSync } from "node:fs";
 import {
@@ -3981,6 +3982,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       ...contextTools,
       ...extensionTools,
       ...(this.mode === "agent" ? createAuthorizedMediaCanvasTools(this.host, this.sessionId, () => this.turnId) : []),
+      ...(this.mode === "agent" ? createCoursewareWorkflowTools(this.host, this.sessionId, () => this.turnId) : []),
       ...(this.mode === "agent" && this.pptEditorBinding
         ? [...createAuthorizedPptEditorTools(this.host, this.sessionId, this.pptEditorBinding, () => this.turnId),
           ...createAuthorizedPptCandidateTools(this.host, this.sessionId, this.pptEditorBinding, () => this.turnId),

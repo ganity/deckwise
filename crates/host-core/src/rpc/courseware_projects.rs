@@ -46,6 +46,14 @@ struct TaskGetParams {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct TaskEducationParams {
+    session_id: String,
+    expected_education_context: crate::db::courseware_projects::CoursewareEducationContext,
+    education_context: crate::db::courseware_projects::CoursewareEducationContext,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct TaskBindTeamParams {
     session_id: String,
     team_project_id: String,
@@ -223,6 +231,37 @@ pub(super) async fn handle(
             }
             if session.summary.message_count > 0 && current.as_ref() != Some(&task) {
                 return Err(rpc_err(1008, "Started task cannot change type or education context", "COURSEWARE_CONFLICT"));
+            }
+            state.db.kv_set(TASK_NAMESPACE, &p.session_id, &task).map_err(error)?;
+            Ok(json!({ "task": task }))
+        }
+        "courseware.task.updateEducation" => {
+            let p: TaskEducationParams = serde_json::from_value(params).map_err(invalid)?;
+            let state = state.lock().await;
+            let root = project_workspace(&state, &p.session_id)?;
+            let mut task = state.db.kv_get(TASK_NAMESPACE, &p.session_id).map_err(error)?
+                .ok_or_else(|| rpc_err(1002, "Select a courseware task first", "COURSEWARE_INVALID"))?;
+            if task.get("importPath").is_some() || task.get("generatedPath").is_some()
+                || scene_plan::has_approval(&state, &root, &p.session_id)? {
+                return Err(rpc_err(1008, "Approved or attached courseware requires a reviewed teaching revision", "COURSEWARE_CONFLICT"));
+            }
+            let current: crate::db::courseware_projects::CoursewareEducationContext =
+                match task.get("educationContext").filter(|value| !value.is_null()) {
+                    Some(value) => serde_json::from_value(value.clone()).map_err(invalid)?,
+                    None => serde_json::from_value(json!({})).map_err(invalid)?,
+                };
+            if serde_json::to_value(current).map_err(invalid)? != serde_json::to_value(p.expected_education_context).map_err(invalid)? {
+                return Err(rpc_err(1008, "Teaching requirements changed; read the task again", "COURSEWARE_CONFLICT"));
+            }
+            if [&p.education_context.school_stage, &p.education_context.grade, &p.education_context.subject,
+                &p.education_context.custom_subject_name, &p.education_context.textbook_version,
+                &p.education_context.chapter, &p.education_context.lesson_type].iter()
+                .any(|value| value.as_ref().is_some_and(|text| text.encode_utf16().count() > 500)) {
+                return Err(rpc_err(1002, "Invalid teaching requirements", "COURSEWARE_INVALID"));
+            }
+            task["educationContext"] = serde_json::to_value(p.education_context).map_err(invalid)?;
+            if serde_json::to_vec(&task).map_err(invalid)?.len() > 4096 {
+                return Err(rpc_err(1002, "Teaching requirements exceed limits", "COURSEWARE_INVALID"));
             }
             state.db.kv_set(TASK_NAMESPACE, &p.session_id, &task).map_err(error)?;
             Ok(json!({ "task": task }))

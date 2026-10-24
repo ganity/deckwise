@@ -7,6 +7,8 @@ import type {
   AppVersionInfo,
   AskToolResolution,
   ContextCompactionMark,
+  CoursewareEducationContext,
+  CoursewareTaskType,
   Mode,
   ModelInfo,
   OnboardingState,
@@ -102,6 +104,11 @@ export type DraftSessionConfiguration = {
 };
 
 
+export type CoursewareTaskSetup = {
+  taskType: CoursewareTaskType;
+  educationContext: CoursewareEducationContext;
+};
+
 export type AppState = {
   ready: boolean;
   version?: AppVersionInfo;
@@ -115,6 +122,9 @@ export type AppState = {
   openProjects: ProjectWorkspace[];
   openProjectPaths: string[];
   createProjectDialogOpen: boolean;
+  newTaskDialog: { projectPath: string } | null;
+  openNewTaskDialog: (options?: { projectPath?: string | null }) => Promise<void>;
+  closeNewTaskDialog: () => void;
   activeProjectPath?: string;
   projectMeta: Record<string, ProjectMeta>;
   /** Kept as a flat map for lightweight consumers (Sidebar). */
@@ -191,7 +201,7 @@ export type AppState = {
     id: string,
     opts?: { record?: boolean } & NavigationOptions,
   ) => Promise<void>;
-  newSession: (options?: { projectPath?: string | null }) => Promise<void>;
+  newSession: (options?: { projectPath?: string | null; courseware?: CoursewareTaskSetup }) => Promise<void>;
   forkSession: (id: string) => Promise<void>;
   forkAssistantMessage: (messageId: string) => Promise<void>;
   configureActiveSession: (config: {

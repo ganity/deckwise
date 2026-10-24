@@ -125,6 +125,7 @@ impl PermissionManager {
             | "Glob"
             | "Grep"
             | "courseware_canvas_get"
+            | "courseware_workflow_get"
             | "ppt_get_context"
             | "ppt_get_presentation_text"
             | "ppt_get_narration_context" => Risk::Low,
@@ -133,6 +134,10 @@ impl PermissionManager {
             | "Edit"
             | "Bash"
             | "courseware_canvas_edit"
+            | "courseware_scene_image_prepare"
+            | "courseware_requirements_update"
+            | "courseware_scene_image_refresh"
+            | "courseware_scene_compile"
             | "ppt_replace_selection"
             | "ppt_add_slide_text"
             | "ppt_replace_slide_image_from_asset"

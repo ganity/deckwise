@@ -1,4 +1,5 @@
 import type {
+  CoursewareWorkflowView,
   MediaCanvasDocument,
   MediaCanvasView,
   CoursewareCanvasImageView,
@@ -1160,6 +1161,8 @@ export const api = {
     invoke<PptPreviewState>(IPC.invoke.pptPreviewOpen, { path }),
   coursewareTaskGet: (sessionId: string) =>
     invoke<{ task: { taskType: CoursewareTaskType; educationContext?: CoursewareEducationContext; importPath?: string; generatedPath?: string } | null }>(IPC.invoke.coursewareTaskGet, { sessionId }),
+  coursewareWorkflowGet: (sessionId: string) =>
+    invoke<CoursewareWorkflowView>(IPC.invoke.coursewareWorkflowGet, { sessionId }),
   coursewareMediaCanvasGet: (sessionId: string) =>
     invoke<MediaCanvasView>(IPC.invoke.coursewareMediaCanvasGet, { sessionId }),
   coursewareMediaCanvasSet: (sessionId: string, expectedRevision: string | null, document: MediaCanvasDocument) =>

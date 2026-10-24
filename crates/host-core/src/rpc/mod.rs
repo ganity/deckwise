@@ -1862,6 +1862,7 @@ async fn handle_request(
             courseware_fixed_share::handle(state, method, params).await
         }
         "courseware.task.set"
+        | "courseware.task.updateEducation"
         | "courseware.task.get"
         | "courseware.task.bindTeam"
         | "courseware.task.attachImport"

@@ -10,7 +10,7 @@ export function resolveCoursewareRoute(entry: CoursewareEntry, phase: Courseware
     if (entry !== "scene") throw new Error("Scene planning requires the scene entry");
     return {
       available: true, skill: "deckwise/scene-courseware", authority: "scene-generation-draft" as const,
-      instruction: "Plan or revise only the current Chat's scene JSON draft. Separate page text, visual intent and narration. Layered asset generation and PPTX compilation are not available in this phase; do not invoke PPT Master or claim a produced deck.",
+      instruction: "Own this Chat's scene workflow. Read courseware_workflow_get before continuing. Before approval, plan or revise only the scene JSON draft with separate page text, visual intent and narration. After human approval, use advertised courseware_scene tools for missing asset preparation, status and ready compilation. Do not invoke PPT Master, repeat an approved plan without a revision request, or claim a produced deck before successful compilation.",
     };
   }
   if (phase === "edit") return {

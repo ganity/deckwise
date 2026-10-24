@@ -166,10 +166,12 @@ test("SVG preview opens in Browser and waits for explicit PPTX generation", () =
   assert.doesNotMatch(panel, /当前产物|开始生成/);
 });
 
+const projectInspection = await read("../src/lib/ppt-master-project.ts");
+
 test("the workbench blocks PPTX export while the generated pages fail the final quality gate", () => {
-  assert.match(panel, /svg_quality_report\.json/);
-  assert.match(panel, /report\.summary\?\.errors !== 0/);
-  assert.match(panel, /notes\.find\(.*total\.md/);
+  assert.match(projectInspection, /svg_quality_report\.json/);
+  assert.match(projectInspection, /report\.summary\?\.errors !== 0/);
+  assert.match(projectInspection, /notes\.find\(.*total\.md/);
   assert.match(panel, /!project\?\.qualityIssue/);
   assert.match(panel, /继续修复生成结果/);
   assert.match(panel, /不要新建项目或丢弃现有页面/);
@@ -179,7 +181,7 @@ test("Office edits supersede SVG generation candidates", () => {
   assert.match(skill, /Once Office editing starts/);
   assert.match(skill, /load deckwise\/ppt-edit/);
   assert.match(skill, /Never supersede Office edits with an older SVG export/);
-  assert.match(panel, /latestInputMtime > pptx\.mtimeMs/);
+  assert.match(projectInspection, /latestInputMtime > pptx\.mtimeMs/);
   assert.match(panel, /重新生成 PPT/);
   assert.match(panel, /正在根据最新页面生成新版本 PPT/);
 });

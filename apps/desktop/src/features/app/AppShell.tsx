@@ -12,6 +12,7 @@ import { ChatSurface } from "../../components/ChatSurface";
 import { SearchDialog } from "../../components/SearchDialog";
 import { ToastHost } from "../../components/Toast";
 import { ExtensionPromptHost } from "../../components/ExtensionPromptDialog";
+import { CoursewareTaskDialog } from "../../components/CoursewareTaskDialog";
 import { ProjectCreateDialog } from "../../components/ProjectCreateDialog";
 import { UpdateBanner } from "../../components/UpdateBanner";
 import { WindowControls } from "../../components/WindowControls";
@@ -297,6 +298,7 @@ export function AppShell() {
     >
       {shell}
       <ProjectCreateDialog />
+      <CoursewareTaskDialog />
       {splash}
     </div>
   );
