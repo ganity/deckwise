@@ -1,0 +1,61 @@
+{
+  "classification": "Actual B7 production Office saved bytes and receipts; logical mapping is a local fixture, not persisted A data. B helper is an exact test-only source copy, never a runtime dependency.",
+  "producerTree": "e3a6b07fa58034b7fe3524d931f2dfe8a304a6a3",
+  "files": {
+    "source.pptx": {
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/B/b3-20261019/source-copy.pptx",
+      "sha256": "c5f9392ea1a93f6616e30d23f0be421d58c6e30337670433b0d27baee4ee4cc0",
+      "bytes": 19548
+    },
+    "b7-ppt-editor-bridge.ts": {
+      "source": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-B/packages/shared/src/ppt-editor-bridge.ts",
+      "sha256": "27ab403081cc79eed59d6d7fa073cc0a8664183d52942b10994783fb74b0eb9e",
+      "bytes": 11141
+    },
+    "source-mapping.json": {
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/B/b7-20261019/d-production-02/native-mapping-fixture.json",
+      "sha256": "d5b9e19e194f71917edabe5499edc60d350efcd9aab92f1641d6308ada012634",
+      "bytes": 760
+    },
+    "native-edited.pptx": {
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/B/b7-20261019/run-production-02/native-edited.pptx",
+      "sha256": "29c51b63ca130e44768d8c2d12b267c3de8b51d04085fb061542b3b8d95d0853",
+      "bytes": 19762
+    },
+    "reordered.pptx": {
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/B/b7-20261019/run-production-02/reordered.pptx",
+      "sha256": "d62df8d6334ee96b59b39816c63fd28b54575aef181a82b856bd5990cf9cce9b",
+      "bytes": 19765
+    },
+    "copied-page.pptx": {
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/B/b7-20261019/run-production-02/copied-page.pptx",
+      "sha256": "c024dff826936cce872cfdb73bf3a4a83e3fccf1ffe60faaea13f6f3888350f1",
+      "bytes": 22704
+    },
+    "native-edited.pptx.receipt.json": {
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/B/b7-20261019/run-production-02/native-edited.pptx.receipt.json",
+      "sha256": "a7b727b61928f20708179e0a7f9f09fba593483ef357781df2b7c461db2b385b",
+      "bytes": 712
+    },
+    "reordered.pptx.receipt.json": {
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/B/b7-20261019/run-production-02/reordered.pptx.receipt.json",
+      "sha256": "fd8af0249807377fb18502427e88d868a9ec7133f5ef81faab8569465ff0dbf2",
+      "bytes": 712
+    },
+    "copied-page.pptx.receipt.json": {
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/B/b7-20261019/run-production-02/copied-page.pptx.receipt.json",
+      "sha256": "6678deb966f398f9a22def929603d9ead180c8eb049827e7ade158c709604ab5",
+      "bytes": 756
+    },
+    "native-lineage.json": {
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/B/b7-20261019/run-production-02/native-lineage.json",
+      "sha256": "f75bbe335eff2ff4226f8a425c0c1f49e5bd91db945e790882c83f6c754fa216",
+      "bytes": 503
+    },
+    "reordered-lineage.json": {
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/B/b7-20261019/run-production-02/reordered-lineage.json",
+      "sha256": "5a363cb27b4f01b5c650e9fd0b388a7b688f6439afb334f36975f3b53952a0e2",
+      "bytes": 503
+    }
+  }
+}

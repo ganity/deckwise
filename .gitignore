@@ -40,6 +40,10 @@ coverage/
 .turbo/
 
 # Local runtime data
+# Generated from the separately verified Linux worker bundle.
+apps/desktop/resources/pptx-worker/
+apps/desktop/.pptx-worker-before-*/
+packages/courseware-runtime/.w06-2-worker*/
 .pi-desktop/
 .pi-desktop-test/
 .deckwise/

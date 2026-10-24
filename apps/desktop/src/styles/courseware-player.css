@@ -1,0 +1,4 @@
+html { color-scheme: light; background: #f5f6f8; color: #20252d; font-family: sans-serif; }
+body { margin: 0; padding: 20px; }
+#root { max-width: 960px; margin: 0 auto; }
+#error { white-space: pre-wrap; }

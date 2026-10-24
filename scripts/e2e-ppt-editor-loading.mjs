@@ -53,6 +53,7 @@ app.whenReady().then(async () => {
       response.end('<!doctype html><script>window.addEventListener("message", event => {' +
         'const command=event.data; if(command.type==="document:open-buffer") parent.postMessage({type:"document:opened",id:command.id,payload:{fileName:command.payload.fileName,readonly:command.payload.readonly,deckwise:new URLSearchParams(location.search).get("deckwise")}},event.origin);' +
         'if(command.type==="document:save") parent.postMessage({type:"document:saved",id:command.id,payload:{file:new Blob([new Uint8Array(' + JSON.stringify([...outputBytes]) + ')]),fileName:"edited."+command.payload.targetExt.toLowerCase()}},event.origin);' +
+        'if(command.type==="document:commit-save") parent.postMessage({type:"document:save-committed",id:command.id,payload:{success:command.payload.success,dirty:false}},event.origin);' +
         '});parent.postMessage({type:"document:ready"},"*");</script>');
       return;
     }

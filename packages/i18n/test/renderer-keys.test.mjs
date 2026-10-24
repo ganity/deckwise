@@ -51,6 +51,22 @@ const flats = Object.fromEntries(
   Object.entries(catalogs).map(([id, catalog]) => [id, flattenCatalog(catalog)]),
 );
 
+test("dynamic work-panel tab titles resolve in every shipped catalog", () => {
+  for (const [id, catalog] of Object.entries(flats)) {
+    for (const kind of ["review", "team", "media-canvas"]) {
+      assert.ok(has(catalog, `panel.tabs.${kind}`), `${id}: panel.tabs.${kind}`);
+    }
+  }
+});
+
+test("team model refusal has a dedicated message in every catalog", () => {
+  for (const [id, catalog] of Object.entries(flats)) {
+    const message = catalog["errors.TEAM_LLM_PERMISSION_DENIED"];
+    assert.equal(typeof message, "string", id);
+    assert.notEqual(message, catalog["errors.PROVIDER_UNAUTHORIZED"], id);
+  }
+});
+
 test("the renderer uses a non-trivial number of catalog keys", () => {
   // Guards against the scan silently matching nothing after a refactor.
   assert.ok(used.size > 500, `only found ${used.size} keys — is the scan still correct?`);

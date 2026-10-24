@@ -26,6 +26,10 @@
     "bundle:runtime": "pnpm -C ../../packages/agent-runtime bundle",
     "build:python-runtime": "node runtime/python/build-runtime.mjs --output dist/runtime/current",
     "prepare:ppt-master": "node ../../scripts/prepare-ppt-master.mjs --output dist/ppt-master",
+    "stage:pptx-worker": "node ../../scripts/stage-pptx-worker.mjs",
+    "check:pptx-worker": "node ../../scripts/stage-pptx-worker.mjs --check \"$PWD/resources/pptx-worker\"",
+    "pack:courseware:linux": "pnpm run check:pptx-worker && pnpm --filter @pi-desktop/courseware-runtime test:authoring-bundle && pnpm run pack --linux --x64",
+    "dist:courseware:linux": "pnpm run check:pptx-worker && pnpm --filter @pi-desktop/courseware-runtime test:authoring-bundle && pnpm run dist:linux --x64",
     "build:python-runtime:win": "node runtime/python/build-runtime.mjs --platform win --arch x64 --output dist/runtime/current",
     "runtime:mac:x64": "node runtime/python/build-runtime.mjs --platform mac --arch x64 --output dist/runtime/mac-x64",
     "runtime:mac:arm64": "node runtime/python/build-runtime.mjs --platform mac --arch arm64 --output dist/runtime/mac-arm64",
@@ -45,6 +49,7 @@
     "@earendil-works/pi-ai": "0.85.1",
     "@pi-desktop/agent-host": "workspace:*",
     "@pi-desktop/agent-runtime": "workspace:*",
+    "@pi-desktop/courseware-runtime": "workspace:*",
     "@pi-desktop/i18n": "workspace:*",
     "@pi-desktop/plugin-devkit": "workspace:*",
     "@pi-desktop/plugin-sdk": "workspace:*",
@@ -289,6 +294,17 @@
         {
           "from": "../../target/release/pi-desktop-host-core",
           "to": "bin/pi-desktop-host-core"
+        },
+        {
+          "from": "resources",
+          "to": ".",
+          "filter": [
+            "pptx-worker/**/*"
+          ]
+        },
+        {
+          "from": "../../packages/courseware-runtime/dist/authoring.mjs",
+          "to": "pptx-worker/authoring.mjs"
         }
       ]
     },

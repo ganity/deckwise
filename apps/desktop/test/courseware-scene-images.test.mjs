@@ -1,0 +1,560 @@
+import assert from "node:assert/strict";
+import { createHash, randomUUID } from "node:crypto";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { createRequire, register } from "node:module";
+import * as fsConstants from "node:fs";
+import * as files from "node:fs/promises";
+import * as paths from "node:path";
+import { crc32 } from "node:zlib";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import test from "node:test";
+import ts from "typescript";
+
+register(new URL("./helpers/ts-import-hooks.mjs", import.meta.url));
+const shared = await import("@pi-desktop/shared");
+const draftReader = await import("../electron/main/courseware-scene-draft.ts");
+const sharp = createRequire(new URL("../../../packages/courseware-runtime/package.json", import.meta.url))("sharp");
+const png = await sharp({ create: { width: 2, height: 2, channels: 4, background: "red" } }).png().toBuffer();
+async function load(name, dependencies) {
+  const exports = {};
+  new Function("require", "exports", ts.transpileModule(await readFile(new URL(`../electron/main/${name}.ts`, import.meta.url), "utf8"), {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+  }).outputText)(id => { if (!Object.hasOwn(dependencies, id)) throw new Error(id); return dependencies[id]; }, exports);
+  return exports;
+}
+// Native codec is an external edge here; actual Electron decoding is covered by the UI gate.
+let nativePixels = Buffer.alloc(16);
+const electron = { nativeImage: { createFromBuffer: () => ({ isEmpty: () => false,
+  getSize: () => ({ width: 2, height: 2 }), toBitmap: () => Buffer.from(nativePixels) }) } };
+const context = await load("courseware-scene-context", { electron, "node:crypto": { createHash }, "node:zlib": { crc32 } });
+const assetHelpers = await load("courseware-scene-image-assets", { electron, "node:crypto": { createHash },
+  "node:fs": fsConstants, "node:fs/promises": files, "node:path": paths, "./courseware-scene-context": context });
+const mediaScope = await load("courseware-media-scope", {});
+const module = { exports: {} };
+new Function("require", "exports", ts.transpileModule(await readFile(new URL("../electron/main/courseware-scene-images.ts", import.meta.url), "utf8"), {
+  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+}).outputText)((id) => {
+  if (id === "./courseware-media-scope") return mediaScope;
+  if (id === "node:crypto") return { randomUUID };
+  if (id === "@pi-desktop/shared") return shared;
+  if (id === "./courseware-scene-draft") return draftReader;
+  if (id === "./courseware-scene-image-assets") return assetHelpers;
+  throw new Error(id);
+}, module.exports);
+const { CoursewareSceneImages } = module.exports;
+const generation = await load("courseware-scene-generation", { "./courseware-scene-image-assets": assetHelpers });
+const { sceneCoursePlanRelativePath } = await import("../electron/main/courseware-scene-plan.ts");
+const plan = { title: "Shapes", pages: [{ title: "Circle", visibleText: ["圆"], visualIntent: "Bright circle", narration: "Good!" }] };
+const digest = (v) => createHash("sha256").update(v).digest("hex");
+const pause = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
+
+async function fixture(t) {
+  const root = await mkdtemp(join(tmpdir(), "deckwise-scene-images-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const path = join(root, sceneCoursePlanRelativePath("chat-a"));
+  await mkdir(dirname(path), { recursive: true }); await writeFile(path, JSON.stringify(plan));
+  const sha256 = digest(await readFile(path));
+  let account = "a".repeat(64), active = "chat-a", running = false, approval = sha256;
+  let lostReceipt = false, missing = false, wrongTask = false, submitGate, quoteGate, downloadGate, downloadBytes = png;
+  let supportsReferenceImage, teamProjectId, afterBegin, refusal;
+  const journals = new Map(), tasks = new Map(), calls = [];
+  const partition = p => JSON.stringify([p.sessionId, p.principalKey]);
+  const records = p => journals.get(partition(p)) ?? [];
+  const current = async j => ({ current: approval === j.planSha256 && digest(await readFile(path)) === j.planSha256, intent: structuredClone(j) });
+  const host = { async call(method, p) {
+    calls.push(method);
+    if (method === "session.get") return { session: { projectPath: root, providerId: "provider", modelId: "model", mode: "agent" } };
+    if (method === "courseware.task.get") return { task: { taskType: "scene", teamProjectId } };
+    if (method === "courseware.scenePlan.get") return { approval: { sha256: approval } };
+    if (method === "courseware.sceneImage.list") return { intents: await Promise.all(records(p).map(current)) };
+    if (method === "courseware.sceneImage.prepare") {
+      const target = p.target ?? { kind: "visualMaster" }, input = `Bright circle${p.instructions ? `\n${p.instructions}` : ""}`;
+      const reference = p.referenceIntentId === undefined ? null : records(p).find(row => row.intentId === p.referenceIntentId &&
+        row.selected && row.asset && row.planSha256 === p.planSha256 && row.pageId === p.pageId && row.target.kind === "visualMaster");
+      if (p.referenceIntentId !== undefined && !reference) throw new Error("REFERENCE_CHANGED");
+      let j = records(p).find(j => j.phase !== "rejected" && j.pageId === p.pageId && j.planSha256 === p.planSha256 && j.request.model === p.model &&
+        JSON.stringify(j.target) === JSON.stringify(target) && j.request.input === input && j.referenceIntentId === p.referenceIntentId);
+      if (!j) {
+        j = { intentId: randomUUID(), planSha256: p.planSha256, pageId: p.pageId, target, request: { kind: "image", model: p.model, input },
+          phase: "prepared", taskRef: null, asset: null, selected: false, idempotencyKey: randomUUID(), requestHash: digest("pinned") };
+        if (reference) {
+          j.referenceIntentId = reference.intentId;
+          j.request.referenceImage = { sha256: reference.asset.sha256, mimeType: reference.asset.mimeType, byteLength: reference.asset.byteLength };
+        }
+        journals.set(partition(p), [...records(p), j]);
+      }
+      return current(j);
+    }
+    const j = records(p).find(j => j.intentId === p.intentId);
+    assert(j, "scoped journal exists");
+    if (method === "courseware.sceneImage.begin") {
+      assert.equal(j.phase, "prepared"); assert((await current(j)).current);
+      j.submissionScope = { sessionId: p.sessionId, teamProjectId: teamProjectId ?? null };
+      j.phase = "submission-unknown";
+      await afterBegin?.(j);
+    } else if (method === "courseware.sceneImage.reject") {
+      assert.equal(j.phase, "submission-unknown"); assert(j.submissionScope.teamProjectId);
+      assert.deepEqual(p.rejectedRequest, { idempotencyKey: j.idempotencyKey, requestHash: j.requestHash });
+      j.phase = "rejected";
+    } else if (method === "courseware.sceneImage.bind") {
+      assert.notEqual(j.phase, "prepared");
+      if (j.taskRef) assert.deepEqual(j.taskRef, p.taskRef);
+      j.taskRef = p.taskRef; j.phase = "submitted";
+    } else if (method === "courseware.sceneImage.asset.stage") {
+      assert.deepEqual(p.asset.taskRef, j.taskRef);
+      if (j.asset) assert.deepEqual(j.asset, p.asset);
+      await writeFile(join(root, `${p.asset.sha256}.bin`), Buffer.from(p.bytesBase64, "base64"));
+      j.asset = structuredClone(p.asset);
+    } else if (method === "courseware.sceneImage.asset.adopt") {
+      assert((await current(j)).current); assert(j.asset);
+      const matching = other => other.pageId === j.pageId && other.planSha256 === j.planSha256 && JSON.stringify(other.target) === JSON.stringify(j.target);
+      const selected = records(p).find(other => matching(other) && other.selected);
+      if ((selected?.intentId ?? null) !== p.expectedSelectedIntentId) throw new Error("selected image changed");
+      for (const other of records(p)) if (matching(other)) other.selected = other === j;
+    } else if (method !== "courseware.sceneImage.asset.get") assert.equal(method, "courseware.sceneImage.get");
+    return { ...await current(j), ...(method.includes(".asset.") ? { path: join(root, `${j.asset.sha256}.bin`) } : {}) };
+  } };
+  const quote = { version: "courseware-media-quote-v1", kind: "image", model: "image-model", priceVersion: "image-v1",
+    maxPoints: 3, maxChars: 4000, expiresAt: "2099-01-01T00:00:00Z", quoteToken: "private-server-proof" };
+  const media = {
+    async getImageModels() { calls.push("GET models"); return [{ model: "image-model", voices: [], providerDefaultVoice: false,
+      ...(supportsReferenceImage === undefined ? {} : { supportsReferenceImage }) }]; },
+    async getImageQuote() { calls.push("GET quote"); if (quoteGate) await quoteGate.promise; return quote; },
+    async submitConfirmedImage(key, request, confirmation, signal, projectId) {
+      assert.equal(projectId, [...journals.values()].flat().find(j => j.idempotencyKey === key).submissionScope.teamProjectId ?? undefined);
+      calls.push("POST confirmed");
+      calls.push({ postedRequest: structuredClone(request) });
+      assert.equal(records({ sessionId: "chat-a", principalKey: "a".repeat(64) }).find(j => j.idempotencyKey === key).phase, "submission-unknown");
+      assert.equal(confirmation.quoteToken, quote.quoteToken);
+      assert.equal(confirmation.maxPoints, 3, "confirmed ceiling is captured");
+      if (refusal) throw new Error(refusal);
+      if (submitGate) await submitGate.promise;
+      const j = [...journals.values()].flat().find(j => j.idempotencyKey === key);
+      const task = { version: "courseware-media-v1", kind: "image", taskId: "task-1", idempotencyKey: key,
+        requestHash: j.requestHash, model: request.model, state: "queued", feeState: "reserved", reservedPoints: 3, actualPoints: null, errorCode: null, assetRef: null };
+      tasks.set(key, task);
+      if (lostReceipt) throw new Error("receipt lost");
+      return wrongTask ? { ...task, model: "foreign" } : task;
+    },
+    async findImage(ref) { calls.push("GET by-key"); return missing ? null : tasks.get(ref.idempotencyKey) ?? null; },
+    async getImage(ref) { calls.push("GET by-id"); return tasks.get(ref.idempotencyKey); },
+    async downloadImage(ref) {
+      calls.push("GET asset"); if (downloadGate) await downloadGate.promise;
+      return { task: structuredClone(tasks.get(ref.idempotencyKey)), bytes: Buffer.from(downloadBytes) };
+    },
+  };
+  const auth = { coursewareMedia: media, getCoursewarePrincipal() {
+    const captured = account;
+    return { key: captured, assertCurrent() { if (captured !== account) throw new Error("account changed"); } };
+  } };
+  const create = () => new CoursewareSceneImages(() => host, () => active, () => running, auth);
+  const base = { sessionId: "chat-a" }, coordinator = create();
+  const prepare = (extra = {}) => coordinator.prepare({ ...base, planSha256: sha256, pageId: "scene-001", model: "image-model", ...extra });
+  const operation = v => ({ ...base, intentId: v.intentId });
+  const priced = async () => { const v = await prepare(); return { view: v, payload: { ...operation(v), quoteId: (await coordinator.quote(operation(v))).quoteId } }; };
+  return { root, path, sha256, calls, host, media, quote, create, coordinator, base, prepare, operation, priced,
+    refusal(v) { refusal = v; }, team(v) { teamProjectId = v; }, afterBegin(fn) { afterBegin = fn; },
+    account(v) { account = v; }, active(v) { active = v; }, running(v) { running = v; },
+    lost(v = true) { lostReceipt = v; }, missing(v = true) { missing = v; }, wrong(v = true) { wrongTask = v; },
+    submitGate(v) { submitGate = v; }, quoteGate(v) { quoteGate = v; }, approval(v) { approval = v; },
+    downloadGate(v) { downloadGate = v; }, downloadBytes(v) { downloadBytes = v; },
+    supportsReference(v) { supportsReferenceImage = v; },
+    deselect(intentId) { for (const j of [...journals.values()].flat()) if (j.intentId === intentId) j.selected = false; },
+    ready(bytes = png) { for (const task of tasks.values()) if (task.state === "queued") Object.assign(task, { state: "ready", feeState: "settled", actualPoints: 3,
+      assetRef: { assetId: "image-asset", sha256: digest(bytes), mime: "image/png", byteLength: bytes.length,
+        width: 2, height: 2, downloadPath: `/courseware/media/tasks/${task.taskId}/asset` } }); },
+  };
+}
+
+test("reviewed private references, background and layers resolve into pinned Main-only input without another media call", async t => {
+  const f = await fixture(t);
+  const missing = { ...f.base, planSha256: f.sha256 };
+  await assert.rejects(f.coordinator.captureSelected(missing), /ASSETS_REQUIRED/);
+  const colors = ["red", "blue", "green"];
+  const targets = [{ kind: "visualMaster" }, { kind: "cleanPlate" }, { kind: "layer", name: "Circle" }];
+  nativePixels = Buffer.from([0, 0, 0, 0, 0, 0, 0, 255, 0, 0, 0, 0, 0, 0, 0, 0]);
+  for (let i = 0; i < targets.length; i++) {
+    const bytes = await sharp({ create: { width: 2, height: 2, channels: 4, background: colors[i] } }).png().toBuffer();
+    const row = await f.prepare({ target: targets[i] });
+    await f.coordinator.submitConfirmed({ ...f.operation(row), quoteId: (await f.coordinator.quote(f.operation(row))).quoteId });
+    f.ready(bytes); f.downloadBytes(bytes);
+    await f.coordinator.archive(f.operation(row));
+    await f.coordinator.adopt({ ...f.operation(row), expectedSelectedIntentId: null });
+  }
+  const mediaCalls = f.calls.filter(c => /^(GET|POST)/.test(c));
+  const captured = await f.coordinator.captureSelected(missing);
+  assert.equal(captured.workspace, f.root);
+  assert.equal(captured.modelKey, "provider/model");
+  assert.equal(captured.images.length, 3);
+  assert.equal(new Set(captured.images.map(image => image.asset.sha256)).size, 3);
+  assert.deepEqual(captured.proof.selectedIntentIds, captured.images.map(image => image.intentId));
+  assert(captured.images.every(image => Buffer.isBuffer(image.bytes) && !Object.hasOwn(image, "path")));
+  await captured.assertCurrent();
+  assert.deepEqual(f.calls.filter(c => /^(GET|POST)/.test(c)), mediaCalls);
+  f.active("another-chat");
+  await assert.rejects(captured.assertCurrent(), /CONTEXT_CHANGED/);
+  f.active("chat-a");
+  f.account("b".repeat(64));
+  await assert.rejects(captured.assertCurrent(), /account changed/);
+  f.account("a".repeat(64));
+  await writeFile(f.path, JSON.stringify({ ...plan, title: "Changed" }));
+  await assert.rejects(captured.assertCurrent(), /PLAN_CHANGED/);
+});
+
+test("reviewed reference stays private until explicit confirmation and uses archived bytes with frozen identity", async t => {
+  const f = await fixture(t);
+  const master = await f.prepare();
+  await f.coordinator.submitConfirmed({ ...f.operation(master), quoteId: (await f.coordinator.quote(f.operation(master))).quoteId });
+  f.ready(); await f.coordinator.archive(f.operation(master));
+  await f.coordinator.adopt({ ...f.operation(master), expectedSelectedIntentId: null });
+  const posted = () => f.calls.filter(value => typeof value === "object").map(value => value.postedRequest);
+  assert.equal(posted().length, 1);
+  await assert.rejects(f.prepare({ target: { kind: "cleanPlate" }, referenceIntentId: master.intentId }), /REFERENCE_UNSUPPORTED/);
+  assert.equal(posted().length, 1);
+  f.supportsReference(true);
+  const background = await f.prepare({ target: { kind: "cleanPlate" }, referenceIntentId: master.intentId });
+  assert.deepEqual(background.referenceImage, { intentId: master.intentId, sha256: digest(png), mimeType: "image/png", byteLength: png.length });
+  const quote = await f.coordinator.quote(f.operation(background));
+  assert.equal(posted().length, 1, "prepare and quote never send bytes");
+  assert(!JSON.stringify(quote).includes("bytesBase64"));
+  f.supportsReference(false);
+  await assert.rejects(f.coordinator.submitConfirmed({ ...f.operation(background), quoteId: quote.quoteId }), /REFERENCE_UNSUPPORTED/);
+  assert.equal((await f.coordinator.list(f.base)).find(row => row.intentId === background.intentId).phase, "prepared");
+  f.supportsReference(true);
+  f.lost();
+  await assert.rejects(f.coordinator.submitConfirmed({ ...f.operation(background), quoteId: quote.quoteId }), /receipt lost/);
+  assert.deepEqual(posted()[1].referenceImage, { sha256: digest(png), mimeType: "image/png", byteLength: png.length, bytesBase64: png.toString("base64") });
+  assert(!JSON.stringify(posted()[1]).includes(master.intentId), "private intent identity is not disclosed to the provider");
+  const recovered = await f.create().status(f.operation(background));
+  assert.equal(recovered.phase, "submitted");
+  await f.coordinator.submitConfirmed({ ...f.operation(background), quoteId: quote.quoteId });
+  assert.equal(posted().length, 2, "unknown receipt recovery never posts again");
+});
+
+test("stale or foreign reference selection refuses a paid dispatch", async t => {
+  const f = await fixture(t), master = await f.prepare();
+  await f.coordinator.submitConfirmed({ ...f.operation(master), quoteId: (await f.coordinator.quote(f.operation(master))).quoteId });
+  f.ready(); await f.coordinator.archive(f.operation(master));
+  await f.coordinator.adopt({ ...f.operation(master), expectedSelectedIntentId: null });
+  f.supportsReference(true);
+  const layer = await f.prepare({ target: { kind: "layer", name: "Circle" }, referenceIntentId: master.intentId });
+  const quote = await f.coordinator.quote(f.operation(layer));
+  f.deselect(master.intentId);
+  await assert.rejects(f.coordinator.quote(f.operation(layer)), /REFERENCE_CHANGED/);
+  await assert.rejects(f.coordinator.submitConfirmed({ ...f.operation(layer), quoteId: quote.quoteId }), /REFERENCE_CHANGED/);
+  assert.equal(f.calls.filter(value => value === "POST confirmed").length, 1);
+  f.account("b".repeat(64));
+  await assert.rejects(f.prepare({ target: { kind: "cleanPlate" }, referenceIntentId: master.intentId }), /REFERENCE_CHANGED/);
+  assert.equal(f.calls.filter(value => value === "POST confirmed").length, 1);
+});
+
+test("corrupt reviewed reference bytes refuse submission before durable begin", async t => {
+  const f = await fixture(t), master = await f.prepare();
+  await f.coordinator.submitConfirmed({ ...f.operation(master), quoteId: (await f.coordinator.quote(f.operation(master))).quoteId });
+  f.ready(); await f.coordinator.archive(f.operation(master));
+  await f.coordinator.adopt({ ...f.operation(master), expectedSelectedIntentId: null });
+  f.supportsReference(true);
+  const row = await f.prepare({ target: { kind: "cleanPlate" }, referenceIntentId: master.intentId });
+  const quote = await f.coordinator.quote(f.operation(row));
+  await writeFile(join(f.root, `${digest(png)}.bin`), Buffer.alloc(png.length));
+  await assert.rejects(f.coordinator.submitConfirmed({ ...f.operation(row), quoteId: quote.quoteId }), /INVALID_ASSET/);
+  assert.equal((await f.coordinator.list(f.base)).find(value => value.intentId === row.intentId).phase, "prepared");
+  assert.equal(f.calls.filter(value => value === "POST confirmed").length, 1);
+});
+
+test("generation resolves only reviewed input, rejects surplus paths and refuses missing or byte-identical background roles", async t => {
+  const f = await fixture(t);
+  await assert.rejects(f.coordinator.captureSelected({ ...f.base, planSha256: f.sha256, path: "/other" }), /INVALID_REQUEST/);
+  await assert.rejects(f.coordinator.captureSelected({ ...f.base, planSha256: "a".repeat(64) }), /PLAN_CHANGED/);
+  const row = await f.prepare();
+  assert.equal(row.selected, false);
+  await assert.rejects(f.coordinator.captureSelected({ ...f.base, planSha256: f.sha256 }), /ASSETS_REQUIRED/);
+  assert.equal(f.calls.filter(c => c === "POST confirmed").length, 0);
+});
+
+test("scene image preparation and quote are nonpaid and hide server proofs; confirmed submit is journaled first", async t => {
+  const f = await fixture(t), v = await f.prepare();
+  assert.equal(v.pageId, "scene-001"); assert.equal(v.prompt, "Bright circle");
+  assert.deepEqual(await f.coordinator.models(f.base), [{ model: "image-model" }]);
+  const quoted = await f.coordinator.quote(f.operation(v));
+  assert.equal(quoted.maxPoints, 3); assert(!JSON.stringify(quoted).includes("private-server-proof"));
+  assert(!f.calls.includes("POST confirmed"));
+  const result = await f.coordinator.submitConfirmed({ ...f.operation(v), quoteId: quoted.quoteId });
+  assert.equal(result.phase, "submitted"); assert.equal(result.task.reservedPoints, 3);
+  await f.coordinator.submitConfirmed({ ...f.operation(v), quoteId: quoted.quoteId });
+  assert.equal(f.calls.filter(c => c === "POST confirmed").length, 1);
+});
+
+test("asset roles and edited requirements reach Host; invalid role data is refused before Host access", async t => {
+  const f = await fixture(t);
+  for (const target of [{ kind: "visualMaster" }, { kind: "cleanPlate" }, { kind: "layer", name: "小兔" }]) {
+    const original = await f.prepare({ target });
+    assert.deepEqual(original.target, target);
+    assert.equal((await f.prepare({ target })).intentId, original.intentId);
+    const revised = await f.prepare({ target, instructions: "Change the palette" });
+    assert.notEqual(revised.intentId, original.intentId);
+    assert.match(revised.prompt, /Change the palette/);
+  }
+  const before = f.calls.length;
+  for (const target of [null, { kind: "other" }, { kind: "layer", name: "" }, { kind: "cleanPlate", name: "hidden" },
+    { kind: "layer", name: " bad " }, { kind: "layer", name: "x\ny" }, { kind: "layer", name: "x".repeat(81) }])
+    await assert.rejects(f.prepare({ target }), /INVALID_REQUEST/);
+  for (const instructions of [null, "x".repeat(1201), "bad\0prompt"])
+    await assert.rejects(f.prepare({ instructions }), /INVALID_REQUEST/);
+  assert.equal(f.calls.length, before);
+  assert(!f.calls.includes("POST confirmed"));
+});
+
+test("independent layers require both visible pixels and actual transparent PNG pixels", async () => {
+  const asset = { sha256: digest(png), mimeType: "image/png", byteLength: png.length, width: 2, height: 2 };
+  const target = { kind: "layer", name: "Character" };
+  try {
+    for (const alpha of [0, 255]) {
+      nativePixels = Buffer.alloc(16, alpha);
+      assert.throws(() => assetHelpers.verifySceneImageAsset(png, asset, target), /REQUIRES_TRANSPARENT_PNG/);
+    }
+    nativePixels = Buffer.alloc(16); nativePixels[3] = 255;
+    assert.deepEqual(assetHelpers.verifySceneImageAsset(png, asset, target), png);
+    const jpeg = await sharp(png).jpeg().toBuffer();
+    assert.throws(() => assetHelpers.verifySceneImageAsset(jpeg, { ...asset, sha256: digest(jpeg),
+      mimeType: "image/jpeg", byteLength: jpeg.length }, target), /REQUIRES_TRANSPARENT_PNG/);
+  } finally { nativePixels = Buffer.alloc(16); }
+});
+
+test("lost receipt survives coordinator restart and recovers only with GET; absence never submits again", async t => {
+  const f = await fixture(t), p = await f.priced(); f.lost();
+  await assert.rejects(f.coordinator.submitConfirmed(p.payload), /receipt lost/);
+  const restarted = f.create(); f.missing();
+  assert.equal((await restarted.status(f.operation(p.view))).phase, "submission-unknown");
+  assert.equal((await restarted.submitConfirmed(p.payload)).phase, "submission-unknown");
+  f.missing(false);
+  assert.equal((await restarted.status(f.operation(p.view))).phase, "submitted");
+  assert.equal(f.calls.filter(c => c === "POST confirmed").length, 1);
+  assert.equal(f.calls.filter(c => c === "GET by-key").length, 3);
+});
+
+test("stale plan, forged payload, absent quote and restarted quote all reject before begin/POST", async t => {
+  const f = await fixture(t), p = await f.priced();
+  await assert.rejects(f.coordinator.submitConfirmed({ ...p.payload, quoteId: "unknown" }), /QUOTE_REQUIRED/);
+  await assert.rejects(f.create().submitConfirmed(p.payload), /QUOTE_REQUIRED/);
+  for (const invalid of [null, [], {}, { ...f.base, input: "renderer prompt" }, { ...p.payload, confirmed: true }])
+    await assert.rejects(f.coordinator.submitConfirmed(invalid), /INVALID_REQUEST/);
+  await writeFile(f.path, JSON.stringify({ ...plan, title: "Changed" }));
+  await assert.rejects(f.coordinator.submitConfirmed(p.payload), /PLAN_CHANGED/);
+  assert(!f.calls.includes("POST confirmed")); assert(!f.calls.includes("courseware.sceneImage.begin"));
+});
+
+test("account, active Chat and running-turn checks prevent paid work; late valid receipt remains in original partition", async t => {
+  const f = await fixture(t), p = await f.priced();
+  f.running(true); await assert.rejects(f.coordinator.submitConfirmed(p.payload), /CONTEXT_CHANGED/);
+  f.running(false); f.active("chat-b"); await assert.rejects(f.coordinator.submitConfirmed(p.payload), /CONTEXT_CHANGED/);
+  f.active("chat-a");
+  const gate = pause(); f.submitGate(gate);
+  const pending = f.coordinator.submitConfirmed(p.payload);
+  while (!f.calls.includes("POST confirmed")) await new Promise(resolve => setImmediate(resolve));
+  f.account("b".repeat(64)); gate.resolve();
+  await assert.rejects(pending, /account changed/);
+  assert.deepEqual(await f.coordinator.list(f.base), []);
+  f.account("a".repeat(64));
+  assert.equal((await f.coordinator.list(f.base))[0].phase, "submitted");
+  assert.equal(f.calls.filter(c => c === "POST confirmed").length, 1);
+});
+
+test("in-flight duplicate rejects; corrupt task pins never bind, and the confirmed ceiling is immutable", async t => {
+  const f = await fixture(t), p = await f.priced(), gate = pause();
+  f.quote.maxPoints = 900; f.submitGate(gate); f.wrong();
+  const first = f.coordinator.submitConfirmed(p.payload);
+  while (!f.calls.includes("POST confirmed")) await new Promise(resolve => setImmediate(resolve));
+  await assert.rejects(f.coordinator.submitConfirmed(p.payload), /IN_FLIGHT/);
+  gate.resolve(); await assert.rejects(first, /INVALID_TASK/);
+  assert(!f.calls.includes("courseware.sceneImage.bind"));
+  assert.equal((await f.coordinator.list(f.base))[0].phase, "submission-unknown");
+});
+
+test("account switch while fetching a quote returns no usable confirmation", async t => {
+  const f = await fixture(t), v = await f.prepare(), gate = pause(); f.quoteGate(gate);
+  const pending = f.coordinator.quote(f.operation(v));
+  while (!f.calls.includes("GET quote")) await new Promise(resolve => setImmediate(resolve));
+  f.account("b".repeat(64)); gate.resolve();
+  await assert.rejects(pending, /account changed/);
+  assert(!f.calls.includes("POST confirmed"));
+});
+
+test("lost durable-begin acknowledgement or a just-revised plan cannot dispatch or reset the retained request", async t => {
+  for (const mode of ["lost-ack", "plan-change"]) {
+    const f = await fixture(t), p = await f.priced();
+    const call = f.host.call;
+    f.host.call = async (method, params) => {
+      const result = await call(method, params);
+      if (method === "courseware.sceneImage.begin") {
+        if (mode === "lost-ack") throw new Error("checkpoint acknowledgement lost");
+        await writeFile(f.path, JSON.stringify({ ...plan, title: "Revised after checkpoint" }));
+      }
+      return result;
+    };
+    await assert.rejects(f.coordinator.submitConfirmed(p.payload), mode === "lost-ack" ? /acknowledgement lost/ : /PLAN_CHANGED/);
+    assert.equal((await f.coordinator.list(f.base))[0].phase, "submission-unknown");
+    assert.equal((await f.create().status(f.operation(p.view))).phase, "submission-unknown");
+    assert(!f.calls.includes("POST confirmed"));
+  }
+});
+
+test("scene image IPC refuses a foreign renderer and surplus arguments before Host/media access", async () => {
+  const ipc = { exports: {} };
+  new Function("require", "exports", ts.transpileModule(await readFile(new URL("../electron/main/ipc/courseware-scene-image-ipc.ts", import.meta.url), "utf8"), {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+  }).outputText)((id) => {
+    if (id === "@pi-desktop/shared") return shared;
+    if (id === "../courseware-scene-images") return { CoursewareSceneImages };
+    if (id === "../courseware-scene-generation") return generation;
+    throw new Error(id);
+  }, ipc.exports);
+  const handlers = new Map();
+  ipc.exports.registerCoursewareSceneImageIpc({ registrar: {
+    handleWithEvent(channel, fn) { handlers.set(channel, fn); },
+    assertMainWindowSender(event) { if (event.sender !== "main") throw new Error("PERMISSION_DENIED"); },
+  }, getHost() { throw new Error("Host must not be touched"); }, getViewingSessionId: () => "chat-a", activeTurns: new Map(), authSession: {} });
+  assert.equal(handlers.size, 11);
+  for (const fn of handlers.values()) {
+    await assert.rejects(fn({ sender: "other" }, { sessionId: "chat-a" }), /PERMISSION_DENIED/);
+    await assert.rejects(fn({ sender: "main" }, { sessionId: "chat-a" }, "extra"), /Unexpected scene (image|generation)/);
+  }
+});
+
+test("ready image archives original bytes, previews after coordinator restart and needs explicit page selection without another POST", async t => {
+  const f = await fixture(t), p = await f.priced();
+  await f.coordinator.submitConfirmed(p.payload); f.ready();
+  const preview = await f.coordinator.archive(f.operation(p.view));
+  assert.equal(preview.image.selected, false); assert.equal(preview.image.asset.sha256, digest(png));
+  assert.equal(preview.dataUrl, `data:image/png;base64,${png.toString("base64")}`);
+  assert(!JSON.stringify(preview).includes(f.root)); assert(!JSON.stringify(preview.image).includes("taskRef"));
+  const restarted = f.create();
+  assert.deepEqual(await restarted.preview(f.operation(p.view)), preview);
+  assert.deepEqual(await restarted.archive(f.operation(p.view)), preview);
+  assert.equal(f.calls.filter(c => c === "GET asset").length, 1);
+  const selected = await restarted.adopt({ ...f.operation(p.view), expectedSelectedIntentId: null });
+  assert.equal(selected[0].selected, true);
+  await assert.rejects(restarted.adopt({ ...f.operation(p.view), expectedSelectedIntentId: null }), /selected image changed/);
+  assert.equal((await restarted.adopt({ ...f.operation(p.view), expectedSelectedIntentId: p.view.intentId }))[0].selected, true);
+  assert.equal(f.calls.filter(c => c === "POST confirmed").length, 1);
+});
+
+test("image download ownership, format and account races cannot archive or select unrelated bytes", async t => {
+  const f = await fixture(t), p = await f.priced();
+  await assert.rejects(f.coordinator.archive(f.operation(p.view)), /TASK_REQUIRED/);
+  await f.coordinator.submitConfirmed(p.payload);
+  await assert.rejects(f.coordinator.archive(f.operation(p.view)), /INVALID_TASK/);
+  f.ready(); f.downloadBytes(Buffer.from("corrupt"));
+  await assert.rejects(f.coordinator.archive(f.operation(p.view)), /INVALID_ASSET/);
+  f.downloadBytes(png);
+  const gate = pause(); f.downloadGate(gate);
+  const before = f.calls.filter(c => c === "GET asset").length;
+  const pending = f.coordinator.archive(f.operation(p.view));
+  while (f.calls.filter(c => c === "GET asset").length === before) await new Promise(resolve => setImmediate(resolve));
+  f.account("b".repeat(64)); gate.resolve();
+  await assert.rejects(pending, /account changed/);
+  assert(!f.calls.includes("courseware.sceneImage.asset.stage"));
+  f.account("a".repeat(64));
+  assert.equal((await f.coordinator.list(f.base))[0].asset, null);
+  assert.equal(f.calls.filter(c => c === "POST confirmed").length, 1);
+});
+
+test("archived references keep their old plan, reject adoption after revision and verify private bytes again", async t => {
+  const f = await fixture(t), p = await f.priced();
+  await f.coordinator.submitConfirmed(p.payload); f.ready();
+  await f.coordinator.archive(f.operation(p.view));
+  await writeFile(f.path, JSON.stringify({ ...plan, title: "Revised lesson" }));
+  assert.equal((await f.coordinator.preview(f.operation(p.view))).image.current, false);
+  await assert.rejects(f.coordinator.adopt({ ...f.operation(p.view), expectedSelectedIntentId: null }), /PLAN_CHANGED/);
+  await writeFile(join(f.root, `${digest(png)}.bin`), Buffer.alloc(png.length));
+  await assert.rejects(f.coordinator.preview(f.operation(p.view)), /INVALID_ASSET/);
+  await assert.rejects(f.coordinator.archive(f.operation(p.view)), /INVALID_ASSET/);
+  assert.equal(f.calls.filter(c => c === "GET asset").length, 1, "Corruption must not silently redownload/replace");
+  await assert.rejects(f.coordinator.adopt({ ...f.operation(p.view), expectedSelectedIntentId: null, path: "/tmp/forged" }), /INVALID_REQUEST/);
+});
+
+test("image metadata rejects dimensions and MIME mismatches before native codec allocation", async () => {
+  for (const format of ["jpeg", "webp"]) {
+    const bytes = await sharp(png)[format]().toBuffer();
+    const asset = { sha256: digest(bytes), mimeType: `image/${format}`, byteLength: bytes.length, width: 2, height: 2 };
+    assert.deepEqual(assetHelpers.verifySceneImageAsset(bytes, asset), bytes);
+    assert.throws(() => assetHelpers.verifySceneImageAsset(bytes, { ...asset, width: 3 }), /INVALID_ASSET/);
+    assert.throws(() => assetHelpers.verifySceneImageAsset(bytes, { ...asset, mimeType: "image/png" }));
+    assert.throws(() => assetHelpers.verifySceneImageAsset(bytes, { ...asset, width: 5000 }), /INVALID_ASSET/);
+  }
+});
+
+test("lost archive acknowledgement recovers the committed private image without a second download", async t => {
+  const f = await fixture(t), p = await f.priced();
+  await f.coordinator.submitConfirmed(p.payload); f.ready();
+  const call = f.host.call;
+  f.host.call = async (method, params) => {
+    const result = await call(method, params);
+    if (method === "courseware.sceneImage.asset.stage") throw new Error("archive acknowledgement lost");
+    return result;
+  };
+  await assert.rejects(f.coordinator.archive(f.operation(p.view)), /acknowledgement lost/);
+  assert.equal((await f.create().archive(f.operation(p.view))).image.asset.sha256, digest(png));
+  assert.equal(f.calls.filter(c => c === "GET asset").length, 1);
+  assert.equal(f.calls.filter(c => c === "POST confirmed").length, 1);
+});
+
+test("overlapping image archive is refused and swapped original task receipts never reach the archive", async t => {
+  const f = await fixture(t), p = await f.priced();
+  await f.coordinator.submitConfirmed(p.payload); f.ready();
+  const download = f.media.downloadImage;
+  for (const field of ["taskId", "idempotencyKey", "requestHash", "model"]) {
+    f.media.downloadImage = async reference => {
+      const result = await download(reference); result.task[field] = "foreign"; return result;
+    };
+    await assert.rejects(f.coordinator.archive(f.operation(p.view)), /INVALID_TASK/);
+  }
+  assert(!f.calls.includes("courseware.sceneImage.asset.stage"));
+  f.media.downloadImage = download;
+  const gate = pause(); f.downloadGate(gate);
+  const before = f.calls.filter(c => c === "GET asset").length;
+  const pending = f.coordinator.archive(f.operation(p.view));
+  while (f.calls.filter(c => c === "GET asset").length === before) await new Promise(resolve => setImmediate(resolve));
+  await assert.rejects(f.coordinator.archive(f.operation(p.view)), /IN_FLIGHT/);
+  gate.resolve(); assert((await pending).image.asset);
+});
+
+test("scene submission carries the Host team binding", async t => {
+  const f = await fixture(t); f.team("12345678-1234-1234-1234-123456789abc");
+  const priced = await f.priced();
+  await f.coordinator.submitConfirmed(priced.payload);
+  assert.equal(f.calls.filter(method => method === "POST confirmed").length, 1);
+});
+
+test("scene submission pins personal scope before later first binding", async t => {
+  const f = await fixture(t), priced = await f.priced();
+  f.afterBegin(() => { f.team("12345678-1234-1234-1234-123456789abc"); });
+  await f.coordinator.submitConfirmed(priced.payload);
+  assert.equal(f.calls.filter(method => method === "POST confirmed").length, 1);
+});
+
+test("scene submission rejects a missing or foreign begin scope before POST", async t => {
+  for (const value of [undefined, { sessionId: "foreign", teamProjectId: null }]) {
+    const f = await fixture(t), priced = await f.priced();
+    f.afterBegin(j => { j.submissionScope = value; });
+    await assert.rejects(f.coordinator.submitConfirmed(priced.payload), /INVALID_SUBMISSION_SCOPE/);
+    assert.equal(f.calls.filter(method => method === "POST confirmed").length, 0);
+  }
+});
+
+for (const code of [46100, 46102]) test(`definite team scene refusal ${code} preserves history and requires a new quote`, async t => {
+  const f = await fixture(t); f.team("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+  const first = await f.priced(); f.refusal(`COURSEWARE_MEDIA_PLATFORM_${code}`);
+  assert.equal((await f.coordinator.submitConfirmed(first.payload)).phase, "rejected");
+  const restarted = f.create();
+  assert.equal((await restarted.status(f.operation(first.view))).phase, "rejected");
+  assert.equal((await restarted.submitConfirmed(first.payload)).phase, "rejected");
+  assert.equal(f.calls.filter(v => v === "GET by-key").length, 0);
+  assert.equal(f.calls.filter(v => v === "POST confirmed").length, 1);
+  f.refusal(undefined); const next = await f.priced();
+  assert.notEqual(next.view.intentId, first.view.intentId);
+  assert.notEqual(next.payload.quoteId, first.payload.quoteId);
+  assert.equal(f.calls.filter(v => v === "POST confirmed").length, 1);
+  assert.equal((await f.coordinator.submitConfirmed(next.payload)).phase, "submitted");
+});

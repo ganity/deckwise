@@ -24,6 +24,7 @@ const PLUGIN_BATCH_IMPORT_RATE_LIMIT: usize = 5;
 const PLUGIN_DELETE_RATE_LIMIT: usize = 20;
 
 pub struct AppState {
+    pub courseware: crate::courseware::Parser,
     pub data_dir: std::path::PathBuf,
     pub db: Database,
     pub secrets: SecretStore,
@@ -114,6 +115,7 @@ impl AppState {
         let user_skills = UserSkillRegistry::new(data_dir);
         let user_subagents = UserSubagentRegistry::new(data_dir);
         Ok(Self {
+            courseware: crate::courseware::Parser::default(),
             data_dir: data_dir.to_path_buf(),
             db,
             secrets,
@@ -278,6 +280,7 @@ impl AppState {
 
     pub fn shutdown(&mut self) {
         self.shutting_down = true;
+        self.courseware.stop();
         for sender in self.active_bash_cancellations.values() {
             let _ = sender.send(true);
         }

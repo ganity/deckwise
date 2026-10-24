@@ -1,0 +1,190 @@
+{
+  "schemaVersion": "deckwise-fixed-build/1",
+  "source": {
+    "path": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-D/packages/courseware-runtime/tests/fixtures/fixed-courseware/lesson-r8.pptx",
+    "sha256": "e3f7e210183ff6fe8b14e7c88a378fe08a50ec51c0d0815194c5c1246612e8d7",
+    "revision": "R8"
+  },
+  "teaching": {
+    "revision": "T8-effects-1",
+    "sourceSha256": "e3f7e210183ff6fe8b14e7c88a378fe08a50ec51c0d0815194c5c1246612e8d7",
+    "pages": [
+      {
+        "pageId": "fixture-page-1",
+        "actions": [
+          {
+            "id": "narration-0",
+            "type": "speech",
+            "text": "Welcome to the fixed lesson.",
+            "audioAssetId": "voice-1",
+            "visualCues": [
+              {
+                "id": "square-highlight",
+                "atMs": 500,
+                "endMs": 2000,
+                "effect": {
+                  "type": "highlight",
+                  "elementIds": [
+                    "fixture-object-1-1"
+                  ],
+                  "color": "#f59e0b",
+                  "style": "outline",
+                  "opacity": 0.9
+                }
+              },
+              {
+                "id": "square-spotlight",
+                "atMs": 2200,
+                "endMs": 4500,
+                "effect": {
+                  "type": "spotlight",
+                  "elementId": "fixture-object-1-1",
+                  "elementIds": [
+                    "fixture-object-1-2"
+                  ],
+                  "dimOpacity": 0.65
+                }
+              }
+            ]
+          },
+          {
+            "id": "wait-teacher",
+            "type": "interaction_checkpoint",
+            "checkpointId": "teacher-1",
+            "checkpointKind": "chapter_summary",
+            "chapterId": "intro",
+            "chapterTitle": "Look at the square",
+            "question": "Continue when the group is ready.",
+            "referenceAnswer": {
+              "summary": "",
+              "keyPoints": []
+            },
+            "context": {
+              "chapterSummary": "",
+              "sourceSceneIds": [
+                "fixture-page-1"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "pageId": "fixture-page-2",
+        "actions": [
+          {
+            "id": "narration-1",
+            "type": "speech",
+            "text": "Pause and continue.",
+            "audioAssetId": "voice-2",
+            "pauseAfterMs": 1200
+          }
+        ]
+      },
+      {
+        "pageId": "fixture-page-3",
+        "actions": [
+          {
+            "id": "narration-2",
+            "type": "speech",
+            "text": "Play local media.",
+            "audioAssetId": "voice-3",
+            "visualCues": [
+              {
+                "id": "video-highlight",
+                "atMs": 200,
+                "endMs": 4800,
+                "effect": {
+                  "type": "highlight",
+                  "elementIds": [
+                    "fixture-object-3-1"
+                  ],
+                  "style": "glow"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "mapping": {
+    "revision": "M8",
+    "sourceSha256": "e3f7e210183ff6fe8b14e7c88a378fe08a50ec51c0d0815194c5c1246612e8d7",
+    "pages": [
+      {
+        "pageId": "fixture-page-1",
+        "importPageId": "page_1",
+        "objects": [
+          {
+            "objectId": "fixture-object-1-0",
+            "importElementId": "pptx_text_1"
+          },
+          {
+            "objectId": "fixture-object-1-1",
+            "importElementId": "pptx_shape_2"
+          },
+          {
+            "objectId": "fixture-object-1-2",
+            "importElementId": "pptx_text_3"
+          }
+        ]
+      },
+      {
+        "pageId": "fixture-page-2",
+        "importPageId": "page_2",
+        "objects": [
+          {
+            "objectId": "fixture-object-2-0",
+            "importElementId": "pptx_text_1"
+          },
+          {
+            "objectId": "fixture-object-2-1",
+            "importElementId": "pptx_text_2"
+          }
+        ]
+      },
+      {
+        "pageId": "fixture-page-3",
+        "importPageId": "page_3",
+        "objects": [
+          {
+            "objectId": "fixture-object-3-0",
+            "importElementId": "pptx_text_1"
+          },
+          {
+            "objectId": "fixture-object-3-1",
+            "importElementId": "pptx_video_2"
+          }
+        ]
+      }
+    ]
+  },
+  "assets": [
+    {
+      "id": "voice-1",
+      "path": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-D/packages/courseware-runtime/tests/fixtures/fixed-courseware/page-1.wav",
+      "sha256": "6de9e485a91d85dbb61aa8d24ef25ab19c8404f008475bb5139900e580f87985",
+      "mimeType": "audio/wav"
+    },
+    {
+      "id": "voice-2",
+      "path": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-D/packages/courseware-runtime/tests/fixtures/fixed-courseware/page-2.wav",
+      "sha256": "15c0d47fa3d8c1437dc9941104f49cae72eea6048df6fefa317e1a68d9f24452",
+      "mimeType": "audio/wav"
+    },
+    {
+      "id": "voice-3",
+      "path": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-D/packages/courseware-runtime/tests/fixtures/fixed-courseware/page-3.wav",
+      "sha256": "49f8ac278d71c0d1dbf205971f990f48e7473bcd3d81cc01b38541e5f8ad912b",
+      "mimeType": "audio/wav"
+    }
+  ],
+  "converter": {
+    "version": "maic-pptx-import-ir/1",
+    "manifestSha256": "10d29a6fc3d179cbc8c2165b7ce91e4e14862532a6a38238a798076da4f5906d"
+  },
+  "reviewedWarningCodes": [
+    "PPTX_NOTES_MASTER_UNVERIFIED",
+    "PPTX_TIMING_TARGET_OR_DURATION_UNSUPPORTED"
+  ]
+}

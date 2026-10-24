@@ -1,5 +1,196 @@
 # 06. Host RPC Protocol
 
+## Canvas music request journal
+
+Private `courseware.mediaCanvas.music.*` methods are `prepare`, `list`, `get`,
+`begin`, `bind`, `reject`, `candidates.record`, `export.prepare`, `asset.stage`,
+`asset.get` and `asset.restore`. Every payload requires `sessionId,principalKey`;
+all except list identify an `intentId`. Main supplies the authenticated principal,
+never Renderer or the model. Exact fields are rejected outside each operation.
+Generation prepare uses the saved canvas/draft CAS plus model/music options.
+Export prepare uses `sourceIntentId,candidateId,model` and does not require the
+historical draft to remain current. Its immutable source scope is inherited at
+begin, not recomputed from a later team binding.
+
+The versioned `coursewareMediaCanvasMusic.v1` journal partitions by canonical
+workspace/Chat/principal. It preserves frozen draft/request/hash/key, independent
+generation/export phases and receipts, ordered candidate metadata and private
+archive hashes. Begin durably records unknown state and scope before returning
+the sole dispatch acknowledgement. Bind retains valid late receipts in the
+original scope; definite permission rejection is accepted only for matching
+unbound unknown team requests. Unknown requests cannot begin again.
+
+Candidate identities/order and terminal states do not regress; ready collections
+are immutable. Preview staging additionally requires `candidateId`, a completed
+candidate in a ready parent and the matching original task reference. Export
+staging omits `candidateId`. Both use existing `courseware-assets/<sha256>.bin`
+storage, verify bounded MP3 bytes and hashes, and retain first-writer metadata.
+Restore requires an existing identical archive receipt and explicit bytes; it
+cannot change identity. No provider URLs are stored. Local snapshots are not
+remote access-control caches and are not erased by a later role revocation.
+
+## Canvas image request journal
+
+Private `courseware.mediaCanvas.image.prepare` accepts exactly
+`{sessionId,principalKey,intentId,expectedRevision,draftId,expectedDraftRevision,model}`.
+The original saved draft supplies prompt and references; caller-supplied request
+bytes, file paths, keys and hashes are forbidden. `list` accepts
+`{sessionId,principalKey}`; `get`, `begin` and `reference` add `intentId`; `bind`
+adds `intentId,taskRef`. No credentials or signed URLs are persisted. Each response
+except reference/list is `{intent,current}`; list is `{intents:[...]}` and reference
+returns private Host archive metadata/path only to Main. Begin requires Agent mode
+and exact saved draft; bind may retain a validated late receipt for a stale/deleted
+draft. Unknown submissions cannot begin again. All journal writes require checked
+readback and the existing durability barrier. See
+[authorized media](27-courseware-authorized-media.md#canvas-image-request-journal-w152-in-progress)
+for limits, reference ownership and remaining W15.2 implementation.
+
+`courseware.mediaCanvas.image.asset.stage` accepts exactly
+`{sessionId,principalKey,intentId,asset,bytesBase64}`; `asset` includes the original
+`taskRef`, SHA-256, MIME, byte length and dimensions. It requires a submitted
+matching receipt, bounded valid image bytes and immutable metadata. The existing
+content-addressed archive is followed by checked journal persistence and the
+durability barrier. `courseware.mediaCanvas.image.asset.get` accepts exactly
+`{sessionId,principalKey,intentId}`, verifies archive hash and length, and returns
+`{intent,current,path}` only to Main. Both retain original scope and permit stale
+or deleted drafts/Plan mode without a PPTX write. Ordinary journal get/list never
+include paths or bytes. Existing journals may omit the optional asset field.
+
+## Owner online preparation receipt
+
+Main-only `courseware.onlinePrepare.get({sessionId,principalKey})` returns
+`{receipt:null|Receipt}`. `begin({sessionId,principalKey,selection})` and
+`advance({sessionId,principalKey,requestId,expectedPhase,phase,uploadedRevision?,sessionEpoch?})`
+return the flat `Receipt`. Selection contains exactly `projectId,requestId,
+expectedEpoch,expectedSourceRevision,sourceSha256,byteLength`; the source revision
+is explicitly a UUID or null. Receipt retains these fields and adds `phase` plus
+the optional uploaded revision and started epoch. IDs/revisions are canonical
+lowercase UUIDs, hashes/principal keys are 64 lowercase hexadecimal characters,
+source size is 1–20 MiB, and epochs are nonnegative JavaScript-safe integers
+with space for `expectedEpoch + 1`. Unknown fields and null optional metadata
+reject; no path, bytes, token, signed config or URL is stored or returned.
+
+The private `coursewareOnlinePrepare.v1` namespace uses existing Host kv and a
+persisted session's workspace/Chat/hashed-principal key. Begin requires an
+existing courseware task without a different team binding. An identical request
+ID/selection returns the retained receipt without resetting its phase. A new
+request ID can replace only a bound receipt; changing an existing ID's selection
+rejects. Read/restart never performs remote upload/start/bind or grants server
+membership/Owner authorization.
+
+Phases advance only `upload-pending → uploaded → start-pending → started → bound`
+under the Host state lock and database transaction. The uploaded transition
+requires an immutable uploaded revision; started requires `sessionEpoch =
+expectedEpoch + 1`. Later metadata may be omitted or repeat the identical value.
+Replaying a transition is idempotent only while its destination is current and
+the request/metadata still match; older IDs, skipped phases and rollback reject.
+Bound atomically persists the receipt and the same task's `teamProjectId` in one
+transaction, retaining other task data. Missing/changed tasks, corrupt receipts
+and storage failures preserve the previous state. Mutating acknowledgements
+follow the existing checked durability barrier. Main must verify each remote
+result and recover uncertain responses from the original selection rather than
+creating a new request. These methods have no generic Renderer IPC entry.
+
+## Fixed team share journal
+
+`courseware.fixedShare.prepare({sessionId,principalKey,selection,receiptAware?})`,
+`courseware.fixedShare.get({sessionId,principalKey})` and
+`courseware.fixedShare.complete({sessionId,principalKey,intentId})` use the
+existing Host kv extension. Normal handshake and persisted-session workspace
+resolution apply. The journal is partitioned by workspace, Chat and hashed
+principal; no token or remote URL is stored. Selection pins the local project,
+snapshot, build and manifest hash, target team project and shared/formal channel.
+`receiptAware` is optional and defaults false for old callers and persisted
+journals; new Main explicitly supplies true before keyed publication. Get and
+complete reject this field, including false/null, so reads cannot reclassify an
+old uncertain operation as one with a server receipt. Prepare verifies the saved snapshot and its task binding, or a persisted online
+origin bound to that exact target team. It writes an
+`unknown` intent before dispatch and refuses replacement while unresolved.
+Complete is an internal Main operation following a successful publication or
+authorized exact-result query. It transactionally binds the same task to the
+original team and marks that intent `bound`; a different team binding refuses
+without partial mutation. Get and restart preserve the original selection.
+Online completion creates no task binding and preserves any unrelated local
+task. Unknown fields, invalid identities, missing snapshots and ordinary
+missing/conflicting tasks reject. This
+journal cannot prove remote nonpublication or clear an unknown result. New
+receipt-aware recovery verifies the authorized server receipt and frozen build;
+legacy recovery still needs an exact current channel pointer. Missing receipts
+and old unkeyed operations do not become safely retryable. Both journal writes
+complete the existing checked durability barrier before acknowledgement.
+
+## Courseware scene planning approval
+
+`courseware.scenePlan.get({sessionId})` reads the scene task's current approved
+checkpoint. `courseware.scenePlan.approve({sessionId,sha256})` requires an
+ungenerated, persisted scene task and verifies the bounded, strictly validated
+draft bytes inside that Chat's fixed workspace directory. It stores
+`{sha256,plan,educationContext}` in the Host kv extension and returns
+`{approval}` after readback. Same-byte retries are idempotent. Hash changes use
+`COURSEWARE_CONFLICT`/1008; bad fields, file type, content or path use 1002.
+The namespace/key, context freeze and stale-draft UI rules are specified in
+[the scene contract](22-courseware-contract-v1.md#scene-planning-drafts).
+This is local review persistence, not authority to submit paid media or attach
+generated PPTX. Normal handshake and persisted-session checks apply.
+
+`courseware.sceneImage.prepare` takes exactly
+`{sessionId,principalKey,planSha256,pageId,model,target?,instructions?}`. Target is
+`{kind:"visualMaster"}`, `{kind:"cleanPlate"}` or `{kind:"layer",name}`. Missing
+targets default to visualMaster, including in existing journals. Unknown fields,
+invalid layer names and requirements over 1,200 UTF-16 units reject. Host requires the current
+approved, ungenerated scene file and derives the visual request from its page.
+`list` takes `{sessionId,principalKey}`; `get` and `begin` additionally require
+`intentId`; `bind` additionally takes the pinned `taskRef`. Get/prepare/begin/bind
+return `{intent,current}`; list returns `{intents:[{intent,current}]}`. Intent
+records retain their original plan/page/target/request/key/hash and receipt.
+An identical request reuses its original intent; edited requirements create a
+new separately confirmed request. Begin
+transitions only current prepared requests to durable `submission-unknown`;
+duplicate begin rejects. Bind accepts a matching late receipt even for an old
+plan, and same-receipt replays are no-ops. Foreign scopes cannot retrieve records.
+There is no Host network, charge, image adoption or scene compilation in these
+RPCs. See [the media journal](27-courseware-authorized-media.md#approved-plan-image-request-journal-2026-10-23).
+
+`courseware.sceneImage.asset.stage` adds `{asset,bytesBase64}` to the original
+`{sessionId,principalKey,intentId}` scope. Asset metadata carries its exact
+`taskRef`, SHA-256, MIME, byte length and dimensions. Host checks the original
+submitted receipt, bounds/signature/hash, archives bytes with the existing
+content-addressed private store and durably retains metadata in the journal.
+`asset.get` takes only that original scope and rechecks stored bytes. Both return
+`{intent,current,path}` to Main only. Existing intents default to `asset:null`
+and `selected:false`; original request/receipt identities remain unchanged.
+
+`asset.adopt` adds `expectedSelectedIntentId` (string or null). Under the existing
+Host mutex it verifies the current approved plan, archive and previous selection,
+then selects exactly one asset for that plan/page/target while preserving peers
+and old-plan history. Same-current-selection replay is a no-op. All three use
+the original workspace/account/Chat partition and strict fields. No Renderer
+path, network, fee or teaching/PPTX write is accepted. Main owns authenticated
+ready/settled checking and full native image decoding before stage/display.
+
+For approved scene tasks, `courseware.project.initializeGenerated` and
+`courseware.task.attachGenerated` require Main-only
+`sceneProof:{planSha256,principalKey,selectedIntentIds}`. Under the same Host
+mutex as each write, Host rechecks the unchanged approved, ungenerated task,
+exact current selection set and archived hashes/lengths. Every page needs a
+distinct reference/background pair and at least one layer. Initialization also
+requires the approved title and exact ordered narration; stale/incomplete or
+foreign proofs reject before writing the project/task. Existing unapproved
+synthetic scene consumers remain compatible; plain generation needs no proof.
+The proof is not a new public model tool or authority to submit paid media.
+
+Reviewed initialization additionally requires `sceneMapping:{pages}` from the
+native compiler. Each page binds the ordered approved plan's draft page ID and
+content hash to its actual PPTX slide part. Each element carries its actual
+exported `sourceShapeId`, kind and bounded semantic descriptions. Host compares
+every shape ID/type/count with the trusted saved-source parser before creating
+the project, then persists the immutable original mapping in
+`coursewareSceneObjects.v1`. Mapping without reviewed inputs is rejected;
+legacy unapproved consumers omit both fields. `courseware.project.context`
+optionally returns `sceneObjects` with canonical logical page/object IDs and
+`mapped|missing|content_changed|identity_mismatch` states against the current
+saved identity. No automatic effect or semantic approval follows from `mapped`.
+
 ## 1. Goal
 
 Define the local protocol between:
@@ -112,6 +303,11 @@ timeout, and errors from an admitted request are never replayed.
 ```
 
 ## 3. Handshake
+
+Optional host-internal `courseware.parseStart`, `courseware.parseStatus`,
+`courseware.parseCancel` and `courseware.parseRelease` use this same transport
+and handshake; see [temporary courseware jobs](21-courseware-parser.md).
+They do not expose generic process execution or create renderer/agent tools.
 
 On spawn, Electron must call:
 
@@ -1148,6 +1344,66 @@ Tool outcomes (`TOOL_DENIED`, `TOOL_TIMEOUT`, `PATH_OUTSIDE_WORKSPACE`,
    creates no runtime or revision state, so later child reseed/cache state is
    isolated by the new session id.
 
+## Courseware project and teaching extension
+
+`courseware.teachingHistory.list({sessionId,jobId})` reads deleted-page narration
+from the exact saved workspace/project history. It returns
+`{entries,skippedEntryCount}` (at most 20 entries and 2 MiB), with fresh action
+IDs and without historical audio or object-effect bindings. Unsupported page
+versions are explicitly counted; corrupt or mismatched stored identities fail
+closed. It never writes teaching or accepts a caller history path. See
+[the recovery contract](22-courseware-contract-v1.md#recovering-deleted-page-narration)
+for projection fields and destination restrictions.
+
+`courseware.teachingDraft.get` and `courseware.teachingDraft.set` store only
+unfinished local recovery content in the existing Host kv. They derive the
+workspace from the persisted Chat, isolate each Chat/project/page and compare
+the previous draft revision; set also requires the exact unlocked project
+baseline. Explicit null discard may clear a stale record, but only by its exact
+draft revision. They never update canonical teaching, source, assets or billing.
+Strict request envelopes and bounds are in
+[courseware contract v1](22-courseware-contract-v1.md#saved-source-editor-integration).
+
+The additive methods `courseware.project.get`, `courseware.teaching.write`, and
+`courseware.teaching.setLock` use persisted session workspace ownership and
+strict parameter validation. They do not expose project creation or source
+replacement to the renderer. Payloads, conflict behavior, persistence and
+limits are specified in [courseware contract v1](22-courseware-contract-v1.md).
+The protocol number remains 11 and existing SQLite schema version is unchanged.
+
+The private `courseware.teaching.confirm`, `courseware.snapshot.capture` and
+`courseware.snapshot.get`, `courseware.snapshot.importOnline` and
+`courseware.snapshot.onlineOrigin` methods retain protocol 11/schema 18. Their strict
+requests, per-page review/CAS, workspace isolation, immutable archive checks and
+no-live-fallback behavior are specified in
+[fixed snapshots](26-courseware-fixed-snapshots.md). They add no generic renderer
+proxy, provider call or publication authority.
+
+`courseware.teaching.confirm` optionally accepts strict
+`resolution:{changeGroupId,receiptSha256,note}` for a human-reviewed declared
+Chat request. Host requires its owning persisted Chat with no running turn,
+exact receipt digest and source/teaching CAS. The transaction retains prior
+history, creates a new teaching revision preserving current actions and writes
+immutable disposition metadata. New snapshot capture/fixed-share preparation
+reject every unresolved declaration; existing frozen snapshots remain readable.
+Ordinary confirmation does not close requests. See
+[Chat disposition](23-courseware-native-chat.md#explicit-human-disposition-and-fixed-publication-barrier).
+
+Snapshot capture's internal asset source is exactly one of `path` (existing
+workspace-file import) or `tts:{principalKey,intentId}` (an already adopted Host
+audio receipt). Host verifies account/project/source/current speech binding,
+metadata and immutable bytes before retaining the existing fixed asset record.
+See [authorized media A25](27-courseware-authorized-media.md#a25--adopted-audio-in-immutable-snapshots).
+Persisted snapshots, renderer payloads and protocol/schema numbers are unchanged.
+
+The private `courseware.tts.prepare/get/list/begin/bind` methods also retain
+protocol 11/schema 18. Strict selections, persisted-session workspace, local
+principal scope, exact stored speech, durable idempotency keys, unknown-submission
+recovery and late-receipt behavior are specified in
+[authorized media and request journal](27-courseware-authorized-media.md).
+These methods add neither network dispatch nor renderer/model access. Journal
+success always reports `audioReady:false`; it is not audio adoption.
+
 ## 9. Logging rules
 
 - Never log API keys/secrets
@@ -1185,3 +1441,99 @@ Tool outcomes (`TOOL_DENIED`, `TOOL_TIMEOUT`, `PATH_OUTSIDE_WORKSPACE`,
     produce the documented durable statuses and events
 13. Bash validates the pinned shell ID/dialect, streams stdout/stderr, enforces
     the 60s default/bounded override, and shuts down the complete process tree
+
+### courseware.project.openSaved
+
+`{sessionId, jobId}` -> `{project: CoursewareProject}`. Requires a completed
+successful parser job for the persisted session's canonical workspace and an
+unchanged saved Office revision archive. Host derives the project/page IDs.
+Existing source/page-count mismatch rejects with `COURSEWARE_CONFLICT` without
+migration or overwrite. See [saved-source integration](22-courseware-contract-v1.md#saved-source-editor-integration).
+
+### courseware.review.prepare / courseware.review.adopt
+
+The separate internal `courseware.sourceCandidate.prepare/context/stage/get/reject`
+methods capture generation baselines and archive parsed PPTX copies independently
+of temporary parser jobs. Context derives the full current page/object mapping
+from Host identity and verifies the archived original; it accepts no mapping from
+the caller. These methods do not replace source or grant adoption. Exact
+requests, archive checks and limits are in [PPTX candidates](25-courseware-source-candidates.md).
+The optional A43 `page-style-batch` preparation includes a strict `styleBatch`
+reference to a current verified pending single-page representative plus instruction
+hash and 2-20 unique confirmed pages. Stage accepts mutually exclusive
+`batchEvidence` with original/output hashes, mapping revision and ordered targets.
+Host derives workspace/current project and verifies all non-target parser identities;
+unknown fields, wrong scope, locks, stale teaching or rejected representative refuse.
+These private additions grant no renderer/Agent review or execution authority.
+They retain protocol 11/schema 18. Unknown fields/invalid inputs use 1002,
+missing records use 1007 and stale/locked/hash conflicts use 1008; filesystem
+errors such as missing archives retain existing internal-error handling.
+
+The internal `courseware.sourceAdoption.prepare/get/commit/cancel` methods add a
+Host-owned pending adoption journal and workspace teaching fence. They validate
+fresh saved-revision parser seeds, preserve logical identities for verified
+fixed fade, and atomically commit history/project/mapping/candidate/journal.
+They do not replace live files or open Office. Protocol/schema stay unchanged;
+A15 optionally pins a Main-selected live `sourcePath`, validates its project
+identity and bytes, and checkpoints SQLite before returning mutation/recovery
+receipts. Strict requests, replay/cancellation and Main file recovery are in [PPTX candidates](25-courseware-source-candidates.md#host-adoption-transaction-a14).
+
+Candidate `get` adds optional `effectTargets`/`effectPages` from Host-owned old
+identity and the exact parsed output when rebuilt pages contain attention cues.
+Adoption `prepare` accepts optional `effectBindings` with strict
+`{pageIndex,objectId,targetIndex}` entries, at most 20,000. Each old rebuilt target
+requires a distinct eligible candidate object on that same page. Host derives
+replacement UUIDs, preserves peer bindings, speech/timing/styles/audio provenance,
+and journals choices and the rebound project atomically. Pending replay must
+match its choices; recovery commits the retained project. Missing, extra,
+duplicate, cross-page or unsupported targets reject intact. Cue-free callers and
+older journals default to empty choices; protocol/schema versions are unchanged.
+
+The separate internal `courseware.narrationCandidate.stage/get/reject/adopt`
+methods persist and explicitly adopt narration proposals without changing PPTX.
+They retain protocol 11 and schema 18. Requests, results, action limits and CAS
+semantics are in [narration candidates](24-courseware-narration-candidates.md).
+Unknown fields and invalid data use 1002, missing records use 1007, and stale
+baselines, terminal transitions or manual locks use 1008. No renderer/Agent
+mount is added by these methods.
+
+The Host-internal saved-source review methods retain protocol 11 and schema 18.
+`prepare({sessionId, jobId})` returns `{reviewId, project, pageCount, targetSha256}`,
+optionally adding the current parser `targetPages` and old cue `effectTargets`
+inventories described in the finite [IPC review contract](01-ipc-protocol.md).
+`adopt({sessionId, jobId, reviewId, bindings: (string|null)[], effectBindings?})` returns `{project}`
+after source revalidation and atomic review/project/mapping CAS. Every request
+envelope is strict, workspace derives from the persisted session and the parser
+job must be its successful saved Office revision. No renderer-supplied identity,
+source hash, raw path, lineage or canonical project replacement is accepted.
+Invalid parameters, missing identity or unsupported actions use 1002; a missing
+project uses 1007; stale/consumed review
+and source/mapping/teaching conflicts or omitted locked pages use 1008. See
+[explicit review](22-courseware-contract-v1.md#explicit-review-of-an-already-saved-source).
+
+Optional `effectBindings` is an array of strict
+`{pageIndex,objectId,targetIndex}` entries (zero-based new page, old Host UUID,
+one-based current parser object). Host verifies the old actual object kind,
+complete old target coverage, bound page, eligible new kind, uniqueness and
+unmodified source/review/teaching/mapping. It derives each new UUID, rewrites only
+the supported cue target fields and preserves speech/audio/timing/checkpoints.
+Unsupported cues, missing/duplicate/cross-page/merged targets and omitted
+cue-bearing pages reject transactionally. Legacy requests default to an empty
+array and retain their previous cue-free behavior. No new schema or RPC method.
+
+
+### A7 trusted page text and dispatched PPT cancellation
+
+`courseware.pageText` is internal Main-to-Host only, with strict
+`{sessionId,jobId,pageNumber}`. It checks persisted workspace, successful saved
+archive/hash, page bounds and the completed parser IR digest before returning
+`{text}` for that page only. Text/table extraction is bounded to 32,000 UTF-16
+code units; no supported source text is an error. It is not renderer-generic RPC.
+
+`ppt_get_narration_context` and `ppt_propose_page_narration` use existing
+`tools.execute`/permission/audit/`plugins.execute` dispatch. Private context is
+low risk; proposal is high risk. Durable Plan mode denies both. Cancelled or
+timed-out dispatched PPT operations emit `ppt.cancelExecution({executionId})`;
+Main revokes dispatchability and propagates AbortSignal to in-flight narration.
+Unknown/retired execution IDs have no effect. Successful replies retain existing
+`plugins.resolveExecution`. No arbitrary `ppt_*` dispatch is introduced.

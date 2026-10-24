@@ -58,6 +58,7 @@
           if (!(file instanceof Blob)) return;
           bridge.sendEvent({
             type: "saved",
+            id: message.id,
             fileName: message.payload?.fileName,
             bytes: await file.arrayBuffer(),
           });

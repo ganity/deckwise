@@ -38,6 +38,7 @@ export type AgentHostBridgeOptions = {
   invoke: IpcInvoke;
   channels: typeof IPC.invoke;
   getHost: () => HostLike | null;
+  getViewingSessionId?: () => string | null;
   /** Runtime-side busy state the event stream cannot see (active turn map,
    * manual compaction). */
   isSessionBusy?: (sessionId: string) => boolean;
@@ -101,6 +102,10 @@ export function createAgentHostBridge(options: AgentHostBridgeOptions) {
           {
             sessionId: request.sessionId,
             content: request.content,
+            // Read at dispatch: queued local turns must not retain a stale editor view.
+            viewingSessionId: request.principal.subject === DESKTOP_PRINCIPAL.subject
+              ? options.getViewingSessionId?.() ?? null
+              : null,
             ...(request.sessionMessageId ? { sessionMessageId: request.sessionMessageId } : {}),
             ...(request.attachments ? { attachments: request.attachments } : {}),
           },

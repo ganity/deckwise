@@ -1,0 +1,18 @@
+{
+  "sourceTree": "33908729391e8a726f62d49c49537488284a858e",
+  "files": {
+    "source-pause-project.json": {
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/A/a8-source-narration-pauses-20261019/electron-01/source-pause-project.json",
+      "sha256": "7ee03c7201cae9b946ad4e4784245b2092b10077893dca3fac1dc57561635343"
+    },
+    "chat-generated-review.json": {
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/A/a8-source-narration-pauses-20261019/electron-01/chat-generated-review.json",
+      "sha256": "c8ff93fe1e0a26a6770e5a112e2e93de1e814f4faa789dfa7df692fd5b703f77"
+    }
+  },
+  "composition": "Only the two original speech actions (including the 4000 ms pause) are reused unchanged except explicit audioAssetId bindings. D R8 visual source/mapping, unrelated pre-existing WAV test audio, teacher checkpoint and ready states are authored test composition. This is not an immutable A Host snapshot, A8 native PPTX, synthesized matching narration or live TTS.",
+  "fixedBuild": {
+    "outputDirectory": ".builds-desktop-a8-01",
+    "buildId": "7ff1beedaaea3d2561af79340348df3f0f142852341743335d391fb02a15827e"
+  }
+}

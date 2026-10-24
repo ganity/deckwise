@@ -1,4 +1,5 @@
 import i18n from "i18next";
+import { getOfficePreviewExtension } from "@pi-desktop/shared";
 import type {
   AgentQueueChangedEvent,
   AgentPromptAttachment,
@@ -410,7 +411,18 @@ export function createQueueSlice({
           latestTurnResults: withoutRecordKey(state.latestTurnResults, startedIn),
           sessionOutcomes: withoutRecordKey(state.sessionOutcomes, startedIn),
         }));
-        get().openWorkPanelTabForSession(startedIn, toolWorkPanelTab("ppt"));
+        const panel = get();
+        const activeTab = panel.workPanelTabs.find(
+          (tab) => tab.id === panel.activeWorkPanelTabId,
+        );
+        // Keep the current Chat editing surface visible while its tools run.
+        const editingCourseware = panel.activeSessionId === startedIn &&
+          panel.workPanelOpen && (activeTab?.kind === "media-canvas" ||
+            (activeTab?.kind === "editor" &&
+              getOfficePreviewExtension(activeTab.resource ?? "", activeTab.mimeType) === "pptx"));
+        if (!editingCourseware) {
+          panel.openWorkPanelTabForSession(startedIn, toolWorkPanelTab("ppt"));
+        }
         const optimisticMessage = optimisticUserMessage(
           crypto.randomUUID(),
           content,

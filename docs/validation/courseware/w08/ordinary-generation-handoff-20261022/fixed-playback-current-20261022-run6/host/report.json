@@ -1,0 +1,16 @@
+{
+  "status": "PASS_HOST_SNAPSHOTS_ONLY",
+  "checks": [
+    "Real parser binds saved source; unconfirmed teaching cannot be snapshotted",
+    "Explicit per-page confirmation fences stale and forged requests; audio remains mandatory",
+    "Capture freezes canonical refs, complete mapping, exact PPTX and audio bytes",
+    "Full Host restart and later live teaching/source/audio edits do not alter the snapshot",
+    "Corrupt archived source or audio rejects retrieval without falling back to live files"
+  ],
+  "temp": "/tmp/deckwise-snapshots-eUKnFT",
+  "sourceHash": "c3aeaeb94308615b2af2529db1cdbd76f85b18fd14714e5ebd10adb9ccad37f3",
+  "audioHash": "c726d333dd159a31423f3480dbb1c5c4a9dfcd30efe1f7e12ade390dc92e8908",
+  "audioFixtureOnly": true,
+  "paidCalls": false,
+  "electronUi": false
+}

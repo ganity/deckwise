@@ -20,6 +20,7 @@ import {
   modelIdsMatch,
   type McpServerRecord,
   type Mode,
+  type PptEditorBinding,
   type ModelBinding,
   normalizeMode,
   type Risk,
@@ -64,6 +65,7 @@ export type SessionLaunchRuntimeDependencies = {
   modelsDevCatalog: ModelsDevCatalog;
   listRuntimeProviders: (includeDisabled?: boolean) => Promise<RuntimeProvider[]>;
   getWorkspacePath: () => string | null;
+  capturePptEditor: (sessionId: string) => Promise<PptEditorBinding | undefined>;
   pluginActiveInProject: (
     pluginId: string,
     projectPath: string | null | undefined,
@@ -98,6 +100,7 @@ export function createSessionLaunchRuntime({
   modelsDevCatalog,
   listRuntimeProviders,
   getWorkspacePath,
+  capturePptEditor,
   pluginActiveInProject,
   bindingForModel,
   modelsDevModelFor,
@@ -285,6 +288,7 @@ export function createSessionLaunchRuntime({
       modelId?: string;
       thinkingLevel?: ThinkingLevel;
       webSearchEnabled?: boolean;
+      captureEditor?: boolean;
     } = {},
   ) {
     if (!runtimeState.host) throw new Error("host unavailable");
@@ -632,15 +636,16 @@ export function createSessionLaunchRuntime({
             : [],
         ),
     );
+    const mode = normalizeMode(overrides.mode ?? session.mode ?? settings.defaultMode ?? "agent");
+    const pptEditorBinding = mode === "agent" && overrides.captureEditor !== false ? await capturePptEditor(sessionId) : undefined;
     return {
       providerId: provider.id,
       modelId,
       projectPath,
       sidecarParams: {
         sessionId,
-        mode: normalizeMode(
-          overrides.mode ?? session.mode ?? settings.defaultMode ?? "agent",
-        ),
+        mode,
+        pptEditorBinding,
         ...(overrides.turnId ? { turnId: overrides.turnId } : {}),
         thinkingLevel,
         commandShell,

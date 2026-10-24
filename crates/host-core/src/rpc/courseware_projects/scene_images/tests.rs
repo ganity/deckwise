@@ -1,0 +1,923 @@
+use super::*;
+use base64::{engine::general_purpose::STANDARD, Engine};
+use sha2::Digest;
+
+struct Fixture {
+    dir: tempfile::TempDir,
+    root: std::path::PathBuf,
+    session: String,
+    peer: String,
+    sha256: String,
+    state: Arc<Mutex<AppState>>,
+}
+
+#[test]
+fn reference_request_hash_matches_desktop_and_java_fixture_without_changing_legacy_hash() {
+    let mut request = ImageRequest {
+        kind: "image".into(),
+        model: "scene-image".into(),
+        input: "A bright classroom. 小朋友😀".into(),
+        reference_image: None,
+    };
+    assert_eq!(
+        request.hash(),
+        "44ecfadd1f67a10194854070a668f25f21da00c98905a78465c6f68bc4523da5"
+    );
+    request.reference_image = Some(ReferenceImage {
+        sha256: "d8aeb7b31114535bbf9035568464d5eb3dadfabaa70525a487d2c04571203426".into(),
+        mime_type: "image/png".into(),
+        byte_length: 70,
+    });
+    assert_eq!(
+        request.hash(),
+        "d7ebe81a655cdb742f9b5dceee3a2419a0fbe7e49ce73dde29bad23496987881"
+    );
+}
+
+#[tokio::test]
+async fn reference_requires_same_private_scope_current_page_and_reviewed_visual_master() {
+    let mut f = Fixture::new().await;
+    let master = f.submitted("image-model", "scene-001").await;
+    let mut request = f.prepare();
+    request["target"] = json!({"kind":"cleanPlate"});
+    request["referenceIntentId"] = master["intent"]["intentId"].clone();
+    assert!(f
+        .call("courseware.sceneImage.prepare", request.clone())
+        .await
+        .is_err());
+    let stage = f.stage(&master);
+    f.call("courseware.sceneImage.asset.stage", stage.clone())
+        .await
+        .unwrap();
+    assert!(f
+        .call("courseware.sceneImage.prepare", request.clone())
+        .await
+        .is_err());
+    let mut adopt = f.operation(&master);
+    adopt["expectedSelectedIntentId"] = Value::Null;
+    f.call("courseware.sceneImage.asset.adopt", adopt)
+        .await
+        .unwrap();
+    for (field, value) in [
+        ("principalKey", json!("b".repeat(64))),
+        ("sessionId", json!(f.peer)),
+        ("pageId", json!("scene-002")),
+        ("target", json!({"kind":"visualMaster"})),
+    ] {
+        let mut foreign = request.clone();
+        foreign[field] = value;
+        assert!(
+            f.call("courseware.sceneImage.prepare", foreign)
+                .await
+                .is_err(),
+            "{field}"
+        );
+    }
+    let prepared = f
+        .call("courseware.sceneImage.prepare", request.clone())
+        .await
+        .unwrap();
+    assert_eq!(
+        prepared["intent"]["request"]["referenceImage"]["sha256"],
+        stage["asset"]["sha256"]
+    );
+    assert!(prepared["intent"]["request"]["referenceImage"]
+        .get("bytesBase64")
+        .is_none());
+    f.restart().await;
+    let retained = f
+        .call("courseware.sceneImage.prepare", request)
+        .await
+        .unwrap();
+    assert_eq!(prepared["intent"], retained["intent"]);
+    let replacement = f.submitted("other-model", "scene-001").await;
+    f.call("courseware.sceneImage.asset.stage", f.stage(&replacement))
+        .await
+        .unwrap();
+    let mut adopt = f.operation(&replacement);
+    adopt["expectedSelectedIntentId"] = master["intent"]["intentId"].clone();
+    f.call("courseware.sceneImage.asset.adopt", adopt)
+        .await
+        .unwrap();
+    assert!(f
+        .call("courseware.sceneImage.begin", f.operation(&prepared))
+        .await
+        .is_err());
+    let unchanged = f
+        .call("courseware.sceneImage.get", f.operation(&prepared))
+        .await
+        .unwrap();
+    assert_eq!(unchanged["intent"]["phase"], "prepared");
+}
+
+#[tokio::test]
+async fn scene_object_mapping_requires_reviewed_inputs_before_source_or_project_write() {
+    let f = Fixture::new().await;
+    let refused = f
+        .call(
+            "courseware.project.initializeGenerated",
+            json!({
+                "sessionId":f.session, "jobId":"unused", "sourceSha256":"a".repeat(64),
+                "title":"Shapes", "narrations":["A circle. Good!"], "sceneMapping":{"pages":[]}
+            }),
+        )
+        .await
+        .unwrap_err();
+    assert!(refused
+        .message
+        .contains("Scene mapping requires reviewed generation inputs"));
+    let state = f.state.lock().await;
+    assert!(state
+        .db
+        .courseware_project_context(f.root.to_str().unwrap(), "unused")
+        .is_err());
+}
+
+impl Fixture {
+    async fn new() -> Self {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("workspace");
+        std::fs::create_dir(&root).unwrap();
+        let mut app = AppState::open(dir.path()).unwrap();
+        app.handshook = true;
+        let mut ids = Vec::new();
+        for _ in 0..2 {
+            let session = sessions::create_session(
+                &app.db,
+                None,
+                None,
+                None,
+                None,
+                Some(root.to_string_lossy().into()),
+            )
+            .unwrap();
+            app.db
+                .kv_set(
+                    TASK_NAMESPACE,
+                    &session.id,
+                    &json!({"taskType":"scene","educationContext":null}),
+                )
+                .unwrap();
+            ids.push(session.id);
+        }
+        let mut f = Self {
+            dir,
+            root,
+            session: ids[0].clone(),
+            peer: ids[1].clone(),
+            sha256: String::new(),
+            state: Arc::new(Mutex::new(app)),
+        };
+        f.revise("A bright circle. 小朋友😀");
+        f.approve().await;
+        f
+    }
+
+    fn path(&self) -> std::path::PathBuf {
+        self.root
+            .join(format!(".deckwise-ppt/scenes/{}/plan.json", self.session))
+    }
+
+    fn revise(&mut self, visual: &str) {
+        let plan = json!({"title":"Shapes","pages":[
+            {"title":"Circle","visibleText":["圆 Circle"],"visualIntent":visual,"narration":"A circle. Good!"},
+            {"title":"Square","visibleText":["Square"],"visualIntent":"A square window","narration":"Look at the window."}]});
+        let bytes = serde_json::to_vec(&plan).unwrap();
+        self.sha256 = hex::encode(sha2::Sha256::digest(&bytes));
+        std::fs::create_dir_all(self.path().parent().unwrap()).unwrap();
+        std::fs::write(self.path(), bytes).unwrap();
+    }
+
+    async fn call(&self, method: &str, params: Value) -> Result<Value, JsonRpcError> {
+        let (tx, _rx) = mpsc::unbounded_channel();
+        crate::rpc::handle_request(self.state.clone(), method, params, tx).await
+    }
+
+    async fn approve(&self) {
+        self.call(
+            "courseware.scenePlan.approve",
+            json!({"sessionId":self.session,"sha256":self.sha256}),
+        )
+        .await
+        .unwrap();
+    }
+
+    fn scope(&self) -> Value {
+        json!({"sessionId":self.session,"principalKey":"a".repeat(64)})
+    }
+    fn prepare(&self) -> Value {
+        let mut p = self.scope();
+        p["planSha256"] = json!(self.sha256);
+        p["pageId"] = json!("scene-001");
+        p["model"] = json!("image-model");
+        p
+    }
+    fn operation(&self, view: &Value) -> Value {
+        let mut p = self.scope();
+        p["intentId"] = view["intent"]["intentId"].clone();
+        p
+    }
+    async fn restart(&mut self) {
+        let mut app = AppState::open(self.dir.path()).unwrap();
+        app.handshook = true;
+        self.state = Arc::new(Mutex::new(app));
+    }
+
+    async fn submitted(&self, model: &str, page: &str) -> Value {
+        let mut p = self.prepare();
+        p["model"] = json!(model);
+        p["pageId"] = json!(page);
+        self.submit(p).await
+    }
+
+    async fn submit(&self, p: Value) -> Value {
+        let prepared = self.call("courseware.sceneImage.prepare", p).await.unwrap();
+        let mut operation = self.operation(&prepared);
+        self.call("courseware.sceneImage.begin", operation.clone())
+            .await
+            .unwrap();
+        operation["taskRef"] = json!({"taskId":format!("task-{}", prepared["intent"]["intentId"].as_str().unwrap()),
+            "idempotencyKey":prepared["intent"]["idempotencyKey"],"requestHash":prepared["intent"]["requestHash"]});
+        self.call("courseware.sceneImage.bind", operation)
+            .await
+            .unwrap()
+    }
+
+    fn stage(&self, view: &Value) -> Value {
+        let bytes = STANDARD.decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg==").unwrap();
+        let mut p = self.operation(view);
+        p["asset"] = json!({"taskRef":view["intent"]["taskRef"],"sha256":hex::encode(sha2::Sha256::digest(&bytes)),
+            "mimeType":"image/png","byteLength":bytes.len(),"width":1,"height":1});
+        p["bytesBase64"] = json!(STANDARD.encode(bytes));
+        p
+    }
+}
+
+#[tokio::test]
+async fn scene_image_generation_requires_all_current_reviewed_assets_and_rechecks_after_restart() {
+    let mut f = Fixture::new().await;
+    let mut ids = Vec::new();
+    for page in ["scene-001", "scene-002"] {
+        for target in [
+            json!({"kind":"visualMaster"}),
+            json!({"kind":"cleanPlate"}),
+            json!({"kind":"layer","name":"Circle"}),
+        ] {
+            let mut request = f.prepare();
+            request["pageId"] = json!(page);
+            request["target"] = target.clone();
+            let row = f.submit(request).await;
+            let mut staged = f.stage(&row);
+            if target["kind"] == "cleanPlate" {
+                let bytes = STANDARD.decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADUlEQVR4nGNgYPj/HwADAgH/5ncLrgAAAABJRU5ErkJggg==").unwrap();
+                staged["asset"]["sha256"] = json!(hex::encode(sha2::Sha256::digest(&bytes)));
+                staged["asset"]["byteLength"] = json!(bytes.len());
+                staged["bytesBase64"] = json!(STANDARD.encode(bytes));
+            }
+            f.call("courseware.sceneImage.asset.stage", staged)
+                .await
+                .unwrap();
+            let mut adopt = f.operation(&row);
+            adopt["expectedSelectedIntentId"] = Value::Null;
+            f.call("courseware.sceneImage.asset.adopt", adopt)
+                .await
+                .unwrap();
+            ids.push(row["intent"]["intentId"].as_str().unwrap().to_owned());
+        }
+    }
+    let proof = GenerationProof {
+        plan_sha256: f.sha256.clone(),
+        principal_key: "a".repeat(64),
+        selected_intent_ids: ids,
+    };
+    f.restart().await;
+    {
+        let state = f.state.lock().await;
+        let root = f.root.to_str().unwrap();
+        assert_eq!(
+            verify_generation(&state, root, &f.session, &proof)
+                .unwrap()
+                .pages
+                .len(),
+            2
+        );
+        for kind in ["missing", "duplicate", "account", "plan", "peer"] {
+            let mut bad = proof.clone();
+            match kind {
+                "missing" => {
+                    bad.selected_intent_ids.pop();
+                }
+                "duplicate" => bad
+                    .selected_intent_ids
+                    .push(bad.selected_intent_ids[0].clone()),
+                "account" => bad.principal_key = "b".repeat(64),
+                "plan" => bad.plan_sha256 = "c".repeat(64),
+                _ => {}
+            }
+            assert!(
+                verify_generation(
+                    &state,
+                    root,
+                    if kind == "peer" { &f.peer } else { &f.session },
+                    &bad
+                )
+                .is_err(),
+                "{kind}"
+            );
+        }
+    }
+    for method in [
+        "courseware.project.initializeGenerated",
+        "courseware.task.attachGenerated",
+    ] {
+        let params = if method.ends_with("initializeGenerated") {
+            json!({"sessionId":f.session,"jobId":"unused","sourceSha256":"a".repeat(64),"title":"Shapes","narrations":["A circle. Good!","Look at the window."]})
+        } else {
+            json!({"sessionId":f.session,"projectId":"unused","path":"unused","sourceSha256":"a".repeat(64)})
+        };
+        let refused = f.call(method, params).await.unwrap_err();
+        assert!(refused.message.contains("Reviewed scene inputs"));
+    }
+    let mut request = f.prepare();
+    request["target"] = json!({"kind":"layer","name":"Circle"});
+    request["instructions"] = json!("A brighter circle");
+    let next = f.submit(request).await;
+    f.call("courseware.sceneImage.asset.stage", f.stage(&next))
+        .await
+        .unwrap();
+    let mut adopt = f.operation(&next);
+    adopt["expectedSelectedIntentId"] = json!(proof.selected_intent_ids[2]);
+    f.call("courseware.sceneImage.asset.adopt", adopt)
+        .await
+        .unwrap();
+    let state = f.state.lock().await;
+    assert!(verify_generation(&state, f.root.to_str().unwrap(), &f.session, &proof).is_err());
+}
+
+#[tokio::test]
+async fn scene_image_targets_and_prompt_revisions_have_independent_reviewed_choices() {
+    let mut f = Fixture::new().await;
+    let targets = [
+        json!({"kind":"visualMaster"}),
+        json!({"kind":"cleanPlate"}),
+        json!({"kind":"layer","name":"小兔"}),
+        json!({"kind":"layer","name":"苹果"}),
+    ];
+    let mut choices = Vec::new();
+    for target in &targets {
+        let mut p = f.prepare();
+        p["target"] = target.clone();
+        let item = f.submit(p.clone()).await;
+        assert_eq!(item["intent"]["target"], *target);
+        assert_eq!(
+            f.call("courseware.sceneImage.prepare", p).await.unwrap()["intent"]["intentId"],
+            item["intent"]["intentId"]
+        );
+        f.call("courseware.sceneImage.asset.stage", f.stage(&item))
+            .await
+            .unwrap();
+        let mut select = f.operation(&item);
+        select["expectedSelectedIntentId"] = Value::Null;
+        f.call("courseware.sceneImage.asset.adopt", select)
+            .await
+            .unwrap();
+        choices.push(item);
+    }
+    assert!(choices[0]["intent"]["request"]["input"]
+        .as_str()
+        .unwrap()
+        .contains("visual reference"));
+    assert!(choices[1]["intent"]["request"]["input"]
+        .as_str()
+        .unwrap()
+        .contains("empty environment"));
+    assert!(choices[2]["intent"]["request"]["input"]
+        .as_str()
+        .unwrap()
+        .contains("Transparent PNG"));
+    assert_eq!(
+        choices
+            .iter()
+            .map(|i| i["intent"]["requestHash"].as_str().unwrap())
+            .collect::<std::collections::HashSet<_>>()
+            .len(),
+        4
+    );
+    f.restart().await;
+    let saved = f
+        .call("courseware.sceneImage.list", f.scope())
+        .await
+        .unwrap();
+    assert_eq!(
+        saved["intents"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|i| i["intent"]["selected"] == true)
+            .count(),
+        4
+    );
+    let mut p = f.prepare();
+    p["target"] = targets[2].clone();
+    p["instructions"] = json!("Make the rabbit smile.");
+    let next = f.submit(p).await;
+    assert_ne!(
+        next["intent"]["idempotencyKey"],
+        choices[2]["intent"]["idempotencyKey"]
+    );
+    assert!(next["intent"]["request"]["input"]
+        .as_str()
+        .unwrap()
+        .contains("Make the rabbit smile."));
+    f.call("courseware.sceneImage.asset.stage", f.stage(&next))
+        .await
+        .unwrap();
+    let mut select = f.operation(&next);
+    select["expectedSelectedIntentId"] = choices[1]["intent"]["intentId"].clone();
+    assert!(f
+        .call("courseware.sceneImage.asset.adopt", select.clone())
+        .await
+        .is_err());
+    select["expectedSelectedIntentId"] = choices[2]["intent"]["intentId"].clone();
+    f.call("courseware.sceneImage.asset.adopt", select)
+        .await
+        .unwrap();
+    for (index, item) in choices.iter().enumerate() {
+        let saved = f
+            .call("courseware.sceneImage.get", f.operation(item))
+            .await
+            .unwrap();
+        assert_eq!(saved["intent"]["selected"], index != 2);
+    }
+}
+
+#[tokio::test]
+async fn scene_image_invalid_targets_and_instructions_never_prepare_a_request() {
+    let f = Fixture::new().await;
+    for target in [
+        json!({"kind":"other"}),
+        json!({"kind":"layer","name":""}),
+        json!({"kind":"layer","name":" bad "}),
+        json!({"kind":"layer","name":"x\ny"}),
+        json!({"kind":"layer","name":"a".repeat(81)}),
+        json!({"kind":"cleanPlate","name":"hidden"}),
+    ] {
+        let mut p = f.prepare();
+        p["target"] = target;
+        assert!(
+            f.call("courseware.sceneImage.prepare", p.clone())
+                .await
+                .is_err(),
+            "{p}"
+        );
+    }
+    for instructions in [
+        json!("x".repeat(1201)),
+        json!("bad\u{0000}prompt"),
+        Value::Null,
+    ] {
+        let mut p = f.prepare();
+        p["instructions"] = instructions;
+        assert!(f.call("courseware.sceneImage.prepare", p).await.is_err());
+    }
+    assert_eq!(
+        f.call("courseware.sceneImage.list", f.scope())
+            .await
+            .unwrap()["intents"],
+        json!([])
+    );
+}
+
+#[tokio::test]
+async fn scene_image_archive_preview_selection_survive_restart_and_corruption_is_not_repaired() {
+    let mut f = Fixture::new().await;
+    let submitted = f.submitted("image-model", "scene-001").await;
+    let operation = f.operation(&submitted);
+    let stage = f.stage(&submitted);
+    let saved = f
+        .call("courseware.sceneImage.asset.stage", stage.clone())
+        .await
+        .unwrap();
+    assert_eq!(saved["intent"]["selected"], false);
+    let path = std::path::PathBuf::from(saved["path"].as_str().unwrap());
+    assert!(path.starts_with(f.dir.path()));
+    assert_eq!(
+        std::fs::read(&path).unwrap(),
+        STANDARD
+            .decode(stage["bytesBase64"].as_str().unwrap())
+            .unwrap()
+    );
+    let mut adopt = operation.clone();
+    adopt["expectedSelectedIntentId"] = Value::Null;
+    let selected = f
+        .call("courseware.sceneImage.asset.adopt", adopt)
+        .await
+        .unwrap();
+    assert_eq!(selected["intent"]["selected"], true);
+    f.restart().await;
+    assert_eq!(
+        f.call("courseware.sceneImage.asset.get", operation.clone())
+            .await
+            .unwrap(),
+        selected
+    );
+    assert_eq!(
+        f.call("courseware.sceneImage.asset.stage", stage.clone())
+            .await
+            .unwrap(),
+        selected
+    );
+    std::fs::write(&path, b"corrupted").unwrap();
+    assert!(f
+        .call("courseware.sceneImage.asset.get", operation)
+        .await
+        .is_err());
+    assert!(f
+        .call("courseware.sceneImage.asset.stage", stage)
+        .await
+        .is_err());
+    assert_eq!(std::fs::read(path).unwrap(), b"corrupted");
+}
+
+#[tokio::test]
+async fn scene_image_archive_refuses_forged_bytes_metadata_task_and_foreign_scope() {
+    let f = Fixture::new().await;
+    let submitted = f.submitted("image-model", "scene-001").await;
+    let stage = f.stage(&submitted);
+    for field in [
+        "task", "hash", "length", "width", "mime", "bytes", "account", "session", "path",
+    ] {
+        let mut p = stage.clone();
+        match field {
+            "task" => p["asset"]["taskRef"]["taskId"] = json!("foreign-task"),
+            "hash" => p["asset"]["sha256"] = json!("b".repeat(64)),
+            "length" => p["asset"]["byteLength"] = json!(0),
+            "width" => p["asset"]["width"] = json!(2),
+            "mime" => p["asset"]["mimeType"] = json!("image/svg+xml"),
+            "bytes" => p["bytesBase64"] = json!("not base64"),
+            "account" => p["principalKey"] = json!("b".repeat(64)),
+            "session" => p["sessionId"] = json!(f.peer),
+            _ => p["path"] = json!("/tmp/renderer-image"),
+        }
+        assert!(
+            f.call("courseware.sceneImage.asset.stage", p)
+                .await
+                .is_err(),
+            "{field}"
+        );
+    }
+    assert_eq!(
+        f.call("courseware.sceneImage.get", f.operation(&submitted))
+            .await
+            .unwrap(),
+        submitted
+    );
+}
+
+#[tokio::test]
+async fn scene_image_selection_is_page_local_compare_and_set_and_stale_plan_is_read_only() {
+    let mut f = Fixture::new().await;
+    let one = f.submitted("image-model", "scene-001").await;
+    let two = f.submitted("other-model", "scene-001").await;
+    let peer = f.submitted("image-model", "scene-002").await;
+    for item in [&one, &two, &peer] {
+        f.call("courseware.sceneImage.asset.stage", f.stage(item))
+            .await
+            .unwrap();
+    }
+    let mut select = f.operation(&one);
+    select["expectedSelectedIntentId"] = Value::Null;
+    f.call("courseware.sceneImage.asset.adopt", select.clone())
+        .await
+        .unwrap();
+    let mut other = f.operation(&two);
+    other["expectedSelectedIntentId"] = Value::Null;
+    assert!(f
+        .call("courseware.sceneImage.asset.adopt", other.clone())
+        .await
+        .is_err());
+    other["expectedSelectedIntentId"] = one["intent"]["intentId"].clone();
+    f.call("courseware.sceneImage.asset.adopt", other)
+        .await
+        .unwrap();
+    assert_eq!(
+        f.call("courseware.sceneImage.get", f.operation(&one))
+            .await
+            .unwrap()["intent"]["selected"],
+        false
+    );
+    assert_eq!(
+        f.call("courseware.sceneImage.get", f.operation(&peer))
+            .await
+            .unwrap()["intent"]["selected"],
+        false
+    );
+    f.revise("A revised visual");
+    f.approve().await;
+    let old = f
+        .call("courseware.sceneImage.asset.get", f.operation(&two))
+        .await
+        .unwrap();
+    assert_eq!(old["current"], false);
+    assert_eq!(old["intent"]["selected"], true);
+    assert!(f
+        .call("courseware.sceneImage.asset.adopt", select)
+        .await
+        .is_err());
+    let new = f
+        .call("courseware.sceneImage.prepare", f.prepare())
+        .await
+        .unwrap();
+    assert_eq!(new["intent"]["selected"], false);
+    assert!(new["intent"]["asset"].is_null());
+}
+
+#[tokio::test]
+async fn scene_image_old_journals_default_to_unarchived_unselected() {
+    let f = Fixture::new().await;
+    let prepared = f
+        .call("courseware.sceneImage.prepare", f.prepare())
+        .await
+        .unwrap();
+    {
+        let state = f.state.lock().await;
+        let scope: Scope = serde_json::from_value(f.scope()).unwrap();
+        let key = storage_key(f.root.to_str().unwrap(), &scope).unwrap();
+        let mut rows = state.db.kv_get(NAMESPACE, &key).unwrap().unwrap();
+        rows[0].as_object_mut().unwrap().remove("asset");
+        rows[0].as_object_mut().unwrap().remove("selected");
+        rows[0].as_object_mut().unwrap().remove("target");
+        state.db.kv_set(NAMESPACE, &key, &rows).unwrap();
+    }
+    assert_eq!(
+        f.call("courseware.sceneImage.get", f.operation(&prepared))
+            .await
+            .unwrap(),
+        prepared
+    );
+}
+
+#[tokio::test]
+async fn scene_image_prepare_pins_the_approved_page_and_reuses_the_original_key() {
+    let f = Fixture::new().await;
+    let prepared = f
+        .call("courseware.sceneImage.prepare", f.prepare())
+        .await
+        .unwrap();
+    assert_eq!(prepared["current"], true);
+    assert_eq!(prepared["intent"]["phase"], "prepared");
+    assert_eq!(prepared["intent"]["planSha256"], f.sha256);
+    assert_eq!(prepared["intent"]["request"]["kind"], "image");
+    assert!(prepared["intent"]["request"].get("voice").is_none());
+    assert!(prepared["intent"]["request"]["input"]
+        .as_str()
+        .unwrap()
+        .contains("小朋友😀"));
+    assert_eq!(
+        f.call("courseware.sceneImage.prepare", f.prepare())
+            .await
+            .unwrap(),
+        prepared
+    );
+    let mut other = f.prepare();
+    other["pageId"] = json!("scene-002");
+    let other = f
+        .call("courseware.sceneImage.prepare", other)
+        .await
+        .unwrap();
+    assert_ne!(
+        other["intent"]["idempotencyKey"],
+        prepared["intent"]["idempotencyKey"]
+    );
+    assert!(other["intent"]["request"]["input"]
+        .as_str()
+        .unwrap()
+        .contains("square window"));
+    assert_eq!(
+        f.call("courseware.sceneImage.list", f.scope())
+            .await
+            .unwrap()["intents"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
+}
+
+#[tokio::test]
+async fn scene_image_unknown_submission_survives_restart_and_cannot_begin_twice() {
+    let mut f = Fixture::new().await;
+    let prepared = f
+        .call("courseware.sceneImage.prepare", f.prepare())
+        .await
+        .unwrap();
+    let operation = f.operation(&prepared);
+    let begun = f
+        .call("courseware.sceneImage.begin", operation.clone())
+        .await
+        .unwrap();
+    assert_eq!(begun["intent"]["phase"], "submission-unknown");
+    f.restart().await;
+    assert_eq!(
+        f.call("courseware.sceneImage.get", operation.clone())
+            .await
+            .unwrap(),
+        begun
+    );
+    assert!(f
+        .call("courseware.sceneImage.begin", operation.clone())
+        .await
+        .is_err());
+    assert_eq!(
+        f.call("courseware.sceneImage.prepare", f.prepare())
+            .await
+            .unwrap(),
+        begun
+    );
+    let mut bind = operation.clone();
+    bind["taskRef"] = json!({"taskId":"task-1","idempotencyKey":begun["intent"]["idempotencyKey"],"requestHash":begun["intent"]["requestHash"]});
+    let bound = f
+        .call("courseware.sceneImage.bind", bind.clone())
+        .await
+        .unwrap();
+    assert_eq!(bound["intent"]["phase"], "submitted");
+    assert_eq!(
+        f.call("courseware.sceneImage.bind", bind.clone())
+            .await
+            .unwrap(),
+        bound
+    );
+    bind["taskRef"]["taskId"] = json!("task-2");
+    assert!(f.call("courseware.sceneImage.bind", bind).await.is_err());
+    f.restart().await;
+    assert_eq!(
+        f.call("courseware.sceneImage.get", operation)
+            .await
+            .unwrap(),
+        bound
+    );
+}
+
+#[tokio::test]
+async fn scene_image_revisions_require_reapproval_and_keep_late_receipts_on_their_old_plan() {
+    let mut f = Fixture::new().await;
+    let prepared = f
+        .call("courseware.sceneImage.prepare", f.prepare())
+        .await
+        .unwrap();
+    let operation = f.operation(&prepared);
+    f.revise("A new red circle");
+    assert!(f
+        .call("courseware.sceneImage.prepare", f.prepare())
+        .await
+        .is_err());
+    assert!(f
+        .call("courseware.sceneImage.begin", operation.clone())
+        .await
+        .is_err());
+    assert_eq!(
+        f.call("courseware.sceneImage.get", operation.clone())
+            .await
+            .unwrap()["current"],
+        false
+    );
+    f.approve().await;
+    let next = f
+        .call("courseware.sceneImage.prepare", f.prepare())
+        .await
+        .unwrap();
+    assert_ne!(
+        next["intent"]["idempotencyKey"],
+        prepared["intent"]["idempotencyKey"]
+    );
+    let next_operation = f.operation(&next);
+    f.call("courseware.sceneImage.begin", next_operation.clone())
+        .await
+        .unwrap();
+    std::fs::write(f.path(), "{malformed").unwrap();
+    let mut bind = next_operation.clone();
+    bind["taskRef"] = json!({"taskId":"late-task","idempotencyKey":next["intent"]["idempotencyKey"],"requestHash":next["intent"]["requestHash"]});
+    let late = f.call("courseware.sceneImage.bind", bind).await.unwrap();
+    assert_eq!(late["current"], false);
+    assert_eq!(late["intent"]["taskRef"]["taskId"], "late-task");
+    assert_eq!(
+        f.call("courseware.sceneImage.get", next_operation)
+            .await
+            .unwrap(),
+        late
+    );
+}
+
+#[tokio::test]
+async fn scene_image_scope_and_strict_fields_prevent_foreign_or_forged_intents() {
+    let f = Fixture::new().await;
+    let prepared = f
+        .call("courseware.sceneImage.prepare", f.prepare())
+        .await
+        .unwrap();
+    for key in ["input", "voice", "idempotencyKey", "path", "intentId"] {
+        let mut p = f.prepare();
+        p[key] = json!("forged");
+        assert!(f.call("courseware.sceneImage.prepare", p).await.is_err());
+    }
+    for page in ["scene-000", "scene-1", "scene-003", "../page"] {
+        let mut p = f.prepare();
+        p["pageId"] = json!(page);
+        assert!(f.call("courseware.sceneImage.prepare", p).await.is_err());
+    }
+    let mut other = f.scope();
+    other["principalKey"] = json!("b".repeat(64));
+    assert_eq!(
+        f.call("courseware.sceneImage.list", other.clone())
+            .await
+            .unwrap()["intents"],
+        json!([])
+    );
+    other["intentId"] = prepared["intent"]["intentId"].clone();
+    assert!(f.call("courseware.sceneImage.get", other).await.is_err());
+    let mut peer = f.scope();
+    peer["sessionId"] = json!(f.peer);
+    assert_eq!(
+        f.call("courseware.sceneImage.list", peer).await.unwrap()["intents"],
+        json!([])
+    );
+    let mut bind = f.operation(&prepared);
+    bind["taskRef"] = json!({"taskId":"task-1","idempotencyKey":prepared["intent"]["idempotencyKey"],"requestHash":prepared["intent"]["requestHash"]});
+    assert!(f
+        .call("courseware.sceneImage.bind", bind.clone())
+        .await
+        .is_err());
+    let operation = f.operation(&prepared);
+    f.call("courseware.sceneImage.begin", operation.clone())
+        .await
+        .unwrap();
+    bind["taskRef"]["requestHash"] = json!("0".repeat(64));
+    assert!(f.call("courseware.sceneImage.bind", bind).await.is_err());
+    assert_eq!(
+        f.call("courseware.sceneImage.get", operation)
+            .await
+            .unwrap()["intent"]["phase"],
+        "submission-unknown"
+    );
+}
+
+#[tokio::test]
+async fn scene_image_submission_scope_uses_begin_order_and_survives_restart() {
+    let team = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    for bind_first in [true, false] {
+        let mut f = Fixture::new().await;
+        let prepared = f.call("courseware.sceneImage.prepare", f.prepare()).await.unwrap();
+        let op = f.operation(&prepared);
+        let bind = json!({"sessionId":f.session,"teamProjectId":team});
+        if bind_first {
+            f.call("courseware.task.bindTeam", bind.clone()).await.unwrap();
+        }
+        let begun = f.call("courseware.sceneImage.begin", op.clone()).await.unwrap();
+        let expected_team = if bind_first { json!(team) } else { Value::Null };
+        assert_eq!(begun["intent"]["submissionScope"], json!({"sessionId":f.session,"teamProjectId":expected_team}));
+        if !bind_first {
+            f.call("courseware.task.bindTeam", bind).await.unwrap();
+        }
+        f.restart().await;
+        assert_eq!(f.call("courseware.sceneImage.get", op.clone()).await.unwrap(), begun);
+        assert!(f.call("courseware.sceneImage.begin", op).await.is_err());
+    }
+}
+
+#[tokio::test]
+async fn rejected_scene_image_prepares_a_fresh_attempt_without_replaying_history() {
+    for team in [false, true] {
+        let mut f = Fixture::new().await;
+        if team {
+            f.call("courseware.task.bindTeam", json!({"sessionId":f.session,
+                "teamProjectId":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"})).await.unwrap();
+        }
+        let prepared = f.call("courseware.sceneImage.prepare", f.prepare()).await.unwrap();
+        let op = f.operation(&prepared);
+        let mut reject = op.clone();
+        reject["rejectedRequest"] = json!({"idempotencyKey":prepared["intent"]["idempotencyKey"],
+            "requestHash":prepared["intent"]["requestHash"]});
+        assert!(f.call("courseware.sceneImage.reject", reject.clone()).await.is_err());
+        let begun = f.call("courseware.sceneImage.begin", op.clone()).await.unwrap();
+        let mut wrong = reject.clone(); wrong["rejectedRequest"]["requestHash"] = json!("f".repeat(64));
+        assert!(f.call("courseware.sceneImage.reject", wrong).await.is_err());
+        assert_eq!(f.call("courseware.sceneImage.get", op.clone()).await.unwrap(), begun);
+        if !team {
+            assert!(f.call("courseware.sceneImage.reject", reject).await.is_err());
+            continue;
+        }
+        let rejected = f.call("courseware.sceneImage.reject", reject).await.unwrap();
+        assert_eq!(rejected["intent"]["phase"], "rejected");
+        f.restart().await;
+        assert_eq!(f.call("courseware.sceneImage.get", op.clone()).await.unwrap(), rejected);
+        assert!(f.call("courseware.sceneImage.begin", op.clone()).await.is_err());
+        let mut binding = op; binding["taskRef"] = json!({"taskId":"late", "idempotencyKey":begun["intent"]["idempotencyKey"],
+            "requestHash":begun["intent"]["requestHash"]});
+        assert!(f.call("courseware.sceneImage.bind", binding).await.is_err());
+        let fresh = f.call("courseware.sceneImage.prepare", f.prepare()).await.unwrap();
+        assert_eq!(fresh["intent"]["phase"], "prepared");
+        assert_ne!(fresh["intent"]["intentId"], rejected["intent"]["intentId"]);
+        assert_ne!(fresh["intent"]["idempotencyKey"], rejected["intent"]["idempotencyKey"]);
+        assert_eq!(fresh["intent"]["requestHash"], rejected["intent"]["requestHash"]);
+    }
+}

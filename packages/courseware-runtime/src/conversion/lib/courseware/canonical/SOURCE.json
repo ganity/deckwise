@@ -1,0 +1,13 @@
+{
+  "owner": "A",
+  "sourceDirectory": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/packages/shared/src",
+  "deliveryTree": "2b9c65df729c3213505b9d5607f1a978770dae9d",
+  "deliveryManifestSha256": "8ad6093371008dc35c3574717d64e32ccd246113bc52d69e6f90d011be31e9be",
+  "policy": "Unmodified canonical contract snapshot; replace from A as a unit, do not edit its schema in D.",
+  "sourceHashes": {
+    "courseware-contract.ts": "dd16a1562e64cb4010f461d1c4b4bb2389e9ac2c9c9059b01421ccbc491de297",
+    "courseware-contract.fixtures/accepted.json": "936cde4e26303b5997110f93430055e1445f6b0676d2f40678918bfa8208a805",
+    "courseware-contract.fixtures/stale-write.json": "f3072afd96ddbfbbf0d747ed8af627fe9eb091cf2be18639cb8873b30603a384",
+    "courseware-contract.fixtures/references.json": "cf6b9df7e19e7e7d7b77068d581ad035d874d44d8c4adf88be697749e71841e8"
+  }
+}

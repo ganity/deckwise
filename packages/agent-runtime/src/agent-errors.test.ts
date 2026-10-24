@@ -5,6 +5,23 @@ import {
 } from "./agent-errors.js";
 
 describe("classifyAgentError", () => {
+  it("distinguishes a terminal team refusal from provider credentials", () => {
+    for (const error of [
+      'OpenAI API error (403): {"message":"TEAM_LLM_PERMISSION_DENIED"}',
+      Object.assign(new Error("TEAM_LLM_PERMISSION_DENIED"), { status: 403 }),
+    ]) {
+      expect(classifyAgentError(error)).toMatchObject({
+        code: "TEAM_LLM_PERMISSION_DENIED", retriable: false,
+        details: { providerStatus: 403 },
+      });
+    }
+    expect(classifyAgentError("403: ordinary provider refusal").code).toBe("PROVIDER_UNAUTHORIZED");
+    expect(classifyAgentError("503: TEAM_LLM_PERMISSION_DENIED").code).toBe("PROVIDER_ERROR");
+    expect(classifyAgentError("403: TEAM_LLM_PERMISSION_DENIED_EXTRA").code).toBe("PROVIDER_UNAUTHORIZED");
+    expect(classifyAgentError(Object.assign(new Error("403: TEAM_LLM_PERMISSION_DENIED"),
+      { name: "AbortError" })).code).toBe("TURN_ABORTED");
+  });
+
   it("classifies auth failures from status fields", () => {
     const err = Object.assign(new Error("Incorrect API key provided"), {
       status: 401,

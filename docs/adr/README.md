@@ -311,3 +311,4 @@ Each ADR includes:
 | 0282 | [Retry and right-size the compaction summary before retained-tail recovery](0282-compaction-summary-retry-and-sizing.md) | Accepted (amends ADR 0049; issue #543) |
 | 0283 | [Use a bounded main-process bridge for native SVG editing](0283-bounded-main-process-bridge-for-native-svg-editing.md) | Accepted |
 | turn-process-and-thinking-display | [Turn process and thinking presentation](turn-process-and-thinking-display.md) | Accepted |
+| host-owned-courseware-projects | [Host-owned courseware projects and teaching records](host-owned-courseware-projects.md) | Accepted for courseware implementation |

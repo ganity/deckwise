@@ -1,4 +1,9 @@
 import { randomUUID } from "node:crypto";
+import { createAuthorizedPptCandidateTools } from "./ppt-candidate-host.js";
+import { createAuthorizedPptEditorTools } from "./ppt-editor-host.js";
+import { createPptChangePlanTool } from "./ppt-change-plan.js";
+import { createAuthorizedMediaCanvasTools } from "./courseware-media-canvas-tools.js";
+import type { PptEditorBinding } from "@pi-desktop/shared";
 import {
   settledDelegationMessage,
   taskMessageSnapshot,
@@ -832,6 +837,7 @@ export type PluginToolDef = {
 
 export type AgentRuntimeOptions = {
   host: RuntimeHost;
+  pptEditorBinding?: PptEditorBinding;
   sessionId: string;
   mode: Mode;
   /** Durable host turn ID for the current prompt, used by plan identity. */
@@ -887,6 +893,7 @@ export type AgentRuntimeOptions = {
 };
 
 export type RuntimeMatchConfig = {
+  pptEditorBinding?: PptEditorBinding;
   mode: Mode;
   provider: RuntimeProviderConfig;
   thinkingLevel: ThinkingLevel;
@@ -1450,6 +1457,7 @@ export class DesktopAgentRuntime {
   private provider: RuntimeProviderConfig;
   private thinkingLevel: ThinkingLevel;
   private host: RuntimeHost;
+  private pptEditorBinding?: PptEditorBinding;
   private onEvent: (envelope: AgentEventEnvelope) => void;
   private streamSink: StreamCoalescer;
   private baseSystemPrompt: string;
@@ -1655,6 +1663,7 @@ export class DesktopAgentRuntime {
     this.provider = opts.provider;
     this.thinkingLevel = clampThinkingLevel(opts.provider, opts.thinkingLevel);
     this.host = opts.host;
+    this.pptEditorBinding = opts.pptEditorBinding ? { ...opts.pptEditorBinding } : undefined;
     this.hostCloseUnsubscribe = this.host.onClose?.(() => {
       this.cleanupActiveToolProgress();
     });
@@ -2178,6 +2187,7 @@ Delegation rules:
     return (
       !this.disposed &&
       providerMatches &&
+      safeJson(this.pptEditorBinding ?? null) === safeJson(config.pptEditorBinding ?? null) &&
       this.mode === config.mode &&
       this.thinkingLevel ===
         clampThinkingLevel(config.provider, config.thinkingLevel) &&
@@ -3255,6 +3265,12 @@ Delegation rules:
       ...subagentTools,
       ...contextTools,
       ...extensionTools,
+      ...(this.mode === "agent" ? createAuthorizedMediaCanvasTools(this.host, this.sessionId, () => this.turnId) : []),
+      ...(this.mode === "agent" && this.pptEditorBinding
+        ? [...createAuthorizedPptEditorTools(this.host, this.sessionId, this.pptEditorBinding, () => this.turnId),
+          ...createAuthorizedPptCandidateTools(this.host, this.sessionId, this.pptEditorBinding, () => this.turnId),
+          createPptChangePlanTool(this.host, this.sessionId, this.pptEditorBinding, () => this.turnId)]
+        : []),
     ];
   }
 

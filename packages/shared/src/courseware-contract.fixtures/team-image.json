@@ -1,0 +1,16 @@
+{
+  "code": 200,
+  "data": {
+    "projectId": "68a6fb20-8710-4873-919d-acd3261d243d",
+    "assetRef": {
+      "assetId": "3915ccf4-1826-4088-9498-0dccf0576397",
+      "sha256": "55ccf93d4cdfb394363c73b6eae96c8d5e50e5e46d969e710bcc1833f6acef1f",
+      "mime": "image/png",
+      "byteLength": 68,
+      "downloadPath": "/courseware/team/projects/68a6fb20-8710-4873-919d-acd3261d243d/assets/3915ccf4-1826-4088-9498-0dccf0576397/content",
+      "width": 1,
+      "height": 1
+    }
+  },
+  "message": "success"
+}

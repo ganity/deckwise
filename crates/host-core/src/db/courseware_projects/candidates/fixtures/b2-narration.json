@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "candidateId": "a94e0564-5073-4653-a212-5b2c45592971",
+  "kind": "page-narration",
+  "baseline": {
+    "projectId": "course-01",
+    "documentId": "office-b",
+    "pageId": "fixture-page-1",
+    "sourceRevision": "R8",
+    "sourceHash": "sha256:0240ad9bd51ba5d8a96d0307f8d359fde32208f977cc0883f996bb6a57881928",
+    "teachingRevision": "T8",
+    "contentHash": "sha256:9b704ec0d96f785018fc69f490ce86f055c3ba94544d5ec31c476cc4e967eae9",
+    "clean": true,
+    "readOnly": false,
+    "manualLocked": false
+  },
+  "narration": {
+    "blocks": [
+      {
+        "type": "speech",
+        "text": "请观察正方形。"
+      },
+      {
+        "type": "wait",
+        "durationMs": 4000
+      },
+      {
+        "type": "praise",
+        "text": "谢谢你的尝试。"
+      }
+    ]
+  },
+  "reviewState": "needs-review",
+  "applied": false,
+  "write": {
+    "projectId": "course-01",
+    "pageId": "fixture-page-1",
+    "expectedSourceRevision": "R8",
+    "expectedTeachingRevision": "T8",
+    "actions": [
+      {
+        "id": "speech-a94e0564-5073-4653-a212-5b2c45592971-0",
+        "type": "speech",
+        "text": "请观察正方形。",
+        "pauseAfterMs": 4000
+      },
+      {
+        "id": "speech-a94e0564-5073-4653-a212-5b2c45592971-1",
+        "type": "speech",
+        "text": "谢谢你的尝试。"
+      }
+    ]
+  },
+  "audioReady": false
+}

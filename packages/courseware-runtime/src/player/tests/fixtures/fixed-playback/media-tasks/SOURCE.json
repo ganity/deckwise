@@ -1,0 +1,10 @@
+{
+  "owner": "C",
+  "sourceDirectory": "/home/jhz/code/train/docs/validation/courseware/parallel/C/c1-20261019",
+  "policy": "Unmodified C1 response fixtures; descriptive simulation, not ready audio bytes or authorization.",
+  "sourceHashes": {
+    "task-ready.json": "a08c51f53eb82a7b7f0612dd716ea9f47310955b2e8f08e68d87d360a3545170",
+    "submit-success.json": "4ed54b52261bc43533f20e77d840a277d55772509ea9769c93314fcb2a9b45e2",
+    "task-submission-unknown.json": "b95a9f274c2a0bdf6a96349cab270d04a64cd7b7b4ad18252169fdc8a094d9d4"
+  }
+}

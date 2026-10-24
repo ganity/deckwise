@@ -83,6 +83,7 @@ const TOOL_NAME = VALUE_BY_FIELD.toolName;
 function fixture({ activeTurn } = {}) {
   const calls = [];
   const invocations = [];
+  const pptInvocations = [];
   let notification = null;
 
   const activeTurns = new Map();
@@ -128,6 +129,11 @@ function fixture({ activeTurn } = {}) {
       drainToasts: () => [],
     },
     userMcp: { callTool: async () => null },
+    executePptEditorTool: async (sessionId, toolName, args, canDispatch) => {
+      assert(canDispatch(), "PPT dispatch must retain its current turn");
+      pptInvocations.push({ sessionId, toolName, args });
+      return { applied: false, reviewState: "needs-review" };
+    },
     pluginActiveInProject: () => true,
     sendToRenderer() {},
     emitAgentEvent() {},
@@ -147,6 +153,7 @@ function fixture({ activeTurn } = {}) {
   return {
     calls,
     invocations,
+    pptInvocations,
     notify: (method, params) => notification(method, params),
   };
 }
@@ -184,6 +191,18 @@ test("the host-core notification carries every field the receiver reads", () => 
     1,
     "the turn identity must be sent exactly once",
   );
+});
+
+test("redo notifications reach the PPT executor instead of installed plugin lookup", async () => {
+  const f = fixture({ activeTurn: TURN_ID });
+  const payload = { ...fullPayload(), toolName: "ppt_propose_page_redo" };
+  const resolved = await dispatch(f, payload);
+  assert.equal(resolved.length, 1); assert.equal(resolved[0].params.ok, true);
+  assert.deepEqual(f.pptInvocations, [{ sessionId: SESSION_ID, toolName: payload.toolName, args: payload.args }]);
+  assert.equal(f.invocations.length, 0);
+  const foreign = await dispatch(f, { ...payload, toolName: "ppt_propose_arbitrary" });
+  assert.equal(foreign.at(-1).params.errorCode, "TOOL_NOT_FOUND");
+  assert.equal(f.pptInvocations.length, 1);
 });
 
 test("the live turn's payload runs the plugin tool and is answered", async () => {

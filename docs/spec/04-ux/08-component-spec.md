@@ -1015,10 +1015,13 @@ resubmits the request; the rejected request is not automatically sent.
 DeckWise adds a session-scoped PPT Master workbench and an embedded PPTX editor
 to the existing work panel. The editable SVG project is the sole generation
 source. Initial generation stops at the browser-based SVG preview until the
-user chooses **Generate PPTX**. Once a project has an export, a conversational
-courseware revision follows PPT Master's delivered-project Revision Round:
-the agent changes SVG and its owned metadata, validates it, and publishes a new
-timestamped PPTX without another confirmation.
+user chooses **Generate PPTX**. Once Office editing begins, the latest PPTX and
+Host teaching data own the editing baseline. The existing Chat loads `ppt-edit`
+and uses its finite native tools when Main has bound the active editor to that
+Chat. Native edits remain unsaved until the existing Save action succeeds.
+Unsupported operations report unavailable until their clean-copy candidate
+workflow is installed; an older SVG export must not supersede Office changes.
+See [native Chat contract](../03-runtime/23-courseware-native-chat.md).
 
 The empty Composer prompts for topic, grade, subject, and visual style and
 shows a concrete courseware example; quick-start cards insert complete examples
@@ -3664,3 +3667,141 @@ Sidebar footer                                        Popover (360px max)
     panel width (ADR 0151)
 19. Expanded sidebar session titles, project/group titles, and empty-state copy
     use the 13px compact token while primary sidebar actions remain at 14px
+
+
+### Narration proposal review in the existing editor sidebar
+
+The existing teaching panel offers **Confirm this page** for saved, clean,
+unconfirmed teaching. Confirmation preserves narration/actions/locks; a locked
+page can still be confirmed. **Page confirmed** is disabled and survives a full
+Desktop restart. Later teaching edits require confirmation again. This confirms
+teaching content only; it does not indicate generated audio or a playable
+published course. No snapshot/build/play control is delivered by A16. See
+[26](../03-runtime/26-courseware-fixed-snapshots.md).
+
+The narration sidebar accepts a known receipt ID and opens a source-bound
+review of the current logical page. It shows existing text, proposed speech and
+pauses, warns for an empty replacement and states that audio is not generated.
+Adoption requires an explicit checkbox; stale/terminal proposals cannot be
+adopted. Rejecting preserves existing narration. Closing a review preserves the
+pending proposal. Unsaved text must be saved/discarded first. No extra assistant,
+canvas, automatic adoption or generation control is introduced. See runtime
+[24](../03-runtime/24-courseware-narration-candidates.md) for owner/CAS fences.
+
+
+### PPTX candidate review and explicit adoption
+
+The same WiseOffice teaching panel accepts a known candidate ID, displays its
+source/target/lineage review and opens a separate read-only preview. For a current
+verified fixed fade, an unchecked confirmation enables **Adopt and reopen**.
+Changing the review resets confirmation. The existing main Chat proposes edits;
+there is no second assistant. Adoption closes Office temporarily, preserves the
+original backup and reopens the adopted source. Stale, unverified or unsupported
+candidates remain ineligible. Failures show the normal panel error; pending
+unsafe recovery blocks subsequent opening and preserves both versions. Details:
+[25](../03-runtime/25-courseware-source-candidates.md#desktop-reviewed-adoption-and-recovery-a15).
+
+For redo/style-batch candidates with target-page highlight/spotlight, the same
+review lists retained cue intervals and each previous object. Replacement selectors
+start empty and list only eligible objects on the corresponding candidate page.
+After preview, the user chooses all distinct targets and checks a separate
+object/timing confirmation plus the existing replacement confirmation. Changing
+an object clears both confirmations; incomplete, merged, unsupported or stale
+choices disable adoption. Peer effects need no remapping because Host verifies
+their content/object identity. No second Chat, new editor or automatic effect
+deletion is introduced. All eight locales include candidate-specific copy.
+
+A18 extends the same teaching sidebar with a local courseware preview section.
+It lists remaining unconfirmed pages and the current missing-audio limitation.
+Confirmed drafts without speech can be frozen and converted. Warnings appear
+with individual, initially unchecked acceptance controls. After acceptance, the
+user can view version details, play the fixed deck, replay it, or close/cancel
+and return to teaching edits. No publication or fidelity claim is made. While
+preview is selected, narration/lock/review controls are disabled; native Office
+edits remain available and a dirty editor invalidates the preview. Narration is
+never silently dropped to enable the build. Copy is provided in all eight locales.
+
+A26 allows confirmed narration with apparently bound adopted audio into the same
+preview workflow. Main/Host validate every source/text/account/receipt/asset;
+missing, malformed or stale audio still blocks. TTS views keep `audioReady:false`.
+
+### Existing narration audio tasks (A27)
+
+`CoursewareTtsTasks` sits inside `CoursewareTeachingPanel`, alongside the saved
+page narration and preview controls. It preserves the existing compact sidebar
+and eight-locale copy. Chat remains the main DeckWise conversation; this section
+does not introduce another assistant. No generation or charge starts here.
+
+The user explicitly loads this page's existing requests, queries status, retrieves
+and verifies audio, then checks the replacement confirmation and adopts. Task
+status shows the existing model/voice and, after a query, historical reservation,
+actual cost and settlement status. There is no price quote or automatic refresh.
+Prepared/unknown submissions cannot be retrieved; querying never resubmits.
+Retrieval alone cannot change narration or enable playback. Locked/missing
+segments cannot adopt. A version-only stale task remains eligible for explicit
+Host revalidation; old source/text/previous-audio mismatches still reject.
+
+Pending task operations disable parent mutation/preview controls. Changing the
+draft, disabling the editor, replacing the retained view or any auth event clears
+task state and confirmation and invalidates late callbacks. Adoption applies the
+fresh Host teaching view and requires page confirmation again. A committed Host
+operation survives a dismissed/late UI response; reload reconciles saved truth.
+
+### Following native page navigation in the teaching sidebar
+
+After an explicit initial current-page load, an idle teaching panel checks the
+existing native context once per second and loads teaching when its page changes.
+Only one context read runs at a time. An unsaved draft or nonempty page instruction, a source/narration/PPTX
+candidate review, an active media/preview operation or an unavailable/dirty editor
+pauses following. Existing draft actions and review decisions are never replaced
+by background navigation. Resolve a draft on its original page or discard it to
+resume; closing a candidate review requires another explicit page load. A
+read/load failure is visible and stops automatic retries until
+an explicit current-page read succeeds. Unmount/session changes discard pending
+reads and invalidate late operation results. The Host coordinator still enforces
+the exact saved source, page and teaching revision; no new IPC or storage is added.
+Saving a draft first reloads the native view, then requires the identical logical
+page and complete baseline project before sending the existing revision-checked
+write. This permits returning to the draft page after navigation without reusing
+an obsolete native context. A changed page/source/teaching/lock leaves the draft
+intact and refuses the write; an unmounted panel cannot dispatch a late write.
+Unfinished narration and page instructions are stored as separate Host-owned
+local recovery drafts. The status distinguishes pending storage, acknowledged
+local storage and storage failure. These are not applied teaching. The first
+explicit page load restores an identical unlocked baseline as unsaved content;
+an older or locked baseline stays in a read-only copyable field until explicit
+discard. Unknown/failed reads prevent edits from replacing an unseen draft.
+Formal Save narration retains its existing guards and clears only the matching
+recovery revision; explicit discard is also revision-checked. Recovery is scoped
+to the owning Chat, project and logical page and uses normal process-restart
+durability; the last unacknowledged keystrokes and power loss are not guaranteed.
+
+### Current-page visuals in the teaching sidebar (A37)
+
+`CoursewareImageAssets` retains its default team-image form and additionally
+offers the current Chat's archived canvas candidates. Refresh only lists existing
+attempts; choosing a candidate displays its frozen prompt/title/model/dimensions.
+The user chooses replacement of the selected picture or insertion on the current
+page. Preview displays the actual PNG derivative plus one-based page and chosen
+operation; the explicit checkbox and approval remain required. Approval directs
+the existing main Chat to the opaque asset ID and warns that a changed page or
+selection requires fresh review. Neither preview nor approval edits or saves.
+Source/candidate/operation, account/Chat or editable-state changes clear approval;
+late requests cannot restore it. No separate assistant is added.
+
+`CoursewareSourceVisuals` sits above reviewed images in the existing teaching
+sidebar; requests to change the slide still belong to the main DeckWise Chat.
+**Prepare current page visuals** captures the saved current page in a separate
+readonly Office renderer. It shows the one-based page number, original PNG and
+native-textless PNG, and warns about text inside pictures/duplicate foreground.
+Only checking the initially empty inspection checkbox enables **Approve this
+background**. Approval never generates a slide or replaces the source. The status
+explicitly requires a separate Chat request and later candidate review.
+
+**Discard page visuals** also cancels in-flight preparation. Chat replacement,
+editor disable and unmount clear the review and ignore late responses. A failed
+approval removes both previews. Preparation blocks parent mutation, image, TTS
+and playback actions; cancellation remains available. Unsaved narration or any
+existing review/candidate must be resolved before preparing visuals. All labels,
+image alternatives and statuses are catalog-backed across eight locales.
+See [runtime details](../03-runtime/25-courseware-source-candidates.md#current-page-visual-review-a37).

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import ts from "typescript";
+import { getOfficePreviewExtension } from "@pi-desktop/shared";
 
 function load(relative, imports) {
   const file = new URL(relative, import.meta.url);
@@ -50,6 +51,7 @@ const { createSessionCoordination } = load("../src/stores/runtime/session-coordi
 const prompts = [];
 const { createQueueSlice } = load("../src/stores/slices/queue-slice.ts", {
   i18next: i18n,
+  "@pi-desktop/shared": { getOfficePreviewExtension },
   "../../lib/api": { api: { prompt: async (input) => prompts.push(input) } },
   "../../lib/queued-prompts": {},
   "../../lib/session-transcript": { optimisticUserMessage: (id, content) => ({ id, content }) },
@@ -61,6 +63,7 @@ function fixture(overrides = {}) {
   const state = {
     activeSessionId: null, workspace: null, sessions: [], providers: [], page: "chat", retainedSessionIds: [],
     pendingPlans: {}, runningSessions: {}, messages: [], latestTurnResults: {}, sessionOutcomes: {},
+    workPanelTabs: [], activeWorkPanelTabId: null, workPanelOpen: false,
     showToast: (text) => notices.push(text),
     openProject: async () => { state.createProjectDialogOpen = true; },
     clearProject: () => assert.fail("rejection must preserve the current workspace"),
@@ -142,4 +145,43 @@ test("project-bound courseware submission still starts the workbench and reaches
   assert.equal(f.state.messages[0].content, "make slides");
   assert.deepEqual(f.state.openedPanel, { sessionId: "course", tab: { id: "ppt" } });
   assert.deepEqual(f.notices, []);
+});
+
+test("Chat preserves only the visible owning PPTX editor instead of activating the generation workbench", async () => {
+  for (const [resource, open, activeSessionId, preserve] of [
+    ["lesson.pptx", true, "course", true],
+    ["lesson.docx", true, "course", false],
+    ["lesson.pptx", false, "course", false],
+    ["lesson.pptx", true, "other", false],
+  ]) {
+    const f = fixture({ activeSessionId, sessions: [{ id: "course", projectPath: "/course" }],
+      workPanelTabs: [{ id: "editor", kind: "editor", resource }], activeWorkPanelTabId: "editor", workPanelOpen: open });
+    f.deps.runtime.sessionTranscriptCache = new Map();
+    prompts.length = 0;
+    assert.equal(await createQueueSlice(f.deps).sendPrompt("edit this slide", undefined, "course"), true);
+    assert.equal(prompts[0].sessionId, "course");
+    assert.equal(f.state.openedPanel === undefined, preserve);
+    assert.equal(f.state.activeWorkPanelTabId, "editor");
+  }
+});
+
+test("Chat preserves the visible owning media canvas but retains workbench routing for other views", async () => {
+  for (const [open, activeSessionId, activeWorkPanelTabId, preserve] of [
+    [true, "course", "media-canvas", true],
+    [false, "course", "media-canvas", false],
+    [true, "other", "media-canvas", false],
+    [true, "course", "ppt", false],
+  ]) {
+    const f = fixture({ activeSessionId, sessions: [{ id: "course", projectPath: "/course" }],
+      workPanelTabs: [{ id: "media-canvas", kind: "media-canvas" }, { id: "ppt", kind: "ppt" }],
+      activeWorkPanelTabId, workPanelOpen: open });
+    f.deps.runtime.sessionTranscriptCache = new Map();
+    prompts.length = 0;
+    assert.equal(await createQueueSlice(f.deps).sendPrompt("Change the selected canvas draft", undefined, "course"), true);
+    assert.equal(prompts[0].sessionId, "course");
+    assert.equal(f.state.runningSessions.course, true);
+    assert.equal(f.state.openedPanel === undefined, preserve);
+    assert.equal(f.state.activeWorkPanelTabId, activeWorkPanelTabId);
+    if (!preserve) assert.deepEqual(f.state.openedPanel, { sessionId: "course", tab: { id: "ppt" } });
+  }
 });

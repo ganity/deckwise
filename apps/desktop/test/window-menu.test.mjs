@@ -368,6 +368,12 @@ test("desktop packaging builds the native host before every local target", () =>
   }
   assert.equal(packageJson.build.win.extraResources[0].to, "bin/pi-desktop-host-core.exe");
   assert.equal(packageJson.build.linux.extraResources[0].to, "bin/pi-desktop-host-core");
+  assert.deepEqual(packageJson.build.linux.extraResources[1], {
+    from: "resources",
+    to: ".",
+    filter: ["pptx-worker/**/*"],
+  });
+  assert.match(packageJson.scripts["stage:pptx-worker"], /stage-pptx-worker\.mjs/);
   assert.equal(packageJson.build.mac.extraResources[0].to, "bin/pi-desktop-host-core");
   assert.match(iconScriptSource, /package_icon = BUILD \/ "icon\.png"/);
   assert.match(iconScriptSource, /shutil\.which\("iconutil"\)/);

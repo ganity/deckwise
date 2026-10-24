@@ -28,12 +28,12 @@ export function installEditorHostProtocol(target: Protocol = protocol): void {
     : join(app.getAppPath(), "resources", "editor-host");
   target.handle(EDITOR_HOST_SCHEME, async (request) => {
     const url = new URL(request.url);
-    if (url.hostname !== "host" || url.pathname !== "/index.html") {
+    if (url.hostname !== "host" || !["/index.html", "/online.html"].includes(url.pathname)) {
       return new Response("not found", { status: 404 });
     }
     // Let Chromium's network stack serve the file. Returning a hand-built
     // Response body works in BrowserWindow but is rejected by some Electron
     // 43 WebContentsView loads as ERR_FAILED.
-    return net.fetch(pathToFileURL(join(root, "index.html")).toString());
+    return net.fetch(pathToFileURL(join(root, url.pathname.slice(1))).toString());
   });
 }

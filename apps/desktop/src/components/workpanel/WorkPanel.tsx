@@ -30,12 +30,15 @@ import {
   IconClose,
   IconDiff,
   IconFileText,
+  IconFolderOpen,
   IconPanelMaximize,
   IconPanelRestore,
   IconPlug,
   IconPlus,
 } from "../icons";
 import { ReviewTab } from "./ReviewTab";
+import { TeamProjectsTab } from "./TeamProjectsTab";
+import { CoursewareMediaCanvasTab } from "./CoursewareMediaCanvasTab";
 import { FilesTab } from "./FilesTab";
 import { PluginViewTab } from "./PluginViewTab";
 import { SubagentPanel } from "./SubagentPanel";
@@ -54,6 +57,8 @@ import {
 const TAB_ICONS = {
   new: IconPlus,
   review: IconDiff,
+  team: IconFolderOpen,
+  "media-canvas": IconFileText,
   ppt: IconFileText,
   "svg-editor": IconFileText,
   editor: IconFileText,
@@ -122,6 +127,19 @@ function workPanelTools(
       tab: toolWorkPanelTab("review"),
       label: t("panel.tabs.review"),
       icon: IconDiff,
+    },
+    {
+      id: "team-projects",
+      tab: toolWorkPanelTab("team"),
+      label: "团队课件",
+      icon: IconFolderOpen,
+      description: "查看团队成员共享的课件",
+    },
+    {
+      id: "media-canvas",
+      tab: toolWorkPanelTab("media-canvas"),
+      label: t("panel.mediaCanvas.title"),
+      icon: IconFileText,
     },
     ...pluginViews.map((view) => {
       const Icon = pluginViewIcon(view.icon);
@@ -602,6 +620,26 @@ export function WorkPanel({
               aria-labelledby={`work-panel-tab-${activeTab.id}`}
             >
               <ReviewTab />
+            </div>
+          )}
+          {!subagentPanel && activeTab?.kind === "team" && (
+            <div
+              id={`work-panel-surface-${activeTab.id}`}
+              className="work-panel-tabpane"
+              role="tabpanel"
+              aria-labelledby={`work-panel-tab-${activeTab.id}`}
+            >
+              <TeamProjectsTab sessionId={activeSessionId ?? undefined} />
+            </div>
+          )}
+          {!subagentPanel && activeTab?.kind === "media-canvas" && (
+            <div
+              id={`work-panel-surface-${activeTab.id}`}
+              className="work-panel-tabpane"
+              role="tabpanel"
+              aria-labelledby={`work-panel-tab-${activeTab.id}`}
+            >
+              <CoursewareMediaCanvasTab sessionId={activeSessionId ?? undefined} />
             </div>
           )}
           {!subagentPanel && activeTab?.kind === "file" && (

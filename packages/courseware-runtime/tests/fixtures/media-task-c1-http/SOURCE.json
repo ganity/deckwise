@@ -1,0 +1,20 @@
+{
+  "owner": "C",
+  "policy": "Unmodified actual local C HTTP ready responses; PNG decoded from the pinned local mock payload. Offline interoperability does not establish live Desktop authorization, a paid provider or team access.",
+  "files": {
+    "task-ready.json": {
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/C/c1-queue-fencing-20261019/e2e-task-ready.json",
+      "sha256": "7b0a969b8621246675a054e17288b6a730145dac5ca3e9ca305f987b9c1a976f"
+    },
+    "fresh-task-ready.json": {
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/C/c1-queue-fencing-20261019/fresh/e2e-task-ready.json",
+      "sha256": "de701830d5bf40a8e79e54391f4e49b4cb7b5b8b72613296fbdf774e21378006"
+    },
+    "asset.png": {
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/C/c1-queue-fencing-20261019/run-fresh-e2e.py",
+      "sourceSha256": "ae4390b9b02248bd2ef1e2d2b92f411fdfef12b717e54f477c407d1b6c7c3e28",
+      "derivation": "Exact base64 PNG payload from C local provider fixture; C HTTP harness asserts downloaded bytes equal this payload.",
+      "sha256": "55ccf93d4cdfb394363c73b6eae96c8d5e50e5e46d969e710bcc1833f6acef1f"
+    }
+  }
+}

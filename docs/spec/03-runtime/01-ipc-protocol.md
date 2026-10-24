@@ -1,5 +1,404 @@
 # 01. IPC Protocol
 
+## Owner online preparation (W14 source increment)
+
+Three additive main-window, top-frame-only invoke channels use the same preload
+allowlist and response envelope. They reject unknown fields and extra arguments:
+
+| Invoke | Exact input | Result |
+|---|---|---|
+| `deckwise/courseware/online/prepare/review` | `{sessionId,projectId,includeTeaching?:boolean}` | `CoursewareOnlinePreparationReview` |
+| `deckwise/courseware/online/prepare/confirm` | `{reviewId}` | `CoursewareOnlinePreparationResult` |
+| `deckwise/courseware/online/prepare/cancel` | `{reviewId}` | `{ok:true}` |
+
+Review is read-only. Main resolves the owning Chat, persisted workspace, saved
+clean writable PPTX, existing task association, current server OWNER role,
+source revision and session epoch. Its opaque 10-minute review exposes filename,
+length, SHA, team project, epoch, replacement indication and optional recovery
+indication; no local paths, file bytes, credentials or native configuration.
+A configured online deployment is required before review or confirmation.
+Omitting `includeTeaching` (or passing false) retains the PPTX-only operation.
+The separate Owner action to prepare with narration passes true; its public
+review includes `teaching:{pageCount,narrationCount,audioCount?}` and requires explicit
+confirmation of that teaching initialization. When present, `audioCount` counts
+distinct already generated archived audio assets selected for team transfer;
+the confirmation discloses that transfer. UI refuses a review whose
+teaching mode differs from the requested action.
+
+Only explicit confirmation may upload the exact reviewed PPTX (at most 20 MiB),
+start with both reviewed epoch and uploaded-source revision CAS, bind that exact
+epoch, then atomically complete the Host task association. Main rechecks Chat,
+workspace, account, native saved/dirty state, source bytes and OWNER permission.
+The first subsequent prepared join also pins the source revision/SHA and epoch
+before native config delivery. Ordinary already-active-session join retains its
+existing semantics. An unrelated active session offers ordinary join only.
+
+Host stores a non-secret receipt scoped to workspace, Chat and principal before
+each uncertain external write. Upload request identity, original source CAS,
+source hash/length and epoch remain immutable. A new explicit review/confirmation
+can query and resume an interrupted upload/start/bind, including after restart;
+no background POST replay occurs. Lost upload responses are resolved by exact
+request/hash/length match. Lost start responses require the same uploaded source
+and next active epoch; if the original epoch is still inactive, only a fresh
+explicit confirmation can reissue its CAS-protected start. An intervening source,
+account, project, epoch or task binding rejects. Cancel invalidates only the local
+review, not completed server operations. Receipts remain available for recovery.
+
+Optional teaching initialization admits an already initialized local Host
+project bound to the exact saved source and ordered logical page mapping. Review
+does not create that local project. A first seed requires a remote project with
+neither source nor teaching; an existing matching preparation receipt may resume.
+Existing remote teaching/source, missing lineage and unproved local audio references
+reject before a new upload. Main projects the local project onto the team UUID
+and server-issued source revision, preserving logical page IDs and action data;
+Platform issues the teaching revision. No local source revision is treated as a
+remote revision. The uploaded stage initializes and verifies teaching before
+start/bind, reusing the upload request ID in the separate teaching idempotency
+domain. Host optionally pins `teaching:{projectId,teachingRevision,mappingRevision,
+payloadSha256}`; the content hash covers the complete canonical local project
+and ordered mapping, including every object/import ID. Initialization sends that
+mapping in the same request. Platform stores it immutably with teaching; Main
+checks its exact project/source/mapping tuple through the authorized versioned
+GET before accepting initialization or resuming a committed response loss.
+Changed local teaching or mapping cannot silently resume the same request.
+Old PPTX-only receipts retain their behavior. A pending teaching receipt with
+the earlier partial-mapping hash refuses recovery rather than reissuing a write
+against different content; it requires explicit reconciliation. No mapping is
+inferred from page order alone. Consistent publication remains outside this
+operation. UI and fixture checks do not establish a deployed gate.
+
+For teaching containing already adopted TTS or exported sequential music, review
+performs read-only Host-receipt and authenticated task preflight. TTS receipt
+selection must match each speech's page/action/text and current bound source;
+music must have the adopted exported-clip provenance for the exact current
+source/teaching tuple. Task kind, settled/ready state, immutable asset UUID,
+SHA, MIME and length must agree. The private seed hash additionally pins that
+complete audio projection and its original local content. No-audio seeds retain
+their previous hash and public review shape.
+
+Only explicit confirmation may adopt these existing assets into the selected
+team project, before teaching initialization. Main first GETs each exact team
+asset UUID; an already adopted matching asset is reused. Only a definite 46901
+permits the explicit same-confirmation adoption POST. Unknown outcomes do not
+retry automatically; a new explicit review/confirmation resolves the same
+immutable assets and preparation request after restart. Downloaded private
+bytes are checked against the pinned asset. Original local teaching, source,
+mapping and local audio IDs are never rewritten: only the remote initialization
+copy receives team UUID references. This path submits no TTS, music-generation
+or export job and creates no new provider charge. Arbitrary URLs, missing
+receipts and changed task/audio projections refuse instead of dropping audio.
+
+The optional initialization `mapping` has exact fields
+`{revision,sourceSha256,pages:[{pageId,importPageId,objects:[{objectId,importElementId}]}]}`.
+Its source revision comes from `project.source.revision`. Main's private
+`GET /courseware/team/projects/{id}/teaching/mappings/{mappingRevision}?sourceRevision={revision}`
+returns `{projectId,source:{revision,sha256},mapping}` and is available to current
+Owner/Editor/Viewer members. Missing/legacy mapping is 46607, not an empty mapping.
+Logical IDs are globally unique and safe (1–128 characters); native import IDs
+are nonblank, bounded to 200 characters without C0/DEL, unique per applicable
+scope. At most 100 pages/10,000 objects and 2 MiB whole initialization request
+are admitted. New deployments require the teaching-mapping SQL migration.
+Stored input describes the original uploaded source: it neither proves parser
+lineage nor rebinds a mapping after native content/structure changes. A saved
+source with a different SHA still needs fresh parser validation and review.
+
+## Online teaching page editing (W14 source increment)
+
+Five additive main-window, top-frame-only invokes share the existing allowlist
+and envelope. Exact inputs reject unknown fields/extra arguments:
+
+| Invoke suffix under `deckwise/courseware/online/teaching/` | Input | Result |
+|---|---|---|
+| `read` | `{ownerId,pageId?:string}` | `CoursewareOnlineTeachingView` or null |
+| `acquire` | `{viewId}` | `CoursewareOnlineTeachingView` |
+| `renew` | `{viewId}` | `CoursewareOnlineTeachingView` |
+| `save` | `{viewId,actions}` | `CoursewareOnlineTeachingView` |
+| `release` | `{viewId}` | `CoursewareOnlineTeachingView` |
+
+The same mounted native attempt supplies `ownerId`. Main pins its account,
+project, active session epoch and initial source; opaque `viewId` identifies
+one page baseline. The public view contains `{ownerId,viewId,project,
+mappingRevision,sessionEpoch,pageId,pageNumber,leaseExpiresAtEpochMillis?}`.
+No lease tokens, local paths, credentials or signed native configuration enter
+Renderer. Missing lease deadline means read-only. Platform remains authoritative
+for membership, lease proof, source/teaching revisions and atomic writes.
+
+The existing online editor sidebar reads narration and offers an explicit page
+selector in **initial uploaded-source logical order**. It does not follow the
+live Docs selection or attest a native slide-to-logical-page association. The
+UI warns users to stop and reconcile if slides are added, removed or reordered.
+No unverified highlight/spotlight authoring or new AI assistant is introduced.
+
+Explicit Edit acquires a page lease; editing renews every 20 seconds. Save
+submits bounded speech text/pauses, permits speech insertion/removal, and retains
+opaque/checkpoint/music actions. `replaceNarrationText` invalidates the changed
+segment's old audio/timed cues; other action data is preserved. Main independently
+validates admitted edits. Peer-page updates may advance the whole-project
+revision if this page/source/mapping remains unchanged; target-page conflicts
+refuse. Save/release/renew remain explicit finite operations with Main-held proof.
+
+Failed or expired edits retain the local in-memory draft. Page changes/refresh
+and panel Back/Retry require explicit discard before replacing that draft.
+`COURSEWARE_ONLINE_TEACHING_PENDING_WRITE` means the save result is uncertain:
+the original view/actions are frozen, read/switch/discard/release are blocked,
+and only explicit Continue save replays the retained request/body to determine
+its result, including after the original lease deadline. This pending write is
+not a persisted restart-recovery receipt. Account invalidation still closes
+the local view immediately. Cleanup attempts release; the server lease expiry
+remains authoritative. No automatic remote teaching merge or fixed publication
+claim follows from native synchronization notifications.
+
+## Online teaching pause recovery (W14 publication prerequisite)
+
+Two additive top-frame-only invokes recover an existing server-held teaching
+pause. They use the same Main-window allowlist, exact payload validation and
+error envelope:
+
+| Invoke under `deckwise/courseware/online/pause/` | Input | Result |
+|---|---|---|
+| `read` | `{ownerId}` | `CoursewareOnlinePauseView` or null |
+| `resume` | `{viewId}` | `{ok:true}` |
+
+The mounted online attempt pins the account, team project, session epoch and
+source. Main reads `GET /editing-session/{epoch}/write-pauses/current`; no local
+pause identifier is needed after restart. The server requires current OWNER
+membership, a matching active epoch and matching frozen teaching/source. Main
+rechecks those bindings after each await. Its public view contains only
+`{ownerId,viewId,sessionEpoch,teachingRevision}`. The pause ID, complete frozen
+teaching, credentials and any archive URL remain outside Renderer.
+
+Only the Owner's existing narration sidebar mounts the recovery controls.
+Discovery is read-only. A held pause disables new narration acquisition/edits
+and displays the captured teaching revision. Explicit Resume calls DELETE with
+Main's retained pause ID and validates the same frozen teaching in its released
+receipt. A lost response retains that proof for explicit idempotent retry; a
+new read can instead establish that the pause was released. No automatic DELETE
+or creation of a new pause occurs. Unsaved drafts, uncertain narration saves
+and active operations block the UI's Resume; Main independently refuses Resume
+while a teaching operation or uncertain save is outstanding. Resuming reloads
+the current logical page, and fresh page leases are required for editing.
+Account/mount invalidation expires recovery views and ignores late results.
+
+This pause stops teaching writes only. Native Docs editing can continue. These
+controls neither create a publication nor establish an all-client native save
+barrier. Main's separate bounded force-save/status/archive transports preserve
+`command_unknown`, `pending` and `no_changes` as distinct states; only an
+archived callback with matching request/key/epoch identifies durable bytes.
+Download locations remain Main-only and are not downloaded by these controls.
+Complete saved-source mapping, semantic review, team audio admission and the
+joined publication coordinator remain required by W14.2.
+
+## Online publication source review (W14 prerequisites)
+
+The original uploaded-source mapping remains immutable. Native editing changes
+the PPTX SHA, and parser page/object IDs are not persistent identities across
+arbitrary native saves. Replacing only the old mapping's SHA or matching by page
+number cannot rebind teaching. A separate Host baseline/review RPC validates the
+old parsed source and full original mapping, then the independently parsed saved
+archive. It exposes explicit page/object choices without default associations;
+it never adopts that archive into the current local project. These Host methods
+are not Renderer IPC or a user-visible publication action.
+
+Platform's Owner-only `POST /teaching/source-reviews` atomically captures a
+publication-only candidate against an exact held teaching pause, baseline
+source/teaching revision and archived force-save requested after that pause.
+The candidate uses its request UUID as an independent snapshot/source revision,
+the callback SHA/length, a newly issued teaching revision and a new full mapping.
+Current source, teaching and native editing epoch remain unchanged; resumed R9
+can continue while immutable R8 is built. Member-authorized GET returns the same
+capture after restart or further edits; missing capture is 46608.
+
+Main's authenticated `captureSourceReview` and `getSourceReview` transport
+methods validate the exact project/source/request UUID, baseline revisions,
+force-save request, epoch, complete ordered mapping and newly issued teaching
+revision. `sourceByteLength` is the archived length, bounded to 20 MiB. These
+are Main methods, not additional Renderer invokes. The Main-only
+`downloadCallbackArchive` first obtains the authorized callback receipt, then
+streams its signed location without a Platform token, cookies or redirects.
+It checks actual length, SHA256 and the existing PPTX container boundary; only
+receipt and bytes are returned. Publication still requires document status 6
+and exact receipt/candidate binding.
+
+Attention effects use the existing `speech.visualCues[]` structure:
+`{id, atMs, endMs, effect}`. Highlight uses
+`effect: {type: "highlight", elementIds, color?, style?, opacity?}`; spotlight
+uses `{type: "spotlight", elementId, elementIds?, dimOpacity?}`. Each speech
+has at most 200 unique cue IDs; each cue has 1–200 distinct targets present in
+that same mapped page, with integer `0 <= atMs < endMs <= 3600000`. Optional
+highlight color is a six-digit hex color, style is `outline`, `fill` or `glow`,
+and opacity values are finite numbers from 0 to 1. Cues attached to non-speech
+actions, unknown cue/effect fields, and standalone `highlight`/`spotlight`
+actions are unsupported. This review validates existing timed effects; it does
+not create native PPTX animations.
+
+This record establishes authorized immutable input, not parser correctness or
+all-client save acknowledgement. Native synchronization, explicit page/effect
+review, verified team audio and Host snapshot import/build must still be joined
+before a consistent publication is advertised. Existing native structural-change
+warnings remain: publication review does not silently reconcile the live editor.
+
+## Isolated team online-editor entry (W13)
+
+### Internal fixed native barrier transport
+
+Main's `CoursewareOnlineViewController` exposes internal
+`nativeBarrierCapability(ownerId)` and
+`nativeBarrier(ownerId, 'quiesce'|'status'|'resume', barrierId)` calls to the
+publication coordinator. They are not renderer invoke channels or publication
+actions. The isolated wrapper forwards only `barrier-capability`,
+`barrier-quiesce`, `barrier-status` and `barrier-resume` on the existing
+`deckwise-docs-online/1` channel. Barrier IDs are lowercase UUIDs; each call has
+a fresh Main request ID and the current mount generation. Responses must match
+that request, project, epoch, native key and Docs user as well as the existing
+sender/frame/origin/channel guards. At most one call is outstanding per view.
+
+Capability returns only `{available:boolean}`; an older engine can return false
+without losing its ordinary text-read bridge. Other results have exact fields
+`{barrierId,state,serverIndex?,error?}`. `draining` has no index/error;
+`held`/`resumed` require a nonnegative safe-integer server index and no error;
+`uncertain-held` requires a finite native error. Unrecognized fields, states or
+errors cannot supply an acknowledgement. No signed config, private native key
+or receipt is emitted to the app renderer by this internal API.
+
+A 30-second Main deadline, malformed reply or finite native refusal fails only
+that call. It does not close the editor, automatically resume, retry a command
+or turn uncertainty into success. A caller may explicitly inspect the same
+barrier afterward. Late replies cannot satisfy a different request. Native
+dirty/clean events remain UI signals and do not resolve these calls. The fixed
+version-pinned Docs extension must actually be deployed before this capability
+can be used; per-client receipts do not establish complete client membership,
+an all-client barrier or an archived publication.
+
+### Public entry and isolated view
+
+Five additive invoke channels under `deckwise/courseware/online/` accept only
+the ordinary Main window's top frame. Preload allowlists their fixed names;
+unknown fields, extra arguments, subframes and other windows reject. Results
+use the normal IPC envelope. Renderer input cannot supply credentials, signed
+configuration, editor URLs, native document keys or session epochs.
+
+| Invoke suffix | Exact input | Result |
+|---|---|---|
+| `state` | No payload | `CoursewareOnlineEditorState` |
+| `open` | `{ownerId,projectId}` | State after native document readiness; failures also emit an error state |
+| `bounds` | `{ownerId,bounds:{x,y,width,height}}` | `{ok:true}` |
+| `visible` | `{ownerId,visible:boolean}` | `{ok:true}` |
+| `close` | `{ownerId}` | `{ok:true}` |
+
+Both identifiers are lowercase UUID strings. `ownerId` identifies one mounted
+UI attempt, not an account or authorization grant. Bounds are finite numbers
+from 0 through 16,384; Main rounds them before setting native bounds. Stale-owner
+bounds/visibility/close operations cannot affect a replacement attempt. Main
+also correlates native messages with its own increasing generation, random
+channel and request IDs. Account replacement, Main-window closure/crash, native
+failure, explicit close and the 30-second mounting deadline cancel that attempt.
+Hiding the window detaches its view; leaving the online tab closes that local
+view. The local PPTX editor and its save buffer remain a separate surface.
+
+`deckwise/courseware/online/event/state` carries only
+`{available,ownerId,projectId,status,errorCode?}`. Closed identifiers are null.
+Statuses are `closed`, `opening`, `ready`, `sync-pending`, `sync-reported` and
+`error`; errors are finite symbols, never raw native errors or signed config.
+`available` reports valid installation configuration, not service health or
+permission. `ready` requires the native document-ready event, not an iframe load.
+`sync-reported` means the engine reported no pending local changes; it is not a
+durable callback receipt, a new source revision, or permission to publish.
+
+The Main-only client joins an already active, bound Platform editing session.
+It reads that session and requests its original epoch/key's short-lived signed
+config, retaining the immutable source tuple and actual user identity. OWNER
+and EDITOR are offered the team UI action; Platform remains the permission
+authority. A signed read-only/view configuration rejects with
+`COURSEWARE_ONLINE_READ_ONLY`, including direct IPC calls by a Viewer. Missing
+or inactive sessions fail without starting, binding, replacing or ending a
+shared session. Closing this local view does not disconnect other members.
+
+Installation environment supplies `DECKWISE_DOCS_ONLINE_ENTRY_URL` ending in
+`/courseware-online.html` and `DECKWISE_DOCS_API_URL` with exact path
+`/web-apps/apps/api/documents/api.js`. Optional
+`DECKWISE_DOCS_PLUGIN_CONFIG_URL` ends in `/config.json` on the entry's origin.
+All pins require HTTPS or loopback HTTP, with no URL credentials/query/fragment.
+Missing or invalid configuration disables this entry; the existing team list
+and fixed preview remain usable. Project responses and normal renderer input
+cannot choose these pins.
+
+Main creates a sandboxed `WebContentsView` with its own nonpersistent session
+and local `deckwise-editor://host/online.html` wrapper. The wrapper embeds the
+installed trusted Office entry; only parent origin, random channel and API/plugin
+pins enter its URL. The original `configJson`, including its short-lived native
+JWT, crosses only Main's finite preload bridge and an exact origin/window/channel
+`postMessage` handshake using `deckwise-docs-online/1`. It never enters the
+ordinary app renderer, URL or public state. Main validates config/JWT payload
+bindings; the Docs deployment must verify the JWT signature. Popup, download,
+permission and top-navigation requests are denied. This increment exposes no
+native write/Chat bridge, local save patch, automatic source promotion or
+start/bind/end-session IPC.
+
+## Canvas music tasks (W15.2 source increment)
+
+Main-window-only channels under `deckwise/courseware/canvas-music/` are
+`models`, `list`, `prepare`, `quote`, `submit-confirmed`, `status`, `preview`,
+`export-prepare`, `export-quote`, `export-submit-confirmed`, `export-status`,
+and `export-archive`. Exact typed Renderer payloads and result views are in
+`packages/shared/src/courseware-canvas-music.ts`; no credentials, principal,
+provider URLs or local paths are accepted from or returned to Renderer.
+
+Generation freezes a saved music draft's title/lyrics plus separately entered
+style/negative-style/instrumental options. The title is at most 100 UTF-16 code
+units, lyrics at most 4,000, and style fields at most 1,000. Blank lyrics require
+instrumental mode. Image references are not supported for music. Prices are
+Main-held expiring offers; a quote is not a submission. An explicit confirmation
+is required for each generation and each separate candidate MP3 export. Only
+the two `submit-confirmed` operations POST. An unknown result remains queryable
+by its durable original key/hash, without a retry POST or personal-route fallback.
+
+Status preserves all ordered candidates. Preview is an authenticated GET followed
+by a verified private local MP3 archive, not an implicit paid export. Export is
+prepared against a specific source intent/candidate and preserves the source's
+submission scope even if the draft or team binding changes. Old candidate and
+export archives remain locally readable after full restart; local cached bytes
+are not remotely erased by membership revocation. New remote byte reads enforce
+current Platform authorization. Missing/corrupt archives fail closed and are
+never silently regenerated. This increment does not apply audio to PPTX, publish
+a new package, or certify real supplier prices and audio quality.
+
+## Target-bound canvas image review (W15.2)
+
+The existing main-window-only `pptEditorImagePrepare` also accepts exactly
+`{sessionId,intentId,operation:"replace"|"insert"}` for an owned archived canvas
+candidate. The existing team payload `{sessionId,projectId,assetId}` is unchanged.
+`CoursewareImageReviewView` adds optional `target:{page,operation}` for canvas
+reviews, using one-based page numbers. Approval and clear retain their existing
+channels. Extra fields and arguments reject. Candidate preparation/approval does
+not generate images, write PPTX or save. Main alone resolves authenticated Host
+paths and retains bytes plus the native target generation. See
+[native review contract](23-courseware-native-chat.md#archived-canvas-candidate-source).
+
+## Canvas image tasks (W15.2 increment)
+
+Additive main-window-only invoke channels under `deckwise/courseware/canvas-image/`:
+`models`, `list`, `prepare`, `quote`, `submit-confirmed`, `status`, `archive`,
+`preview`, and `reference-preview`.
+All take `sessionId`. Prepare also takes `intentId,draftId,expectedRevision,
+expectedDraftRevision,model`; quote/status/archive/preview/reference-preview take
+`intentId`; submit-confirmed adds
+`quoteId`. Main derives principal from the current authenticated session and
+rejects unknown fields/extra arguments, foreign visible Chats and active turns.
+No principal/token/path/provider key is accepted from Renderer. Quote tokens
+stay in Main and expire; the UI receives only quote identity, model, point bound,
+character limit and expiry. Only explicit submit-confirmed may POST. Status uses
+the retained original receipt or key/hash GET recovery and never resubmits.
+Task views include the frozen draft and phase, optional fee/state summary and
+optional immutable image metadata. Archive validates an already submitted
+ready/settled result against its original receipt, downloads and verifies original
+bytes through Main, then stores them in Host. It never submits a generation.
+Preview reads the private verified archive locally; its result is `{image,dataUrl}`.
+Reference-preview returns `{intentId,reference,dataUrl}` after checking the frozen
+reference identity and bytes. Neither response exposes paths, provider URLs or
+task receipts. Old candidates remain previewable after draft edits/deletion or
+switching to Plan. Generation/archive/preview do not apply anything to PPTX;
+target-safe adoption and music remain later W15.2 work.
+
 ## 1. Goal
 
 Define a stable contract between the renderer and main.
@@ -12,6 +411,111 @@ Principles:
 4. Errors must have a code + message
 
 ## 2. API Groups
+
+Fixed team sharing adds main-window-only
+`deckwise/courseware/fixed/shareStatus({sessionId})` and
+`deckwise/courseware/fixed/shareRecover({sessionId,intentId})`. Both reject
+extra fields/arguments, require the owning current Chat and signed-in account,
+and return `{intent:null|{intentId,state,selection}}` through the normal envelope.
+Main supplies the private principal key; caller paths, build bytes and replacement
+selections are not accepted. Status reads the Host journal. New intents retain
+`receiptAware:true` and send their UUID with the original publication. Recovery
+verifies the authorized frozen build and that intent's durable successful
+publication receipt before completing the original local binding, even when a
+later publication has advanced the channel. It never uploads or publishes.
+Legacy intents without that flag retain exact current-pointer matching; they
+cannot acquire historical authority by being read. An unresolved intent prevents
+another publication. Missing, denied or mismatched receipts stay unknown without
+fallback to the current pointer. No general retry or clear operation is exposed.
+The backend receipt migration must precede new keyed callers. See
+[authorized media](27-courseware-authorized-media.md).
+
+Scene planning adds main-window-only `deckwise/courseware/scene-plan/read`.
+It accepts exactly `{sessionId}`, rejects extra arguments and caller paths,
+and returns `{plan: CoursewareScenePlanSnapshot | null}` through the normal
+envelope. Main resolves the persisted Host task/workspace and reads only that
+Chat's validated planning draft. No generation, adoption or source write is
+performed. See [scene planning drafts](22-courseware-contract-v1.md#scene-planning-drafts).
+
+`deckwise/courseware/scene-plan/approve` is an explicit main-window action with
+exactly `{sessionId,sha256}`. Main validates the current draft and Host rechecks
+and persists its approved content. The response is the refreshed `{plan}` with
+`approvedSha256`; mismatched hashes or redirected/invalid files reject. No
+media submission or PPTX write occurs. Extra fields/arguments reject. Subsequent
+Chat edits require explicit reapproval.
+
+Approved scene visual requests add six main-window-only channels under
+`deckwise/courseware/scene-image/`: `models` and `list` accept `{sessionId}`;
+`prepare` accepts `{sessionId,planSha256,pageId,model}`; `quote` and `status`
+accept `{sessionId,intentId}`; `submit-confirmed` additionally requires
+`quoteId`. Exact fields and argument counts are enforced. Main owns the active
+Chat/account check and the short-lived quote proof; Host owns durable requests.
+Renderer views omit keys, principal hashes, task references and proof tokens.
+Status only reads/reconciles the original request, including after restart.
+No asset is adopted and no scene PPTX is generated by these operations.
+See [authorized scene requests](27-courseware-authorized-media.md#approved-plan-image-request-journal-2026-10-23).
+
+Three additional main-window-only scene-image channels support private image
+review. `archive` and `preview` take exactly `{sessionId,intentId}` and return
+`{image: CoursewareSceneImageView,dataUrl}`. Archive downloads only the original
+ready/settled task, verifies its bytes and stores them in Host; preview reads
+and verifies the existing archive without HTTP. Views include bounded image
+metadata and `selected`, never private paths/task references. `adopt` takes
+`{sessionId,intentId,expectedSelectedIntentId}` with an explicit string or null
+selection baseline and returns the refreshed scoped list. It revalidates the
+image, current approved plan and page-local selection before changing the
+reference. These operations never generate media, charge, share or create PPTX.
+Old-plan images remain previewable but cannot be selected for the current plan.
+
+`deckwise/courseware/scene/generate` accepts exactly `{sessionId,planSha256}`
+from the main window and returns `{path}` for the generated workspace PPTX.
+Main derives the current model, approved plan, reviewed private images and
+ordered narration; extra fields/arguments and foreign senders reject. It uses
+the existing model route and native compiler/stager, never submits new image
+tasks, and opens no arbitrary caller path. A concurrent generation refuses.
+`deckwise/courseware/scene/generate-cancel` accepts exactly `{sessionId}` and
+returns `{cancelled:boolean}`; a matching in-flight operation is aborted.
+See [reviewed scene compilation](27-courseware-authorized-media.md#reviewed-private-assets-to-editable-pptx).
+
+Courseware representative/scope review adds main-window-only channels under
+`deckwise/ppt-editor/style/`: `prepare({sessionId,candidateId})`,
+`approve({reviewId,pageIds})` and `clear()` with no arguments. Extra fields and
+arguments reject. `prepare` requires the actual current Main-retained generated
+representative and returns `CoursewareStyleReview`: opaque review ID, candidate
+ID/output hash, representative page ID/number, original instruction, numbered
+page/lock choices and one native-rendered PNG data URL. `approve` revalidates the
+saved owner and complete Host state, then returns `{confirmed:true,pageIds}` in
+source order for 2-20 unlocked pages including the representative. These methods
+grant no model execution, source write or adoption. Full restart loses the Main
+retention/approval; it does not remove Host candidates. See the
+[representative review contract](25-courseware-source-candidates.md#actual-representative-and-target-scope-review-a45).
+
+Courseware current-page visual review adds three finite main-window-only channels
+under `deckwise/ppt-editor/visual/`: `prepare({sessionId})`,
+`approve({reviewId})` and `clear()` (no arguments). Extra fields/arguments and
+non-main senders reject. `prepare` returns `CoursewareSourceVisualReview`: an
+opaque review ID, Host project/logical-page IDs, one-based page number, source
+SHA-256 and two `{width,height,preview}` PNG data URLs. `approve` returns
+`{approved:true}` only after current-state revalidation; `clear` returns
+`{ok:true}` and aborts pending preparation. These channels grant neither model
+execution nor candidate/source adoption. Main alone retains bytes and approval;
+see [source visuals](25-courseware-source-candidates.md#current-page-visual-review-a37).
+
+Courseware TTS adds six finite main-window-only channels under
+`deckwise/ppt-editor/tts/`: `prepare`, `submit`, `status`, `list`, `archive`,
+and `adopt`.
+The exact view/revision-bound parameters and redacted response are specified in
+[authorized media](27-courseware-authorized-media.md#a21--finite-main-orchestration).
+Only explicit submit of a durably prepared current intent may POST. Recovery and
+status never submit or expose Host RPC, tokens, paths or arbitrary HTTP.
+`archive` uses the same view/revision/intent parameters as `status`, returns only
+intent ID, archived=true, measured duration and audioReady=false, and performs
+authorized download/actual decoding only when no verified Host archive exists.
+See [decoded ingestion](27-courseware-authorized-media.md#a23--main-decoded-audio-ingestion).
+`adopt` uses `{viewId,expectedTeachingRevision,intentId}` and returns the current
+teaching view after a successful Host CAS; Main derives the action and expected
+previous audio ID from its pinned view. See
+[explicit adoption](27-courseware-authorized-media.md#a24--main-explicit-audio-adoption).
 
 | Domain | Description |
 |---|---|
@@ -99,6 +603,21 @@ against that root, while arbitrary external paths still require the ordinary
 permission flow.
 
 ## 4. Common Response Envelope
+
+### Saved PPTX inspection
+
+The additive `deckwise/ppt-editor/inspect/start`, `/status` and `/cancel`
+channels are restricted to the main window. Start accepts no arguments;
+status/cancel accept exactly `{ checkId: string }`. Main derives the saved
+PPTX revision from the ready editor. Shared `PptxInspection` returns RUNNING,
+SUCCEEDED (pages, full diagnostic/error counts and bounded diagnostics with
+severity/optional zero-based page index), FAILED or CANCELED with the
+captured revision/hash. Long parsing stays in the Host worker; calls return
+short status projections and the renderer polls while running. Neither file
+paths nor a generic Host RPC proxy are accepted. See
+[courseware parser](21-courseware-parser.md#saved-revision-inspection).
+
+The ordinary response envelope still applies:
 
 ```ts
 type Result<T> =
@@ -765,6 +1284,10 @@ page's active session changes; `sessionId: null` clears the viewing context on
 non-chat pages. A renderer-originated `agent/prompt` also carries a matching
 `viewingSessionId` snapshot, which Electron installs before asynchronous turn
 setup so a fast completion cannot beat the viewing-context update. Electron
+Main also supplies its current viewing-session ID when dispatching local
+desktop prompts through Agent Host, including queued follow-ups after abort.
+Remote principals receive null; queued prompts do not retain stale view hints.
+Electron
 combines this hint with Main-owned window visibility/focus at the terminal event
 boundary. Missing, null, or mismatched context fails safe to notification. It
 also invokes
@@ -2162,3 +2685,210 @@ submissions remain distinct; SDK entry IDs are never rewritten. Desktop event
 semantics are unchanged. Native terminal completion follows SDK settlement,
 not intermediate retry/compaction loop ends. Native abort never invokes
 `replaceSessionMessages` and reloads durable detail after abort returns.
+
+## PPTX editor command bridge (W01.1–W01.2)
+
+`deckwise/ppt-editor/getContext` and `deckwise/ppt-editor/execute` are
+main-window-only invoke channels, carried by the existing preload allowlist and
+the existing editor host. They are not registered as Chat tools yet. Shared
+contracts and runtime validators live in `packages/shared/src/ppt-editor-bridge.ts`.
+
+Opening a PPTX creates `{ projectId, documentId, sessionId }`. Here `projectId`
+is an opaque hash of the active workspace root, not a platform project UUID;
+`documentId` is the existing path-derived editor job identity; `sessionId` is
+new on every open. These are local routing guards, not team authorization or
+persisted page/object identities. Legacy Office opens remain supported without
+enabling this PPTX bridge.
+
+`getContext` returns that binding, `editGeneration`, one-based `page`, bounded
+`selectedText`, `selectionCharacters`, `readOnly`, and `capabilities`. Generation
+identifies an in-memory native target snapshot, not a saved PPTX revision. The
+snapshot checks the editor/frame, page, selected objects/text, native history
+and user interaction. A later context capture advances generation when the
+target changed or the previous command consumed the snapshot. Requests before
+the native API is ready fail explicitly; `document:opened` alone does not mean
+that command tools are ready.
+
+`execute` accepts exactly the binding plus `{ requestId, editGeneration, tool,
+input }`. The allowlist reuses three existing native tools:
+
+- `get_presentation_text`: optional integer `maxChars` in 1–8000; bounded text,
+  truncation and slide counts. It reads the presentation, not only the current page.
+- `replace_selection`: nonempty `text` of at most 8000 UTF-16 code units; replaces
+  the current supported native text selection. Whitespace is preserved.
+- `add_slide_text`: nonblank `text` of at most 8000 UTF-16 code units; inserts a
+  native text box on the current page.
+
+Write capabilities require a tracked writable native target; replacement also
+requires selected text. There is no model, arbitrary JavaScript, OOXML rewrite
+or direct file write in this bridge. The response includes a matching `tool`
+discriminator. Read results include text and counts; verified replacement
+returns `{ replaced: true, length, verified: true }`; verified insertion returns
+`{ page, verified: true }`. A write is successful only with `status: 'verified'`
+and a current continuation target after the executor's own native readback.
+The reader's existing `sent` status is not proof of a mutation.
+
+Responses must match sender, type, request ID, binding and generation. The host
+also checks iframe origin/source. Workspace switches, closed/reopened sessions,
+stale targets, duplicate request IDs and unsupported commands are rejected.
+An executed snapshot is consumed; obtain fresh context and a new request ID for
+the next command. Requests are serialized at the editor, capped at 4096 IDs per
+session and cancelled on close, host failure or a 30-second timeout. Failures do
+not automatically replay a command or clear an unrelated save operation.
+Timeout/close ends the host wait, not necessarily already dispatched native
+execution. An editor-side binding reset aborts the active action, using the
+existing native executor's cancellation/rollback checks. Callers must inspect
+an uncertain result before retrying; native history rollback is not a host-level
+transaction or a guarantee that every timed-out write has been undone.
+
+`scripts/e2e-courseware.mjs --case W01.2` exercises this bridge in the complete
+desktop shell, including visible read/edit/readback and basic save/reopen.
+Save races are exercised by `--case W01.3` below. Main Chat tool
+registration and model intent planning are not implemented by this bridge.
+
+
+### Host-confirmed editor saves (W01.3)
+
+The desktop sends `document:save` with a unique envelope ID and
+`requireHostCommit: true`. `document:saved` means export only. The editor host
+preserves that ID through Blob conversion. Main accepts bytes only from the
+current host webContents and the active export ID, once. Native bridge commands
+and opening/closing another document are blocked while a save is pending.
+Manual native edits remain available.
+
+Main validates bytes, archives a revision, and writes the source through a
+same-directory temporary file. Source hashes are checked before archiving and
+again before replacement; an external change produces an error without
+intentionally overwriting that file. This is not an OS-level cross-process
+compare-and-swap or a power-loss durability guarantee. Reopening imports the
+actual source when its hash differs from the latest archive, rather than
+silently opening an archive left by a failed write.
+
+After persistence Main sends `document:commit-save` using the same save ID and
+`{ success: boolean }`. The editor only acknowledges an exported pending save.
+It clears dirty only on success and an unchanged native history object, index,
+head and head-item snapshot. If the disk now holds a different snapshot from
+the live editor, the old SDK saved mark is invalidated (including undo races).
+The response is `document:save-committed` with `{ success, dirty }` and the same
+ID. Only a matching successful clean response yields desktop status `saved`.
+Success with newer live edits yields `ready` with `dirty: true`; a later manual
+edit also changes `saved` to dirty `ready`.
+
+`PptEditorState` adds optional `dirty` and `canSave`. A write failure preserves
+dirty and exposes toolbar retry after its failure acknowledgement. A revision
+may exist even when source replacement failed; it is a recovery artifact,
+not proof that the source was saved. Failed export or missing confirmation
+blocks blind retry until reopen/inspection because SDK save streams have no
+request ID. Export timeout is 210 seconds; acknowledgement timeout is 15 seconds.
+Neither timeout cancels a filesystem operation or a dispatched native action.
+Older, duplicate and wrong-sender responses never complete a new save.
+
+Both editor and desktop must support this protocol; older editors cannot confirm
+it and time out rather than claiming a clean save. Other embed callers retain
+legacy export behaviour unless they opt into `requireHostCommit`.
+Unsaved-close prompts, application-quit recovery, crashes, complex presentation
+fidelity and concurrent editing by external processes remain separate acceptance
+items; normal close remains an explicit discard of unsaved live edits.
+
+### Saved-source teaching IPC
+
+`pptEditorTeachingDraftGet({viewId})` and
+`pptEditorTeachingDraftSet({viewId, expectedRevision, draft})` return
+`{draft: CoursewareTeachingDraft | null}` through the normal envelope.
+Set content is null for explicit discard, otherwise exactly
+`{actions, instruction}`; Main supplies the authoritative baseline and Host
+identities. Both methods require the main-window sender and active owning Chat.
+Retained bounded view tokens allow a pending local draft to finish storing its
+original page after native navigation; they never authorize a teaching write.
+All extra fields/arguments reject. Host revision CAS and same-baseline checks,
+recovery behavior and limits are specified in the courseware contract below.
+
+Main-window-only invokes: `pptEditorTeachingOpen({sessionId})`,
+`pptEditorTeachingWrite({viewId, expectedTeachingRevision, actions})`, and
+`pptEditorTeachingLock({viewId, expectedTeachingRevision, locked})`, and
+`pptEditorTeachingConfirm({viewId, expectedTeachingRevision, resolution?})`. The
+optional resolution is exactly `{changeGroupId, receiptSha256, note}` from the
+explicit existing-sidebar review, with a nonempty note of at most 500 UTF-16
+units; it creates no additional IPC channel. Main pins the current clean saved
+page and verifies the exact displayed unresolved receipt. See
+[Chat disposition](23-courseware-native-chat.md#explicit-human-disposition-and-fixed-publication-barrier).
+Responses
+are `CoursewareTeachingView` through the normal IPC envelope. Preload uses the
+existing generated IPC whitelist; no generic Host proxy is exposed. Extra
+arguments/keys, caller-selected source or page identity are rejected. See
+[courseware contract](22-courseware-contract-v1.md#saved-source-editor-integration).
+
+Confirmation is explicit per-page review in the existing panel; Main supplies
+the pinned current page. It preserves actions and locks, advances the teaching
+revision, and never creates audio or publishes. Private immutable snapshot APIs
+are not renderer IPC. See [fixed snapshots](26-courseware-fixed-snapshots.md).
+
+`pptEditorTeachingReview({sessionId})` prepares an explicit review of the current
+clean saved PPTX. It returns `{reviewId, project, pageCount, targetSha256}` with
+the previous canonical project and a Main-local opaque token. The user chooses
+one old-page index or `null` per new page. `pptEditorTeachingAdopt({reviewId,
+bindings})` validates those choices against Main's pinned review, reparses the
+current saved source and calls Host CAS adoption. It returns the new
+`CoursewareTeachingView`. Both channels are main-window-only, reject extra
+arguments/fields and are absent from the external Agent dispatch map. Source
+and native context, current Chat and Host are rechecked. See the contract's
+explicit saved-source review section for supported actions and limits.
+
+When supported highlight/spotlight cues exist, the review additionally contains
+`targetPages?: {objects:{index:number,kind:string}[]}[]` and
+`effectTargets?: {pageId:string,objectId:string,kind:string,index:number}[]`.
+The former is the current saved parser order (one-based object index); the
+latter contains only old Host identities actually referenced by supported cues.
+`pptEditorTeachingAdopt` optionally adds `effectBindings` with
+`{pageIndex:number,objectId:string,targetIndex:number}` entries. Page indices are
+zero-based new-page order, target indices one-based current parser order.
+Main pins and validates the complete review and the exact explicit associations;
+Host derives fresh UUIDs from its actual parser identity in the adoption
+transaction. Every referenced target must be mapped exactly once on its bound
+page, without merging distinct old objects, omitting cue-bearing pages or
+accepting unknown target kinds. Choices start empty and require explicit review.
+No model tool gains association authority, and unsupported cue kinds still
+reject intact. Omitting optional fields preserves existing cue-free callers.
+
+
+Courseware narration review adds main-window-only finite
+`deckwise/ppt-editor/narration/review` and `/decide` channels. Parameters/results
+and freshness/ownership requirements are defined in
+[24-courseware-narration-candidates](24-courseware-narration-candidates.md).
+They expose review of known persisted IDs, not arbitrary Host RPC or generation.
+
+
+PPTX candidate review adds main-window-only
+`deckwise/ppt-editor/pptx-candidate/review` (`{sessionId,candidateId}`), `/preview`
+and `/reject` (`{reviewId}`). A15 adds `/adopt` (`{reviewId,effectBindings?}`), with a separate
+explicit replacement confirmation in the review UI. All reject extra fields and
+are absent from external Agent dispatch. Main retains authority over source,
+archive and workspace; `/adopt` resolves to the normal IPC success envelope after
+controlled Office reopening. See [25](25-courseware-source-candidates.md#desktop-reviewed-adoption-and-recovery-a15).
+
+For cue-bearing rebuilt pages, review adds optional `effectTargets` (old page and
+object identity, page index, kind and old display index), `effectPages` (candidate
+parser object indexes/kinds), and `effectCues` (page, effect type and retained
+start/end milliseconds). `/adopt` accepts at most 20,000 strict
+`{pageIndex,objectId,targetIndex}` choices. Main validates complete distinct
+same-page eligible targets against its retained review and rechecks fresh Host
+inventory before preparing a source intent. Renderer cannot supply canonical
+replacement IDs, source hashes, paths, actions or timing. Missing choices block
+adoption; cue-free requests retain the old behavior. No new channel or Agent tool.
+
+A17 adds main-window-only `deckwise/courseware/fixed/{build,approve,play,cancel}`
+for persisted immutable snapshot selection, exact retained warning approval and
+Main-owned player launch/cancellation. No paths, generic Host calls or snapshot
+capture are exposed. The dedicated sandboxed player has a separate private
+`deckwise-fixed-player:read` channel authenticated to its exact top frame and
+selected build. See [fixed snapshots](26-courseware-fixed-snapshots.md#desktop-fixed-build-and-preview-a17)
+for parameter/result, ownership, integrity and lifecycle rules.
+
+A18 adds main-window-only `deckwise/ppt-editor/snapshot/capture` with exactly
+`{viewId,expectedTeachingRevision}` and no extra arguments. Main verifies its
+retained native teaching view and fresh saved-source parser result, then calls
+private Host snapshot capture. Only `CoursewareSnapshot` returns. Renderer/API
+wrappers for fixed build/review/play/cancel use `CoursewareFixedBuildView` from
+shared; they import no Main or Node module. Speech-bearing capture currently
+rejects until trusted generated-audio ingestion is connected; renderer-supplied
+paths/assets are never accepted. See [snapshot spec](26-courseware-fixed-snapshots.md).

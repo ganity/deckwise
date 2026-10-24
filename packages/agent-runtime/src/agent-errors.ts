@@ -402,6 +402,9 @@ export function classifyAgentError(err: unknown): ClassifiedAgentError {
   }
 
   if (status !== undefined) {
+    if (status === 403 && /\bTEAM_LLM_PERMISSION_DENIED\b/.test(rawMessage)) {
+      return result("TEAM_LLM_PERMISSION_DENIED", false);
+    }
     if (status === 401 || status === 403) return result("PROVIDER_UNAUTHORIZED", false);
     if (status === 408) return result("TIMEOUT", true);
     if (status === 413) {

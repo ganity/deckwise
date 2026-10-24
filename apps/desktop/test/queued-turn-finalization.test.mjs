@@ -41,6 +41,7 @@ function fixture() {
   const writes = [];
   const announcements = [];
   let quitting = false;
+  let viewingSessionId = null;
 
   const coordination = createSessionCoordination({
     activeTurns,
@@ -78,6 +79,7 @@ function fixture() {
   const bridge = createAgentHostBridge({
     channels: IPC.invoke,
     getHost: () => host,
+    getViewingSessionId: () => viewingSessionId,
     // The shared busy check, exactly as the application wires it: a turn whose
     // announcement has not run yet must still hold the queue.
     isSessionBusy: coordination.isSessionBusy,
@@ -182,6 +184,7 @@ function fixture() {
     prompts,
     announcements,
     writes,
+    setViewingSessionId: (value) => { viewingSessionId = value; },
     finish,
     finishTurn: planRuntime.finishTurn,
     setQuitting: (value) => {
@@ -189,6 +192,38 @@ function fixture() {
     },
   };
 }
+
+for (const viewingSessionId of [SESSION, "s2", null]) {
+  test(`a queued local prompt reads the current view (${viewingSessionId}) after cancellation`, async () => {
+    const f = fixture();
+    f.setViewingSessionId(SESSION);
+    await f.bridge.queue.push({ sessionId: SESSION, content: "follow-up" });
+    f.setViewingSessionId(viewingSessionId);
+    const pending = f.finish("aborted", { deliverTerminal: false });
+    await setImmediate();
+    f.writes[0].resolve({ ok: true });
+    await pending;
+    await setImmediate();
+    assert.equal(f.prompts.length, 1);
+    assert.equal(f.prompts[0].viewingSessionId, viewingSessionId);
+  });
+}
+
+test("a queued remote prompt cannot borrow the visible local editor", async () => {
+  const f = fixture();
+  f.setViewingSessionId(SESSION);
+  await f.bridge.agentHost.startTurn({ subject: "phone", roles: ["controller"] }, {
+    sessionId: SESSION, admission: "queue", input: { text: "remote follow-up" },
+    context: { requestId: "remote-editor-check" },
+  });
+  const pending = f.finish();
+  await setImmediate();
+  f.writes[0].resolve({ ok: true });
+  await pending;
+  await setImmediate();
+  assert.equal(f.prompts.length, 1);
+  assert.equal(f.prompts[0].viewingSessionId, null);
+});
 
 for (const status of ["completed", "error", "aborted"]) {
   test(`queued prompts resume once, in FIFO order, after ${status} turn finalization`, async () => {

@@ -1,0 +1,109 @@
+{
+  "status": "PASS_DESKTOP_FIXED_PLAYBACK_FIXTURE",
+  "checks": [
+    "Real Host captures and revalidates an immutable snapshot",
+    "Real Desktop starts with the same persisted Host data and owning Chat",
+    "Finite Main IPC reviews exact warnings and builds using the real offline converter",
+    "Dedicated sandboxed player mounts the compiled package with local fonts and finite assets",
+    "A user gesture plays adopted audio bytes and page navigation stays functional",
+    "Changed asset bytes reject on read; no live-file fallback",
+    "Chat changes close playback and expire old preview selections",
+    "Renderer reload closes the independent playback window",
+    "Host process exit immediately closes playback and invalidates its selection"
+  ],
+  "paidCalls": false,
+  "audioFixtureOnly": true,
+  "realProviderAudio": false,
+  "authFixtureOnly": true,
+  "adoptedTtsSnapshot": false,
+  "packaged": false,
+  "sandbox": "--no-sandbox",
+  "userVisibleBuildButton": false,
+  "pageCount": 3,
+  "runtime": {
+    "packaged": false,
+    "appPath": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop",
+    "resourcesPath": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/node_modules/.pnpm/electron@43.6.0_supports-color@7.2.0/node_modules/electron/dist/resources",
+    "executablePath": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/node_modules/.pnpm/electron@43.6.0_supports-color@7.2.0/node_modules/electron/dist/electron"
+  },
+  "selection": {
+    "projectId": "office-snapshot-e2e",
+    "snapshotId": "snapshot-1",
+    "sessionId": "289860b1-b4ae-409c-86e9-d9d9a5998d4d"
+  },
+  "build": {
+    "status": "ready",
+    "previewId": "c7b43156-dac3-4cbb-9683-fc98d748105f",
+    "snapshot": {
+      "assetIds": [
+        "voice-1"
+      ],
+      "mappingRevision": "ccd332ba-3b60-4afb-b444-e21e0dd929a1",
+      "projectId": "office-snapshot-e2e",
+      "snapshotId": "snapshot-1",
+      "source": {
+        "revision": "c3aeaeb94308615b2af2529db1cdbd76f85b18fd14714e5ebd10adb9ccad37f3",
+        "sha256": "c3aeaeb94308615b2af2529db1cdbd76f85b18fd14714e5ebd10adb9ccad37f3"
+      },
+      "teachingRevision": "ebe33122-4302-47f3-a6f7-ad16731de10b"
+    },
+    "buildRef": {
+      "buildId": "f576b6981303b3de6096cdb99ee53160a0f070dd8caa2201a0787cfd07d6bc22",
+      "packageSha256": "f576b6981303b3de6096cdb99ee53160a0f070dd8caa2201a0787cfd07d6bc22",
+      "snapshotId": "snapshot-1"
+    },
+    "report": {
+      "ready": true,
+      "reviewedWarningCodes": [
+        "PPTX_NOTES_MASTER_UNVERIFIED"
+      ],
+      "visualFidelity": "NOT_VERIFIED",
+      "diagnostics": [
+        {
+          "code": "PPTX_NOTES_MASTER_UNVERIFIED",
+          "severity": "warning",
+          "message": "PPTX 包含备注母版，当前仅提取逐页备注，未验证母版版式与样式的保留情况，须人工核对"
+        }
+      ],
+      "capabilities": {
+        "staticSlides": "limited",
+        "fixedNarration": true,
+        "teacherWait": true,
+        "transitions": false,
+        "objectAnimations": false,
+        "spotlight": false
+      },
+      "sourceSha256": "c3aeaeb94308615b2af2529db1cdbd76f85b18fd14714e5ebd10adb9ccad37f3",
+      "sourceRevision": "c3aeaeb94308615b2af2529db1cdbd76f85b18fd14714e5ebd10adb9ccad37f3",
+      "teachingRevision": "ebe33122-4302-47f3-a6f7-ad16731de10b",
+      "mappingRevision": "ccd332ba-3b60-4afb-b444-e21e0dd929a1",
+      "converter": {
+        "version": "maic-pptx-import-ir/1",
+        "manifestSha256": "3324dc03cad28ea34280a76a3d723c9288f0834da43bcce85d8ec9f8dbf4320c"
+      }
+    }
+  },
+  "isolation": {
+    "require": "undefined",
+    "desktop": "undefined",
+    "bridge": [
+      "readPackage",
+      "readAsset",
+      "readTeamSelection",
+      "readTeamFile"
+    ],
+    "fonts": 11
+  },
+  "audioEvents": [
+    {
+      "type": "playing",
+      "time": 0,
+      "src": "blob:file:///b3a20ff9-980d-47c9-8bc4-15f4f3ff8cab"
+    },
+    {
+      "type": "ended",
+      "time": 0.1,
+      "src": "blob:file:///b3a20ff9-980d-47c9-8bc4-15f4f3ff8cab"
+    }
+  ]
+}

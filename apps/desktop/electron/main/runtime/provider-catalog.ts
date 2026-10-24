@@ -115,16 +115,18 @@ export function createProviderCatalogRuntime({
     ],
   };
   const managedModels = async (): Promise<ModelBinding[]> => {
-    let token = "";
     try {
-      token = await resolvePlatformAccessToken();
-    } catch {
-      return managedProvider.models ?? [];
-    }
-    if (!token) return managedProvider.models ?? [];
-    try {
-      const response = await fetch(`${managedBaseUrl()}/models`, {
+      const baseUrl = managedBaseUrl();
+      const url = new URL(baseUrl);
+      if (url.protocol !== "https:" && !(url.protocol === "http:" &&
+          (url.hostname === "127.0.0.1" || url.hostname === "localhost"))) {
+        return managedProvider.models ?? [];
+      }
+      const token = await resolvePlatformAccessToken();
+      if (!token) return managedProvider.models ?? [];
+      const response = await fetch(`${baseUrl}/models`, {
         headers: { Authorization: `Bearer ${token}` },
+        redirect: "error",
       });
       if (!response.ok) return managedProvider.models ?? [];
       const payload = (await response.json()) as {

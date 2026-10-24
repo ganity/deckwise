@@ -1,0 +1,21 @@
+{
+  "version": "courseware-media-v1",
+  "taskId": "task-1",
+  "idempotencyKey": "request-1",
+  "requestHash": "e3f7e210183ff6fe8b14e7c88a378fe08a50ec51c0d0815194c5c1246612e8d7",
+  "kind": "tts",
+  "model": "sim-tts",
+  "state": "ready",
+  "feeState": "settled",
+  "reservedPoints": 5,
+  "actualPoints": 3,
+  "receiptId": "courseware-media:task-1",
+  "errorCode": null,
+  "assetRef": {
+    "assetId": "asset-1",
+    "sha256": "e3f7e210183ff6fe8b14e7c88a378fe08a50ec51c0d0815194c5c1246612e8d7",
+    "mime": "audio/wav",
+    "byteLength": 4,
+    "downloadPath": "/courseware/media/tasks/task-1/asset"
+  }
+}

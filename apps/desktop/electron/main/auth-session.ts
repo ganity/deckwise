@@ -1,9 +1,11 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { chmod, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, extname, join } from "node:path";
 import { net } from "electron";
-import { DECKWISE_MANAGED_BASE_URL } from "@pi-desktop/shared";
+import { DECKWISE_MANAGED_BASE_URL, isCoursewareTeamAssetRef } from "@pi-desktop/shared";
+import { CoursewareMediaClient } from "./courseware-media";
+import { CoursewareOnlineEditingClient } from "./courseware-online-editing";
 import type {
   DesktopAuthDictionaryItem,
   DesktopAuthProfile,
@@ -11,6 +13,7 @@ import type {
   DesktopCoursewareImportInput,
   DesktopCoursewareImportResult,
   DesktopDocumentParseResult,
+  CoursewareTeamAssetRef,
 } from "@pi-desktop/shared";
 
 const DEFAULT_PLATFORM_BASE_URL = "https://trainwise.efrobot.com/api/backend";
@@ -137,6 +140,7 @@ function educationProfile(value: unknown): DesktopAuthProfile {
 }
 
 export class DesktopAuthSession {
+  readonly coursewareMedia: CoursewareMediaClient;
   private readonly sessionPath: string;
   private readonly legacySessionPath: string;
   private readonly baseUrl = platformBaseUrl();
@@ -146,14 +150,62 @@ export class DesktopAuthSession {
   private refreshInFlight: Promise<void> | null = null;
   private refreshTimer: NodeJS.Timeout | null = null;
   private restoreRetryTimer: NodeJS.Timeout | null = null;
+  private readonly stateListeners = new Set<(state: DesktopAuthState) => void>();
 
   constructor(private readonly options: AuthSessionOptions) {
     this.sessionPath = join(options.dataDir, "auth", "session.token");
     this.legacySessionPath = join(options.dataDir, "auth", "session.bin");
+    this.coursewareMedia = new CoursewareMediaClient({
+      baseUrl: this.baseUrl,
+      fetch: (url, init) => net.fetch(url instanceof URL ? url.toString() : url, init),
+      resolveAccessToken: () => this.resolveAccessToken(),
+      getPrincipal: () => this.state.status === "authenticated" && this.accessToken ? this.state.profile : null,
+    });
   }
 
   getState(): DesktopAuthState {
     return this.state;
+  }
+
+  onStateChanged(listener: (state: DesktopAuthState) => void): () => void {
+    this.stateListeners.add(listener);
+    return () => { this.stateListeners.delete(listener); };
+  }
+
+  getCoursewareOnlineClient(): CoursewareOnlineEditingClient {
+    return new CoursewareOnlineEditingClient({
+      baseUrl: this.baseUrl,
+      fetch: (url, init) => net.fetch(url instanceof URL ? url.toString() : url, init),
+      resolveAccessToken: () => this.resolveAccessToken(),
+      getPrincipal: () => this.state.status === "authenticated" && this.accessToken ? this.state.profile : null,
+    });
+  }
+
+  async joinCoursewareOnline(projectId: string, signal?: AbortSignal, clientId?: string) {
+    return this.getCoursewareOnlineClient().join(projectId, signal, clientId);
+  }
+
+  getCoursewarePrincipal(): { key: string; assertCurrent: () => void } {
+    const profile = this.state.status === "authenticated" && this.accessToken ? this.state.profile : null;
+    if (!profile || !Number.isSafeInteger(profile.tenantId) || profile.tenantId <= 0 ||
+        !Number.isSafeInteger(profile.userId) || profile.userId <= 0) throw new Error("COURSEWARE_MEDIA_AUTH_REQUIRED");
+    return {
+      key: createHash("sha256").update(JSON.stringify(["courseware-principal-v1", this.baseUrl, profile.tenantId, profile.userId])).digest("hex"),
+      assertCurrent: () => {
+        if (this.state.status !== "authenticated" || !this.accessToken || this.state.profile !== profile) throw new Error("COURSEWARE_MEDIA_AUTH_CHANGED");
+      },
+    };
+  }
+
+  async resolveTeamSceneImages(references: readonly CoursewareTeamAssetRef[], signal?: AbortSignal) {
+    signal?.throwIfAborted();
+    if (!Array.isArray(references) || !references.length || references.length > 202 ||
+        !references.every(isCoursewareTeamAssetRef)) throw new Error("COURSEWARE_MEDIA_INVALID_SCENE_ASSETS");
+    const captured = structuredClone(references);
+    const principal = this.getCoursewarePrincipal();
+    const media = this.coursewareMedia;
+    const { resolveCoursewareTeamPngs } = await import("./courseware-team-images");
+    return resolveCoursewareTeamPngs({ references: captured, principal, media, signal });
   }
 
   async resolveAccessToken(): Promise<string> {
@@ -505,6 +557,7 @@ export class DesktopAuthSession {
 
   private setState(state: DesktopAuthState): DesktopAuthState {
     this.state = state;
+    for (const listener of this.stateListeners) listener(state);
     this.options.onChanged(state);
     return state;
   }

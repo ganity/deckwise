@@ -1,4 +1,54 @@
 import type {
+  MediaCanvasDocument,
+  MediaCanvasView,
+  CoursewareCanvasImageView,
+  CoursewareCanvasImageQuoteView,
+  CoursewareCanvasImagePreview,
+  CoursewareCanvasImageReferencePreview,
+  CoursewareCanvasMusicView,
+  CoursewareCanvasMusicQuoteView,
+  CoursewareCanvasMusicPreview,
+  CoursewareCanvasMusicModels,
+  CoursewareCanvasMusicPrepareRequest,
+  CoursewareCanvasMusicExportPrepareRequest,
+  CoursewareCanvasMusicAdoptRequest,
+  CoursewareTeachingView,
+  CoursewareOnlineEditorState,
+  CoursewareOnlinePreparationReview,
+  CoursewareOnlinePreparationResult,
+  CoursewareOnlineTeachingView,
+  CoursewareOnlinePauseView,
+  CoursewareOnlineBarrierView,
+  CoursewareOnlineSourceReviewView,
+  CoursewareOnlineSourceReviewResult,
+  CoursewareOnlineSourceCaptureResult,
+  CoursewareOnlineSourceDecisions,
+  CoursewareTeachingHistory,
+  CoursewareAssetLocksView,
+  CoursewareTaskType,
+  CoursewareScenePlanSnapshot,
+  CoursewareSceneImageView,
+  CoursewareSceneImageQuoteView,
+  CoursewareSceneImagePreview,
+  CoursewareSceneImageTarget,
+  CoursewareEducationContext,
+  CoursewareTeamProject,
+  CoursewareTtsView,
+  CoursewareTtsModel,
+  CoursewareTtsQuoteView,
+  CoursewareTtsArchiveView,
+  CoursewareSnapshot,
+  CoursewareFixedBuildView,
+  CoursewareNarrationReview,
+  CoursewareSourceReview,
+  CoursewareEffectBinding,
+  CoursewarePptxCandidateReview,
+  CoursewareStyleReview,
+  PptEditorContext,
+  CoursewareImageReviewView,
+  CoursewareSourceVisualReview,
+  PptEditorCommand,
+  PptEditorCommandResult,
   ActivationScope,
   AgentCapabilityMove,
   AgentCapabilityQuery,
@@ -32,6 +82,7 @@ import type {
   DesktopCoursewareImportInput,
   DesktopCoursewareImportResult,
   DesktopDocumentParseResult,
+  PptxInspection,
   AppVersionInfo,
   BrowserAction,
   BrowserState,
@@ -123,6 +174,22 @@ import {
   validateSpeechSettings,
 } from "@pi-desktop/shared";
 
+type CoursewareFixedShareRecovery = {
+  intent: {
+    intentId: string;
+    state: "unknown" | "bound";
+    receiptAware?: boolean;
+    selection: {
+      projectId: string;
+      snapshotId: string;
+      buildId: string;
+      manifestSha256: string;
+      teamProjectId: string;
+      channel: "shared" | "formal";
+    };
+  } | null;
+};
+
 export type ImportSource = "claude-code" | "opencode" | "codex" | "pi";
 // One definition, owned by the shared package (the host and sidecar use the
 // same shape); re-exported so existing renderer imports keep working.
@@ -160,6 +227,8 @@ export type PptEditorState = {
   canRetry?: boolean;
   readOnly?: boolean;
   savedPath?: string;
+  dirty?: boolean;
+  canSave?: boolean;
 };
 
 export type PptPreviewState = {
@@ -362,6 +431,16 @@ export const api = {
   pollQrLogin: (ticket: string) =>
     invoke<DesktopAuthState>(IPC.invoke.authPollQr, { ticket }),
   logout: () => invoke<DesktopAuthState>(IPC.invoke.authLogout),
+  coursewareTeamProjects: () =>
+    invoke<CoursewareTeamProject[]>(IPC.invoke.coursewareTeamProjects),
+  coursewareTeamProjectCreate: () =>
+    invoke<string>(IPC.invoke.coursewareTeamProjectCreate),
+  coursewareTeamMemberGrant: (projectId: string, userId: number, role: "EDITOR" | "VIEWER") =>
+    invoke<{ ok: boolean }>(IPC.invoke.coursewareTeamMemberGrant, { projectId, userId, role }),
+  coursewareTeamMemberRevoke: (projectId: string, userId: number) =>
+    invoke<{ ok: boolean }>(IPC.invoke.coursewareTeamMemberRevoke, { projectId, userId }),
+  coursewareTeamMembers: (projectId: string) =>
+    invoke<import("@pi-desktop/shared").CoursewareTeamMember[]>(IPC.invoke.coursewareTeamMembers, { projectId }),
   importCourseware: (input: DesktopCoursewareImportInput) =>
     invoke<DesktopCoursewareImportResult>(IPC.invoke.coursewareImport, input),
   parseDocument: (path: string) =>
@@ -1079,11 +1158,225 @@ export const api = {
   fsIndex: () => invoke<FsIndexResult>(IPC.invoke.fsIndex),
   pptPreviewOpen: (path: string) =>
     invoke<PptPreviewState>(IPC.invoke.pptPreviewOpen, { path }),
+  coursewareTaskGet: (sessionId: string) =>
+    invoke<{ task: { taskType: CoursewareTaskType; educationContext?: CoursewareEducationContext; importPath?: string; generatedPath?: string } | null }>(IPC.invoke.coursewareTaskGet, { sessionId }),
+  coursewareMediaCanvasGet: (sessionId: string) =>
+    invoke<MediaCanvasView>(IPC.invoke.coursewareMediaCanvasGet, { sessionId }),
+  coursewareMediaCanvasSet: (sessionId: string, expectedRevision: string | null, document: MediaCanvasDocument) =>
+    invoke<MediaCanvasView>(IPC.invoke.coursewareMediaCanvasSet, { sessionId, expectedRevision, document }),
+  coursewareCanvasImageModels: (sessionId: string) =>
+    invoke<{ model: string; supportsReferenceImage: boolean }[]>(IPC.invoke.coursewareCanvasImageModels, { sessionId }),
+  coursewareCanvasImageList: (sessionId: string) =>
+    invoke<CoursewareCanvasImageView[]>(IPC.invoke.coursewareCanvasImageList, { sessionId }),
+  coursewareCanvasImagePrepare: (request: { sessionId: string; intentId: string; draftId: string; expectedRevision: string; expectedDraftRevision: number; model: string }) =>
+    invoke<CoursewareCanvasImageView>(IPC.invoke.coursewareCanvasImagePrepare, request),
+  coursewareCanvasImageQuote: (sessionId: string, intentId: string) =>
+    invoke<CoursewareCanvasImageQuoteView>(IPC.invoke.coursewareCanvasImageQuote, { sessionId, intentId }),
+  coursewareCanvasImageSubmitConfirmed: (sessionId: string, intentId: string, quoteId: string) =>
+    invoke<CoursewareCanvasImageView>(IPC.invoke.coursewareCanvasImageSubmitConfirmed, { sessionId, intentId, quoteId }),
+  coursewareCanvasImageStatus: (sessionId: string, intentId: string) =>
+    invoke<CoursewareCanvasImageView>(IPC.invoke.coursewareCanvasImageStatus, { sessionId, intentId }),
+  coursewareCanvasImageArchive: (sessionId: string, intentId: string) =>
+    invoke<CoursewareCanvasImagePreview>(IPC.invoke.coursewareCanvasImageArchive, { sessionId, intentId }),
+  coursewareCanvasImageRestore: (sessionId: string, intentId: string) =>
+    invoke<CoursewareCanvasImagePreview>(IPC.invoke.coursewareCanvasImageRestore, { sessionId, intentId }),
+  coursewareCanvasImagePreview: (sessionId: string, intentId: string) =>
+    invoke<CoursewareCanvasImagePreview>(IPC.invoke.coursewareCanvasImagePreview, { sessionId, intentId }),
+  coursewareCanvasImageReferencePreview: (sessionId: string, intentId: string) =>
+    invoke<CoursewareCanvasImageReferencePreview>(IPC.invoke.coursewareCanvasImageReferencePreview, { sessionId, intentId }),
+  coursewareCanvasMusicModels: (sessionId: string) =>
+    invoke<CoursewareCanvasMusicModels>(IPC.invoke.coursewareCanvasMusicModels, { sessionId }),
+  coursewareCanvasMusicList: (sessionId: string) =>
+    invoke<CoursewareCanvasMusicView[]>(IPC.invoke.coursewareCanvasMusicList, { sessionId }),
+  coursewareCanvasMusicPrepare: (request: CoursewareCanvasMusicPrepareRequest) =>
+    invoke<CoursewareCanvasMusicView>(IPC.invoke.coursewareCanvasMusicPrepare, request),
+  coursewareCanvasMusicQuote: (sessionId: string, intentId: string) =>
+    invoke<CoursewareCanvasMusicQuoteView>(IPC.invoke.coursewareCanvasMusicQuote, { sessionId, intentId }),
+  coursewareCanvasMusicSubmitConfirmed: (sessionId: string, intentId: string, quoteId: string) =>
+    invoke<CoursewareCanvasMusicView>(IPC.invoke.coursewareCanvasMusicSubmitConfirmed, { sessionId, intentId, quoteId }),
+  coursewareCanvasMusicStatus: (sessionId: string, intentId: string) =>
+    invoke<CoursewareCanvasMusicView>(IPC.invoke.coursewareCanvasMusicStatus, { sessionId, intentId }),
+  coursewareCanvasMusicPreview: (sessionId: string, intentId: string, candidateId: string) =>
+    invoke<CoursewareCanvasMusicPreview>(IPC.invoke.coursewareCanvasMusicPreview, { sessionId, intentId, candidateId }),
+  coursewareCanvasMusicExportPrepare: (request: CoursewareCanvasMusicExportPrepareRequest) =>
+    invoke<CoursewareCanvasMusicView>(IPC.invoke.coursewareCanvasMusicExportPrepare, request),
+  coursewareCanvasMusicExportQuote: (sessionId: string, intentId: string) =>
+    invoke<CoursewareCanvasMusicQuoteView>(IPC.invoke.coursewareCanvasMusicExportQuote, { sessionId, intentId }),
+  coursewareCanvasMusicExportSubmitConfirmed: (sessionId: string, intentId: string, quoteId: string) =>
+    invoke<CoursewareCanvasMusicView>(IPC.invoke.coursewareCanvasMusicExportSubmitConfirmed, { sessionId, intentId, quoteId }),
+  coursewareCanvasMusicExportStatus: (sessionId: string, intentId: string) =>
+    invoke<CoursewareCanvasMusicView>(IPC.invoke.coursewareCanvasMusicExportStatus, { sessionId, intentId }),
+  coursewareCanvasMusicExportArchive: (sessionId: string, intentId: string) =>
+    invoke<CoursewareCanvasMusicPreview>(IPC.invoke.coursewareCanvasMusicExportArchive, { sessionId, intentId }),
+  coursewareCanvasMusicAdopt: (request: CoursewareCanvasMusicAdoptRequest) =>
+    invoke<CoursewareTeachingView>(IPC.invoke.coursewareCanvasMusicAdopt, request),
+  coursewareTaskSet: (sessionId: string, taskType: CoursewareTaskType, educationContext?: CoursewareEducationContext) =>
+    invoke<{ task: { taskType: CoursewareTaskType; educationContext?: CoursewareEducationContext } }>(IPC.invoke.coursewareTaskSet, { sessionId, taskType, educationContext }),
+  coursewareTaskBindTeam: (sessionId: string, teamProjectId: string) =>
+    invoke<{ task: { teamProjectId: string } }>(IPC.invoke.coursewareTaskBindTeam, { sessionId, teamProjectId }),
+  coursewareScenePlanRead: (sessionId: string) =>
+    invoke<{ plan: CoursewareScenePlanSnapshot | null }>(IPC.invoke.coursewareScenePlanRead, { sessionId }),
+  coursewareScenePlanApprove: (sessionId: string, sha256: string) =>
+    invoke<{ plan: CoursewareScenePlanSnapshot | null }>(IPC.invoke.coursewareScenePlanApprove, { sessionId, sha256 }),
+  coursewareSceneImageModels: (sessionId: string) =>
+    invoke<{ model: string; supportsReferenceImage?: boolean }[]>(IPC.invoke.coursewareSceneImageModels, { sessionId }),
+  coursewareSceneImageList: (sessionId: string) =>
+    invoke<CoursewareSceneImageView[]>(IPC.invoke.coursewareSceneImageList, { sessionId }),
+  coursewareSceneImagePrepare: (sessionId: string, planSha256: string, pageId: string, model: string,
+    target: CoursewareSceneImageTarget = { kind: "visualMaster" }, instructions = "", referenceIntentId?: string) =>
+    invoke<CoursewareSceneImageView>(IPC.invoke.coursewareSceneImagePrepare, { sessionId, planSha256, pageId, model, target, instructions,
+      ...(referenceIntentId === undefined ? {} : { referenceIntentId }) }),
+  coursewareSceneImageQuote: (sessionId: string, intentId: string) =>
+    invoke<CoursewareSceneImageQuoteView>(IPC.invoke.coursewareSceneImageQuote, { sessionId, intentId }),
+  coursewareSceneImageSubmitConfirmed: (sessionId: string, intentId: string, quoteId: string) =>
+    invoke<CoursewareSceneImageView>(IPC.invoke.coursewareSceneImageSubmitConfirmed, { sessionId, intentId, quoteId }),
+  coursewareSceneImageStatus: (sessionId: string, intentId: string) =>
+    invoke<CoursewareSceneImageView>(IPC.invoke.coursewareSceneImageStatus, { sessionId, intentId }),
+  coursewareSceneImageArchive: (sessionId: string, intentId: string) =>
+    invoke<CoursewareSceneImagePreview>(IPC.invoke.coursewareSceneImageArchive, { sessionId, intentId }),
+  coursewareSceneImagePreview: (sessionId: string, intentId: string) =>
+    invoke<CoursewareSceneImagePreview>(IPC.invoke.coursewareSceneImagePreview, { sessionId, intentId }),
+  coursewareSceneImageAdopt: (sessionId: string, intentId: string, expectedSelectedIntentId: string | null) =>
+    invoke<CoursewareSceneImageView[]>(IPC.invoke.coursewareSceneImageAdopt, { sessionId, intentId, expectedSelectedIntentId }),
+  coursewareSceneGenerate: (sessionId: string, planSha256: string) =>
+    invoke<{ path: string }>(IPC.invoke.coursewareSceneGenerate, { sessionId, planSha256 }),
+  coursewareSceneGenerateCancel: (sessionId: string) =>
+    invoke<{ cancelled: boolean }>(IPC.invoke.coursewareSceneGenerateCancel, { sessionId }),
+  coursewareImportPptx: (sessionId: string, token: string) =>
+    invoke<{ path: string }>(IPC.invoke.coursewareImportPptx, { sessionId, token }),
   pptPreviewRequest: <T = unknown>(path: string, route: string, method: "GET" | "POST" | "DELETE" = "GET", body?: unknown) =>
     invoke<T>(IPC.invoke.pptPreviewRequest, { path, route, method, body }),
   pptEditorOpen: (path: string, mimeType?: string) =>
     invoke<PptEditorState>(IPC.invoke.pptEditorOpen, { path, ...(mimeType ? { mimeType } : {}) }),
   pptEditorSave: () => invoke<{ ok: boolean }>(IPC.invoke.pptEditorSave),
+  pptEditorInspectStart: () => invoke<PptxInspection>(IPC.invoke.pptEditorInspectStart),
+  pptEditorInspectStatus: (checkId: string) => invoke<PptxInspection>(IPC.invoke.pptEditorInspectStatus, { checkId }),
+  pptEditorInspectCancel: (checkId: string) => invoke<PptxInspection>(IPC.invoke.pptEditorInspectCancel, { checkId }),
+  pptEditorNarrationReview: (sessionId: string, candidateId: string) =>
+    invoke<CoursewareNarrationReview>(IPC.invoke.pptEditorNarrationReview, { sessionId, candidateId }),
+  pptEditorNarrationDecide: (reviewId: string, decision: "adopt" | "reject") =>
+    invoke<CoursewareTeachingView>(IPC.invoke.pptEditorNarrationDecide, { reviewId, decision }),
+  pptEditorPptxCandidateReview: (sessionId: string, candidateId: string) =>
+    invoke<CoursewarePptxCandidateReview>(IPC.invoke.pptEditorPptxCandidateReview, { sessionId, candidateId }),
+  pptEditorPptxCandidatePreview: (reviewId: string) =>
+    invoke<{ ok: boolean }>(IPC.invoke.pptEditorPptxCandidatePreview, { reviewId }),
+  pptEditorPptxCandidateReject: (reviewId: string) =>
+    invoke<{ ok: boolean }>(IPC.invoke.pptEditorPptxCandidateReject, { reviewId }),
+  pptEditorPptxCandidateAdopt: (reviewId: string, effectBindings?: CoursewareEffectBinding[]) =>
+    invoke<{ ok: boolean }>(IPC.invoke.pptEditorPptxCandidateAdopt, { reviewId, ...(effectBindings?.length ? { effectBindings } : {}) }),
+  pptEditorTeachingOpen: (sessionId: string) => invoke<CoursewareTeachingView>(IPC.invoke.pptEditorTeachingOpen, { sessionId }),
+  coursewareOnlineState: () => invoke<CoursewareOnlineEditorState>(IPC.invoke.coursewareOnlineState),
+  coursewareOnlinePrepareReview: (request: { sessionId: string; projectId: string; includeTeaching?: boolean }) =>
+    invoke<CoursewareOnlinePreparationReview>(IPC.invoke.coursewareOnlinePrepareReview, request),
+  coursewareOnlinePrepareConfirm: (request: { reviewId: string }) =>
+    invoke<CoursewareOnlinePreparationResult>(IPC.invoke.coursewareOnlinePrepareConfirm, request),
+  coursewareOnlinePrepareCancel: (request: { reviewId: string }) =>
+    invoke<{ ok: true }>(IPC.invoke.coursewareOnlinePrepareCancel, request),
+  coursewareOnlineOpen: (ownerId: string, projectId: string) =>
+    invoke<CoursewareOnlineEditorState>(IPC.invoke.coursewareOnlineOpen, { ownerId, projectId }),
+  coursewareOnlineSetBounds: (ownerId: string, bounds: { x: number; y: number; width: number; height: number }) =>
+    invoke<{ ok: true }>(IPC.invoke.coursewareOnlineSetBounds, { ownerId, bounds }),
+  coursewareOnlineSetVisible: (ownerId: string, visible: boolean) =>
+    invoke<{ ok: true }>(IPC.invoke.coursewareOnlineSetVisible, { ownerId, visible }),
+  coursewareOnlineClose: (ownerId: string) => invoke<{ ok: true }>(IPC.invoke.coursewareOnlineClose, { ownerId }),
+  coursewareOnlineTeachingRead: (ownerId: string, pageId?: string) =>
+    invoke<CoursewareOnlineTeachingView | null>(IPC.invoke.coursewareOnlineTeachingRead, { ownerId, ...(pageId ? { pageId } : {}) }),
+  coursewareOnlineTeachingAcquire: (viewId: string) =>
+    invoke<CoursewareOnlineTeachingView>(IPC.invoke.coursewareOnlineTeachingAcquire, { viewId }),
+  coursewareOnlineTeachingRenew: (viewId: string) =>
+    invoke<CoursewareOnlineTeachingView>(IPC.invoke.coursewareOnlineTeachingRenew, { viewId }),
+  coursewareOnlineTeachingSave: (viewId: string, actions: Array<Record<string, unknown>>) =>
+    invoke<CoursewareOnlineTeachingView>(IPC.invoke.coursewareOnlineTeachingSave, { viewId, actions }),
+  coursewareOnlineTeachingRelease: (viewId: string) =>
+    invoke<CoursewareOnlineTeachingView>(IPC.invoke.coursewareOnlineTeachingRelease, { viewId }),
+  coursewareOnlinePauseRead: (ownerId: string) =>
+    invoke<CoursewareOnlinePauseView | null>(IPC.invoke.coursewareOnlinePauseRead, { ownerId }),
+  coursewareOnlinePauseResume: (viewId: string) =>
+    invoke<{ ok: true }>(IPC.invoke.coursewareOnlinePauseResume, { viewId }),
+  coursewareOnlineBarrierRead: (ownerId: string) =>
+    invoke<CoursewareOnlineBarrierView>(IPC.invoke.coursewareOnlineBarrierRead, { ownerId }),
+  coursewareOnlineBarrierStart: (viewId: string) =>
+    invoke<CoursewareOnlineBarrierView>(IPC.invoke.coursewareOnlineBarrierStart, { viewId }),
+  coursewareOnlineBarrierResume: (viewId: string) =>
+    invoke<CoursewareOnlineBarrierView>(IPC.invoke.coursewareOnlineBarrierResume, { viewId }),
+  coursewareOnlineSourceBegin: (request: { ownerId: string; sessionId: string }) =>
+    invoke<CoursewareOnlineSourceReviewView>(IPC.invoke.coursewareOnlineSourceBegin, request),
+  coursewareOnlineSourceResolve: (request: { viewId: string; decisions: CoursewareOnlineSourceDecisions }) =>
+    invoke<CoursewareOnlineSourceReviewResult>(IPC.invoke.coursewareOnlineSourceResolve, request),
+  coursewareOnlineSourcePreview: (request: { viewId: string; side: "original" | "target"; page: number }) =>
+    invoke<{ image: string }>(IPC.invoke.coursewareOnlineSourcePreview, request),
+  coursewareOnlineSourceClear: (request: { viewId: string }) =>
+    invoke<{ ok: true }>(IPC.invoke.coursewareOnlineSourceClear, request),
+  coursewareOnlineSourceCapture: (request: { viewId: string }) =>
+    invoke<CoursewareOnlineSourceCaptureResult>(IPC.invoke.coursewareOnlineSourceCapture, request),
+  pptEditorTeachingHistory: (viewId: string) => invoke<CoursewareTeachingHistory>(IPC.invoke.pptEditorTeachingHistory, { viewId }),
+  pptEditorTeachingDraftGet: (viewId: string) =>
+    invoke<{ draft: import("@pi-desktop/shared").CoursewareTeachingDraft | null }>(IPC.invoke.pptEditorTeachingDraftGet, { viewId }),
+  pptEditorTeachingDraftSet: (viewId: string, expectedRevision: string | null, draft: { actions: Array<Record<string, unknown>>; instruction: string } | null) =>
+    invoke<{ draft: import("@pi-desktop/shared").CoursewareTeachingDraft | null }>(IPC.invoke.pptEditorTeachingDraftSet, { viewId, expectedRevision, draft }),
+  pptEditorImportNotesPreview: (sessionId: string) => invoke<{ view: CoursewareTeachingView; text: string }>(IPC.invoke.pptEditorImportNotesPreview, { sessionId }),
+  pptEditorTtsModels: (viewId: string, expectedTeachingRevision: string) =>
+    invoke<CoursewareTtsModel[]>(IPC.invoke.pptEditorTtsModels, { viewId, expectedTeachingRevision }),
+  pptEditorTtsQuote: (viewId: string, expectedTeachingRevision: string, intentId: string) =>
+    invoke<CoursewareTtsQuoteView>(IPC.invoke.pptEditorTtsQuote, { viewId, expectedTeachingRevision, intentId }),
+  pptEditorTtsSubmitConfirmed: (viewId: string, expectedTeachingRevision: string, intentId: string, quoteId: string) =>
+    invoke<CoursewareTtsView>(IPC.invoke.pptEditorTtsSubmitConfirmed, { viewId, expectedTeachingRevision, intentId, quoteId }),
+  pptEditorTtsPrepare: (viewId: string, expectedTeachingRevision: string, actionId: string, model: string, voice: string | null) =>
+    invoke<CoursewareTtsView>(IPC.invoke.pptEditorTtsPrepare, { viewId, expectedTeachingRevision, actionId, model, voice }),
+  pptEditorTtsSubmit: (viewId: string, expectedTeachingRevision: string, intentId: string) =>
+    invoke<CoursewareTtsView>(IPC.invoke.pptEditorTtsSubmit, { viewId, expectedTeachingRevision, intentId }),
+  pptEditorTtsStatus: (viewId: string, expectedTeachingRevision: string, intentId: string) =>
+    invoke<CoursewareTtsView>(IPC.invoke.pptEditorTtsStatus, { viewId, expectedTeachingRevision, intentId }),
+  pptEditorTtsList: (viewId: string, expectedTeachingRevision: string) =>
+    invoke<CoursewareTtsView[]>(IPC.invoke.pptEditorTtsList, { viewId, expectedTeachingRevision }),
+  pptEditorTtsArchive: (viewId: string, expectedTeachingRevision: string, intentId: string) =>
+    invoke<CoursewareTtsArchiveView>(IPC.invoke.pptEditorTtsArchive, { viewId, expectedTeachingRevision, intentId }),
+  pptEditorTtsAdopt: (viewId: string, expectedTeachingRevision: string, intentId: string) =>
+    invoke<CoursewareTeachingView>(IPC.invoke.pptEditorTtsAdopt, { viewId, expectedTeachingRevision, intentId }),
+  pptEditorTeachingReview: (sessionId: string) => invoke<CoursewareSourceReview>(IPC.invoke.pptEditorTeachingReview, { sessionId }),
+  pptEditorTeachingAdopt: (reviewId: string, bindings: Array<number | null>, effectBindings?: CoursewareEffectBinding[]) =>
+    invoke<CoursewareTeachingView>(IPC.invoke.pptEditorTeachingAdopt, { reviewId, bindings, ...(effectBindings ? { effectBindings } : {}) }),
+  pptEditorTeachingWrite: (viewId: string, expectedTeachingRevision: string, actions: Array<Record<string, unknown>>) =>
+    invoke<CoursewareTeachingView>(IPC.invoke.pptEditorTeachingWrite, { viewId, expectedTeachingRevision, actions }),
+  pptEditorTeachingLock: (viewId: string, expectedTeachingRevision: string, locked: boolean) =>
+    invoke<CoursewareTeachingView>(IPC.invoke.pptEditorTeachingLock, { viewId, expectedTeachingRevision, locked }),
+  pptEditorAssetLocksRead: (viewId: string, expectedTeachingRevision: string) =>
+    invoke<CoursewareAssetLocksView>(IPC.invoke.pptEditorAssetLocksRead, { viewId, expectedTeachingRevision }),
+  pptEditorAssetLockSet: (viewId: string, expectedTeachingRevision: string, expectedLockRevision: string | null, objectId: string, locked: boolean) =>
+    invoke<CoursewareAssetLocksView>(IPC.invoke.pptEditorAssetLockSet, { viewId, expectedTeachingRevision, expectedLockRevision, objectId, locked }),
+  pptEditorTeachingConfirm: (viewId: string, expectedTeachingRevision: string, resolution?: { changeGroupId: string; receiptSha256: string; note: string }) =>
+    invoke<CoursewareTeachingView>(IPC.invoke.pptEditorTeachingConfirm, { viewId, expectedTeachingRevision, ...(resolution ? { resolution } : {}) }),
+  pptEditorSnapshotCapture: (viewId: string, expectedTeachingRevision: string) =>
+    invoke<CoursewareSnapshot>(IPC.invoke.pptEditorSnapshotCapture, { viewId, expectedTeachingRevision }),
+  coursewareFixedBuild: (sessionId: string, snapshot: CoursewareSnapshot) =>
+    invoke<CoursewareFixedBuildView>(IPC.invoke.coursewareFixedBuild, { sessionId, projectId: snapshot.projectId, snapshotId: snapshot.snapshotId }),
+  coursewareFixedApprove: (reviewId: string, codes: string[]) =>
+    invoke<CoursewareFixedBuildView>(IPC.invoke.coursewareFixedApprove, { reviewId, codes }),
+  coursewareFixedPlay: (previewId: string, locale: "en" | "zh-CN") =>
+    invoke<{ ok: boolean }>(IPC.invoke.coursewareFixedPlay, { previewId, locale }),
+  coursewareTeamPlay: (projectId: string, channel: "shared" | "formal", locale: "en" | "zh-CN") =>
+    invoke<{ ok: boolean }>(IPC.invoke.coursewareTeamPlay, { projectId, channel, locale }),
+  coursewareFixedShare: (previewId: string, projectId: string, sessionId: string, channel: "shared" | "formal" = "shared") =>
+    invoke<{ ok: boolean }>(IPC.invoke.coursewareFixedShare, { previewId, projectId, sessionId, channel }),
+  coursewareFixedShareStatus: (sessionId: string) =>
+    invoke<CoursewareFixedShareRecovery>(IPC.invoke.coursewareFixedShareStatus, { sessionId }),
+  coursewareFixedShareRecover: (sessionId: string, intentId: string) =>
+    invoke<CoursewareFixedShareRecovery>(IPC.invoke.coursewareFixedShareRecover, { sessionId, intentId }),
+  coursewareFixedCancel: () => invoke<{ ok: boolean }>(IPC.invoke.coursewareFixedCancel),
+  pptEditorGetContext: () => invoke<PptEditorContext>(IPC.invoke.pptEditorGetContext),
+  pptEditorImagePrepare: (sessionId: string, projectId: string, assetId: string) =>
+    invoke<CoursewareImageReviewView>(IPC.invoke.pptEditorImagePrepare, { sessionId, projectId, assetId }),
+  pptEditorCanvasImagePrepare: (sessionId: string, intentId: string, operation: "replace" | "insert") =>
+    invoke<CoursewareImageReviewView>(IPC.invoke.pptEditorImagePrepare, { sessionId, intentId, operation }),
+  pptEditorImageApprove: (reviewId: string) => invoke<{ assetId: string }>(IPC.invoke.pptEditorImageApprove, { reviewId }),
+  pptEditorImageClear: () => invoke<{ ok: true }>(IPC.invoke.pptEditorImageClear),
+  pptEditorVisualPrepare: (sessionId: string) => invoke<CoursewareSourceVisualReview>(IPC.invoke.pptEditorVisualPrepare, { sessionId }),
+  pptEditorVisualApprove: (reviewId: string) => invoke<{ approved: true }>(IPC.invoke.pptEditorVisualApprove, { reviewId }),
+  pptEditorVisualClear: () => invoke<{ ok: true }>(IPC.invoke.pptEditorVisualClear),
+  pptEditorStylePrepare: (sessionId: string, candidateId: string) => invoke<CoursewareStyleReview>(IPC.invoke.pptEditorStylePrepare, { sessionId, candidateId }),
+  pptEditorStyleApprove: (reviewId: string, pageIds: string[]) => invoke<{ confirmed: true; pageIds: string[] }>(IPC.invoke.pptEditorStyleApprove, { reviewId, pageIds }),
+  pptEditorStyleClear: () => invoke<{ ok: true }>(IPC.invoke.pptEditorStyleClear),
+  pptEditorExecute: (command: PptEditorCommand) => invoke<PptEditorCommandResult>(IPC.invoke.pptEditorExecute, command),
   pptEditorClose: () => invoke<{ ok: boolean }>(IPC.invoke.pptEditorClose),
   pptEditorSetBounds: (bounds: { x: number; y: number; width: number; height: number }) =>
     invoke<{ ok: boolean }>(IPC.invoke.pptEditorSetBounds, bounds),
@@ -1197,6 +1490,10 @@ export const api = {
     return window.piDesktop.on(IPC.event.pptEditorState, (payload) =>
       listener(payload as PptEditorState),
     );
+  },
+  onCoursewareOnlineState: (listener: (state: CoursewareOnlineEditorState) => void) => {
+    if (!window.piDesktop?.on) return () => undefined;
+    return window.piDesktop.on(IPC.event.coursewareOnlineState, payload => listener(payload as CoursewareOnlineEditorState));
   },
   onAgentEvent: (listener: (event: AgentEventEnvelope) => void) => {
     if (!window.piDesktop?.on) return () => undefined;

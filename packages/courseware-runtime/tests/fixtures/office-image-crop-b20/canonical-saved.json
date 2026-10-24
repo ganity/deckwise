@@ -1,0 +1,154 @@
+{
+  "project": {
+    "schemaVersion": "deckwise-courseware/1",
+    "projectId": "fixture-b20-image-crop",
+    "taskType": "import",
+    "title": "Actual Office saved image crop",
+    "source": {
+      "revision": "fixture-B20-saved",
+      "sha256": "de931a7bac294a25d3f6fed4c1d7a272d6b3d35e693ac1416d5cf54223072e7e"
+    },
+    "teachingRevision": "fixture-B20-fixed-audio",
+    "pages": [
+      {
+        "pageId": "fixture-B20-page-1",
+        "actions": [],
+        "locked": true,
+        "reviewState": "ready"
+      },
+      {
+        "pageId": "fixture-B20-page-2",
+        "actions": [
+          {
+            "id": "fixture-B20-narration",
+            "type": "speech",
+            "text": "Fixed test audio; not source narration.",
+            "audioAssetId": "voice-1"
+          },
+          {
+            "id": "wait-teacher",
+            "type": "interaction_checkpoint",
+            "checkpointId": "teacher-1",
+            "checkpointKind": "chapter_summary",
+            "chapterId": "intro",
+            "chapterTitle": "Image crop fixture",
+            "question": "Continue when the group is ready.",
+            "referenceAnswer": {
+              "summary": "",
+              "keyPoints": []
+            },
+            "context": {
+              "chapterSummary": "",
+              "sourceSceneIds": [
+                "fixture-B20-page-2"
+              ]
+            }
+          }
+        ],
+        "locked": true,
+        "reviewState": "ready"
+      },
+      {
+        "pageId": "fixture-B20-page-3",
+        "actions": [],
+        "locked": true,
+        "reviewState": "ready"
+      }
+    ]
+  },
+  "snapshot": {
+    "snapshotId": "fixture-B20-saved",
+    "projectId": "fixture-b20-image-crop",
+    "source": {
+      "revision": "fixture-B20-saved",
+      "sha256": "de931a7bac294a25d3f6fed4c1d7a272d6b3d35e693ac1416d5cf54223072e7e"
+    },
+    "teachingRevision": "fixture-B20-fixed-audio",
+    "mappingRevision": "fixture-B20-mapping-saved",
+    "assetIds": [
+      "voice-1"
+    ]
+  },
+  "files": {
+    "sourcePath": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-D/packages/courseware-runtime/tests/fixtures/office-image-crop-b20/saved.pptx",
+    "mapping": {
+      "revision": "fixture-B20-mapping-saved",
+      "sourceSha256": "de931a7bac294a25d3f6fed4c1d7a272d6b3d35e693ac1416d5cf54223072e7e",
+      "pages": [
+        {
+          "pageId": "fixture-B20-page-1",
+          "importPageId": "page_1",
+          "objects": [
+            {
+              "objectId": "fixture-B20-object-1-1",
+              "importElementId": "pptx_shape_1"
+            },
+            {
+              "objectId": "fixture-B20-object-1-2",
+              "importElementId": "pptx_shape_2"
+            },
+            {
+              "objectId": "fixture-B20-object-1-3",
+              "importElementId": "pptx_shape_3"
+            }
+          ]
+        },
+        {
+          "pageId": "fixture-B20-page-2",
+          "importPageId": "page_2",
+          "objects": [
+            {
+              "objectId": "fixture-B20-object-2-1",
+              "importElementId": "pptx_shape_1"
+            },
+            {
+              "objectId": "fixture-B20-object-2-2",
+              "importElementId": "pptx_image_2"
+            },
+            {
+              "objectId": "fixture-B20-object-2-3",
+              "importElementId": "pptx_shape_3_background"
+            },
+            {
+              "objectId": "fixture-B20-object-2-4",
+              "importElementId": "pptx_shape_3"
+            }
+          ]
+        },
+        {
+          "pageId": "fixture-B20-page-3",
+          "importPageId": "page_3",
+          "objects": [
+            {
+              "objectId": "fixture-B20-object-3-1",
+              "importElementId": "pptx_shape_1"
+            },
+            {
+              "objectId": "fixture-B20-object-3-2",
+              "importElementId": "pptx_shape_2"
+            },
+            {
+              "objectId": "fixture-B20-object-3-3",
+              "importElementId": "pptx_shape_3"
+            }
+          ]
+        }
+      ]
+    },
+    "assets": [
+      {
+        "id": "voice-1",
+        "path": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-D/packages/courseware-runtime/tests/fixtures/fixed-courseware/page-1.wav",
+        "sha256": "6de9e485a91d85dbb61aa8d24ef25ab19c8404f008475bb5139900e580f87985",
+        "mimeType": "audio/wav"
+      }
+    ],
+    "converter": {
+      "version": "maic-pptx-import-ir/1",
+      "manifestSha256": "1eb6dd1479dffca96620281d74243bfab738d8115884dcdc633956c78247339a"
+    },
+    "reviewedWarningCodes": [
+      "PPTX_NOTES_MASTER_UNVERIFIED"
+    ]
+  }
+}

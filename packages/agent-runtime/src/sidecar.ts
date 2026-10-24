@@ -48,6 +48,7 @@ import type {
   PlanExecution,
   ThinkingLevel,
   UiMessage,
+  PptEditorBinding,
 } from "@pi-desktop/shared";
 
 type RuntimeMap = Map<string, DesktopAgentRuntime>;
@@ -91,6 +92,7 @@ function testRuntimeIdentity(sessionId: string) {
 
 type RuntimeParams = {
   sessionId: string;
+  pptEditorBinding?: PptEditorBinding;
   mode?: Mode;
   /** Durable host turn ID for the prompt currently being executed. */
   turnId?: string;
@@ -338,6 +340,7 @@ async function runtimeFor(
     });
   }
   const reusable = existing?.matches({
+    pptEditorBinding: params.pptEditorBinding,
     mode,
     provider,
     thinkingLevel,
@@ -390,6 +393,7 @@ async function runtimeFor(
   }
   const runtime = new DesktopAgentRuntime({
     host: hostProxy,
+    pptEditorBinding: params.pptEditorBinding,
     sessionId,
     mode,
     turnId: params.turnId,

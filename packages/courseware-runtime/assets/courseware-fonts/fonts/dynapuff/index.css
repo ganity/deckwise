@@ -1,0 +1,7 @@
+@font-face {
+  font-family: "DynaPuff";
+  font-style: normal;
+  font-display: block;
+  font-weight: 700;
+  src: url("./dynapuff-bold.ttf") format("truetype");
+}

@@ -1,0 +1,20 @@
+{
+  "previousSourceSha256": "29c51b63ca130e44768d8c2d12b267c3de8b51d04085fb061542b3b8d95d0853",
+  "currentSourceSha256": "d62df8d6334ee96b59b39816c63fd28b54575aef181a82b856bd5990cf9cce9b",
+  "pages": [
+    {
+      "oldLogicalId": "B7-logical-2",
+      "importPageId": "page_1"
+    },
+    {
+      "oldLogicalId": "B7-logical-3",
+      "importPageId": "page_2"
+    },
+    {
+      "oldLogicalId": "B7-logical-1",
+      "importPageId": "page_3"
+    }
+  ],
+  "copiedImportPageIds": [],
+  "replacements": []
+}

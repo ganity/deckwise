@@ -126,8 +126,37 @@ pub struct PermissionManager {
 impl PermissionManager {
     pub fn tool_risk_with_declared(tool_name: &str, declared: Option<&str>) -> Risk {
         match tool_name {
-            "Read" | "Glob" | "Grep" => Risk::Low,
-            "Write" | "Edit" | "Bash" => Risk::High,
+            "Read"
+            | "Glob"
+            | "Grep"
+            | "courseware_canvas_get"
+            | "ppt_get_context"
+            | "ppt_get_presentation_text"
+            | "ppt_get_narration_context" => Risk::Low,
+            "Write"
+            | "Edit"
+            | "Bash"
+            | "courseware_canvas_edit"
+            | "ppt_replace_selection"
+            | "ppt_add_slide_text"
+            | "ppt_replace_slide_image_from_asset"
+            | "ppt_set_slide_text_bold"
+            | "ppt_set_slide_text_italic"
+            | "ppt_set_slide_text_box_size"
+            | "ppt_set_slide_image_size"
+            | "ppt_set_slide_image_position"
+            | "ppt_add_slide_object_animation"
+            | "ppt_insert_slide_image_from_asset"
+            | "ppt_set_slide_fade"
+            | "ppt_set_slide_font_family"
+            | "ppt_set_slide_font_size"
+            | "ppt_set_slide_text_color"
+            | "ppt_set_slide_text_box_position"
+            | "ppt_propose_page_narration"
+            | "ppt_record_change_plan"
+            | "ppt_propose_page_redo"
+            | "ppt_propose_page_style_batch"
+            | "ppt_propose_page_fade" => Risk::High,
             name if name.starts_with("plugin_") => match declared {
                 Some("low") => Risk::Low,
                 Some("high") => Risk::High,
@@ -734,5 +763,39 @@ mod tests {
             req.args_preview.get("path").unwrap().as_str().unwrap(),
             "a.txt"
         );
+    }
+}
+
+#[cfg(test)]
+mod ppt_format_permission_tests {
+    #[test]
+    fn formatting_remains_high_risk_and_denied_in_readonly_modes() {
+        assert!(matches!(
+            super::PermissionManager::tool_risk_with_declared("courseware_canvas_get", None),
+            super::Risk::Low
+        ));
+        for name in [
+            "courseware_canvas_edit",
+            "ppt_record_change_plan",
+            "ppt_replace_slide_image_from_asset",
+            "ppt_set_slide_text_bold",
+            "ppt_set_slide_text_italic",
+            "ppt_set_slide_text_box_size",
+            "ppt_set_slide_image_size",
+            "ppt_set_slide_image_position",
+            "ppt_add_slide_object_animation",
+            "ppt_insert_slide_image_from_asset",
+            "ppt_set_slide_fade",
+            "ppt_set_slide_font_family",
+            "ppt_set_slide_font_size",
+            "ppt_set_slide_text_color",
+            "ppt_set_slide_text_box_position",
+        ] {
+            assert!(matches!(
+                super::PermissionManager::tool_risk_with_declared(name, Some("low")),
+                super::Risk::High
+            ));
+            assert!(!super::PermissionManager::plan_mode_allows(name));
+        }
     }
 }

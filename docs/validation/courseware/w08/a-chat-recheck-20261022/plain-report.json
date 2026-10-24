@@ -1,0 +1,29 @@
+{
+  "case": "A2-NATIVE-CHAT",
+  "status": "PASS",
+  "packaged": false,
+  "checks": [
+    "Open actual Desktop Office with the existing main Chat",
+    "Chat activates ppt-edit and native tools under the existing Full auto policy",
+    "Save, fully restart and read the Chat edit back from Office",
+    "Existing main Chat generates current-page narration through the actual Main completion and Host staging",
+    "Generated receipt opens existing sidebar review; explicit adoption updates only this logical page",
+    "Complete Desktop restart restores Chat-generated adopted narration and candidate status",
+    "Stopping the real Chat aborts the in-flight Main completion without adopting narration",
+    "Native PPTX save requires explicit source review and preserves Chat narration pauses",
+    "Complete restart restores the edited PPTX and associated speech pauses",
+    "Another Chat cannot discover or borrow the owning Chat's native editor tools"
+  ],
+  "originalHash": "c3aeaeb94308615b2af2529db1cdbd76f85b18fd14714e5ebd10adb9ccad37f3",
+  "sandbox": "--no-sandbox",
+  "paidCalls": false,
+  "runtime": {
+    "packaged": false,
+    "appPath": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop",
+    "resourcesPath": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/node_modules/.pnpm/electron@43.6.0_supports-color@7.2.0/node_modules/electron/dist/resources",
+    "executablePath": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/node_modules/.pnpm/electron@43.6.0_supports-color@7.2.0/node_modules/electron/dist/electron"
+  },
+  "savedSha256": "8f9f04b3aada31571b607d48978df0a610cdd664d3276bcf40d4a1450217b5d8",
+  "cancelledModelRequests": 1,
+  "modelRequests": 21
+}

@@ -64,6 +64,7 @@ export type StartupDependencies = {
    */
   isSessionBusy: (sessionId: string) => boolean;
   getHost: () => HostProcess | null;
+  getViewingSessionId: () => string | null;
   getMainWindow: () => BrowserWindow | null;
   sendToRenderer: (channel: string, payload: unknown) => void;
   applyDevelopmentBranding: () => void;
@@ -164,6 +165,7 @@ export function registerApplicationStartup(deps: StartupDependencies): void {
       invoke: invokeIpc,
       channels: IPC.invoke,
       getHost,
+      getViewingSessionId: deps.getViewingSessionId,
       isSessionBusy,
       onQueueChange: (event) => {
         sendToRenderer(IPC.event.agentQueueChanged, event);

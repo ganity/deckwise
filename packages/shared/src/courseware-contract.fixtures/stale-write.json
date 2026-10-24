@@ -1,0 +1,58 @@
+{
+  "project": {
+    "schemaVersion": "deckwise-courseware/1",
+    "projectId": "course-01",
+    "taskType": "scene",
+    "title": "Square lesson",
+    "source": {
+      "revision": "R9",
+      "sha256": "e3f7e210183ff6fe8b14e7c88a378fe08a50ec51c0d0815194c5c1246612e8d7"
+    },
+    "teachingRevision": "T9",
+    "pages": [
+      {
+        "pageId": "fixture-page-1",
+        "actions": [
+          {
+            "id": "narration-0",
+            "type": "speech",
+            "text": "Look at the square."
+          }
+        ],
+        "locked": false,
+        "reviewState": "ready"
+      },
+      {
+        "pageId": "fixture-page-2",
+        "actions": [
+          {
+            "id": "narration-1",
+            "type": "speech",
+            "text": "Count the sides."
+          }
+        ],
+        "locked": true,
+        "reviewState": "review"
+      }
+    ],
+    "educationContext": {
+      "schoolStage": "kindergarten",
+      "grade": "senior",
+      "subject": "english",
+      "fullEnglishTeaching": false
+    }
+  },
+  "write": {
+    "projectId": "course-01",
+    "pageId": "fixture-page-1",
+    "expectedSourceRevision": "R8",
+    "expectedTeachingRevision": "T8",
+    "actions": [
+      {
+        "id": "narration-0",
+        "type": "speech",
+        "text": "Overwrite"
+      }
+    ]
+  }
+}

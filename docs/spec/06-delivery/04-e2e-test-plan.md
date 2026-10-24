@@ -1,10 +1,1405 @@
 # 04. E2E Test Plan
 
+## E2E-COURSEWARE-development-schema24-startup
+
+- **Steps**: Open a copied main v24 database with the A Host. Separately migrate
+  a real v18 fixture through every intermediate version, verify backups and
+  reopen the saved teaching. Start the current development entry with
+  `--no-sandbox`. Inspect the real Vite watcher with generated `release`,
+  `dist` and `out` trees and edit a source file.
+- **Expected**: Existing sessions, messages, checklist/worktree/title metadata
+  and courseware data survive; all older supported versions reach v24.
+  Unknown v25 refuses without downgrade. Generated outputs consume no
+  development watches, while source edits still emit change events. No
+  original user database is modified by the validation.
+
+## E2E-COURSEWARE-online-reviewed-fixed-publication-entry
+
+- **Steps**: In the current Owner Chat, hold the teaching/native barrier and
+  review the server-saved source. Leave a page unconfirmed, then confirm every
+  page. Explicitly create a fixed version, approve each converter warning and
+  preview it. Verify the team target is fixed, select shared or formal, and
+  explicitly confirm publication. Lose a publication response; query its
+  original receipt, including absent/mismatched/unknown results. Switch Chat,
+  account or editor owner while capture is pending. Return to editing while
+  the fixed build/player is active.
+- **Expected**: Unconfirmed pages cannot capture. Only the reviewed Main view
+  is captured; no local source adoption occurs. Preview cannot publish.
+  Channel changes clear publication consent. An unconfirmed publication never
+  produces another POST, including stale handlers and absent/foreign receipts.
+  Late results cannot populate a replaced owner. Returning waits for fixed
+  cancellation before clearing the source pin; teaching/native pause remains
+  held until a separate explicit resume.
+- **Current evidence**: Targeted component tests exercise these UI states with
+  Main APIs mocked at the renderer boundary; locale catalog/key gates also run.
+  This is not an executed Electron/Office or Platform publication acceptance
+  scenario, and does not attest complete Docs connection coverage.
+
+## E2E-COURSEWARE-online-fixed-native-barrier-transport
+
+- **Steps**: From a ready owned online mount, negotiate fixed barrier capability
+  and issue quiesce/status/resume with one UUID. Try foreign owner, iframe,
+  origin/channel, request, generation, project, epoch, key and user replies;
+  malformed receipts, missing server indices and unknown error fields. Delay a
+  reply past the deadline, deliver it after another request, and close/replace a
+  mount with a call pending. Send native dirty=false while a call is pending.
+- **Expected**: Only the exact correlated bounded response resolves a call.
+  Unavailable engines preserve ordinary reads. Timeout/refusal/uncertainty never
+  destroys the editor, resumes automatically or counts as a saved archive.
+  View replacement clears/rejects owned pending calls; dirty state is not ACK.
+- **Current source evidence**: 16 controller/wrapper checks pass, including
+  existing isolated-entry regressions. WiseOffice separately passes its 182
+  fixed-bridge checks and a pinned native extension has five real-engine groups.
+  These are separate gates. No deployed all-client registry, coordinated
+  publication or new packaged integration is claimed.
+
+## E2E-COURSEWARE-online-reviewed-publication-candidate
+
+- **Steps**: With current teaching paused, obtain an exact archived force-save
+  after the pause. Explicitly review the newly parsed source and full mapping,
+  then capture that publication-only candidate. Resume teaching and edit R9 in
+  the same native epoch. Read and replay the original R8 capture after restart.
+  Try changed request content, stale source/teaching/epoch/pause, a pre-pause or
+  unrelated save, unknown/no-change/pending saves, missing callback bytes,
+  unreviewed pages, wrong effect targets and unadopted/local audio IDs.
+  Preserve real nested `speech.visualCues[]` highlight and spotlight effects;
+  reject malformed timing/style/unit values, duplicate cue IDs or targets,
+  targets from another mapping page, non-speech cues and standalone effect
+  actions. Exercise the 200-cue and 3,600,000 ms accepted boundaries. Through
+  Main transport, swap capture baselines/mapping/receipt fields and corrupt,
+  truncate or overrun the downloaded bytes; change account or cancel during
+  metadata, storage fetch, streaming and cleanup.
+- **Expected**: Only the authorized Owner captures a matching immutable input.
+  Exact replay returns the original capture; current members may read it and
+  revoked/cross-tenant actors cannot. The current native key, source and teaching
+  remain unchanged by capture. R9 editing cannot mutate R8. Failed capture writes
+  no candidate. No success is inferred from native dirty/clean or Save return.
+  Main binds the complete frozen tuple and downloads only the authorized
+  archive URL without sending a Platform token to storage. Actual byte length,
+  SHA256 and the existing minimum PPTX container check must match; redirects
+  and downloads larger than 20 MiB refuse. Native animation/render correctness
+  is not inferred from that minimum container check.
+- **Coverage**: Actual isolated MySQL service tests and authenticated controller
+  tests, plus focused Main transport/adoption/seed/preparation Node regression
+  tests with HTTP/storage edge fixtures. The corrected Desktop suite result is
+  recorded separately from its superseded pre-correction result.
+  Callback/force-save SQL records in these tests are explicit boundary
+  fixtures. Host parser review, native ACKs, complete Main/Renderer workflow,
+  deployed migrations and fixed publication require separate joined acceptance.
+
+## E2E-COURSEWARE-online-complete-source-mapping
+
+- **Steps**: Prepare an original saved source with teaching and complete Host
+  mapping. Interrupt initialization after the server commits and resume through
+  a fresh process. Mutate an object/import ID, object order, page order or old
+  partial-mapping receipt and attempt recovery. Read the exact versioned mapping
+  as Owner, Editor, Viewer, outsider and a revoked member. Preserve it across
+  subsequent page teaching writes and history reads.
+- **Expected**: Initialization and mapping persistence are atomic. Recovery
+  requires identical local pins and the complete remote project/source/mapping
+  tuple, with no silent replacement or new POST after conflicting proof.
+  Current membership governs each read. Unknown tuple is 46607. Immutable
+  historical mapping cannot alias a later source revision. PPTX-only requests
+  retain their existing behavior; legacy teaching receipts with a partial hash
+  refuse rather than pretending the full map was pinned.
+- **Coverage**: Shared validation, Desktop authenticated transport/seed/recovery,
+  actual Main/Host/parser/restart gate, Platform isolated MySQL/controller gate,
+  and one actual Desktop-transport/Spring Security/JWT/MySQL joined scenario.
+  The joined scenario uses a structural mapping fixture and does not itself
+  attest PPTX lineage. No saved-source reconciliation, native synchronization,
+  deployed migration, fixed publication or new packaged build is accepted here.
+
+## E2E-COURSEWARE-online-teaching-pause-recovery
+
+- **Preconditions**: Matching Platform/Desktop builds; an active bound team
+  session and initialized teaching. Owner and Editor memberships. A held
+  teaching pause already exists; creating a publication is outside this gate.
+- **Steps**: Start a fresh Desktop process, join as Owner and discover the held
+  pause without a cached pause ID. Inspect its teaching revision and native-edit
+  scope notice. Keep a dirty draft or unresolved save and attempt Resume. With
+  a clean resolved view, explicitly Resume; repeat after a committed response is
+  lost. Read again and acquire a fresh narration lease. Try stale mount/account,
+  different source/epoch, untrusted IPC fields and an Editor membership.
+- **Expected**: Discovery makes no writes. Owner sees only the redacted view;
+  Editor has no recovery control and server authorization remains authoritative.
+  Held state disables new narration editing; drafts and uncertain saves remain
+  intact. Only explicit Resume sends the retained pause ID, never a guessed or
+  new one. Retry resolves the same operation, and stale responses do not enable
+  another project. No native synchronization or publication success is claimed.
+- **Coverage**: Pause transport/coordinator/IPC and focused renderer tests;
+  actual source Electron with isolated HTTP/Docs fixtures. Platform database
+  authorization and Host snapshot-import gates are independent evidence.
+
+## E2E-COURSEWARE-online-teaching-seed-and-page-lease
+
+- **Preconditions**: Matching source builds; saved clean local PPTX with an
+  initialized Host teaching project/identity; Owner's new team project without
+  remote source/teaching. Audio cases use already adopted local TTS and exported
+  music clips with authenticated ready/settled task receipts.
+- **Steps**: Retain ordinary PPTX-only preparation; explicitly choose Prepare
+  with narration, inspect page/speech counts and confirm. Join that exact session
+  and use the online editor's narration sidebar. Select a page by initial-source
+  logical order, acquire editing, edit text/pauses, save and release. Repeat with
+  two members on different/same pages, expired leases, peer-page revision changes,
+  stale source/account and an uncertain save response. Refresh/switch/Back/Retry
+  with a draft; continue an uncertain save with its original body.
+  Review a teaching project containing adopted TTS and reused music, inspect
+  the distinct audio count, and explicitly confirm transfer. Lose an adoption
+  response after commit or an initialization response; restart and recover the
+  same preparation. Change task/asset projection, ownership, source file,
+  task binding or account before the first adoption.
+- **Expected**: Review makes no writes. Seed preserves logical IDs, uses server
+  source/teaching revisions, initializes before start, and resumes only unchanged
+  Host teaching pins/request identity. Existing remote source/teaching, missing
+  lineage or unproved local audio references refuse without replacement.
+  Audio review performs no POST or local write. Confirmation reuses verified
+  existing team UUIDs or explicitly adopts missing assets before initialization;
+  restart recovery uses exact GET proofs and the original request, without
+  repeating generation/export. Local content/IDs remain unchanged and the
+  remote copy contains only the pinned team asset references. No-audio seeds
+  retain their old hash/review behavior. Lease proof
+  stays in Main. Same-page conflicts and stale writes reject; peer-page changes
+  are preserved. Narration edits retain opaque/checkpoint/music actions; changed
+  speech invalidates only its own recorded audio/timed cues. Failed/expired writes
+  retain drafts. Unknown save outcomes freeze edits/navigation/discard and permit
+  only explicit same-request replay. The page selector never claims live native
+  current-page mapping; structural slide changes require reconciliation.
+- **Source checks**: The focused renderer control suite passes 32 groups;
+  locale catalogs/renderer keys pass 21, Shared protocol passes 13, i18n build
+  and style-token checks pass. These use API edge fixtures, not a real Platform
+  or native engine for teaching writes. Root workspace evidence is
+  `docs/validation/courseware/w14/online-teaching-20261024/renderer.md`.
+- **Pending gate**: Actual current Electron + Spring teaching initialization,
+  two-member leases/writes and recovery still require joined execution. Prior
+  real-Docs PPTX join/sync/save evidence does not prove this increment. Pending
+  narration-save restart recovery, live native logical mapping, deployed joined
+  audio-preparation acceptance and consistent publication remain separate; no installer acceptance
+  is inferred from component tests.
+- **Spec**: `03-runtime/01-ipc-protocol.md`, online teaching page editing.
+
+## E2E-COURSEWARE-online-team-join
+
+- **Preconditions**: Matching current Shared/i18n/Desktop builds and local Host;
+  an independently built WiseOffice `courseware-online.html` entry with its JS
+  assets and existing `docs-online-host.html`. Use fresh isolated test profiles
+  and a new evidence directory. The runner supplies loopback installation pins,
+  auth, Platform session/config and Docs API protocol fixtures; it does not join
+  a real team's service or make paid requests.
+- **Reproduce**: Set `DECKWISE_E2E_ONLINE_ENTRY_DIST` to the absolute Office
+  `dist-courseware-online-entry` directory, `DECKWISE_E2E_OFFICE_ROOT` to its
+  source root and `DECKWISE_E2E_OUTPUT` to a new absolute output directory, then
+  run `xvfb-run -a node scripts/e2e-courseware-online-join.mjs` from Desktop A.
+  Build the Office entry with `pnpm exec vite build --config
+  vite.courseware-online.config.ts` in that Office root first. The Electron
+  runner retains `--no-sandbox`; no actual Docs service is started by this gate.
+- **Steps**: Sign in as Owner, use the real Team Projects join button and mount
+  the isolated Office entry with the original signed config. Send native dirty
+  then clean notifications. Close the online UI and inspect that no session
+  start/bind/end request occurred. Sign in as Editor and join the same key with
+  a different native user ID; change accounts and confirm the old view is gone.
+  As Viewer, verify the action is absent and direct `online/open` rejects a
+  read-only config. Restart without deployment pins and verify join is disabled
+  while fixed-preview navigation stays available.
+- **Expected**: Config/JWT is byte-preserved and reaches only the isolated
+  native surface, never URLs or ordinary renderer state. Only the original
+  active/bound epoch is joined. `ready` follows native readiness;
+  `sync-pending`/`sync-reported` remain engine notifications, not saved-source
+  or publication receipts. Closing, tab/account replacement and old-owner
+  callbacks cannot mutate a replacement view or retire the shared session.
+  Existing local PPTX editing remains independently usable.
+- **Status**: The 37 focused client/controller/wrapper/preload/IPC/UI/regression
+  tests, Desktop typecheck and source build pass. Evidence is in root workspace
+  `docs/validation/courseware/w13/desktop-join-20261024/`. The new real-Electron
+  fixture runner is a separate acceptance gate; its result must be recorded
+  after execution, not inferred from those checks. Source build warnings about
+  existing large chunks do not certify packaged delivery.
+- **Limits**: Real Spring membership/callback authority, a deployed Docs server,
+  simultaneous two-member native editing, durable callback/source promotion and
+  a newly packaged installer remain separate gates. Local HMAC/JWT and native
+  event fixtures prove this entry's transport and lifecycle, not production
+  cryptography or coediting convergence.
+- **Spec**: `03-runtime/01-ipc-protocol.md`, isolated team online-editor entry.
+
+## E2E-COURSEWARE-three-entry-skill-closure
+
+- **Steps**: Select ordinary, scene and import tasks, each with independent
+  kindergarten/English and primary/Math context; save personal/team association;
+  inspect actual generation routing or validated import; fully restart and
+  open each saved PPTX in Office; call the shared editing Skill and native read.
+- **Expected**: All six task configurations survive restart; task/space cannot
+  be silently changed. Generation uses the correct Skill. Unopened import cannot
+  send a generation prompt; picker import preserves original bytes. All restored
+  editing routes use latest saved PPTX/teaching authority and real native reads.
+  Complete skill distributions must match the frozen package bytes.
+- **Status**: Actual frozen music-adoption package passes 15 groups and
+  independent SQLite/model-response/PPTX readback; 12,987 skill files match.
+  Root evidence: `docs/validation/courseware/w05/three-route-closure-20261024/README.md`.
+  Team server authorization retains its separately recorded real-service gate.
+  Model transport uses a loopback fixture; quality/paid provider acceptance is
+  outside these entry/routing requirements.
+
+## E2E-COURSEWARE-deleted-page-narration-recovery
+
+- **Preconditions**: A saved courseware source with teaching history, a deleted
+  logical page after explicit source review, and an unlocked empty destination
+  page (independent music clips are permitted).
+- **Steps**: Read current-page teaching, load deleted-page history, select a
+  version, inspect text/pauses/checkpoints and omitted audio/effects, explicitly
+  confirm copying into the local draft, edit it and save. Restart, reopen and
+  verify the saved narration; regenerate audio separately before playback.
+- **Expected**: History reads and previews never mutate teaching/source bytes.
+  Copying changes only the local recovery draft; existing destination music
+  remains after recovered narration. New action/checkpoint IDs prevent reuse of
+  historical bindings. Existing teaching, unsaved drafts/requests, locked pages,
+  stale views and switched sources/pages/Chats/workspaces cannot be overwritten.
+  Corrupt history fails closed; unsupported/budget-skipped versions are named.
+- **Status**: Targeted Host actual deletion/restart and isolation tests,
+  Main/shared/component and parent draft-integration checks pass. A current
+  packaged Electron/Office click-through of this new recovery control remains
+  pending; the existing frozen trial package predates this source increment.
+- **Spec**: `03-runtime/22-courseware-contract-v1.md`.
+
+## E2E-COURSEWARE-sequential-music-adoption
+
+- **Preconditions**: Matching source Main/Host/runtime, an explicitly exported
+  and archived MP3, a saved WiseOffice page and a current signed-in account.
+- **Steps**: Listen to the export, review its current teaching target, explicitly
+  append it, reload/review the teaching page, reorder/delete/save a clip, and
+  build fixed playback. Repeat with music-only and mixed speech/music teaching.
+  Reuse the same export on another page; restart, rewrite narration and review
+  a saved PPTX edit before rebuilding.
+- **Expected**: Independent `audio_clip` actions preserve speech/TTS; no new
+  generation/export charge. Stale source/page/revision, locked pages, switched
+  Chat/account, permission refusal and invalid bytes cannot adopt. Every fixed
+  music asset has a Host adoption proof; all referencing actions are checked.
+  Playback supports pause/resume/seek, errors, stop and page cleanup, without
+  narration or TTS fallback. Matching capability is mandatory.
+  The visible media canvas can adopt through its same-Chat retained hidden
+  editor using `musicAdoptionContext`/`assertOwned`. Check ownership again after
+  asynchronous source validation. Hidden state alone must not reject adoption;
+  source/page/revision, dirty/read-only, session/Host/pin, current permission
+  and CAS checks must still reject stale or foreign targets. Native Chat tools
+  and TTS retain their active-editor requirement.
+- **Specs linked**: `03-runtime/27-courseware-authorized-media.md`.
+- **Status**: Targeted Host/Main/component/runtime checks cover these bounded
+  contracts. The standalone compiled fixed-player gate passes Chrome 2/2 and
+  Electron 2/2 groups, including actual MP3 decoding/native media events,
+  pause/resume/seek, teacher wait, mixed speech/music order, callback isolation,
+  navigation/unmount cleanup and playback with networking disabled after loading.
+  Evidence: root workspace `/home/jhz/code/train`,
+  `docs/validation/courseware/w15/music-playback-browser-20261024/README.md`.
+  Runner: `packages/courseware-runtime/scripts/verify-music-playback-browser.mjs`.
+  The separate source Desktop/Office/Host runner
+  `scripts/e2e-courseware-music-adoption.mjs` now passes seven groups, including
+  target-change refusal, explicit canvas adoption, teaching reorder/save,
+  fixed native playback and full Electron/Host restart with local MP3 recovery.
+  Evidence: root workspace
+  `docs/validation/courseware/w15/music-adoption-electron-20261024/README.md`.
+  Identity/media/TTS use isolated loopback fixtures; matching packaged acceptance
+  and real supplier acceptance remain pending. Sequential clips do not close BGM
+  mixing, lyrics/subtitles or native PPTX audio editing.
+
+## E2E-COURSEWARE-media-refusal-recovery
+
+- **Preconditions**: Matching current Main/Host, isolated team Owner/Viewer and
+  configured image/TTS prices; local supplier fixtures are allowed for this gate.
+- **Steps**: Use visible quote/consent/submit controls as Viewer; observe terminal
+  refusal, fully restart, restore Editor permission, obtain a fresh quote and
+  explicitly confirm a new attempt. Separately simulate a lost accepted response.
+- **Expected**: Exact team `46100`/`46102` creates no task/charge; the original
+  intent persists as `rejected`, with localized guidance and no lookup/replay.
+  A new attempt uses a fresh key/quote and requires new consent. Lost responses
+  and generic 403 stay unknown and recover by GET only. TTS, scene and canvas
+  tests also reject wrong key/hash/scope/phase and retain history on restart.
+- **Specs linked**: `03-runtime/27-courseware-authorized-media.md`,
+  `04-ux/05-onboarding.md`.
+- **Acceptance**: B / C / F (authorization, durable recovery, explicit charges).
+- **Milestone**: W09.1 / W15.2; no full-plan completion implied.
+- **Status**: Host/Main/UI regressions and actual Main/Host/HTTP tests in
+  `apps/desktop/test/courseware-media-scope-integration.test.mjs`; run with
+  `DECKWISE_E2E_MEDIA_SCOPE_HOST` set to a freshly built Host. The separate Train
+  `docs/validation/courseware/parallel/A/a-media-refusal-recovery-20261024/`
+  evidence records eight actual new-package UI/Spring groups and independent
+  SQL/gateway/runtime readback. Supplier identities/bytes remain local fixtures.
+
+## W03.3 saved-source Office undo recovery
+
+For declared current-page plans, run the main Chat driver with
+`DECKWISE_E2E_CHAT_PLAN=1`, `DECKWISE_E2E_CHAT_CHANGES=1` and an initialized plain
+project. Discover the registered planning tool through ToolSearch and record
+page+narration intent before a native edit. Execute only the page edit; explicit
+Save/source association/full restart must retain the unexecuted narration item
+in the existing sidebar. Independently inspect the planned KV namespace, raw
+operations and saved PPTX; do not infer semantic completion. Host tests must
+reject late/replaced declarations, stale/locked/foreign scope, unknown tools,
+receipt-write failure, duplicate matching and wrong-page success. Permission
+denial/Plan mode prevent writes; accepted metadata emits no native dispatch.
+Legacy unplanned groups remain readable.
+
+Add `DECKWISE_E2E_CHAT_RESOLUTION=1` to verify the explicit sidebar disposition:
+normal page confirmation must leave the request open; note plus an unchecked
+review confirmation are required to retain the current result and close it.
+New teaching revision/history/immutable resolution survive full restart;
+missing/unknown step states and later teaching remain exact. Duplicate, foreign,
+stale-digest and running-turn closure must refuse. Actual Host/parser snapshot
+acceptance additionally runs `scripts/e2e-courseware-snapshots.mjs` with this
+flag: unresolved declarations reject new snapshots, old snapshots remain exact,
+and explicit disposition permits a fresh fixed version. Public fixed-share
+preparation must reject unresolved groups without creating an intent. Scan all
+groups beyond the ten-item sidebar; receipt storage failure must atomically
+roll back project/history/disposition writes.
+
+Repeated teaching-view reloads must retain one Chat-history panel and one
+asset-lock panel without duplicate React keys. The focused actual React/DOM
+regression is `scripts/e2e-courseware-teaching-refresh.mjs`; supply the existing
+Playwright workspace via `DECKWISE_E2E_OFFICE_ROOT` and optionally an installed
+browser via `CHROMIUM_EXECUTABLE_PATH`. It uses no Host or supplier calls.
+
+For before-dispatch Chat receipts, require a persisted pending record before
+the real Host emits `plugins.execute`. Simulate losing the execution task and
+reopen Host: the pending operation must survive and the same call ID must not
+dispatch again. Group native success and failed narration in the same turn,
+without changing teaching. Fault injection must prove intent-write failure
+prevents dispatch and outcome-write failure retains the pending record. Reads,
+uninitialized generic PPTs and foreign bindings retain their documented limits.
+Existing permission approval/denial/cancellation tests must pass unchanged.
+
+Run the real Main Chat driver with `DECKWISE_E2E_CHAT_CHANGES=1`,
+`DECKWISE_E2E_EXPECT_NARRATION=1` and an initialized plain project. Require the
+pre-save native receipt, explicit Save/source association/full restart,
+narration candidate and explicit adoption, real cancellation without adoption,
+the visible sidebar acknowledgement/uncertainty summary and foreign-Chat tool
+refusal. Independently retain/read the first and final receipts and final PPTX.
+Neither acknowledged native commands nor candidate receipts imply semantic
+completion of a compound instruction.
+
+Candidate result linkage additionally requires narration/source adoption and
+its result-reference write to share one Host transaction. Inject a receipt
+write failure and require unchanged teaching/candidate/history and a recoverable
+pending source adoption; explicit retry must commit once. Fresh project context
+must show pending/rejected/stale candidates, the exact adopted source/teaching
+reference, and unknown for legacy adoption without evidence. Full Host reopen
+retains that reference. Later peer changes do not supersede unchanged target
+actions; later target changes do, without rewriting the historical reference.
+The main Chat driver also checks pending → explicit adopted → full restart →
+visible later target-change states with its existing `DECKWISE_E2E_CHAT_CHANGES`
+mode. Require actual sidebar labels and independent retained KV/PPTX readback.
+
+At the Host public database boundary, start from source A, explicitly associate
+and adopt B, edit narration later, then review A again with fresh parser identity
+and explicit page choices. Require a new teaching revision retaining later text,
+pauses and locks, unchanged historical mapping, archived current baseline and
+recovery after database reopen. Undo/redo must not publish until page review.
+An intervening teaching write rejects stale review without mutation. Inject a
+SQLite project-update failure after history/audio work and require full rollback
+and successful explicit retry after restart. Missing cue associations, conflicting
+historical page selections or differing parser exports reject intact; complete
+explicit cue remapping must target the selected historical objects. Adopted audio
+must retain its exact bytes/task/paid intent through B-to-A-to-B.
+
+Run `node scripts/e2e-courseware.mjs --case W03.3` with the matching local
+Office and frozen package. This bounded case uses loopback identity/audio,
+native text-box movement and Save, explicit page/effect association, a later
+page-2 pause edit, actual native Office Undo and another explicit Save/review.
+Require restored native geometry, retained later teaching and adopted audio,
+refused snapshot capture before confirmation, full process restart and fixed
+highlight/spotlight/audio playback without another supplier submission. Retain
+independent saved-PPTX and teaching readback. This case covers the native undo
+increment only; it cannot certify the entire W03.3 failure matrix.
+
+With `DECKWISE_E2E_SOURCE_CHANGE=1`, the case selects an independent saved-source
+recovery session and verifies its group summary in the real sidebar. Do not
+combine its mid-session process exit with native Undo: Office undo history is
+not durable across process exit. After source association, inject a teaching
+SQL failure in the isolated test database. Require unchanged saved PPTX and
+canonical teaching, a retained group ID/pending pages, refused snapshot capture,
+full Desktop restart with recovery draft, and an explicit successful retry that
+preserves audio, cues and peers. Confirm every page and require the summary to
+become complete. The Host tests additionally cover stale retry after a later
+teaching edit, atomic association/receipt rollback and legacy pending reviews.
+
+The optional `DECKWISE_TTS_REBIND_SOURCE` mode of
+`scripts/e2e-courseware-media.mjs --tts-audio` additionally exercises actual
+Electron Main/auth/Host/parser with fixture editor state and local HTTP. During
+late audio download, make the editor dirty and require refusal before archive or
+attachment. During saved-source review, dirty state and a newer saved source
+must reject adoption without changing canonical teaching or the pending receipt.
+An intervening teaching write must reject the old review; a fresh review retains
+the later pause. After explicit source association and Host restart, archive the
+old unadopted receipt, refuse its attachment to the new source, and retain both
+the current project and the old fixed snapshot. Even identical audio hashes must
+not grant an unadopted receipt a new source binding. Assert no extra POST or
+reservation and independently read SQLite and both frozen exports.
+
+For the actual Office concurrency gate, use the existing Chat driver with
+`DECKWISE_E2E_NATIVE_AUDIO_CONCURRENCY=1`, `DECKWISE_E2E_EXPECT_NARRATION=1`
+and `DECKWISE_E2E_TASK_TYPE=plain`. A local HTTP supplier returns exactly two
+quoted fixture tasks for the unchanged speech. Adopt the first, hold the second
+download at its HTTP boundary, and move a real Office text box before releasing
+it. Require dirty-state rejection with unchanged teaching and no late archive.
+Save, prepare source review, edit and Save again: both dirty and saved-newer
+states must refuse the old review. Explicit fresh sidebar associations must
+retain speech/pauses/audio but require page confirmation. After full restart,
+the old task can archive without resubmission but cannot replace adopted audio.
+Independently compare saved PPTX and retained Host records. This is a source
+Electron/native Office gate, not real-provider or packaged acceptance.
+
+Predeclared compound Chat intent tracking remains a separate W03.3 gate. The
+Host historical-byte reuse tests and native saved-byte checks retain their own
+scope: equivalent native content need not serialize to identical PPTX bytes.
+
+## Saved-image lock persistence through actual Office save
+
+Run the existing Main Chat driver with `DECKWISE_E2E_EXPECT_ASSET_LOCKS=1`,
+the three-page locked-image fixture and matching Office output. For packaged
+acceptance set `DECKWISE_E2E_PACKAGE_ROOT` to the frozen unpacked candidate;
+do not override Host/worker/renderer resources. Native Chat edit, explicit
+save and full restart must precede inspection of the ordinary page-2 image.
+Lock through the visible checkbox, wait for the asynchronous Host result and
+read the actual persisted lock proof. Require exact page/object/source/media/
+picture/layer identity, unchanged teaching and saved PPTX, another complete
+restart restoring the checked control and exact DB record, then explicit
+unlock with a new revision and empty image list. Keep foreign-Chat isolation.
+Do not use a synchronous checkbox helper as proof that an asynchronous Host
+mutation failed. Cropped/effected/grouped images remain ineligible. This UI
+gate does not itself establish live model quality or perform redo/restyle;
+the compiler and actual consecutive adoption checks cover those boundaries.
+
+## W11/W12 source-edit continuity increment
+
+- Native ordinary-image position: use the existing actual Main Chat runner with
+  `DECKWISE_E2E_EXPECT_IMAGE_POSITION=1` and the independent current Office
+  `dist-w11-image-position`. Reject rotated/flipped selections, move the selected
+  ordinary image to 25.5/35 mm through Skill/tool discovery/Host permission/native
+  Office, verify no implicit save, then explicitly save and fully restart.
+  Independently inspect PPTX XML: only target offsets change, dimensions and all
+  peer transforms/text/reachable-media hashes remain exact. Source/unit evidence
+  alone does not prove this user-path gate.
+- Saved-source effects: after adopting WAV and authoring supported cues, edit
+  and save real native Office. Source review must start with empty page/object
+  choices; missing, merged, cross-page, unsupported or stale targets refuse
+  without mutation. Explicitly associate each target, review and adopt, confirm
+  teaching, restart and use the fixed player. Require new Host UUIDs targeting
+  the intended saved objects, unchanged narration/audio/timing/peers and correct
+  overlays. Scene semantic associations must remain unconfirmed except the
+  explicitly rebound effect targets; no automatic semantic rebinding claim.
+  For the scene route, produce a fresh initial-source fixture with
+  `e2e-courseware-scene-images.mjs` and `DECKWISE_E2E_SCENE_KEEP_INITIAL=1`, then run
+  `e2e-courseware-scene-playback.mjs` with `DECKWISE_E2E_SCENE_REASSOCIATE=1` and
+  its `DECKWISE_E2E_SCENE_SOURCE_REPORT`. Author audio/effects, save/reassociate,
+  fully restart and play within that runner's one fixture Platform origin.
+  Assert exactly two initial fixture TTS submissions and none during review or
+  replay. A different origin represents a different account partition and must
+  not inherit private audio receipts; do not bypass that production guard to
+  resume an older fixture run.
+- Audio-bearing redo/restyle: actual Host tests must prepare and commit
+  single-page and confirmed-batch candidates with separately adopted archive
+  bytes. Preflight performs no writes and refuses forged, never-adopted or
+  changed-speech/action/page provenance before source installation. Commit and
+  failure injection verify complete transaction rollback and exact audio/hash,
+  paid-intent and logical-page preservation across restart. Main public tests
+  prove rejected preflight cannot freeze/replace source; report their Host
+  fixtures rather than claiming a joined native user path from those tests.
+
+The prior pinned AppImage is unchanged; these source increments require their
+own actual acceptance and future package delivery. No production migration,
+provider payment or old completed full-suite rerun is part of this increment.
+
+## Courseware image pricing transport prerequisite
+
+Before enabling paid scene generation, run Desktop `courseware-media.test.mjs`
+and `courseware-tts.test.mjs`, and the integrated Platform `MediaQuoteServiceTest`,
+`MediaTaskControllerTest`, `LlmHaMediaProviderTest` and `PricingServiceTest`.
+Require image-kind catalogue/quote, no voice/private fields, confirmed ceiling,
+kind/account/expiry rejection, idempotent replay and read-only lost-ID recovery.
+Assert one IMAGE/per_image quote, frozen settlement independent of prompt length,
+fractional-rate rounding consistent with actual `PricingService`, no price
+fallback, and unchanged TTS behavior. Mutating a caller quote during transport
+must not increase the original accepted ceiling. No supplier or live database
+is required for these targeted tests; report their test-double boundaries.
+
+This prerequisite does not prove scene Host persistence, visible cost approval,
+full Electron recovery, live supplier image quality/invoice or scene generation.
+Keep those gates open until their actual user flow is implemented and verified.
+
+## E2E-COURSEWARE-scene-planning-chat
+
+### Reviewed assets to native generation and editing
+
+The extended `scripts/e2e-courseware-scene-images.mjs` now also requires an
+isolated `DECKWISE_EDITOR_URL` and installed current worker/authoring resources.
+Use the application base, e.g. `http://127.0.0.1:4337`, not the `/editor` page:
+Main appends that route. The runner refuses the double-route configuration.
+After the archive/recovery gates, restore and reapprove the original plan,
+reuse its existing selections and complete the second page's background/layer.
+Generation must stay disabled until every page is ready. Hold the actual local
+model HTTP request, click the visible Cancel action and require no attached
+source or additional image submissions. Explicitly retry, compile both pages,
+open actual WiseOffice and verify 16:10 native text and separate image objects,
+with exact planned narration retained separately in Host and the same document
+identity as the editor. Edit one native text box and save through the visible
+toolbar. Require explicit saved-source review with initially empty per-page
+associations and unchecked adoption, then verify the original narration and
+logical page IDs on the new saved hash. Completely restart Desktop/Host/Office
+and reopen from the ordinary scene task entry. Require edited text, unchanged
+peer slide, independent images and identical associated teaching. A staging
+regression must first fail against the generated-path implementation, then
+pass with the existing revision writer, identical-revision reuse and refusal
+to replace a different saved version. The complete extended run expects nine confirmed fixture
+image submissions, ten image reads, three model requests (one cancelled) and
+fifteen passing groups. These counts cover explicit fixture work, not real cost.
+
+`scripts/e2e-courseware-scene-completion.mjs` additionally exercises actual
+Electron normalization of 16:9/4:3 references/backgrounds to 16:10 with white
+letterboxes and unchanged transparent PNG foregrounds. Require actual image
+model transport/native compilation, separate narration/staging proof, concurrent
+generation refusal, cancellation and changed-input refusal. Main staging tests
+cover both authoritative write boundaries; Host tests cover missing/duplicate/
+foreign/stale selection proofs and complete restart. Report real model/media
+quality, production account and installer acceptance separately.
+
+### Page image tasks and recovery
+
+Run `scripts/e2e-courseware-scene-images.mjs` after current source
+shared/i18n/Desktop/Host builds, using Xvfb, current `PI_DESKTOP_HOST_BIN` and a
+fresh `DECKWISE_E2E_OUTPUT`. It uses actual Main/preload/auth/Host/UI, with a
+loopback identity/platform and an explicit two-page plan fixture. No supplier
+or actual charge is involved. Preserve failures, HTTP method/path inventory,
+screenshots, journals and complete-restart evidence.
+
+Require visible plan approval, explicit page/model selection, nonpaying quote,
+unchecked fee confirmation and exactly one confirmed POST per selected task.
+Destroy the second HTTP receipt after simulated acceptance; restart all of
+Desktop/Host and recover from the original key. A missing lookup must stay
+unknown without POST, before a later successful GET binds the original receipt.
+Change the plan: retain old tasks as stale and disable new quotes until explicit
+reapproval. Reapproval/prepare alone must not charge. Reject foreign Chat scope,
+unknown payload fields and foreign IPC senders. This gate does not establish
+image quality/real prices, layered scenes, compilation or WiseOffice.
+
+Mark the two original tasks ready/settled with bounded PNG/JPEG bytes. Use the
+visible archive/preview action, require actual image decoding/natural dimensions,
+an initially unchecked review and disabled selection, then explicit per-page
+selection. Assert the plan bytes and confirmed POST count are unchanged. Fully
+restart Desktop/Host; recover both selections and preview from private archives
+while server image downloads are disabled. Require two valid asset reads;
+add one invalid-IDAT PNG with matching SHA/chunk CRC and require native decoder
+refusal, no archived record, then explicit retry against the corrected original
+task without another POST. This negative adds one asset read (three total).
+After a plan revision, old images remain previewable and selection refuses.
+Complement this native user flow with Main/Host tests for foreign account/task,
+bad hashes/MIME/dimensions, codec bounds, corrupt archives, selection CAS,
+peer preservation, old journals and account changes during download. Local
+platform/image fixtures do not prove live supplier quality or full generation.
+
+Extend this same run with three asset purposes. On the same page, prepare a
+clean background, edit requirements and prove that the displayed quote clears
+without submission. Explicitly confirm the revised request and review its image;
+both page-reference selections must remain. Submit an opaque named layer and
+require actual native transparency rejection with no archived asset. Only a new
+explicitly confirmed request with revised requirements may create another task.
+Review transparent rabbit/apple layers, then regenerate the rabbit and replace
+its selection while preserving the background, apple and both references.
+Completely restart Desktop/Host again, disable server downloads and require
+identical role-specific selections plus valid cached transparent previews.
+The extended run expects seven explicit fixture POSTs, eight asset reads and
+eleven passing groups. One unsubmitted superseded background request remains
+in the journal. Retain that history through the subsequent plan revision.
+Main/Host tests additionally cover old journals without `target`, strict role
+fields, bounded names/instructions, per-layer CAS and fully invisible layers.
+Text-to-image fixtures do not prove reference-conditioned generation, supplier
+transparency/semantic quality, editable compilation or WiseOffice handoff.
+
+### Planning and Chat revision
+
+Preconditions: source Desktop/Host and existing pi sidecar; isolated project,
+profile and selected `scene` task with explicit teaching context. Use a local
+model fixture for tool/permission coverage; record this qualification. No
+media endpoint or paid supplier is needed for this planning stage.
+
+Build shared, Agent runtime, i18n and Desktop, then run
+`scripts/e2e-courseware-scene-plan.mjs` under Xvfb with a fresh
+`DECKWISE_E2E_OUTPUT` and the current `PI_DESKTOP_HOST_BIN`. The runner uses
+actual Desktop, Main, preload, Host, Skill policy and file tools; only the
+account and SSE model are fixtures. It retains the project, request transcript,
+report and screenshot. This does not test a real model's teaching quality.
+
+1. Enter lesson requirements in the existing workbench and submit through its
+   original Main Chat. Verify the scene planning Skill and current-Chat draft
+   path are supplied and no ordinary PPT Master/Office tool is selected.
+   Capture the actual Main `agent.prompt` request for kindergarten English,
+   full-English, kindergarten non-English and primary subject contexts. It must
+   carry the shared MAIC stage/language policy, preserve stored task values and
+   keep operational/wait intent outside spoken narration. Non-scene/native-edit
+   routing retains its existing behavior.
+2. Save a multi-page draft through normal Agent file tools; show page text,
+   visual intent and narration in the workbench. Change one page through the
+   page-specific Main Chat action; independently read the file and check peers.
+   Visible user messages contain the teaching request and page number/title,
+   without internal paths, hashes or JSON instructions. Host `session.get`
+   requires a positive message window even when only metadata is consumed.
+3. Fully restart Desktop/Host and recover the same task, draft and page text.
+   A second Chat in the same workspace must have a separate draft path.
+   Approve the current draft explicitly in the workbench. Reject an old hash
+   or caller path without changing the prior checkpoint. A subsequent Chat
+   revision must show review-required state until explicitly reapproved.
+   Recover the exact approved hash after full restart; task type/context may
+   not change after approval. No media request is submitted by this action.
+4. Reject malformed/oversized/invalid-UTF-8 drafts, redirected paths, wrong
+   task/attached source, and unknown parameters. Show the error. Ignore late
+   reads after Chat switches. Chat failure releases the UI busy state.
+5. Keep full asset/PPTX generation unavailable; no media task, audio request,
+   source PPTX overwrite or automatic task-type substitution may occur.
+
+Specs: [scene draft contract](../03-runtime/22-courseware-contract-v1.md#scene-planning-drafts)
+and [IPC](../03-runtime/01-ipc-protocol.md). Milestone: W10.1 planning only;
+whole scene generation and W10.3 remain unaccepted until their own actual flow.
+
+## E2E-COURSEWARE-scene-object-mapping
+
+W10.2 scene object mapping regression uses the existing scene-images Electron
+runner: generate the two-page reviewed fixture, compare each semantic element
+with a real saved-parser shape ID/type, and show only the current page's roles
+and aliases. Native edit/save and explicit source review must preserve the
+semantic records and mark any unproven current object association as requiring
+review, including unchanged images whose canonical identity was regenerated.
+Never infer deletion or rebind by name/position alone. Restart must recover
+identical semantics. Reject dropped reviewed layers,
+duplicate/forged shape IDs and mapping without approved generation inputs.
+The fixture proves object identity and editor integration, not model art quality,
+effect authoring or complete W10.2 compiler fidelity.
+
+## E2E-COURSEWARE-scene-teaching-playback
+
+Continue an actual generated, natively edited/saved scene from the existing
+scene-images runner with `scripts/e2e-courseware-scene-playback.mjs`. Supply
+`DECKWISE_E2E_SCENE_SOURCE_REPORT`, a fresh `DECKWISE_E2E_OUTPUT`, the current
+Host/worker and local WiseOffice URL. It uses that disposable source run's
+owning Chat/workspace/Host state rather than fabricating a new scene project.
+Identity and quoted audio HTTP are explicit fixtures; local WAV tones prove
+decoding/control flow, not narration synthesis quality or a real paid provider.
+
+1. Reopen the same two-page scene through the shared WiseOffice surface and
+   compare source hash and narration to the generated/saved report.
+2. Use visible speech pause and teacher-continue controls. Save through the
+   existing draft/revision path; preserve the peer page. Reject invalid numeric
+   pauses in the component regression, retain unknown actions, and apply locks.
+3. Quote/explicitly confirm/submit, retrieve/verify and adopt each page's audio
+   through the existing TTS controls. Only spoken text reaches the provider;
+   pause/checkpoint instructions never do. A pause-only change preserves the
+   adopted audio reference. Confirm each page for playback.
+4. Fully restart Desktop/Host/Office; compare exact teaching and audio references
+   and ensure no new submission or PPTX mutation.
+5. Use visible build/play controls to freeze that source and teaching, explicitly
+   review exact warnings and verify both native audio assets in the sandbox
+   player. Play the first page, measure the configured silence, wait for an
+   explicit teacher gesture, then advance through page two to completion.
+
+This scoped integration complements real-provider and compiler evidence; it
+does not by itself complete W10.3 teaching/art quality, production publication,
+arbitrary activity support or W17 acceptance.
+
+## E2E-COURSEWARE-adopted-audio-source-rebinding
+
+Use the existing `e2e-courseware-media.mjs --tts-audio` with a fresh output and
+`DECKWISE_TTS_REBIND_SOURCE` pointing at a verified saved four-page copy/reorder
+fixture derived from the three-page `DECKWISE_TTS_TEST_SOURCE`. The optional
+fixture explicitly associates `[old 3, old 1, old 2, new]` through real Main and
+Host. Assert unchanged original speech/audio on its logical page, empty copy,
+Host restart and successful new snapshot with exact audio bytes. The original
+paid intent/key/task and old snapshot export must remain unchanged; no media
+HTTP request or new reservation may occur during source review/capture.
+
+Run the original mode separately for late-result/account regressions. Host unit
+coverage must reject unadopted/missing/mismatched receipts and roll back source
+adoption when receipt storage fails. Main snapshot tests reject wrong-source
+bindings. Build the actual rebound Host export with the D converter and verify
+audio placement/hash. Record synthetic audio, fixture auth/editor/HTTP and
+`--no-sandbox` limits; these checks do not certify a live native UI edit with
+audio, supplier quality, browser playback or an updated installer.
+
+## E2E-COURSEWARE-continuous-chat-tts-playback
+
+Use the existing `e2e-courseware-chat.mjs` with the dedicated isolated Platform
+runner, `DECKWISE_E2E_LOOPBACK_TTS=1`, `DECKWISE_E2E_TTS_MODEL=loopback-courseware`,
+and narration acceptance enabled. The runner must configure only a loopback
+provider returning synthetic audio, an isolated seeded identity, a bounded
+test points account and an exclusive worker group. No real supplier credentials
+or paid media request belong in this gate.
+
+After real Main Chat narration adoption, use visible controls to quote and
+explicitly submit each current speech segment once, query the retained intent,
+archive and explicitly adopt audio, confirm each page, build/review a fixed
+snapshot and play it in the same Electron session. Validate local package audio
+hashes and actual native playing/ended events, then preserve the existing full
+restart, adopted-state restoration, cancellation and cross-Chat isolation checks.
+After audio adoption, proposing another narration must still reach the model;
+cancelling it preserves the current narration and audio references.
+Unknown/failed results stop the gate without another submission. A new run needs
+a fresh isolated output; a timeout is not evidence of supplier failure.
+
+This proves combined Desktop/Host/WiseOffice/Spring controls and simulated
+settlement. It does not prove actual supplier synthesis/invoice, teacher QR
+login or the paid continuous W08 gate. Retain that distinction in every report.
+
+The separately authorized real-provider variant uses `DECKWISE_E2E_REAL_TTS=1`,
+`DECKWISE_E2E_TTS_MODEL=doubao-courseware`, an explicit configured voice and a
+real authenticated isolated Platform. It refuses more than four speech segments
+and requires a displayed one-point maximum for each before any confirmation.
+The runner must compare input/audio hashes, ready/settled rows and actual points,
+and preserve the original unknown task/account. Set the paid-media flags before
+submission; never report synthetic audio or zero provider cost for this variant.
+A failed continuous run retains its owner-only temporary profile/workspace and
+session reference for read-only diagnosis or continuation. Do not regenerate or
+resubmit that project to replace an observation failure. Keep credentials out of
+versioned evidence, and do not infer supplier invoice verification from platform
+points settlement.
+
+## E2E-COURSEWARE-share-failure-does-not-bind-team
+
+Run `PI_DESKTOP_HOST_BIN=/absolute/host node --test
+apps/desktop/test/courseware-share-ipc.test.mjs`. Require all eleven groups,
+including the opt-in real Host restart case, with no skips. The Main handler is
+loaded from current source; fixed-preview/file/upload services are test doubles.
+Require failed read/upload/publication to leave a new task unbound, successful
+publication before binding, no work for missing/conflicting tasks, preservation
+of old bindings, no concurrent second-team share, immutable caller input and
+strict sender/field checks, account/Chat/Host/workspace/cancel fences, upload
+cancellation propagation and explicit remote-success/local-bind-failure errors.
+Actual Host persistence must retain the unbound task after failed share/restart,
+then the successful binding after another restart and refuse a different team.
+
+Pair with the fixed-build, build-files, media and PPT workbench tests plus Desktop
+typecheck. This local Main/Host gate is not actual Electron UI, live Spring/OSS,
+signed production playback or a distributed rollback/reconciliation guarantee.
+Spec: `03-runtime/26-courseware-fixed-snapshots.md`, team share association.
+Milestone: W09.1/W09.2 remain IN_PROGRESS for their remaining product gates.
+
+## E2E-COURSEWARE-team-member-request-ownership
+
+Packaged two-Desktop acceptance reuses the actual Spring/MySQL/OSS-fixture team
+workflow with `DECKWISE_E2E_PACKAGE_ROOT` pointing at the frozen unpacked trial.
+Use a uniquely created empty MySQL schema and owned temporary Redis; apply the
+receipt/reference migrations only there, never to the existing shared fixtures.
+Both Desktop processes must assert packaged runtime and absence of source Host
+or parser overrides. Require real seeded test-identity refresh, visible project/
+membership/discovery, denied Viewer grant/revoke through Main IPC, fixed-share
+upload/publication, complete owner exit before either Viewer playback channel,
+owner restart and visible revocation with stale-row denial. Verify playback
+bytes and native audio, two publication receipt rows and cleanup of only owned
+state. HTTPS alias adaptation is restricted to the loopback OSS fixture; this
+does not certify production OSS, normal teacher QR login or a visible share
+button when publication is invoked through Main IPC.
+
+Visible-share acceptance additionally opens the matching native Office, prepares
+three explicit no-speech pages through teaching IPC, confirms each page through
+the visible controls, and clicks Build preview, warning review, team/channel
+selection and Share to team. Do not invoke fixed-build/approve/share IPC from
+the driver in this variant. Read-only recovery and task association must match
+the visibly published build. A third actual packaged Desktop authenticates in
+another tenant: list discovery, member lookup and both playback channels must
+deny the known project, with no new player window. Keep the existing independent
+audio acceptance; this static variant makes no narration-quality claim. Owner
+exit, both Viewer channel renderings and restart/revocation complete the joined
+path. Isolate and clean the owned Office service alongside Spring/Redis/schema.
+
+Backend write acceptance uses the same disposable authenticated Spring setup
+without launching Desktop. First upload an actual PPTX and initialize teaching
+as Owner. Submit controller-shaped source upload/final-save/restore, asset
+adoption, teaching initialize/write, editing-session/page-lease, fixed-build and
+both publication mutations as Viewer and a cross-tenant actor. Require role
+errors 46102/46100 rather than request-shape or content errors; verify complete
+record hashes/counts and OSS counters remain unchanged. Authorized Viewer reads
+must still work. Upgrade the Viewer to Editor, successfully upload/replay a new
+source, then downgrade/revoke and require the identical successful replay to
+refuse before any write. Revoked source/teaching reads must also refuse. This
+does not prove every synthetic payload would succeed for a writer. Team-scoped
+generation requires its own authoritative project binding and cannot be inferred
+from adoption denial or the private media-task endpoint's identity checks.
+
+Team media submission must test both dedicated team routes with TTS/image:
+Viewer and cross-tenant refusals happen before quote/provider/budget/task writes.
+Use actual disposable MySQL/Redis for successful Owner/Editor generation,
+idempotent replay, different-team/personal replay conflict, downgrade/revocation
+denial, private status recovery/cancellation and revoked result-download refusal.
+Existing personal hashes and fixtures remain exact. Repeat the additive migration
+and verify existing records survive. Desktop transport tests must require the
+dedicated team URL, no fallback on missing old-server routes, Host-derived scope,
+and refusal when scope changes across durable begin. Real application HTTP with
+suppliers disabled proves role/route handling only, not paid generation success.
+Atomic Host intent scope and managed LLM authorization need separate joined gates.
+
+Run `DECKWISE_E2E_OUTPUT=/absolute/fresh/directory node
+scripts/e2e-courseware-team-panel.mjs`. The real React team tab uses a controlled
+preload fixture; no platform mutation, supplier call or fee is involved. Require
+ten checks: clear the selected user on team switch, reject late member lists and
+late denial errors, preserve a selected editor's role and exact grant payload,
+suppress follow-up reads after leaving a pending grant, show a failed revoke
+without retry, keep only the latest project refresh, display create failures
+when projects already exist, invalidate selection on auth events, and suppress
+post-unmount work/remove the auth listener. Synchronous double grant clicks must
+dispatch only once. The retained pre-fix failure must show user 11 still selected
+after switching to another team.
+
+Pair this with `node --test apps/desktop/test/courseware-media.test.mjs
+apps/desktop/test/ppt-master-flow.test.mjs` and Desktop typecheck. These checks
+cover UI lifecycle and existing authenticated transport contracts, not live
+Spring accounts, deployed revocation propagation, team playback or co-editing.
+Spec: `03-runtime/27-courseware-authorized-media.md`, team member ownership.
+Milestone W09.1 remains IN_PROGRESS until its service/product gates pass.
+
+## Stop while a native permission is pending (B98)
+
+A canceled turn may remain in `activeTurns` while its abort RPC or finalization
+is pending. Root activation/status must consult the shared turn-dispatch gate,
+which includes cancellation and finalization, rather than only the active turn ID.
+Tool results/history, terminal events, current live turns, delegates and legacy
+untagged status retain their existing delivery semantics.
+
+Run `node --test apps/desktop/test/runtime-stale-activity.test.mjs
+apps/desktop/test/session-turn-ended.test.mjs
+apps/desktop/test/queued-turn-finalization.test.mjs
+apps/desktop/test/main-wiring-contract.test.mjs`. Require old-source failures for
+aborting/finalizing activity while the turn still owns the session.
+
+The private B98 actual Main Chat gate clicks Stop on a visible native italic
+permission card, requires idle UI and unchanged native/source state, replays the
+stale permission ID once (NOT_FOUND), and explicitly allows a fresh request/card.
+Save/review/full Desktop+Host restart and independent PPTX readback must pass.
+Separately regress current-page 750 ms native fade with the same Main/Host/Office
+outputs. Select the worker installation containing its matching authoring sidecar;
+a worker entry hash alone does not establish adjacent module compatibility.
+Local model/auth/one-turn Ask fixtures do not certify public mounting or packaging.
+
+## Existing Main Chat style-batch end-to-end (A48)
+
+Run `scripts/e2e-courseware-chat.mjs` under `xvfb-run -a` with source Electron,
+the local deterministic model/auth fixture, the real Rust Host and an isolated
+WiseOffice. Require the 14 checks in `source-chat-03/report.json`: tool
+withholding before representative/scope review, real Main Chat dispatch,
+current-stage per-target rendering, owning-Chat cancellation, target-list
+read-only preview, explicit adoption, writable primary Office reopen, full
+restart, old-scope revocation and other-Chat isolation. Assert no paid call.
+
+Run `verify-chat-batch.py` after the Electron gate. Its `zip-check.json` must
+be PASS and must show exact target pages 1/3/4, no removed parts, only target
+slide/relationship changes, three added PNGs, byte-identical locked peer slide
+2, and equality of candidate/adopted PPTX parts. This verifies artifact
+preservation in addition to UI/IPC behavior.
+
+This gate is source Electron only. It does not certify packaged resources,
+live-provider quality, arbitrary animation/media generation, collaboration or
+virtual-classroom playback.
+
+## Trusted Main batch staging (A47)
+
+With actual source Electron, Host/parser, current Main coordinators/completion,
+public staged compiler and production Office, create/stage a representative,
+render it, and explicitly confirm an unlocked two-page scope. Confirm only the
+peer triggers another completion, its target visuals come from the real current-
+stage copy and three PNGs reach HTTP without raw PPTX/history/credentials. Check
+exact pending Host scope/proof, unchanged source/teaching/lock, readonly renderer
+cleanup and persisted pending batch after Host restart. Clear confirmation during
+actual peer rendering and require rejection before another completion. Reopen
+compiled output in native Office and independently inspect editable target XML,
+exact clean-plate assets and all unaffected ZIP parts.
+
+Scope confirmation in this internal-entry test uses explicit calls to the actual
+review coordinator; actual sidebar/Chat confirmation is covered by A45/A46. This
+is not a public batch Chat/adoption E2E. Unit tests additionally change the exact
+scope during an awaited confirmation check, cancel before retained-byte access,
+and replace callback properties across context I/O. Product tool/adoption and
+new-package tests remain separate requirements.
+
+## Agent async input and response isolation (A46)
+
+Run the actual Agent proposal/native-tool suites with deferred context, execution
+and receipt boundaries. Mutate input parameters, Host callback properties,
+contexts, dispatched commands and receipts during awaits. Original validated
+parameters and receiver must remain bound; altered native results must fail
+correlation against the independent request. Preserve cancellation, stale page/
+generation, loaded-font/asset capability gates and private-token filtering.
+
+Rebuild the Agent sidecar and Desktop before actual source Electron acceptance.
+Regress the existing main Chat native edit/save/full restart and reviewed redo
+with actual representative-scope confirmation, preview/rejection, cancellation
+and explicit single-page adoption. A deterministic local provider verifies
+wiring and isolation, not live-provider generation quality. Packaged and batch
+acceptance remain separate gates.
+
+## Main representative and page-scope review (A45)
+
+Run `scripts/e2e-courseware-style-review-panel.mjs` against the actual React
+candidate parent and child with an explicit preload stand-in. Assert preview alone
+never approves, representative inclusion, locked peers disabled, minimum scope,
+exact confirmed IDs, parent busy behavior, late cancellation, stale approval,
+Chinese labels and confirmed-scope retention after closing the review component.
+
+Run current source Electron `scripts/e2e-courseware-chat.mjs` with redo/adoption
+and `DECKWISE_E2E_EXPECT_STYLE_REVIEW=1`. The actual main Chat must first create
+and retain a verified editable candidate through real Host staging. The existing
+sidebar then renders that exact Host archive using readonly native Office, shows
+the instruction and confirms pages 1/3 while page 2 is locked. Confirming scope
+must not invoke another model or change source/teaching. Regress readonly
+preview/rejection, HTTP cancellation, explicit single-page adoption, primary
+writable reopen, full restart and other-Chat isolation. Independently inspect the
+candidate/adopted ZIP and page/object/teaching identities.
+
+Pure Main tests additionally reject missing retention, forged/foreign/locked/
+duplicate/oversized scopes, changed candidate bytes/status, owner/source/policy/
+lock changes across awaits, cleared render, replacement and restart. The private
+readonly renderer must allow only the trusted archive directory and enforce exact
+hashes, original revisions where present and cleanup on failure/cancellation.
+These checks do not establish public batch generation/adoption or live style
+quality; those remain separate full-flow gates.
+
+## Main reviewed representative callback (A44)
+
+Exercise the actual Main scene/auth/image boundary with real native target and
+representative renders and the bundled compiler. Assert page/stage/representative
+byte mismatches reject before HTTP, three exact PNGs reach only the selected
+completion, raw PPTX/history/credentials stay out of prompt data, and reference
+image/byte aliases cannot be emitted as scene assets. Cancel HTTP and discard
+late output; compile a pending editable copy, reopen it in native Office, save,
+close/reopen, then independently inspect ZIP/media/text/notes preservation.
+
+Keep pure callback tests explicit about substituted native decoding. Regress the
+existing whole-app Chat single-page redo, explicit review/adoption, primary
+writable reopen and full restart. These checks do not cover a production batch
+Chat/scope UI or Main batch adoption; those remain required before public enablement.
+
+## Host confirmed-style batch lifecycle (A43)
+
+Run `scripts/e2e-courseware-style-batch.mjs` with absolute worker, three-page
+fixture and new evidence directory. Use actual rebuilt Host, current staged
+authoring runtime and parser with disposable workspace/data. Seed supported
+speech/pauses, confirmed pages and an out-of-scope lock. Create and verify a
+single-page representative, confirm two target pages, compile a batch and stage
+it without source/teaching changes. Reject forged scope/hash/extra fields and
+unverified adoption. Verify preview bytes, restart/cancel on original bytes,
+restart/commit on newly parsed output and terminal replay. All page IDs and peer
+mapping must persist; only target object IDs are new; target teaching needs review.
+
+Independently inspect ZIP/XML and teaching/mapping evidence: target-only slide
+and relationship changes, exact fixture PNGs, native editable text, peer/notes/
+masters preserved. Run Host candidate/recovery tests with malformed scope/proof,
+representative rejection, SQL failure at each commit step, late mutations,
+rollback and retry. Retain existing redo/fade regressions. This Host gate uses
+fixture review/scenes and never claims actual Main Chat/native human review,
+live source installation, model design quality or installed batch availability.
+
+## Relocated batch-authoring consumer (A42)
+
+Build the courseware runtime and run its `test:authoring-bundle` command after
+integrating the batch entry. The existing public consumer must retain single-page
+checks and exercise batches at 16:9 and 4:3: exact reviewed scope, current-stage
+source hashes, independently owned callback buffers, unchanged source/peer/notes,
+original-source reference and composed lineage. Refuse wrong confirmation/scope,
+dirty/readonly/locked targets and cancellation before generation; refuse late
+teaching changes and missing assets without returning a candidate. The fixture
+representative must include its canonical reference, matching the typed API.
+
+Check public declarations, current Desktop types, existing runtime tests and
+staged worker hashes. No batch Chat/IPC/Host adoption is mounted at this gate;
+this module/distribution check cannot substitute for their actual product E2E.
+
+## Installed-resource Chat redo and adoption (A41)
+
+Repeat the A39/A40 Chat suite with `DECKWISE_E2E_PACKAGE_ROOT` set to a fresh
+Linux unpacked package and both redo flags enabled. Do not set source Host,
+worker, Node, Python or Electron overrides. Assert packaged executable, app.asar
+and resource paths on every launch, including complete restart. Office remains
+the separately served frozen production build; auth and vision use loopback fixtures.
+
+Build and inventory the current authoring-capable worker before packaging. Keep
+`authoring.mjs`, its native dependencies, licenses and provenance beside the
+worker. Use the existing explicit `pptx-worker/**/*` extra-resource filter:
+copying a directory with default matching can omit nested `node_modules`.
+Check every manifest file and reject missing, changed or unlisted resources
+before launch. Compare app.asar and other installed resources against the exact
+compiled inputs and verify bundled Python. Use a new output directory for each
+package candidate; retain failed package/resource checks.
+
+The installed gate must cover visual approval, pending redo, readonly preview
+and rejection, cancellation, explicit adoption with original backup, primary
+writable Office reopen, teaching/identity preservation, full Desktop restart
+and main Chat readback. Independently verify target-only ZIP changes and the
+exact approved PNG. Inventory the package before and after execution. This is
+Linux unpacked integration evidence, not installer, OS sandbox, live model
+quality, full import fidelity or whole-plan acceptance.
+
+## Existing main Chat redo and reviewed adoption (A39/A40)
+
+Run `scripts/e2e-courseware-chat.mjs` under Xvfb after building Desktop, with the
+existing frozen production Office served on loopback, actual Rust Host binary,
+B41 three-page 16:10 fixture and the isolated A38 authoring-capable worker.
+Set `DECKWISE_E2E_EXPECT_REDO=1` for actual Composer/Skill/ToolSearch → Agent →
+Rust permission → Main/current vision completion → compiler → Host staging.
+Set `DECKWISE_E2E_EXPECT_REDO_ADOPTION=1` additionally for A40. Retain authorized
+`--no-sandbox`, fresh output/profile/data/workspace and loopback-only model/auth.
+Do not overwrite installed old worker resources or earlier package candidates.
+
+A39 verifies explicit source-image approval, native editable candidate readonly
+preview/rejection, held HTTP vision cancellation and cross-Chat isolation.
+A40 additionally seeds supported speech/pauses, confirmed peer pages and a peer
+lock through actual Main teaching APIs. Generate a fresh candidate, verify no
+source/teaching change before adoption, require the visible review checkbox and
+explicit Adopt and reopen, then verify installed source hash, retained original
+backup, primary native page text/writable context, canonical teaching and full
+Desktop restart. Read the new native text through existing main Chat after reopen.
+Use readonly SQLite inspection to verify every page ID, peer object IDs and fresh
+target object IDs; it is evidence only, never fixture authority. Independently
+check candidate ZIP/XML, source/peer/notes preservation and exact approved PNG.
+The deterministic SSE vision fixture proves integration, not live design quality.
+
+Run focused `courseware-teaching` and `courseware-source-adoption` Node tests,
+covering both finite kinds, forged/corrupt intents, stale/unverified/dirty/source/
+workspace/Chat/readonly rejection, rollback, missing source, lost commit reply
+and existing pending-intent recovery. Existing fixed-fade adoption must still pass.
+Run final Desktop types/build and full Desktop suite from `apps/desktop`.
+
+## Reviewed redo staging (A38)
+
+Run the Main source-preview command with `--redo-candidate`. Supply the B41
+three-page 16:10 native fixture and a fresh hash-verified worker bundle produced
+by `packages/courseware-runtime/scripts/stage-worker.mjs`, including
+`authoring.mjs` and its native dependencies. Do not overwrite earlier installed
+worker resources or packaged candidates. The compiler must resolve dynamically
+from that selected bundle; bundling sharp into Main is not accepted.
+
+Expect eight actual Main/Office/Host groups: the five A37 review groups plus
+reviewed PNGs → scene callback → editable native compiler → verified lineage →
+real Host staging, readonly native candidate reopen/text/render, and
+revoked-review/wrong-page/cancelled completion rejection.
+Verify source and owning native context unchanged, transient output cleanup,
+`lineageVerified=true`, `applied=false`, and independently inspect candidate ZIP
+parts/native text/shape and preserved peers/notes. The scene callback is a local
+deterministic fixture, not a live provider, full Desktop Chat or adoption.
+
+Run `node --test apps/desktop/test/courseware-redo-candidate.test.mjs apps/desktop/test/courseware-source-candidate.test.mjs apps/desktop/test/courseware-narration.test.mjs apps/desktop/test/courseware-visual-review.test.mjs`.
+Cover approval revoked during a baseline await, cancellation, foreign reviewed
+project/page/source, missing compiler before Host writes, and the shared bounded
+reader's stale hash, symlink, oversized-file and pre-cancellation behavior.
+Existing fade/narration behavior must remain unchanged.
+
+
+## Current-page visual review (A37)
+
+Run `node --test apps/desktop/test/courseware-visual-review.test.mjs apps/desktop/test/pptx-inspection-ipc.test.mjs` after shared build. Verify explicit approval,
+owned copies, strict sender/payloads, cancellation and stale source/path/page/
+generation/teaching/lock/workspace/Chat guards, including changes during Host reads.
+
+After building Desktop and serving A36's unchanged production Office consumer,
+run the A36 source-preview command below with `--visual-review` and the real
+`DECKWISE_PPTX_WORKER`/`DECKWISE_PPTX_NODE` configured. This bundles actual Main
+coordinator/controller plus Rust Host/SQLite/parser and native Office. Verify
+canonical current logical-page images, approval without source changes, native
+owner remaining writable/unchanged, lock invalidation, cancellation while the
+temporary renderer opens, complete window/parser cleanup and owner replacement.
+It is not the full Desktop main-window/Chat/IPC application or an installer.
+
+Run `DECKWISE_E2E_OUTPUT=/absolute/new/output node scripts/e2e-courseware-visual-review-panel.mjs` for actual React/sidebar/i18n/API interaction with only the
+preload IPC edge replaced. Verify no implicit approval, checkbox, Chinese copy,
+Chat replacement, late reply suppression, failed approval clearing and existing
+parent mounting. Its synthetic one-pixel PNGs are interaction fixtures, not
+native-image visual acceptance. Retain native PNG evidence from the Main gate.
+Run the existing playback-panel gate with and without `--tts-tasks`; ignore only
+the named no-argument image/visual clear lifecycle calls in its TTS business-call
+assertions, preserving strict unexpected-channel and no-submission checks.
+
+No model/provider request or candidate adoption is exercised by this checkpoint.
+
+## Private Main source-page visuals (A36)
+
+Build an independent A-owned production Office consumer with B61 PNG integrity,
+B64 native text omission and the finite optional one-based preview `page` overlay.
+Build Desktop first for the actual sandboxed editor-host preload. Serve that
+Office build on loopback, then run:
+
+`DECKWISE_E2E_OUTPUT=/absolute/new/output DECKWISE_EDITOR_URL=http://127.0.0.1:PORT DECKWISE_E2E_PPTX=/absolute/test.pptx xvfb-run -a node scripts/e2e-courseware-source-preview.mjs`.
+
+The checked-in gate expects the B41 three-page 16:10 shared fixture. It bundles
+the actual Main controller and helpers into a disposable Electron entry, uses
+the real preload/host page/production Office and a separate readonly saved copy.
+It is not the complete main-window/Chat/Host application or a packaged build.
+Five groups verify 1600x1000 normal/textless PNGs, source hash/private page-token
+binding, independent page-two rendering without navigation or edits, unchanged
+source/ordinary rendering, invalid pages/abort/save denial and closed/writable
+session refusal. The request listener also checks sender/request/type and cleanup.
+Review native-textless pictures for raster text before granting clean-plate use.
+No scene model or candidate adoption runs in this gate.
+
+## Team asset integrity and scene inputs (A32)
+
+Build shared first, then run `node --test apps/desktop/test/courseware-team-assets.test.mjs apps/desktop/test/courseware-media.test.mjs`.
+Node verifies the actual C4 metadata/raw byte fixtures, immutable pins, exact
+GET-only routes, token refresh/account fences, bounded streams, safe errors and
+redirect refusal. The decoder-specific case skips in Node and must run with
+actual Electron:
+`DECKWISE_E2E_OUTPUT=/absolute/fresh/directory xvfb-run -a node scripts/e2e-courseware-media.mjs --team-assets`.
+
+Expect 18 Electron groups: nine scene/compiler groups plus nine team
+asset groups. Actual DesktopAuthSession/Electron net.fetch obtains authenticated
+team PNG inputs, the real decoder checks them, and real pi-ai transport sends
+their exact bytes to the loopback model. Ref/caller mutation, account change,
+missing dimensions, alias reads, preflight budgets, cancel and malformed PNGs
+must remain fenced. Run the original media gate without flags for its nine
+legacy groups too. This is local platform/model behavior, not live Spring
+membership or provider acceptance.
+
+Keep the actual C4 bad-IDAT-CRC PNG as a decoder negative. Prove that changing
+only the CRC in a diagnostic buffer permits decoding but changes the authorized
+hash; never replace the retained fixture or silently fix product input. Use a
+different explicitly synthetic valid PNG/asset ID for positive decoding/model
+checks. Structural AssetRef acceptance alone must not be called usable media.
+
+## Private Main scene model input (A31)
+
+After building Agent/shared and Desktop dependencies, run
+`DECKWISE_E2E_OUTPUT=/absolute/fresh/directory xvfb-run -a node scripts/e2e-courseware-scene-completion.mjs`.
+The gate starts actual Electron with `--no-sandbox`, uses its real PNG decoder
+and the real pi-ai completion/HTTP transport against a loopback model endpoint.
+It must pass nine groups: pinned image decoding/copy/deduplication, malformed
+input refusal before dispatch, managed image wire input, configured-key/vendor
+OAuth routing, session/model/Host fences, cancellation, original public text
+semantics, strict single-page scene output and Main callback to the public
+Desktop-local compiler. Include output-buffer mutation and bad PNG chunk CRC
+and oversized factory inputs; invalid output must never become a saved source.
+Fixture Host/model resolution and local tokens are explicitly not production
+platform login, a live provider or approved image ownership.
+
+For compiler interoperability, build the B54-derived public
+`@pi-desktop/courseware-runtime/authoring` entry and use its PNG/scene/source
+fixtures with the actual Main callback and full canvas-pinned schema. Compile
+both 16:9 and 4:3 sources, independently verify candidate ZIP lineage and all
+non-target slide/notes bytes, and retain the actual multimodal request metadata.
+This remains a local provider/assets/mapping fixture; it does not validate the
+production native asset resolver, Chat redo mounting or Desktop adoption.
+
+Rebuild a separate A-owned Office consumer from frozen B56 source, retain exact
+source/build hashes, run its six save/bridge/image test files and rerun existing
+source Desktop Main Chat/save/narration/fade gates. Do not overwrite the A29
+packaged candidate or call the new source result packaged acceptance.
+
+## Host single-page redo adoption (A30)
+
+Run `cargo test -p host-core --locked courseware -- --nocapture` and
+`scripts/e2e-courseware-redo-adoption.mjs` with absolute worker/source/generator/
+fresh-output arguments. Set `PI_DESKTOP_HOST_BIN`, `DECKWISE_PPTX_WORKER` and
+`DECKWISE_PPTX_NODE` to the actual artifacts. The generator module is an explicit
+test adapter, loaded by the test runner; it is never a product request or tool.
+
+Use B54's frozen source-size compiler/lineage modules and deterministic resolved
+PNG/scene fixtures for both 16:9 and 4:3 three-page sources. Exercise real Host
+stdio RPC, SQLite, archives, D worker and fresh saved-revision parses. Verify
+strict proof rejection, unverified adoption denial, idempotent staging,
+restart/recovery/cancellation/retry, pending-workspace fences and commit replay.
+After restart, all page IDs, peer objects and teaching/locks/review states must
+survive. Target objects get new IDs and target review is required. Original saved
+bytes remain intact. Include honestly rehashed non-target ZIP corruption controls.
+
+Rust tests independently cover invalid proof/kind/page identity, target object
+count changes, stale state, legacy serialization and rollback at all six commit
+writes. Fixture clean/read-only flags and PNGs are not native editor authority,
+real model output or asset authorization. This accepts Host redo consumption
+only; Main/Chat generation, live file installation/Office reopening, package,
+provider quality, audio/effect rebinding and power-loss acceptance stay open.
+
+## Main Chat native formatting (A29)
+
+Run `scripts/e2e-courseware-chat.mjs` with
+`DECKWISE_E2E_EXPECT_FORMATTING=1` against a production WiseOffice build that
+advertises the six finite native capabilities. The three-page B49 mixed-image
+PPTX fixture supplies a supported plain text box on page 2. Native SDK selection
+is fixture setup only; capability discovery and every formatting mutation must
+use the actual Composer, ToolSearch, Agent, Rust permissions and Main bridge.
+Do not inject native modules, override capabilities or replace editor IPC.
+
+Use fresh context for each request: 24.5 pt, opaque RGB `336699`, then explicit
+top-left `(25,35)` mm. Verify correlated native results, unchanged disk bytes
+until explicit Save, unchanged peer text/geometry and complete Desktop restart.
+The existing source-change review must still require explicit page associations
+before teaching operations resume. Independently inspect saved PPTX ZIP/XML:
+requested run/end-marker formatting and position, unchanged media, notes,
+relationships and peer content, with corruption controls for font/color/position.
+
+Combine narration, source-pause and fade-adoption flags to retain the existing
+Chat proposal/review/adoption/cancellation/restart flow. Another Chat must not
+discover the bound tools. Main/Agent/shared tests cover missing capability,
+stale generation/page, invalid values, denial, cancellation and changed owner;
+the actual Host RPC test covers High risk despite `declaredRisk=low`, explicit
+approval, pending/running abort and durable Plan-mode denial for all six mutations.
+
+Package mode must assert `app.isPackaged` and installed executable/asar/resource
+paths, with source runtime overrides rejected. This accepts finite selected-text
+formatting only: font family, resizing, charts, themes, arbitrary object animation,
+image replacement and unattended page selection remain separate capabilities.
+Loopback deterministic model/auth is not live-model quality or installer acceptance.
+
+## Courseware authorized media transport (A19)
+
+`DECKWISE_E2E_OUTPUT=<fresh-directory> xvfb-run -a node scripts/e2e-courseware-media.mjs`
+runs the actual DesktopAuthSession with Electron `net.fetch` and `--no-sandbox`.
+The loopback platform stand-in accepts login/refresh, finite TTS submit/query and
+private asset download. Verify exact task/hash/bytes; reconstruct the auth session
+from its refresh file; read/download/replay the same key; reject changed-input
+conflicts and post-logout requests. The stand-in asserts one simulated charge,
+not a real platform ledger or provider invoice. A separate real HTTP redirect
+target must receive zero requests. A retained actual C Spring response verifies
+cross-language hash and response compatibility. Strict unit cases cover forged
+requests, task swaps, account races, missing authorization, unknown/archive-failed
+states, bounded chunked reads, MIME/hash corruption and stable errors.
+
+This transport test opens no courseware editor and adopts no teaching/audio.
+Full Spring/llm-ha, real supplier speech, persisted Host tasks, audio invalidation,
+narrated preview and installer acceptance remain separate open gates. Do not mark
+A18's missing-audio block resolved from this test.
+
 > Scope: MVP acceptance scenarios plus current shipped product increments for PI-Desktop
 > Status: Accepted (protocol/Electron automation is active; full desktop Playwright remains planned)
 > Cross-references: [acceptance-criteria](02-acceptance-criteria.md) · [milestones](01-mvp-milestones.md) · [ai-development-workflow](03-ai-development-workflow.md) · [change-checklist](05-change-checklist.md)
 
 ---
+
+## Saved-source identity integration (A3 baseline)
+
+### A5 Host-only narration-candidate lifecycle
+
+Run `scripts/e2e-courseware-identity.mjs` with the D2f worker and
+`DECKWISE_E2E_EXPECT_REVIEW=1`, `DECKWISE_E2E_EXPECT_NARRATION_CANDIDATE=1` and
+`DECKWISE_NARRATION_FIXTURE` pointing to the frozen B2 narration output fixture.
+After the A4 flows, stage its actions using actual Host project/page/revision
+IDs. Unknown fields and another workspace's parser fail. Staging does not write
+teaching; release and restart Host, then retrieve the exact pending proposal.
+Manually change teaching; stale adoption rejects and explicit rejection remains
+idempotent. A locked target cannot stage. Stage a new proposal under the current
+baseline; altering saved revision bytes after parsing must reject adoption.
+Restore exact bytes, explicitly adopt, and verify only the target actions and
+teaching revision change, with unchanged identity, source, other pages and locks.
+Restart Host again and verify adopted teaching plus both terminal states.
+
+This gate has no Electron UI or live generator: it checks the producer payload
+shape and actual Host/SQLite/parser boundary. Main clean-state coordination,
+existing-main-Chat registration, generation transport, candidate review UI and
+PPTX candidate switching require their own later product gate.
+
+### Chat regenerates narration containing teacher continuation
+
+Run `scripts/e2e-courseware-chat.mjs` with
+`DECKWISE_E2E_EXPECT_NARRATION=1` and `DECKWISE_E2E_TEACHER_CONTINUE=1` against
+actual Office and rebuilt Desktop/Host. Run ordinary (`DECKWISE_E2E_TASK_TYPE=plain`)
+and public file-picker import (`DECKWISE_E2E_TASK_TYPE=import`,
+`DECKWISE_E2E_IMPORT_PICKER=1`) separately. The first proposal includes a
+structured teacher-continuation checkpoint and a fixed pause. Explicitly adopt
+and fully restart; then request another narration proposal through existing
+Main Chat. Current teaching must remain unchanged before confirmation. The
+new proposal contains a structured checkpoint and no inherited audio; adopt it
+through the existing sidebar and fully restart again. Both candidate statuses
+remain adopted; the source PPTX, logical pages and peer teaching stay intact.
+Existing stop/cancellation and cross-Chat isolation checks must still pass.
+
+This harness uses local deterministic Chat/narration responses and fixture
+identity. It verifies real Electron/Main/Host/Office wiring, not teacher login,
+supplier quality, TTS generation or an updated installer. Agent regressions
+cover all three task types and reject malformed/unsupported checkpoint payloads
+before generation; scene entry acceptance remains separate.
+
+### Native saved-source review retains adopted audio
+
+Run the existing Chat/TTS gate with `DECKWISE_E2E_NATIVE_AUDIO_SAVE=1` in its
+bounded loopback-media mode against actual Desktop/Host, Office and isolated
+Platform. After explicit audio adoption and initial fixed playback, add native
+text and save. Teaching must reject dirty or unassociated source state. Page
+associations start empty and require separate confirmation. Adoption preserves
+logical page IDs, exact speech/audio references and locks, advances the source
+binding, and marks pages for teacher review without rewriting the PPTX. Confirm
+the pages, build a new fixed preview, play the same archived audio and fully
+restart. Native content and exact associated teaching must restore. Native
+editing/review/playback must not add another media submission.
+
+The local supplier may replay cached real-provider bytes; this is explicitly a
+supplier fixture and does not prove text/voice quality or a new paid round trip.
+Compare original paid tasks, unknown tasks and billing rows before/after. Never
+retry a submitted failed run. Playback-only recovery borrows its workspace and
+must preserve it after either success or failure; fresh failed media attempts
+also retain their recovery data. Verify this lifecycle with
+`apps/desktop/test/e2e-workspace-lifecycle.test.mjs`.
+
+### A8 Chat narration survives subsequent native save
+
+Run `scripts/e2e-courseware-chat.mjs` with `DECKWISE_E2E_EXPECT_NARRATION=1`
+and `DECKWISE_E2E_EXPECT_SOURCE_PAUSES=1`, actual Office and rebuilt Desktop/Host.
+After actual main Chat generation, explicit sidebar adoption, restart and
+cancellation checks, add native text and save PPTX. Teaching access must conflict
+until explicit source review. Review shows the 4,000 ms pause, page associations
+start empty and adoption requires confirmation. Adopt the reviewed associations;
+all logical page IDs, speech IDs/text/pauses, locks and non-target teaching remain
+intact, with all pages requiring review and the actual saved source hash bound.
+Adoption must not modify saved PPTX. Fully restart and verify the native edit and
+exact project restore. Local deterministic SSE responses prove the actual app
+transport, not paid-provider quality or full-package acceptance.
+
+Rust regression checks cover 0/30,000 ms, locked-page preservation/history,
+reorder/new-page omission, stale teaching, SQL rollback and unsafe pause/media
+rejection without mutation. Audio/object-bound effects remain unsupported.
+
+### A4 explicit saved-source review
+
+Run `scripts/e2e-courseware-teaching.mjs` with `DECKWISE_E2E_EXPECT_IDENTITY=1`
+and `DECKWISE_E2E_EXPECT_REVIEW=1` against the D2f worker and rebuilt Desktop/Host.
+Beyond the A3 gate, modify and save the actual native PPTX, observe the normal
+teaching-open conflict, then prepare review through the real sidebar. Check all
+associations initially empty; duplicate old page choice and omission of a locked
+page disable confirmation. Associate explicitly, confirm and adopt. Check both
+texts, lock, logical page IDs and new source hash; PPTX bytes must stay unchanged
+by adoption and the previous identity must remain. Exit the complete app/Host,
+reopen, and verify adopted teaching/source/locks again.
+
+Rust tests cover durable review/restart, stale teaching, duplicate/unknown pages,
+reorder/new pages/omission, SQL failure rollback, old-version history and rejection
+of audio/effect-bearing projects. Main tests cover fresh-parse dispatch, scoped
+index-to-ID translation, forged fields and changed Chat/source/dirty native state. Selection/page navigation
+during review is allowed while dirty/uncertain saves remain rejected.
+This does not validate automatic lineage, generated-candidate source replacement,
+media invalidation or package-contained resources.
+
+Use `scripts/e2e-courseware-identity.mjs` with an explicit D2f worker, source
+PPTX, isolated evidence directory and `PI_DESKTOP_HOST_BIN`. This exercises the
+actual Host process, offline worker and SQLite, without model/provider calls.
+The optional `DECKWISE_IDENTITY_REFERENCE_API` points to the pinned D2f API
+bundle for producer/consumer binding parity. Required checks:
+
+- Parse a saved editor archive and reject renderer-supplied identity fields,
+  another session's workspace, and identity bytes altered after completion.
+- Create the canonical project and bound identity atomically. Page IDs match
+  the canonical record; object IDs and mapping revision are Host-owned.
+- Save narration and a lock; release parser output and restart the Host.
+  Reparse identical source and retain the full identity, narration and lock.
+- Parse changed source successfully, reject teaching adoption and preserve
+  existing teaching/identity. No page-ordinal migration is allowed.
+
+Targeted Rust tests additionally check strict schema/size/coverage/digest
+validation, SQL-failure rollback, first-identity attachment to legacy projects,
+and old-worker compatibility. This gate does not cover new UI, candidate
+review/adoption, packaged Desktop, collaborative editing or publication.
+
+## A12 — Persisted Main fade attestation
+
+Run `scripts/e2e-courseware-main-fade.mjs` against production Main, real Host and
+D2f. Require `lineageVerified:true` only after Main validates its retained
+deterministic fade result and Host independently matches every original/output
+page and object identity. Restart Host and require the same verified pending
+view. Reject wrong source/output/mapping/target/part and extra fields without
+changing the record. Legacy stage replay must not clear verified evidence.
+
+Rust tests cover legacy upgrade, replay, restart, rejection, all-page/object
+content/geometry/import-ID drift and atomic CAS failure. Main unit tests reject
+forged retained generation reports and a Host receipt without verified evidence.
+Repeat the actual Electron main-Chat fade gate and existing real Host identity,
+manual review and narration regression groups. Preserve original PPTX/teaching.
+The evidence is trusted Main attestation plus Host parser checks, not independent
+Rust ZIP/XML verification. No output preview, candidate adoption, live file
+switching/recovery, paid provider or installer acceptance is implied.
 
 ## 1. Goals
 
@@ -71,15 +1466,21 @@
 
 - **Preconditions:** DeckWise is signed in with no `DECKWISE_LLM_BASE_URL` override.
 - **Steps:** Load the managed model catalog, start a conversation, and generate
-  a PPT image. Repeat with an explicit gateway URL override.
+  a PPT image. Repeat with an explicit gateway URL override. Try a remote HTTP
+  override and a loopback gateway whose model route redirects.
 - **Expected:** Model discovery, conversations (including subagents), and image
   generation default to `https://trainwise.efrobot.com/llm-ha/v1` with the
-  platform access token. An explicit override is preserved.
+  platform access token. An explicit HTTPS or loopback HTTP override is
+  preserved. Insecure or non-HTTP schemes receive no authentication lookup or
+  request. A redirect receives only its original request; the redirected path
+  is not contacted. These discovery failures retain the existing local model
+  fallback without granting model authorization or changing custom providers.
 - **Specs linked:** `04-ux/06-settings-ia.md` Model configuration.
 - **Acceptance criterion:** B (model config), C (conversation).
 - **Milestone:** DeckWise product increment.
 - **Status:** Model discovery and URL override are automated by
-  `apps/desktop/test/provider-catalog-runtime.test.mjs`; authentication wiring
+  `apps/desktop/test/provider-catalog-runtime.test.mjs`, including insecure
+  override refusal and a real HTTP redirect check; authentication wiring
   is covered by `apps/desktop/test/auth-gate.test.mjs`. Live conversation and
   image-generation journeys remain manual.
 
@@ -626,13 +2027,17 @@ identify the platform validation still needed.
 
 - **Preconditions**: Fresh profile (no `~/.pi-desktop`).
 - **Steps**: 1) Launch app on fresh profile. 2) Observe onboarding checklist.
-- **Expected**: Inline checklist is displayed; provider/key items open Settings
-  → Agent, and the optional plugin item opens the app-shell Plugins
-  destination.
+- **Expected**: Inline checklist is displayed. With an enabled managed provider
+  and a nonempty model catalog, provider/key steps are omitted while project and
+  prompt steps remain. Completing those hides the checklist. Without that
+  catalog entry, provider/key items still open Settings → Agent. The optional
+  plugin item opens the app-shell Plugins destination.
 - **Specs linked**: `04-ux/05-onboarding.md`
 - **Acceptance**: A (first-run checklist)
 - **Milestone**: M2
-- **Status**: Automated (protocol smoke: host onboarding state; UI checklist manual)
+- **Status**: Automated protocol state plus `onboarding-managed.test.mjs` actual
+  React rendering for managed/BYOK/disabled/empty/completed cases; the separate
+  media-recovery packaged UI gate verifies two visible first-use steps.
 
 ### Provider & Key
 
@@ -7758,10 +9163,16 @@ identify the platform validation still needed.
 
 | Acceptance | Scenarios |
 |---|---|
+| F / Security — Immutable reviewed online publication input and nested attention targets | E2E-COURSEWARE-online-reviewed-publication-candidate |
+| B / C / F — Isolated existing-session team online join | E2E-COURSEWARE-online-team-join |
+| B / C / F — Definite team media refusal | E2E-COURSEWARE-media-refusal-recovery |
 | B / C — Managed production gateway | E2E-DECKWISE-MANAGED-GATEWAY |
 | B / F — Built-in AI context override | E2E-DECKWISE-MANAGED-CONTEXT |
 | C / D — Project-bound courseware tasks | E2E-DECKWISE-PROJECT-REQUIRED |
 | A / C — Unicode stdio framing | E2E-RPC-unicode-separators |
+| A / C — Temporary courseware worker lifecycle | E2E-COURSEWARE-HOST-WORKER |
+| A / C / F — Saved PPTX inspection | E2E-COURSEWARE-SAVED-PPTX-INSPECTION |
+| A / Delivery — Linux courseware package | E2E-COURSEWARE-LINUX-PACKAGE |
 | C / G / Quality — Plugins navigation | E2E-NAV-plugins-button-goes-back |
 | C / D / Quality — Sidebar row states | E2E-LAYOUT-sidebar-row-states |
 | A / C / Quality — Sidebar material and settings return | E2E-LAYOUT-sidebar-settings |
@@ -13346,6 +14757,94 @@ plugin-form fixtures in an isolated temporary directory at runtime.
 - **Specs:** 04-ux/06-settings-ia, 04-ux/08-component-spec,
   04-ux/09-interaction-patterns; ADR turn-process-and-thinking-display.
 
+### E2E-COURSEWARE-HOST-WORKER
+
+- **Preconditions:** Linux x64; built task host; locally verified standalone
+  PPTX worker; Electron; frozen W00 sample manifest; isolated data directory
+  with an offline marketplace catalog. No real provider credentials.
+- **Steps:** Run `scripts/e2e-courseware-runtime.mjs` in Electron main with
+  worker entry, sample manifest and new evidence directory as absolute paths.
+  Start/poll/release all 20 samples through production `HostProcess`; attempt
+  missing workspace, unknown IDs, traversal, symlink escape, extra fields and
+  concurrent jobs. Fail an invalid PPTX; cancel a real parser after its start
+  log; close the host while a job is running.
+- **Expected:** 114 pages and 81 nonempty text anchors match; worker and source
+  SHA-256 match. Invalid requests never select a command/output path. Failed,
+  canceled, released and shutdown jobs leave no retained temporary results.
+  Premature release is rejected and process exit precedes cleanup.
+- **Local pilot resource subcase:** Admit exactly 50 MiB at the file boundary
+  and reject the next byte before job creation. Parse a complete 100-page
+  fixture; reject 101 pages and 256 MiB+1 declared expansion before parsing.
+  Exercise the actual 1 GiB RSS monitor with native Buffer allocations and
+  256 MiB+1 output with a controlled worker; confirm process reaping and empty
+  failed/released job caches. Also reject fast-finishing excessive output,
+  excessive reported peak RSS and over-limit page results. Test exact inclusive
+  output/expansion limits and concurrent asset reservations at unit level.
+  These are sampled local guards, not cgroup/disk hard quotas or full-app
+  memory acceptance. No real provider is used.
+- **Specs:** 03-runtime/21-courseware-parser; 03-runtime/06-host-rpc-protocol.
+- **Acceptance:** A (runtime), C (temporary host state).
+- **Milestone:** Courseware W02.4.
+- **Status:** Host/worker transport automation; not full N-DE W02.4, installer
+  or renderer/preload acceptance. Commit/PR candidate gates remain separate.
+
+### E2E-COURSEWARE-SAVED-PPTX-INSPECTION
+
+- **Preconditions:** Built task Desktop and Rust Host, approved local PPTX worker,
+  isolated workspace/profile, local WiseOffice build and an editable PPTX fixture.
+- **Steps:** Open the PPTX through the real work panel. Click Check saved version,
+  inspect its report/hash, cancel and retry. Reject path/command injection and
+  unknown check IDs. Edit native text without saving and recheck; then save,
+  check the new revision and inspect its actual PPTX XML. Close the editor while
+  another check is admitted and verify terminal cancellation/empty cache.
+- **Expected:** Real preload/Main/Host/worker wiring; no input replacement;
+  unsaved edits excluded; new saved revision/hash selected; bounded warnings;
+  cleanup completed before terminal result. The UI does not expose worker
+  output paths or imply visual/publication approval. The zero-error fixture
+  explicitly says only that the parser detected no content errors, never that
+  the conversion passed fidelity checks. Error totals include all diagnostics,
+  errors precede informational entries under the 20-item cap, and legal
+  zero-based page indices appear as one-based page labels. Missing/invalid
+  severity/page metadata stays explicitly unknown. Actual formula/chart
+  fixtures must show visible error totals and affected pages through the real
+  Host/worker/IPC; these known losses do not pass content acceptance.
+- **Specs:** `03-runtime/01-ipc-protocol.md`; `03-runtime/21-courseware-parser.md`.
+- **Acceptance:** A (process boundaries), C (cancellation), F (revision identity).
+- **Milestone:** Plan 007 W02.4 inspection subcase.
+- **Status:** Automated by `scripts/e2e-pptx-inspection.mjs`; fixtures replace
+  only authentication. The native editor/parser and internal IPC are real.
+  `--no-sandbox` is explicit for user-authorized Linux local validation. This
+  does not clear the complete W02.4 gate, installed updated-app acceptance,
+  all-page visual fidelity, durable adoption or production resource budgets.
+
+### E2E-COURSEWARE-LINUX-PACKAGE
+
+- **Preconditions:** Linux x64; approved standalone worker bundle; the complete
+  desktop build toolchain and pinned Python/PPT Master build inputs available.
+- **Steps:** Stage the bundle with `stage:pptx-worker` into a new resources
+  directory. Run `pack:courseware:linux`. Independently compare the packaged
+  worker files to their manifest, verify other required runtimes are present,
+  then launch the packaged application with isolated user data. Run the editing,
+  save-race and saved-revision inspection drivers with
+  `DECKWISE_E2E_PACKAGE_ROOT=<absolute Linux unpacked directory>` and without
+  source Electron/Host/worker/Python or development-mode overrides. Assert
+  `app.isPackaged`, the executable and `app.asar` paths before feature checks.
+  Repeat the
+  worker check with missing, same-size corrupted and unlisted files.
+- **Expected:** Invalid worker resources stop before the full build. The valid
+  courseware target runs the existing resource builds; the unpacked app contains
+  the native host, Agent runtime, Python runtime, PPT Master and exact worker
+  files. Packaged boot and host/worker execution pass independently. Packaging
+  warnings or directory output alone never count as a complete app gate. The
+  existing courseware drivers also exercise real packaged Renderer/preload,
+  native editing/saving and the packaged Host/worker chain. This does not imply
+  system installation or all-page content/visual/resource acceptance.
+- **Specs:** 03-runtime/21-courseware-parser.
+- **Acceptance:** A (runtime).
+- **Milestone:** Courseware W02.4.
+- **Status:** Worker checks automated by `pptx-worker-staging.test.mjs`; full
+  packaged boot and courseware UI acceptance require separate runtime evidence.
+
 ### E2E-RPC-unicode-separators
 
 - **Preconditions:** Built host-core, shared package and agent runtime; isolated
@@ -13420,3 +14919,1018 @@ plugin-form fixtures in an isolated temporary directory at runtime.
   read-only. Reject unsupported formats and paths outside allowed roots.
 - Retain startup timeout, failed iframe load, retry and cancellation checks
   in `scripts/e2e-ppt-editor-loading.mjs`.
+
+### PPTX editor command bridge (W01.1)
+
+- Open a three-slide PPTX through the production editor IPC, preload and host
+  in a real Electron harness. Wait for native API readiness; read the bound
+  context and execute the bounded `get_presentation_text` tool without a model.
+- Verify request/session/generation matching and duplicate request rejection.
+  Navigate, change native selection and edit native text; stale commands must
+  fail, while a new context/read sees the changed text.
+- Reject unknown tools, JavaScript and oversized inputs. Drop host messages
+  from other origins/frames; reject an invoke from a second renderer. Switch
+  workspace, close and reopen; previous bindings must fail.
+- Automated by Node request tests, shared contract tests and WiseOffice bridge
+  and embed tests. Integration evidence and the reproducible isolated Electron
+  probe live in the coordinating Train workspace at
+  `docs/validation/courseware/w01/editor-bridge/`.
+- Scope: the probe uses the production IPC/controller/preload/editor host with
+  a minimal test registrar and window. It does not boot the complete DeckWise
+  shell, plan through main Chat, expose mutation tools or test save races.
+  Those remain W01.2/W01.3 acceptance cases.
+
+### E2E-COURSEWARE-W01.2: Native text commands in the complete desktop
+
+- **Preconditions:** Build the desktop JS and host-core from the candidate.
+  Start a local WiseOffice dev server. Set `DECKWISE_E2E_OFFICE_ROOT` to its
+  checkout with Playwright installed, `DECKWISE_E2E_PPTX` to the self-authored
+  editable three-slide fixture, `DECKWISE_EDITOR_URL` to the local server, and
+  `PI_DESKTOP_HOST_BIN` to the candidate binary. `ELECTRON_EXECUTABLE` optionally
+  selects an installed Electron; `DECKWISE_E2E_OUTPUT` selects the evidence folder.
+- **Automation:** `node scripts/e2e-courseware.mjs --case W01.2` (Xvfb on headless
+  Linux). Unknown cases and failed assertions exit nonzero. Uses a throwaway
+  profile/workspace, local auth fixture and actual Rust session persistence.
+- **Steps:** Open the PPTX through the real work panel. Capture context/read text,
+  select a native title, execute replacement and insert a text box through preload
+  IPC. Read exact Unicode/newline text back; compare other shapes, geometry and
+  other pages. Reject replay, stale generations, manual-interaction snapshots
+  and the old session after reopening. Save with the actual toolbar and reopen.
+- **Expected:** Both writes are verified and visible in the native view; source
+  bytes and the revision copy agree, and reopened content/geometry match. Evidence
+  includes native view bounds, SDK snapshots, screenshots, saved PPTX and logs.
+- **Specs:** `03-runtime/01-ipc-protocol.md`, PPTX editor command bridge.
+- **Scope:** No main Chat/model planning, real login, paid API, save concurrency,
+  complex PPTX fidelity or packaged/cross-platform acceptance. Save races remain
+  W01.3. The reader remains presentation-wide; context supplies current-page scope.
+
+
+### E2E-COURSEWARE-A1: Shared teaching contract and Host persistence
+
+- **Preconditions:** Dedicated A worktree and disposable profile/workspace; canonical
+  two-page fixture, source revision R8, teaching T8, second page manually locked.
+- **Steps:** Initialize using the internal Host API, write page one, unlock/write
+  page two, close/reopen SQLite and compare both pages/source reference. Inject a
+  failed SQL update; attempt a stale write from a second connection. Read/write
+  through session-scoped Host RPC while global workspace points to another folder;
+  try unknown sessions, forged path fields and locked pages.
+- **Expected:** Both pages survive restart. Failed/stale/locked writes retain prior
+  data. Other workspaces cannot read the record. Source revision/hash and unrelated
+  project/KV rows remain unchanged. TS and Rust consume identical JSON fixtures.
+- **Automation:** Shared contract tests and `cargo test -p host-core --locked
+  courseware_projects`; database regression tests cover the old schema/records.
+- **Specs:** `03-runtime/22-courseware-contract-v1.md`.
+- **Status/limits:** Host/contract module coverage only. Real Office identity and
+  page navigation, UI save/reopen, candidate adoption, immutable snapshot export,
+  actual main Chat and packaged Desktop integration remain pending A1b/B/D.
+
+### E2E-COURSEWARE-W01.3: Export and host persistence races
+
+- **Preconditions:** Same local desktop/native fixture setup as W01.2.
+- **Automation:** `node scripts/e2e-courseware.mjs --case W01.3`; this includes
+  all W01.2 checks. Unknown cases fail before launch.
+- **Steps:** Delay a real exported Blob before host persistence. Type into the
+  native editor, verify the source remains unchanged while held, then release
+  export and commit separately. Check save/close/tool request guards and reject
+  inspection both while export is held and while host commit is unacknowledged.
+  Save the
+  later edit; inject the previous export and acknowledgement during that save.
+  Inject one filesystem rename error scoped to the temporary source, verify
+  dirty/error and unchanged source bytes, then retry through the visible toolbar.
+  Finally save, close, reopen, and inspect exact native contents/geometry.
+- **Expected:** Saving persists until the matching final acknowledgement. Later
+  keyboard edits stay dirty; old replies never finish a new save. A failed source
+  write never claims success or clears dirty, and the next explicit save works.
+  Compare the intermediate exported snapshot, final source and revision bytes.
+- **Lower-level checks:** Actual controller/filesystem tests cover wrong sender,
+  duplicate bytes, external source changes, export/commit timeout and uncertain
+  retries. Inspection excludes failed source replacements and rejects uncertain
+  outcomes; later unsaved edits do not change the saved snapshot. Editor tests
+  cover same-point edits, undo, failed host persistence,
+  early/wrong-source acknowledgement and standalone embed compatibility.
+- **Limits:** The delay/error injection controls external browser/IPC/filesystem
+  boundaries; it does not mock the SDK conversion, native edit or source contents.
+  This is a local Linux source-tree check, not packaged, cross-platform, remote
+  integration, real authentication, model planning or power-loss acceptance.
+
+### E2E-COURSEWARE-A1B-TEACHING: Native current page and persisted narration
+
+- Open the real Desktop/Office PPTX and load current-page teaching. Edit and save
+  page one, navigate/load page two, save and lock it. Restart the entire Desktop
+  and Host with the same isolated profile/data; read both pages and the lock.
+- Reject a late view after navigating, forged source/page keys, dirty editor and
+  changed saved PPTX. Never migrate narration by ordinal into changed bytes.
+- Verify narrow panel leaves a usable Office surface; expanded view shows the
+  teaching panel beside Office. Narration writes leave PPTX source bytes intact.
+- Automated path: `scripts/e2e-courseware-teaching.mjs`, local Office, fixed worker,
+  local auth fixture, user-authorized `--no-sandbox`. Development-source evidence
+  does not establish packaged release, real authentication, Chat/model, automatic
+  identity reconciliation, TTS/effects generation or publication acceptance.
+
+### Courseware existing-main-Chat native editing
+
+Run `scripts/e2e-courseware-chat.mjs` with isolated Desktop/Host state, actual
+Office and a loopback deterministic SSE fixture. Send through the existing
+Composer; load `ppt-edit` and activate native tools under the existing Full auto
+policy. Verify a native text box, unchanged on-disk source until explicit Save,
+saved text recovered after complete Desktop/Host restart and fresh Chat read,
+and another Chat unable to discover or borrow the owning editor tools.
+
+Complement this with Main bridge tests for changed session/workspace/native
+binding/Host/page/readonly/visibility/cancelled turn, actual Rust RPC tests for
+Ask approval and cancellation plus durable Plan rejection, and runtime binding
+reuse tests. A local SSE fixture proves integration, not live model quality.
+Record source versus packaged execution honestly. Cross-save teaching identity,
+candidate adoption, media authorization and fixed playback remain separate gates.
+
+
+### A6 — Existing-sidebar narration candidate review
+
+Run `scripts/e2e-courseware-teaching.mjs` with A4 identity/review gates and
+`DECKWISE_E2E_EXPECT_NARRATION_REVIEW=1`, plus the frozen B2 narration fixture.
+After existing native save/review/restart flows, stop Desktop, stage two
+proposals through actual Host/parser/SQLite and restart. Verify pending review
+shows text/4000 ms pause, adoption starts disabled and requires explicit
+confirmation, forged decision fields/current-page changes and external original-file writes reject, adoption
+changes only target actions/teaching revision and preserves PPTX bytes/other
+pages/locks. Verify the second now-stale proposal cannot be adopted but can be
+rejected. Restart the entire Desktop/Host again and verify adopted text/pause,
+other-page lock and both terminal statuses. Capture actual X-display composites
+including Office. This fixture boundary does not claim Chat generation or model
+quality. Node tests additionally cover hidden/wrong owner, binding/source/dirty/
+readonly/workspace/revision/generation changes, late parse, malformed receipts
+and lost post-commit reply with status recovery rather than a second adoption.
+
+### A9 — Durable generated-source copies (Host only)
+
+Run `scripts/e2e-courseware-source-candidates.mjs` with the exact real Host binary,
+D2f worker, frozen B saved source and redo/fade candidate bytes, declared kind and
+an isolated output directory. Prepare against the saved source, fully restart,
+parse/stage output, release parser/delete workspace input, restart and retrieve
+the exact archived hash. Verify source/teaching are unchanged. Reject cross-workspace,
+extra fields, wrong output hash, altered parsed input, corrupt/missing archive
+and late full-project changes. Reject explicitly and verify terminal recovery.
+Run existing actual Host identity/legacy-worker/review/narration gates too.
+This validates pre-generated bytes and storage, not actual Chat generation,
+operation-specific lineage, candidate adoption, native Office or packaging.
+
+
+### A10 — Original archives and actual Host/B4/D2f interoperability
+
+Use the A9 harness with the sealed B4 test module and fresh redo/fade generation.
+Require complete mapping from `courseware.sourceCandidate.context`, actual Host
+page text, hash-verified original archive and unchanged baseline on the generator's
+second read. Generate editable redo/fade locally, derive B4 lineage and parse
+with the fixed D2f worker. All three pages match only under exact verified bytes;
+changed-source review stays required. Reject abort, wrong original/target,
+rehashed non-target edits, reordered pages, added parts and a different save hash.
+Release parsers, delete workspace inputs, restart Host and recover both original
+context and candidate. Missing/corrupt original archives, extra caller mapping,
+foreign workspace, full-project/mapping changes and rejection must deny context.
+Run existing 11 actual Host identity/legacy/review/narration groups and scoped
+Rust tests. Preserve failed fixture runs and document deterministic scene/native
+binding stubs. No LLM, Electron, persisted lineage, Chat redo/fade or source
+adoption is accepted by this gate.
+
+### A14 — Host adoption intent and commit recovery
+
+- Preconditions: rebuilt Host, fixed D2f worker, frozen three-page B source;
+  production Main generator/runtime modules; no paid provider or Electron.
+- Run `scripts/e2e-courseware-main-fade.mjs` with
+  `DECKWISE_E2E_EXPECT_SOURCE_ADOPTION=1` and a new evidence directory.
+- Generate a verified fade, prepare intent from original saved revision, reject
+  forged fields/foreign workspace, and deny project/teaching/candidate writes
+  while pending. Cancel against original bytes and reprepare with a new token.
+- Restart Host, recover exact pending receipt, corrupt each archive in turn and
+  require a null path plus an archive error while the receipt stays recoverable.
+  Cancellation against the original revision must work despite a corrupt
+  candidate archive. Restore exact bytes. Simulate an immutable next revision,
+  parse it, reject post-parse changes/wrong cancellation, and commit.
+- Expect exact source hash, retained page IDs/speech/pauses/locks, new teaching
+  revision, terminal adopted candidate and normal teaching access restored.
+  Original saved revision stays unchanged. Restart again and replay commit;
+  project and receipt must remain exact, with no second teaching mutation.
+- Rust tests additionally require all-or-nothing history/identity/project/
+  candidate/journal/lock writes under zero-row SQL faults, stale baselines,
+  competing intent, wrong identity/source/token and rejected/unverified output.
+- Specs: `25-courseware-source-candidates.md`, `06-host-rpc-protocol.md`.
+- Milestone/status: A14 Host-only integration gate; executable fixture present.
+  This does not accept live file replacement, native Office adoption, power
+  loss, installer packaging or the full Plan 007 workflow.
+
+
+### A15 — Explicit adoption in real Desktop/Office
+
+Run `scripts/e2e-courseware-chat.mjs` against rebuilt Desktop/Host and the fixed
+D2f worker, using `DECKWISE_E2E_EXPECT_FADE=1`,
+`DECKWISE_E2E_EXPECT_FADE_ADOPTION=1` and
+`DECKWISE_E2E_EXPECT_NARRATION=1`. Use a fresh evidence directory and local SSE
+model/auth fixtures; no paid provider calls. Verify actual native text changes,
+save and complete restart, then generated narration review/adoption/restart and
+abort. Generate a verified fade, manually load its review, open a separate
+read-only preview, press Ctrl+S and require unchanged candidate bytes. Adoption
+must remain disabled until explicit confirmation. Adopt, require changed source
+hash and teaching revision with exact logical IDs/actions/locks, exact original
+backup, native reopening and complete Desktop/Host restart on adopted bytes.
+Wait for native document load completion after reopening; an enabled sidebar
+button alone is not readiness. Before restarting, send another prompt from the
+same Chat and require a fresh native read. Include cancellation followed by a
+queued local prompt, and regression checks for changed/null views and remote
+principals not borrowing the local editor.
+Another Chat cannot borrow the native tools. Keep reports/screens/logs/requests.
+
+Lower-level tests cover immutable revisions, file permissions, interrupted
+source displacement, exclusive preservation of unknown bytes, rollback, dirty
+native state, concurrency, lost commit reply and parser cleanup. Rust tests
+cover busy checkpoint rejection and live-path/project/hash validation. These
+checks accept Linux source execution only; real power cuts, other platforms,
+installer packaging and full Plan 007 remain separate gates.
+
+### A16 — Explicit teaching confirmation and immutable snapshots
+
+Run `scripts/e2e-courseware-snapshots.mjs <worker> <pptx> <new-evidence-dir>`
+against the rebuilt Host via `PI_DESKTOP_HOST_BIN`. Require fresh actual D2f
+identity, reject unconfirmed teaching, confirm every page with revision CAS,
+reject missing/mismatched/outside-root audio, and capture the unchanged canonical
+snapshot/project/mapping plus exact archived files. Replay must be exact. Reject
+foreign workspace and forged fields. Release the parser, restart Host, change
+live teaching/source/audio, restart again and require the old export unchanged.
+Corrupt each archived file and require rejection with no live fallback. Local
+PCM silence is a storage fixture, not TTS/provider acceptance.
+
+Run `scripts/e2e-courseware-teaching.mjs` with
+`DECKWISE_E2E_EXPECT_CONFIRM=1` and `DECKWISE_E2E_EXPECT_IDENTITY=1` in actual
+Electron/Office. Save and explicitly confirm the first two pages, including a
+locked page. Restart the complete Desktop and Host, require their independent
+narration/locks/ready states and unchanged mapping, and require untouched pages
+to remain unconfirmed. Existing stale-view/forged-target/dirty-source checks
+must still pass. Record `--no-sandbox` and source execution limitations.
+
+Separately pass the actual persisted Host export, without rewriting its data,
+through the frozen D canonical adapter and fixed builder with a pinned worker
+manifest. Do not silently approve converter warnings. This checks the integration
+format and fixed-build output; it is not a Desktop player or packaged acceptance.
+
+### A17 — Main-owned fixed build and sandboxed Desktop playback
+
+Run `scripts/e2e-courseware-fixed-playback.mjs` with explicit
+`PI_DESKTOP_HOST_BIN`, `DECKWISE_PPTX_WORKER`, `DECKWISE_E2E_PPTX` and a new
+`DECKWISE_E2E_OUTPUT`. Build shared, runtime and Desktop first. Use the pinned
+three-page A16 fixture; its notes-master warning review is fixture-specific.
+The script uses the real Host snapshot suite to prepare fresh persisted state,
+then launches the production-compiled Desktop with local auth and `--no-sandbox`.
+
+Assert strict path-free Main IPC, exact one-use warning approval, real offline
+conversion and package hash identity. The separate window must mount the actual
+compiled player, load 11 local font stylesheets, expose only finite read methods,
+deny external network and reject forged asset IDs. A user gesture must produce
+native fixed-WAV playing/ended events; page navigation remains functional.
+Corrupt stored asset bytes must reject without live-file fallback. Chat change,
+parent reload and Host exit must close playback; canceled selections cannot be
+reused. Retain JSON reports, native events, logs and the player screenshot.
+
+Unit gates also cover cancellation during initial workspace lookup, late build
+completion, exact snapshot/warning checks, bounded/hash-checked file reads,
+sender/top-frame/URL isolation, read serialization and close-during-read races.
+Acceptance does not imply a visible build button, generated speech, installer,
+team publication, arbitrary fidelity or native PowerPoint animation conversion.
+
+### A18 — Visible saved-draft preview
+
+Run `scripts/e2e-courseware-teaching.mjs` with the existing local Office/Host/worker
+fixture environment and `DECKWISE_E2E_EXPECT_PLAYBACK_UI=1`. On a fresh project,
+confirm each page through the actual sidebar, build, cancel warning review,
+rebuild and verify warnings are unchecked again, explicitly accept, play the
+actual converted deck, navigate and close. Verify teaching unlocks and original
+PPTX bytes are unchanged. Adding/saving speech must visibly disable preview and
+explain the missing authorized-audio integration. The remaining existing teaching
+persistence/dirty-source tests still execute. Main tests additionally cover exact
+IPC/sender/field validation, fresh parser/revision/owner checks, late-page races,
+invalid Host results, archive-path privacy and parser cleanup. No model/provider
+or generated-audio claim is implied by these static fixtures.
+
+### A20 — private durable TTS request journal
+
+Run `scripts/e2e-courseware-tts.mjs` with absolute worker/PPTX/fresh evidence paths
+and `PI_DESKTOP_HOST_BIN`, after building Host and shared. The script reuses the
+existing Host harness and actual parser. A stored bilingual/astral speech action
+must produce the independent Java-compatible request hash. Full process restart
+must retain the exact prepared request/key. Forged input/workspace and another
+principal/session workspace reject. `begin` must persist unknown submission;
+SIGKILL followed by restart must recover the same key. Changed teaching blocks
+dispatch but permits a matching late task reference to be retained without
+changing current teaching or binding audio. Another restart preserves that
+receipt. Only an explicit new intent ID creates another key. Original PPTX bytes
+remain unchanged. No media network or provider call is made.
+
+Database/RPC regressions must also cover pinned-reader checkpoint failure,
+ignored SQL writes, corrupt records, stale/locked selection, source-adoption
+locks, duplicate/different task receipt and account/workspace isolation. A20
+does not validate Main orchestration, UI generation, trusted audio adoption or
+narrated playback. A18's speech-preview block remains mandatory. The missing
+server read-only idempotency-key lookup is an explicit recovery dependency.
+
+### A21 — Main TTS orchestration with actual Electron/Host
+
+Run `scripts/e2e-courseware-media.mjs --tts-main` under `xvfb-run -a`, supplying
+`DECKWISE_E2E_OUTPUT`, `PI_DESKTOP_HOST_BIN`, `DECKWISE_PPTX_NODE`,
+`DECKWISE_PPTX_WORKER` and `DECKWISE_TTS_TEST_SOURCE` as absolute paths.
+This uses actual Electron net.fetch/auth, actual Main teaching/TTS coordinators,
+actual Host/parser and a local HTTP stand-in; native editor context is controlled.
+Retained preparation must precede any POST. A second submit of the bound intent
+only queries. A truncated accepted response followed by full Host restart must
+retain the exact unknown key and never POST during list/status/submit recovery.
+Status recovery must use GET by the persisted idempotency key and request hash
+when the platform task ID was lost. Missing tasks retain the unknown journal;
+concurrent successful lookups bind the same reference, which survives another
+Host restart. Recovering the receipt must preserve server-side
+`submission_unknown/reserved`, with no extra provider call or reservation.
+Teaching edits during dispatch retain the late reference as stale without audio
+adoption. Logout invalidates captured identity; a different account cannot read
+old intents. Even a server-ready task reports audioReady=false and does not
+download an asset. Original PPTX bytes must remain unchanged.
+
+Main regressions additionally cover double submit, lost begin/bind acknowledgement,
+forged text/keys/paths, exact IPC fields and sender checks, native ownership changes
+and redacted task status. The transport has no application retry; Chromium may
+replay an early-failed request with the same key, so server idempotency remains
+mandatory. This gate does not establish a generation UI, real Office editing,
+Spring/llm-ha/provider work, generated audio, publication or installer acceptance.
+
+### A22 — Host audio archive and explicit adoption
+
+Run `scripts/e2e-courseware-tts.mjs <absolute-worker> <absolute-PPTX>
+<fresh-output> --audio` with `PI_DESKTOP_HOST_BIN` pointing to a fresh Host build.
+The original four request-journal groups must still pass. Two additional groups
+stage synthetic PCM through strict RPC, refuse adoption after speech changes,
+prove staging never mutates teaching, SIGKILL/restart, recover the archive and
+adopt exactly once. Another restart must replay without a second revision.
+Corrupting archived bytes must block reads/attachment without overwriting the
+archive or teaching; original source bytes remain unchanged.
+
+Database/RPC tests additionally cover account/workspace/task isolation, malformed
+bytes/hash/MIME/length/duration, immutable metadata, fresh revision and previous
+audio CAS, locks, source/legacy-audio changes, preserving cues/effects/other pages,
+parallel speech attachment, ignored SQL and incomplete WAL checkpoints. No
+network/provider call occurs; synthetic PCM is storage evidence, not decoder or
+speech quality evidence. All results retain audioReady=false. Actual Main
+decode/download, stale-binding invalidation, snapshot capture and narrated
+playback remain required before lifting the A18 fence.
+
+
+### A23 — Main authorized download, actual decode and Host archive
+
+Run `scripts/e2e-courseware-media.mjs --tts-audio` under `xvfb-run -a` with the
+same absolute-path variables as A21. The existing five Main/auth/Host scenarios
+must pass, plus actual Chromium WAV/MP3 decoding, corrupt matching-header
+rejection, MIME/size rejection and hidden-window cleanup. A known task downloads
+only through the authorized endpoint; corrupt bytes never get an archive.
+Valid PCM archives its actual 100 ms duration even when the server reports
+9999 ms. Full Host restart must recover bytes/duration without HTTP, POST or
+another reservation. Teaching bindings and original PPTX bytes remain unchanged.
+The tiny MP3 is a generated tone fixture, not paid provider output.
+
+Main unit tests additionally cover decode failure, editor/account changes,
+non-not-found archive errors, overlapping archive operations, lost stage reply
+and direct recovery without downloading/decoding again. IPC tests require exact
+fields and the main-window sender for the new archive channel. The original
+`--tts-main` and no-argument transport modes must still pass. This gate uses a
+controlled native editor and loopback platform; it is not actual Office UI,
+Spring/provider, visible generation controls, speech quality, teaching adoption,
+narrated playback or installer acceptance. Keep A18's speech preview fence.
+
+
+### A24 — Main explicit audio adoption
+
+Run the A23 `--tts-audio` actual Electron/Host gate. After valid audio survives
+Host restart, explicitly adopt it through Main against the current pinned page.
+The test loses the first Host adoption acknowledgement, reopens the persisted
+view, replays the same intent, and verifies the exact `audioAssetId` is attached
+with one teaching revision only. It also verifies no regeneration/reservation,
+no cross-page write, and every Main response continues to report
+`audioReady:false`. Main IPC rejects extra arguments and non-main-window senders.
+
+Host Rust regressions remain responsible for stale source/text, locks, prior
+audio CAS, corruption and atomic rollback. This does not provide a renderer
+confirmation control, snapshot asset capture, actual narrated playback, live
+provider/Office or package acceptance. A18 remains fenced.
+
+### A25 — Adopted audio snapshot capture
+
+Run the A24 actual Electron/Host `--tts-audio` gate. After explicit adoption,
+confirm all pages, capture through the Main TTS coordinator and export the
+immutable Host snapshot. Verify the exact audio asset ID, frozen teaching and
+archived bytes. The same test must reject mixed/missing asset sources, another
+account's receipt, absent intent and mismatched MIME/hash before the valid
+capture. Retain the initial path-boundary failure as evidence of the old
+unsupported path, not as a passing run.
+
+Main regressions cover two-page speech collection, stale source/text/editor,
+foreign account, unadopted receipt and mismatched task key; capture performs no
+HTTP or decoding. No-speech capture must not newly require media login. This
+also covers logout during fresh parsing (before capture) and during the Host
+reply (the retained original snapshot must not become selectable). This
+controlled editor/loopback platform test does not validate actual Office,
+provider speech, narrated build/playback, price confirmation or packaging.
+The A18 speech-preview fence remains until the complete narrated player path
+has its own acceptance.
+
+### A26 — Adopted TTS snapshot to fixed Desktop playback
+
+Include an ordinary/imported multi-page lesson whose source narration action
+IDs repeat across pages. Confirm and adopt audio through the existing teaching
+controls, then build and play without rewriting Host action IDs. Fixed playback
+IDs must be globally unique; cues and audio must remain bound to their own page.
+
+Run `scripts/e2e-courseware-fixed-playback.mjs --tts-audio` under `xvfb-run -a`
+with the same Host/worker environment, absolute `DECKWISE_E2E_PPTX` and a fresh
+`DECKWISE_E2E_OUTPUT`. The nested Main/Host/auth fixture must decode, archive,
+adopt and snapshot audio, then edit the live narration. Start the compiled
+Desktop with that same persisted Host data/owning Chat and build the frozen
+snapshot through real finite IPC. Verify original text and audio hash remain,
+with no replacement bytes or provider request. Require exact warning review,
+actual native WAV playing/ended and navigation, corrupt-asset refusal, Chat
+switch invalidation, parent reload and own Host-process exit cleanup. The
+original no-argument storage-fixture mode must also remain passing.
+
+Run `scripts/e2e-courseware-playback-panel.mjs` with a fresh absolute
+`DECKWISE_E2E_OUTPUT` after building i18n. It mounts the real React component
+in Chromium with only preload IPC replaced. Exercise no-speech/disabled/review
+states, missing/malformed/other-page audio, adopted audio capture, exact warning
+checkbox approval, play/close, capture rejection and closing during capture.
+Assert exact finite IPC payloads; a rejected or late canceled capture must not
+start a build. Check English and Chinese missing-audio copy. This gate tests
+rendering/clicks, not real Host or speech decoding; the Desktop gate covers those
+separately. Other six locales require the existing i18n checks.
+
+These source gates use the user-authorized `--no-sandbox`, synthetic PCM and
+local auth/platform fixtures. Actual Office UI with generated speech, live
+provider/billing, installation, platform publication and visual/native-animation
+fidelity remain unaccepted. Missing/stale/foreign/unadopted audio stays blocked.
+
+### A27 — Existing narration task controls
+
+After building i18n, run `scripts/e2e-courseware-playback-panel.mjs --tts-tasks`
+with a fresh absolute `DECKWISE_E2E_OUTPUT`. This mounts the real teaching parent
+and task child in Chromium, replacing only the preload IPC boundary. Assert
+explicit page-scoped list/empty state, prepared/unknown task query without
+submission, historical fees, retrieval without adoption, parent busy controls,
+unchecked replacement confirmation and exact adoption payload. Also exercise
+version-only stale eligibility, locked/removed speech refusal, auth invalidation
+of late archive/adoption, dirty/disabled/remounted editor fences, subscription
+cleanup, visible errors and retry without paid submission. A successful adopt
+must update parent teaching and require page review again.
+
+The original no-argument playback component gate must still pass. Rerun the
+44 targeted Main/IPC regressions and the A26 actual compiled Desktop
+`--tts-audio` gate for real archive/adoption/snapshot/build/native audio paths.
+The component gate uses finite IPC stand-ins; the Desktop gate uses synthetic
+PCM, controlled native context and local auth/platform. These complementary
+checks do not certify real Office task-control integration, generated speech,
+live billing, installer or team publication. Do not use a paid POST as recovery
+for an unknown request or invent a client-side generation price.
+
+### A28 — Current complete Linux unpacked candidate
+
+Stage the exact validated worker into this worktree's ignored resources and
+run `pnpm run pack:courseware:linux` from `apps/desktop` with a new output
+directory. Preserve old packages/evidence. Record build invocation, proxy,
+PPT Master source, release Host, runtime bundle, Python runtime and build logs.
+Compare every compiled `out` file to app.asar and external Host/agent/skills/
+Python/editor-host/worker resources to their actual build inputs. Check the
+installed worker manifest and run the installed Python dependency verifier.
+
+Run existing native editing, saved-PPTX inspection, teaching, main-Chat and fixed
+playback gates with `DECKWISE_E2E_PACKAGE_ROOT` and a fresh output for each run.
+Do not supply source Electron/Host/worker/Node/Python or renderer overrides.
+`coursewareLaunch` rejects these overrides, and the teaching/Chat/playback gates
+assert `app.isPackaged`, executable, resources and app.asar paths. Keep local
+WiseOffice and auth/model/platform fixtures explicit; a loopback editor is not
+an embedded/offline Office distribution or deployed server acceptance.
+
+The adopted-TTS playback gate prepares its private fixture using the installed
+Host, installed worker and packaged Electron Node executable. That preparation
+uses the development Electron HTTP/decoder test harness; the subsequently
+launched Desktop and native player must run only from the unpacked package.
+The original storage-only playback mode must remain compatible. Recheck S08
+document-level master errors and S16 page-1 linked-text error in the packaged
+inspection panel; preserve their publication-blocking diagnostics.
+
+Inventory package bytes before/after running. Explain any Python cache writes;
+unexpected runtime/resource mutations fail acceptance. Linux unpacked execution
+with the authorized `--no-sandbox` does not satisfy installer, normal sandbox,
+minimum-device, other-OS, live provider/billing or whole Plan 007 acceptance.
+<!-- A34 reviewed-image acceptance is additive to the existing native Chat gates. -->
+
+### Reviewed team image from the existing main Chat (A34)
+
+Build the current Desktop/Host and independent Office consumer, then run
+`scripts/e2e-courseware-chat.mjs` with `DECKWISE_E2E_EXPECT_IMAGE=1` and the
+existing absolute Office/PPTX/worker/output paths under an isolated virtual
+display. The loopback platform stand-in uses the real DesktopAuthSession login
+and authorized team-asset transport; the model uses local deterministic SSE.
+
+Require: sidebar preview alone withholds the tool; explicit checkbox/adoption
+enables only the reviewed asset ID for the current selected ordinary picture;
+remote permission revocation rejects before native history changes; actual main
+Chat replaces using fresh authorized PNG bytes without saving; explicit Save and
+complete restart preserve the replacement and revoke temporary approval; another
+Chat cannot discover or borrow tools. Independently read the saved ZIP/XML to
+verify the exact target PNG, single target reference, peer media, all text/notes,
+picture geometry/rotation/flips and relationships. Corrupted variants must fail.
+
+This gate covers source integration only. It does not certify live Spring/team
+membership, image generation, a persistent project association, normal sandbox,
+other operating systems or a newly assembled installation package.
+
+#### E2E-COURSEWARE-native-preflight-reads-canonical-context
+
+Parse actual saved PPTX bytes through the configured worker and initialize the
+existing project. Read `courseware.project.context` while another workspace is
+selected: the persisted session must resolve the correct project and ordered
+logical mapping. Compare all KV rows (including timestamps) before/after and
+require zero source candidates. Refuse foreign workspace/session and injected
+workspace, mapping, page or source fields. Resolve a target against actual PPTX
+relationships and run the bounded native-fade inspector. Reflect a later manual
+lock/teaching revision without changing mapping, then restart the complete Host
+and read the same canonical context. Both source copies must remain byte-exact.
+
+The standalone Host gate uses a local saved-revision layout and editor-state
+fixtures. Actual Main clean-state/permission/dispatch/Chat/save/restart and the
+installed package remain distinct acceptance gates.
+
+#### E2E-COURSEWARE-native-fade-through-existing-chat
+
+Use an actual saved PPTX and the existing Chat, Agent, ToolSearch and Host
+permission paths. Ordinary renderer execution must refuse native fade before
+and after inspection. The owning Chat uses fresh source/canonical/native context
+and applies a fixed current-page 750 ms fade without writing the source file.
+Explicit Main save and complete Desktop restart must preserve that transition,
+peer pages/objects/notes/media and normal native text readback. Another Chat
+cannot borrow tools. Cover stale source/teaching/mapping/lock, cancellation and
+consumed uncertain result without retry. Record local deterministic model/auth
+fixtures separately from actual Host/source/native/permission behavior.
+
+
+#### E2E-COURSEWARE-combined-native-tools
+
+Replay the single current-A native combination, retaining existing asynchronous
+input snapshots, source visual review types, permissions and readonly fences.
+The finite registry contains thirteen tools; native fade remains a dedicated Main
+inspection path and image insertion requires explicit reviewed authorized bytes.
+Run the existing Main Chat through Skill and ToolSearch to resize a real selected
+text box, explicitly save/review/restart, set bold on a mouse-selected prefix,
+then clear bold on a reversed subrange and save/review/restart each time. Confirm
+no unsaved command writes the source and no peer content or geometry changes.
+Independently run native fade and reviewed image insertion in the same combined
+outputs, including revoked authorization, Undo/Redo, two image save/reopen rounds
+and other-Chat isolation. Read back PPTX packages with corruption negatives.
+Record deterministic local model/auth fixtures and private outputs separately
+from live providers, production media authority and installed-package acceptance.
+
+
+## Trusted selected narration sources (B99)
+
+Local teaching draft recovery acceptance (W06.1): run
+`cargo test -p host-core courseware_draft_restart` and the Main teaching tests.
+The real React `--follow-page` gate also covers serial draft writes, unfinished
+speech/instructions, remount recovery, explicit discard, formal-save cleanup,
+stale-baseline read-only recovery and visible storage failures. No missing/failed
+draft read may enable replacing unknown recovery content. With built shared,
+i18n, Desktop and Host, run `scripts/e2e-courseware-teaching.mjs --draft-restart`
+in the same native environment as the following gate. Verify actual full
+Electron/Host restart recovery, original logical page, explicit formal save,
+another restart without resurrection, locked-newer-version refusal and explicit
+discard. Independently compare peer teaching and original PPTX hashes. Auth is
+local fixture; no model/TTS call or supplier quality claim. Removed-page recovery,
+power-loss behavior and combined installer delivery remain separate gates.
+
+Copy/reorder teaching acceptance (W06.1): run
+`scripts/e2e-courseware-teaching.mjs --copy-reorder` with the same local
+Office/Host/worker environment and a three-page narrated PPTX. Lock an original
+page, retain an unfinished draft on another page, invoke native slide copy and
+reorder, then explicitly save. Teaching must refuse the changed source until
+human association; an acknowledged draft must allow opening that review without
+discard. Duplicate associations and loss of the locked page remain forbidden.
+Map the copied page as new: its logical ID, teaching and recovery record must be
+independent. Original page teaching and locks follow the explicit mapping;
+their old draft stays copyable and cannot overwrite the newer baseline. After
+explicit discard, save a new original-page narration and restart Desktop/Host.
+Check all four pages and source bytes; independently inspect saved PPTX order and
+notes. The React `--follow-page` gate additionally checks that pending/failed
+draft storage disables source review and cancelling review preserves recovery.
+Native operations use the same engine APIs as copy/reorder UI, not pointer drag
+acceptance. Auth is a fixture; no model/media charge or full visual-fidelity
+claim is made.
+
+Repeat copy/reorder with `DECKWISE_E2E_NOTES_SMOKE=import-picker`. Enter through
+the public file picker, preview each original notes page and explicitly save its
+narration before editing. Preserve `source: notes` through association and restart;
+the imported source copy changes, while the original input bytes remain exact.
+Host source-review tests cover both `notes` and `external` origin through a
+database restart and reject unknown or mistyped origins, audio and other unsafe
+fields without mutation. Source-candidate validation shares this finite
+narration policy; existing courseware tests remain regression gates.
+
+Current-page teaching follow acceptance (W06.1): build i18n and Desktop, then
+run `scripts/e2e-courseware-playback-panel.mjs --follow-page` with a fresh
+`DECKWISE_E2E_OUTPUT`. Require real React navigation following, no implicit
+initial load, unsaved-draft preservation, rejection of a late native context
+after typing, serial polling, disabled/remount cleanup, visible read failures
+without automatic retry, explicit recovery and candidate-review protection.
+Check unsent page-instruction preservation and clear-to-resume. Save revalidation
+must refuse another native page or concurrent teaching, preserve the draft, use
+the freshly issued view when returning to the original page and refuse a late
+write after the panel unmounts.
+This harness stubs preload responses; it does not prove native Office behavior.
+Run `scripts/e2e-courseware-teaching.mjs --follow-page` under Xvfb with the
+existing local Office/Host/worker environment and a three-page narrated PPTX.
+Require actual native navigation without another load click, draft retention
+across navigation, discard/resume, return-to-original-page save, peer teaching
+equality and exact unchanged PPTX bytes. Authentication is a local fixture;
+no model/media request, installer release or unsaved-draft restart persistence
+is claimed.
+
+Run `node --test apps/desktop/test/courseware-narration.test.mjs`. Require
+original-notes/external exact-text staging without a model, captured selection,
+invalid/oversized/control text, stale source/page/policy/teaching, manual locks,
+interactive/audio target refusal, cancellation and textless-page selection.
+Regress current reviewed redo/batch capabilities and independent delegates;
+public narration arguments must not smuggle the Host-only selection option.
+
+Fixed team share reconciliation (W09): run the focused Host fixed-share tests,
+Main share IPC tests and media-client tests. Enter through registered public
+handlers, persist an intent before publication, lose a successful reply or fail
+the local binding, reopen the real Host database, and explicitly query the same
+intent. Verify exact snapshot/build/manifest/channel matching, a single original
+publication, atomic local completion, account/Chat/workspace isolation and
+permission revocation. A legacy competing pointer, mismatched build or absent
+result must remain unknown without another POST. Receipt-aware publication must
+send its original intent UUID, and historical receipt recovery must work after
+a newer publication without restoring the old pointer. A denied/missing receipt
+must never fall back to current-pointer matching. New intents sharing an already
+current build still obtain one keyed publication receipt; legacy callers retain
+their original no-op behavior. The UI must expose query recovery
+without a retained preview and must not imply that unknown can be safely cleared
+or retried. Local fixture tests do not certify deployed OSS/login or a final
+packaged release.
+
+Run `scripts/e2e-courseware-playback-panel.mjs --share-recovery` with a fresh
+`DECKWISE_E2E_OUTPUT` for actual React clicks with the preload boundary replaced.
+Verify unknown visibility before any preview, exact explicit query, retained
+unknown after failure, success confirmation without publication, resubmission
+disabled after a lost response, panel remount recovery and local preview before
+login with sharing withheld until fresh authorization. A React remount is not a
+Desktop/Host restart; use the real Host journal tests for process persistence.
+
+## E2E-COURSEWARE-media-canvas-draft
+
+Run the focused model/UI/IPC tests and `scripts/e2e-courseware-media-canvas.mjs`
+with an isolated profile and fixture API. The Electron gate must select an
+existing courseware task, open its media canvas, add/edit/move a draft, save,
+restart and verify persistence, then ask the same Main Chat to change the
+selected draft and confirm the saved revision. Require wrong-session and
+non-Agent writes to fail, and verify the flow sends no supplier request. Record
+the exact Electron/Host binaries used; building/package release artifacts is
+not part of this gate. This proves draft planning/edit transport only, not paid
+media generation, PPTX integration or production asset delivery.
+Also verify canvas submission retains the active, visible same-session tab,
+while hidden/foreign tabs still follow normal courseware navigation. Model
+policy tests must preserve draft-tool guidance with an active Office binding
+for ordinary, scene and imported tasks, without relaxing native edit checks.
+
+## W15.2 canvas image durable request foundation
+
+Run Host `media_canvas` and scene reference tests. Prepare the same explicit
+attempt twice and prove a single original key; prepare another attempt with the
+same prompt and prove an independent key. Begin once, remove/change the draft,
+reopen the real Host database, and bind a late receipt to its original attempt.
+Reject stale canvas/draft revisions, Plan dispatch, duplicate begin, forged fields,
+foreign account/session references, oversized prompts/multiple references and
+ignored storage writes. A reference must resolve to exact owned archived bytes;
+metadata alone does not authorize it. Retained tasks survive deleting the draft.
+Run the focused `courseware-canvas-images`, `courseware-canvas-images-ui`,
+`courseware-canvas-image-ipc`, `courseware-media-canvas-tab` and coordinator Node
+tests. Verify actual Main class ordering: checked Host begin acknowledgement must
+precede POST; missing/changed/expired quote cannot dispatch, caller argument
+mutation cannot switch the confirmed quote or intent, and valid late receipts bind
+their original scope before stale UI rejection. Unknown status recovery performs
+GET only even after restart. UI must show exact saved prompts/reference versions,
+require cost/egress consent, disable unsaved/oversized/unsupported drafts and retain
+stale/deleted task rows. Account/session/selection/revision changes clear offers;
+late replies never populate another scope. IPC rejects non-main senders/extra args.
+These lower-layer fixture checks alone do not certify integrated Electron UI,
+actual supplier generation or PPTX adoption.
+
+### W15.2 candidate archive, private preview and comparison
+
+Run `node scripts/e2e-courseware.mjs --case W15.2` with
+`DECKWISE_E2E_APP_DIR`, `PI_DESKTOP_HOST_BIN` and `DECKWISE_E2E_OUTPUT` pointing
+at the matching source app, Host and a new evidence directory. The child script
+also accepts `--app`, `--host` and `--evidence-dir`. It starts isolated Electron,
+Host and loopback identity/media services; no paid supplier is used. Verify the
+visible quote requires explicit consent and zero media POSTs precede it; ready
+settled output passes actual Main decoding and Host archive; changing a saved
+prompt creates a distinct retained candidate; lost receipt recovery GETs without
+resubmission; the panel compares two originals; a historical canvas candidate can
+be selected as a new draft's reference, previewed from its local archive and sent
+with its exact original hash/MIME/length/bytes only after a fresh quote and explicit
+cost/reference-egress consent; full restart previews all three local candidates
+without network downloads; delete one local archive and corrupt another, prove
+previews fail without fetching, then explicitly retrieve each original with no
+new quote or generation. Verify exact original bytes and unchanged journal after
+another complete restart; a different Chat cannot read or list the references. Record runtime
+hashes, HTTP trace, screenshots and the terminal report. This gate does not edit
+PPTX, test a real teacher/provider, or certify a release package.
+
+Host archive tests must reject foreign receipts/scopes, forged bytes/MIME/hash/
+dimensions, replaced metadata, ignored journal writes and corrupt archives, and
+retain old candidates after draft edits/deletion, Plan mode and DB reopen. Main
+tests must reject stale scope changes during download, validate original task and
+native image data, serialize concurrent archives, and keep private paths out of
+views. UI tests cover exact reference-preview consent, two-candidate limits,
+retained stale candidates and auth/session late replies.
+Reference reuse also requires Host tests for source-draft changes, DB reopen,
+foreign principal/Chat, hash mismatch, missing/corrupt archive, unarchived output
+and unsupported WebP; failures must not fall back to another journal or create
+a prepared request. Existing scene-reference behavior remains covered.
+Restoration must reject an unarchived intent, changed ready/settled result,
+foreign receipt/Chat/principal, extra path/byte parameters, symlink destination,
+stale scope and concurrent retrieval. Refused retrieval must preserve the request
+and damaged/missing file state. Generic archiving must still refuse corruption.
+IPC tests exercise the exact restore channel, main-window-only guard and argument
+count; UI tests require explicit action and reject late restoration results.
+
+## W15.2 target-bound canvas candidate adoption
+
+Run Main image-review/controller/request tests, the image-assets UI tests and
+Office bridge/embed tests. Cover team regression, owned historical archives,
+PNG/JPEG/WebP derivative validation, immutable originals, explicit page/operation,
+preview without capability, stale page/selection/generation and unsupported
+native operations. Changed account/Chat/source/workspace/Host, corrupt/missing
+archives and late reads must refuse without supplier calls or writes. Old generic
+Office context replies cannot acknowledge the new target-bound approval.
+
+The optional `DECKWISE_E2E_CANVAS_IMAGE=1` with existing
+`DECKWISE_E2E_EXPECT_IMAGE=1` exercises the source Electron/Main/Host/Chat path:
+quote-confirmed fixture image generation and archive, visible sidebar candidate
+review, stale-target refusals, fresh explicit approval, native replacement,
+explicit Save, independent saved-PPTX readback and complete restart. The matching
+Office build must include `document:review-image-target`; old builds fail closed.
+Keep source integration, HTTP fixtures and paid-provider/packaged acceptance
+separate. A fixture model dispatcher does not establish real model planning.
+
+Add `DECKWISE_E2E_CANVAS_IMAGE_INSERT=1` to exercise insertion instead of
+replacement through the same public canvas/approval/main Chat path. Clear the
+canvas selection, approve the saved page and require explicit millimeter geometry.
+Reject page/selection changes and reuse on a different eligible page. Verify one
+new native picture, an unchanged on-disk file until explicit Save, no duplicate
+from a stale approval, independent saved-PPTX image bytes/geometry and unchanged
+peer content/media/notes, full restart and other-Chat refusal. Neither mode
+authorizes a supplier call beyond its single confirmed loopback fixture task.
+
+## Candidate attention preservation (W11.2/W12, 2026-10-23)
+
+Run the Host `source_candidates` and `db::courseware_projects::reviews` regressions.
+Verify fade adoption preserves current-page highlight/spotlight and narration;
+redo and batch adoption preserve non-target/locked-peer cues and adopted-audio
+receipts through database reopen. Missing/cross-page targets, malformed timing,
+unsupported effects and changes to preserved objects must fail without a source
+adoption intent or project mutation. Rebuilt target cues may stage but adoption
+requires every explicit distinct same-page target. Omitted/extra/foreign choices
+reject without mutation; valid choices, revised object IDs, unchanged audio and
+the adoption journal survive database reopen. Inject a late journal SQL failure
+and require project, identities and receipt source bindings to roll back intact.
+
+Run `apps/desktop/test/courseware-redo-main.electron.mjs` inside an isolated
+Electron bootstrap using the current Host and frozen parser/compiler. Require
+actual Main redo staging with peer cues, review/preview/rejection, source and
+teaching equality, Host restart, fade staging on the cue-bearing current page,
+and another redo with target cues. Missing choices must refuse before replacement;
+explicit reviewed choices must traverse actual Main source installation, Host
+commit and restart, preserving the original immutable revision and peer effects.
+Independently inspect archived before/adopted PPTX bytes and canonical target IDs.
+The UI regression must require empty initial selectors, distinct targets, separate
+timing/replacement confirmations, and reset after a changed choice. IPC must reject
+foreign senders and unknown fields. Native editor/render and the HTTP model are
+fixtures. This is an integrated Main/Host check, not visible Office adoption,
+paid-provider or packaged acceptance.
+
+For visible source Desktop acceptance, run the existing
+`scripts/e2e-courseware-chat.mjs` with `DECKWISE_E2E_EXPECT_REDO=1`,
+`DECKWISE_E2E_EXPECT_REDO_ADOPTION=1` and
+`DECKWISE_E2E_EXPECT_REDO_ATTENTION=1`, the rebuilt Host and a separately running
+compatible Office. Prepare confirmed saved-page narration and supported cues
+before locking a peer. Generate through the existing main Chat; review the
+candidate with initially empty object selectors. Replacement confirmation alone
+must not enable adoption. Choosing an object must clear previous confirmations;
+both object/timing and replacement confirmations are required. Adopt, verify
+writable primary Office, actual saved PPTX/new target UUID and unchanged peer
+cues/narration/pauses/locks. Fully restart Desktop, read the adopted text through
+main Chat and require exact teaching/mapping persistence and foreign-Chat
+isolation. Independently inspect the saved PPTX and canonical records. Adopt local
+WAV through the actual quote/archive/Host-receipt APIs against a bounded loopback
+service before authoring effects. After source adoption and full restart,
+explicitly confirm the rebuilt page, build the fixed preview and require actual
+highlight/spotlight on the new rendered object, paused seek to 1000 ms, successful
+audio completion and no new speech submission. Auth, LLM and speech bytes remain
+fixtures; this is not paid-provider/content quality, batch Main audio adoption or
+new-package acceptance.
+
+## Saved-source candidate recovery (B99)
+
+The private B99 actual Host/worker plus Main-coordinator gate must preserve
+pending candidates through restart, explicitly review/adopt notes and external
+text, retain peer locks and source bytes, reject a late candidate in both Main
+and Host CAS, then verify teaching/candidate status through another restart.
+Native editor/ownership is a fixture in this gate. It does not certify public
+source-selection UI, production notes extraction, actual Main Chat or packaging.
+
+## W09.1 durable media submission scope (2026-10-24)
+
+Build the current Host with `cargo build -p host-core`, then run:
+
+```sh
+DECKWISE_E2E_MEDIA_SCOPE_HOST="$PWD/target/debug/pi-desktop-host-core" \
+  node --test apps/desktop/test/courseware-media-scope-integration.test.mjs
+```
+
+This uses actual Main canvas coordination, Host process/restart and authenticated
+HTTP client against loopback identity/media. Require four groups: first binding
+before begin selects the team route; first binding after begin retains personal
+scope; lost response plus sharing/full restart recovers with GET only; two
+independent coordinators dispatch one key once. Assert original request hashes,
+persisted explicit nullable scope and exact personal/team paths. This does not
+use Electron net/auth UI, actual Spring or a paid provider. The test skips
+without the explicit freshly built Host path, so a skipped result is not proof.
+
+Host tests additionally cover TTS/scene/canvas saved scope, both binding orders,
+reopen, duplicate begin refusal, legacy unknown recovery, invalid team IDs and
+failed scope writes preserving prepared state. Main tests reject missing,
+malformed and foreign-session scope before POST. Repeated task selection must
+not remove the saved team binding. Preserve separate actual Spring/role/fee
+and packaged/intended-environment gates; these tests do not complete W09.1.
+
+## W09.1 managed auxiliary completion scope (2026-10-24)
+
+Run:
+
+```sh
+node --test apps/desktop/test/courseware-one-shot-auth.test.mjs \
+  apps/desktop/test/courseware-llm-auth.test.mjs \
+  apps/desktop/test/prompt-enhancement.test.mjs \
+  apps/desktop/test/session-auto-title.test.mjs \
+  apps/desktop/test/session-message-input.test.mjs
+```
+
+The public prompt-enhancement and title IPC handlers must use the persisted
+original Chat identity for managed project routing. Cover personal success,
+binding the existing Chat, authorized team success, terminal HTTP 403 without
+personal fallback, unchanged vendor OAuth routing and sessionless personal
+enhancement. The resolver regressions separately cover malformed scope, missing
+session, Host replacement and insecure/credential-bearing gateway refusal.
+
+For the changed packaged runtime, use isolated profiles, fixture refresh tokens,
+an owned real Spring/MySQL/Redis instance and the current llm-ha binary with a
+loopback supplier. Verify actual main Chat Responses requests before/after
+binding, Viewer refusal, immediate Editor grant/downgrade/revocation, unrelated
+personal success and full restart. Include actual prompt-enhancement/title IPC
+success/refusal. Supplier counts must not increase on project refusal. Pin exact
+ASAR/Host/sidecar hashes; do not override packaged runtimes. This proves transport
+and authorization with fixture content, not paid supplier quality, deployed
+service readiness or full W09.1/W17 acceptance.
+
+## W15.2 music source lifecycle (2026-10-24)
+
+Run the focused `courseware-music-media`, `courseware-canvas-music` and
+`courseware-canvas-music-ui` Node tests plus existing media/image/team regressions.
+Build shared contracts and a fresh Host; run the actual Main/Host/HTTP gate:
+
+```sh
+DECKWISE_E2E_MUSIC_HOST="$PWD/target/debug/pi-desktop-host-core" \
+  node --test apps/desktop/test/courseware-canvas-music-host.test.mjs
+```
+
+Require exact Unicode/null/empty-option hashes; separate quote confirmations;
+all ordered candidates; lost generation/export responses recovered after real
+Host restarts by GET only; private preview/export archives surviving another
+restart without remote requests; immutable original scope and hashes. Synthetic
+media/identity are explicit. A skipped test without the fresh Host path is not
+acceptance. The initial fixture's incorrect expected transport-error name must
+remain separate from the final passing run.
+
+The separate Platform `MusicDesktopJoinedTest` runs the actual Desktop client
+against loopback Spring/Tomcat, disposable MySQL/Redis and a MAIC protocol fixture.
+It checks two candidates, independent archives, separate generation/export fees,
+lost-response GET recovery, Viewer submission refusal and revoked remote preview.
+See the root `docs/validation/courseware/w15/music-joined-20261024` evidence.
+These gates do not validate production JWT, real MAIC/MXAPI, actual human audio
+quality, PPTX adoption, packaged installers or formal release.
+
+The actual source UI gate is `scripts/e2e-courseware-canvas-music.mjs`. After
+Shared/i18n/Desktop and Host builds, run it under `xvfb-run -a` with explicit
+`--host` and a new `--evidence-dir`; it retains `--no-sandbox`. Require six
+groups: saved title/lyrics; generation quote and separate explicit consent;
+both ordered previews decoded and played; separately confirmed selected export;
+complete Electron/Host restart with three local audio plays and zero media
+requests; List-only historical export quoting with no status GET or POST.
+Persisted archive/candidate metadata must enable those controls even when
+`task:null` after restart. Preserve the intermediate five-group run separately;
+only the six-group rerun covers the historical-export handler fix. This gate
+uses identity/media fixtures and does not replace the real Spring boundary.
+
+
+## E2E-COURSEWARE-owner-online-preparation
+
+- **Steps**: Open a saved clean PPTX in its owning courseware Chat. As team OWNER,
+  review online preparation without writes, inspect file/hash/target/replacement,
+  explicitly confirm, upload/start/bind and enter the existing isolated editor.
+  Interrupt upload/start/bind responses, restart and explicitly review/continue.
+- **Expected**: The exact reviewed source/epoch reaches the first prepared join.
+  Receipt and task binding persist in Host. Recovery keeps request/source identity,
+  queries existing state before dispatch and never automatically repeats start.
+  Dirty/external file changes, over-20-MiB files, switched accounts/Chats/workspaces,
+  revoked ownership, different task binding, remote replacement and changed epochs
+  fail closed. EDITOR can use ordinary join; VIEWER cannot prepare or edit.
+- **Evidence**: Root workspace `docs/validation/courseware/w13/owner-preparation-20261024/`.
+  Targeted Main, transport, Host, Shared and component checks are recorded there.
+  Actual installed-package clicks and real Spring+Docs joined acceptance remain
+  separate requirements; the prior real-Docs run-11 predates this source increment.
+
+### Online saved-source explicit association review (W14.2 leaf)
+
+- Mount the saved-source review with real Main-owned descriptors. Verify no page,
+  cue-target, deletion or ready choice is selected automatically. Previous full
+  narration, pauses, audio references, checkpoints and cue intervals are visible.
+- Choose every target page explicitly. Verify duplicate carry and uncarried locked
+  pages block confirmation; each other uncarried page requires its own deletion
+  confirmation. A new page starts with empty teaching.
+- Review every carried cue target. Verify only mapped text/shape/image targets
+  from that target page are offered. Check globally consistent and injective
+  `keep`, per-cue `rebind`, partial target removal, and explicit whole-cue deletion.
+  Spotlight primary removal must require deleting the whole cue and all targets.
+- Mark individual pages ready, change a cue association and verify the affected
+  page loses ready confirmation. Change a page association and verify dependent
+  decisions and readiness are cleared. Confirming unchecked pages preserves
+  pending review and does not itself publish or call a paid provider.
+- Disable or replace the owner/view and invoke captured old callbacks; no new
+  decisions are submitted. Show an actual saved-page PNG through the optional
+  parent preview callback; invalid URLs, raw failures and late previous-view
+  results must not appear.
+- Leaf event regression: `node --test apps/desktop/test/courseware-online-source-review-ui.test.mjs`.
+  This checks the renderer interaction contract; Main/Host/Platform integration,
+  real native preview, all-client pause and publication require their separate gates.
+
+### Online editor to saved-source review (W14.2 continuation)
+
+- **Preconditions**: An OWNER opens an online editor from its current courseware
+  Chat. Original source/mapping and paused teaching are available; the registered
+  native-window barrier is held. A real Docs callback can archive a force-save.
+- **Steps**: Open saved-source review, preview a target page, explicitly carry or
+  create each target page and decide every carried highlight/spotlight target.
+  Resolve the review, then explicitly close it before resuming native editing.
+- **Expected**: Main downloads exact original and archived source bytes, parses
+  them sequentially and supplies the actual comparison. Native editing stays
+  mounted but hidden while reviewing. Only a PNG data URL reaches preview UI;
+  raw storage URLs and parser/native credentials do not. Resume is refused while
+  review is active. Resolve shows reviewed page counts and explicitly not
+  published; current team source, teaching and epoch remain unchanged.
+- **Failure checks**: Reject missing/changed pause, non-held clients, wrong
+  source/hash/epoch, stale owner/Chat/account/workspace/Host and malformed selectors.
+  A late completion must not replace the current view. Cleanup must release its
+  captured parser before removing private copies. Uncertain or failed cleanup
+  cannot be reported as successful disposal or publication.
+- **Validation**: Focused source-files/coordinator, Main IPC, editor and association
+  interaction suites cover deterministic boundaries. Real Docs callback, native
+  preview and multi-client executable acceptance remain separate requirements;
+  a green component/contract suite is not their substitute.
+- **Specs**: [Review interaction](../04-ux/12-courseware-online-source-review.md),
+  [fixed snapshots](../03-runtime/26-courseware-fixed-snapshots.md).
+- **Status**: IN_PROGRESS; W14.2 joined publication remains open.
+
+### Registered native pause and recovery continuation (2026-10-24)
+
+- Open two native mounts of the same project, including the same account in
+  separate windows. Verify distinct registered UUIDs and exact signed Docs users.
+  Start Owner pause; new config signing must be refused, and each mount must
+  receive its own true native drain ACK before reporting held.
+- While the Owner start request is pending, attempt captured narration input/save
+  handlers. They must be frozen without discarding the draft. Block start/resume
+  with unsaved or uncertain teaching. A separate teaching-pause read must not
+  clear native uncertainty.
+- Drop pause/start/release/resume responses. Retain the exact original IDs;
+  recheck before explicit replay. Prior released records and competing pauses
+  must not retarget an unknown request. A failed recheck must retain uncertainty.
+- Close/restart while admission is frozen. A new join must remain refused; the
+  original account's Owner recovery controls must still query and explicitly
+  release native barrier before teaching pause, without opening native editing.
+  Retry join explicitly after release. Old owner/account selectors must fail.
+- Disconnect/revoke a mount or expire a heartbeat. Do not remove it as proof of
+  safety, declare all connections covered, auto-close or auto-publish. Current
+  `consistentPublicationReady` must remain false even when all registered mounts
+  report held.
+- Focused Main/IPC/renderer regressions are in `courseware-online-barrier*.test.mjs`,
+  `courseware-online-ipc.test.mjs`, `courseware-online-teaching-ui.test.mjs`,
+  `courseware-online-editor-ui.test.mjs`, `courseware-online-clients.test.mjs` and
+  `courseware-online-view.test.mjs`. These checks and isolated Platform SQL tests
+  do not substitute for the real multi-process E2E scenario above.

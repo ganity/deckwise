@@ -1,6 +1,6 @@
 import { DECKWISE_MANAGED_PROVIDER_ID, IPC, ErrorCodes, isGlobalPermissionMode, type AgentEventEnvelope, type AgentPromptRequest, type AgentSteerRequest, type UiMessage, type AgentQueuePushRequest, type AgentStopRequest, type AskToolResolution, type GlobalPermissionMode, type MessageUsage, type PlanExecutionFinishStatus, type PlanResolutionResult, type PlanResolveRequest, type PromptEnhancementRequest, type SessionSummarizeTitleRequest } from "@pi-desktop/shared";
 import type { FinishTurn } from "../runtime/plans";
-import { expandSlashInvocation, enhancePromptDraft, summarizeSessionTitle, visionFromModelConfig, type ComposerTemplate, type RuntimeProviderConfig } from "@pi-desktop/agent-runtime";
+import { expandSlashInvocation, enhancePromptDraft, resolveCoursewareRoute, summarizeSessionTitle, visionFromModelConfig, type ComposerTemplate, type RuntimeProviderConfig } from "@pi-desktop/agent-runtime";
 import { OAUTH_AUTH_KIND, type VendorOAuth } from "../oauth";
 import { appendPromptFallbackPaths, durableUserMessageId, isStructuredDocumentAttachment, preparePromptAttachments, stripPromptAttachmentReferences, type PreparedPromptAttachment } from "../prompt-attachments";
 import { executionFromResponse } from "../plan-execution";
@@ -13,7 +13,10 @@ import type { Logger } from "../logger";
 import type { PersistenceOutbox } from "../persistence-outbox";
 import type { ComposerCommandService } from "./composer-ipc";
 import type { IpcRegistrar } from "./types";
-import { PPT_MASTER_SKILL_ID } from "../builtin-skills";
+import { loadBuiltinSkillBody } from "../builtin-skills";
+import { sceneCoursePlanRelativePath, sceneCourseTeachingPolicy } from "../courseware-scene-plan";
+import type { CoursewareEducationContext } from "@pi-desktop/shared";
+import { resolveCoursewareLlmAuth } from "../courseware-llm-auth";
 
 export type AgentIpcDependencies = {
   registrar: IpcRegistrar;
@@ -65,15 +68,42 @@ function rejectNativeAgentOperation(sessionId: string): void {
   }
 }
 
-function deckWiseModelPrompt(content: string): string {
+function deckWiseModelPrompt(content: string, nativeEditing = false, taskType: "plain" | "scene" | "import" = "plain", educationContext?: unknown, sessionId?: string): string {
+  const scenePlanning = !nativeEditing && taskType === "scene";
+  const route = resolveCoursewareRoute(taskType === "plain" ? "presentation" : taskType, nativeEditing ? "edit" : scenePlanning ? "plan" : "generate");
+  if (!route.available) throw new Error("场景课件生成服务尚未接通，请保留当前任务，稍后重试");
+  // Repairs can skip a requested Skill call; load the Host-selected workflow directly.
+  const generationSkill = !nativeEditing && (taskType === "plain" || scenePlanning) ? loadBuiltinSkillBody(route.skill) : null;
+  const teaching = educationContext && typeof educationContext === "object" && !Array.isArray(educationContext)
+    ? educationContext as CoursewareEducationContext
+    : {};
   return [
     "DeckWise turn policy:",
     "- This product only supports creating, revising, inspecting, or exporting PPTX courseware.",
     "- If this request is outside that scope, do not call tools or answer it normally; briefly state the product boundary and ask for a courseware topic or source material.",
     "- In user-facing responses, never mention Pi, PPT Master, skill ids, Python scripts, SVG services, internal tools, or workspace paths. Describe the work using courseware requirements, courseware pages, page preview, and courseware editing.",
-    `- For a supported request, first call the \`Skill\` tool with id ${JSON.stringify(PPT_MASTER_SKILL_ID)} and follow the loaded instructions.`,
+    generationSkill
+      ? "- The Host has loaded the selected generation skill below. Follow it for generation, repair and export; another Skill call is unnecessary."
+    : `- For a supported request, first call the \`Skill\` tool with id ${JSON.stringify(route.skill)} and follow the loaded instructions.`,
+    `- Task authority: ${route.authority}. ${route.instruction}`,
+    "- If the user asks to revise an existing media draft on the current canvas, use courseware_canvas_get to read it and courseware_canvas_edit to update only the requested draft fields. This saves draft metadata only; it never generates media or edits slides.",
+    ...(scenePlanning ? [`- The Host-selected scene planning file is ${JSON.stringify(sceneCoursePlanRelativePath(sessionId ?? ""))}. Read it before revising an existing draft; save only the raw {title,pages} JSON required by the loaded skill. Treat it as a generation draft, not live PPTX teaching. Do not claim assets, PPTX or audio were generated.`] : []),
+    ...(educationContext ? [`- Teaching settings: ${JSON.stringify(educationContext)}. Treat age/grade/subject as content guidance, not as task routing.`] : []),
+    ...(scenePlanning ? [sceneCourseTeachingPolicy(teaching)] : teaching.schoolStage === "kindergarten" ? [
+      "- For kindergarten, keep child-facing text short, concrete and playful. Write page narration as direct teacher speech, with participation cues and modest praise. Keep teacher instructions in narration, not child-facing slide text.",
+      teaching.subject === "english"
+        ? teaching.fullEnglishTeaching === true
+          ? "- For full-English kindergarten teaching, use short, speakable English classroom sentences and occasional simple praise such as Good; do not turn narration into long explanations."
+          : "- For kindergarten English, use 0–2 short English expressions per ordinary page and no more than one brief praise sentence per page; keep the rest of the teaching explanation appropriate to the lesson language."
+        : "- Do not add English praise or commands merely because this is kindergarten; follow the selected subject and teaching language.",
+    ] : []),
     "- Attached office documents are pre-parsed by the DeckWise document service and appear below as `### 资料`; never inspect the original binary attachment or run a local document converter.",
-    "- Infer the lifecycle from workspace artifacts: before the first export, stop at the editable SVG preview unless this is the host's explicit PPTX export request; after an export exists, revise the SVG source and create a new PPTX version.",
+    nativeEditing
+      ? "- The Host bound this Chat to the active Office PPTX. For PPTX requests, activate PPT tools with ToolSearch, read fresh context and use only operations advertised for that surface. Canvas draft requests remain separate and use courseware_canvas_get/edit. Never modify the live PPTX using file/shell tools or replace it with SVG exports. Native edits remain unsaved until the user saves."
+      : taskType === "plain"
+        ? "- Before the first export, stop at the editable SVG preview unless this is the Host's explicit PPTX export request. SVG owns generation candidates only. Once Office editing begins, use the latest PPTX and teaching; reopen Office for native edits and never supersede them with an older SVG export."
+        : "- Preserve the selected task type. Once Office editing begins, use the latest PPTX and teaching; never replace Office edits with an older candidate.",
+    ...(generationSkill ? [`\n# Skill: ${generationSkill.name} (${generationSkill.id})\n\n${generationSkill.body}`] : []),
     "",
     "User request:",
     content,
@@ -167,7 +197,7 @@ export function registerAgentIpc({
       ...launch.sidecarParams.provider,
       ...(launch.sidecarParams.provider.authKind === OAUTH_AUTH_KIND
         ? { resolveAuth: () => launch.providerId === DECKWISE_MANAGED_PROVIDER_ID
-            ? resolvePlatformAccessToken().then((apiKey) => ({ apiKey }))
+            ? resolveCoursewareLlmAuth(getHost, sessionId || undefined, resolvePlatformAccessToken)
             : vendorOAuth.resolveAuth(launch.providerId) }
         : {}),
     } as RuntimeProviderConfig;
@@ -215,7 +245,7 @@ export function registerAgentIpc({
       ...launch.sidecarParams.provider,
       ...(launch.sidecarParams.provider.authKind === OAUTH_AUTH_KIND
         ? { resolveAuth: () => launch.providerId === DECKWISE_MANAGED_PROVIDER_ID
-            ? resolvePlatformAccessToken().then((apiKey) => ({ apiKey }))
+            ? resolveCoursewareLlmAuth(getHost, sessionId, resolvePlatformAccessToken)
             : vendorOAuth.resolveAuth(launch.providerId) }
         : {}),
     } as RuntimeProviderConfig;
@@ -407,6 +437,21 @@ export function registerAgentIpc({
       { webSearchEnabled: req.webSearchEnabled === true },
     );
     sidecar.setProjectInstructionRoot(req.sessionId, launch.projectPath);
+    const taskResult = await host.call<{ task?: { taskType?: unknown; educationContext?: unknown; importPath?: unknown; generatedPath?: unknown } | null }>(
+      "courseware.task.get", { sessionId: req.sessionId },
+    );
+    const taskType = taskResult.task?.taskType ?? "plain";
+    if (taskType !== "plain" && taskType !== "scene" && taskType !== "import") {
+      throw new Error("Invalid saved courseware task type");
+    }
+    if (taskType === "scene" && !launch.sidecarParams.pptEditorBinding && taskResult.task?.generatedPath) {
+      throw new Error("请先在课件工作台打开已生成的 PPT，再通过 Chat 修改");
+    }
+    if (taskType === "import" && !launch.sidecarParams.pptEditorBinding) {
+      throw new Error(taskResult.task?.importPath
+        ? "请先在课件工作台打开已导入的 PPT，再通过 Chat 修改"
+        : "请先在课件工作台选择 PPTX 文件导入");
+    }
 
     // Open a durable turn row, then persist the user message under it.
     const turn = await host.call<{ turnId?: string }>("session.beginTurn", {
@@ -518,7 +563,7 @@ export function registerAgentIpc({
         structuredDocuments,
       ),
       ...documentContexts,
-    ].filter(Boolean).join("\n\n"));
+    ].filter(Boolean).join("\n\n"), Boolean(launch.sidecarParams.pptEditorBinding), taskType, taskResult.task?.educationContext, req.sessionId);
     if (documentCleanupUrls.length) {
       registerDocumentCleanup(req.sessionId, durableTurnId, documentCleanupUrls);
     }

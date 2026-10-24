@@ -1,0 +1,108 @@
+/* Scoped to the courseware surface; never import the management app stylesheet. */
+[data-player-mode] { color: #172033; font-family: sans-serif; }
+[data-player-mode] *, [data-player-mode] *::before, [data-player-mode] *::after { box-sizing: border-box; }
+[data-player-mode] header, [data-player-mode] nav { display: flex; align-items: center; gap: 0.75rem; padding-block: 0.75rem; flex-wrap: wrap; }
+[data-player-mode] header { justify-content: space-between; }
+[data-player-mode] button { padding: 0.5rem 0.9rem; border: 1px solid #64748b; border-radius: 0.35rem; background: #fff; color: inherit; cursor: pointer; }
+[data-player-mode] button:disabled { opacity: 0.45; cursor: default; }
+[data-player-mode] button:focus-visible { outline: 3px solid #2563eb; outline-offset: 2px; }
+[data-player-mode] .slide-viewport { position: relative; overflow: hidden; transform-origin: top left; }
+[data-player-mode] .absolute { position: absolute; }
+[data-player-mode] .relative { position: relative; }
+[data-player-mode] .w-full { width: 100%; }
+[data-player-mode] .h-full { height: 100%; }
+[data-player-mode] .overflow-hidden { overflow: hidden; }
+[data-player-mode] .overflow-visible { overflow: visible; }
+[data-player-mode] .pointer-events-none { pointer-events: none; }
+[data-player-mode] .inset-0 { inset: 0; }
+[data-player-mode] .element-content { position: relative; overflow-wrap: break-word; line-height: 1.5; }
+[data-player-mode] [role="alert"] { border-left: 4px solid #dc2626; padding: 1rem; }
+
+[data-player-mode] .ProseMirror-static {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  white-space: normal;
+}
+[data-player-mode] .ProseMirror-static p {
+  margin: 0 0 var(--paragraphSpace, 5px) 0;
+  min-height: 1em;
+}
+[data-player-mode] .ProseMirror-static p:last-child {
+  margin-bottom: 0;
+}
+[data-player-mode] .pptx-imported-static-text > p:first-child {
+  margin-top: 0 !important;
+}
+[data-player-mode] .ProseMirror-static br {
+  content: "";
+}
+[data-player-mode] .pptx-imported-static-text > p[data-pptx-line-fit] {
+  max-width: none;
+}
+[data-player-mode] .pptx-imported-static-text > p[data-pptx-align="distributed"] {
+  text-align-last: justify;
+  text-justify: inter-character;
+}
+[data-player-mode] .pptx-imported-static-text[data-pptx-source-single-line="true"]
+  > p[data-pptx-preserve-metrics="true"][data-pptx-space-mode="powerpoint"],
+[data-player-mode] .pptx-imported-static-text[data-pptx-compact-space-layout="true"][data-pptx-source-single-line="true"]
+  > p {
+  white-space: pre;
+  /* The importer preserves authored PPT spaces one-for-one. Their native
+   * glyph width is already close to PowerPoint's quarter-em spacing, so any
+   * extra CSS word spacing accumulates into a large rightward drift. */
+  word-spacing: 0;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+[data-player-mode] .pptx-imported-static-text[data-pptx-source-single-line="true"] > p {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+[data-player-mode] .pptx-imported-static-text
+  span[style*="text-decoration: underline"]:has(
+    > span[data-pptx-authored-space="true"]
+  ),
+[data-player-mode] .pptx-imported-static-text
+  span[style*="text-decoration-line: underline"]:has(
+    > span[data-pptx-authored-space="true"]
+  ) {
+  text-decoration: none !important;
+  border-bottom: max(1px, 0.04em) solid currentColor;
+}
+[data-player-mode] .pptx-imported-static-text[data-pptx-pinyin-font="tinos"] > p,
+[data-player-mode] .pptx-imported-static-text[data-pptx-pinyin-font="tinos"] > p span {
+  font-family: "Tinos" !important;
+  font-weight: 400 !important;
+}
+[data-player-mode] .pptx-imported-static-text [data-pptx-first-tone] {
+  display: inline-block;
+  position: relative;
+  color: inherit;
+  -webkit-text-fill-color: transparent;
+  overflow: visible;
+}
+[data-player-mode] .pptx-imported-static-text [data-pptx-first-tone]::before {
+  content: attr(data-pptx-tone-base);
+  position: absolute;
+  inset: 0;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  text-align: center;
+  -webkit-text-fill-color: currentColor;
+  pointer-events: none;
+}
+[data-player-mode] .pptx-imported-static-text [data-pptx-first-tone]::after {
+  content: "";
+  position: absolute;
+  left: calc(50% + var(--pptx-tone-offset, 0px));
+  top: calc(var(--pptx-tone-line-top, 0px) + 0.18em);
+  width: 0.28em;
+  height: 0;
+  border-top: max(1px, 0.035em) solid currentColor;
+  transform: translateX(-50%);
+  pointer-events: none;
+}

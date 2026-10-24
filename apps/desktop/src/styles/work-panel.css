@@ -848,6 +848,23 @@
   font-size: var(--text-2xs);
 }
 
+.team-projects-tab { display: flex; min-height: 0; height: 100%; flex-direction: column; gap: 12px; padding: 14px; overflow: auto; color: var(--ds-text-secondary); }
+.team-projects-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--ds-border-subtle); }
+.team-projects-header h2 { margin: 0; color: var(--ds-text-primary); font-size: var(--text-md); }
+.team-projects-header p { margin: 4px 0 0; font-size: var(--text-xs); }
+.team-projects-list { display: grid; gap: 6px; }
+.team-project-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 10px; border: 1px solid var(--ds-border-subtle); border-radius: var(--radius-sm); }
+.team-project-main { display: grid; min-width: 0; gap: 3px; }
+.team-project-main strong { overflow: hidden; color: var(--ds-text-primary); font-size: var(--text-sm); text-overflow: ellipsis; white-space: nowrap; }
+.team-project-main span { color: var(--ds-text-muted); font-size: var(--text-xs); }
+.team-project-role { align-self: start; color: var(--ds-text-primary); font-size: var(--text-xs); }
+.team-project-play { grid-column: 1 / -1; justify-self: start; }
+.team-project-preparation { display: grid; gap: 8px; width: 100%; min-width: 0; overflow-wrap: anywhere; white-space: normal; }
+.team-project-preparation p, .team-project-preparation dl, .team-project-preparation dd { min-width: 0; margin: 0; }
+.team-project-preparation code { white-space: normal; overflow-wrap: anywhere; }
+.team-project-preparation label { display: flex; align-items: flex-start; gap: 6px; }
+.team-project-preparation input { flex-shrink: 0; margin-top: 3px; }
+
 /* DeckWise PPT generation surface. It stays deliberately compact so the
    existing PI-Desktop dock remains the dominant shell. */
 .ppt-master-panel {
@@ -929,6 +946,26 @@
   font-weight: var(--font-weight-medium);
 }
 
+.ppt-master-scene-plan, .ppt-master-scene-images { display: grid; gap: 10px; min-width: 0; padding: 0 2px; }
+.ppt-master-scene-images p { overflow-wrap: anywhere; font-size: var(--text-xs); }
+.ppt-master-scene-images .ppt-master-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ppt-master-scene-images .ppt-master-actions button { flex: 1; padding: 0 8px; }
+.ppt-master-scene-image-quote { display: grid; gap: 8px; }
+.ppt-master-scene-image-preview { display: grid; gap: 8px; min-width: 0; }
+.ppt-master-scene-image-preview img { display: block; width: 100%; max-height: 360px; object-fit: contain; background: var(--ds-bg-primary); border: 1px solid var(--ds-border-subtle); }
+.ppt-master-scene-images .ppt-master-scene-image-confirm { display: flex; align-items: center; gap: 8px; }
+.ppt-master-scene-images select, .ppt-master-scene-images input:not([type="checkbox"]), .ppt-master-scene-images textarea { width: 100%; min-width: 0; padding: 8px; border: 1px solid var(--ds-border-subtle); border-radius: var(--radius-md); background: var(--ds-bg-primary); color: var(--ds-text-primary); font: inherit; }
+.ppt-master-scene-plan .ppt-master-section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ppt-master-scene-plan h3 { margin: 0; font-size: var(--text-sm-plus); overflow-wrap: anywhere; }
+.ppt-master-scene-plan label { display: grid; gap: 5px; font-size: var(--text-xs); color: var(--ds-text-muted); }
+.ppt-master-scene-plan textarea { width: 100%; box-sizing: border-box; resize: vertical; padding: 8px; border: 1px solid var(--ds-border-subtle); border-radius: var(--radius-md); background: var(--ds-bg-primary); color: var(--ds-text-primary); font: inherit; }
+.ppt-master-scene-page { min-width: 0; padding: 10px 0; border-bottom: 1px solid var(--ds-border-subtle); }
+.ppt-master-scene-page summary { cursor: pointer; overflow-wrap: anywhere; font-size: var(--text-sm); }
+.ppt-master-scene-page dl { margin: 10px 0; font-size: var(--text-xs); }
+.ppt-master-scene-page dt { color: var(--ds-text-muted); margin-top: 8px; }
+.ppt-master-scene-page dd { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ppt-master-scene-page button { margin-top: 8px; }
+
 .ppt-master-task-name {
   margin: 7px 0 14px;
   overflow: hidden;
@@ -996,6 +1033,11 @@
 .ppt-master-action.primary { border-color: transparent; background: var(--ds-focus); color: var(--ds-bg-primary); }
 .ppt-master-action:disabled { cursor: not-allowed; opacity: 0.45; }
 .ppt-master-action-error { color: var(--ds-error); font-size: var(--text-2xs); }
+.ppt-master-teaching-settings { display: grid; gap: 8px; margin-top: 12px; }
+.ppt-master-teaching-settings label { display: grid; gap: 4px; color: var(--ds-text-muted); font-size: var(--text-xs); }
+.ppt-master-teaching-settings input:not([type="checkbox"]),
+.ppt-master-teaching-settings select { width: 100%; min-height: 32px; box-sizing: border-box; padding: 5px 8px; border: 1px solid var(--ds-border-subtle); border-radius: var(--radius-md); background: var(--ds-bg-primary); color: var(--ds-text-primary); font: inherit; }
+.ppt-master-teaching-settings input[type="checkbox"] { margin-right: 6px; }
 
 .courseware-import-dialog {
   width: min(100%, 560px);
@@ -1117,7 +1159,12 @@
   .courseware-import-files .btn { grid-column: 2; justify-self: start; }
 }
 
-.ppt-editor-tab { display: grid; grid-template-rows: auto minmax(0, 1fr); width: 100%; height: 100%; min-height: 0; background: var(--ds-bg-primary); }
+.ppt-editor-tab { display: grid; grid-template-rows: auto minmax(0, 1fr); width: 100%; height: 100%; min-height: 0; background: var(--ds-bg-primary); container-type: inline-size; }
+.ppt-editor-tab.has-inspection { grid-template-rows: auto auto minmax(0, 1fr); }
+.pptx-inspection { max-height: 150px; overflow: auto; padding: 6px 10px; border-bottom: 1px solid var(--ds-border-subtle); color: var(--ds-text-secondary); font-size: var(--text-xs); overflow-wrap: anywhere; }
+.pptx-inspection-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.pptx-inspection details { margin-top: 4px; }
+.pptx-inspection summary { cursor: pointer; }
 .ppt-editor-toolbar { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 7px 10px; border-bottom: 1px solid var(--ds-border-subtle); }
 .ppt-editor-document { display: grid; min-width: 0; margin-right: auto; }
 .ppt-editor-document strong { overflow: hidden; color: var(--ds-text-primary); font-size: var(--text-xs); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
@@ -1127,6 +1174,45 @@
 .ppt-editor-toolbar button:disabled { opacity: .45; cursor: wait; }
 .ppt-editor-toolbar button.icon { width: 28px; padding: 0; }
 .ppt-editor-surface { display: grid; min-width: 0; min-height: 0; background: var(--ds-bg-primary); }
+.ppt-editor-body { display: flex; min-height: 0; min-width: 0; }
+.ppt-editor-body > .ppt-editor-surface { flex: 1; }
+.courseware-teaching { flex: 0 0 clamp(200px, 28%, 300px); min-width: 0; overflow: auto; padding: 10px; border-left: 1px solid var(--ds-border-subtle); color: var(--ds-text-secondary); font-size: var(--text-xs); overflow-wrap: anywhere; }
+.courseware-teaching p { margin: 8px 0; }
+.courseware-scene-objects { margin: 8px 0; }
+.courseware-scene-objects summary { cursor: pointer; color: var(--ds-text-primary); }
+.courseware-scene-objects ul { padding-left: 16px; }
+.courseware-image-assets { padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--ds-border-subtle); }
+.courseware-source-visuals { padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--ds-border-subtle); }
+.courseware-source-visuals figure { margin: 12px 0; }
+.courseware-source-visuals img { display: block; width: 100%; height: auto; margin-top: 6px; background: var(--ds-bg-primary); }
+.courseware-source-visuals button + button { margin-left: 6px; }
+.courseware-style-instruction { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
+.courseware-image-assets input:not([type="checkbox"]) { display: block; width: 100%; box-sizing: border-box; margin-top: 4px; padding: 6px; border: 1px solid var(--ds-border-subtle); border-radius: 6px; font: inherit; color: var(--ds-text-primary); background: var(--ds-bg-primary); }
+.courseware-image-assets img { display: block; width: 100%; height: 140px; object-fit: contain; margin-top: 8px; }
+.courseware-playback { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--ds-border-subtle); }
+.courseware-playback > button { margin: 4px 6px 4px 0; }
+.courseware-tts-tasks { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--ds-border-subtle); }
+.courseware-tts-tasks article { padding: 10px 0; border-bottom: 1px solid var(--ds-border-subtle); }
+.courseware-tts-tasks fieldset { min-width: 0; margin: 12px 0; padding: 8px; border: 1px solid var(--ds-border-subtle); border-radius: 6px; }
+.courseware-tts-tasks fieldset > button { margin: 4px 6px 4px 0; }
+.courseware-tts-text { white-space: pre-wrap; }
+.courseware-teaching label { display: block; margin: 8px 0; }
+.courseware-teaching textarea { display: block; width: 100%; box-sizing: border-box; margin-top: 4px; padding: 6px; border: 1px solid var(--ds-border-subtle); border-radius: 6px; color: var(--ds-text-primary); background: var(--ds-bg-primary); font: inherit; resize: vertical; }
+.courseware-teaching button { padding: 5px 8px; border: 1px solid var(--ds-border-subtle); border-radius: 6px; color: var(--ds-text-primary); background: var(--ds-bg-secondary); font: inherit; cursor: pointer; }
+.courseware-teaching button:disabled { opacity: .45; cursor: default; }
+.courseware-teaching-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.courseware-source-review { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--ds-border-subtle); }
+.courseware-source-review select, .courseware-tts-tasks select { display: block; width: 100%; margin-top: 4px; padding: 6px; color: var(--ds-text-primary); background: var(--ds-bg-primary); border: 1px solid var(--ds-border-subtle); border-radius: var(--radius-sm); font: inherit; }
+.courseware-source-review details { max-height: 180px; overflow: auto; }
+.courseware-teaching [role="alert"] { color: var(--ds-text-primary); }
+.courseware-online-teaching h3 { margin-top: 0; color: var(--ds-text-primary); }
+.courseware-online-teaching select, .courseware-online-teaching input { display: block; width: 100%; box-sizing: border-box; padding: 6px; color: var(--ds-text-primary); background: var(--ds-bg-primary); border: 1px solid var(--ds-border-subtle); border-radius: var(--radius-sm); font: inherit; }
+.courseware-online-teaching-discard { min-width: 0; padding: 10px; overflow-wrap: anywhere; color: var(--ds-text-primary); background: var(--ds-bg-secondary); border: 1px solid var(--ds-border-subtle); }
+.courseware-online-teaching-discard button { margin: 4px 6px 4px 0; }
+@container (max-width: 680px) {
+  .ppt-editor-body { flex-direction: column; }
+  .courseware-teaching { flex: 0 1 40%; min-height: 180px; border-left: 0; border-top: 1px solid var(--ds-border-subtle); }
+}
 
 /* Work panel — review tab */
 
@@ -1483,3 +1569,7 @@
   gap: 12px;
   padding: 24px;
 }
+
+.courseware-narration-review { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--ds-border-subtle); }
+.courseware-narration-review p { white-space: pre-wrap; }
+.courseware-narration-review input:not([type="checkbox"]) { width: 100%; min-width: 0; box-sizing: border-box; padding: 6px; color: var(--ds-text-primary); background: var(--ds-bg-primary); border: 1px solid var(--ds-border-subtle); border-radius: 6px; font: inherit; }

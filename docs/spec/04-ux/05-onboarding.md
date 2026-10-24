@@ -28,6 +28,14 @@ Persist dismissal state, but incomplete critical steps can reappear as banners.
 4. **Send your first prompt**
 5. *(Optional)* Load a development plugin
 
+When the runtime catalog contains the enabled `deckwise-managed` provider with
+at least one model, the renderer omits the provider and API-key steps. Managed
+accounts use the existing sign-in flow; they do not need a supplier API key.
+Project and first-prompt steps, their actions, and dismissal stay unchanged.
+Without that catalog entry, existing BYOK guidance remains. Once all remaining
+steps are complete, do not render an empty checklist. Catalog availability is
+not a provider-health or billing-entitlement check.
+
 ## 4. Placement
 
 - shown in main chat empty state

@@ -7,6 +7,17 @@ import test from "node:test";
 import { capabilitiesFromModelConfig, modelConfigWithBinding } from "@pi-desktop/agent-runtime";
 register(new URL("./helpers/ts-import-hooks.mjs", import.meta.url));
 const { createSessionLaunchRuntime } = await import("../electron/main/runtime/session-launch.ts");
+const { builtinSkills } = await import("../electron/main/builtin-skills.ts");
+
+test("source ESM resolves the same bundled ppt-edit skill from another cwd", () => {
+  const previous = process.cwd();
+  try {
+    process.chdir(tmpdir());
+    assert(builtinSkills({ workspacePath: tmpdir() }).some(skill => skill.id === "deckwise/ppt-edit"));
+  } finally {
+    process.chdir(previous);
+  }
+});
 
 test("launch resolves definition-only pins without granting Task.model selection (#286)", async (t) => {
   const root = mkdtempSync(join(tmpdir(), "pi-model-launch-"));
@@ -23,6 +34,7 @@ test("launch resolves definition-only pins without granting Task.model selection
   };
   const providers = [provider];
   const shell = { id: "bash", label: "Bash", dialect: "posix", available: true, isDefault: true };
+  let editorCaptures = 0;
   const runtime = createSessionLaunchRuntime({
     runtimeState: { host: {
       isAvailable: () => true,
@@ -50,11 +62,17 @@ test("launch resolves definition-only pins without granting Task.model selection
       return { modelConfig, capabilities: capabilitiesFromModelConfig(modelConfig) };
     },
     normalizeThinkingLevel: () => "off",
+    capturePptEditor: async () => { editorCaptures++; return undefined; },
   });
   const launch = () => runtime.resolveAgentRuntimeLaunch("session", {
     providerId: provider.id, modelId: "parent", projectPath: root,
   }, {});
   const initial = (await launch()).sidecarParams;
+  assert.equal(editorCaptures, 1);
+  await runtime.resolveAgentRuntimeLaunch("session", {
+    providerId: provider.id, modelId: "parent", projectPath: root,
+  }, {}, { captureEditor: false });
+  assert.equal(editorCaptures, 1, "one-shot completion must not replace the active Chat editor binding");
   assert.ok(initial.subagentProviders["fixture/private"]);
   assert.ok(initial.subagentProviders["fixture/backup"]);
   assert.deepEqual(initial.subagents.find((d) => d.name === "private-reviewer").fallbackModels, [{ providerId: "fixture", modelId: "backup" }]);

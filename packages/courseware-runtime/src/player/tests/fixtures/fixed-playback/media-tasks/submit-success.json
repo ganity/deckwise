@@ -1,0 +1,15 @@
+{
+  "version": "courseware-media-v1",
+  "taskId": "task-1",
+  "idempotencyKey": "request-1",
+  "requestHash": "e3f7e210183ff6fe8b14e7c88a378fe08a50ec51c0d0815194c5c1246612e8d7",
+  "kind": "tts",
+  "model": "sim-tts",
+  "state": "queued",
+  "feeState": "reserved",
+  "reservedPoints": 5,
+  "actualPoints": null,
+  "receiptId": null,
+  "errorCode": null,
+  "assetRef": null
+}

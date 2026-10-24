@@ -3,7 +3,6 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import {
   IPC,
-  DECKWISE_MANAGED_PROVIDER_ID,
   type ActivationScope,
   type AppSettings,
   type BrowserState,
@@ -13,22 +12,15 @@ import {
   type UiMessage,
 } from "@pi-desktop/shared";
 import type {
-  PluginCompleteResult,
   PluginNativeNotificationInput,
   PluginNativeNotificationResult,
   PluginNotificationPermission,
 } from "@pi-desktop/plugin-sdk";
 import {
-  asPluginThinkingLevel,
   listReadyPluginModels,
-  parsePluginModelKey,
-  pluginCompleteContext,
   pluginSessionContextFromSession,
 } from "../plugin-agent-complete";
-import {
-  completeOneShot,
-  type RuntimeProviderConfig,
-} from "@pi-desktop/agent-runtime";
+import { createMainCompletion } from "../main-completion";
 import { createFsConsentService } from "../plugin-fs-consent";
 import { pluginWorkspaceInfo } from "../workspace-roots";
 import { createDesktopConsentService } from "../plugin-desktop-consent";
@@ -47,7 +39,8 @@ import { PluginPanelHost } from "../plugin-panel-host";
 import { PluginViewHost } from "../plugin-view-host";
 import { BrowserPane } from "../browser-view";
 import { BrowserHost, BROWSER_PLUGIN_ID } from "../browser-host";
-import { OAUTH_AUTH_KIND, type VendorOAuth } from "../oauth";
+import type { VendorOAuth } from "../oauth";
+import type { DesktopAuthSession } from "../auth-session";
 import type { AgentExtensionBridge } from "../agent-extensions";
 import type { ClipboardHistory } from "../clipboard-history";
 import type { TurnEndedPayload } from "../runtime/session-coordination";
@@ -77,6 +70,7 @@ export type PluginServicesDependencies = {
   resolveAgentRuntimeLaunch: (...args: any[]) => Promise<any>;
   vendorOAuth: VendorOAuth;
   resolvePlatformAccessToken: () => Promise<string>;
+  resolveTeamSceneImages: DesktopAuthSession["resolveTeamSceneImages"];
   agentExtensions: AgentExtensionBridge;
 };
 
@@ -100,6 +94,7 @@ export function createPluginServices({
   resolveAgentRuntimeLaunch,
   vendorOAuth,
   resolvePlatformAccessToken,
+  resolveTeamSceneImages,
   agentExtensions,
 }: PluginServicesDependencies) {
   const pluginPanels = new PluginPanelHost(
@@ -201,6 +196,7 @@ export function createPluginServices({
   const pluginSockets = new PluginWebSocketRegistry({
     onEvent: (pluginId, event) => plugins.deliverSocketEvent(pluginId, event),
   });
+  const { complete, completeScene, createSceneGenerator, planSceneCourseware, resolveSceneCourseAssets, buildSceneCourseware, stageSceneCourseware, assembleSceneCourseware } = createMainCompletion({ getHost, resolveAgentRuntimeLaunch, vendorOAuth, resolvePlatformAccessToken, resolveTeamSceneImages });
   const plugins: PluginRuntime = new PluginRuntime({
     pluginShortcuts,
     pluginSockets,
@@ -341,71 +337,7 @@ export function createPluginServices({
     project: {
       create: (pluginId, input) => callPluginProjectHost(pluginId, input),
     },
-    complete: async (input): Promise<PluginCompleteResult> => {
-      if (!getHost()) {
-        throw Object.assign(new Error("host unavailable"), { code: "UNSUPPORTED" });
-      }
-      const parsed = parsePluginModelKey(input.modelKey);
-      if (!parsed) {
-        throw Object.assign(new Error("modelKey must be providerId/modelId"), {
-          code: "INVALID_ARGUMENT",
-        });
-      }
-      const thinkingLevel = asPluginThinkingLevel(input.thinkingLevel);
-      const settings = await getHost()!.call<any>("settings.get");
-      const launchSessionId = input.sessionId || `plugin-complete:${crypto.randomUUID()}`;
-      const session = input.sessionId
-        ? (await getHost()!.call<{ session?: any }>("session.get", { id: input.sessionId })).session
-        : {};
-      const launch = await resolveAgentRuntimeLaunch(launchSessionId, session ?? {}, settings, {
-        mode: "agent",
-        providerId: parsed.providerId,
-        modelId: parsed.modelId,
-        thinkingLevel,
-      });
-      const runtimeProvider = {
-        ...launch.sidecarParams.provider,
-        ...(launch.sidecarParams.provider.authKind === OAUTH_AUTH_KIND
-          ? { resolveAuth: () => launch.providerId === DECKWISE_MANAGED_PROVIDER_ID
-              ? resolvePlatformAccessToken().then((apiKey) => ({ apiKey }))
-              : vendorOAuth.resolveAuth(launch.providerId) }
-          : {}),
-      } as RuntimeProviderConfig;
-      const sessionContext = input.includeSessionContext
-        ? pluginSessionContextFromSession(
-            String(input.sessionId ?? ""),
-            session,
-            input.stripToolName,
-          )
-        : undefined;
-      const context = pluginCompleteContext({
-        modelKey: input.modelKey,
-        thinkingLevel: input.thinkingLevel,
-        system: input.system,
-        messages: input.messages,
-        includeSessionContext: input.includeSessionContext,
-        sessionContext,
-      });
-      const result = await completeOneShot(
-        runtimeProvider,
-        context,
-        launch.sidecarParams.thinkingLevel,
-        {
-          signal: input.signal,
-          sessionId: launchSessionId,
-          // Spec 07-plugins/03-plugin-api.md: empty model output answers the
-          // plugin with INVALID_ARGUMENT, not the runtime's internal code.
-          emptyErrorCode: "INVALID_ARGUMENT",
-          emptyErrorMessage: "The model returned no text.",
-        },
-      );
-      return {
-        text: result.text,
-        modelKey: `${launch.providerId}/${launch.modelId}`,
-        thinkingLevel: launch.sidecarParams.thinkingLevel,
-        usage: result.usage,
-      };
-    },
+    complete,
     // A plugin host process dying is contained: contributions are already
     // deregistered by the runtime, we only have to tell the user and the UI.
     onPluginCrash: ({ pluginId, exitCode }) => {
@@ -608,6 +540,14 @@ export function createPluginServices({
     logger,
   });
   return {
+    complete,
+    completeScene,
+    createSceneGenerator,
+    planSceneCourseware,
+    resolveSceneCourseAssets,
+    buildSceneCourseware,
+    stageSceneCourseware,
+    assembleSceneCourseware,
     plugins,
     userMcp,
     pluginScopes,

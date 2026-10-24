@@ -1,0 +1,372 @@
+import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
+import { readFileSync } from "node:fs";
+import { promises as fs } from "node:fs";
+import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import test from "node:test";
+import ts from "typescript";
+import * as shared from "../../../packages/shared/dist/index.js";
+
+const require = createRequire(import.meta.url);
+// Package signature only: native PPTX roundtrips are covered by the desktop E2E.
+const fixtureBytes = Buffer.from("PK\x03\x04ppt/presentation.xml[Content_Types].xml");
+
+async function fixture(t) {
+  const root = await fs.mkdtemp(join(tmpdir(), "ppt-save-test-"));
+  const source = join(root, "lesson.pptx");
+  await fs.writeFile(source, fixtureBytes);
+  const ipc = new EventEmitter();
+  const commands = [];
+  const sent = new EventEmitter();
+  let view;
+  const reply = (message, sender = view.webContents.id) => ipc.emit("deckwise-editor:event", { sender: { id: sender } }, message);
+  const editorSession = Object.assign(new EventEmitter(), { protocol: { handle() {} }, setPermissionRequestHandler() {} });
+  class View {
+    constructor() {
+      view = this;
+      this.webContents = Object.assign(new EventEmitter(), {
+        id: 42, session: editorSession, isDestroyed: () => false, close() {}, setWindowOpenHandler() {},
+        loadURL: async () => { reply({ type: "message", message: { type: "document:ready" } }); },
+        send: (_channel, command) => {
+          commands.push(command);
+          sent.emit(command.type, command);
+          if (command.type === "document:open-buffer") queueMicrotask(() => reply({ type: "message", message: { type: "document:opened", id: command.id } }));
+        },
+      });
+    }
+    setBounds() {}
+  }
+  const electron = { WebContentsView: View, session: { fromPartition: () => editorSession }, app: { isPackaged: false, getAppPath: () => root } };
+  const cache = new Map();
+  function load(file) {
+    if (cache.has(file)) return cache.get(file);
+    const module = { exports: {} };
+    cache.set(file, module.exports);
+    const { outputText } = ts.transpileModule(readFileSync(file, "utf8"), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } });
+    new Function("require", "exports", "module", "__dirname", outputText)((id) => {
+      if (id === "electron") return electron;
+      if (id === "@pi-desktop/shared") return shared;
+      if (id.startsWith(".")) return load(join(dirname(file), id + ".ts"));
+      return require(id);
+    }, module.exports, module, dirname(file));
+    return module.exports;
+  }
+  const { PptEditorController } = load(new URL("../electron/main/ppt-editor.ts", import.meta.url).pathname);
+  const states = [];
+  const controller = new PptEditorController(ipc, (state) => states.push(state), "http://127.0.0.1:4221");
+  const window = { isDestroyed: () => false, contentView: { children: [], addChildView() {}, removeChildView() {} } };
+  t.after(async () => { controller.dispose(); await fs.rm(root, { recursive: true, force: true }); });
+  await controller.open(window, root, "lesson.pptx");
+  const dirty = () => reply({ type: "message", message: { type: "document:dirty-changed", payload: { dirty: true } } });
+  const start = () => { dirty(); controller.save(); return commands.at(-1); };
+  const exported = async (save, bytes = fixtureBytes) => {
+    const committed = new Promise((resolve) => sent.once("document:commit-save", resolve));
+    reply({ type: "saved", id: save.id, bytes: Uint8Array.from(bytes).buffer });
+    return committed;
+  };
+  const ack = (save, dirty, success = true) => reply({ type: "message", message: { type: "document:save-committed", id: save.id, payload: { dirty, success } } });
+  return { root, source, controller, commands, states, reply, start, exported, ack, dirty, window };
+}
+
+test("exports are correlated, published once, and stay saving until host commit is acknowledged", async (t) => {
+  const f = await fixture(t);
+  const save = f.start();
+  f.reply({ type: "saved", id: "old", bytes: Uint8Array.from(fixtureBytes).buffer });
+  f.reply({ type: "saved", id: save.id, bytes: Uint8Array.from(fixtureBytes).buffer }, 999);
+  assert.equal(f.states.at(-1).status, "saving");
+  await assert.rejects(f.controller.open(f.window, f.root, "lesson.pptx"), /Finish the current save/);
+  const committed = f.exported(save);
+  f.reply({ type: "saved", id: save.id, bytes: Uint8Array.from(fixtureBytes).buffer });
+  assert.throws(() => f.controller.close(), /Finish the current save/);
+  const commit = await committed;
+  assert.equal(commit.id, save.id);
+  assert.equal(commit.payload.success, true);
+  assert.equal(f.states.at(-1).status, "saving");
+  f.ack({ id: "old" }, false);
+  assert.equal(f.states.at(-1).status, "saving");
+  f.ack(save, false);
+  assert.equal(f.states.at(-1).status, "saved");
+  assert.equal(f.states.at(-1).revision, 2);
+  assert.deepEqual(await fs.readFile(f.source), fixtureBytes);
+  f.dirty();
+  assert.equal(f.states.at(-1).dirty, true);
+  assert.equal(f.states.at(-1).status, "ready");
+});
+
+test("teaching snapshot is unavailable for dirty or saving native state", async (t) => {
+  const f = await fixture(t);
+  assert.equal(f.controller.teachingSnapshot(f.root).revision, 1);
+  assert.throws(() => f.controller.teachingSnapshot("/other"), /No ready PPTX/);
+  f.dirty();
+  assert.throws(() => f.controller.teachingSnapshot(f.root), /Save or reopen/);
+  f.controller.save();
+  assert.throws(() => f.controller.teachingSnapshot(f.root), /No ready PPTX/);
+});
+
+test("ignores editor events without a sender during preview teardown", async (t) => {
+  const f = await fixture(t);
+  assert.doesNotThrow(() => f.controller["onEditorEvent"](undefined, { type: "message" }));
+  assert.doesNotThrow(() => f.controller["onEditorEvent"]({ sender: {} }, { type: "message" }));
+  const view = f.controller["view"];
+  f.controller["view"] = { webContents: undefined };
+  assert.doesNotThrow(() => f.controller["onEditorEvent"]({ sender: { id: 42 } }, { type: "message" }));
+  f.controller["view"] = view;
+  view.webContents = undefined;
+  assert.doesNotThrow(() => f.controller.dispose());
+});
+
+test("edits made during export remain dirty; the next save and reopen restore the actual saved source", async (t) => {
+  const f = await fixture(t);
+  const first = f.start();
+  await f.exported(first);
+  f.ack(first, true);
+  assert.equal(f.states.at(-1).status, "ready");
+  assert.equal(f.states.at(-1).dirty, true);
+  const second = f.start();
+  f.ack(first, false);
+  assert.equal(f.states.at(-1).status, "saving");
+  await f.exported(second);
+  f.ack(second, false);
+  assert.equal(f.states.at(-1).revision, 3);
+  f.controller.close();
+  await f.controller.open(f.window, f.root, "lesson.pptx");
+  assert.equal(f.states.at(-1).dirty, false);
+  assert.equal(f.states.at(-1).revision, 3);
+});
+
+test("external source changes are preserved and a disk failure is retryable without clearing dirty", async (t) => {
+  const f = await fixture(t);
+  const save = f.start();
+  const external = Buffer.concat([fixtureBytes, Buffer.from("external edit")]);
+  await fs.writeFile(f.source, external);
+  const commit = await f.exported(save);
+  assert.equal(commit.payload.success, false);
+  f.ack(save, true, false);
+  assert.equal(f.states.at(-1).status, "error");
+  assert.equal(f.states.at(-1).canSave, true);
+  assert.equal(f.states.at(-1).dirty, true);
+  assert.equal(f.states.at(-1).revision, 1);
+  assert.deepEqual(await fs.readFile(f.source), external);
+  await fs.writeFile(f.source, fixtureBytes);
+  const retry = f.start();
+  await f.exported(retry);
+  f.ack(save, false);
+  assert.equal(f.states.at(-1).status, "saving");
+  f.ack(retry, false);
+  assert.equal(f.states.at(-1).status, "saved");
+});
+
+test("a conversion error belongs to its save ID and blocks blind retry of an uncertain SDK export", async (t) => {
+  const f = await fixture(t);
+  const save = f.start();
+  const error = (id) => f.reply({ type: "message", message: { type: "document:error", id, payload: { message: "Export timed out" } } });
+  error("old");
+  assert.equal(f.states.at(-1).status, "saving");
+  error(save.id);
+  assert.equal(f.states.at(-1).canSave, false);
+  assert.equal(f.states.at(-1).dirty, true);
+  assert.throws(() => f.controller.save(), /uncertain/);
+  f.reply({ type: "saved", id: save.id, bytes: Uint8Array.from(fixtureBytes).buffer });
+  assert.equal(f.states.at(-1).revision, 1);
+});
+
+test("a missing export or commit confirmation expires without advertising a saved document", async (t) => {
+  const f = await fixture(t);
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const save = f.start();
+  t.mock.timers.tick(210_001);
+  assert.equal(f.states.at(-1).status, "error");
+  assert.equal(f.states.at(-1).canSave, false);
+  assert.equal(f.states.at(-1).dirty, true);
+  f.ack(save, false);
+  assert.equal(f.states.at(-1).status, "error");
+});
+
+
+test("missing commit acknowledgement cannot clear dirty after the disk write", async (t) => {
+  const f = await fixture(t);
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const save = f.start();
+  await f.exported(save);
+  t.mock.timers.tick(15_001);
+  assert.equal(f.states.at(-1).status, "error");
+  assert.equal(f.states.at(-1).dirty, true);
+  assert.equal(f.states.at(-1).canSave, false);
+  f.ack(save, false);
+  assert.equal(f.states.at(-1).status, "error");
+});
+
+test("reopen uses actual source bytes rather than an archived export left by a failed source write", async (t) => {
+  const f = await fixture(t);
+  const save = f.start();
+  await f.exported(save);
+  f.ack(save, false);
+  f.controller.close();
+  const manual = Buffer.concat([fixtureBytes, Buffer.from("new manual version")]);
+  await fs.writeFile(f.source, manual);
+  await f.controller.open(f.window, f.root, "lesson.pptx");
+  const opened = f.commands.findLast((command) => command.type === "document:open-buffer");
+  assert.deepEqual(Buffer.from(opened.payload.buffer), manual);
+  assert.equal(f.states.at(-1).revision, 3);
+  assert.equal(f.states.at(-1).dirty, false);
+});
+
+
+test("host failure during export reports uncertainty instead of remaining in saving", async (t) => {
+  const f = await fixture(t);
+  f.start();
+  f.reply({ type: "error", message: "Host failed" });
+  assert.equal(f.states.at(-1).status, "error");
+  assert.equal(f.states.at(-1).canSave, false);
+  assert.equal(f.states.at(-1).dirty, true);
+});
+
+test("inspection uses only saved bytes and is fenced through export, write and commit acknowledgement", async (t) => {
+  const f = await fixture(t);
+  const initial = f.controller.savedPptxSnapshot();
+  f.dirty();
+  assert.deepEqual(f.controller.savedPptxSnapshot(), initial);
+  const save = f.start();
+  assert.throws(() => f.controller.savedPptxSnapshot(), /finish saving/);
+  const committed = f.exported(save, Buffer.concat([fixtureBytes, Buffer.from("saved edit")]));
+  assert.throws(() => f.controller.savedPptxSnapshot(), /finish saving/);
+  await committed;
+  assert.throws(() => f.controller.savedPptxSnapshot(), /finish saving/);
+  f.ack(save, true);
+  const saved = f.controller.savedPptxSnapshot();
+  assert.equal(saved.revision, 2);
+  assert.notEqual(saved.sha256, initial.sha256);
+  assert.equal(f.states.at(-1).dirty, true);
+  f.controller.close();
+  assert.throws(() => f.controller.savedPptxSnapshot(), /finish saving/);
+});
+
+test("inspection excludes an archived export when replacing the source fails", async (t) => {
+  const f = await fixture(t);
+  const initial = f.controller.savedPptxSnapshot();
+  const save = f.start();
+  // The archive is written before the source replacement; fail only the latter.
+  const rename = fs.rename;
+  t.mock.method(fs, "rename", async (from, to) => {
+    if (to === f.source) throw new Error("EACCES: source replacement");
+    return rename(from, to);
+  });
+  const commit = await f.exported(save, Buffer.concat([fixtureBytes, Buffer.from("unsaved export")]));
+  assert.equal(commit.payload.success, false);
+  f.ack(save, true, false);
+  assert.equal(f.states.at(-1).revision, 2);
+  assert.deepEqual(f.controller.savedPptxSnapshot(), initial);
+  assert.deepEqual(await fs.readFile(f.source), fixtureBytes);
+});
+
+test("inspection rejects an uncertain save after acknowledgement timeout", async (t) => {
+  const f = await fixture(t);
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const save = f.start();
+  await f.exported(save);
+  t.mock.timers.tick(15_001);
+  assert.throws(() => f.controller.savedPptxSnapshot(), /finish saving/);
+});
+
+
+test("teaching verifies actual live source bytes and workspace before trusting an archived revision", async (t) => {
+  const f = await fixture(t);
+  await f.controller.verifyTeachingSource(f.root);
+  await fs.writeFile(f.source, Buffer.concat([fixtureBytes, Buffer.from("external change")]));
+  await assert.rejects(f.controller.verifyTeachingSource(f.root), /changed outside/);
+  await fs.writeFile(f.source, fixtureBytes);
+  await f.controller.verifyTeachingSource(f.root);
+  const outside = await fs.mkdtemp(join(tmpdir(), "ppt-source-outside-"));
+  t.after(() => fs.rm(outside, { recursive: true, force: true }));
+  const other = join(outside, "other.pptx");
+  await fs.writeFile(other, fixtureBytes);
+  await fs.unlink(f.source); await fs.symlink(other, f.source);
+  await assert.rejects(f.controller.verifyTeachingSource(f.root), /outside the current workspace/);
+});
+
+
+test("source verification cannot authorize teaching after native state changes during file I/O", async (t) => {
+  const f = await fixture(t);
+  const checking = f.controller.verifyTeachingSource(f.root);
+  f.dirty();
+  await assert.rejects(checking, /Save or reopen/);
+});
+
+test("native fade ordinary execution refuses even a valid finite command", async t => {
+  const f=await fixture(t),snapshot=f.controller.teachingSnapshot(f.root);
+  await assert.rejects(f.controller.execute({projectId:snapshot.projectId,documentId:snapshot.documentId,sessionId:snapshot.sessionId,requestId:"fade",editGeneration:1,tool:"set_slide_fade",input:{}},f.root),/retained Main inspection/);
+  assert.equal(f.commands.filter(c=>c.type==="document:execute-fade").length,0);
+});
+
+test("native fade uses dedicated transport, consumes request and verifies correlated receipt", async t => {
+  const f=await fixture(t),snapshot=f.controller.teachingSnapshot(f.root);
+  const command={projectId:snapshot.projectId,documentId:snapshot.documentId,sessionId:snapshot.sessionId,requestId:"fade",editGeneration:1,tool:"set_slide_fade",input:{}};
+  const authorization={editGeneration:1,page:1,sourceHash:`sha256:${snapshot.sha256}`,slideHash:"sha256:"+"a".repeat(64)};
+  let check=0;
+  f.controller.bridgeRequest=async(type,response,payload,id)=>{
+    assert.equal(type,"document:execute-fade");assert.equal(response,"document:command-result");assert.equal(id,"fade");assert.deepEqual(payload,{command,authorization});
+    return {...command,status:"verified",result:{page:1,transition:"fade",durationMs:750,verified:true,saved:false}};
+  };
+  const result=await f.controller.executeFade(command,authorization,f.root,async()=>{check++;},()=>true);
+  assert.equal(result.result.saved,false);assert.equal(check,1);
+  await assert.rejects(f.controller.executeFade(command,authorization,f.root,async()=>{},()=>true),/consumed/);
+});
+
+test("canvas image target approval uses distinct transport and execution retains its exact command", async t => {
+  const f = await fixture(t), snapshot = f.controller.teachingSnapshot(f.root);
+  const binding = { projectId: snapshot.projectId, documentId: snapshot.documentId, sessionId: snapshot.sessionId };
+  const asset = { assetId: "canvas-reviewed", sha256: "a".repeat(64), mime: "image/png", byteLength: 68, width: 1, height: 1 };
+  const target = { page: 1, editGeneration: 1, operation: "replace" };
+  const context = { ...binding, editGeneration: 2, kind: "slide", page: 1, selectedText: "", selectionCharacters: 0, readOnly: false,
+    capabilities: [{ name: "replace_slide_image_from_asset", description: "Reviewed image", readOnly: false,
+      inputSchema: { type: "object", properties: { assetId: { type: "string", enum: [asset.assetId] } }, required: ["assetId"], additionalProperties: false } }] };
+  f.controller.bridgeRequest = async (type, responseType, payload) => {
+    assert.equal(type, "document:review-image-target"); assert.equal(responseType, "document:image-target-reviewed");
+    assert.deepEqual(payload, { binding, asset, target }); return structuredClone(context);
+  };
+  assert.deepEqual(await f.controller.reviewImageTarget(asset, target, f.root), context);
+  const command = { ...binding, requestId: "canvas-image", editGeneration: 2, tool: "replace_slide_image_from_asset", input: { assetId: asset.assetId } };
+  let checked = 0;
+  f.controller.imageAssets = { async metadata() { return asset; }, async load(assetId, workspace, received) {
+    assert.equal(assetId, asset.assetId); assert.equal(workspace, f.root); assert.equal(received, command);
+    return { asset, bytes: Buffer.alloc(68), assertCurrent() { checked++; } };
+  } };
+  f.controller.bridgeRequest = async (type, responseType, payload, requestId) => {
+    assert.equal(type, "document:execute-image"); assert.equal(responseType, "document:command-result"); assert.equal(requestId, command.requestId);
+    assert.equal(payload.command, command); assert(payload.bytes instanceof Uint8Array);
+    return { ...command, status: "verified", result: { assetId: asset.assetId, sha256: asset.sha256, page: 1, verified: true } };
+  };
+  await f.controller.execute(command, f.root);
+  assert.equal(checked, 1);
+  assert.equal(f.states.at(-1).revision, 1, "approval and command dispatch never save automatically");
+});
+
+test("canvas target review rejects foreign/read-only/page replies and never refreshes stale metadata", async t => {
+  for (const change of ["page", "binding", "readOnly", "dirty"]) {
+    const f = await fixture(t), snapshot = f.controller.teachingSnapshot(f.root);
+    const asset = { assetId: "canvas-reviewed", sha256: "a".repeat(64), mime: "image/png", byteLength: 68, width: 1, height: 1 };
+    f.controller.bridgeRequest = async () => {
+      if (change === "dirty") f.dirty();
+      return { ...snapshot, sessionId: change === "binding" ? "foreign" : snapshot.sessionId,
+        editGeneration: 2, kind: "slide", page: change === "page" ? 2 : 1,
+        selectedText: "", selectionCharacters: 0, readOnly: change === "readOnly", capabilities: [] };
+    };
+    await assert.rejects(f.controller.reviewImageTarget(asset, { page: 1, editGeneration: 1, operation: "replace" }, f.root));
+    assert.equal(f.controller.imageMetadata, "null", change);
+  }
+});
+
+for(const change of ["dirty","cancelled","source","proof","receipt"])
+  test(`native fade refuses ${change} at the controller boundary`,async t=>{
+    const f=await fixture(t),snapshot=f.controller.teachingSnapshot(f.root);
+    const command={projectId:snapshot.projectId,documentId:snapshot.documentId,sessionId:snapshot.sessionId,requestId:"fade",editGeneration:1,tool:"set_slide_fade",input:{}};
+    const proof={editGeneration:1,page:1,sourceHash:`sha256:${snapshot.sha256}`,slideHash:"sha256:"+"a".repeat(64)};
+    if(change==="dirty")f.dirty();
+    if(change==="source")await fs.writeFile(f.source,Buffer.from("externally changed source"));
+    if(change==="proof")proof.sourceHash="sha256:"+"b".repeat(64);
+    let sent=0;f.controller.bridgeRequest=async()=>{sent++;return {...command,requestId:"foreign",status:"verified",result:{page:1,transition:"fade",durationMs:750,verified:true,saved:false}};};
+    await assert.rejects(f.controller.executeFade(command,proof,f.root,async()=>{},()=>change!=="cancelled"));
+    assert.equal(sent,change==="receipt"?1:0);
+  });

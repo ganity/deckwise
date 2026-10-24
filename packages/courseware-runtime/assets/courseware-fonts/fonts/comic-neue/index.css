@@ -1,0 +1,16 @@
+@font-face {
+  font-family: "Comic Neue";
+  font-style: normal;
+  font-display: block;
+  font-weight: 400;
+  src: url("./comic-neue-latin-400-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Comic Neue";
+  font-style: normal;
+  font-display: block;
+  font-weight: 700;
+  src: url("./comic-neue-latin-700-normal.woff2") format("woff2");
+}
+

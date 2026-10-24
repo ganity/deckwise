@@ -959,8 +959,40 @@ fn count_lines_fast(path: &Path) -> std::io::Result<usize> {
 /// `mcp_` is treated exactly like `plugin_` for risk and read-only-mode
 /// purposes: the user typed the command or URL into the MCP editor themselves,
 /// which is at least as deliberate as accepting a plugin's manifest.
+pub fn is_ppt_editor_tool(tool_name: &str) -> bool {
+    matches!(
+        tool_name,
+        "ppt_get_context"
+            | "ppt_record_change_plan"
+            | "ppt_get_presentation_text"
+            | "ppt_replace_selection"
+            | "ppt_add_slide_text"
+            | "ppt_replace_slide_image_from_asset"
+            | "ppt_set_slide_text_bold"
+            | "ppt_set_slide_text_italic"
+            | "ppt_set_slide_text_box_size"
+            | "ppt_set_slide_image_size"
+            | "ppt_set_slide_image_position"
+            | "ppt_add_slide_object_animation"
+            | "ppt_insert_slide_image_from_asset"
+            | "ppt_set_slide_fade"
+            | "ppt_set_slide_font_family"
+            | "ppt_set_slide_font_size"
+            | "ppt_set_slide_text_color"
+            | "ppt_set_slide_text_box_position"
+            | "ppt_get_narration_context"
+            | "ppt_propose_page_narration"
+            | "ppt_propose_page_redo"
+            | "ppt_propose_page_style_batch"
+            | "ppt_propose_page_fade"
+    )
+}
+
 pub fn is_desktop_dispatched(tool_name: &str) -> bool {
-    tool_name.starts_with("plugin_") || tool_name.starts_with("mcp_")
+    tool_name.starts_with("plugin_")
+        || tool_name.starts_with("mcp_")
+        || is_ppt_editor_tool(tool_name)
+        || matches!(tool_name, "courseware_canvas_get" | "courseware_canvas_edit")
 }
 
 #[cfg(test)]
@@ -4383,5 +4415,36 @@ mod tests {
 
         let written = std::fs::read_to_string(&target).unwrap();
         assert_eq!(written, "line one\r\nline TWO replaced\r\nline three\r\n");
+    }
+}
+
+#[cfg(test)]
+mod ppt_format_dispatch_tests {
+    #[test]
+    fn formatting_uses_finite_desktop_dispatch() {
+        for name in ["courseware_canvas_get", "courseware_canvas_edit"] {
+            assert!(super::is_desktop_dispatched(name));
+            assert!(!super::is_ppt_editor_tool(name));
+        }
+        assert!(!super::is_desktop_dispatched("courseware_canvas_generate"));
+        for name in [
+            "ppt_replace_slide_image_from_asset",
+            "ppt_set_slide_text_bold",
+            "ppt_set_slide_text_italic",
+            "ppt_set_slide_text_box_size",
+            "ppt_set_slide_image_size",
+            "ppt_set_slide_image_position",
+            "ppt_add_slide_object_animation",
+            "ppt_insert_slide_image_from_asset",
+            "ppt_set_slide_fade",
+            "ppt_set_slide_font_family",
+            "ppt_set_slide_font_size",
+            "ppt_set_slide_text_color",
+            "ppt_set_slide_text_box_position",
+        ] {
+            assert!(super::is_ppt_editor_tool(name));
+            assert!(super::is_desktop_dispatched(name));
+        }
+        assert!(!super::is_desktop_dispatched("ppt_execute_js"));
     }
 }

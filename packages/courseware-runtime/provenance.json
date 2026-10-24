@@ -1,0 +1,820 @@
+{
+  "schemaVersion": 1,
+  "maicTree": "a334ced82f1f60fa84ac47eaa94562119d1afd35",
+  "cloudTree": "6598841a0a1847094771f58553f42ef43207aedf",
+  "note": "Source extraction hashes; D2g regression probes copied into Desktop only. MAIC/cloud restored to exact D2f after extraction. See provenance-final.json for Desktop adaptations.",
+  "files": [
+    {
+      "origin": "player",
+      "source": "lib/utils/cn.ts",
+      "sourceSha256": "9304a861c8673bee09e0f12de31773abbde503b02e59dfd74763ddec2e37cf05",
+      "path": "src/player/lib/utils/cn.ts",
+      "extractedSha256": "9304a861c8673bee09e0f12de31773abbde503b02e59dfd74763ddec2e37cf05"
+    },
+    {
+      "origin": "player",
+      "source": "lib/utils/index.ts",
+      "sourceSha256": "18fab23f236dcd4eff66402b222aad5a0b24c8196888a1601bc2254f1d77e505",
+      "path": "src/player/lib/utils/index.ts",
+      "extractedSha256": "18fab23f236dcd4eff66402b222aad5a0b24c8196888a1601bc2254f1d77e505"
+    },
+    {
+      "origin": "player",
+      "source": "components/ui/button.tsx",
+      "sourceSha256": "f44f29a91b5a9b9c9f063e7c72a8eaada9d9b1c7b94b220d8c6cb8caa4572a37",
+      "path": "src/player/components/ui/button.tsx",
+      "extractedSha256": "fa8717e87b196a5fdc869b4a81c9a2ca31f835a3d4b5121f8c621025d59a4e16"
+    },
+    {
+      "origin": "player",
+      "source": "lib/logger.ts",
+      "sourceSha256": "1d28e087a8c2ef51b4b69a12218d87999c4fcaad4db19a9f84f8d072768f8d25",
+      "path": "src/player/lib/logger.ts",
+      "extractedSha256": "1d28e087a8c2ef51b4b69a12218d87999c4fcaad4db19a9f84f8d072768f8d25"
+    },
+    {
+      "origin": "player",
+      "source": "lib/playback/pptx-timeline.ts",
+      "sourceSha256": "d005957424b24882365a9ddc17e8b58e348c507607c3de0fac1062dde29a0eff",
+      "path": "src/player/lib/playback/pptx-timeline.ts",
+      "extractedSha256": "fb5d34350ed36807d5ac6fe7b9c914d91b5cd0101cc2b3064958bac71b27d12a"
+    },
+    {
+      "origin": "player",
+      "source": "lib/playback/action-groups.ts",
+      "sourceSha256": "2e94b2b663e444016c5691f20d744df7db1161093188052acb76bbd7ac955bdc",
+      "path": "src/player/lib/playback/action-groups.ts",
+      "extractedSha256": "7cfae3240cbb5df02fb01b86e0c516194c7a3616d45ca0786048c2b976ca9921"
+    },
+    {
+      "origin": "player",
+      "source": "lib/playback/element-animation.ts",
+      "sourceSha256": "aaed660f4b32a263012f445df99330b11f527a69316fa7c36ff78ec75d41be3d",
+      "path": "src/player/lib/playback/element-animation.ts",
+      "extractedSha256": "8fe99429b3d79f70b8b7d58ec1879f3ca3be9e7125b772577d41efdd1e8251c9"
+    },
+    {
+      "origin": "player",
+      "source": "lib/playback/speech-cue-scheduler.ts",
+      "sourceSha256": "45d3761402822e62ceb2812c7f3cb25c74cce9c2d8650b253778bcffd11671de",
+      "path": "src/player/lib/playback/speech-cue-scheduler.ts",
+      "extractedSha256": "e77c095095177f60f13820081d291ac0d858815054922c243022693332bf190c"
+    },
+    {
+      "origin": "player",
+      "source": "lib/playback/playback-core.ts",
+      "sourceSha256": "f1679aef2da8e97008e91007064dd7f36e56693a17e147f22f92bedd7b26d78a",
+      "path": "src/player/lib/playback/playback-core.ts",
+      "extractedSha256": "4f47bc7c01cf6a6a21abd3becce2bac615cc9ce8765752ba6342f00f563d9a1b"
+    },
+    {
+      "origin": "player",
+      "source": "lib/utils/media-trim.ts",
+      "sourceSha256": "c060f115e987ea8c8cc7f35ff4ed4877a18f92a5b78a6e3daedf655a10b19a2a",
+      "path": "src/player/lib/utils/media-trim.ts",
+      "extractedSha256": "c060f115e987ea8c8cc7f35ff4ed4877a18f92a5b78a6e3daedf655a10b19a2a"
+    },
+    {
+      "origin": "player",
+      "source": "lib/utils/audio-player.ts",
+      "sourceSha256": "fe83f9931330bbed83526f0b032bf1ba478b337dcd625eaf4e23789ed85e5b5f",
+      "path": "src/player/lib/utils/audio-player.ts",
+      "extractedSha256": "087f24fb5bd323ec8909ac5c18de65876cb64388138e936be1588bd28257ef31"
+    },
+    {
+      "origin": "player",
+      "source": "lib/courseware-fonts.ts",
+      "sourceSha256": "7cc6c5c5ee7eda16c6962e33afba7b3a9fd82ff004989cf6ab728806813640bc",
+      "path": "src/player/lib/courseware-fonts.ts",
+      "extractedSha256": "7cc6c5c5ee7eda16c6962e33afba7b3a9fd82ff004989cf6ab728806813640bc"
+    },
+    {
+      "origin": "player",
+      "source": "lib/utils/geometry.ts",
+      "sourceSha256": "a0e6f8cece6ddef7ca28bab610e8572926d30969d92f384ceb4e8819a3945e85",
+      "path": "src/player/lib/utils/geometry.ts",
+      "extractedSha256": "e45d1ca2488e7bc91ff83e1009d284ea78d7fde20977162144c22124f5751d4c"
+    },
+    {
+      "origin": "player",
+      "source": "lib/hooks/use-slide-background-style.ts",
+      "sourceSha256": "15161248c2269c27ad36e32f05adc36c6815f6b79aec5086f755f46c047d07b9",
+      "path": "src/player/lib/hooks/use-slide-background-style.ts",
+      "extractedSha256": "7c6c035a0dc5f5b051e8837c5d7711d9e175e5478453b2d4d3e623e77d6a435b"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/Editor/Canvas/ViewportBackground.tsx",
+      "sourceSha256": "3b77bdf859cff55e51a615cce0219c25decdce87ac5260733fa6a92e9ea65a64",
+      "path": "src/player/components/slide-renderer/Editor/Canvas/ViewportBackground.tsx",
+      "extractedSha256": "15ec5bd663b93e077db363bc7ff9e0b4e7e235b1a54403251a04fc74b0db0522"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/SlideViewport.tsx",
+      "sourceSha256": "5aac1fbafb12c5644395490aa0aed77cadc7c93fbb09e026696a8c313d5e4fe1",
+      "path": "src/player/components/slide-renderer/components/SlideViewport.tsx",
+      "extractedSha256": "b05fd89edd4e575e2ba0d3e6e8ca6edfb641c2cd2f87cfce67e13236c3ab70a6"
+    },
+    {
+      "origin": "player",
+      "source": "lib/imported-slide-fonts.ts",
+      "sourceSha256": "3f80c67c04a1c95ab48b5f152d7444a562a79ea814f2f1174a27345714f3d29d",
+      "path": "src/player/lib/imported-slide-fonts.ts",
+      "extractedSha256": "0f5ac62b23747acd4df76c148c2869da3bf26a17eece3677ec8134cc97c14da3"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/hooks/useElementShadow.ts",
+      "sourceSha256": "9e02777e5c441cedc472679ff8702f8d38f0111fdc4a30e1622d76b9dd08778a",
+      "path": "src/player/components/slide-renderer/components/element/hooks/useElementShadow.ts",
+      "extractedSha256": "7c325914173c5f41f935fc22719b71f44fd6cbf2e1af9813207152dee04a5b13"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/hooks/useElementOutline.ts",
+      "sourceSha256": "69831f8a99833937527856ffb20f69a722f201b2f5116ebb923ce8846410b609",
+      "path": "src/player/components/slide-renderer/components/element/hooks/useElementOutline.ts",
+      "extractedSha256": "ead0d6c3064a98466728c980ceffca4f4871b889bf1b72a5c20eeff3ff5f40d1"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ElementOutline.tsx",
+      "sourceSha256": "91d83dc1089deec93e466279918d0d54cc0a10bb466d5e81f705755a895dbca9",
+      "path": "src/player/components/slide-renderer/components/element/ElementOutline.tsx",
+      "extractedSha256": "a1f1bf7a95c88aadff486021a72532b4657c839708649a4c3fedc183740d9019"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/StaticTextContent.tsx",
+      "sourceSha256": "8df99b75b7e1b1fbf63dd17192975b8d7b76c8a6976ea23aadf8969ac014d01a",
+      "path": "src/player/components/slide-renderer/components/element/StaticTextContent.tsx",
+      "extractedSha256": "931fe3b372a61451331d902275fba959ca75a2a9277bd5e2b99426df888ba589"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/TextElement/TextElementFrame.tsx",
+      "sourceSha256": "497afaca9f3b11b0b2a196c5e858e455aafbbe2af32c2cc1e76b6ffc7126c5d3",
+      "path": "src/player/components/slide-renderer/components/element/TextElement/TextElementFrame.tsx",
+      "extractedSha256": "ba54b758d59b65dbcbc445738bc044fe4b7fceb96893c2324a3667a5b65a4be0"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/TextElement/BaseTextElement.tsx",
+      "sourceSha256": "ed9c4db4f7f918bcea3ecb2eb9a4976005652d35292ec83a5680bb2cfea82ebd",
+      "path": "src/player/components/slide-renderer/components/element/TextElement/BaseTextElement.tsx",
+      "extractedSha256": "edf4901fc51fad87e9ac8932f78c543bd6e53d437da9e6a202bd8a00797deb69"
+    },
+    {
+      "origin": "player",
+      "source": "lib/bilingual/embedded-text.ts",
+      "sourceSha256": "ce633a0f89a35de48572ad3f632469c2221e70dfcb49274e1faa54d625b0ee61",
+      "path": "src/player/lib/bilingual/embedded-text.ts",
+      "extractedSha256": "0334a6cce16a8083926bdc2de81ce894cbf70c04978f8e65c9874d040230c9aa"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/hooks/useElementFlip.ts",
+      "sourceSha256": "2f837e2751231517f392e9f87263aa63550bece2559a9652e693969f62f663ad",
+      "path": "src/player/components/slide-renderer/components/element/hooks/useElementFlip.ts",
+      "extractedSha256": "2f837e2751231517f392e9f87263aa63550bece2559a9652e693969f62f663ad"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/hooks/useElementFill.ts",
+      "sourceSha256": "ab0115ce80bb3addbbdf07a005354c7931418a0ab843c6be8228a70ecd32e1c9",
+      "path": "src/player/components/slide-renderer/components/element/hooks/useElementFill.ts",
+      "extractedSha256": "34f58c59167faaff459637e92433600d95e25189640f245aa5b622439f58aaea"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ShapeElement/GradientDefs.tsx",
+      "sourceSha256": "2ddab26c2fcb76ef364626245cbcc1f97e8b1079417f485994b00f42421d3cd4",
+      "path": "src/player/components/slide-renderer/components/element/ShapeElement/GradientDefs.tsx",
+      "extractedSha256": "1fa7808f3ff49eabf3db08a93013363579ef0ea34a63ee7620d792d7b068e44d"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ShapeElement/PatternDefs.tsx",
+      "sourceSha256": "bd5dc47546de99fccb37cbd868ec27a5a15902da4963a16b42506b421fd7d6cd",
+      "path": "src/player/components/slide-renderer/components/element/ShapeElement/PatternDefs.tsx",
+      "extractedSha256": "bd5dc47546de99fccb37cbd868ec27a5a15902da4963a16b42506b421fd7d6cd"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/LineElement/LinePointMarker.tsx",
+      "sourceSha256": "a04c8e724a1b6e23ce9f65ac6a23368837df1b646caa9a780ed9fe4011680755",
+      "path": "src/player/components/slide-renderer/components/element/LineElement/LinePointMarker.tsx",
+      "extractedSha256": "3ddd10bad16505b6f049d065e590a8ed44026b506a363c55d457f32e2dde9053"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ShapeElement/RectangularPatternImage.tsx",
+      "sourceSha256": "15d1fda8e6f98d25e64042f2fada55bab88d1cf8dd3e399fce6e1ae698090ad4",
+      "path": "src/player/components/slide-renderer/components/element/ShapeElement/RectangularPatternImage.tsx",
+      "extractedSha256": "de40bfb93d282c6e386f0995d0fa00b072cf37cd4a6047c9de38e06da82b99a8"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ShapeElement/shape-path-transform.ts",
+      "sourceSha256": "ead850bc5c8b057c519ea82c3d1708b6a925d8875f01fc8dd98159aea6bb43a0",
+      "path": "src/player/components/slide-renderer/components/element/ShapeElement/shape-path-transform.ts",
+      "extractedSha256": "78c5e91f48d63a463370638cfde96af65d81274a11bf7b248d63accccd7fa9b6"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ShapeElement/shape-text-layout.ts",
+      "sourceSha256": "130f0344556f00b482a5a4a74ba6b8663a5d72e4b5ab16aa39b44138ce052da9",
+      "path": "src/player/components/slide-renderer/components/element/ShapeElement/shape-text-layout.ts",
+      "extractedSha256": "a1c7e4c572d2e3885155614f90581d4ca2437dcd4b035d0691e100da55e142be"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ShapeElement/BaseShapeElement.tsx",
+      "sourceSha256": "d2cfbb5b15dd99770ba93b628554a3fc9efa8936fe00c472464874099a961a9a",
+      "path": "src/player/components/slide-renderer/components/element/ShapeElement/BaseShapeElement.tsx",
+      "extractedSha256": "91605d5551fb578130b5da81c541f04624948e1eaee761300c4b29ee21f8e9e1"
+    },
+    {
+      "origin": "player",
+      "source": "lib/utils/element.ts",
+      "sourceSha256": "6e160161dc4fde378493c71eec5453d4e39d220e3eba20537cb6b327897ebf1b",
+      "path": "src/player/lib/utils/element.ts",
+      "extractedSha256": "f0779fa66b1136b2a3d4334275e1560f1c5b6fc56b2056aeec4fd5291b64d55b"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/LineElement/LineElementVisual.tsx",
+      "sourceSha256": "188e8ec86116f876e8ad7175d026c8a36850668e45e336ad7da505a4b1701db2",
+      "path": "src/player/components/slide-renderer/components/element/LineElement/LineElementVisual.tsx",
+      "extractedSha256": "f1023831a2ed0efe42e156fa4a5ba14117debe350d040d28119580949ada2452"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/LineElement/BaseLineElement.tsx",
+      "sourceSha256": "8e479e9d621ea458aff3dd46d7f010695a0d87230eca968c78b23b006c42c4ff",
+      "path": "src/player/components/slide-renderer/components/element/LineElement/BaseLineElement.tsx",
+      "extractedSha256": "09968add2704100111d9013cf41ccf7e38f960a9affdc4aa1ac49f0bb7ea0dd1"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/TableElement/tableUtils.ts",
+      "sourceSha256": "8d3a944bd804a0ededb7d39b081b6eaf9736f34ee97173f10f0e7cdab53531d2",
+      "path": "src/player/components/slide-renderer/components/element/TableElement/tableUtils.ts",
+      "extractedSha256": "9290375a34ffeba5464a35b0d519f7a68553144c9d9de50c7dd71bd8c8fe9a50"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/TableElement/StaticTable.tsx",
+      "sourceSha256": "20ea358b05d6c560d69a325cff0e8b78a41e89c7f08392b230fb42dbfad9cdc9",
+      "path": "src/player/components/slide-renderer/components/element/TableElement/StaticTable.tsx",
+      "extractedSha256": "95551b4d6b1dca468e6f785e1169f2e3619ad7a4d1563bd66bdc1c910ae179da"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/TableElement/BaseTableElement.tsx",
+      "sourceSha256": "970d718fb10c5eab742bb689f9b340cdf48a6ba1aa4b274a0dff02f3ea93f450",
+      "path": "src/player/components/slide-renderer/components/element/TableElement/BaseTableElement.tsx",
+      "extractedSha256": "a82a8bb4fd9473f2e00bb30e06c07b1247d28299364eb92ce29be165ffb667c7"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ChartElement/chartOption.ts",
+      "sourceSha256": "ee499c7d0fa21edeb0f0b73b065be1cf28cb2302999b9551c5eda98fae51fb75",
+      "path": "src/player/components/slide-renderer/components/element/ChartElement/chartOption.ts",
+      "extractedSha256": "84a7a4c70d26928a5d09ee33465e69b5dc0a8e75818e12c9f2b5e00b919062ab"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ChartElement/Chart.tsx",
+      "sourceSha256": "32eb699b11c9d68ee050a71dca25aa2b023a738c0ed24e61cec719a85c0013d3",
+      "path": "src/player/components/slide-renderer/components/element/ChartElement/Chart.tsx",
+      "extractedSha256": "a8dd800aa86e90bf5b816b8d71848ff9f40c9c096790fe239b52c6baaffde35d"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ChartElement/BaseChartElement.tsx",
+      "sourceSha256": "9b35b5331879ca949b6d4d9ae85d3276988af671ba52988768b0ed7b09da2e42",
+      "path": "src/player/components/slide-renderer/components/element/ChartElement/BaseChartElement.tsx",
+      "extractedSha256": "75d43723bb42350b894f657a4f412fa08e594d4c3ad0aef3173dade0cf2b49a0"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/LatexElement/LatexElementVisual.tsx",
+      "sourceSha256": "8b915dc01ceba15802a9fa1e8f1fa51a3c82ec7cd564b46904846c396850fa6e",
+      "path": "src/player/components/slide-renderer/components/element/LatexElement/LatexElementVisual.tsx",
+      "extractedSha256": "06e13ea282a0284c43f80408a0a6b6ca0be4cdd52b87fa60794e102beb1dc5da"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/LatexElement/BaseLatexElement.tsx",
+      "sourceSha256": "5ec6f3f1ada57a40a7cfb8e86e889132d609108b8d390249fb4d076a4486612c",
+      "path": "src/player/components/slide-renderer/components/element/LatexElement/BaseLatexElement.tsx",
+      "extractedSha256": "95a3bf91806b1dd035b02dc02a49b47932b0b6002067b2a07b05ed94a0d990d2"
+    },
+    {
+      "origin": "player",
+      "source": "configs/image-clip.ts",
+      "sourceSha256": "0460a62219b9d44d4cc00ab59cde928d0f4111c50f5f20f17c120042a3b2737b",
+      "path": "src/player/configs/image-clip.ts",
+      "extractedSha256": "0460a62219b9d44d4cc00ab59cde928d0f4111c50f5f20f17c120042a3b2737b"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ImageElement/useClipImage.ts",
+      "sourceSha256": "7f2daa3d352a654cf64ae795531c56f7b7964ebb9f51c1048c960dd566f77479",
+      "path": "src/player/components/slide-renderer/components/element/ImageElement/useClipImage.ts",
+      "extractedSha256": "63ae29c1f9dd55777e6c576962e8bcb02bfbfdc465c303cf5b31c18b365a6610"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ImageElement/ImageOutline/image-rect-outline.tsx",
+      "sourceSha256": "dd6647f187a8b5a40337c29b993771dbff379cbe9a649f6b2d76e463a730555a",
+      "path": "src/player/components/slide-renderer/components/element/ImageElement/ImageOutline/image-rect-outline.tsx",
+      "extractedSha256": "22b236d443e023f8f4f8c23bb2a6a29bf2778e375fddbdb97c4b9421899ccf8e"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ImageElement/ImageOutline/image-ellipse-outline.tsx",
+      "sourceSha256": "4205fe014afbf519a713a99b63803efd36179b7ea61b49d019212698711b3e07",
+      "path": "src/player/components/slide-renderer/components/element/ImageElement/ImageOutline/image-ellipse-outline.tsx",
+      "extractedSha256": "b17f391660a1c4705d470c7847ebee152822325e3d2d28356d68b17a29af5a23"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ImageElement/ImageOutline/image-polygon-outline.tsx",
+      "sourceSha256": "99f91d2f55559ff884026b8afe1a6341bb8ee303b0f9a8be67d000ced0195441",
+      "path": "src/player/components/slide-renderer/components/element/ImageElement/ImageOutline/image-polygon-outline.tsx",
+      "extractedSha256": "484aa16f000911397b53cdcf53f8b05dd215fc03262f99db896ca08b634bb65d"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ImageElement/ImageOutline/index.tsx",
+      "sourceSha256": "18bd875d6e29340360601d1c98083071bfea805cddfc5c991390b79a4cf702a7",
+      "path": "src/player/components/slide-renderer/components/element/ImageElement/ImageOutline/index.tsx",
+      "extractedSha256": "4eaa7c393ba7f07ec5c312a71291c2eee1e544b3291c30756e21363e6fbb2169"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ImageElement/useFilter.ts",
+      "sourceSha256": "89b560b5c652ad8a24fcf530ee24d9abdeaf384144c34bb1ecfc0b53a6d49174",
+      "path": "src/player/components/slide-renderer/components/element/ImageElement/useFilter.ts",
+      "extractedSha256": "69bb1c66feec483ff1561222989f4b7c425c01fbd4ad8054fe7cc747a5d742de"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ImageElement/ImageElementVisual.tsx",
+      "sourceSha256": "c038c9be5555753434ae27fbd4225c63d6b3d6eceb04ccd6c646817c5e98b0a6",
+      "path": "src/player/components/slide-renderer/components/element/ImageElement/ImageElementVisual.tsx",
+      "extractedSha256": "b2e82f6e1ee109e9d72e4f07c48984624f1b5ee51829f8d5d64419ca5791a333"
+    },
+    {
+      "origin": "player",
+      "source": "lib/courseware/fixed-animation-style.ts",
+      "sourceSha256": "e150d5c55f15f5bec6266f5821e92ca3c4b4af783f7f0881dcf5b6c9cf770b10",
+      "path": "src/player/lib/courseware/fixed-animation-style.ts",
+      "extractedSha256": "4656bdb10343e755c9a06673632bc3e0528c2da47cb4e91b1d1c1509e3652197"
+    },
+    {
+      "origin": "player",
+      "source": "components/slide-renderer/Editor/spotlightGeometry.ts",
+      "sourceSha256": "d8bcb02c5de56d65266d4bffb1125594c5d5ab6d08ab6001ab14aa03d860b7a6",
+      "path": "src/player/components/slide-renderer/Editor/spotlightGeometry.ts",
+      "extractedSha256": "d8bcb02c5de56d65266d4bffb1125594c5d5ab6d08ab6001ab14aa03d860b7a6"
+    },
+    {
+      "origin": "player",
+      "source": "components/courseware/FixedVisualEffects.tsx",
+      "sourceSha256": "29ffa32581bfb499802d5830b7585dbae29ad2169a13908bc6c7c4d7ce41dd51",
+      "path": "src/player/components/courseware/FixedVisualEffects.tsx",
+      "extractedSha256": "83bbeceb445faaf252b90149d62dd2b6e3f282452c481c9015e7ae9e2c30ec6e"
+    },
+    {
+      "origin": "player",
+      "source": "lib/utils/media-ducking.ts",
+      "sourceSha256": "15c24c4a80eff9544e038beb98d07a47f0ef9ebc19cd5be8f49dfe0040dcdb95",
+      "path": "src/player/lib/utils/media-ducking.ts",
+      "extractedSha256": "15c24c4a80eff9544e038beb98d07a47f0ef9ebc19cd5be8f49dfe0040dcdb95"
+    },
+    {
+      "origin": "player",
+      "source": "components/courseware/FixedMediaElement.tsx",
+      "sourceSha256": "7f80ad2a9f43b2f99f0fa719fc99b81892d1ab0636c9342c8577389c4663b5c8",
+      "path": "src/player/components/courseware/FixedMediaElement.tsx",
+      "extractedSha256": "6d8702bad51588c00f4bfe102b89759f40ce507b5f4d3a7a69c88f9bd7273386"
+    },
+    {
+      "origin": "player",
+      "source": "components/courseware/FixedSlide.tsx",
+      "sourceSha256": "d546dbf17dfa830158fba493748e57afab1152d8ec107c752d667c239f069008",
+      "path": "src/player/components/courseware/FixedSlide.tsx",
+      "extractedSha256": "eed80bd99e256b85a40a91303b0b3502310e9adc23888fe12a6dab27bb5b1cbc"
+    },
+    {
+      "origin": "player",
+      "source": "components/courseware/FixedCoursewarePlayer.tsx",
+      "sourceSha256": "4098883a880915dc0eb4ebe05191d640e9625999e331f2e885b434c2c8644d51",
+      "path": "src/player/components/courseware/FixedCoursewarePlayer.tsx",
+      "extractedSha256": "db12bd704730fa2211e484b5c5d01c2a6b7b45f3f0d734a915a156ebd66c4ac4"
+    },
+    {
+      "origin": "player",
+      "source": "lib/courseware/load-fixed-build.ts",
+      "sourceSha256": "d09c1cbf0081747b90cbda0a682a90cab79d1f42e3dea9841d0f6c2fc27a56f4",
+      "path": "src/player/lib/courseware/load-fixed-build.ts",
+      "extractedSha256": "d79932ca38a249ae6bea0173b5cf3c81c75bce74b4ad11812803554882b69f3b"
+    },
+    {
+      "origin": "player",
+      "source": "lib/courseware/media-task-asset-resolver.ts",
+      "sourceSha256": "a1faec81e0315d3e2f38b76187f91c5af1a2edbefd688b7c15f46d60fc576de3",
+      "path": "src/player/lib/courseware/media-task-asset-resolver.ts",
+      "extractedSha256": "a1faec81e0315d3e2f38b76187f91c5af1a2edbefd688b7c15f46d60fc576de3"
+    },
+    {
+      "origin": "player",
+      "source": "lib/courseware/load-fixed-build.test.ts",
+      "sourceSha256": "650777b7864aac20f2537284dbc4e882d7f3ecec73390ae149ad8939fa0bbb23",
+      "path": "src/player/lib/courseware/load-fixed-build.test.ts",
+      "extractedSha256": "650777b7864aac20f2537284dbc4e882d7f3ecec73390ae149ad8939fa0bbb23"
+    },
+    {
+      "origin": "player",
+      "source": "lib/courseware/fixed-animation-style.test.ts",
+      "sourceSha256": "84395a520a23ecd6fb8645ffa94df0f0847cab78bfde6b1fc7296027eeff454a",
+      "path": "src/player/lib/courseware/fixed-animation-style.test.ts",
+      "extractedSha256": "84395a520a23ecd6fb8645ffa94df0f0847cab78bfde6b1fc7296027eeff454a"
+    },
+    {
+      "origin": "player",
+      "source": "lib/courseware/media-task-asset-resolver.test.ts",
+      "sourceSha256": "2a34f890ac0b4e6f6774f9dd077fe2448605e7e9878e2cc34022b39776629aef",
+      "path": "src/player/lib/courseware/media-task-asset-resolver.test.ts",
+      "extractedSha256": "2a34f890ac0b4e6f6774f9dd077fe2448605e7e9878e2cc34022b39776629aef"
+    },
+    {
+      "origin": "player",
+      "source": "lib/playback/playback-core.test.ts",
+      "sourceSha256": "1a381f52f52b930e277233a2f75b466444d2f1a54ac33a92953cdef93e13332d",
+      "path": "src/player/lib/playback/playback-core.test.ts",
+      "extractedSha256": "0c00322cfae91e5d8bdfca4ac440dd85ccf84ef816a63d16efdc7468fdd78a61"
+    },
+    {
+      "origin": "player",
+      "source": "lib/playback/speech-cue-scheduler.test.ts",
+      "sourceSha256": "2d4a1e44dbe4d301ff17f9f19e80e3eefd0036749aa589dd51cc567c3ca1d1c2",
+      "path": "src/player/lib/playback/speech-cue-scheduler.test.ts",
+      "extractedSha256": "849e58dbe8c70afe500e76ef3aa9608c13f8ecb82a84f88301e8272dc33617e5"
+    },
+    {
+      "origin": "player",
+      "source": "lib/playback/action-groups.test.ts",
+      "sourceSha256": "46dc10e8c42f40e27dfd562a698b2a71fa2459e017a80b76b8a8e72745a33ad5",
+      "path": "src/player/lib/playback/action-groups.test.ts",
+      "extractedSha256": "2192674a6267fc16043a0167703c39479d95bbc24581055301c74428212a376c"
+    },
+    {
+      "origin": "player",
+      "source": "lib/playback/element-animation.test.ts",
+      "sourceSha256": "7d56c2c296ff70091bb815b63ba3275ed5088bfbbb4dcec97d8ce0aca92fb2f0",
+      "path": "src/player/lib/playback/element-animation.test.ts",
+      "extractedSha256": "bb209478375fcedbb2a9889d34a1cf0d77d0e28777e27a22a3b994b13b06533d"
+    },
+    {
+      "origin": "player",
+      "source": "lib/playback/pptx-timeline.test.ts",
+      "sourceSha256": "0f976a49c7a875557a160c2c328372123cfff74f6589725b622cfada999713be",
+      "path": "src/player/lib/playback/pptx-timeline.test.ts",
+      "extractedSha256": "00c89f6df86b5f9e7090b28c47773f10efdc14592aa86de0cc19c5dde9ca0bb8"
+    },
+    {
+      "origin": "player",
+      "source": "lib/utils/audio-player.test.ts",
+      "sourceSha256": "abeb39c3130ac7b92439f78e766c569361156904618b85d52443d67a2d3669a0",
+      "path": "src/player/lib/utils/audio-player.test.ts",
+      "extractedSha256": "82e52ced76f2f29f4c78099998b9b43a46074981c39b8fb1e7c9a2bea7370513"
+    },
+    {
+      "origin": "player",
+      "source": "lib/utils/media-trim.test.ts",
+      "sourceSha256": "ae25bc390cabdbaec04d3f60c395348e5d6a051ac61ce890299b113a1d1b2855",
+      "path": "src/player/lib/utils/media-trim.test.ts",
+      "extractedSha256": "ae25bc390cabdbaec04d3f60c395348e5d6a051ac61ce890299b113a1d1b2855"
+    },
+    {
+      "origin": "player",
+      "source": "lib/utils/media-ducking.test.ts",
+      "sourceSha256": "c16a8c163cd84bc2b94c90cc91d47f5cb7e83a2b9506ec8777ca682a58045344",
+      "path": "src/player/lib/utils/media-ducking.test.ts",
+      "extractedSha256": "c16a8c163cd84bc2b94c90cc91d47f5cb7e83a2b9506ec8777ca682a58045344"
+    },
+    {
+      "origin": "player",
+      "source": "lib/types/action.ts",
+      "sourceSha256": "706fa2e03b2d6766e1ccd64c76b04c5ea4a3ba3f3edc13d05f0c5008d608f4e2",
+      "path": "src/player/lib/types/action.ts",
+      "extractedSha256": "706fa2e03b2d6766e1ccd64c76b04c5ea4a3ba3f3edc13d05f0c5008d608f4e2"
+    },
+    {
+      "origin": "player",
+      "source": "lib/types/stage.ts",
+      "sourceSha256": "e81dbb0eab53632af36a7cf65c722dd2af6d4d32b60a1a484d44f08913598e60",
+      "path": "src/player/lib/types/stage.ts",
+      "extractedSha256": "9f8b05e01e9ec9ce36ee1c4f55a35f3f9b38aa45a70006ce7426a9fdef27e74a"
+    },
+    {
+      "origin": "player",
+      "source": "lib/playback/types.ts",
+      "sourceSha256": "3dce8c8f0387d7d1715817647cc9bcb0f9dc76daab397e0fc5a4cb9e9013b85d",
+      "path": "src/player/lib/playback/types.ts",
+      "extractedSha256": "edf7f51e2bc4e766c360b4ae47a821b72aa0d9247051f41c84248a26f3912231"
+    },
+    {
+      "origin": "player",
+      "source": "lib/types/slides.ts",
+      "sourceSha256": "5fc19acce3dcb8a171e078ac674b71e88f8bcc4391f4055c6220690239bb1844",
+      "path": "src/player/lib/types/slides.ts",
+      "extractedSha256": "5fc19acce3dcb8a171e078ac674b71e88f8bcc4391f4055c6220690239bb1844"
+    },
+    {
+      "origin": "player",
+      "source": "lib/types/bilingual.ts",
+      "sourceSha256": "32f6edcb984f45703b1f3292bcf9fce16e86165805e2339c489b6c0716ca39eb",
+      "path": "src/player/lib/types/bilingual.ts",
+      "extractedSha256": "32f6edcb984f45703b1f3292bcf9fce16e86165805e2339c489b6c0716ca39eb"
+    },
+    {
+      "origin": "player",
+      "source": "tests/fixtures/fixed-playback/media-tasks/task-ready.json",
+      "sourceSha256": "a08c51f53eb82a7b7f0612dd716ea9f47310955b2e8f08e68d87d360a3545170",
+      "path": "src/player/tests/fixtures/fixed-playback/media-tasks/task-ready.json",
+      "extractedSha256": "a08c51f53eb82a7b7f0612dd716ea9f47310955b2e8f08e68d87d360a3545170"
+    },
+    {
+      "origin": "player",
+      "source": "tests/fixtures/fixed-playback/media-tasks/submit-success.json",
+      "sourceSha256": "4ed54b52261bc43533f20e77d840a277d55772509ea9769c93314fcb2a9b45e2",
+      "path": "src/player/tests/fixtures/fixed-playback/media-tasks/submit-success.json",
+      "extractedSha256": "4ed54b52261bc43533f20e77d840a277d55772509ea9769c93314fcb2a9b45e2"
+    },
+    {
+      "origin": "player",
+      "source": "tests/fixtures/fixed-playback/media-tasks/task-submission-unknown.json",
+      "sourceSha256": "b95a9f274c2a0bdf6a96349cab270d04a64cd7b7b4ad18252169fdc8a094d9d4",
+      "path": "src/player/tests/fixtures/fixed-playback/media-tasks/task-submission-unknown.json",
+      "extractedSha256": "b95a9f274c2a0bdf6a96349cab270d04a64cd7b7b4ad18252169fdc8a094d9d4"
+    },
+    {
+      "origin": "player",
+      "source": "lib/pbl/types.ts",
+      "sourceSha256": "a86bf05f6a9d9068cfb7d3de4e7c70fc4af277e16ef3025b04f65a845578b479",
+      "path": "src/player/lib/pbl/types.ts",
+      "extractedSha256": "a86bf05f6a9d9068cfb7d3de4e7c70fc4af277e16ef3025b04f65a845578b479"
+    },
+    {
+      "origin": "player",
+      "source": "lib/utils/playback-storage.ts",
+      "sourceSha256": "54d517fac0193b5732e216ca48f1cf5167634cb38c12b2fc3200a8ec5c4d0d74",
+      "path": "src/player/lib/utils/playback-storage.ts",
+      "extractedSha256": "6adb256c387348435cfd90093eaa5350a5f23759edc2deb5320f03dc2ebd6b85"
+    },
+    {
+      "origin": "conversion",
+      "source": "lib/courseware-fonts.ts",
+      "sourceSha256": "349fe4b65aee91960e763be6f3afae7f3f4528fff3e604f40c72df195a26abcf",
+      "path": "src/conversion/lib/courseware-fonts.ts",
+      "extractedSha256": "349fe4b65aee91960e763be6f3afae7f3f4528fff3e604f40c72df195a26abcf"
+    },
+    {
+      "origin": "conversion",
+      "source": "lib/import/constants.ts",
+      "sourceSha256": "df78fc6b0684150eb60423f57e442d91418a0217d17573709110ea1fa2c87124",
+      "path": "src/conversion/lib/import/constants.ts",
+      "extractedSha256": "899846feaf8d02a5e39277233901ffc3a8a10d50e6bdbd7e55c8c8ab68130b7d"
+    },
+    {
+      "origin": "conversion",
+      "source": "lib/types/slides.ts",
+      "sourceSha256": "f65b2e858185aab0ebe759c8591f6f1b3ae3e0ed54e6977d0c9b5a2c51e3d813",
+      "path": "src/conversion/lib/types/slides.ts",
+      "extractedSha256": "f65b2e858185aab0ebe759c8591f6f1b3ae3e0ed54e6977d0c9b5a2c51e3d813"
+    },
+    {
+      "origin": "conversion",
+      "source": "configs/shapes.ts",
+      "sourceSha256": "0d92366943eafa2b5a1d7d3b52a96ef43955b4c8cc030269ff6636a28bd599fb",
+      "path": "src/conversion/configs/shapes.ts",
+      "extractedSha256": "5580e3427aa6d9a2c519d111599eb1254a2d4b718670269761b596c7dfeb8276"
+    },
+    {
+      "origin": "conversion",
+      "source": "lib/import/narration/text-normalizer.ts",
+      "sourceSha256": "1f9bdea3611d909c8a9e4775bfc96e0975130413406b2bc776f618f8b04d94e0",
+      "path": "src/conversion/lib/import/narration/text-normalizer.ts",
+      "extractedSha256": "1f9bdea3611d909c8a9e4775bfc96e0975130413406b2bc776f618f8b04d94e0"
+    },
+    {
+      "origin": "conversion",
+      "source": "lib/utils/scene-title.ts",
+      "sourceSha256": "46bd719aee5af15b7c3dadc264418129a349d9637aed5ca3fb277b752a99c3b0",
+      "path": "src/conversion/lib/utils/scene-title.ts",
+      "extractedSha256": "46bd719aee5af15b7c3dadc264418129a349d9637aed5ca3fb277b752a99c3b0"
+    },
+    {
+      "origin": "conversion",
+      "source": "lib/import/mappers/import-ir-to-classroom.ts",
+      "sourceSha256": "d6408c01d8fcc486ff2fb32ad684d42c451f86b7118cec0b578cbe7f4f49dc82",
+      "path": "src/conversion/lib/import/mappers/import-ir-to-classroom.ts",
+      "extractedSha256": "c10d8aff8fa1fd77199534023516b7db9042cf853e54d8a4c4cd9959bfec6dba"
+    },
+    {
+      "origin": "conversion",
+      "source": "lib/courseware/fixed-build-input.ts",
+      "sourceSha256": "ca7ee427f07a7c8ce143a969cadbe91c52aee6755ef5fc9cb878e447a184247d",
+      "path": "src/conversion/lib/courseware/fixed-build-input.ts",
+      "extractedSha256": "ca7ee427f07a7c8ce143a969cadbe91c52aee6755ef5fc9cb878e447a184247d"
+    },
+    {
+      "origin": "conversion",
+      "source": "lib/courseware/fixed-build.ts",
+      "sourceSha256": "e1a08e26c228af3ab04511b34dd47aa977d3d472c315e70b177af070af1ba44c",
+      "path": "src/conversion/lib/courseware/fixed-build.ts",
+      "extractedSha256": "1a700f1af2e0f239a9fb79b2a703a00d384886aa9cecae9ff06284c42210260c"
+    },
+    {
+      "origin": "conversion",
+      "source": "lib/courseware/canonical/courseware-contract.ts",
+      "sourceSha256": "dd16a1562e64cb4010f461d1c4b4bb2389e9ac2c9c9059b01421ccbc491de297",
+      "path": "src/conversion/lib/courseware/canonical/courseware-contract.ts",
+      "extractedSha256": "dd16a1562e64cb4010f461d1c4b4bb2389e9ac2c9c9059b01421ccbc491de297"
+    },
+    {
+      "origin": "conversion",
+      "source": "lib/courseware/adapt-canonical-snapshot.ts",
+      "sourceSha256": "43f66c35248272adbf96a02d973d148a5f7ff2c03e414b27ffb848cdc2c276f8",
+      "path": "src/conversion/lib/courseware/adapt-canonical-snapshot.ts",
+      "extractedSha256": "43f66c35248272adbf96a02d973d148a5f7ff2c03e414b27ffb848cdc2c276f8"
+    },
+    {
+      "origin": "conversion",
+      "source": "lib/import/pptx/identity.ts",
+      "sourceSha256": "c34ae56ec65764c40606ed4c7849a5e4b42c258a58359f72620d8fded200c09a",
+      "path": "src/conversion/lib/import/pptx/identity.ts",
+      "extractedSha256": "c34ae56ec65764c40606ed4c7849a5e4b42c258a58359f72620d8fded200c09a"
+    },
+    {
+      "origin": "conversion",
+      "source": "lib/import/pptx/saved-source-identity.ts",
+      "sourceSha256": "9c706c5cb0ad0ec8a665c345234be6a0542b438f149a76874bdb675c2a3e2ccf",
+      "path": "src/conversion/lib/import/pptx/saved-source-identity.ts",
+      "extractedSha256": "94c63ac092d0b052da3751d3e968164e718006aaaf5d124cd724e05e649186df"
+    },
+    {
+      "origin": "conversion",
+      "source": "lib/import/geometry/normalize-viewport.ts",
+      "sourceSha256": "f1f3ced92dd3da07b9001612e65b01cb1981878938a8f909f4db32a3be37ed20",
+      "path": "src/conversion/lib/import/geometry/normalize-viewport.ts",
+      "extractedSha256": "f1f3ced92dd3da07b9001612e65b01cb1981878938a8f909f4db32a3be37ed20"
+    },
+    {
+      "origin": "conversion",
+      "source": "lib/import/pptx/animation/parse-pptx-timing.ts",
+      "sourceSha256": "645ae738bee68cc0dccfefa889261d9bb16bd1bf308a0dd9cec7e687f847f168",
+      "path": "src/conversion/lib/import/pptx/animation/parse-pptx-timing.ts",
+      "extractedSha256": "b020efdaf099ef9a92d35af3b10d73954c2ac6a8bd156b92fd09cf7ed88880eb"
+    },
+    {
+      "origin": "conversion",
+      "source": "lib/import/pptx/pptx-zip-package.ts",
+      "sourceSha256": "30d90528c9d5a9dead2604a57cfa604d6ae0ae02232c72ecff9dad4e91df003b",
+      "path": "src/conversion/lib/import/pptx/pptx-zip-package.ts",
+      "extractedSha256": "30d90528c9d5a9dead2604a57cfa604d6ae0ae02232c72ecff9dad4e91df003b"
+    },
+    {
+      "origin": "conversion",
+      "source": "lib/logger.ts",
+      "sourceSha256": "93dc1dbbe532faacb0c9c058f18e733f47139fef7f0cc67197545f1aec5200b4",
+      "path": "src/conversion/lib/logger.ts",
+      "extractedSha256": "93dc1dbbe532faacb0c9c058f18e733f47139fef7f0cc67197545f1aec5200b4"
+    },
+    {
+      "origin": "conversion",
+      "source": "lib/import/pptx/import-pptx-from-buffer.ts",
+      "sourceSha256": "737777280107f7002c827f25303050395364fb5a7c7290324ae9d154baf39901",
+      "path": "src/conversion/lib/import/pptx/import-pptx-from-buffer.ts",
+      "extractedSha256": "bbf2c5c28374e36cea2c7666538527e65cb70d31ebf92f0d3929e162068121bb"
+    },
+    {
+      "origin": "conversion",
+      "source": "lib/import/pptx/pptx-import-asset-registry.ts",
+      "sourceSha256": "b32c9b3741c2e67b62dba04105ca5f490a820437deda74d91ba306a4de39e1ff",
+      "path": "src/conversion/lib/import/pptx/pptx-import-asset-registry.ts",
+      "extractedSha256": "a0768f03a57eec4d72812b8aa047b28c9130bfa33a0e9cec75d03d40dd10813f"
+    },
+    {
+      "origin": "conversion",
+      "source": "scripts/pptx-byte-worker.ts",
+      "sourceSha256": "f73297fc3b12e29cc74fd30ef6f6f6ca20043b78f643a642f46581727559dd12",
+      "path": "src/conversion/scripts/pptx-byte-worker.ts",
+      "extractedSha256": "f73297fc3b12e29cc74fd30ef6f6f6ca20043b78f643a642f46581727559dd12"
+    },
+    {
+      "origin": "conversion",
+      "source": "tests/courseware/fixed-build.test.ts",
+      "sourceSha256": "caf4528b23b802aea3625f112e4a80a30e3c594bce9fa1e2df1eef081e36d9bb",
+      "path": "src/conversion/tests/courseware/fixed-build.test.ts",
+      "extractedSha256": "7f80f46233204e290d64c8038bf3651296bf9e0facac2676dd7100f8958818a4"
+    },
+    {
+      "origin": "conversion",
+      "source": "tests/courseware/adapt-canonical-snapshot.test.ts",
+      "sourceSha256": "fffb45382599cb2a18f7b6df824207a5c6b541b919cbc44cf4a07207ad6d0c2b",
+      "path": "src/conversion/tests/courseware/adapt-canonical-snapshot.test.ts",
+      "extractedSha256": "06e430f689d796817d511774c40b29e564e854c8a1e2b07030179c3f31806120"
+    },
+    {
+      "origin": "conversion",
+      "source": "tests/import/pptx/identity.test.ts",
+      "sourceSha256": "aee10f288aec0cc3875b6c5d365ca45917c3a484b47965e923b80f9ae95e2b66",
+      "path": "src/conversion/tests/import/pptx/identity.test.ts",
+      "extractedSha256": "6f3766b8628fbe04adf8a7f5344682e1d2d76d4276ac4bcf072dc9fbe8e96954"
+    },
+    {
+      "origin": "conversion",
+      "source": "tests/import/pptx/saved-source-identity.test.ts",
+      "sourceSha256": "0a7e341d32be7eb504aa6fe0c53377e88ba1c0d5b863d95f38364e10ce7bb3d4",
+      "path": "src/conversion/tests/import/pptx/saved-source-identity.test.ts",
+      "extractedSha256": "5121606c913c61f3893642a73216d2b7bdeeeb00b3ea3d6e7ea0788dbce4cce4"
+    },
+    {
+      "origin": "conversion",
+      "source": "lib/import/types.ts",
+      "sourceSha256": "b109f24fb28f7d075ecfe9325c014cf8016c6975cf1c1bf5d6924ab46f6eb603",
+      "path": "src/conversion/lib/import/types.ts",
+      "extractedSha256": "b109f24fb28f7d075ecfe9325c014cf8016c6975cf1c1bf5d6924ab46f6eb603"
+    },
+    {
+      "origin": "conversion",
+      "source": "lib/types/stage.ts",
+      "sourceSha256": "59692da4b65d9bd211dc8319a676a6e20fea3f27be2fa8db36d12b42cb415a1e",
+      "path": "src/conversion/lib/types/stage.ts",
+      "extractedSha256": "1d269d179c319ff5057033936e2f6b939b25e46225c09d5605e34ebf6a7ab2b7"
+    },
+    {
+      "origin": "conversion",
+      "source": "lib/types/action.ts",
+      "sourceSha256": "9a130bd71412ca9d31de004c984debdf53cdb3840a8d3dd7d3d3d593b11ffe5d",
+      "path": "src/conversion/lib/types/action.ts",
+      "extractedSha256": "9de9fd845d8c0bb4ef62c43c767e3a193a806cf744f0a8979bed03a9b4393775"
+    },
+    {
+      "origin": "conversion",
+      "source": "lib/types/pdf.ts",
+      "sourceSha256": "72aaeebc322fa399380344de753bbebedc2f28163ef52d88731078bc7445d793",
+      "path": "src/conversion/lib/types/pdf.ts",
+      "extractedSha256": "72aaeebc322fa399380344de753bbebedc2f28163ef52d88731078bc7445d793"
+    },
+    {
+      "origin": "conversion",
+      "source": "lib/pbl/types.ts",
+      "sourceSha256": "0eb9935b739c218e0c2c1d2e03f0017c24aac5f265765f9768ff0b1c5f5e1a5b",
+      "path": "src/conversion/lib/pbl/types.ts",
+      "extractedSha256": "0eb9935b739c218e0c2c1d2e03f0017c24aac5f265765f9768ff0b1c5f5e1a5b"
+    },
+    {
+      "origin": "conversion",
+      "source": "lib/interaction/types.ts",
+      "sourceSha256": "67e870296d8f015d7a9dea347ae62791669b944f841c3ed7d468551aa3bf7f48",
+      "path": "src/conversion/lib/interaction/types.ts",
+      "extractedSha256": "266b7590fb651d3303540b2adfe962ddf2052e66a2859c57a7df0c67189de6fb"
+    },
+    {
+      "origin": "conversion",
+      "source": "lib/types/generation.ts",
+      "sourceSha256": "4cd859218cb91a8e06876dc7d3d50966fed77c18c963be2bb4055541565bf439",
+      "path": "src/conversion/lib/types/generation.ts",
+      "extractedSha256": "c64692a40ec0b9c36d2f6e0c569e6365b4dab22b2dbfa8028a1f9f72cd4bc2f1"
+    },
+    {
+      "origin": "patched-pptxtojson-2.1.0",
+      "source": "index.cjs",
+      "sourceSha256": "363757ae5696ea349068eb7b3df6071c71243bfec9288b06eea4b2e9740f3b02",
+      "path": "vendor/pptxtojson/index.cjs",
+      "extractedSha256": "363757ae5696ea349068eb7b3df6071c71243bfec9288b06eea4b2e9740f3b02"
+    },
+    {
+      "origin": "patched-pptxtojson-2.1.0",
+      "source": "index.d.ts",
+      "sourceSha256": "3ca4f5e3a158fb07371d928c068bcaf355db8c0561bc52541056c341f6518d28",
+      "path": "vendor/pptxtojson/index.d.ts",
+      "extractedSha256": "3ca4f5e3a158fb07371d928c068bcaf355db8c0561bc52541056c341f6518d28"
+    },
+    {
+      "origin": "patched-pptxtojson-2.1.0",
+      "source": "LICENSE",
+      "sourceSha256": "565053ed6d0ff6a9fdfb968e2df00a38fae1fcddb9eeea73fc7c65d21e3d28fe",
+      "path": "vendor/pptxtojson/LICENSE",
+      "extractedSha256": "565053ed6d0ff6a9fdfb968e2df00a38fae1fcddb9eeea73fc7c65d21e3d28fe"
+    }
+  ]
+}

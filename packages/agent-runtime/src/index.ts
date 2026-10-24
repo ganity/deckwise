@@ -1,3 +1,5 @@
+export * from "./ppt-editor-tools.js";
+export * from "./courseware-route.js";
 export * from "./host-client.js";
 export * from "./model-capabilities.js";
 export * from "./mode-prompts.js";
@@ -22,3 +24,13 @@ export { startAuthenticatedProxyRelay } from "./authenticated-proxy-relay.js";
 export type { AuthenticatedProxyRelay } from "./authenticated-proxy-relay.js";
 
 export * from "./speech/index.js";
+
+export { generateNarrationWrite } from "./courseware/narration-write.js";
+export { buildStagePromptContext, resolveGenerationProfile } from "./courseware/generation-profile-registry.js";
+export { candidateHash } from "./courseware/page-candidate-baseline.js";
+export { pageNarrationOutputSchema } from "./courseware/page-narration-candidate.js";
+export { createAuthorizedPptCandidateTools } from "./ppt-candidate-host.js";
+export type { PptCandidateBaseline, PptCandidateContext } from "./ppt-candidate-tools.js";
+
+export { generatePageFadeCandidate, resolvePageFadeTarget } from "./courseware/page-fade-candidate.js";
+export { resolveCoursewareOriginalNotes } from "./courseware/original-notes.js";

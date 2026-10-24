@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
+const files = await read("../electron/main/ppt-editor-files.ts");
 const [controller, host, component, protocol, vite, packageJson, hostProtocol] = await Promise.all([
   read("../electron/main/ppt-editor.ts"),
   read("../resources/editor-host/index.html"),
@@ -54,13 +55,13 @@ test("editor host protocol delegates HTML loading to Electron's network stack", 
 });
 
 test("editor archives revisions and replaces the original PPTX with stale-write protection", () => {
-  assert.match(controller, /Revision conflict: expected/);
+  assert.match(files, /Revision conflict: expected/);
   assert.match(controller, /expectedRevision: current\.revision\.revision/);
   assert.match(controller, /\.deckwise-ppt\/revisions/);
   assert.match(controller, /sha256/);
   assert.match(controller, /replaceSourceFile/);
   assert.match(controller, /current\.sourcePath/);
-  assert.match(controller, /fs\.rename\(temporaryPath, sourcePath\)/);
+  assert.match(files, /fs\.rename\(temporaryPath, sourcePath\)/);
 });
 
 test("editor preload and host page are both shipped", () => {

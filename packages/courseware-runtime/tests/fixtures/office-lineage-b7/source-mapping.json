@@ -1,0 +1,36 @@
+{
+  "revision": "B7-local-fixture",
+  "sourceSha256": "c5f9392ea1a93f6616e30d23f0be421d58c6e30337670433b0d27baee4ee4cc0",
+  "pages": [
+    {
+      "pageId": "B7-logical-1",
+      "importPageId": "page_1",
+      "objects": [
+        {
+          "objectId": "B7-object-0-0",
+          "importElementId": "pptx_shape_1"
+        }
+      ]
+    },
+    {
+      "pageId": "B7-logical-2",
+      "importPageId": "page_2",
+      "objects": [
+        {
+          "objectId": "B7-object-1-0",
+          "importElementId": "pptx_shape_1"
+        }
+      ]
+    },
+    {
+      "pageId": "B7-logical-3",
+      "importPageId": "page_3",
+      "objects": [
+        {
+          "objectId": "B7-object-2-0",
+          "importElementId": "pptx_shape_1"
+        }
+      ]
+    }
+  ]
+}

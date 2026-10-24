@@ -1,7 +1,9 @@
 import { createHash, randomUUID } from "node:crypto";
-import { promises as fs } from "node:fs";
+import { createReadStream, promises as fs } from "node:fs";
 import { basename, dirname, extname, join, relative } from "node:path";
-import { getOfficeExtension, type OfficeExtension } from "@pi-desktop/shared";
+import { getOfficeExtension, assertPptEditorCommand, assertPptEditorContext, assertPptEditorCommandResult, samePptEditorBinding, type PptEditorBinding, type OfficeExtension } from "@pi-desktop/shared";
+import { jobIdFor, listRevisions, publishRevision, replaceSourceFile, type Revision } from "./ppt-editor-files";
+import { requestPptEditor } from "./ppt-editor-request";
 import { MAX_OFFICE_BYTES, validateOfficeBytes, officeSaveExtension } from "./office-file";
 import { session, WebContentsView, type BrowserWindow, type IpcMain } from "electron";
 import { resolveRealOpenablePath, resolveRealPathForCreateWithinRoot } from "./fs-panel";
@@ -10,9 +12,14 @@ import {
   PPT_EDITOR_HANDSHAKE_TIMEOUT_MS,
   waitForPptEditorMessage,
 } from "./ppt-editor-handshake";
+import { PptxInspector } from "./pptx-inspection";
+import type { ReviewedImage, ReviewedImageTarget } from "./courseware-image-review";
+import { captureSourcePagePreview, sourcePreviewTarget } from "./courseware-page-preview";
 
 const HOST_PAGE = "deckwise-editor://host/index.html";
 const REVISION_DIR = ".deckwise-ppt/revisions";
+
+export type FadeAuthorization = { editGeneration: number; page: number; sourceHash: string; slideHash: string };
 
 export type PptEditorState = {
   status: "opening" | "ready" | "saving" | "saved" | "error" | "closed";
@@ -24,16 +31,8 @@ export type PptEditorState = {
   canRetry?: boolean;
   readOnly?: boolean;
   savedPath?: string;
-};
-
-type Revision = {
-  revision: number;
-  cause: "generated" | "edited";
-  createdAt: string;
-  file: string;
-  size: number;
-  sha256: string;
-  documentPath: string;
+  dirty?: boolean;
+  canSave?: boolean;
 };
 
 function transferableBuffer(bytes: Buffer): ArrayBuffer {
@@ -43,114 +42,30 @@ function transferableBuffer(bytes: Buffer): ArrayBuffer {
   ) as ArrayBuffer;
 }
 
-function jobIdFor(workspaceRoot: string, sourcePath: string): string {
-  const rel = relative(workspaceRoot, sourcePath).replaceAll("\\", "/");
-  const name = basename(sourcePath, extname(sourcePath))
-    .replace(/[^a-zA-Z0-9_-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 40) || "presentation";
-  return `${name}-${createHash("sha256").update(rel).digest("hex").slice(0, 12)}`;
-}
-
-async function listRevisions(root: string, jobId: string): Promise<Revision[]> {
-  const revisionsRoot = join(root, jobId);
-  let entries;
-  try {
-    entries = await fs.readdir(revisionsRoot, { withFileTypes: true });
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
-    throw error;
-  }
-  const revisions: Revision[] = [];
-  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
-    if (!entry.isDirectory() || !/^r\d{4}$/.test(entry.name)) continue;
-    const directory = join(revisionsRoot, entry.name);
-    const manifest = JSON.parse(
-      await fs.readFile(join(directory, "revision.json"), "utf8"),
-    ) as Omit<Revision, "documentPath">;
-    revisions.push({ ...manifest, documentPath: join(directory, manifest.file) });
-  }
-  return revisions;
-}
-
-async function publishRevision(input: {
-  root: string;
-  jobId: string;
-  bytes: Uint8Array;
-  extension: OfficeExtension;
-  cause: Revision["cause"];
-  expectedRevision: number;
-}): Promise<Revision> {
-  const bytes = validateOfficeBytes(input.bytes, input.extension);
-  const revisions = await listRevisions(input.root, input.jobId);
-  const current = revisions.at(-1)?.revision ?? 0;
-  if (current !== input.expectedRevision) {
-    throw new Error(`Revision conflict: expected ${input.expectedRevision}, current ${current}`);
-  }
-
-  const revision = current + 1;
-  const revisionName = `r${String(revision).padStart(4, "0")}`;
-  const jobRoot = join(input.root, input.jobId);
-  const finalDirectory = join(jobRoot, revisionName);
-  const tempDirectory = join(jobRoot, `.${revisionName}.${randomUUID()}.tmp`);
-  await fs.mkdir(tempDirectory, { recursive: true });
-  try {
-    const documentPath = join(tempDirectory, `document.${input.extension}`);
-    await fs.writeFile(documentPath, bytes, { flag: "wx" });
-    const manifest = {
-      revision,
-      cause: input.cause,
-      createdAt: new Date().toISOString(),
-      file: `document.${input.extension}`,
-      size: bytes.byteLength,
-      sha256: createHash("sha256").update(bytes).digest("hex"),
-    };
-    await fs.writeFile(
-      join(tempDirectory, "revision.json"),
-      `${JSON.stringify(manifest, null, 2)}\n`,
-      { flag: "wx" },
-    );
-    await fs.rename(tempDirectory, finalDirectory);
-    return { ...manifest, documentPath: join(finalDirectory, manifest.file) };
-  } catch (error) {
-    await fs.rm(tempDirectory, { recursive: true, force: true });
-    throw error;
-  }
-}
-
-async function replaceSourceFile(sourcePath: string, bytes: Uint8Array, extension: OfficeExtension): Promise<void> {
-  const validated = validateOfficeBytes(bytes, extension);
-  const temporaryPath = join(
-    dirname(sourcePath),
-    `.${basename(sourcePath)}.${randomUUID()}.tmp`,
-  );
-  await fs.writeFile(temporaryPath, validated, { flag: "wx" });
-  try {
-    if (process.platform === "win32") {
-      await fs.copyFile(temporaryPath, sourcePath);
-      await fs.rm(temporaryPath, { force: true });
-    } else {
-      await fs.rename(temporaryPath, sourcePath);
-    }
-  } catch (error) {
-    await fs.rm(temporaryPath, { force: true }).catch(() => undefined);
-    throw error;
-  }
-}
-
 export class PptEditorController {
+  invalidateFade?: () => void;
+  imageAssets?: { metadata(workspace: string | null): Promise<ReviewedImage | null>; load(assetId: string, workspace: string | null, command?: import("@pi-desktop/shared").PptEditorCommand): Promise<{ asset: ReviewedImage; bytes: Buffer; assertCurrent(): void }> };
+  private imageMetadata = "null";
+  readonly inspector = new PptxInspector();
   private view: WebContentsView | null = null;
   private window: BrowserWindow | null = null;
   private visible = false;
   private bounds = { x: 0, y: 0, width: 0, height: 0 };
   private current:
-    | { workspaceRoot: string; sourcePath: string; revisionRoot: string; jobId: string; revision: Revision; extension: OfficeExtension; readOnly: boolean; savedPath?: string }
+    | { workspaceRoot: string; sourcePath: string; revisionRoot: string; jobId: string; revision: Revision; savedRevision: Revision; extension: OfficeExtension; readOnly: boolean; sourceHash: string; savedPath?: string }
     | null = null;
-  private pendingSave = false;
+  private pendingSave: { id: string; phase: "export" | "writing" | "ack"; error?: string } | null = null;
+  private saveTimer: ReturnType<typeof setTimeout> | undefined;
+  private dirty = false;
+  private saveOutcomeUncertain = false;
   private commandSequence = 0;
   private ready = false;
   private opening = false;
   private openAbort: AbortController | null = null;
+  private bridgeAbort = new AbortController();
+  private bridgeBinding: PptEditorBinding | null = null;
+  private readonly bridgeRequests = new Set<string>();
+  private readonly activeBridgeRequests = new Set<string>();
   private readonly editorUrl: URL;
   private readonly onDownload = (event: Electron.Event) => event.preventDefault();
 
@@ -166,14 +81,16 @@ export class PptEditorController {
     this.ipcMain.on("deckwise-editor:event", this.onEditorEvent);
   }
 
-  async open(window: BrowserWindow, workspaceRoot: string, requestedPath: string, mimeType?: string, extraRoots: string[] = []) {
+  async open(window: BrowserWindow, workspaceRoot: string, requestedPath: string, mimeType?: string, extraRoots: string[] = [], forceReadOnly = false) {
+    if (this.pendingSave) throw new Error("Finish the current save before opening another document");
     const sourcePath = await resolveRealOpenablePath(requestedPath, workspaceRoot, extraRoots);
     if (!sourcePath) throw new Error("Document is outside allowed roots");
     const extension = getOfficeExtension(sourcePath, mimeType);
     if (!extension) throw new Error("Unsupported WiseOffice document format");
-    const readOnly = extension === "pdf" || !await resolveRealOpenablePath(sourcePath, workspaceRoot);
+    const readOnly = forceReadOnly || extension === "pdf" || !await resolveRealOpenablePath(sourcePath, workspaceRoot);
     if (
       this.current?.sourcePath === sourcePath &&
+      this.current.readOnly === readOnly &&
       this.view &&
       this.ready &&
       !this.view.webContents.isDestroyed()
@@ -189,15 +106,16 @@ export class PptEditorController {
     if (!revisionRoot) throw new Error("Revision 目录无法安全创建");
     const jobId = jobIdFor(workspaceRoot, sourcePath);
     let revisions = await listRevisions(revisionRoot, jobId);
-    if (revisions.length === 0) {
+    const sourceHash = createHash("sha256").update(sourceBytes).digest("hex");
+    if (revisions.at(-1)?.sha256 !== sourceHash) {
       await fs.mkdir(revisionRoot, { recursive: true });
       await publishRevision({
         root: revisionRoot,
         jobId,
         bytes: sourceBytes,
         extension,
-        cause: "generated",
-        expectedRevision: 0,
+        cause: revisions.length ? "edited" : "generated",
+        expectedRevision: revisions.at(-1)?.revision ?? 0,
       });
       revisions = await listRevisions(revisionRoot, jobId);
     }
@@ -206,7 +124,13 @@ export class PptEditorController {
 
     this.closeView();
     this.window = window;
-    this.current = { workspaceRoot, sourcePath, revisionRoot, jobId, revision, extension, readOnly };
+    this.current = { workspaceRoot, sourcePath, revisionRoot, jobId, revision, savedRevision: revision, extension, readOnly, sourceHash };
+    this.bridgeAbort = new AbortController();
+    this.bridgeBinding = {
+      projectId: createHash("sha256").update(workspaceRoot).digest("hex"),
+      documentId: jobId,
+      sessionId: randomUUID(),
+    };
     this.opening = true;
     this.ready = false;
     this.emit({ status: "opening", path: requestedPath, revision: revision.revision });
@@ -236,6 +160,8 @@ export class PptEditorController {
         fileName: `${basename(sourcePath, extname(sourcePath))}.${getOfficeExtension(revision.file) ?? extension}`,
         buffer: transferableBuffer(revisionBytes),
         readonly: readOnly,
+        editorBinding: extension === "pptx" ? this.bridgeBinding : undefined,
+        trackPageLineage: extension === "pptx" ? true : undefined,
       });
       await waitForPptEditorMessage(
         this.ipcMain,
@@ -273,13 +199,204 @@ export class PptEditorController {
     }
   }
 
+  async getContext(workspaceRoot: string | null, signal?: AbortSignal) {
+    signal?.throwIfAborted();
+    const binding = this.requireBridge(workspaceRoot);
+    const asset = await this.imageAssets?.metadata(workspaceRoot) ?? null;
+    if (!samePptEditorBinding(binding, this.requireBridge(workspaceRoot))) throw new Error("Editor changed while reading image review");
+    const metadata = JSON.stringify(asset);
+    if (metadata !== this.imageMetadata) {
+      const updated = await this.bridgeRequest("document:review-image", "document:context", { binding, asset }, undefined, signal);
+      assertPptEditorContext(updated);
+      if (!samePptEditorBinding(binding, updated)) throw new Error("Image review belongs to another editor");
+      this.imageMetadata = metadata;
+    }
+    const response = await this.bridgeRequest("document:get-context", "document:context", { ...binding }, undefined, signal);
+    assertPptEditorContext(response);
+    if (!samePptEditorBinding(binding, response)) throw new Error("Editor context belongs to another session");
+    return response;
+  }
+
+  async execute(command: unknown, workspaceRoot: string | null, canDispatch: () => boolean = () => true) {
+    assertPptEditorCommand(command);
+    if (command.tool === "set_slide_fade") throw new Error("Native fade requires retained Main inspection and dedicated dispatch");
+    this.invalidateFade?.();
+    const binding = this.requireBridge(workspaceRoot);
+    if (!samePptEditorBinding(binding, command)) throw new Error("Editor command belongs to another session");
+    if (command.tool !== "get_presentation_text" && this.current?.readOnly) throw new Error("Document is read-only");
+    if (this.bridgeRequests.has(command.requestId)) throw new Error("Editor request was already consumed");
+    if (this.bridgeRequests.size >= 4096) throw new Error("Editor request limit reached; reopen the document");
+    this.bridgeRequests.add(command.requestId);
+    let payload: Record<string, unknown> = command;
+    let messageType = "document:execute";
+    if (command.tool === "replace_slide_image_from_asset" || command.tool === "insert_slide_image_from_asset") {
+      if (!this.imageAssets) throw new Error("Reviewed image service is unavailable");
+      const image = await this.imageAssets.load(command.input.assetId, workspaceRoot, command);
+      image.assertCurrent();
+      if (!canDispatch()) throw new Error("Chat turn was cancelled before image dispatch");
+      if (!samePptEditorBinding(binding, this.requireBridge(workspaceRoot)) || JSON.stringify(image.asset) !== this.imageMetadata) throw new Error("Image review changed before dispatch");
+      payload = { command, bytes: new Uint8Array(image.bytes) };
+      messageType = "document:execute-image";
+    }
+    if (!canDispatch()) throw new Error("Chat turn was cancelled before native dispatch");
+    const response = await this.bridgeRequest(messageType, "document:command-result", payload, command.requestId);
+    assertPptEditorCommandResult(response);
+    if (!samePptEditorBinding(binding, response) || response.requestId !== command.requestId || response.editGeneration !== command.editGeneration || response.tool !== command.tool) {
+      throw new Error("Editor result does not match the request");
+    }
+    return response;
+  }
+
+  async reviewImageTarget(asset: ReviewedImage, target: ReviewedImageTarget, workspaceRoot: string | null) {
+    const snapshot = this.teachingSnapshot(workspaceRoot);
+    await this.verifyTeachingSource(workspaceRoot);
+    const response = await this.bridgeRequest("document:review-image-target", "document:image-target-reviewed",
+      { binding: this.requireBridge(workspaceRoot), asset, target });
+    assertPptEditorContext(response);
+    const current = this.teachingSnapshot(workspaceRoot);
+    if (!samePptEditorBinding(snapshot, response) || !samePptEditorBinding(snapshot, current) ||
+        current.sha256 !== snapshot.sha256 || current.revision !== snapshot.revision || response.page !== target.page || response.readOnly)
+      throw new Error("Canvas image target review changed");
+    this.imageMetadata = JSON.stringify(asset);
+    return response;
+  }
+
+  async reviewFade(authorization: FadeAuthorization, workspaceRoot: string | null, signal?: AbortSignal) {
+    authorization = { ...authorization };
+    const snapshot = this.teachingSnapshot(workspaceRoot);
+    await this.verifyTeachingSource(workspaceRoot);
+    const native = await this.getContext(workspaceRoot, signal);
+    if (!samePptEditorBinding(snapshot, native) || native.editGeneration !== authorization.editGeneration || native.page !== authorization.page || authorization.sourceHash !== `sha256:${snapshot.sha256}`) throw new Error("Native fade inspection is stale");
+    const current = this.teachingSnapshot(workspaceRoot);
+    if (current.sha256 !== snapshot.sha256 || current.revision !== snapshot.revision || !samePptEditorBinding(current, snapshot)) throw new Error("Native fade saved source changed");
+    const reviewed = await this.bridgeRequest("document:review-fade", "document:context", { binding: this.requireBridge(workspaceRoot), authorization }, undefined, signal);
+    assertPptEditorContext(reviewed);
+    if (!samePptEditorBinding(snapshot, reviewed) || reviewed.editGeneration !== authorization.editGeneration || reviewed.page !== authorization.page) throw new Error("Native fade review belongs to another context");
+    return reviewed;
+  }
+
+  async executeFade(command: unknown, authorization: FadeAuthorization, workspaceRoot: string | null,
+    assertCurrent: () => Promise<void>, canDispatch: () => boolean, signal?: AbortSignal) {
+    command = structuredClone(command);
+    authorization = { ...authorization };
+    assertPptEditorCommand(command);
+    if (command.tool !== "set_slide_fade" || command.editGeneration !== authorization.editGeneration) throw new Error("Invalid finite fade command");
+    const binding = this.requireBridge(workspaceRoot), snapshot = this.teachingSnapshot(workspaceRoot);
+    if (!samePptEditorBinding(binding, command) || authorization.sourceHash !== `sha256:${snapshot.sha256}`) throw new Error("Native fade source or binding changed");
+    if (this.bridgeRequests.has(command.requestId)) throw new Error("Editor request was already consumed");
+    if (this.bridgeRequests.size >= 4096) throw new Error("Editor request limit reached; reopen the document");
+    this.bridgeRequests.add(command.requestId);
+    await this.verifyTeachingSource(workspaceRoot);
+    await assertCurrent();
+    signal?.throwIfAborted();
+    const current = this.teachingSnapshot(workspaceRoot);
+    if (!samePptEditorBinding(snapshot, current) || current.sha256 !== snapshot.sha256 || current.revision !== snapshot.revision || !canDispatch()) throw new Error("Native fade source or Chat changed before dispatch");
+    const response = await this.bridgeRequest("document:execute-fade", "document:command-result", { command, authorization }, command.requestId, signal);
+    assertPptEditorCommandResult(response);
+    if (!samePptEditorBinding(binding, response) || response.requestId !== command.requestId || response.editGeneration !== command.editGeneration || response.tool !== "set_slide_fade") throw new Error("Native fade result does not match request");
+    return response;
+  }
+
+  async renderSavedPagePreview(workspaceRoot: string, page: number, omitNativeText = false, signal?: AbortSignal) {
+    signal?.throwIfAborted();
+    if (typeof omitNativeText !== "boolean") throw new Error("Invalid native text preview flag");
+    const binding = this.requireBridge(workspaceRoot), document = this.current!;
+    if (!document.readOnly || this.dirty || document.sourceHash !== document.savedRevision.sha256) throw new Error("Preview requires a newly opened readonly saved PPTX");
+    const current = () => {
+      signal?.throwIfAborted();
+      if (this.current !== document || this.dirty || !samePptEditorBinding(binding, this.requireBridge(workspaceRoot))) throw new Error("Page preview editor changed");
+    };
+    const context = await this.getContext(workspaceRoot, signal);
+    current();
+    const target = sourcePreviewTarget(context, document.savedRevision.sha256, page);
+    const response = await this.bridgeRequest("document:render-page-preview", "document:page-preview",
+      { binding, editGeneration: context.editGeneration, page, ...(omitNativeText ? { omitNativeText: true } : {}) }, undefined, signal);
+    current();
+    const result = captureSourcePagePreview(response, target, omitNativeText, signal);
+    const after = await this.getContext(workspaceRoot, signal);
+    current();
+    if (after.editGeneration !== context.editGeneration || JSON.stringify(sourcePreviewTarget(after, target.sourceSha256, page)) !== JSON.stringify(target)) throw new Error("Source changed during page preview");
+    return result;
+  }
+
+  private requireBridge(workspaceRoot: string | null): PptEditorBinding {
+    if (!this.ready || !this.view || this.current?.extension !== "pptx" || !this.bridgeBinding || this.pendingSave || this.saveOutcomeUncertain || this.current.workspaceRoot !== workspaceRoot) {
+      throw new Error("No ready PPTX editor session, or a save is in progress");
+    }
+    return this.bridgeBinding;
+  }
+
+  private async bridgeRequest(type: string, responseType: "document:context" | "document:command-result" | "document:page-preview" | "document:image-target-reviewed", payload: Record<string, unknown>, id: string = randomUUID(), signal?: AbortSignal): Promise<unknown> {
+    const view = this.view!;
+    this.activeBridgeRequests.add(id);
+    try {
+      return await requestPptEditor(this.ipcMain, view.webContents.id, id, responseType, () => {
+        view.webContents.send("deckwise-editor:command", { id, type, payload });
+      }, signal ? AbortSignal.any([this.bridgeAbort.signal, signal]) : this.bridgeAbort.signal);
+    } finally {
+      this.activeBridgeRequests.delete(id);
+    }
+  }
+
   save(): void {
     if (!this.view || !this.current || !this.ready) throw new Error("No ready document editor session");
     if (this.current.readOnly) throw new Error("Document is read-only");
     if (this.pendingSave) throw new Error("Document is being saved");
-    this.pendingSave = true;
+    if (this.saveOutcomeUncertain) throw new Error("Save outcome is uncertain; reopen before saving again");
+    if (this.activeBridgeRequests.size) throw new Error("Wait for the editor command to finish before saving");
+    this.invalidateFade?.();
+    const id = `deckwise-${++this.commandSequence}`;
+    this.pendingSave = { id, phase: "export" };
+    this.armSaveTimeout(210_000);
+    this.inspector.stop();
     this.emit(this.state("saving"));
-    this.sendCommand("document:save", { targetExt: officeSaveExtension(this.current.extension).toUpperCase() });
+    this.sendCommand("document:save", { targetExt: officeSaveExtension(this.current.extension).toUpperCase(), requireHostCommit: true }, id);
+  }
+
+  savedPptxSnapshot(): { path: string; revision: number; sha256: string } {
+    if (!this.current || !this.ready || this.opening || this.pendingSave || this.saveOutcomeUncertain ||
+        this.current.readOnly || this.current.extension !== "pptx") {
+      throw new Error("Open a writable PPTX and finish saving before inspection");
+    }
+    const revision = this.current.savedRevision;
+    return { path: revision.documentPath, revision: revision.revision, sha256: revision.sha256 };
+  }
+
+  teachingSnapshot(workspaceRoot: string | null) {
+    const binding = this.requireBridge(workspaceRoot);
+    if (this.dirty || this.opening || this.saveOutcomeUncertain) {
+      throw new Error("Save or reopen the PPTX before editing teaching");
+    }
+    return { ...this.savedPptxSnapshot(), ...binding };
+  }
+
+  sourceAdoptionSnapshot(workspaceRoot: string | null) {
+    return { ...this.teachingSnapshot(workspaceRoot), sourcePath: this.current!.sourcePath };
+  }
+
+  freezeForSourceAdoption(workspaceRoot: string, expected: ReturnType<PptEditorController["sourceAdoptionSnapshot"]>): void {
+    const current = this.sourceAdoptionSnapshot(workspaceRoot);
+    if (!samePptEditorBinding(current, expected) || current.sha256 !== expected.sha256 ||
+        current.revision !== expected.revision || current.sourcePath !== expected.sourcePath) throw new Error("Source adoption editor changed");
+    this.close();
+  }
+
+  async verifyTeachingSource(workspaceRoot: string | null): Promise<void> {
+    const snapshot = this.teachingSnapshot(workspaceRoot);
+    const document = this.current!;
+    const sourceHash = document.sourceHash;
+    if (!workspaceRoot || await resolveRealOpenablePath(document.sourcePath, workspaceRoot) !== document.sourcePath) throw new Error("Teaching source is outside the current workspace");
+    const hash = createHash("sha256");
+    let size = 0;
+    for await (const chunk of createReadStream(document.sourcePath)) {
+      size += chunk.length;
+      if (size > MAX_OFFICE_BYTES) throw new Error("Teaching source exceeds 256 MiB");
+      hash.update(chunk);
+    }
+    const current = this.teachingSnapshot(workspaceRoot);
+    if (this.current !== document || document.sourceHash !== sourceHash || hash.digest("hex") !== snapshot.sha256 ||
+        sourceHash !== snapshot.sha256 || current.revision !== snapshot.revision || current.sha256 !== snapshot.sha256 ||
+        !samePptEditorBinding(current, snapshot)) throw new Error("Source file changed outside the editor; reopen before editing teaching");
   }
 
   setBounds(bounds: { x: number; y: number; width: number; height: number }): void {
@@ -299,6 +416,7 @@ export class PptEditorController {
   }
 
   close(): void {
+    if (this.pendingSave) throw new Error("Finish the current save before closing the editor");
     const state = this.state("closed");
     this.closeView();
     this.current = null;
@@ -307,38 +425,70 @@ export class PptEditorController {
 
   dispose(): void {
     this.ipcMain.removeListener("deckwise-editor:event", this.onEditorEvent);
-    this.close();
+    this.closeView();
+    this.current = null;
   }
 
   private readonly onEditorEvent = (
     event: Electron.IpcMainEvent,
-    message: { type?: string; bytes?: ArrayBuffer; message?: string | { type?: string; payload?: { message?: string } } },
+    message: { type?: string; id?: string; bytes?: ArrayBuffer; message?: string | { id?: string; type?: string; payload?: { message?: string; dirty?: boolean; success?: boolean } } },
   ) => {
-    if (!this.view || event.sender.id !== this.view.webContents.id || !message) return;
-    if (message.type === "error" || (message.type === "message" && typeof message.message === "object" && message.message?.type === "document:error")) {
-      this.pendingSave = false;
+    const senderId = event?.sender?.id;
+    const viewContents = this.view?.webContents;
+    if (senderId === undefined || !viewContents || senderId !== viewContents.id || !message) return;
+    const reply = typeof message.message === "object" ? message.message : undefined;
+    if (message.type === "message" && reply?.id && this.activeBridgeRequests.has(reply.id)) return;
+    if (reply?.type === "document:dirty-changed" && typeof reply.payload?.dirty === "boolean") {
+      this.dirty = reply.payload.dirty;
+      if (this.dirty) this.invalidateFade?.();
+      if (!this.pendingSave) this.emit(this.state("ready"));
+      return;
+    }
+    if (reply?.type === "document:save-committed") {
+      const pending = this.pendingSave;
+      if (!pending || pending.phase !== "ack" || reply.id !== pending.id ||
+          typeof reply.payload?.dirty !== "boolean" || reply.payload.success !== !pending.error) return;
+      this.dirty = reply.payload.dirty;
+      this.clearPendingSave();
+      this.emit(pending.error
+        ? { ...this.state("error"), message: pending.error }
+        : this.state(this.dirty ? "ready" : "saved"));
+      return;
+    }
+    if (message.type === "error" || reply?.type === "document:error") {
+      if (this.pendingSave) {
+        if ((reply && reply.id !== this.pendingSave.id) || this.pendingSave.phase === "writing") return;
+        this.saveOutcomeUncertain = true;
+        this.clearPendingSave();
+      } else if (reply?.id && !this.opening) return;
       this.emit({
         ...this.state("error"),
         canRetry: this.opening,
-        message: typeof message.message === "string" ? message.message : message.message?.payload?.message || "编辑器加载失败",
+        message: typeof message.message === "string" ? message.message : reply?.payload?.message || "Editor failed",
       });
       return;
     }
     if (message.type === "save-requested") {
-      if (!this.pendingSave && this.current && !this.current.readOnly && this.ready) this.save();
+      if (!this.pendingSave && !this.saveOutcomeUncertain && !this.activeBridgeRequests.size && this.current && !this.current.readOnly && this.ready) this.save();
       return;
     }
-    if (message.type !== "saved" || !this.pendingSave || !this.current) return;
+    const pending = this.pendingSave;
+    if (message.type !== "saved" || !pending || pending.phase !== "export" || message.id !== pending.id || !this.current) return;
     const current = this.current;
+    pending.phase = "writing";
+    clearTimeout(this.saveTimer);
     const bytes = new Uint8Array(message.bytes ?? new ArrayBuffer(0));
-    void publishRevision({
-      root: current.revisionRoot,
-      jobId: current.jobId,
-      bytes,
-      extension: officeSaveExtension(current.extension),
-      cause: "edited",
-      expectedRevision: current.revision.revision,
-    }).then(async (revision) => {
+    void (async () => {
+      const sourceHash = createHash("sha256").update(await fs.readFile(current.sourcePath)).digest("hex");
+      if (sourceHash !== current.sourceHash) throw new Error("Source file changed outside the editor; preserve both versions before retrying");
+      const revision = await publishRevision({
+        root: current.revisionRoot,
+        jobId: current.jobId,
+        bytes,
+        extension: officeSaveExtension(current.extension),
+        cause: "edited",
+        expectedRevision: current.revision.revision,
+      });
       current.revision = revision;
       const extension = officeSaveExtension(current.extension);
       const target = extension === current.extension
@@ -346,28 +496,44 @@ export class PptEditorController {
         : join(dirname(current.sourcePath), `${basename(current.sourcePath, extname(current.sourcePath))}-edited-r${revision.revision}.${extension}`);
       const safeTarget = await resolveRealPathForCreateWithinRoot(current.workspaceRoot, relative(current.workspaceRoot, target));
       if (!safeTarget || safeTarget !== target) throw new Error("Save target is outside the workspace");
-      if (extension === current.extension) await replaceSourceFile(target, bytes, extension);
-      else await fs.writeFile(target, bytes, { flag: "wx" });
+      if (extension === current.extension) {
+        await replaceSourceFile(target, bytes, extension, current.sourceHash);
+        current.sourceHash = revision.sha256;
+      } else await fs.writeFile(target, bytes, { flag: "wx" });
       current.savedPath = relative(current.workspaceRoot, target);
-      if (this.current !== current) return;
-      this.pendingSave = false;
-      this.emit(this.state("saved"));
-    }).catch(
-      (error) => {
-        if (this.current !== current) return;
-        this.pendingSave = false;
-        this.emit({
-          ...this.state("error"),
-          message: error instanceof Error ? error.message : String(error),
-        });
-      },
-    );
+      current.savedRevision = revision;
+    })().catch((error) => {
+      pending.error = error instanceof Error ? error.message : String(error);
+    }).then(() => {
+      if (this.current !== current || this.pendingSave !== pending) return;
+      pending.phase = "ack";
+      this.armSaveTimeout(15_000);
+      this.sendCommand("document:commit-save", { success: !pending.error }, pending.id);
+    });
   };
+
+  private clearPendingSave(): void {
+    clearTimeout(this.saveTimer);
+    this.saveTimer = undefined;
+    this.pendingSave = null;
+  }
+
+  private armSaveTimeout(timeout: number): void {
+    clearTimeout(this.saveTimer);
+    this.saveTimer = setTimeout(() => {
+      this.saveOutcomeUncertain = true;
+      this.clearPendingSave();
+      this.emit({ ...this.state("error"), message: "Save confirmation timed out; inspect the file before reopening. Do not retry blindly." });
+    }, timeout);
+    this.saveTimer.unref();
+  }
 
   private state(status: PptEditorState["status"]): PptEditorState {
     const revision = this.current?.revision;
     return {
       status,
+      dirty: this.dirty,
+      canSave: this.ready && !this.saveOutcomeUncertain && !this.current?.readOnly,
       ...(this.current ? { path: relative(this.current.workspaceRoot, this.current.sourcePath), readOnly: this.current.readOnly, savedPath: this.current.savedPath } : {}),
       ...(revision
         ? {
@@ -379,8 +545,7 @@ export class PptEditorController {
     };
   }
 
-  private sendCommand(type: string, payload: Record<string, unknown>): string {
-    const id = `deckwise-${++this.commandSequence}`;
+  private sendCommand(type: string, payload: Record<string, unknown>, id = `deckwise-${++this.commandSequence}`): string {
     this.view?.webContents.send("deckwise-editor:command", {
       id,
       type,
@@ -447,15 +612,24 @@ export class PptEditorController {
   }
 
   private closeView(): void {
+    this.invalidateFade?.();
+    this.imageMetadata = "null";
+    this.inspector.stop();
+    this.bridgeAbort.abort();
+    this.bridgeBinding = null;
+    this.bridgeRequests.clear();
     this.openAbort?.abort();
     this.openAbort = null;
     this.opening = false;
-    this.pendingSave = false;
+    this.clearPendingSave();
+    this.dirty = false;
+    this.saveOutcomeUncertain = false;
     this.ready = false;
     this.detach();
-    if (this.view && !this.view.webContents.isDestroyed()) {
-      this.view.webContents.session.removeListener("will-download", this.onDownload);
-      this.view.webContents.close();
+    const viewContents = this.view?.webContents;
+    if (viewContents && !viewContents.isDestroyed()) {
+      viewContents.session.removeListener("will-download", this.onDownload);
+      viewContents.close();
     }
     this.view = null;
   }

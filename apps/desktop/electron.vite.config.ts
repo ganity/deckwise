@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import { cp } from "node:fs/promises";
 import { defineConfig } from "electron-vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -42,6 +43,28 @@ function dropLegacyFontFallbacks(): Plugin {
   };
 }
 
+function coursewareFonts(): Plugin {
+  const fonts = resolve(__dirname, "../../packages/courseware-runtime/assets/courseware-fonts");
+  return {
+    name: "deckwise-courseware-fonts",
+    async writeBundle(options) {
+      if (!options.dir) throw new Error("Renderer output directory missing");
+      await cp(fonts, resolve(options.dir, "courseware-fonts"), { recursive: true });
+    },
+    configureServer(server) {
+      // Serve only the checked-in font tree using Vite's existing static-file boundary.
+      server.config.server.fs.allow.push(fonts);
+      server.middlewares.use((request, _response, next) => {
+        if (request.url?.startsWith("/courseware-fonts/")) {
+          const member = request.url.slice("/courseware-fonts/".length);
+          if (/^[\w@./-]+$/u.test(member) && !member.split("/").includes("..")) request.url = `/@fs/${fonts}/${member}`;
+        }
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig({
   main: {
     // `ws` loads its optional native accelerators (bufferutil, utf-8-validate)
@@ -51,6 +74,9 @@ export default defineConfig({
     // kills the whole Main bundle before the app starts, so state the documented
     // "no native accelerator" input to that branch at build time instead.
     define: {
+      // Avoid a bundled dependency reading electron-vite's late ESM shim in its TDZ.
+      __filename: "import.meta.filename",
+      __dirname: "import.meta.dirname",
       "process.env.WS_NO_BUFFER_UTIL": "\"1\"",
       "process.env.WS_NO_UTF_8_VALIDATE": "\"1\"",
     },
@@ -80,6 +106,8 @@ export default defineConfig({
           index: resolve(__dirname, "electron/preload/index.ts"),
           "plugin-panel": resolve(__dirname, "electron/preload/plugin-panel.ts"),
           "editor-host": resolve(__dirname, "electron/preload/editor-host.ts"),
+          "courseware-online-host": resolve(__dirname, "electron/preload/courseware-online-host.ts"),
+          "courseware-player": resolve(__dirname, "electron/preload/courseware-player.ts"),
         },
         output: {
           format: "cjs",
@@ -92,6 +120,12 @@ export default defineConfig({
   },
   renderer: {
     root: ".",
+    server: {
+      watch: {
+        // Packaged resources are generated copies, not development inputs.
+        ignored: ["**/release/**", "**/dist/**", "**/out/**"],
+      },
+    },
     build: {
       // electron-vite's renderer preset hard-defaults minify to false, unlike
       // plain Vite. Enabling esbuild minification roughly halves the emitted
@@ -100,10 +134,11 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: resolve(__dirname, "index.html"),
+          "courseware-player": resolve(__dirname, "courseware-player.html"),
         },
       },
     },
-    plugins: [react(), tailwindcss(), tightenCsp(), dropLegacyFontFallbacks()],
+    plugins: [react(), tailwindcss(), tightenCsp(), dropLegacyFontFallbacks(), coursewareFonts()],
     resolve: {
       alias: {
         "@renderer": resolve("src"),

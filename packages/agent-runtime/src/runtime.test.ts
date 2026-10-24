@@ -155,6 +155,7 @@ function createRuntime(
     pluginSkills: import("./plugin-skills-prompt.js").PluginSkillDef[];
     commandShell: CommandShellOption;
     turnId: string;
+    pptEditorBinding: import("@pi-desktop/shared").PptEditorBinding;
     host: { call: ReturnType<typeof vi.fn>; onNotification?: ReturnType<typeof vi.fn> };
     onEvent: (envelope: unknown) => void;
   }> = {},
@@ -162,6 +163,7 @@ function createRuntime(
   return new DesktopAgentRuntime({
     host: (overrides.host ?? { call: vi.fn(), onNotification: vi.fn(() => () => {}) }) as never,
     sessionId: "session-1",
+    pptEditorBinding: overrides.pptEditorBinding,
     mode: overrides.mode === "chat" ? "plan" : overrides.mode ?? "agent",
     turnId: overrides.turnId,
     provider: overrides.provider ?? provider,
@@ -230,6 +232,15 @@ function runtimeMatches(
 }
 
 describe("DesktopAgentRuntime configuration matching", () => {
+  it("retires a runtime when the Main-owned native editor binding changes", async () => {
+    const binding = { projectId: "workspace", documentId: "document", sessionId: "native-1" };
+    const runtime = createRuntime({ pptEditorBinding: binding });
+    expect(runtimeMatches(runtime, { pptEditorBinding: { ...binding } })).toBe(true);
+    expect(runtimeMatches(runtime)).toBe(false);
+    expect(runtimeMatches(runtime, { pptEditorBinding: { ...binding, sessionId: "native-2" } })).toBe(false);
+    await runtime.dispose();
+  });
+
   it("retires an idle runtime when project memory changes", async () => {
     const runtime = createRuntime({ projectMemory: "Use the staging database." });
     expect(runtimeMatches(runtime, { projectMemory: "Use the staging database." })).toBe(true);

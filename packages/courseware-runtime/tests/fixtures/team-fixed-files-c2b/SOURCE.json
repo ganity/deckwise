@@ -1,0 +1,10 @@
+{
+  "scope": "Exact C2b authenticated HTTP response; URLs are expired loopback test-only signatures. D replays through an owned fetch boundary; not live platform acceptance.",
+  "files": {
+    "fixed-playback.json": {
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/C/c2-fixed-files-20261019/fixed-playback.json",
+      "sha256": "4e79147dfefcbf90280e11cd573d68c388c065df3817b03d6cea4346a599e765"
+    }
+  },
+  "buildDirectory": "/home/jhz/code/train/docs/validation/courseware/parallel/D/20261019-d17-asset-budget/build-fixture"
+}

@@ -1,0 +1,286 @@
+{
+  "assets": [
+    {
+      "id": "voice-1",
+      "mimeType": "audio/wav",
+      "path": "/tmp/deckwise-snapshots-eUKnFT/data/courseware-assets/c726d333dd159a31423f3480dbb1c5c4a9dfcd30efe1f7e12ade390dc92e8908.bin",
+      "sha256": "c726d333dd159a31423f3480dbb1c5c4a9dfcd30efe1f7e12ade390dc92e8908"
+    }
+  ],
+  "mapping": {
+    "pages": [
+      {
+        "importPageId": "page_1",
+        "objects": [
+          {
+            "importElementId": "pptx_text_1",
+            "objectId": "e89bd426-c6e1-43a3-b7b3-ff727a2fcd89"
+          },
+          {
+            "importElementId": "pptx_text_2",
+            "objectId": "8f0a4017-19c0-4463-ba82-aec895b8f967"
+          },
+          {
+            "importElementId": "pptx_shape_3",
+            "objectId": "536b19df-1d58-4825-9215-09c82ef1b0d4"
+          },
+          {
+            "importElementId": "pptx_shape_4",
+            "objectId": "d54fdc87-7ecd-4f84-b4cf-69e3888ead17"
+          },
+          {
+            "importElementId": "pptx_shape_5",
+            "objectId": "cbd8a99d-ff7e-4883-b8b4-cf97c63ca7ce"
+          },
+          {
+            "importElementId": "pptx_shape_6",
+            "objectId": "de16f1b8-f6a3-4251-9fe0-c6ce1fad30c7"
+          },
+          {
+            "importElementId": "pptx_shape_7",
+            "objectId": "798ba226-b7c8-4e09-8399-6bc8b4e888a2"
+          },
+          {
+            "importElementId": "pptx_shape_8",
+            "objectId": "f5f5552b-4d78-4abb-9fd2-99eaebe45c21"
+          },
+          {
+            "importElementId": "pptx_text_9",
+            "objectId": "ae436a3f-ec83-407a-9e3d-c76afae65b75"
+          }
+        ],
+        "pageId": "84a10f48-5baf-43ee-a4c2-3b62fb9b9870"
+      },
+      {
+        "importPageId": "page_2",
+        "objects": [
+          {
+            "importElementId": "pptx_text_1",
+            "objectId": "6e407e23-2e79-4949-8083-d66eed4254f2"
+          },
+          {
+            "importElementId": "pptx_shape_2",
+            "objectId": "d943a970-73f2-4553-a95d-bbf29324530a"
+          },
+          {
+            "importElementId": "pptx_shape_3",
+            "objectId": "c090b404-4e59-48d9-820a-d39612dee70b"
+          },
+          {
+            "importElementId": "pptx_text_4",
+            "objectId": "69cba3cd-4920-466a-90fc-20478ca465e7"
+          },
+          {
+            "importElementId": "pptx_text_5",
+            "objectId": "47b9eac0-ab12-465b-bea7-4f4686942c55"
+          },
+          {
+            "importElementId": "pptx_shape_6",
+            "objectId": "122d7ce7-83a7-4486-b8ec-56f5aa70353c"
+          },
+          {
+            "importElementId": "pptx_shape_7",
+            "objectId": "453757e2-efd0-44fb-be9c-52530042f7a5"
+          },
+          {
+            "importElementId": "pptx_shape_8",
+            "objectId": "1f849308-652a-424a-9143-2e43fe1c3d6e"
+          },
+          {
+            "importElementId": "pptx_text_9",
+            "objectId": "2afa1fdd-70a8-494d-a508-f287a18629c8"
+          },
+          {
+            "importElementId": "pptx_text_10",
+            "objectId": "881c0548-3f1c-48a1-aeb2-75b359015b44"
+          },
+          {
+            "importElementId": "pptx_shape_11",
+            "objectId": "8b27f2c9-ac75-43f8-9035-6c96efa77979"
+          },
+          {
+            "importElementId": "pptx_text_12",
+            "objectId": "483231b7-384c-4522-934a-9aa2723f24e6"
+          },
+          {
+            "importElementId": "pptx_text_13",
+            "objectId": "cc41d1f3-df13-4afc-a4f5-8a9bdb97ebfc"
+          },
+          {
+            "importElementId": "pptx_text_14",
+            "objectId": "85a2b525-cd18-46e8-a472-8ce4111006bc"
+          },
+          {
+            "importElementId": "pptx_text_15",
+            "objectId": "e6c5344e-abf6-445b-b41b-37738c7a6416"
+          },
+          {
+            "importElementId": "pptx_text_16",
+            "objectId": "48ddfe00-9248-4134-b4e3-ebf92a84063d"
+          },
+          {
+            "importElementId": "pptx_text_17",
+            "objectId": "5825a79f-1607-4053-926e-e2f7d20220d2"
+          },
+          {
+            "importElementId": "pptx_shape_18",
+            "objectId": "2f50b447-99f9-40a7-953e-adf399ad779c"
+          },
+          {
+            "importElementId": "pptx_text_19",
+            "objectId": "747c0564-f91a-4fd0-a455-986cefdd050b"
+          },
+          {
+            "importElementId": "pptx_text_20",
+            "objectId": "692f802b-fa15-4d27-8922-3adc73386ee1"
+          }
+        ],
+        "pageId": "2290d7a1-1f05-4d6a-9e4f-4cd98a2625c7"
+      },
+      {
+        "importPageId": "page_3",
+        "objects": [
+          {
+            "importElementId": "pptx_text_1",
+            "objectId": "7ca855d6-9beb-4752-8385-a7195edb8000"
+          },
+          {
+            "importElementId": "pptx_shape_2",
+            "objectId": "0ff03e46-a832-4b23-8373-2f21080ae27a"
+          },
+          {
+            "importElementId": "pptx_text_3",
+            "objectId": "6d916615-7288-42ca-ace5-b9a788227b20"
+          },
+          {
+            "importElementId": "pptx_shape_4",
+            "objectId": "046c3297-fd95-4589-a2a2-eafab3286cdd"
+          },
+          {
+            "importElementId": "pptx_text_5",
+            "objectId": "d448a85f-affd-49fa-b207-cf4b259b2c3d"
+          },
+          {
+            "importElementId": "pptx_text_6",
+            "objectId": "3cc102d5-5a22-4cf1-b430-8daa8d6cdbbf"
+          },
+          {
+            "importElementId": "pptx_shape_7",
+            "objectId": "02663a01-ed19-44f2-8f3c-c1c78f281f25"
+          },
+          {
+            "importElementId": "pptx_text_8",
+            "objectId": "36151efd-dac4-48be-bdff-7d5993666ecd"
+          },
+          {
+            "importElementId": "pptx_shape_9",
+            "objectId": "5fe610bc-3252-447e-9c12-7dee7b2c339c"
+          },
+          {
+            "importElementId": "pptx_shape_10",
+            "objectId": "91a74283-116a-4751-9916-b286d2747d24"
+          },
+          {
+            "importElementId": "pptx_shape_11",
+            "objectId": "45067628-09e2-4362-8a62-07bd3db5dc18"
+          },
+          {
+            "importElementId": "pptx_shape_12",
+            "objectId": "fb206272-0893-4ff1-84f1-32d154c8986b"
+          },
+          {
+            "importElementId": "pptx_text_13",
+            "objectId": "1bf72fe9-93f1-46f3-9216-b6869262321d"
+          },
+          {
+            "importElementId": "pptx_shape_14",
+            "objectId": "fc4fda90-dceb-4517-aa6c-5547c7f66a6b"
+          },
+          {
+            "importElementId": "pptx_text_15",
+            "objectId": "33982e88-bc56-49de-b66e-3f5897679d95"
+          },
+          {
+            "importElementId": "pptx_text_16",
+            "objectId": "399bc00d-773e-4653-ad2e-410d3dd1b0fd"
+          },
+          {
+            "importElementId": "pptx_text_17",
+            "objectId": "94f515fa-a90a-46f3-aa0a-2df102a34ea4"
+          },
+          {
+            "importElementId": "pptx_text_18",
+            "objectId": "b9750611-58d8-4cbf-8a57-32f6cfe6b607"
+          },
+          {
+            "importElementId": "pptx_text_19",
+            "objectId": "d7d7c57c-1ce1-4f08-86e1-59ee0de558a9"
+          },
+          {
+            "importElementId": "pptx_text_20",
+            "objectId": "7196edc2-785c-4810-a421-22c252d774dc"
+          },
+          {
+            "importElementId": "pptx_text_21",
+            "objectId": "b9bea982-15fd-42b9-834a-f2efeb3aa04d"
+          }
+        ],
+        "pageId": "f3f765c9-f691-4771-b0a9-5d849b1cdb0d"
+      }
+    ],
+    "revision": "875f8c5e-44e4-47fc-b959-acaf034c79ab",
+    "sourceSha256": "c3aeaeb94308615b2af2529db1cdbd76f85b18fd14714e5ebd10adb9ccad37f3"
+  },
+  "project": {
+    "pages": [
+      {
+        "actions": [
+          {
+            "audioAssetId": "voice-1",
+            "id": "speech-1",
+            "text": "Good!",
+            "type": "speech"
+          }
+        ],
+        "locked": false,
+        "pageId": "84a10f48-5baf-43ee-a4c2-3b62fb9b9870",
+        "reviewState": "ready"
+      },
+      {
+        "actions": [],
+        "locked": false,
+        "pageId": "2290d7a1-1f05-4d6a-9e4f-4cd98a2625c7",
+        "reviewState": "ready"
+      },
+      {
+        "actions": [],
+        "locked": false,
+        "pageId": "f3f765c9-f691-4771-b0a9-5d849b1cdb0d",
+        "reviewState": "ready"
+      }
+    ],
+    "projectId": "office-snapshot-e2e",
+    "schemaVersion": "deckwise-courseware/1",
+    "source": {
+      "revision": "c3aeaeb94308615b2af2529db1cdbd76f85b18fd14714e5ebd10adb9ccad37f3",
+      "sha256": "c3aeaeb94308615b2af2529db1cdbd76f85b18fd14714e5ebd10adb9ccad37f3"
+    },
+    "taskType": "import",
+    "teachingRevision": "e85b4574-4ebe-4d14-ac3c-6045fc84b00e",
+    "title": "snapshot-e2e"
+  },
+  "snapshot": {
+    "assetIds": [
+      "voice-1"
+    ],
+    "mappingRevision": "875f8c5e-44e4-47fc-b959-acaf034c79ab",
+    "projectId": "office-snapshot-e2e",
+    "snapshotId": "snapshot-1",
+    "source": {
+      "revision": "c3aeaeb94308615b2af2529db1cdbd76f85b18fd14714e5ebd10adb9ccad37f3",
+      "sha256": "c3aeaeb94308615b2af2529db1cdbd76f85b18fd14714e5ebd10adb9ccad37f3"
+    },
+    "teachingRevision": "e85b4574-4ebe-4d14-ac3c-6045fc84b00e"
+  },
+  "sourcePath": "/tmp/deckwise-snapshots-eUKnFT/data/courseware-candidates/c3aeaeb94308615b2af2529db1cdbd76f85b18fd14714e5ebd10adb9ccad37f3.pptx"
+}

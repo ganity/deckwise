@@ -62,6 +62,8 @@ import {
 import { registerApplicationActivation } from "./bootstrap/app-activation";
 import type { RuntimeState } from "./runtime/context";
 import { createHostRuntime } from "./runtime/host";
+import type { PptEditorChatBridge } from "./ppt-editor-chat";
+import { CoursewareMediaCanvasCoordinator } from "./courseware-media-canvas";
 import { createSidecarRuntime } from "./runtime/sidecar";
 import { createEventPersistence } from "./runtime/event-persistence";
 import { createPlanRuntime, type PlanRuntimeState } from "./runtime/plans";
@@ -610,6 +612,7 @@ const pluginServices = createPluginServices({
   },
   vendorOAuth,
   resolvePlatformAccessToken: () => authSession.resolveAccessToken(),
+  resolveTeamSceneImages: (references, signal) => authSession.resolveTeamSceneImages(references, signal),
   agentExtensions,
 });
 const {
@@ -646,6 +649,7 @@ const {
   listRuntimeProviders,
 } = providerCatalogRuntime;
 
+let pptEditorChat: PptEditorChatBridge | undefined;
 const createdSessionLaunchRuntime = createSessionLaunchRuntime({
   runtimeState,
   logger,
@@ -657,6 +661,7 @@ const createdSessionLaunchRuntime = createSessionLaunchRuntime({
   modelsDevCatalog,
   listRuntimeProviders,
   getWorkspacePath: currentWorkspacePath,
+  capturePptEditor: async (sessionId) => pptEditorChat?.capture(sessionId),
   pluginActiveInProject,
   bindingForModel,
   modelsDevModelFor,
@@ -994,6 +999,9 @@ const planRuntimeState: PlanRuntimeState = {
 const scheduledRunsBySession = new Map<string, string>();
 /** Session currently rendered on the chat page; focus remains Main-owned. */
 let notificationViewingSessionId: string | null = null;
+const mediaCanvas = new CoursewareMediaCanvasCoordinator(
+  () => host, () => notificationViewingSessionId, async () => currentWorkspacePath(),
+);
 /** Preserve tool metadata until the result is persisted at tool_end. Subagent
  * calls also carry their attribution, which is what lets a permission request
  * name the delegate that asked (ADR 0062). */
@@ -1149,6 +1157,7 @@ const sidecarRuntime = createSidecarRuntime({
   inflightCheckpointer,
   finishTurn,
   isStaleTerminalEvent,
+  isTurnDispatchable,
   finishApprovedExecution,
   superviseRestart,
   isQuitting: () => quitting,
@@ -1171,6 +1180,11 @@ emitAgentEvent = sidecarRuntime.emitAgentEvent;
 const { wireSidecar, startSidecar } = sidecarRuntime;
 
 const { wireHost, startHost } = createHostRuntime({
+  executePptEditorTool: async (...args) => {
+    if (args[1].startsWith("courseware_canvas_")) return mediaCanvas.execute(...args);
+    if (!pptEditorChat) throw new Error("PPT editor bridge is unavailable");
+    return pptEditorChat.execute(...args);
+  },
   runtimeState,
   dataDir,
   logger,
@@ -1221,7 +1235,20 @@ function registerIpc() {
     getSidecar: () => sidecar,
     getAgentHostBridge: () => agentHostBridge,
     authSession,
+    mediaCanvas,
     registerDocumentCleanup,
+    sceneGeneration: { build: pluginServices.buildSceneCourseware, stage: pluginServices.stageSceneCourseware },
+    completeNarration: async (input: Parameters<typeof pluginServices.complete>[0]) => {
+      const result = await pluginServices.complete(input);
+      if (input.sessionId) addActiveTurnUsage(input.sessionId, result.usage);
+      return result;
+    },
+    completeScene: async (input: Parameters<typeof pluginServices.completeScene>[0]) => {
+      const result = await pluginServices.completeScene(input);
+      addActiveTurnUsage(input.sessionId, result.usage);
+      return result;
+    },
+    onPptEditorChatReady: (bridge: PptEditorChatBridge) => { pptEditorChat = bridge; },
     getNotificationViewingSessionId: () => notificationViewingSessionId,
     setNotificationViewingSessionId: (sessionId: string | null) => {
       notificationViewingSessionId = sessionId;
@@ -1361,6 +1388,7 @@ registerApplicationStartup({
   activeTurns,
   isSessionBusy,
   getHost: () => host,
+  getViewingSessionId: () => notificationViewingSessionId,
   getMainWindow: () => mainWindow,
   sendToRenderer,
   applyDevelopmentBranding,

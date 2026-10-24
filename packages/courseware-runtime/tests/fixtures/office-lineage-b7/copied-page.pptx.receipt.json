@@ -1,0 +1,20 @@
+{
+  "protocol": "deckwise-office-page-lineage/1",
+  "projectId": "B7-workspace",
+  "documentId": "B7-document",
+  "sessionId": "f9f89717-d962-4e53-8fb4-8b6f63fc902a",
+  "saveRequestId": "3ac4a074-5442-4b90-93ff-fcd1ce1ce27e",
+  "sourceSha256": "d62df8d6334ee96b59b39816c63fd28b54575aef181a82b856bd5990cf9cce9b",
+  "openedPageTokens": [
+    "e88a25fc-f12d-4131-a354-6f71927cdb41",
+    "d6386559-26b0-4ed2-922f-8667a8f569dd",
+    "71b11b32-b1db-4e96-88de-3106780ff357"
+  ],
+  "pageTokens": [
+    "e88a25fc-f12d-4131-a354-6f71927cdb41",
+    "d6386559-26b0-4ed2-922f-8667a8f569dd",
+    "71b11b32-b1db-4e96-88de-3106780ff357",
+    "b3ee8b61-0a4b-4ae1-9e53-6a97b80245c5"
+  ],
+  "outputSha256": "c024dff826936cce872cfdb73bf3a4a83e3fccf1ffe60faaea13f6f3888350f1"
+}

@@ -28,6 +28,7 @@ import type { PersistenceOutbox } from "../persistence-outbox";
 import type { PluginRuntime } from "../plugin-runtime";
 import { readSessionCollaboration } from "../services/session-collaboration";
 import { searchSessionsAcrossSources } from "../services/session-search";
+import { approveSceneCourseDraft, readSceneCourseDraft } from "../courseware-scene-draft";
 import type { IpcRegistrar } from "./types";
 
 type RuntimeSession = {
@@ -135,6 +136,28 @@ export function registerSessionIpc({
   handle(IPC.invoke.sessionSearch, async (input) => {
     if (!host) throw new Error("host unavailable");
     return searchSessionsAcrossSources(host, sidecar, input);
+  });
+  handle(IPC.invoke.coursewareTaskGet, async (input: { sessionId: string }) => {
+    if (!host) throw new Error("host unavailable");
+    return host.call("courseware.task.get", input);
+  });
+  handle(IPC.invoke.coursewareTaskSet, async (input: { sessionId: string; taskType: string; educationContext?: unknown }) => {
+    if (!host) throw new Error("host unavailable");
+    return host.call("courseware.task.set", input);
+  });
+  handle(IPC.invoke.coursewareTaskBindTeam, async (input: { sessionId: string; teamProjectId: string }) => {
+    if (!host) throw new Error("host unavailable");
+    return host.call("courseware.task.bindTeam", input);
+  });
+  handle(IPC.invoke.coursewareScenePlanRead, async (input: unknown, ...extra: unknown[]) => {
+    if (!host) throw new Error("host unavailable");
+    if (extra.length) throw new Error("Unexpected scene plan parameters");
+    return readSceneCourseDraft(host, input);
+  });
+  handle(IPC.invoke.coursewareScenePlanApprove, async (input: unknown, ...extra: unknown[]) => {
+    if (!host) throw new Error("host unavailable");
+    if (extra.length) throw new Error("Unexpected scene plan parameters");
+    return approveSceneCourseDraft(host, input);
   });
   handle(IPC.invoke.sessionSearchContext, async (input) => {
     if (!host) throw new Error("host unavailable");

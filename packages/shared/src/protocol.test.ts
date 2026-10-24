@@ -24,6 +24,16 @@ import {
 } from "./index.js";
 
 describe("Plan protocol contracts", () => {
+  it("exposes finite reviewed online preparation channels", () => {
+    for (const [name, suffix] of [
+      ["coursewareOnlinePrepareReview", "review"],
+      ["coursewareOnlinePrepareConfirm", "confirm"],
+      ["coursewareOnlinePrepareCancel", "cancel"],
+    ] as const) {
+      expect(IPC.invoke[name]).toBe(`deckwise/courseware/online/prepare/${suffix}`);
+      expect(IPC_WHITELIST.has(IPC.invoke[name])).toBe(true);
+    }
+  });
   it("uses protocol v11/schema v16 and exposes the plan, schedule, and shell channels", () => {
     expect(PROTOCOL_VERSION).toBe(11);
     expect(SCHEMA_VERSION).toBe(16);
@@ -67,6 +77,21 @@ describe("Plan protocol contracts", () => {
     expect(IPC_WHITELIST.has(IPC.invoke.speechTranscribe)).toBe(true);
     expect(IPC_WHITELIST.has(IPC.invoke.speechSynthesize)).toBe(true);
     expect(IPC_WHITELIST.has(IPC.invoke.speechGetStatus)).toBe(true);
+    expect(IPC.invoke.coursewareMediaCanvasGet).toBe("deckwise/courseware/media-canvas/get");
+    expect(IPC.invoke.coursewareMediaCanvasSet).toBe("deckwise/courseware/media-canvas/set");
+    expect(IPC_WHITELIST.has(IPC.invoke.coursewareMediaCanvasGet)).toBe(true);
+    expect(IPC_WHITELIST.has(IPC.invoke.coursewareMediaCanvasSet)).toBe(true);
+    for (const [name, suffix] of [
+      ["coursewareCanvasImageModels", "models"], ["coursewareCanvasImageList", "list"],
+      ["coursewareCanvasImagePrepare", "prepare"], ["coursewareCanvasImageQuote", "quote"],
+      ["coursewareCanvasImageSubmitConfirmed", "submit-confirmed"], ["coursewareCanvasImageStatus", "status"],
+      ["coursewareCanvasImageArchive", "archive"], ["coursewareCanvasImagePreview", "preview"],
+      ["coursewareCanvasImageReferencePreview", "reference-preview"],
+      ["coursewareCanvasImageRestore", "restore"],
+    ] as const) {
+      expect(IPC.invoke[name]).toBe(`deckwise/courseware/canvas-image/${suffix}`);
+      expect(IPC_WHITELIST.has(IPC.invoke[name])).toBe(true);
+    }
   });
 
   it("exposes the vendor-account OAuth channels through the preload whitelist", () => {
@@ -243,4 +268,13 @@ describe("Plan protocol contracts", () => {
       130_000,
     );
   });
+});
+
+it("bounds only the reviewed style-batch transport and includes permission/response margins", () => {
+  expect(rpcTimeoutMs("tools.execute", { toolName: "ppt_propose_page_style_batch", timeoutMs: 1_800_000 })).toBe(1_930_000);
+  expect(rpcTimeoutMs("tools.execute", { toolName: "ppt_propose_page_style_batch" })).toBe(1_930_000);
+  expect(rpcTimeoutMs("tools.execute", { toolName: "ppt_propose_page_style_batch", timeoutMs: Number.MAX_SAFE_INTEGER })).toBe(1_930_000);
+  expect(rpcTimeoutMs("tools.execute", { toolName: "ppt_propose_page_style_batch", timeoutMs: 0 })).toBe(1_930_000);
+  expect(rpcTimeoutMs("tools.execute", { toolName: "ppt_propose_page_style_batch", timeoutMs: 5_000 })).toBe(135_000);
+  expect(rpcTimeoutMs("tools.execute", { toolName: "ppt_propose_page_redo", timeoutMs: 1_800_000 })).toBe(130_000);
 });

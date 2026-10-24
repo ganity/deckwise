@@ -27,6 +27,33 @@ export function registerAuthIpc(options: {
     registrar.assertMainWindowSender(event);
     return authSession.logout();
   });
+  registrar.handleWithEvent(IPC.invoke.coursewareTeamProjects, async (event) => {
+    registrar.assertMainWindowSender(event);
+    return authSession.coursewareMedia.getTeamProjects();
+  });
+  registrar.handleWithEvent(IPC.invoke.coursewareTeamProjectCreate, async (event) => {
+    registrar.assertMainWindowSender(event);
+    return authSession.coursewareMedia.createTeamProject();
+  });
+  registrar.handleWithEvent(IPC.invoke.coursewareTeamMemberGrant, async (event, input: { projectId?: unknown; userId?: unknown; role?: unknown } = {}) => {
+    registrar.assertMainWindowSender(event);
+    const userId = typeof input.userId === "number" ? input.userId : NaN;
+    if (typeof input.projectId !== "string" || !Number.isSafeInteger(userId) || typeof input.role !== "string" || !["EDITOR", "VIEWER"].includes(input.role)) throw new Error("COURSEWARE_MEDIA_INVALID_TEAM_MEMBER");
+    await authSession.coursewareMedia.grantTeamMember(input.projectId, userId, input.role as "EDITOR" | "VIEWER");
+    return { ok: true };
+  });
+  registrar.handleWithEvent(IPC.invoke.coursewareTeamMemberRevoke, async (event, input: { projectId?: unknown; userId?: unknown } = {}) => {
+    registrar.assertMainWindowSender(event);
+    const userId = typeof input.userId === "number" ? input.userId : NaN;
+    if (typeof input.projectId !== "string" || !Number.isSafeInteger(userId)) throw new Error("COURSEWARE_MEDIA_INVALID_TEAM_MEMBER");
+    await authSession.coursewareMedia.revokeTeamMember(input.projectId, userId);
+    return { ok: true };
+  });
+  registrar.handleWithEvent(IPC.invoke.coursewareTeamMembers, async (event, input: { projectId?: unknown } = {}) => {
+    registrar.assertMainWindowSender(event);
+    if (typeof input.projectId !== "string") throw new Error("COURSEWARE_MEDIA_INVALID_TEAM_PROJECT");
+    return authSession.coursewareMedia.getTeamMembers(input.projectId);
+  });
   registrar.handleWithEvent(
     IPC.invoke.coursewareImport,
     async (event, input: Partial<DesktopCoursewareImportInput> = {}) => {

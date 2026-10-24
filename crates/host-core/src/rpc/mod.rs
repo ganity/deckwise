@@ -27,6 +27,11 @@ use crate::transcripts::CompactionRecord;
 use crate::turn_queue;
 use crate::workspace;
 
+mod courseware_fixed_share;
+mod courseware_online_prepare;
+mod courseware_projects;
+mod courseware_chat_changes;
+
 #[derive(Debug, Deserialize)]
 struct JsonRpcRequest {
     id: Option<Value>,
@@ -441,6 +446,7 @@ pub async fn serve(state: Arc<Mutex<AppState>>) -> Result<()> {
             tracing::warn!(error = %error, "RPC request task failed during shutdown");
         }
     }
+    state.lock().await.courseware.close().await?;
     drop(tx);
     if !writer_done {
         input_error = match tokio::time::timeout(STDOUT_WRITER_SHUTDOWN, writer_done_rx).await {
@@ -1028,7 +1034,7 @@ fn bash_cancellation_requested(receiver: &Option<tokio::sync::watch::Receiver<bo
 }
 
 async fn clear_bash_cancellation(state: &Arc<Mutex<AppState>>, p: &ToolsExecuteParams) {
-    if p.tool_name != "Bash" {
+    if p.tool_name != "Bash" && !tools::is_ppt_editor_tool(&p.tool_name) {
         return;
     }
     let mut st = state.lock().await;
@@ -1048,8 +1054,25 @@ async fn execute_plugin_tool(
     p: &ToolsExecuteParams,
     timeout_ms: u64,
     session_mode: &str,
+    mut cancellation: Option<tokio::sync::watch::Receiver<bool>>,
 ) -> tools::ToolsExecuteResult {
     let started = std::time::Instant::now();
+    let pending_change = {
+        let st = state.lock().await;
+        if p.tool_name == "ppt_record_change_plan" {
+            if bash_cancellation_requested(&cancellation) {
+                return shell_failure_result(p, "TOOL_ABORTED", "tool aborted", None, started);
+            }
+            return match courseware_chat_changes::declare(&st, p) {
+                Ok(result) => result,
+                Err(error) => courseware_chat_changes::failure(p, error),
+            };
+        }
+        match courseware_chat_changes::prepare(&st, p) {
+            Ok(pending) => pending,
+            Err(error) => return courseware_chat_changes::failure(p, error),
+        }
+    };
     let execution_id = uuid::Uuid::new_v4().to_string();
     let (otx, orx) = tokio::sync::oneshot::channel::<Value>();
     {
@@ -1075,10 +1098,27 @@ async fn execute_plugin_tool(
     )
     .await;
 
-    let outcome = tokio::time::timeout(std::time::Duration::from_millis(timeout_ms), orx).await;
+    let outcome = tokio::select! {
+        result = tokio::time::timeout(std::time::Duration::from_millis(timeout_ms), orx) => Some(result),
+        _ = async {
+            match cancellation.as_mut() {
+                Some(receiver) => { let cancelled = *receiver.borrow(); if !cancelled { let _ = receiver.changed().await; } }
+                None => std::future::pending::<()>().await,
+            }
+        } => None,
+    };
+    if !matches!(&outcome, Some(Ok(Ok(_)))) && tools::is_ppt_editor_tool(&p.tool_name) {
+        emit_notification(
+            tx,
+            "ppt.cancelExecution",
+            json!({ "executionId": execution_id }),
+        )
+        .await;
+    }
     let duration_ms = started.elapsed().as_millis() as u64;
-    match outcome {
-        Ok(Ok(resp)) => {
+    let cancelled = outcome.is_none();
+    let result = match outcome {
+        Some(Ok(Ok(resp))) => {
             let ok = resp.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
             let content = resp.get("content").cloned().unwrap_or(Value::Null);
             let error_code = resp
@@ -1108,16 +1148,30 @@ async fn execute_plugin_tool(
                 ok: false,
                 is_error: Some(true),
                 content: json!({
-                    "error": "plugin tool dispatch timed out or no desktop runner is attached",
-                    "code": "TOOL_TIMEOUT"
+                    "error": if cancelled { "PPT tool cancelled" } else { "plugin tool dispatch timed out or no desktop runner is attached" },
+                    "code": if cancelled { "TOOL_ABORTED" } else { "TOOL_TIMEOUT" }
                 }),
                 duration_ms,
                 denied: None,
-                error_code: Some("TOOL_TIMEOUT".into()),
+                error_code: Some(
+                    if cancelled {
+                        "TOOL_ABORTED"
+                    } else {
+                        "TOOL_TIMEOUT"
+                    }
+                    .into(),
+                ),
                 command_shell_id: None,
             }
         }
+    };
+    if let Some(pending) = pending_change {
+        let st = state.lock().await;
+        if let Err(error) = courseware_chat_changes::finish(&st, &pending, &result) {
+            return courseware_chat_changes::failure(p, error);
+        }
     }
+    result
 }
 
 fn plugin_err(err: impl ToString) -> JsonRpcError {
@@ -1306,6 +1360,127 @@ async fn handle_request(
     }
 
     match method {
+        "courseware.onlinePrepare.get"
+        | "courseware.onlinePrepare.begin"
+        | "courseware.onlinePrepare.advance" => {
+            courseware_online_prepare::handle(state, method, params).await
+        }
+        "courseware.fixedShare.prepare"
+        | "courseware.fixedShare.get"
+        | "courseware.fixedShare.complete" => {
+            courseware_fixed_share::handle(state, method, params).await
+        }
+        "courseware.task.set"
+        | "courseware.task.get"
+        | "courseware.task.bindTeam"
+        | "courseware.task.attachImport"
+        | "courseware.task.attachGenerated"
+        | "courseware.scenePlan.get"
+        | "courseware.scenePlan.approve"
+        | "courseware.sceneImage.prepare"
+        | "courseware.sceneImage.list"
+        | "courseware.sceneImage.get"
+        | "courseware.sceneImage.begin"
+        | "courseware.sceneImage.bind" | "courseware.sceneImage.reject"
+        | "courseware.sceneImage.asset.stage"
+        | "courseware.sceneImage.asset.get"
+        | "courseware.sceneImage.asset.adopt"
+        | "courseware.project.get"
+        | "courseware.project.context"
+        | "courseware.teachingHistory.list"
+        | "courseware.tts.prepare"
+        | "courseware.tts.get"
+        | "courseware.tts.list"
+        | "courseware.tts.begin"
+        | "courseware.tts.bind" | "courseware.tts.reject"
+        | "courseware.tts.audio.stage"
+        | "courseware.tts.audio.get"
+        | "courseware.tts.audio.adopt"
+        | "courseware.project.openSaved"
+        | "courseware.project.initializeGenerated"
+        | "courseware.pageText"
+        | "courseware.pageNotes"
+        | "courseware.review.prepare"
+        | "courseware.review.adopt"
+        | "courseware.narrationCandidate.stage"
+        | "courseware.narrationCandidate.get"
+        | "courseware.narrationCandidate.reject"
+        | "courseware.narrationCandidate.adopt"
+        | "courseware.assetLocks.context"
+        | "courseware.assetLocks.set"
+        | "courseware.sourceCandidate.prepare"
+        | "courseware.sourceCandidate.stage"
+        | "courseware.sourceCandidate.get"
+        | "courseware.sourceCandidate.context"
+        | "courseware.sourceCandidate.preview"
+        | "courseware.sourceCandidate.reject"
+        | "courseware.sourceAdoption.prepare"
+        | "courseware.sourceAdoption.get"
+        | "courseware.sourceAdoption.commit"
+        | "courseware.sourceAdoption.cancel"
+        | "courseware.teaching.write"
+        | "courseware.teachingDraft.get"
+        | "courseware.teachingDraft.set"
+        | "courseware.mediaCanvas.get"
+        | "courseware.mediaCanvas.set"
+        | "courseware.mediaCanvas.editDraft"
+        | "courseware.mediaCanvas.music.prepare"
+        | "courseware.mediaCanvas.music.export.prepare"
+        | "courseware.mediaCanvas.music.list"
+        | "courseware.mediaCanvas.music.get"
+        | "courseware.mediaCanvas.music.begin"
+        | "courseware.mediaCanvas.music.bind"
+        | "courseware.mediaCanvas.music.reject"
+        | "courseware.mediaCanvas.music.candidates.record"
+        | "courseware.mediaCanvas.music.asset.stage"
+        | "courseware.mediaCanvas.music.asset.restore"
+        | "courseware.mediaCanvas.music.asset.get"
+        | "courseware.mediaCanvas.music.adopt"
+        | "courseware.mediaCanvas.music.snapshotAssets"
+        | "courseware.mediaCanvas.image.prepare"
+        | "courseware.mediaCanvas.image.list"
+        | "courseware.mediaCanvas.image.get"
+        | "courseware.mediaCanvas.image.begin"
+        | "courseware.mediaCanvas.image.bind" | "courseware.mediaCanvas.image.reject"
+        | "courseware.mediaCanvas.image.reference"
+        | "courseware.mediaCanvas.image.asset.stage"
+        | "courseware.mediaCanvas.image.asset.restore"
+        | "courseware.mediaCanvas.image.asset.get"
+        | "courseware.snapshot.capture"
+        | "courseware.snapshot.importOnline"
+        | "courseware.onlineSource.baseline"
+        | "courseware.onlineSource.review"
+        | "courseware.onlineSource.resolve"
+        | "courseware.onlineSource.clear"
+        | "courseware.snapshot.get"
+        | "courseware.snapshot.onlineOrigin"
+        | "courseware.teaching.confirm"
+        | "courseware.teaching.setLock" => courseware_projects::handle(state, method, params).await,
+        "courseware.parseStart" => {
+            let p: crate::courseware::StartParams = serde_json::from_value(params)
+                .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
+            let mut st = state.lock().await;
+            let root = match p.session_id.as_deref() {
+                Some(session_id) => resolve_persisted_project_workspace(&st, session_id)?,
+                None => st.workspace.path.clone(),
+            }
+            .ok_or_else(|| rpc_err(1002, "No workspace selected", "INVALID_PARAMS"))?;
+            let data_dir = st.data_dir.clone();
+            st.courseware
+                .start(&data_dir, Path::new(&root), &p.path)
+                .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))
+        }
+        "courseware.parseStatus" | "courseware.parseCancel" | "courseware.parseRelease" => {
+            let p: crate::courseware::JobParams = serde_json::from_value(params)
+                .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
+            let mut st = state.lock().await;
+            let result = match method {
+                "courseware.parseStatus" => st.courseware.status(&p.job_id),
+                "courseware.parseCancel" => st.courseware.cancel(&p.job_id),
+                _ => st.courseware.release(&p.job_id),
+            };
+            result.map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))
+        }
         method if method.starts_with("session.collaboration.") => {
             let st = state.lock().await;
             crate::session_collaboration::handle(&st.db, method, &params)
@@ -3198,25 +3373,26 @@ async fn handle_request(
 
             // Register before permission evaluation so tools.abort can cancel
             // an approval wait as well as an already-spawned process.
-            let cancellation_receiver = if p.tool_name == "Bash" {
-                let mut st = state.lock().await;
-                match st.register_bash_cancellation(&p.session_id, &p.tool_call_id) {
-                    Ok(receiver) => Some(receiver),
-                    Err(error_code) => {
-                        let result = shell_failure_result(
-                            &p,
-                            &error_code,
-                            "another Bash call is already active for this tool call ID",
-                            command_shell_id.clone(),
-                            call_started,
-                        );
-                        return serde_json::to_value(result)
-                            .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"));
+            let cancellation_receiver =
+                if p.tool_name == "Bash" || tools::is_ppt_editor_tool(&p.tool_name) {
+                    let mut st = state.lock().await;
+                    match st.register_bash_cancellation(&p.session_id, &p.tool_call_id) {
+                        Ok(receiver) => Some(receiver),
+                        Err(error_code) => {
+                            let result = shell_failure_result(
+                                &p,
+                                &error_code,
+                                "another Bash call is already active for this tool call ID",
+                                command_shell_id.clone(),
+                                call_started,
+                            );
+                            return serde_json::to_value(result)
+                                .map_err(|e| rpc_err(1000, e.to_string(), "INTERNAL"));
+                        }
                     }
-                }
-            } else {
-                None
-            };
+                } else {
+                    None
+                };
 
             let outcome: Result<Value, JsonRpcError> = async {
                 let (
@@ -3624,6 +3800,7 @@ async fn handle_request(
                         &p,
                         p.timeout_ms.unwrap_or(60_000),
                         &durable_mode,
+                        cancellation_receiver.clone(),
                     )
                     .await
                 } else {
@@ -8196,3 +8373,12 @@ mod tests {
         assert_eq!(st.plugins.locale(), "en-US");
     }
 }
+
+#[cfg(test)]
+mod ppt_editor_tests;
+
+#[cfg(test)]
+mod courseware_task_tests;
+
+#[cfg(test)]
+mod courseware_draft_tests;

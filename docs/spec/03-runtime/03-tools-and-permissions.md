@@ -608,3 +608,28 @@ Naming:
 - command allowlist / denylist
 - dry-run mode
 - apply patches after preview
+
+## Native courseware editor tools
+
+The existing Chat can use the finite [native PPTX tools](23-courseware-native-chat.md)
+when Main binds its current editor to the same durable session/workspace. Context
+and text reads are low risk; adding text and replacing a selection are high risk.
+They use Rust `tools.execute` and the existing desktop dispatch/permission/audit
+path. Plan/Goal deny all native operations. Model metadata cannot lower mutation
+risk. Permission waits are cancellable; Main rechecks the active turn and exact
+native context after approval before dispatch. These operations do not save.
+
+
+A7 adds only `ppt_propose_page_narration` to the main Chat catalog. Its internal
+`ppt_get_narration_context` read and high-risk proposal use the existing Rust
+permission/admission/audit path. Caller `declaredRisk` cannot downgrade it;
+persisted Plan mode rejects it. Approval authorizes generation of a pending
+proposal only. Human sidebar adoption is separate. Host dispatched cancellation
+notifies Main, which aborts model work; an already-staged proposal may remain
+pending and is never adopted automatically.
+
+
+A11 also advertises `ppt_propose_page_fade` through the same finite dispatch,
+high-risk approval/audit and cancellation path. It produces an archived pending
+current-page fade copy only. No source replacement or teaching adoption is
+implicit; unsupported animations reject rather than falling back to shell edits.

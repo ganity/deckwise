@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DeckWise Online Editor</title>
+<style>html,body,iframe{width:100%;height:100%;margin:0;border:0;overflow:hidden}body{background:#1f2329}</style></head>
+<body><iframe id="online" title="Online presentation editor" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
+<script>
+(() => {
+  const protocol = "deckwise-docs-online/1", parentOrigin = "deckwise-editor://host";
+  const iframe = document.getElementById("online"), bridge = window.deckwiseOnlineHost;
+  const exact = (data, keys) => !!data && typeof data === "object" && !Array.isArray(data) &&
+    Object.keys(data).length === keys.length && keys.every(key => Object.hasOwn(data, key));
+  const id = value => typeof value === "string" && /^[\w-]{1,128}$/.test(value);
+  const barrierId = value => typeof value === "string" && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(value);
+  const nativeErrors = new Set(["INVALID","BUSY","UNAVAILABLE","NOT_FOUND","ACK_UNKNOWN","DISCONNECTED","SAVE_UNAVAILABLE",
+    "SAVE_UNKNOWN","RESTRICTION_LOST","STATE_CHANGED","SETUP_FAILED"].map(code => `NATIVE_BARRIER_${code}`));
+  const barrierErrors = new Set([...nativeErrors,"ONLINE_NATIVE_BARRIER_UNAVAILABLE","ONLINE_NATIVE_BARRIER_BUSY",
+    "ONLINE_NATIVE_BARRIER_FAILED","ONLINE_NATIVE_BARRIER_ACK_UNKNOWN"]);
+  const receipt = (v, expectedId) => {
+    if (!v || typeof v !== "object" || Array.isArray(v) || Object.keys(v).some(key => !["barrierId","state","serverIndex","error"].includes(key)) ||
+        v.barrierId !== expectedId || v.serverIndex !== undefined && (!Number.isSafeInteger(v.serverIndex) || v.serverIndex < 0)) return false;
+    if (v.state === "draining") return v.serverIndex === undefined && v.error === undefined;
+    if (v.state === "held" || v.state === "resumed") return Number.isSafeInteger(v.serverIndex) && v.serverIndex >= 0 && v.error === undefined;
+    return v.state === "uncertain-held" && nativeErrors.has(v.error);
+  };
+  let pins, opened, ready = false, active = true;
+  const requests = new Set(), barriers = new Map();
+  const remote = input => {
+    const url = new URL(input);
+    if (url.username || url.password || url.search || url.hash || !(url.protocol === "https:" ||
+        (url.protocol === "http:" && ["localhost","127.0.0.1","[::1]"].includes(url.hostname)))) throw new Error();
+    return url;
+  };
+  const send = message => bridge.sendEvent(message);
+  if (!bridge || window.top !== window || location.href !== "deckwise-editor://host/online.html") return;
+  bridge.onCommand(command => {
+    if (!active || !command || typeof command !== "object") return;
+    if (command.type === "configure") {
+      if (pins || !exact(command, ["type","channelId","hostUrl","apiUrl", ...(command.communityPluginConfigUrl === undefined ? [] : ["communityPluginConfigUrl"])]) || !id(command.channelId)) return;
+      try {
+        const host = remote(command.hostUrl), api = remote(command.apiUrl);
+        if (!host.pathname.endsWith("/courseware-online.html") || api.pathname !== "/web-apps/apps/api/documents/api.js") return;
+        if (command.communityPluginConfigUrl !== undefined) {
+          const plugin = remote(command.communityPluginConfigUrl);
+          if (plugin.origin !== host.origin || !plugin.pathname.endsWith("/config.json")) return;
+        }
+        pins = { origin: host.origin, channelId: command.channelId };
+        host.searchParams.set("parentOrigin", parentOrigin); host.searchParams.set("channelId", pins.channelId);
+        host.searchParams.set("apiUrl", api.href);
+        if (command.communityPluginConfigUrl !== undefined) host.searchParams.set("communityPluginConfigUrl", command.communityPluginConfigUrl);
+        iframe.src = host.href;
+      } catch { /* Invalid pins never reach the remote surface. */ }
+      return;
+    }
+    if (pins && ready && opened && command.protocol === protocol && command.channelId === pins.channelId &&
+        ["barrier-capability","barrier-quiesce","barrier-status","barrier-resume"].includes(command.type)) {
+      const capability = command.type === "barrier-capability";
+      if (!exact(command, ["protocol","channelId","requestId","type","generation",...(capability ? [] : ["barrierId"])]) ||
+          !id(command.requestId) || command.generation !== opened.generation || (!capability && !barrierId(command.barrierId)) ||
+          requests.has(command.requestId) || requests.size >= 4096) return;
+      requests.add(command.requestId); barriers.set(command.requestId, { capability, barrierId: command.barrierId });
+      iframe.contentWindow.postMessage(command, pins.origin); return;
+    }
+    if (!pins || !ready || opened || command.protocol !== protocol || command.channelId !== pins.channelId ||
+        !exact(command, ["protocol","channelId","requestId","type","generation","projectId","sessionEpoch","documentKey","docsUserId","configJson","expiresAtEpochMillis"]) ||
+        command.type !== "open" || !id(command.requestId) || !Number.isSafeInteger(command.generation) || command.generation < 1 ||
+        typeof command.projectId !== "string" || !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(command.projectId) ||
+        !Number.isSafeInteger(command.sessionEpoch) || command.sessionEpoch < 1 ||
+        typeof command.documentKey !== "string" || !/^[A-Za-z0-9_.=-]{1,128}$/.test(command.documentKey) ||
+        typeof command.docsUserId !== "string" || !/^tenant-[1-9]\d*-user-[1-9]\d*(?:-client-[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})?$/.test(command.docsUserId) ||
+        typeof command.configJson !== "string" || command.configJson.length > 65536 ||
+        !Number.isSafeInteger(command.expiresAtEpochMillis) || command.expiresAtEpochMillis <= Date.now() ||
+        command.expiresAtEpochMillis > Date.now() + 120000 || requests.has(command.requestId)) return;
+    requests.add(command.requestId);
+    opened = { requestId:command.requestId, generation:command.generation, projectId:command.projectId,
+      sessionEpoch:command.sessionEpoch, documentKey:command.documentKey, docsUserId:command.docsUserId };
+    iframe.contentWindow.postMessage(command, pins.origin);
+  });
+  window.addEventListener("message", event => {
+    const data = event.data;
+    if (!active || !pins || event.source !== iframe.contentWindow || event.origin !== pins.origin || !data ||
+        data.protocol !== protocol || data.channelId !== pins.channelId) return;
+    if (data.type === "entry-ready" && !ready && exact(data, ["protocol","channelId","type"])) {
+      ready = true; send(data); return;
+    }
+    const pending = barriers.get(data.requestId);
+    if (opened && pending && Object.entries(opened).every(([key,value]) => key === "requestId" || data[key] === value)) {
+      const keys = ["protocol","channelId","requestId","type","generation","projectId","sessionEpoch","documentKey","docsUserId"];
+      barriers.delete(data.requestId);
+      if (data.type === "error" && exact(data, [...keys,"code"]) && barrierErrors.has(data.code) ||
+          pending.capability && data.type === "barrier-capability" && exact(data, [...keys,"result"]) &&
+            exact(data.result, ["available"]) && typeof data.result.available === "boolean" ||
+          !pending.capability && data.type === "barrier" && exact(data, [...keys,"result"]) && receipt(data.result, pending.barrierId)) send(data);
+      else send({ ...Object.fromEntries(keys.map(key => [key,data[key]])), type:"error", code:"ONLINE_NATIVE_BARRIER_FAILED" });
+      return;
+    }
+    if (!opened || !Object.entries(opened).every(([key,value]) => data[key] === value)) return;
+    const keys = ["protocol","channelId","requestId","type","generation","projectId","sessionEpoch","documentKey","docsUserId"];
+    if (data.type === "ready" && exact(data, keys)) send(data);
+    else if (data.type === "state" && typeof data.dirty === "boolean" && exact(data, [...keys,"dirty"])) send(data);
+    else if (data.type === "mounted" && typeof data.canReadText === "boolean" && exact(data, [...keys,"canReadText"])) send(data);
+    else if (data.type === "error" && typeof data.code === "string" && exact(data, [...keys,"code"]))
+      send({ ...Object.fromEntries(keys.map(key => [key,data[key]])), code:"ONLINE_NATIVE_ERROR" });
+  });
+  window.addEventListener("pagehide", () => { active = false; opened = undefined; barriers.clear(); iframe.src = "about:blank"; }, { once:true });
+  send({type:"wrapper-ready"});
+})();
+</script></body></html>
