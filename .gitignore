@@ -44,6 +44,7 @@ coverage/
 .pi-desktop-test/
 .deckwise/
 apps/.deckwise-ppt/
+apps/.deckwise-office
 .cc-connect/
 
 .playwright-mcp/
