@@ -34,7 +34,13 @@ existing behavior. Gateway bundle JSON ≤16 MiB; 2–17 PNGs; each ≤8 MiB and
 Omitting the model in Chat preparation uses the first server catalog model for
 the role; explicit unavailable IDs reject before Host preparation. cleanPlate
 prefers a decomposition model and reuses its foregrounds. Catalog/auth/network
-errors remain visible. Original saved requests keep their model/key. New `gw-`
+errors remain visible. Before quoting a current `prepared` request whose model
+has disappeared from the matching catalog, Main selects the first compatible
+model of the same image kind. Host atomically verifies its expected request hash,
+retains prompt/reference/target/intent identity and issues a new request hash/key.
+The actual replacement model and price appear in the confirmation. No generation
+occurs until that new quote is explicitly confirmed. Begun, uncertain, submitted,
+archived and selected requests retain their original model/key. New `gw-`
 receipts persist in llm-ha SQLite. Old non-gateway receipts have read-only
 Platform recovery; only an explicit gateway task-not-found permits old by-key GET.
 New submission never falls back to Platform. Lost paid replies remain unknown

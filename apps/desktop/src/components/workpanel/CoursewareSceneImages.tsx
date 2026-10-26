@@ -79,7 +79,8 @@ export function CoursewareSceneImages({ sessionId, plan, enabled, onActiveChange
         throw new Error(t("panel.sceneImages.referenceRequired"));
       setReferencePreview(preview);
     }
-    setQuoted({ intent, quote: price });
+    setModel(price.model);
+    setQuoted({ intent: { ...intent, model: price.model }, quote: price });
   });
   const submit = () => {
     if (!enabled || !confirmed || !quoted || quoted.intent.pageId !== pageId || quoted.quote.model !== model ||

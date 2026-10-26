@@ -224,9 +224,28 @@ export class CoursewareSceneImages {
 
   async quote(value: unknown): Promise<CoursewareSceneImageQuoteView> {
     const p = input(value, ["intentId"]), c = this.context(p);
-    const j = checked(await c.host.call<Journal>("courseware.sceneImage.get", c.scope), p.intentId);
+    let j = checked(await c.host.call<Journal>("courseware.sceneImage.get", c.scope), p.intentId);
     if (!j.current || j.intent.phase !== "prepared") throw new Error("COURSEWARE_SCENE_IMAGE_PLAN_CHANGED");
     await this.approved(c.host, p.sessionId, j.intent.planSha256);
+    const available = await this.models({ sessionId: p.sessionId });
+    c.assertCurrent();
+    const compatible = available.filter(model => !!model.layerDecomposition === (j.intent.request.kind === "image-layers") &&
+      (!j.intent.request.referenceImage || model.supportsReferenceImage === true));
+    if (!compatible.some(model => model.model === j.intent.request.model)) {
+      const chosen = compatible[0];
+      if (!chosen) throw new Error("COURSEWARE_SCENE_IMAGE_MODEL_UNAVAILABLE");
+      const previous = j;
+      j = checked(await c.host.call<Journal>("courseware.sceneImage.rebindModel", {
+        ...c.scope, expectedRequestHash: previous.intent.requestHash, model: chosen.model,
+      }), p.intentId);
+      c.assertCurrent();
+      const { requestHash: _oldHash, idempotencyKey: _oldKey, request: oldRequest, ...oldPins } = previous.intent;
+      const { requestHash: _newHash, idempotencyKey: _newKey, request: newRequest, ...newPins } = j.intent;
+      if (!j.current || j.intent.request.model !== chosen.model || JSON.stringify(newPins) !== JSON.stringify(oldPins) ||
+          JSON.stringify({ ...newRequest, model: oldRequest.model }) !== JSON.stringify(oldRequest) ||
+          j.intent.requestHash === previous.intent.requestHash || j.intent.idempotencyKey === previous.intent.idempotencyKey)
+        throw new Error("COURSEWARE_SCENE_IMAGE_INVALID_JOURNAL");
+    }
     await this.reference(c, j);
     c.assertCurrent();
     const quote = { ...await this.auth.coursewareMedia.getImageQuote(j.intent.request.model, undefined, j.intent.request.kind) };

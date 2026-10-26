@@ -35,6 +35,85 @@ fn reference_request_hash_matches_desktop_and_java_fixture_without_changing_lega
 }
 
 #[tokio::test]
+async fn only_current_unsubmitted_images_can_rebind_model_with_a_fresh_request_key() {
+    let mut f = Fixture::new().await;
+    let old = f
+        .call("courseware.sceneImage.prepare", f.prepare())
+        .await
+        .unwrap();
+    let mut change = f.operation(&old);
+    change["expectedRequestHash"] = old["intent"]["requestHash"].clone();
+    change["model"] = json!("current-model");
+    let mut stale = change.clone();
+    stale["expectedRequestHash"] = json!("0".repeat(64));
+    assert!(f
+        .call("courseware.sceneImage.rebindModel", stale)
+        .await
+        .is_err());
+    let mut foreign = change.clone();
+    foreign["principalKey"] = json!("b".repeat(64));
+    assert!(f
+        .call("courseware.sceneImage.rebindModel", foreign)
+        .await
+        .is_err());
+    let updated = f
+        .call("courseware.sceneImage.rebindModel", change.clone())
+        .await
+        .unwrap();
+    assert_eq!(updated["intent"]["intentId"], old["intent"]["intentId"]);
+    assert_eq!(
+        updated["intent"]["request"]["input"],
+        old["intent"]["request"]["input"]
+    );
+    assert_eq!(
+        updated["intent"]["request"]["kind"],
+        old["intent"]["request"]["kind"]
+    );
+    assert_eq!(updated["intent"]["request"]["model"], "current-model");
+    assert_eq!(updated["intent"]["phase"], "prepared");
+    assert_ne!(
+        updated["intent"]["idempotencyKey"],
+        old["intent"]["idempotencyKey"]
+    );
+    assert_ne!(
+        updated["intent"]["requestHash"],
+        old["intent"]["requestHash"]
+    );
+    assert!(f
+        .call("courseware.sceneImage.rebindModel", change.clone())
+        .await
+        .is_err());
+    f.restart().await;
+    assert_eq!(
+        f.call("courseware.sceneImage.get", f.operation(&old))
+            .await
+            .unwrap(),
+        updated
+    );
+    f.call("courseware.sceneImage.begin", f.operation(&updated))
+        .await
+        .unwrap();
+    change["expectedRequestHash"] = updated["intent"]["requestHash"].clone();
+    change["model"] = json!("another-model");
+    assert!(f
+        .call("courseware.sceneImage.rebindModel", change)
+        .await
+        .is_err());
+    let begun = f
+        .call("courseware.sceneImage.get", f.operation(&updated))
+        .await
+        .unwrap();
+    assert_eq!(
+        begun["intent"]["requestHash"],
+        updated["intent"]["requestHash"]
+    );
+    assert_eq!(
+        begun["intent"]["idempotencyKey"],
+        updated["intent"]["idempotencyKey"]
+    );
+}
+
+#[tokio::test]
 async fn decomposition_archives_children_atomically_and_keeps_one_task_across_restart() {
     let mut f = Fixture::new().await;
     let master = f.submitted("image-model", "scene-001").await;

@@ -77,6 +77,16 @@ struct Operation {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct RebindModel {
+    session_id: String,
+    principal_key: String,
+    intent_id: String,
+    expected_request_hash: String,
+    model: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Bind {
     session_id: String,
     principal_key: String,
@@ -523,7 +533,27 @@ pub(super) async fn handle(
         return assets::handle(state, method, params).await;
     }
     let decode = |e: serde_json::Error| rpc_err(1002, e.to_string(), "INVALID_PARAMS");
+    let rebind = if method == "courseware.sceneImage.rebindModel" {
+        Some(serde_json::from_value::<RebindModel>(params.clone()).map_err(decode)?)
+    } else {
+        None
+    };
     let (scope, prepare, operation, binding, rejection) = match method {
+        "courseware.sceneImage.rebindModel" => {
+            let p = rebind
+                .as_ref()
+                .ok_or_else(|| invalid("Invalid model rebind"))?;
+            (
+                Scope {
+                    session_id: p.session_id.clone(),
+                    principal_key: p.principal_key.clone(),
+                },
+                None,
+                Some(p.intent_id.clone()),
+                None,
+                None,
+            )
+        }
         "courseware.sceneImage.prepare" => {
             let p: Prepare = serde_json::from_value(params).map_err(decode)?;
             (
@@ -700,11 +730,32 @@ pub(super) async fn handle(
         .iter()
         .position(|i| i.intent_id == intent_id)
         .ok_or_else(|| rpc_err(1007, "Scene image intent not found", "COURSEWARE_NOT_FOUND"))?;
-    if method == "courseware.sceneImage.begin" {
+    if method == "courseware.sceneImage.begin" || rebind.is_some() {
         verify_reference(&intents, &intents[index])?;
     }
     let intent = &mut intents[index];
-    if method == "courseware.sceneImage.begin" {
+    if let Some(p) = rebind {
+        if !valid_id(&p.model)
+            || !valid_hash(&p.expected_request_hash)
+            || current.as_deref() != Some(&intent.plan_sha256)
+            || intent.phase != Phase::Prepared
+            || intent.task_ref.is_some()
+            || intent.submission_scope.is_some()
+            || intent.asset.is_some()
+            || intent.selected
+            || intent.request_hash != p.expected_request_hash
+        {
+            return Err(conflict(
+                "Only the unchanged current unsubmitted request may change model",
+            ));
+        }
+        if intent.request.model != p.model {
+            intent.request.model = p.model;
+            intent.request_hash = intent.request.hash();
+            intent.idempotency_key = uuid::Uuid::new_v4().to_string();
+        }
+        intent.validate()?;
+    } else if method == "courseware.sceneImage.begin" {
         if current.as_deref() != Some(&intent.plan_sha256) || intent.phase != Phase::Prepared {
             return Err(conflict(
                 "Scene image intent is stale or already begun; query its retained task",

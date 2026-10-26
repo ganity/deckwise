@@ -89,7 +89,11 @@ async function fixture(t) {
     }
     const j = records(p).find(j => j.intentId === p.intentId);
     assert(j, "scoped journal exists");
-    if (method === "courseware.sceneImage.begin") {
+    if (method === "courseware.sceneImage.rebindModel") {
+      assert.equal(j.phase, "prepared"); assert.equal(j.requestHash, p.expectedRequestHash);
+      assert((await current(j)).current); assert.equal(j.taskRef, null);
+      j.request.model = p.model; j.idempotencyKey = randomUUID(); j.requestHash = digest(JSON.stringify(j.request));
+    } else if (method === "courseware.sceneImage.begin") {
       assert.equal(j.phase, "prepared"); assert((await current(j)).current);
       j.submissionScope = { sessionId: p.sessionId, teamProjectId: teamProjectId ?? null };
       j.phase = "submission-unknown";
@@ -351,6 +355,37 @@ test("generation resolves only reviewed input, rejects surplus paths and refuses
   assert.equal(row.selected, false);
   await assert.rejects(f.coordinator.captureSelected({ ...f.base, planSha256: f.sha256 }), /ASSETS_REQUIRED/);
   assert.equal(f.calls.filter(c => c === "POST confirmed").length, 0);
+});
+
+test("an old unsubmitted model is rebound before quoting, preserving its prompt and requiring fresh confirmation", async t => {
+  const f = await fixture(t), old = await f.prepare({ instructions: "Keep the reviewed character" });
+  const before = (await f.host.call("courseware.sceneImage.get", { sessionId: "chat-a", principalKey: "a".repeat(64), intentId: old.intentId })).intent;
+  f.media.getImageModels = async () => [{ model: "current-model", voices: [], providerDefaultVoice: false }];
+  f.media.getImageQuote = async model => { assert.equal(model, "current-model"); f.calls.push("GET quote"); return { ...f.quote, model }; };
+  const quote = await f.coordinator.quote(f.operation(old));
+  assert.equal(quote.model, "current-model");
+  assert.equal(quote.intentId, old.intentId);
+  const rebound = (await f.host.call("courseware.sceneImage.get", { sessionId: "chat-a", principalKey: "a".repeat(64), intentId: old.intentId })).intent;
+  assert.equal(rebound.request.input, before.request.input);
+  assert.notEqual(rebound.idempotencyKey, before.idempotencyKey);
+  assert(!f.calls.includes("POST confirmed"));
+  await f.coordinator.submitConfirmed({ ...f.operation(old), quoteId: quote.quoteId });
+  assert.equal(f.calls.filter(call => call === "POST confirmed").length, 1);
+  assert.equal(f.calls.find(call => call?.postedRequest).postedRequest.model, "current-model");
+});
+
+test("missing catalogs and begun requests cannot rebind or dispatch", async t => {
+  const f = await fixture(t), prepared = await f.prepare();
+  f.media.getImageModels = async () => [];
+  await assert.rejects(f.coordinator.quote(f.operation(prepared)), /MODEL_UNAVAILABLE/);
+  assert(!f.calls.includes("courseware.sceneImage.rebindModel"));
+  assert(!f.calls.includes("GET quote"));
+  assert(!f.calls.includes("POST confirmed"));
+  const g = await fixture(t), begun = await g.prepare();
+  await g.host.call("courseware.sceneImage.begin", { sessionId: "chat-a", principalKey: "a".repeat(64), intentId: begun.intentId });
+  g.media.getImageModels = async () => [{ model: "current-model" }];
+  await assert.rejects(g.coordinator.quote(g.operation(begun)), /PLAN_CHANGED/);
+  assert(!g.calls.includes("courseware.sceneImage.rebindModel"));
 });
 
 test("scene image preparation and quote are nonpaid and hide server proofs; confirmed submit is journaled first", async t => {

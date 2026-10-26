@@ -23,6 +23,17 @@
 - Run regular image/TTS/canvas checks. Loopback checks are not production provider,
   pricing, visual quality or packaged Electron acceptance.
 
+## E2E-COURSEWARE-prepared-image-model-recovery
+
+- Keep an old unsubmitted image intent with an unavailable model, then expose a
+  different same-kind model in llm-ha. Open its quote in the same Chat. The prompt,
+  page, reviewed reference and intent stay pinned; Host saves a fresh hash/key and
+  the quote displays the actual model. Nothing generates before confirmation.
+- Confirm that quote, verify one request uses the new saved model/key, and reopen
+  to recover it. Old quotes and stale hash updates reject. Missing catalogs,
+  account/plan changes and wrong owners cannot change the intent. Begun/unknown
+  and submitted images retain their original model/key and never generate again.
+
 ## E2E-COURSEWARE-main-chat-generation
 
 - **Steps**: Create plain, scene and import tasks through the task dialog. Keep

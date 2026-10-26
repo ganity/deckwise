@@ -1871,6 +1871,7 @@ async fn handle_request(
         | "courseware.scenePlan.approve"
         | "courseware.sceneImage.prepare"
         | "courseware.sceneImage.list"
+        | "courseware.sceneImage.rebindModel"
         | "courseware.sceneImage.get"
         | "courseware.sceneImage.begin"
         | "courseware.sceneImage.bind"

@@ -1,4 +1,15 @@
 # 06. Host RPC Protocol
+## Prepared image model recovery (2026-10-26)
+
+Main-only `courseware.sceneImage.rebindModel` accepts
+`{sessionId,principalKey,intentId,expectedRequestHash,model}`. Host requires the
+current approved plan, matching hash, `prepared` phase, no submission scope/task,
+asset or selection, and a still-valid reviewed reference. It changes only the
+model and derives a fresh request hash/key; prompt, kind, reference and identity
+remain intact. The catalog check belongs to Main and this RPC never submits.
+Unknown and submitted requests cannot be rebound. Existing quotes fail their
+request-hash check after a rebind. Retrying with a stale expected hash conflicts.
+
 
 ## Canvas music request journal
 

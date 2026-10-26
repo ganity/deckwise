@@ -188,6 +188,7 @@ pub(super) async fn handle(
         }
         "courseware.sceneImage.prepare"
         | "courseware.sceneImage.list"
+        | "courseware.sceneImage.rebindModel"
         | "courseware.sceneImage.get"
         | "courseware.sceneImage.begin"
         | "courseware.sceneImage.bind"
