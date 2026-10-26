@@ -1,6 +1,6 @@
 import { COURSEWARE_MAX_MEDIA_ASSET_BYTES, isCoursewareTaskRef, type CoursewareTaskRef } from "@pi-desktop/shared";
 
-export type MediaKind = "tts" | "image" | "music" | "music-export";
+export type MediaKind = "tts" | "image" | "image-layers" | "music" | "music-export";
 export type MediaQuote<K extends MediaKind> = { version: "courseware-media-quote-v1"; kind: K; model: string;
   priceVersion: string; maxPoints: number; maxChars: number; expiresAt: string; quoteToken: string };
 type AudioAsset = { assetId: string; sha256: string; mime: "audio/wav" | "audio/mpeg"; byteLength: number;
@@ -14,6 +14,9 @@ type TaskBase = CoursewareTaskRef & { version: "courseware-media-v1"; model: str
 export type MediaTasks = {
   tts: TaskBase & { kind: "tts"; assetRef: AudioAsset | null };
   image: TaskBase & { kind: "image"; assetRef: ImageAsset | null };
+  "image-layers": TaskBase & { kind: "image-layers"; assetRef: {
+    assetId: string; sha256: string; mime: "application/vnd.trainwise.image-layers+json"; byteLength: number; downloadPath: string;
+  } | null };
   music: TaskBase & { kind: "music"; assetRef: null };
   "music-export": TaskBase & { kind: "music-export"; assetRef: (AudioAsset & { mime: "audio/mpeg" }) | null };
 };
@@ -62,14 +65,16 @@ export function mediaTask<K extends MediaKind>(value: unknown, expected: MediaTa
     if (kind === "music") {
       if (asset !== null) throw invalid();
     } else {
-      const audio = kind !== "image";
+      const layers = kind === "image-layers";
+      const audio = kind !== "image" && !layers;
       if (!exact(asset, ["assetId", "sha256", "mime", "byteLength", "downloadPath"], audio ? ["durationMs"] : ["width", "height"]) ||
           !id(asset.assetId) || typeof asset.sha256 !== "string" || !/^[a-f0-9]{64}$/u.test(asset.sha256) ||
-          !(kind === "music-export" ? ["audio/mpeg"] : audio ? ["audio/wav", "audio/mpeg"] : ["image/png", "image/jpeg", "image/webp"]).includes(String(asset.mime)) ||
+          !(layers ? ["application/vnd.trainwise.image-layers+json"] : kind === "music-export" ? ["audio/mpeg"] : audio ? ["audio/wav", "audio/mpeg"] : ["image/png", "image/jpeg", "image/webp"]).includes(String(asset.mime)) ||
           !integer(asset.byteLength, COURSEWARE_MAX_MEDIA_ASSET_BYTES) || asset.byteLength < 1 ||
           asset.downloadPath !== `/courseware/media/tasks/${value.taskId}/asset` ||
           (audio && asset.durationMs !== undefined && !integer(asset.durationMs, Number.MAX_SAFE_INTEGER)) ||
-          (!audio && (!integer(asset.width, 4096) || asset.width < 1 || !integer(asset.height, 4096) || asset.height < 1))) throw invalid();
+          (!audio && !layers && (!integer(asset.width, 4096) || asset.width < 1 || !integer(asset.height, 4096) || asset.height < 1)) ||
+          (layers && (asset.width !== undefined || asset.height !== undefined))) throw invalid();
     }
   } else if (value.assetRef !== null) throw invalid();
   return value as MediaTasks[K];

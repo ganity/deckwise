@@ -35,6 +35,87 @@ fn reference_request_hash_matches_desktop_and_java_fixture_without_changing_lega
 }
 
 #[tokio::test]
+async fn decomposition_archives_children_atomically_and_keeps_one_task_across_restart() {
+    let mut f = Fixture::new().await;
+    let master = f.submitted("image-model", "scene-001").await;
+    f.call("courseware.sceneImage.asset.stage", f.stage(&master))
+        .await
+        .unwrap();
+    let mut adopt = f.operation(&master);
+    adopt["expectedSelectedIntentId"] = Value::Null;
+    f.call("courseware.sceneImage.asset.adopt", adopt)
+        .await
+        .unwrap();
+    let mut prepare = f.prepare();
+    prepare["target"] = json!({"kind":"cleanPlate"});
+    prepare["model"] = json!("seedream-layers");
+    prepare["referenceIntentId"] = master["intent"]["intentId"].clone();
+    prepare["decomposition"] = json!(true);
+    let parent = f.submit(prepare).await;
+    assert_eq!(parent["intent"]["request"]["kind"], "image-layers");
+    let stage = f.stage(&parent);
+    let base = json!({"target":{"kind":"cleanPlate"},"asset":stage["asset"],"bytesBase64":stage["bytesBase64"]});
+    let mut layer = base.clone();
+    layer["target"] = json!({"kind":"layer","name":"Teacher"});
+    layer["asset"]["normalizedBoundingBox"] = json!([100, 200, 700, 900]);
+    layer["asset"]["sourceZIndex"] = json!(2);
+    let mut bundle = f.operation(&parent);
+    bundle["images"] = json!([base, layer]);
+    let mut invalid_bundle = bundle.clone();
+    invalid_bundle["images"][1]["asset"]["normalizedBoundingBox"] = json!([700, 200, 100, 900]);
+    assert!(f
+        .call("courseware.sceneImage.bundle.stage", invalid_bundle)
+        .await
+        .is_err());
+    assert!(f
+        .call("courseware.sceneImage.get", f.operation(&parent))
+        .await
+        .unwrap()["intent"]["asset"]
+        .is_null());
+    f.call("courseware.sceneImage.bundle.stage", bundle.clone())
+        .await
+        .unwrap();
+    f.restart().await;
+    f.call("courseware.sceneImage.bundle.stage", bundle.clone())
+        .await
+        .unwrap();
+    let rows = f
+        .call("courseware.sceneImage.list", f.scope())
+        .await
+        .unwrap();
+    let rows = rows["intents"].as_array().unwrap();
+    assert_eq!(rows.len(), 3);
+    let child = &rows[2];
+    assert_eq!(child["intent"]["taskRef"], parent["intent"]["taskRef"]);
+    assert_eq!(child["intent"]["selected"], false);
+    assert_eq!(
+        child["intent"]["asset"]["normalizedBoundingBox"],
+        json!([100.0, 200.0, 700.0, 900.0])
+    );
+    assert_eq!(child["intent"]["asset"]["sourceZIndex"], 2);
+    {
+        let mut intents: Vec<Intent> = rows
+            .iter()
+            .map(|row| serde_json::from_value(row["intent"].clone()).unwrap())
+            .collect();
+        assert!(verify_decomposition_selection(&intents, &intents[1]).is_err());
+        intents[2].selected = true;
+        assert!(verify_decomposition_selection(&intents, &intents[1]).is_ok());
+        intents[0].selected = false;
+        assert!(verify_decomposition_selection(&intents, &intents[1]).is_err());
+    }
+    assert!(f
+        .call("courseware.sceneImage.begin", f.operation(child))
+        .await
+        .is_err());
+    bundle["images"][1]["target"]["name"] = json!("Different");
+    assert!(f
+        .call("courseware.sceneImage.bundle.stage", bundle)
+        .await
+        .is_err());
+}
+
+#[tokio::test]
 async fn reference_requires_same_private_scope_current_page_and_reviewed_visual_master() {
     let mut f = Fixture::new().await;
     let master = f.submitted("image-model", "scene-001").await;

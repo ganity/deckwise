@@ -6,9 +6,9 @@ import { COURSEWARE_MAX_MEDIA_ASSET_BYTES, isCoursewareTeamAssetRef, isCoursewar
 
 export type CoursewareTtsRequest = { kind: "tts"; model: string; input: string; voice?: string | null };
 export type CoursewareTtsQuote = MediaQuote<"tts">;
-export type CoursewareImageQuote = MediaQuote<"image">;
+export type CoursewareImageQuote = MediaQuote<"image" | "image-layers">;
 export type CoursewareImageReference = { sha256: string; mimeType: "image/png" | "image/jpeg"; byteLength: number; bytesBase64: string };
-export type CoursewareImageRequest = { kind: "image"; model: string; input: string; referenceImage?: CoursewareImageReference };
+export type CoursewareImageRequest = { kind: "image" | "image-layers"; model: string; input: string; referenceImage?: CoursewareImageReference };
 export type CoursewareTeamFixedFile = { path: string; sha256: string; mimeType: string; byteLength: number };
 export type CoursewareTeamFixedPlayback = {
   pointer: { projectId: string; channel: string; buildId: string; snapshotId: string; packageSha256: string; version: number };
@@ -20,7 +20,7 @@ export type CoursewareBuildUpload = { manifestHash: string; manifestBytes: Uint8
 export type CoursewareFixedShareSelection = { projectId: string; snapshotId: string; buildId: string;
   manifestSha256: string; teamProjectId: string; channel: "shared" | "formal" };
 export type CoursewareTtsTask = MediaTasks["tts"];
-export type CoursewareImageTask = MediaTasks["image"];
+export type CoursewareImageTask = MediaTasks["image"] | MediaTasks["image-layers"];
 export const MAX_AUDIO_BYTES = COURSEWARE_MAX_MEDIA_ASSET_BYTES;
 const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 const exact = (v: unknown, required: string[], optional: string[] = []): v is Record<string, unknown> =>
@@ -83,7 +83,7 @@ function request(input: unknown): CoursewareTtsRequest {
 }
 
 function imageRequest(input: unknown): CoursewareImageRequest {
-  if (!exact(input, ["kind", "model", "input"], ["referenceImage"]) || input.kind !== "image" || !id(input.model) ||
+  if (!exact(input, ["kind", "model", "input"], ["referenceImage"]) || !["image", "image-layers"].includes(String(input.kind)) || !id(input.model) ||
       typeof input.input !== "string" || !input.input.trim() || input.input.length > 4000 ||
       Buffer.from(input.input, "utf8").toString("utf8") !== input.input) throw new Error("COURSEWARE_MEDIA_INVALID_REQUEST");
   const ref = input.referenceImage;
@@ -99,12 +99,13 @@ function imageRequest(input: unknown): CoursewareImageRequest {
           !(bytes.subarray(0, 3).equals(Buffer.from([255, 216, 255])) && bytes.subarray(-2).equals(Buffer.from([255, 217])))))
       throw new Error("COURSEWARE_MEDIA_INVALID_REQUEST");
   }
-  return { kind: "image", model: input.model, input: input.input, ...(ref === undefined ? {} : { referenceImage: { ...ref } as CoursewareImageReference }) };
+  if (input.kind === "image-layers" && ref === undefined) throw new Error("COURSEWARE_MEDIA_REFERENCE_REQUIRED");
+  return { kind: input.kind as CoursewareImageRequest["kind"], model: input.model, input: input.input, ...(ref === undefined ? {} : { referenceImage: { ...ref } as CoursewareImageReference }) };
 }
 
 function requestHash(input: CoursewareTtsRequest | CoursewareImageRequest): string {
   const fields = [input.kind, input.model, input.input, input.kind === "tts" ? input.voice ?? null : null];
-  if (input.kind === "image" && input.referenceImage) fields.push(input.referenceImage.sha256, input.referenceImage.mimeType, String(input.referenceImage.byteLength));
+  if ((input.kind === "image" || input.kind === "image-layers") && input.referenceImage) fields.push(input.referenceImage.sha256, input.referenceImage.mimeType, String(input.referenceImage.byteLength));
   const canonical = fields.reduce<string>((text, field) => `${text}:${field === null ? -1 : field.length}:${field ?? ""}`, "courseware-media-v1");
   return createHash("sha256").update(canonical, "utf8").digest("hex");
 }
@@ -127,25 +128,30 @@ export class CoursewareMediaClient extends CoursewareMediaTransport {
     return this.models("tts", signal);
   }
 
-  async getImageQuote(model: string, signal?: AbortSignal): Promise<CoursewareImageQuote> {
+  async getImageQuote(model: string, signal?: AbortSignal, kind: CoursewareImageRequest["kind"] = "image"): Promise<CoursewareImageQuote> {
     if (!id(model)) throw new Error("COURSEWARE_MEDIA_INVALID_REQUEST");
-    const value = await this.json(`/courseware/media/models/${model}/quote?kind=image`, this.principal(), signal);
-    return mediaQuote(value, model, "image");
+    const value = await this.imageJson(`/courseware/media/models/${model}/quote?kind=${kind}`, this.principal(), signal);
+    return mediaQuote(value, model, kind);
   }
 
   async getImageModels(signal?: AbortSignal): Promise<{ model: string; voices: string[]; providerDefaultVoice: boolean; supportsReferenceImage?: boolean }[]> {
     return this.models("image", signal);
   }
 
-  private async models(kind: "tts" | "image", signal?: AbortSignal): Promise<{ model: string; voices: string[]; providerDefaultVoice: boolean; supportsReferenceImage?: boolean }[]> {
-    const value = await this.json(`/courseware/media/models?kind=${kind}`, this.principal(), signal);
+  async getLayerModels(signal?: AbortSignal) {
+    return this.models("image-layers", signal);
+  }
+
+  private async models(kind: "tts" | "image" | "image-layers", signal?: AbortSignal): Promise<{ model: string; voices: string[]; providerDefaultVoice: boolean; supportsReferenceImage?: boolean }[]> {
+    const value = await (kind === "tts" ? this.json(`/courseware/media/models?kind=${kind}`, this.principal(), signal)
+      : this.imageJson(`/courseware/media/models?kind=${kind}`, this.principal(), signal));
     if (!Array.isArray(value) || value.length > 100 || value.some((entry) =>
-      !exact(entry, ["model", "voices", "providerDefaultVoice"], kind === "image" ? ["supportsReferenceImage"] : []) || !id(entry.model) ||
+      !exact(entry, ["model", "voices", "providerDefaultVoice"], kind !== "tts" ? ["supportsReferenceImage"] : []) || !id(entry.model) ||
       (entry.supportsReferenceImage !== undefined && typeof entry.supportsReferenceImage !== "boolean") ||
       typeof entry.providerDefaultVoice !== "boolean" || !Array.isArray(entry.voices) || entry.voices.length > 100 ||
       entry.voices.some((voice: unknown) => typeof voice !== "string" || !/^[A-Za-z0-9_-]{1,64}$/u.test(voice)) ||
       new Set(entry.voices).size !== entry.voices.length ||
-      (kind === "image" && (entry.voices.length !== 0 || entry.providerDefaultVoice))) ||
+      (kind !== "tts" && (entry.voices.length !== 0 || entry.providerDefaultVoice))) ||
       new Set(value.map((entry) => entry.model)).size !== value.length) throw invalid();
     return value;
   }
@@ -176,6 +182,7 @@ export class CoursewareMediaClient extends CoursewareMediaTransport {
   }
 
   async submitImage(key: string, input: CoursewareImageRequest, signal?: AbortSignal, projectId?: string): Promise<CoursewareImageTask> {
+    if (this.options.imageBaseUrl) throw new Error("COURSEWARE_MEDIA_QUOTE_REQUIRED");
     if (typeof key !== "string" || !/^[A-Za-z0-9._-]{1,96}$/u.test(key)) throw new Error("COURSEWARE_MEDIA_INVALID_KEY");
     const body = imageRequest(input);
     if (body.referenceImage) throw new Error("COURSEWARE_MEDIA_REFERENCE_CONFIRMATION_REQUIRED");
@@ -187,15 +194,16 @@ export class CoursewareMediaClient extends CoursewareMediaTransport {
   async submitConfirmedImage(key: string, input: CoursewareImageRequest, quote: CoursewareImageQuote, signal?: AbortSignal, projectId?: string): Promise<CoursewareImageTask> {
     if (typeof key !== "string" || !/^[A-Za-z0-9._-]{1,96}$/u.test(key)) throw new Error("COURSEWARE_MEDIA_INVALID_KEY");
     const body = imageRequest(input);
-    const confirmed = mediaQuote(quote, body.model, "image");
+    const confirmed = mediaQuote(quote, body.model, body.kind);
     if (body.input.length > confirmed.maxChars) throw new Error("COURSEWARE_MEDIA_INVALID_REQUEST");
     const principal = this.principal();
-    if (body.referenceImage && !(await this.getImageModels(signal)).some(entry => entry.model === body.model && entry.supportsReferenceImage === true))
+    if (body.referenceImage && !(await (body.kind === "image-layers" ? this.getLayerModels(signal) : this.getImageModels(signal))).some(entry => entry.model === body.model && entry.supportsReferenceImage === true))
       throw new Error("COURSEWARE_MEDIA_REFERENCE_UNSUPPORTED");
-    const result = await this.json(submissionPath(projectId, true), principal, signal,
+    const result = await this.imageJson(submissionPath(projectId, true), principal, signal,
       { method: "POST", headers: { "Idempotency-Key": key }, body: JSON.stringify({ request: body,
         confirmation: { priceVersion: confirmed.priceVersion, maxPoints: confirmed.maxPoints, quoteToken: confirmed.quoteToken } }) });
-    const saved = task(result, { idempotencyKey: key, requestHash: requestHash(body), model: body.model }, "image");
+    const saved = task(result, { idempotencyKey: key, requestHash: requestHash(body), model: body.model }, body.kind);
+    if (this.options.imageBaseUrl && !saved.taskId.startsWith("gw-")) throw invalid();
     if (saved.reservedPoints > confirmed.maxPoints) throw invalid();
     return saved;
   }
@@ -209,33 +217,49 @@ export class CoursewareMediaClient extends CoursewareMediaTransport {
     return this.findTask(reference, "tts", signal);
   }
 
-  async findImage(reference: Pick<CoursewareTaskRef, "idempotencyKey" | "requestHash">, signal?: AbortSignal): Promise<CoursewareImageTask | null> {
-    return this.findTask(reference, "image", signal);
+  async findImage(reference: Pick<CoursewareTaskRef, "idempotencyKey" | "requestHash">, signal?: AbortSignal, kind: CoursewareImageRequest["kind"] = "image"): Promise<CoursewareImageTask | null> {
+    return this.findTask(reference, kind, signal);
   }
 
   private findTask(reference: Pick<CoursewareTaskRef, "idempotencyKey" | "requestHash">, kind: "tts", signal?: AbortSignal): Promise<CoursewareTtsTask | null>;
-  private findTask(reference: Pick<CoursewareTaskRef, "idempotencyKey" | "requestHash">, kind: "image", signal?: AbortSignal): Promise<CoursewareImageTask | null>;
-  private async findTask(reference: Pick<CoursewareTaskRef, "idempotencyKey" | "requestHash">, kind: "tts" | "image", signal?: AbortSignal): Promise<CoursewareTtsTask | CoursewareImageTask | null> {
+  private findTask(reference: Pick<CoursewareTaskRef, "idempotencyKey" | "requestHash">, kind: "image" | "image-layers", signal?: AbortSignal): Promise<CoursewareImageTask | null>;
+  private async findTask(reference: Pick<CoursewareTaskRef, "idempotencyKey" | "requestHash">, kind: "tts" | "image" | "image-layers", signal?: AbortSignal): Promise<CoursewareTtsTask | CoursewareImageTask | null> {
     if (!exact(reference, ["idempotencyKey", "requestHash"]) || typeof reference.idempotencyKey !== "string" ||
         !/^[A-Za-z0-9._-]{1,96}$/u.test(reference.idempotencyKey) || typeof reference.requestHash !== "string" ||
         !/^[a-f0-9]{64}$/u.test(reference.requestHash)) throw new Error("COURSEWARE_MEDIA_INVALID_TASK_REF");
     const expected = { idempotencyKey: reference.idempotencyKey, requestHash: reference.requestHash };
     const principal = this.principal();
     let result: unknown;
+    let gatewayResult = false;
     try {
-      result = await this.json("/courseware/media/tasks/by-idempotency?" + new URLSearchParams({ key: expected.idempotencyKey, requestHash: expected.requestHash }), principal, signal);
+      const path = "/courseware/media/tasks/by-idempotency?" + new URLSearchParams({ key: expected.idempotencyKey, requestHash: expected.requestHash });
+      if (kind === "tts") result = await this.json(path, principal, signal);
+      else {
+        try { result = await this.imageJson(path, principal, signal); gatewayResult = !!this.options.imageBaseUrl; }
+        catch (error) {
+          // Read-only recovery of receipts issued before the gateway migration; never submit to Platform.
+          if (!this.options.imageBaseUrl || !(error instanceof Error) || error.message !== "COURSEWARE_MEDIA_PLATFORM_46006") throw error;
+          this.assertPrincipal(principal);
+          result = await this.json(path, principal, signal);
+        }
+      }
     } catch (error) {
       this.assertPrincipal(principal);
       if (error instanceof Error && error.message === "COURSEWARE_MEDIA_PLATFORM_46006") return null;
       throw error;
     }
     this.assertPrincipal(principal);
-    return kind === "tts" ? task(result, expected, "tts") : task(result, expected, "image");
+    const saved = task(result, expected, kind);
+    if (gatewayResult && !saved.taskId.startsWith("gw-")) throw invalid();
+    return saved;
   }
 
-  async getImage(reference: CoursewareTaskRef, signal?: AbortSignal): Promise<CoursewareImageTask> {
+  async getImage(reference: CoursewareTaskRef, signal?: AbortSignal, kind: CoursewareImageRequest["kind"] = "image"): Promise<CoursewareImageTask> {
     const ref = taskRef(reference);
-    return task(await this.json(`/courseware/media/tasks/${ref.taskId}`, this.principal(), signal), ref, "image");
+    const path = `/courseware/media/tasks/${ref.taskId}`;
+    const result = this.options.imageBaseUrl && !ref.taskId.startsWith("gw-") ? await this.json(path, this.principal(), signal)
+      : await this.imageJson(path, this.principal(), signal);
+    return task(result, ref, kind);
   }
 
   async download(reference: CoursewareTaskRef, signal?: AbortSignal): Promise<{ task: CoursewareTtsTask; bytes: Buffer }> {
@@ -251,14 +275,15 @@ export class CoursewareMediaClient extends CoursewareMediaTransport {
     return { task: current, bytes: result.bytes };
   }
 
-  async downloadImage(reference: CoursewareTaskRef, signal?: AbortSignal): Promise<{ task: CoursewareImageTask; bytes: Buffer }> {
+  async downloadImage(reference: CoursewareTaskRef, signal?: AbortSignal, kind: CoursewareImageRequest["kind"] = "image"): Promise<{ task: CoursewareImageTask; bytes: Buffer }> {
     const principal = this.principal();
-    const current = await this.getImage(reference, signal);
+    const current = await this.getImage(reference, signal, kind);
     this.assertPrincipal(principal);
     if (current.state !== "ready" || !current.assetRef) throw new Error("COURSEWARE_MEDIA_ASSET_NOT_READY");
     const asset = current.assetRef;
     const result = await this.receive(`/courseware/media/tasks/${current.taskId}/asset`, principal, signal, MAX_AUDIO_BYTES,
-      {}, "application/json, image/png, image/jpeg, image/webp");
+      {}, "application/json, image/png, image/jpeg, image/webp, application/vnd.trainwise.image-layers+json", 30_000,
+      !this.options.imageBaseUrl || current.taskId.startsWith("gw-"));
     if (result.mime === "application/json") { envelope(result.bytes); throw invalid(); }
     if (result.mime !== asset.mime || result.bytes.length !== asset.byteLength ||
         createHash("sha256").update(result.bytes).digest("hex") !== asset.sha256) throw new Error("COURSEWARE_MEDIA_ASSET_INTEGRITY_ERROR");

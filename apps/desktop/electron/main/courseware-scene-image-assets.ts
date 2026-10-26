@@ -3,7 +3,7 @@ import { constants } from "node:fs";
 import { open } from "node:fs/promises";
 import { basename, isAbsolute } from "node:path";
 import { nativeImage } from "electron";
-import type { CoursewareSceneImageAsset, CoursewareSceneImageTarget } from "@pi-desktop/shared";
+import type { CoursewareSceneImageAsset, CoursewareSceneImageTarget, CoursewareTaskRef } from "@pi-desktop/shared";
 import { captureCoursewareSceneImages } from "./courseware-scene-context";
 
 const invalid = () => new Error("COURSEWARE_SCENE_IMAGE_INVALID_ASSET");
@@ -62,7 +62,38 @@ export function isSceneImageAsset(value: unknown): value is CoursewareSceneImage
     ["image/png", "image/jpeg", "image/webp"].includes(v.mimeType) &&
     Number.isSafeInteger(v.byteLength) && v.byteLength > 0 && v.byteLength <= 8 * 1024 * 1024 &&
     Number.isSafeInteger(v.width) && Number.isSafeInteger(v.height) &&
-    v.width > 0 && v.width <= 4096 && v.height > 0 && v.height <= 4096;
+    v.width > 0 && v.width <= 4096 && v.height > 0 && v.height <= 4096 &&
+    (v.sourceZIndex === undefined || (Number.isSafeInteger(v.sourceZIndex) && v.sourceZIndex >= 1 && v.sourceZIndex <= 1_000_000)) &&
+    (v.normalizedBoundingBox === undefined || (Array.isArray(v.normalizedBoundingBox) && v.normalizedBoundingBox.length === 4 &&
+      v.normalizedBoundingBox.every(n => Number.isFinite(n) && n >= 0 && n <= 1000) &&
+      v.normalizedBoundingBox[0] < v.normalizedBoundingBox[2] && v.normalizedBoundingBox[1] < v.normalizedBoundingBox[3]));
+}
+
+/** One authenticated decomposition receipt becomes private, separately reviewable scene assets. */
+export function decodeSceneImageBundle(bytes: Buffer, taskRef: CoursewareTaskRef) {
+  if (bytes.length < 1 || bytes.length > 16 * 1024 * 1024) throw invalid();
+  const value = JSON.parse(bytes.toString("utf8"));
+  if (!Array.isArray(value?.data) || value.data.length < 2 || value.data.length > 32) throw invalid();
+  const indexes = new Set<number>();
+  const images = value.data.map((item: Record<string, unknown>) => {
+    if (!item || !Number.isSafeInteger(item.z_index) || Number(item.z_index) < 0 || indexes.has(Number(item.z_index)) ||
+        Number(item.z_index) > 1_000_000 || typeof item.b64_json !== "string" || item.url !== undefined) throw invalid();
+    indexes.add(Number(item.z_index));
+    const png = Buffer.from(item.b64_json, "base64");
+    if (png.length < 33 || png.length > 8 * 1024 * 1024 || png.toString("base64") !== item.b64_json) throw invalid();
+    const bounds = item.bounding_box && typeof item.bounding_box === "object" ? Reflect.get(item.bounding_box, "normalized") : undefined;
+    const asset = { taskRef, mimeType: "image/png" as const, byteLength: png.length,
+      sha256: createHash("sha256").update(png).digest("hex"), width: png.readUInt32BE(16), height: png.readUInt32BE(20),
+      ...(item.z_index === 0 ? {} : { normalizedBoundingBox: bounds as [number, number, number, number], sourceZIndex: Number(item.z_index) }) };
+    if (item.z_index !== 0 && !asset.normalizedBoundingBox) throw invalid();
+    const label = typeof item.name === "string" ? item.name.replace(/[\u0000-\u001f\u007f-\u009f]/gu, " ").trim().slice(0, 60) : "Foreground";
+    const target: CoursewareSceneImageTarget = item.z_index === 0 ? { kind: "cleanPlate" } : { kind: "layer", name: `${item.z_index} - ${label || "Foreground"}` };
+    verifySceneImageAsset(png, asset, target);
+    return { zIndex: Number(item.z_index), target, asset, bytesBase64: png.toString("base64") };
+  });
+  if (!indexes.has(0)) throw invalid();
+  return images.sort((a: { zIndex: number }, b: { zIndex: number }) => a.zIndex - b.zIndex)
+    .map(({ zIndex: _, ...image }: { zIndex: number; target: CoursewareSceneImageTarget; asset: CoursewareSceneImageAsset & { taskRef: CoursewareTaskRef }; bytesBase64: string }) => image);
 }
 
 /** Keep the original authenticated bytes; validate actual decoding before archive or display. */

@@ -10,7 +10,7 @@ export function CoursewareSceneImages({ sessionId, plan, enabled, onActiveChange
   const { t } = useTranslation();
   const epoch = useRef(0), inFlight = useRef(false);
   const [busy, setBusy] = useState(false);
-  const [models, setModels] = useState<{ model: string; supportsReferenceImage?: boolean }[]>([]);
+  const [models, setModels] = useState<{ model: string; supportsReferenceImage?: boolean; layerDecomposition?: boolean }[]>([]);
   const [model, setModel] = useState("");
   const [pageId, setPageId] = useState("");
   const [kind, setKind] = useState<CoursewareSceneImageTarget["kind"]>("visualMaster");
@@ -58,7 +58,7 @@ export function CoursewareSceneImages({ sessionId, plan, enabled, onActiveChange
   const loadModels = () => run(async current => {
     const values = await api.coursewareSceneImageModels(sessionId);
     if (!current()) return;
-    setModels(values); setModel(""); clearQuote();
+    setModels(values); setModel(values.find(value => kind === "cleanPlate" ? value.layerDecomposition : !value.layerDecomposition)?.model ?? ""); clearQuote();
     if (!values.length) throw new Error(t("panel.sceneImages.noModels"));
   });
   const quote = () => run(async current => {
@@ -129,7 +129,12 @@ export function CoursewareSceneImages({ sessionId, plan, enabled, onActiveChange
     <label>{t("panel.sceneImages.target")}
       <select value={kind} disabled={busy || !enabled} onChange={event => {
         const value = event.target.value;
-        if (value === "visualMaster" || value === "cleanPlate" || value === "layer") { setKind(value); clearQuote(); }
+        if (value === "visualMaster" || value === "cleanPlate" || value === "layer") {
+          setKind(value);
+          const candidates = models.filter(entry => value === "cleanPlate" ? entry.layerDecomposition || entry.supportsReferenceImage : !entry.layerDecomposition);
+          setModel(candidates.find(entry => value === "cleanPlate" && entry.layerDecomposition)?.model ?? candidates.find(entry => entry.model === model)?.model ?? candidates[0]?.model ?? "");
+          clearQuote();
+        }
       }}>
         {["visualMaster", "cleanPlate", "layer"].map(value => <option key={value} value={value}>{t(`panel.sceneImages.${value}`)}</option>)}
       </select>

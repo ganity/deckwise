@@ -134,7 +134,7 @@ This is local review persistence, not authority to submit paid media or attach
 generated PPTX. Normal handshake and persisted-session checks apply.
 
 `courseware.sceneImage.prepare` takes exactly
-`{sessionId,principalKey,planSha256,pageId,model,target?,instructions?}`. Target is
+`{sessionId,principalKey,planSha256,pageId,model,target?,instructions?,referenceIntentId?,decomposition?}`. Target is
 `{kind:"visualMaster"}`, `{kind:"cleanPlate"}` or `{kind:"layer",name}`. Missing
 targets default to visualMaster, including in existing journals. Unknown fields,
 invalid layer names and requirements over 1,200 UTF-16 units reject. Host requires the current
@@ -150,6 +150,17 @@ duplicate begin rejects. Bind accepts a matching late receipt even for an old
 plan, and same-receipt replays are no-ops. Foreign scopes cannot retrieve records.
 There is no Host network, charge, image adoption or scene compilation in these
 RPCs. See [the media journal](27-courseware-authorized-media.md#approved-plan-image-request-journal-2026-10-23).
+
+`decomposition:true` requires cleanPlate and a selected master reference, and
+prepares kind `image-layers`. `courseware.sceneImage.bundle.stage` accepts
+`{sessionId,principalKey,intentId,images:[{target,asset,bytesBase64}]}` for that
+bound receipt. The first image is cleanPlate; others have distinct named layer
+targets. Every asset carries the parent taskRef, valid PNG hash/size/dimensions;
+foregrounds require normalized bounds. Optional `sourceZIndex` preserves order.
+Host validates all entries before saving parent and deterministic derived intents
+in one journal write. Children share the submitted receipt; retries cannot
+create requests or replace old bytes. Returns parent `{intent,current}`; `list`
+exposes all children for individual preview/selection. Ordinary asset APIs remain.
 
 `courseware.sceneImage.asset.stage` adds `{asset,bytesBase64}` to the original
 `{sessionId,principalKey,intentId}` scope. Asset metadata carries its exact

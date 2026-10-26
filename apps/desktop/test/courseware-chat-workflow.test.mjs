@@ -59,6 +59,20 @@ test("main Chat reads actual readiness and can prepare assets during its active 
   assert(!f.calls.some(([name]) => /submit|approve|select/.test(name)));
 });
 
+test("readiness requires every foreground and its matching decomposition base/master", () => {
+  const plan = { sha256: "a".repeat(64), pages: [{ pageId: "scene-001" }] };
+  const common = { planSha256: plan.sha256, pageId: "scene-001", current: true, selected: true };
+  const master = { ...common, intentId: "master", target: { kind: "visualMaster" }, asset: { sha256: "b".repeat(64), byteLength: 70 } };
+  const clean = { ...common, intentId: "decomposition", decomposition: true, target: { kind: "cleanPlate" }, asset: { sha256: "c".repeat(64), byteLength: 70 },
+    referenceImage: { intentId: "master", sha256: master.asset.sha256 } };
+  const one = { ...common, intentId: "decomposition-layer-1", decomposition: true, target: { kind: "layer", name: "Teacher" }, asset: { byteLength: 70 } };
+  const two = { ...one, intentId: "decomposition-layer-2", target: { kind: "layer", name: "Student" } };
+  assert.deepEqual(sceneAssetBlockers(plan, [master, clean, one, two]), []);
+  assert(sceneAssetBlockers(plan, [master, clean, one, { ...two, selected: false }]).some(blocker => blocker.kind === "layer"));
+  assert(sceneAssetBlockers(plan, [master, { ...clean, referenceImage: { ...clean.referenceImage, intentId: "old-master" } }, one, two]).some(blocker => blocker.kind === "cleanPlate"));
+  assert(sceneAssetBlockers(plan, [master, { ...clean, decomposition: false }, one, two]).some(blocker => blocker.kind === "cleanPlate"));
+});
+
 test("unapproved, stopped and foreign Chat work cannot advance", async () => {
   const f = fixture(); f.plan.approvedSha256 = null;
   await assert.rejects(f.execute("courseware_scene_compile", { planSha256: f.plan.sha256 }), /approve/);

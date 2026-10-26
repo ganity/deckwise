@@ -1,5 +1,47 @@
 # Authorized private courseware media transport
 
+## llm-ha scene images and Seedream decomposition (2026-10-26)
+
+Desktop connects directly to llm-ha for image catalogs, quotes, confirmed
+submission, status and original assets. Platform authenticates users and provides
+billing quotes, reservations and settlement; supplier inputs and image task data
+stay in llm-ha. Provider keys and actual models are configured there. Main uses
+its existing managed llm-ha URL / `DECKWISE_LLM_BASE_URL`, while TTS/music keep
+their existing Platform routes. See [the routing decision](../../adr/courseware-images-direct-llm-ha.md).
+
+Master images use the native MXAPI async adapter. `image-layers` uses Seedream
+5.0 Pro with `layer_decomposition:true` and the exact selected visual-master
+reference. One confirmed task returns a private
+`application/vnd.trainwise.image-layers+json` bundle with a base and 1–16
+foreground PNGs, normalized crop bounds and stacking indices. Platform reserves
+at most 17 output images, then settles the actual count at the frozen quoted
+rate. Missing pricing or changed quotes refuse before supplier generation.
+
+Main verifies the ready/settled receipt, downloaded hash, PNG decoding, foreground
+alpha and bounds before Host archives the complete group. Host saves one parent
+cleanPlate and deterministic derived layer intents in the existing private scene
+journal. Children share the original submitted task/key/hash and cannot begin
+another generation. Archive replay verifies existing entries without duplication;
+changed assets/targets reject. Journal metadata saves only after all inputs pass.
+Every image still needs explicit preview/selection.
+
+Assets optionally carry `normalizedBoundingBox:[left,top,right,bottom]` (0–1000)
+and `sourceZIndex`. Compilation preserves these with the base's aspect-fit scale
+and offset, clearing guessed image rotation/cropping. Legacy images retain their
+existing behavior. Gateway bundle JSON ≤16 MiB; 2–17 PNGs; each ≤8 MiB and
+4096×4096. Existing scene archive/compile/journal budgets still apply.
+
+Omitting the model in Chat preparation uses the first server catalog model for
+the role; explicit unavailable IDs reject before Host preparation. cleanPlate
+prefers a decomposition model and reuses its foregrounds. Catalog/auth/network
+errors remain visible. Original saved requests keep their model/key. New `gw-`
+receipts persist in llm-ha SQLite. Old non-gateway receipts have read-only
+Platform recovery; only an explicit gateway task-not-found permits old by-key GET.
+New submission never falls back to Platform. Lost paid replies remain unknown
+and may retain reserved funds for operator reconciliation. Query/download/archive
+recovery never submits another generation. Team permission and ownership checks
+remain mandatory, including asset reads after revocation.
+
 Status: A19–A26 implement private transport/journal, finite Main orchestration,
 validated audio archive/adoption and fixed narrated preview. A27 adds existing-task
 query/retrieval/explicit adoption to the teaching panel. The quote-confirmed generation

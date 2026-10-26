@@ -23,6 +23,8 @@ export type CoursewareSceneImageAsset = {
   byteLength: number;
   width: number;
   height: number;
+  normalizedBoundingBox?: [number, number, number, number];
+  sourceZIndex?: number;
 };
 
 export type CoursewareSceneImageTarget =
@@ -39,6 +41,7 @@ export function isCoursewareSceneImageTarget(value: unknown): value is Coursewar
 }
 
 export type CoursewareSceneImageView = {
+  decomposition?: boolean;
   referenceImage?: { intentId: string; sha256: string; mimeType: "image/png" | "image/jpeg"; byteLength: number };
   intentId: string;
   planSha256: string;

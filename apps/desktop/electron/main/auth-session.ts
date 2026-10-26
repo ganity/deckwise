@@ -157,6 +157,7 @@ export class DesktopAuthSession {
     this.legacySessionPath = join(options.dataDir, "auth", "session.bin");
     this.coursewareMedia = new CoursewareMediaClient({
       baseUrl: this.baseUrl,
+      imageBaseUrl: process.env.DECKWISE_LLM_BASE_URL?.trim() || DECKWISE_MANAGED_BASE_URL,
       fetch: (url, init) => net.fetch(url instanceof URL ? url.toString() : url, init),
       resolveAccessToken: () => this.resolveAccessToken(),
       getPrincipal: () => this.state.status === "authenticated" && this.accessToken ? this.state.profile : null,

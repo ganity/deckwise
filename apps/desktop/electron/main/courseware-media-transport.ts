@@ -1,4 +1,4 @@
-export type CoursewareMediaOptions = { baseUrl: string; fetch: typeof fetch; resolveAccessToken: () => Promise<string>;
+export type CoursewareMediaOptions = { baseUrl: string; imageBaseUrl?: string; fetch: typeof fetch; resolveAccessToken: () => Promise<string>;
   getPrincipal: () => object | null };
 const invalid = () => new Error("COURSEWARE_MEDIA_INVALID_RESPONSE");
 const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
@@ -22,11 +22,16 @@ export function mediaSubmissionPath(projectId: string | undefined, confirmed = f
 /** Main-only credential, cancellation and bounded-response ownership shared by media clients. */
 export class CoursewareMediaTransport {
   private readonly baseUrl: string;
+  private readonly imageBaseUrl: string;
   constructor(protected readonly options: CoursewareMediaOptions) {
-    const url = new URL(options.baseUrl);
-    if (!(url.protocol === "https:" || (url.protocol === "http:" && ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname))) ||
-        url.username || url.password || url.search || url.hash) throw new Error("COURSEWARE_MEDIA_INVALID_BASE_URL");
-    this.baseUrl = url.toString().replace(/\/+$/u, "");
+    const checked = (base: string) => {
+      const url = new URL(base);
+      if (!(url.protocol === "https:" || (url.protocol === "http:" && ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname))) ||
+          url.username || url.password || url.search || url.hash) throw new Error("COURSEWARE_MEDIA_INVALID_BASE_URL");
+      return url.toString().replace(/\/+$/u, "");
+    };
+    this.baseUrl = checked(options.baseUrl);
+    this.imageBaseUrl = checked(options.imageBaseUrl ?? options.baseUrl);
   }
 
   protected principal(): object {
@@ -37,13 +42,16 @@ export class CoursewareMediaTransport {
   protected assertPrincipal(principal: object): void {
     if (this.options.getPrincipal() !== principal) throw new Error("COURSEWARE_MEDIA_AUTH_CHANGED");
   }
-  protected async json(path: string, principal: object, signal?: AbortSignal, init: RequestInit = {}, timeoutMs = 30_000): Promise<unknown> {
-    const response = await this.receive(path, principal, signal, 64 * 1024, init, "application/json, audio/wav, audio/mpeg", timeoutMs);
+  protected async imageJson(path: string, principal: object, signal?: AbortSignal, init: RequestInit = {}): Promise<unknown> {
+    return this.json(path, principal, signal, init, 30_000, true);
+  }
+  protected async json(path: string, principal: object, signal?: AbortSignal, init: RequestInit = {}, timeoutMs = 30_000, image = false): Promise<unknown> {
+    const response = await this.receive(path, principal, signal, 64 * 1024, init, "application/json, audio/wav, audio/mpeg", timeoutMs, image);
     if (response.mime !== "application/json") throw invalid();
     return mediaEnvelope(response.bytes);
   }
   protected async receive(path: string, principal: object, signal: AbortSignal | undefined, max: number, init: RequestInit = {},
-    accept = "application/json, audio/wav, audio/mpeg", timeoutMs = 30_000) {
+    accept = "application/json, audio/wav, audio/mpeg", timeoutMs = 30_000, image = false) {
     const cancellation = AbortSignal.any([AbortSignal.timeout(timeoutMs), ...(signal ? [signal] : [])]);
     cancellation.throwIfAborted();
     let token: string;
@@ -60,7 +68,7 @@ export class CoursewareMediaTransport {
     if (typeof init.body === "string") headers.set("Content-Type", "application/json");
     let response: Response;
     try {
-      response = await this.options.fetch(`${this.baseUrl}${path}`, { ...init, headers,
+      response = await this.options.fetch(`${image ? this.imageBaseUrl : this.baseUrl}${path}`, { ...init, headers,
         cache: "no-store", credentials: "omit", redirect: "error", signal: cancellation });
     } catch {
       this.assertPrincipal(principal);

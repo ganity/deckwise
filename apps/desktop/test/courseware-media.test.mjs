@@ -155,6 +155,54 @@ const imageQuote = () => ({ version: "courseware-media-quote-v1", kind: "image",
 const imageQueued = () => ({ ...ready(imageInput, "scene-image-1"), kind: "image", state: "queued",
   feeState: "reserved", reservedPoints: 8, actualPoints: null, receiptId: null, assetRef: null });
 
+test("configured gateway owns image catalog, quote, submit, lookup and bytes while TTS retains its existing route", async () => {
+  const calls = [], principal = {}, bytes = await fs.readFile(new URL("fixtures/courseware-team-image.png", import.meta.url));
+  const saved = { ...imageQueued(), taskId: "gw-image-1", state: "ready", feeState: "settled", actualPoints: 3,
+    receiptId: "courseware-media:gw-image-1", assetRef: { assetId: "gw-asset-1", sha256: sha(bytes), mime: "image/png", byteLength: bytes.length,
+      width: 1, height: 1, downloadPath: "/courseware/media/tasks/gw-image-1/asset" } };
+  const client = new CoursewareMediaClient({ baseUrl: "https://platform.test/api", imageBaseUrl: "https://gateway.test/llm-ha/v1",
+    getPrincipal: () => principal, resolveAccessToken: async () => "user-access", fetch: async (url, init) => {
+      calls.push([url, init]); assert.equal(init.headers.get("authorization"), "Bearer user-access");
+      if (url.endsWith("kind=tts")) return json([]);
+      assert.equal(new URL(url).origin, "https://gateway.test");
+      if (url.includes("/models?")) return json([{ model: imageInput.model, voices: [], providerDefaultVoice: false }]);
+      if (url.includes("/quote?")) return json(imageQuote());
+      if (url.endsWith("/asset")) return new Response(bytes, { headers: { "content-type": "image/png" } });
+      return json(saved);
+    } });
+  await client.getImageModels(); const quote = await client.getImageQuote(imageInput.model);
+  await client.submitConfirmedImage(saved.idempotencyKey, imageInput, quote);
+  assert.deepEqual((await client.downloadImage(reference(saved))).bytes, bytes);
+  assert.deepEqual(await client.findImage({ idempotencyKey: saved.idempotencyKey, requestHash: saved.requestHash }), saved);
+  await client.getTtsModels();
+  assert(calls.slice(0, -1).every(([url]) => url.startsWith("https://gateway.test/llm-ha/v1/")));
+  assert(calls.at(-1)[0].startsWith("https://platform.test/api/"));
+  await assert.rejects(client.submitImage(saved.idempotencyKey, imageInput), /QUOTE_REQUIRED/);
+  const invalidGateway = new CoursewareMediaClient({ baseUrl: "https://platform.test", imageBaseUrl: "https://gateway.test/v1",
+    getPrincipal: () => principal, resolveAccessToken: async () => "user", fetch: async () => json(imageQueued()) });
+  await assert.rejects(invalidGateway.findImage({ idempotencyKey: "scene-image-1", requestHash: hashRequest(imageInput) }), /INVALID_RESPONSE/);
+});
+
+test("gateway failure cannot submit to Platform and old receipts have only read-only recovery", async () => {
+  const calls = [], principal = {};
+  const client = new CoursewareMediaClient({ baseUrl: "https://platform.test", imageBaseUrl: "https://gateway.test/v1",
+    getPrincipal: () => principal, resolveAccessToken: async () => "user", fetch: async (url, init) => {
+      calls.push([url, init]);
+      if (new URL(url).origin === "https://gateway.test") {
+        if (init.method === "POST") return new Response("missing", { status: 404 });
+        return new Response(JSON.stringify({ code: 46006 }), { headers: { "content-type": "application/json" } });
+      }
+      assert.notEqual(init.method, "POST"); return json(imageQueued());
+    } });
+  await assert.rejects(client.submitConfirmedImage("scene-image-1", imageInput, imageQuote()), /HTTP_404/);
+  assert.equal(calls.length, 1);
+  const found = await client.findImage({ idempotencyKey: "scene-image-1", requestHash: hashRequest(imageInput) });
+  assert.equal(found.taskId, "task-1");
+  await client.getImage(reference(found));
+  assert(calls.slice(1).every(([, init]) => init.method !== "POST"));
+  assert(calls.at(-1)[0].startsWith("https://platform.test/"));
+});
+
 test("confirmed reference generation sends exact reviewed PNG bytes and the shared UTF-16 hash fixture", async () => {
   const bytesBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg==";
   const referenceImage = { sha256: "d8aeb7b31114535bbf9035568464d5eb3dadfabaa70525a487d2c04571203426", mimeType: "image/png", byteLength: 70, bytesBase64 };
@@ -221,6 +269,33 @@ test("reference capability lookup cannot switch the principal before private byt
   });
   await assert.rejects(f.client.submitConfirmedImage("scene-image-1", body, imageQuote()), /AUTH_CHANGED/);
   assert.equal(f.calls.filter(([, init]) => init.method === "POST").length, 0);
+});
+
+test("one layer-decomposition quote binds a reference hash and downloads a bundle through the private task route", async () => {
+  const bytesBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg==";
+  const body = { kind: "image-layers", model: "seedream-layers", input: "Separate foregrounds", referenceImage: {
+    sha256: sha(Buffer.from(bytesBase64, "base64")), mimeType: "image/png", byteLength: 70, bytesBase64 } };
+  const quote = { ...imageQuote(), kind: "image-layers", model: body.model };
+  const bundle = Buffer.from(JSON.stringify({ data: [] }));
+  const queued = { ...imageQueued(), kind: body.kind, model: body.model, requestHash: hashRequest(body) };
+  const ready = { ...queued, state: "ready", feeState: "settled", actualPoints: 3, receiptId: `courseware-media:${queued.taskId}`,
+    assetRef: { assetId: "layer-bundle", sha256: sha(bundle), mime: "application/vnd.trainwise.image-layers+json",
+      byteLength: bundle.length, downloadPath: `/courseware/media/tasks/${queued.taskId}/asset` } };
+  let submitted = false;
+  const f = setup(async (url, init) => {
+    if (url.endsWith("models?kind=image-layers")) return json([{ model: body.model, voices: [], providerDefaultVoice: false, supportsReferenceImage: true }]);
+    if (url.includes("/quote?kind=image-layers")) return json(quote);
+    if (init.method === "POST") { submitted = true; assert.deepEqual(JSON.parse(init.body).request, body); return json(queued); }
+    if (url.endsWith("/asset")) return new Response(bundle, { headers: { "Content-Type": ready.assetRef.mime } });
+    return json(ready);
+  });
+  const offer = await f.client.getImageQuote(body.model, undefined, "image-layers");
+  await f.client.submitConfirmedImage("scene-image-1", body, offer);
+  assert.equal(submitted, true);
+  const downloaded = await f.client.downloadImage({ taskId: queued.taskId, idempotencyKey: queued.idempotencyKey, requestHash: queued.requestHash }, undefined, "image-layers");
+  assert.deepEqual(downloaded.bytes, bundle);
+  assert.equal(f.calls.filter(([, init]) => init.method === "POST").length, 1);
+  await assert.rejects(f.client.submitConfirmedImage("another-key", { ...body, referenceImage: undefined }, offer), /INVALID_REQUEST|REFERENCE_REQUIRED/);
 });
 
 test("image pricing rejects foreign, stale and malformed offers before any paid POST", async () => {

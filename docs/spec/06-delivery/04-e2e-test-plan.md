@@ -1,5 +1,28 @@
 # 04. E2E Test Plan
 
+## E2E-COURSEWARE-llm-ha-scene-images
+
+- Configure llm-ha courseware-only MXAPI/Seedream providers and Platform IMAGE /
+  per_image billing rules. Verify catalogs and quotes with GET. Omit model in Chat;
+  verify automatic selection and reject invented model IDs before prepare.
+- Confirm one master generation, preview/select it, then prepare cleanPlate using
+  its exact reviewed reference. One Seedream task creates the base and foregrounds;
+  billing reserves at most 17 images and settles actual count at the frozen rate.
+  Review/select each, compile editable PPTX and verify bounds, offsets and stacking.
+- With distinct Platform/gateway origins, verify catalog, quote, new submission,
+  status and bytes reach llm-ha with user auth. Verify Platform receives only
+  billing metadata/counts, while TTS/music retain their previous routing.
+- Lose submit/receipt/archive acknowledgements and restart. Unknown requests keep
+  their keys; GET recovery and group archive replay never generate again. Replay
+  billing without duplicate charge. Reject wrong pins, changed bytes, invalid
+  bounds, opaque foregrounds, duplicate indices, model/key overrides and unknown
+  CDN origins. No new submission may fall back to Platform.
+- Verify exhausted credit permits saved receipt/assets but refuses new generation;
+  revoked team membership blocks submission and asset downloads. Old non-gateway
+  receipts retain read-only Platform recovery after explicit gateway not-found.
+- Run regular image/TTS/canvas checks. Loopback checks are not production provider,
+  pricing, visual quality or packaged Electron acceptance.
+
 ## E2E-COURSEWARE-main-chat-generation
 
 - **Steps**: Create plain, scene and import tasks through the task dialog. Keep

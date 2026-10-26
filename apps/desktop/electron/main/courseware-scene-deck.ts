@@ -4,7 +4,8 @@ import type { CoursewareSceneImage } from "./courseware-scene-context";
 import type { SceneCoursePlanPage } from "./courseware-scene-plan";
 
 type Authoring = Pick<typeof import("@pi-desktop/courseware-runtime/authoring"), "editablePptxSceneSchema" | "compileScenesToPptx">;
-type Visuals = { pageId: string; visualMasterAssetId: string; cleanPlateAssetId: string; images: CoursewareSceneImage[] };
+type Visuals = { pageId: string; visualMasterAssetId: string; cleanPlateAssetId: string; images: CoursewareSceneImage[];
+  foregroundPlacements?: { assetId: string; bboxPx: [number, number, number, number]; zIndex?: number }[] };
 const hash = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 
 /** Resolve every planned page to native editable objects before handing the deck to Host. */
@@ -45,6 +46,21 @@ export async function buildSceneCourseDeck(input: {
     const layers = visual.images.filter(image => !image.assetIds.includes(visual.visualMasterAssetId) &&
       !image.assetIds.includes(visual.cleanPlateAssetId));
     const placed = scene.elements.filter(element => element.type === "image_layer");
+    for (const placement of visual.foregroundPlacements ?? []) {
+      if (placement.bboxPx.length !== 4 || placement.bboxPx.some(n => !Number.isFinite(n)) || placement.bboxPx[0] < 0 || placement.bboxPx[1] < 0 ||
+          placement.bboxPx[2] <= 0 || placement.bboxPx[3] <= 0 || placement.bboxPx[0] + placement.bboxPx[2] > input.canvas.width + 0.001 ||
+          placement.bboxPx[1] + placement.bboxPx[3] > input.canvas.height + 0.001) throw new Error("Invalid decomposition placement");
+      const element = placed.find(element => element.assetId === placement.assetId);
+      if (!element) throw new Error("Missing decomposed foreground");
+      // The supplier's crop bounds preserve the master composition; model guesses must not move its subjects.
+      element.bboxPx = [...placement.bboxPx];
+      element.rotate = 0;
+      if (placement.zIndex !== undefined) {
+        if (!Number.isSafeInteger(placement.zIndex) || placement.zIndex < 1 || placement.zIndex > 1_000_000) throw new Error("Invalid decomposition z-index");
+        element.zIndex = placement.zIndex;
+      }
+      delete element.crop;
+    }
     if (layers.some(image => !placed.some(element => image.assetIds.includes(element.assetId))) ||
         placed.some(element => !layers.some(image => image.assetIds.includes(element.assetId))))
       throw new Error(`Scene page must retain every reviewed foreground as a separate object: ${page.pageId}`);

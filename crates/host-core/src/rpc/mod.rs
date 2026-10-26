@@ -1876,6 +1876,7 @@ async fn handle_request(
         | "courseware.sceneImage.bind"
         | "courseware.sceneImage.reject"
         | "courseware.sceneImage.asset.stage"
+        | "courseware.sceneImage.bundle.stage"
         | "courseware.sceneImage.asset.get"
         | "courseware.sceneImage.asset.adopt"
         | "courseware.project.get"

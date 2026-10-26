@@ -193,6 +193,7 @@ pub(super) async fn handle(
         | "courseware.sceneImage.bind"
         | "courseware.sceneImage.reject"
         | "courseware.sceneImage.asset.stage"
+        | "courseware.sceneImage.bundle.stage"
         | "courseware.sceneImage.asset.get"
         | "courseware.sceneImage.asset.adopt" => scene_images::handle(state, method, params).await,
         "courseware.teachingDraft.get" | "courseware.teachingDraft.set" => {

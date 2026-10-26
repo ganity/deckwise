@@ -1222,7 +1222,7 @@ export const api = {
   coursewareScenePlanApprove: (sessionId: string, sha256: string) =>
     invoke<{ plan: CoursewareScenePlanSnapshot | null }>(IPC.invoke.coursewareScenePlanApprove, { sessionId, sha256 }),
   coursewareSceneImageModels: (sessionId: string) =>
-    invoke<{ model: string; supportsReferenceImage?: boolean }[]>(IPC.invoke.coursewareSceneImageModels, { sessionId }),
+    invoke<{ model: string; supportsReferenceImage?: boolean; layerDecomposition?: boolean }[]>(IPC.invoke.coursewareSceneImageModels, { sessionId }),
   coursewareSceneImageList: (sessionId: string) =>
     invoke<CoursewareSceneImageView[]>(IPC.invoke.coursewareSceneImageList, { sessionId }),
   coursewareSceneImagePrepare: (sessionId: string, planSha256: string, pageId: string, model: string,

@@ -13,6 +13,7 @@ const source = await readFile(new URL("../electron/main/courseware-scene-deck.ts
 const { outputText } = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } });
 let conflict = false;
 let imageOnly = false;
+let foreground = false;
 const calls = [];
 const exports = {};
 new Function("require", "exports", outputText)((id) => {
@@ -22,8 +23,9 @@ new Function("require", "exports", outputText)((id) => {
       calls.push({ config, request });
       return { scene: { version: 1, slideId: request.pageId, sourceHash: request.sourceHash, canvas: request.canvas,
         visualMasterAssetId: "master", cleanPlateAssetId: "clean", elements: imageOnly ? [{ id: "flat", type: "image_layer", layerRoute: "A1", assetId: "clean", bboxPx: [0, 0, 1280, 800], zIndex: 1 }] : [{ id: "title", type: "native_text", bboxPx: [80, 70, 800, 100], zIndex: 1,
-          content: request.pageText.split("\n")[0], style: { fontFace: "Arial", fontSizePt: 32, color: "#000000", align: "left", lineHeight: 1.2 }, spokenAliases: [] }] },
-        assets: { master: background, clean: conflict && calls.length === 2 ? Buffer.from("different") : background } };
+          content: request.pageText.split("\n")[0], style: { fontFace: "Arial", fontSizePt: 32, color: "#000000", align: "left", lineHeight: 1.2 }, spokenAliases: [] },
+          ...(foreground ? [{ id: "teacher", type: "image_layer", assetId: "teacher", semanticRole: "Teacher", layerRoute: "A1", bboxPx: [0, 0, 100, 100], rotate: 90, zIndex: 1, crop: [[0, 0], [50, 50]] }] : [])] },
+        assets: { master: background, clean: conflict && calls.length === 2 ? Buffer.from("different") : background, ...(foreground ? { teacher: background } : {}) } };
     };
   } };
   throw new Error(`Unexpected dependency: ${id}`);
@@ -66,4 +68,24 @@ test("a scene cannot silently drop a reviewed foreground even when native text r
   ] }));
   await assert.rejects(buildSceneCourseDeck({ ...input, visuals: withForegrounds }, async () => ({ text: "" }), authoring),
     /retain every reviewed foreground as a separate object/);
+});
+
+test("decomposition bounds and stacking replace guessed image placement before editable compilation", async () => {
+  foreground = true;
+  let captured;
+  const selectedVisuals = visuals.map(visual => ({ ...visual, images: [{ assetIds: ["teacher"], bytes: background }],
+    foregroundPlacements: [{ assetId: "teacher", bboxPx: [128, 184, 768, 504], zIndex: 2 }] }));
+  try {
+    await buildSceneCourseDeck({ ...input, visuals: selectedVisuals }, async () => ({ text: "" }), {
+      editablePptxSceneSchema: authoring.editablePptxSceneSchema,
+      async compileScenesToPptx(scenes) { captured = scenes; return { pptx: Buffer.from("verified"), mapping: { pages: scenes } }; },
+    });
+    for (const scene of captured) {
+      const layer = scene.elements.find(element => element.id === "teacher");
+      assert.deepEqual(layer.bboxPx, [128, 184, 768, 504]);
+      assert.equal(layer.zIndex, 2);
+      assert.equal(layer.rotate, 0);
+      assert.equal(layer.crop, undefined);
+    }
+  } finally { foreground = false; }
 });

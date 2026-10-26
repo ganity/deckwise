@@ -27,6 +27,8 @@ struct Prepare {
     #[serde(default)]
     instructions: String,
     reference_intent_id: Option<String>,
+    #[serde(default)]
+    decomposition: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -211,7 +213,10 @@ impl Intent {
             || !valid_hash(&self.plan_sha256)
             || !valid_id(&self.page_id)
             || !self.target.valid()
-            || self.request.kind != "image"
+            || !matches!(self.request.kind.as_str(), "image" | "image-layers")
+            || (self.request.kind == "image-layers"
+                && (self.reference_intent_id.is_none()
+                    || matches!(self.target, Target::VisualMaster {})))
             || !valid_id(&self.request.model)
             || self.request.input.trim().is_empty()
             || self.request.input.encode_utf16().count() > 4000
@@ -330,6 +335,38 @@ fn verify_reference(intents: &[Intent], intent: &Intent) -> Result<(), JsonRpcEr
     Ok(())
 }
 
+fn verify_decomposition_selection(intents: &[Intent], clean: &Intent) -> Result<(), JsonRpcError> {
+    let foregrounds: Vec<_> = intents
+        .iter()
+        .filter(|i| {
+            i.selected
+                && i.plan_sha256 == clean.plan_sha256
+                && i.page_id == clean.page_id
+                && matches!(i.target, Target::Layer { .. })
+        })
+        .collect();
+    if clean.request.kind == "image-layers" {
+        verify_reference(intents, clean)?;
+        let group: Vec<_> = intents
+            .iter()
+            .filter(|i| i.task_ref == clean.task_ref && matches!(i.target, Target::Layer { .. }))
+            .collect();
+        if group.is_empty()
+            || group.iter().any(|i| !i.selected)
+            || foregrounds.iter().any(|i| i.task_ref != clean.task_ref)
+        {
+            return Err(conflict(
+                "Review and select every foreground from the same decomposition",
+            ));
+        }
+    } else if foregrounds.iter().any(|i| i.request.kind == "image-layers") {
+        return Err(conflict(
+            "Decomposed foregrounds require their original base plate",
+        ));
+    }
+    Ok(())
+}
+
 fn current_plan(state: &AppState, root: &str, scope: &Scope) -> Option<String> {
     let task = state.db.kv_get(TASK_NAMESPACE, &scope.session_id).ok()??;
     if task["taskType"] != "scene" || task.get("generatedPath").is_some() {
@@ -400,6 +437,7 @@ pub(super) fn verify_generation(
         {
             return Err(conflict("Each scene page needs separate reviewed reference, background and foreground assets"));
         }
+        verify_decomposition_selection(&intents, clean.unwrap())?;
     }
     for intent in selected {
         if !pages.contains(&intent.page_id) {
@@ -478,6 +516,7 @@ pub(super) async fn handle(
     if matches!(
         method,
         "courseware.sceneImage.asset.stage"
+            | "courseware.sceneImage.bundle.stage"
             | "courseware.sceneImage.asset.get"
             | "courseware.sceneImage.asset.adopt"
     ) {
@@ -567,6 +606,8 @@ pub(super) async fn handle(
             .and_then(|n| plan.pages.get(n - 1))
             .ok_or_else(|| invalid("Invalid scene image page"))?;
         if !p.target.valid()
+            || (p.decomposition
+                && (!matches!(p.target, Target::CleanPlate {}) || p.reference_intent_id.is_none()))
             || p.instructions.encode_utf16().count() > 1200
             || p.instructions
                 .chars()
@@ -581,6 +622,9 @@ pub(super) async fn handle(
             page.visual_intent,
             p.target.prompt()
         );
+        if p.decomposition {
+            prompt = "Separate the reference image into an empty environment base plate and independently editable foreground teaching elements. Keep room decorations in the base. Separate people, animals, teaching props and text carriers with their text intact. Preserve the exact appearance and positions of all subjects.".into();
+        }
         if !p.instructions.trim().is_empty() {
             prompt.push_str(&format!(
                 "\nAdditional requirements: {}",
@@ -588,7 +632,12 @@ pub(super) async fn handle(
             ));
         }
         let request = ImageRequest {
-            kind: "image".into(),
+            kind: if p.decomposition {
+                "image-layers"
+            } else {
+                "image"
+            }
+            .into(),
             model: p.model,
             input: prompt,
             reference_image: if let Some(id) = &p.reference_intent_id {

@@ -13,6 +13,10 @@ pub(in crate::rpc::courseware_projects) struct ImageAsset {
     pub(in crate::rpc::courseware_projects) byte_length: usize,
     width: u32,
     height: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    normalized_bounding_box: Option<[f64; 4]>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    source_z_index: Option<u32>,
 }
 
 impl ImageAsset {
@@ -25,6 +29,15 @@ impl ImageAsset {
             && (1..=MAX_BYTES).contains(&self.byte_length)
             && (1..=4096).contains(&self.width)
             && (1..=4096).contains(&self.height)
+            && self
+                .source_z_index
+                .is_none_or(|z| (1..=1_000_000).contains(&z))
+            && self.normalized_bounding_box.is_none_or(|b| {
+                b.iter()
+                    .all(|n| n.is_finite() && (0.0..=1000.0).contains(n))
+                    && b[0] < b[2]
+                    && b[1] < b[3]
+            })
     }
 
     pub(in crate::rpc::courseware_projects) fn matches(&self, bytes: &[u8]) -> bool {
@@ -90,6 +103,9 @@ pub(super) async fn handle(
     method: &str,
     params: Value,
 ) -> Result<Value, JsonRpcError> {
+    if method == "courseware.sceneImage.bundle.stage" {
+        return stage_bundle(state, params).await;
+    }
     let decode = |e: serde_json::Error| rpc_err(1002, e.to_string(), "INVALID_PARAMS");
     let (scope, intent_id, stage, adopt) = match method {
         "courseware.sceneImage.asset.stage" => {
@@ -197,4 +213,130 @@ pub(super) async fn handle(
         }
     }
     files(&state, &intents[index], current.as_deref())
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct Bundle {
+    session_id: String,
+    principal_key: String,
+    intent_id: String,
+    images: Vec<BundleImage>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct BundleImage {
+    target: Target,
+    asset: ImageAsset,
+    bytes_base64: String,
+}
+
+async fn stage_bundle(state: Arc<Mutex<AppState>>, params: Value) -> Result<Value, JsonRpcError> {
+    let p: Bundle = serde_json::from_value(params).map_err(|_| invalid("Invalid layer bundle"))?;
+    if !(2..=32).contains(&p.images.len())
+        || p.images.iter().map(|i| i.asset.byte_length).sum::<usize>() > 16 * 1024 * 1024
+    {
+        return Err(invalid("Layer bundle exceeds limits"));
+    }
+    let state = state.lock().await;
+    let scope = Scope {
+        session_id: p.session_id,
+        principal_key: p.principal_key,
+    };
+    let root = project_workspace(&state, &scope.session_id)?;
+    let key = storage_key(&root, &scope)?;
+    let mut intents = load(&state, &key)?;
+    let current = current_plan(&state, &root, &scope);
+    let parent_index = intents
+        .iter()
+        .position(|i| i.intent_id == p.intent_id)
+        .ok_or_else(|| invalid("Layer intent missing"))?;
+    let parent = intents[parent_index].clone();
+    if parent.asset.is_some()
+        && intents
+            .iter()
+            .filter(|i| {
+                i.intent_id
+                    .starts_with(&format!("{}-layer-", parent.intent_id))
+            })
+            .count()
+            != p.images.len() - 1
+    {
+        return Err(conflict(
+            "Archived decomposition cannot change its image count",
+        ));
+    }
+    if parent.request.kind != "image-layers"
+        || parent.phase != Phase::Submitted
+        || !matches!(parent.target, Target::CleanPlate {})
+    {
+        return Err(invalid("Expected submitted decomposition intent"));
+    }
+    if p.images[0].target != (Target::CleanPlate {})
+        || p.images[0].asset.normalized_bounding_box.is_some()
+    {
+        return Err(invalid("Layer base missing"));
+    }
+    let mut names = std::collections::HashSet::new();
+    let mut decoded = Vec::new();
+    for (index, image) in p.images.iter().enumerate() {
+        if !image.target.valid()
+            || !image.asset.valid()
+            || image.asset.mime_type != "image/png"
+            || image.asset.task_ref != parent.task_ref.clone().unwrap()
+            || image.bytes_base64.len() > MAX_BYTES.div_ceil(3) * 4
+            || (index > 0
+                && (!matches!(image.target, Target::Layer { .. })
+                    || image.asset.normalized_bounding_box.is_none()
+                    || !names.insert(&image.target)))
+        {
+            return Err(invalid("Invalid layer image"));
+        }
+        let bytes = STANDARD
+            .decode(&image.bytes_base64)
+            .map_err(|_| invalid("Invalid layer bytes"))?;
+        if !image.asset.matches(&bytes) || hex::encode(Sha256::digest(&bytes)) != image.asset.sha256
+        {
+            return Err(invalid("Layer bytes differ"));
+        }
+        decoded.push(bytes);
+    }
+    for (index, (image, bytes)) in p.images.into_iter().zip(decoded).enumerate() {
+        let id = if index == 0 {
+            parent.intent_id.clone()
+        } else {
+            format!("{}-layer-{index}", parent.intent_id)
+        };
+        let existing = intents.iter().position(|i| i.intent_id == id);
+        if let Some(old) = existing {
+            if intents[old].target != image.target
+                || intents[old].request_hash != parent.request_hash
+                || intents[old]
+                    .asset
+                    .as_ref()
+                    .is_some_and(|a| a != &image.asset)
+            {
+                return Err(conflict("Archived decomposition cannot be replaced"));
+            }
+        }
+        snapshot_assets::archive_bytes(&state.data_dir, &image.asset.sha256, &bytes)
+            .map_err(error)?;
+        if let Some(old) = existing {
+            intents[old].asset = Some(image.asset);
+        } else {
+            if intents.len() >= MAX_INTENTS {
+                return Err(conflict("Scene image journal is full"));
+            }
+            let mut child = parent.clone();
+            child.intent_id = id;
+            child.target = image.target;
+            child.asset = Some(image.asset);
+            child.selected = false;
+            child.validate()?;
+            intents.push(child);
+        }
+    }
+    save(&state, &key, &intents)?;
+    Ok(intents[parent_index].view(current.as_deref()))
 }

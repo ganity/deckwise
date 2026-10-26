@@ -77,7 +77,7 @@ async function fixture(t) {
       let j = records(p).find(j => j.phase !== "rejected" && j.pageId === p.pageId && j.planSha256 === p.planSha256 && j.request.model === p.model &&
         JSON.stringify(j.target) === JSON.stringify(target) && j.request.input === input && j.referenceIntentId === p.referenceIntentId);
       if (!j) {
-        j = { intentId: randomUUID(), planSha256: p.planSha256, pageId: p.pageId, target, request: { kind: "image", model: p.model, input },
+        j = { intentId: randomUUID(), planSha256: p.planSha256, pageId: p.pageId, target, request: { kind: p.decomposition ? "image-layers" : "image", model: p.model, input },
           phase: "prepared", taskRef: null, asset: null, selected: false, idempotencyKey: randomUUID(), requestHash: digest("pinned") };
         if (reference) {
           j.referenceIntentId = reference.intentId;
@@ -102,6 +102,14 @@ async function fixture(t) {
       assert.notEqual(j.phase, "prepared");
       if (j.taskRef) assert.deepEqual(j.taskRef, p.taskRef);
       j.taskRef = p.taskRef; j.phase = "submitted";
+    } else if (method === "courseware.sceneImage.bundle.stage") {
+      for (const [index, image] of p.images.entries()) {
+        assert.deepEqual(image.asset.taskRef, j.taskRef);
+        await writeFile(join(root, `${image.asset.sha256}.bin`), Buffer.from(image.bytesBase64, "base64"));
+        if (!index) j.asset = structuredClone(image.asset);
+        else records(p).push({ ...structuredClone(j), intentId: `${j.intentId}-layer-${index}`,
+          target: image.target, asset: structuredClone(image.asset), selected: false });
+      }
     } else if (method === "courseware.sceneImage.asset.stage") {
       assert.deepEqual(p.asset.taskRef, j.taskRef);
       if (j.asset) assert.deepEqual(j.asset, p.asset);
@@ -119,6 +127,7 @@ async function fixture(t) {
   const quote = { version: "courseware-media-quote-v1", kind: "image", model: "image-model", priceVersion: "image-v1",
     maxPoints: 3, maxChars: 4000, expiresAt: "2099-01-01T00:00:00Z", quoteToken: "private-server-proof" };
   const media = {
+    async getLayerModels() { return []; },
     async getImageModels() { calls.push("GET models"); return [{ model: "image-model", voices: [], providerDefaultVoice: false,
       ...(supportsReferenceImage === undefined ? {} : { supportsReferenceImage }) }]; },
     async getImageQuote() { calls.push("GET quote"); if (quoteGate) await quoteGate.promise; return quote; },
@@ -132,7 +141,7 @@ async function fixture(t) {
       if (refusal) throw new Error(refusal);
       if (submitGate) await submitGate.promise;
       const j = [...journals.values()].flat().find(j => j.idempotencyKey === key);
-      const task = { version: "courseware-media-v1", kind: "image", taskId: "task-1", idempotencyKey: key,
+      const task = { version: "courseware-media-v1", kind: request.kind, taskId: "task-1", idempotencyKey: key,
         requestHash: j.requestHash, model: request.model, state: "queued", feeState: "reserved", reservedPoints: 3, actualPoints: null, errorCode: null, assetRef: null };
       tasks.set(key, task);
       if (lostReceipt) throw new Error("receipt lost");
@@ -164,10 +173,68 @@ async function fixture(t) {
     supportsReference(v) { supportsReferenceImage = v; },
     deselect(intentId) { for (const j of [...journals.values()].flat()) if (j.intentId === intentId) j.selected = false; },
     ready(bytes = png) { for (const task of tasks.values()) if (task.state === "queued") Object.assign(task, { state: "ready", feeState: "settled", actualPoints: 3,
-      assetRef: { assetId: "image-asset", sha256: digest(bytes), mime: "image/png", byteLength: bytes.length,
-        width: 2, height: 2, downloadPath: `/courseware/media/tasks/${task.taskId}/asset` } }); },
+      assetRef: { assetId: "image-asset", sha256: digest(bytes), byteLength: bytes.length,
+        ...(task.kind === "image-layers" ? { mime: "application/vnd.trainwise.image-layers+json" } : { mime: "image/png", width: 2, height: 2 }),
+        downloadPath: `/courseware/media/tasks/${task.taskId}/asset` } }); },
   };
 }
+
+test("one confirmed decomposition archives its base and foreground with the same receipt after coordinator restart", async t => {
+  const f = await fixture(t), master = await f.priced();
+  await f.coordinator.submitConfirmed(master.payload); f.ready();
+  await f.coordinator.archive(f.operation(master.view));
+  await f.coordinator.adopt({ ...f.operation(master.view), expectedSelectedIntentId: null });
+  f.media.getLayerModels = async () => [{ model: "layers-model", supportsReferenceImage: true }];
+  const prepared = await f.prepare({ model: undefined, target: { kind: "cleanPlate" }, referenceIntentId: master.view.intentId });
+  assert.equal(prepared.decomposition, true);
+  assert.equal(prepared.model, "layers-model");
+  Object.assign(f.quote, { kind: "image-layers", model: "layers-model" });
+  const quote = await f.coordinator.quote(f.operation(prepared));
+  await f.coordinator.submitConfirmed({ ...f.operation(prepared), quoteId: quote.quoteId });
+  nativePixels = Buffer.from([0, 0, 0, 0, 0, 0, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0]);
+  const bytes = Buffer.from(JSON.stringify({ data: [
+    { z_index: 0, b64_json: png.toString("base64") },
+    { z_index: 2, name: "Teacher", b64_json: png.toString("base64"), bounding_box: { normalized: [100, 200, 700, 900] } },
+  ] }));
+  f.ready(bytes); f.downloadBytes(bytes);
+  const restarted = f.create();
+  await restarted.archive(f.operation(prepared));
+  const rows = await restarted.list(f.base), foreground = rows.find(row => row.intentId === `${prepared.intentId}-layer-1`);
+  assert.deepEqual(foreground.asset.normalizedBoundingBox, [100, 200, 700, 900]);
+  assert.equal(foreground.selected, false);
+  const before = f.calls.filter(call => call === "GET asset").length;
+  await restarted.archive(f.operation(prepared));
+  assert.equal(f.calls.filter(call => call === "GET asset").length, before);
+  assert.equal(f.calls.filter(call => call === "POST confirmed").length, 2, "master plus one decomposition");
+});
+
+test("decomposition preserves validated layer bounds and rejects missing or forged layer data", async () => {
+  nativePixels = Buffer.from([0, 0, 0, 0, 0, 0, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0]);
+  const taskRef = { taskId: "layers-task", idempotencyKey: randomUUID(), requestHash: "a".repeat(64) };
+  const data = [
+    { z_index: 2, name: "Teacher", b64_json: png.toString("base64"), bounding_box: { normalized: [100, 200, 700, 900] } },
+    { z_index: 0, b64_json: png.toString("base64") },
+  ];
+  const decode = value => assetHelpers.decodeSceneImageBundle(Buffer.from(JSON.stringify({ data: value })), taskRef);
+  const images = decode(data);
+  assert.deepEqual(images.map(image => image.target), [{ kind: "cleanPlate" }, { kind: "layer", name: "2 - Teacher" }]);
+  assert.deepEqual(images[1].asset.normalizedBoundingBox, [100, 200, 700, 900]);
+  assert.equal(images[1].asset.sourceZIndex, 2);
+  assert.deepEqual(images[1].asset.taskRef, taskRef);
+  for (const layer of [ { ...data[0], bounding_box: {} }, { ...data[0], bounding_box: { normalized: [700, 200, 100, 900] } },
+    { ...data[0], b64_json: "broken" }, { ...data[0], url: "https://untrusted.test/image" }, { ...data[0], z_index: 0 } ]) {
+    assert.throws(() => decode([data[1], layer]), /INVALID_ASSET/);
+  }
+});
+
+test("configured model is selected automatically and an invented model never reaches Host prepare", async t => {
+  const f = await fixture(t);
+  const image = await f.prepare({ model: undefined });
+  assert.equal(image.model, "image-model");
+  const prepared = f.calls.filter(call => call === "courseware.sceneImage.prepare").length;
+  await assert.rejects(f.prepare({ model: "invented-model" }), /MODEL_UNAVAILABLE/);
+  assert.equal(f.calls.filter(call => call === "courseware.sceneImage.prepare").length, prepared);
+});
 
 test("reviewed private references, background and layers resolve into pinned Main-only input without another media call", async t => {
   const f = await fixture(t);

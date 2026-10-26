@@ -30,6 +30,14 @@ export function sceneAssetBlockers(plan: CoursewareScenePlanSnapshot, images: re
     if (!masters.length) blockers.push({ pageId: page.pageId, kind: "visualMaster" });
     if (!backgrounds.length) blockers.push({ pageId: page.pageId, kind: "cleanPlate" });
     if (!layers.length) blockers.push({ pageId: page.pageId, kind: "layer" });
+    const base = backgrounds[0];
+    if (base?.decomposition) {
+      const group = images.filter(row => row.intentId.startsWith(`${base.intentId}-layer-`));
+      if (group.some(row => !row.selected) || layers.some(row => !row.intentId.startsWith(`${base.intentId}-layer-`)))
+        blockers.push({ pageId: page.pageId, kind: "layer" });
+      if (!masters.some(row => row.intentId === base.referenceImage?.intentId && row.asset?.sha256 === base.referenceImage?.sha256))
+        blockers.push({ pageId: page.pageId, kind: "cleanPlate" });
+    } else if (layers.some(row => row.decomposition)) blockers.push({ pageId: page.pageId, kind: "cleanPlate" });
     if (masters.length > 1 || backgrounds.length > 1 || new Set(layers.map(row => row.target.kind === "layer" && row.target.name)).size !== layers.length)
       blockers.push({ pageId: page.pageId, kind: "duplicate" });
     if (masters.length === 1 && backgrounds.length === 1 && masters[0].asset!.sha256 === backgrounds[0].asset!.sha256)
