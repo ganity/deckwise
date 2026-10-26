@@ -78,6 +78,15 @@ unchecked confirmation and explicit adoption. Check the adopted short speech,
 four-second pause, praise, logical page identity and unchanged PPTX bytes.
 Fully restart Desktop/Host, reopen from the Chat artifact action and read back
 both native text and exactly adopted teaching without model replay or SVG export.
+Before restart, ask the same Chat for a fade candidate. Open its real read-only
+Office preview, verify the source stays unchanged, then explicitly adopt it in
+Chat. Without manually reloading teaching, confirm the current page in the
+sidebar and require no stale-view/loading error. Inspect the installed ZIP:
+only the current slide's transition may change; native content, timing, other
+parts, logical pages and narration survive. Restart must retain the adopted
+source and teaching. The SDK may load after `document:opened`; Desktop must
+remain opening until its native context is usable, and closing during that
+wait must not later emit ready.
 The external model remains a fixture; these checks exercise actual native tools,
 Main completion, Host candidate persistence, source review and narration adoption.
 No final PPTX or passing report is supplied by the fixture. Preview daemons
@@ -97,7 +106,15 @@ when the effective default changes during the request.
 
 ## E2E-COURSEWARE-main-chat-pptx-review
 
-- **Steps**: From successful redo/fade/style-batch receipts, open the candidate
+- **Steps**: With any of the three task types attached and its saved PPTX open
+  in WiseOffice, expand the main Chat page-visuals section. Prepare the page and
+  inspect both previews. Approval starts unchecked; confirm it explicitly. Start
+  an Agent turn and verify controls disable without revoking the approval needed
+  for redo. A stored narration draft blocks preparation; switching Chat while
+  reading the draft prevents late rendering dispatch. Preparation never generates
+  a candidate or replaces the source. A clean sidebar rereads after preparation;
+  active manual drafts are retained.
+  From successful redo/fade/style-batch receipts, open the candidate
   review inside the main Chat, without copying an ID. Preview the copy. Reject
   one candidate; explicitly adopt another after unchecked replacement consent.
   With retained attention cues, require each object association and a separate
@@ -105,6 +122,12 @@ when the effective default changes during the request.
   review and when created after opening it. Lose an adoption response, reopen
   and read its persisted terminal status without another write. Disable actions
   during an Agent turn; navigate away while a review read is pending.
+  Close the real readonly fade preview and dismiss its Chat review. Confirm the
+  sidebar's teaching without manually reopening it. Reopen and reject that
+  now-stale candidate, then lock/unlock teaching directly. Source bytes and speech
+  must remain unchanged; review disposal must repin the clean sidebar even when
+  persisted revisions have not changed. Narration close/reject/error also emits
+  a session-bound reread, covered by component regression tests.
 - **Expected**: The existing review component and Main/Host APIs retain source,
   lineage, teaching, scope and explicit-adoption safeguards. Definite decisions
   hide the local entrance. Uncertain decisions require rereading. Failed,
@@ -115,10 +138,19 @@ when the effective default changes during the request.
   `courseware-candidate-effects-ui.test.mjs` covers explicit distinct targets.
   `node scripts/e2e-courseware-chat-pptx-review.mjs` bundles the actual React
   component, candidate/style review components and Chinese locale into an
-  isolated Chromium page. Its five groups use in-memory store/IPC fixtures,
+  isolated Chromium page. Its nine groups use in-memory store/IPC fixtures,
   including a committed adoption with a lost response. It does not establish
   actual file replacement, Office reopen, Host persistence, paid generation or
   packaged-Electron acceptance. Those boundaries retain their existing gates.
+  The extended `e2e-courseware-chat-first.mjs` uses the actual grouped ordinary
+  export and a separately built Office consumer. It prepares native source
+  images, checks explicit unchecked consent, matches both approved image hashes
+  to the loopback model input, compiles a separate redo, previews/adopts it and
+  checks native text, unchanged notes, logical-page teaching and full restart
+  without another model request. The model fixture accepts Host-formatted page
+  text but refuses missing latest edits or mismatched images/source. These are
+  local source integration checks; supplier quality and installer acceptance
+  remain separate. Retain failed attempts alongside the final report.
 
 ## E2E-COURSEWARE-development-schema24-startup
 
@@ -374,9 +406,13 @@ when the effective default changes during the request.
   stale views and switched sources/pages/Chats/workspaces cannot be overwritten.
   Corrupt history fails closed; unsupported/budget-skipped versions are named.
 - **Status**: Targeted Host actual deletion/restart and isolation tests,
-  Main/shared/component and parent draft-integration checks pass. A current
-  packaged Electron/Office click-through of this new recovery control remains
-  pending; the existing frozen trial package predates this source increment.
+  Main/shared/component and parent draft-integration checks pass. The current
+  packaged Electron/Office text-recovery flow passes six groups, including
+  native deletion, explicit association, visible history/consent/copy, draft
+  restart, explicit save and a second restart. The unchanged current trial
+  includes this control; audio/cue omission and destination music keep their
+  separate Host/component evidence. See
+  `docs/validation/courseware/deleted-narration-packaged-20261025/README.md`.
 - **Spec**: `03-runtime/22-courseware-contract-v1.md`.
 
 ## E2E-COURSEWARE-sequential-music-adoption
@@ -1218,10 +1254,17 @@ owner remaining writable/unchanged, lock invalidation, cancellation while the
 temporary renderer opens, complete window/parser cleanup and owner replacement.
 It is not the full Desktop main-window/Chat/IPC application or an installer.
 
-Run `DECKWISE_E2E_OUTPUT=/absolute/new/output node scripts/e2e-courseware-visual-review-panel.mjs` for actual React/sidebar/i18n/API interaction with only the
-preload IPC edge replaced. Verify no implicit approval, checkbox, Chinese copy,
-Chat replacement, late reply suppression, failed approval clearing and existing
-parent mounting. Its synthetic one-pixel PNGs are interaction fixtures, not
+Run `DECKWISE_E2E_OUTPUT=/absolute/new/output node scripts/e2e-courseware-visual-review-panel.mjs`
+for the canonical Chat review gate (the old command now delegates to
+`e2e-courseware-chat-pptx-review.mjs`, avoiding a second Vite/store fixture).
+Its nine actual React/DOM groups cover explicit unchecked consent, English and
+Chinese copy, Chat replacement, late reply suppression, failed approval clearing,
+draft protection, Agent-turn retention and existing candidate review safeguards.
+The owning main-window store and IPC are fixtures; the actual React components
+and translations are used. The sidebar no longer owns a visual reviewer;
+ordinary readiness is owned by its exported-project inspector, not scene task
+attachment flags. The actual Electron Chat-first gate separately exercises this
+composition and native images. Its synthetic one-pixel PNGs are interaction fixtures, not
 native-image visual acceptance. Retain native PNG evidence from the Main gate.
 Run the existing playback-panel gate with and without `--tts-tasks`; ignore only
 the named no-argument image/visual clear lifecycle calls in its TTS business-call
@@ -13154,16 +13197,22 @@ are withdrawn with ADR 0165.
 - **Preconditions**: a data directory last opened by a newer PI-Desktop whose
   host-core migrated it past the schema this build supports.
 - **Steps**: 1) Launch the older packaged app on that data directory.
-  2) Observe the banner and `logs/app/runtime.log`.
+  2) Complete login after backend startup has failed. 3) Observe the banner
+  and `logs/app/runtime.log`. 4) Reload the renderer and complete login again.
 - **Expected**: host-core exits once; no further restart attempts are logged.
   The fatal banner says this PI-Desktop is older than the local data, shows
   both schema numbers, and tells the user to install the newer version. The
-  data directory is not modified.
+  database is not modified. Both late login and reload retain the fatal
+  notice. A newer live recovery supersedes an in-flight status read and a
+  retained recovery does not repeat the success toast.
 - **Specs linked**: `03-runtime/07-process-model.md` (boot outcomes)
 - **Acceptance**: B
 - **Milestone**: M3+
 - **Status**: source-contract covered by
-  `apps/desktop/test/host-boot-diagnostics.test.mjs`
+  `apps/desktop/test/host-boot-diagnostics.test.mjs`; subscription races covered
+  by `apps/desktop/test/host-status-subscription.test.mjs`. The packaged
+  login/reload path is exercised by `scripts/e2e-courseware-schema-refusal.mjs`
+  using a disposable future-schema database and local identity fixture.
 
 #### E2E-240: An Intel macOS build on Apple Silicon points at the native download
 
@@ -16086,3 +16135,76 @@ coverage in runtime and subagent tests.
 Only unexpired OS trust anchors are added to the bundled and explicitly supplied
 CA sets. TLS chain and hostname verification remain enabled. Deterministic
 coverage: `packages/agent-runtime/src/system-ca.test.ts`; upstream `8c267ab24`.
+
+### E2E-CW-W17-RECOVERY: A packaged migration survives process death
+
+- **Preconditions**: Linux; actual packaged schema18 and schema24 Host binaries;
+  a new evidence directory and enough temporary space for synthetic backups.
+- **Steps**: Run `python3 scripts/check-courseware-upgrade-interruption.py
+  CURRENT_HOST OLDER_SCHEMA18_HOST NEW_EVIDENCE_DIRECTORY`. Seed 24,001 sessions,
+  message/KV sentinels and a local asset. Observe the v18 backup and uncommitted
+  migration WAL frames; stop the test child, verify no commit marker, then SIGKILL.
+  Reopen SQLite, restart the current Host to complete migration and reopen again.
+- **Expected**: Kill occurs during actual uncommitted migration writes. Retained
+  row fingerprints, asset bytes, database integrity and foreign keys survive.
+  No half-renamed sessions table remains. Upgrade reaches24 and all six
+  intermediate backups are readable. No real account, supplier call or user
+  database is accessed. A missed transaction window fails the gate.
+- **Specs linked**: `03-runtime/07-process-model.md` (database boot refusal),
+  `03-runtime/26-courseware-fixed-snapshots.md` (separate preview/publication scope),
+  Plan007 W17.2.
+- **Acceptance**: recovery, data retention; Linux process death only, not physical
+  power loss or deferred team publication-pointer recovery.
+- **Milestone**: single-teacher trial recovery.
+- **Status**: three actual packaged Host checks pass in
+  `validation/courseware/upgrade-recovery-20261025/sigkill/report.json`.
+
+| Requirement | Scenario | Evidence |
+| --- | --- | --- |
+| W17.2 migration process-death recovery | E2E-CW-W17-RECOVERY | `scripts/check-courseware-upgrade-interruption.py`; packaged Host report above |
+
+### E2E-COURSEWARE-manual-media-fixed-build
+
+- Build the retained three-page fixed-courseware PPTX using the current staged
+  worker, including its original standalone manually started video timing.
+- Require an unchanged video element and archived media; do not invent a native
+  object animation or waive unsupported timing diagnostics.
+- Automatic, delayed, finite-duration, looping, inherited scheduling and paragraph
+  media timing must not use the standalone-manual exception.
+- Run the fixed-build/cancellation and manual-media-timing regressions. Cancellation
+  must preserve the exact previous package bytes using the current converter
+  manifest; historical build IDs are not valid across converter changes.
+
+### E2E-COURSEWARE-saved-narration-visuals
+
+- Run `scripts/e2e-courseware-saved-narration.mjs` under Electron with the real
+  Host binary, staged PPTX worker, a multi-page saved source and output directory.
+  Use deterministic model callbacks; no paid provider or editor is required.
+- Include image-only and rich-text pages. Require nonempty decoded vision images,
+  a complete ordered plan and a direct save or explicit error for every requested
+  page. The retained 56-page source must save all 56 pages into formal teaching
+  without candidate RPCs or human adoption.
+- Restart Host and read every page's saved speech. Regenerate one page and verify
+  only its teaching changed. Force one page to fail and verify successful pages
+  remain saved. Stored target-page drafts and locks must prevent replacement.
+- Verify original PPTX bytes and zero editor/selection RPCs. Record completion and
+  model-call counts in result.json. Chat and sidebar expose no narration adoption.
+- Run Host direct-save transaction/rollback, speech-audio invalidation, music
+  preservation and existing attention/TTS tests. Deterministic checks prove flow
+  and persistence; real-provider narration quality remains separate acceptance.
+- Retained result: `docs/validation/courseware/direct-narration-20261026/README.md`.
+
+### E2E-COURSEWARE-export-credential-gate
+
+- Run `node --experimental-strip-types --test scripts/check-courseware-package-credentials.test.mjs`.
+- Preserve actual fixed-export manifest/hash/allowlist validation. Decode each
+  allowlisted PPTX and inspect notes, metadata, relationships and embedded bytes
+  using the existing credential/path signatures. Reports must omit matched values.
+- Reject malformed archives, escaping paths, symlinks, more than 4,096 entries,
+  over 256 MiB compressed/total decoded bytes and over 64 MiB per decoded member.
+- Scan the retained ordinary/scene/import/edit/redo exports from the packaged
+  Chat gate; bind their hashes without another generation or paid call.
+- Known signatures do not establish absence of unknown/obfuscated secrets;
+  nested embedded archives and shadowed ZIP records need separate review.
+- Evidence: `validation/courseware/export-credentials-20261025/README.md`.
+  This is artifact verification, not a runtime DLP feature or full W04.3 acceptance.

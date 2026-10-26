@@ -1,0 +1,16 @@
+{
+  "command": [
+    "pnpm",
+    "exec",
+    "electron-builder",
+    "--linux",
+    "AppImage",
+    "--x64",
+    "--publish",
+    "never",
+    "--config.directories.output=release/repository-gates-20261025",
+    "--config.electronDist=node_modules/electron/dist"
+  ],
+  "exitCode": 0,
+  "status": "PASS"
+}

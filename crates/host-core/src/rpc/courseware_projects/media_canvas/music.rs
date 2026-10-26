@@ -1,13 +1,13 @@
 use super::*;
+use crate::db::courseware_projects::music::JOURNAL;
 use crate::db::courseware_projects::{
     media_scope::SubmissionScope,
     tts::{Phase, RejectedRequest, TaskRef},
 };
 use sha2::{Digest, Sha256};
-use crate::db::courseware_projects::music::JOURNAL;
 
-mod assets;
 mod adoption;
+mod assets;
 
 const MAX_INTENTS: usize = 300;
 
@@ -334,7 +334,10 @@ pub(super) async fn handle(
     method: &str,
     params: Value,
 ) -> Result<Value, JsonRpcError> {
-    if matches!(method, "courseware.mediaCanvas.music.adopt" | "courseware.mediaCanvas.music.snapshotAssets") {
+    if matches!(
+        method,
+        "courseware.mediaCanvas.music.adopt" | "courseware.mediaCanvas.music.snapshotAssets"
+    ) {
         return adoption::handle(state, method, params).await;
     }
     let operation = method

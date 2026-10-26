@@ -8,6 +8,7 @@ import {
   ErrorCodes,
   IPC,
   PROTOCOL_VERSION,
+  type HostStatusEvent,
   assertFeedbackIssueUrl,
   buildBugReportUrl,
 } from "@pi-desktop/shared";
@@ -19,6 +20,7 @@ import type { IpcRegistrar } from "./types";
 export type AppIpcDependencies = {
   registrar: IpcRegistrar;
   getHost: () => HostProcess | null;
+  getHostStatus: () => HostStatusEvent | null;
   getPluginLauncherWindow: () => BrowserWindow | null;
   togglePluginLauncher: () => Promise<void>;
   safeOpenExternal: (url: unknown) => Promise<void>;
@@ -29,12 +31,14 @@ export type AppIpcDependencies = {
 export function registerAppIpc({
   registrar,
   getHost,
+  getHostStatus,
   getPluginLauncherWindow,
   togglePluginLauncher,
   safeOpenExternal,
   updater,
 }: AppIpcDependencies): void {
   const { handle, handleWithEvent } = registrar;
+  handle(IPC.invoke.appHostStatus, async () => getHostStatus());
 
   handle(IPC.invoke.pluginLauncherToggle, async () => {
     await togglePluginLauncher();

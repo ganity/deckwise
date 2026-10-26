@@ -23,7 +23,10 @@ export function CoursewareChatPptxCandidates({ sessionId, disabled }: { sessionI
     if (!canAct() || inFlight.current) return;
     inFlight.current = true; setBusy(true); setError(""); setOutcome(null);
     try { await operation(); }
-    catch (failure) { if (current()) { setReview(null); setError(String(failure)); } }
+    catch (failure) { if (current()) {
+      setReview(null); setError(String(failure));
+      useAppStore.setState({ coursewareTeachingRefresh: { sessionId, reread: true } });
+    } }
     finally { inFlight.current = false; if (current()) setBusy(false); }
   };
   const checkDraft = async () => {
@@ -35,7 +38,8 @@ export function CoursewareChatPptxCandidates({ sessionId, disabled }: { sessionI
   const finish = (decision: "adopted" | "rejected") => {
     if (!current() || !review) return;
     setResolved(ids => [...ids, review.candidateId]); setReview(null); setOutcome(decision);
-    if (decision === "adopted") useAppStore.setState({ coursewareTeachingRefresh: { sessionId, sourceSha256: review.outputSha256 } });
+    useAppStore.setState({ coursewareTeachingRefresh: decision === "adopted"
+      ? { sessionId, sourceSha256: review.outputSha256 } : { sessionId, reread: true } });
   };
   if (!candidates.length && !review && !outcome && !error) return null;
   return <section className="courseware-chat-pptx" aria-label={t("panel.pptEditor.pptxCandidateTitle")} aria-busy={busy}>
@@ -49,7 +53,10 @@ export function CoursewareChatPptxCandidates({ sessionId, disabled }: { sessionI
         if (canAct()) setReview(next);
       })}>{t("panel.pptEditor.pptxCandidateKind", { kind: t(`coursewareWorkflow.${candidate.kind}`) })} · {t("panel.pptEditor.pptxCandidateReview")}</button>
     </li>)}</ol> : <CandidateReview key={review.reviewId} review={review} sessionId={sessionId} disabled={disabled || busy}
-      close={() => { if (!inFlight.current) { setReview(null); setError(""); } }}
+      close={() => { if (current() && !inFlight.current) {
+        setReview(null); setError("");
+        useAppStore.setState({ coursewareTeachingRefresh: { sessionId, reread: true } });
+      } }}
       preview={() => void run(async () => { await api.pptEditorPptxCandidatePreview(review.reviewId); })}
       reject={() => void run(async () => { await api.pptEditorPptxCandidateReject(review.reviewId); finish("rejected"); })}
       adopt={bindings => void run(async () => {

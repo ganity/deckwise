@@ -1,6 +1,7 @@
 //! Private decoded-audio receipts; explicit adoption is an atomic teaching CAS.
 use super::*;
 use crate::db::courseware_projects::snapshots::Asset;
+use serde_json::json;
 
 const AUDIO: &str = "coursewareTtsAudio.v1";
 pub const MAX_AUDIO_BYTES: u64 = 16 * 1024 * 1024;
@@ -198,10 +199,25 @@ impl Database {
             "COURSEWARE_INVALID: legacy speech audio needs explicit migration"
         );
         let mut actions = page.actions.clone();
-        actions
+        let speech = actions
             .iter_mut()
             .find(|action| action["id"] == intent.selection.action_id)
-            .unwrap()["audioAssetId"] = Value::String(asset_id);
+            .unwrap();
+        if let Some(intent) = speech.get("attention").cloned() {
+            self.validate_narration_attention(
+                workspace,
+                &project,
+                &page.page_id,
+                std::slice::from_ref(speech),
+            )?;
+            speech["visualCues"] = json!([attention::cue(
+                &intent,
+                speech["id"].as_str().unwrap(),
+                record.audio.duration_ms
+            )?]);
+            speech.as_object_mut().unwrap().remove("attention");
+        }
+        speech["audioAssetId"] = Value::String(asset_id);
         let saved = self.write_courseware_teaching(
             workspace,
             &TeachingWrite {
@@ -336,7 +352,10 @@ impl Database {
         }
         for page in &next.pages {
             for action in &page.actions {
-                if let Some(asset) = action.get("audioAssetId").filter(|_| action["type"] == "speech") {
+                if let Some(asset) = action
+                    .get("audioAssetId")
+                    .filter(|_| action["type"] == "speech")
+                {
                     anyhow::ensure!(matched.contains(&(page.page_id.clone(), action["id"].as_str().unwrap_or_default().into(), asset.as_str().unwrap_or_default().into())),
                         "COURSEWARE_AUDIO_REQUIRED: source review requires a matching previously adopted audio receipt");
                 }

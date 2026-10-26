@@ -30,10 +30,11 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   };
 });
 
-const workerDirectory = path.resolve('.worker-desktop-02');
+const workerDirectory = path.resolve('../../apps/desktop/resources/pptx-worker');
 let outputDirectory: string;
 let input: ReturnType<typeof adaptCanonicalSnapshot>;
 let valid: Awaited<ReturnType<typeof buildFixedCourseware>>;
+let validPackage: Buffer;
 beforeAll(async () => {
   const fixtureDirectory = path.resolve('tests/fixtures/fixed-courseware');
   const fixture = JSON.parse(await readFile(path.join(fixtureDirectory, 'canonical-desktop.json'), 'utf8'));
@@ -42,8 +43,10 @@ beforeAll(async () => {
     asset.path = path.join(fixtureDirectory, `page-${index + 1}.wav`);
   });
   input = adaptCanonicalSnapshot(fixture.project, fixture.snapshot, fixture.files);
+  input.converter.manifestSha256 = sha256(await readFile(path.join(workerDirectory, 'manifest.json')));
   outputDirectory = await mkdtemp(path.join(os.tmpdir(), 'fixed-cancellation-'));
   valid = await buildFixedCourseware(input, { workerDirectory, outputDirectory });
+  validPackage = await readFile(path.join(valid.directory, 'package.json'));
 }, 30_000);
 afterEach(() => { io.afterWrite = io.afterRead = io.beforeRename = undefined; });
 afterAll(async () => { if (outputDirectory) await rm(outputDirectory, { recursive: true, force: true }); });
@@ -84,7 +87,7 @@ it('keeps content identity unchanged with an active cancellation signal', async 
     workerDirectory, outputDirectory, signal: new AbortController().signal,
   });
   expect(result.buildId).toBe(valid.buildId);
-  expect(result.buildId).toBe('9082a5339704131de1147dddd7fe2fe9de3cbc3e8c0fafec83b498df6f59087e');
+  expect(await readFile(path.join(result.directory, 'package.json'))).toEqual(validPackage);
 });
 
 it('does not roll back a published immutable package when cancellation arrives at commit', async () => {
@@ -166,6 +169,6 @@ it('cancels after real package writes before publication and preserves the previ
   })).rejects.toMatchObject({ code: 'BUILD_CANCELLED' });
   expect(await readdir(outputDirectory)).toEqual([valid.buildId]);
   expect(await readFile(path.join(valid.directory, 'package.json'))).toEqual(
-    await readFile(path.join('.builds-desktop-02', valid.buildId, 'package.json')),
+    validPackage,
   );
 });

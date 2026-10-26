@@ -1,5 +1,4 @@
-
-
+# 23. PPTX candidate tools
 ### Host-inspected current-slide native fade
 
 `ppt_set_slide_fade` is an optional finite native tool with exactly

@@ -1,15 +1,14 @@
-import { replaceNarrationText, type CoursewareTeachingDraft, type CoursewareTeachingView, type CoursewareNarrationReview as NarrationReview, type CoursewarePptxCandidateReview as PptxReview, type CoursewareSourceReview as SourceReview } from "@pi-desktop/shared";
+import { replaceNarrationText, type CoursewareTeachingDraft, type CoursewareTeachingView, type CoursewarePptxCandidateReview as PptxReview, type CoursewareSourceReview as SourceReview } from "@pi-desktop/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { IconFileText, IconMic, IconSparkles, IconImage, IconCheck } from "../icons";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
-import { CoursewareNarrationReview } from "./CoursewareNarrationReview";
 import { CoursewareSourceReview } from "./CoursewareSourceReview";
 import { CoursewarePptxCandidateReview } from "./CoursewarePptxCandidateReview";
 import { CoursewarePlaybackPanel } from "./CoursewarePlaybackPanel";
 import { CoursewareTtsTasks } from "./CoursewareTtsTasks";
 import { CoursewareImageAssets } from "./CoursewareImageAssets";
-import { CoursewareSourceVisuals } from "./CoursewareSourceVisuals";
 import { CoursewareTeachingEffects } from "./CoursewareTeachingEffects";
 import { CoursewareAssetLocks } from "./CoursewareAssetLocks";
 import { CoursewareChatChanges } from "./CoursewareChatChanges";
@@ -30,13 +29,11 @@ export function CoursewareTeachingPanel({ sessionId, enabled }: { sessionId?: st
   const [previewActive, setPreviewActive] = useState(false);
   const [ttsActive, setTtsActive] = useState(false);
   const [imageActive, setImageActive] = useState(false);
-  const [visualActive, setVisualActive] = useState(false);
   const [assetLocksActive, setAssetLocksActive] = useState(false);
-  const busy = working || previewActive || ttsActive || imageActive || visualActive || assetLocksActive;
+  const busy = working || previewActive || ttsActive || imageActive || assetLocksActive;
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
   const [review, setReview] = useState<SourceReview | null>(null);
-  const [candidate, setCandidate] = useState<NarrationReview | null>(null);
   const [pptxCandidate, setPptxCandidate] = useState<PptxReview | null>(null);
   const [pptxCandidateId, setPptxCandidateId] = useState("");
   const [narrationInstruction, setNarrationInstruction] = useState({ viewId: "", text: "" });
@@ -49,14 +46,15 @@ export function CoursewareTeachingPanel({ sessionId, enabled }: { sessionId?: st
   const [draftError, setDraftError] = useState("");
   const [recovered, setRecovered] = useState(false);
   const [staleDraft, setStaleDraft] = useState<CoursewareTeachingDraft | null>(null);
+  const [activeTab, setActiveTab] = useState("narration");
   const page = view?.project.pages.find((entry) => entry.pageId === view.pageId);
   const changed = !!page && JSON.stringify(actions) !== JSON.stringify(page.actions);
   const instructionPending = narrationInstruction.viewId === view?.viewId && !!narrationInstruction.text;
-  const canEdit = enabled && !busy && !draftLoading && !!draftScope.current && !staleDraft && !review && !candidate && !pptxCandidate && !!page && !page.locked;
+  const canEdit = enabled && !busy && !draftLoading && !!draftScope.current && !staleDraft && !review && !pptxCandidate && !!page && !page.locked;
   const applyView = useCallback(async (next: CoursewareTeachingView) => {
     const id = request.current;
     draftScope.current = null; setDraftLoading(true); setDraftError(""); setRecovered(false); setStaleDraft(null);
-    setView(next); setReview(null); setCandidate(null); setPptxCandidate(null);
+    setView(next); setReview(null); setPptxCandidate(null);
     setActions(next.project.pages.find((entry) => entry.pageId === next.pageId)!.actions); setSaved(true);
     setNarrationInstruction({ viewId: next.viewId, text: "" });
     try {
@@ -135,15 +133,15 @@ export function CoursewareTeachingPanel({ sessionId, enabled }: { sessionId?: st
     if (!enabled || !sessionId || !view || teachingRefresh?.sessionId !== sessionId || refreshSeen.current === teachingRefresh ||
         (teachingRefresh.sourceSha256 ? teachingRefresh.sourceSha256 === view.project.source.sha256 :
           teachingRefresh.teachingRevision === view.project.teachingRevision) || busy || changed ||
-        draftLoading || draftSaving || draftError || staleDraft || instructionPending || review || candidate || pptxCandidate || error) return;
+        draftLoading || draftSaving || draftError || staleDraft || instructionPending || review || pptxCandidate || error) return;
     // Consume once: a later manual save can legitimately be newer than this hint.
     refreshSeen.current = teachingRefresh;
     void run(() => api.pptEditorTeachingOpen(sessionId));
   }, [enabled, sessionId, view, teachingRefresh, busy, changed, draftLoading, draftSaving,
-    draftError, staleDraft, instructionPending, review, candidate, pptxCandidate, error, run]);
+    draftError, staleDraft, instructionPending, review, pptxCandidate, error, run]);
 
   useEffect(() => {
-    if (!enabled || !sessionId || !view || busy || draftLoading || draftSaving || draftError || staleDraft || changed || instructionPending || review || candidate || pptxCandidate || error) return;
+    if (!enabled || !sessionId || !view || busy || draftLoading || draftSaving || draftError || staleDraft || changed || instructionPending || review || pptxCandidate || error) return;
     let stopped = false;
     let timer: ReturnType<typeof setTimeout>;
     const followPage = async () => {
@@ -168,18 +166,37 @@ export function CoursewareTeachingPanel({ sessionId, enabled }: { sessionId?: st
     };
     timer = setTimeout(followPage, 1000);
     return () => { stopped = true; clearTimeout(timer); };
-  }, [enabled, sessionId, view, busy, draftLoading, draftSaving, draftError, staleDraft, changed, instructionPending, review, candidate, pptxCandidate, error, run]);
+  }, [enabled, sessionId, view, busy, draftLoading, draftSaving, draftError, staleDraft, changed, instructionPending, review, pptxCandidate, error, run]);
 
-  return <aside className="courseware-teaching" aria-label={t("panel.pptEditor.teachingTitle")}>
-    <CoursewareSourceVisuals sessionId={sessionId} enabled={enabled && !working && !previewActive && !ttsActive && !imageActive && !assetLocksActive && !changed && !review && !candidate && !pptxCandidate} onActiveChange={setVisualActive} />
-    <CoursewareImageAssets sessionId={sessionId} enabled={enabled && !working && !previewActive && !ttsActive && !visualActive && !assetLocksActive && !changed && !review && !candidate && !pptxCandidate} onActiveChange={setImageActive} />
-    <strong>{t("panel.pptEditor.teachingTitle")}</strong>
-    <p>{t("panel.pptEditor.teachingScope")}</p>
-    <button type="button" disabled={!enabled || !sessionId || busy || changed || !!review || !!candidate || !!pptxCandidate}
+  return <aside className="courseware-teaching is-tabbed" aria-label={t("panel.pptEditor.teachingTitle")}>
+    <div className="courseware-teaching-tabs" role="tablist" aria-label={t("panel.pptEditor.sidebarTabs")}>
+      {([
+        ["narration", IconFileText], ["voice", IconMic], ["effects", IconSparkles], ["assets", IconImage], ["review", IconCheck],
+      ] as const).map(([tab, Icon]) => <button key={tab} id={`teaching-tab-${tab}`} type="button" role="tab"
+        aria-selected={activeTab === tab} aria-controls="teaching-tab-content" tabIndex={activeTab === tab ? 0 : -1}
+        onKeyDown={event => {
+          const tabs = [...event.currentTarget.parentElement!.querySelectorAll<HTMLButtonElement>('[role="tab"]:not(:disabled)')];
+          const index = tabs.indexOf(event.currentTarget);
+          const next = event.key === "ArrowRight" ? tabs[(index + 1) % tabs.length] : event.key === "ArrowLeft" ? tabs[(index + tabs.length - 1) % tabs.length] : event.key === "Home" ? tabs[0] : event.key === "End" ? tabs.at(-1) : undefined;
+          if (next) { event.preventDefault(); next.click(); next.focus(); }
+        }}
+        disabled={busy && activeTab !== tab}
+        onClick={() => setActiveTab(tab)}><Icon size={15} /><span>{t(`panel.pptEditor.tab_${tab}`)}</span></button>)}
+    </div>
+    <div className="courseware-teaching-content" id="teaching-tab-content" role="tabpanel" aria-labelledby={`teaching-tab-${activeTab}`}>
+    <div hidden={activeTab !== "assets"}>
+    <CoursewareImageAssets sessionId={sessionId} enabled={enabled && !working && !previewActive && !ttsActive && !assetLocksActive && !changed && !review && !pptxCandidate} onActiveChange={setImageActive} />
+    </div>
+    <div className="courseware-teaching-current">
+    <strong>{view ? t("panel.pptEditor.teachingPage", { page: view.pageNumber }) : t("panel.pptEditor.teachingTitle")}</strong>
+    <button type="button" disabled={!enabled || !sessionId || busy || changed || !!review || !!pptxCandidate}
       onClick={() => sessionId && void run(() => api.pptEditorTeachingOpen(sessionId))}>
       {t(working ? "panel.pptEditor.teachingBusy" : "panel.pptEditor.teachingCurrent")}
     </button>
-    <button type="button" disabled={!enabled || !sessionId || busy || draftLoading || draftSaving || !!draftError || !!review || !!candidate || !!pptxCandidate} onClick={async () => {
+    </div>
+    <div hidden={activeTab !== "review"}>
+    <details><summary>{t("panel.pptEditor.sidebarHelp")}</summary><p>{t("panel.pptEditor.teachingScope")}</p></details>
+    <button type="button" disabled={!enabled || !sessionId || busy || draftLoading || draftSaving || !!draftError || !!review || !!pptxCandidate} onClick={async () => {
       if (!sessionId) return;
       const id = ++request.current;
       setBusy(true); setError(""); setSaved(false);
@@ -193,7 +210,7 @@ export function CoursewareTeachingPanel({ sessionId, enabled }: { sessionId?: st
       catch (failure) { if (id === request.current) setError(String(failure)); }
       finally { if (id === request.current) setBusy(false); }
     }}>{t("panel.pptEditor.sourceReviewStart")}</button>
-    {!review && !candidate && !pptxCandidate && <form onSubmit={async (event) => {
+    {!review && !pptxCandidate && <form onSubmit={async (event) => {
       event.preventDefault();
       if (!sessionId || !pptxCandidateId.trim()) return;
       const id = ++request.current;
@@ -236,23 +253,9 @@ export function CoursewareTeachingPanel({ sessionId, enabled }: { sessionId?: st
     {review && <CoursewareSourceReview key={review.reviewId} review={review} disabled={!enabled || busy}
       cancel={() => { setReview(null); setView(null); setActions([]); setError(""); }}
       adopt={(bindings, effectBindings) => void run(() => api.pptEditorTeachingAdopt(review.reviewId, bindings, effectBindings))} />}
-    {!review && !pptxCandidate && <CoursewareNarrationReview key={candidate?.reviewId ?? "candidate-lookup"} review={candidate}
-      disabled={!enabled || !sessionId || busy || changed}
-      open={(candidateId) => {
-        if (!sessionId) return;
-        const id = ++request.current;
-        setBusy(true); setError(""); setSaved(false);
-        void api.pptEditorNarrationReview(sessionId, candidateId).then((next) => {
-          if (id !== request.current) return;
-          setCandidate(next); setView(next.teaching);
-          setActions(next.teaching.project.pages.find((entry) => entry.pageId === next.teaching.pageId)!.actions);
-        }).catch((failure) => { if (id === request.current) setError(String(failure)); })
-          .finally(() => { if (id === request.current) setBusy(false); });
-      }}
-      decide={(decision) => candidate && void run(() => api.pptEditorNarrationDecide(candidate.reviewId, decision))}
-      close={() => { setCandidate(null); setView(null); setActions([]); setError(""); }} />}
-    {!review && !candidate && view && page && <>
-      <p>{t("panel.pptEditor.teachingPage", { page: view.pageNumber })}</p>
+    </div>
+    {!review && view && page && <>
+      <div hidden={activeTab !== "review"}>
       <CoursewareTeachingHistory key={`history:${view.viewId}:${view.project.teachingRevision}`} view={view}
         disabled={!canEdit || changed || instructionPending || draftSaving || !!draftError || actions.some(action => action.type !== "audio_clip")}
         onRestore={restored => {
@@ -268,6 +271,8 @@ export function CoursewareTeachingPanel({ sessionId, enabled }: { sessionId?: st
           pages: view.sourceChange.pendingPageIds.map(id => view.project.pages.findIndex(entry => entry.pageId === id) + 1).join(", "),
         })}</p>
       </div>}
+      </div>
+      <div hidden={activeTab !== "assets"}>
       <CoursewareAssetLocks key={`locks:${view.viewId}`} view={view} disabled={!enabled || busy || changed || draftSaving || draftLoading || !!staleDraft || page.locked}
         onActivity={setAssetLocksActive} />
       {view.project.taskType === "scene" && view.teachingObjects && <details className="courseware-scene-objects">
@@ -282,6 +287,8 @@ export function CoursewareTeachingPanel({ sessionId, enabled }: { sessionId?: st
               object.status === "content_changed" ? "panel.pptEditor.sceneObjectChanged" : "panel.pptEditor.sceneObjectMismatch")}</p>
           </li>)}</ul>}
       </details>}
+      </div>
+      <div hidden={activeTab !== "narration"}>
       {view.project.taskType === "import" && page.actions.length === 0 && !changed &&
         <p>本页讲解可从原 PPT 备注读取、粘贴外部讲解稿，或在主 Chat 生成新讲解。</p>}
       {view.project.taskType === "import" && page.actions.length === 0 && <button type="button"
@@ -321,19 +328,26 @@ export function CoursewareTeachingPanel({ sessionId, enabled }: { sessionId?: st
         onClick={async () => {
           if (!sessionId || !canEdit || changed) return;
           setBusy(true); setError("");
+          const instruction = narrationInstruction.viewId === view.viewId ? narrationInstruction.text.trim() : "";
           try {
             const target = JSON.stringify({ coursewareProjectId: view.project.projectId, pageId: page.pageId,
               sourceRevision: view.project.source.revision, teachingRevision: view.project.teachingRevision });
-            const instruction = narrationInstruction.viewId === view.viewId ? narrationInstruction.text.trim() : "";
-            const accepted = await sendPrompt(`请为第 ${view.pageNumber} 页生成或重新生成讲解词候选。先调用 ppt_get_narration_context，核对 baseline 与以下目标一致：${target}。如果不一致，请停止并提醒我重新读取当前页，不要改其他页。读取当前页面和已有讲解，遵循项目年级、学科和语言要求，使用 ppt_propose_page_narration 生成候选供我预览后采用，不要直接覆盖现有讲解。${instruction ? `\n用户对本页讲解的要求：${instruction}` : ""}`, undefined, sessionId);
-            if (!accepted) setError("主 Chat 暂未接受请求，请处理当前待确认事项后重试。");
-          } catch (failure) { setError(String(failure)); }
+            // The instruction becomes part of Chat; only unsaved teaching should block generation.
+            persistDraft(actions, "");
+            await draftQueue.current;
+            if (draftScope.current?.failed) throw new Error("Save or discard the local draft before generating narration");
+            const accepted = await sendPrompt(`请为第 ${view.pageNumber} 页生成或重新生成讲解词并直接保存。先调用 courseware_narration_context 读取已保存课件，核对以下目标页与来源一致：${target}。如果不一致，请停止并提醒我重新读取课件，不要改其他页。读取当前页面和已有讲解，遵循项目年级、学科和语言要求，使用 courseware_narration_propose 按明确页码生成并替换本页讲解，无需候选或采纳步骤。${instruction ? `\n用户对本页讲解的要求：${instruction}` : ""}`, undefined, sessionId);
+            if (accepted) setNarrationInstruction({ viewId: view.viewId, text: "" });
+            else {
+              persistDraft(actions, instruction);
+              setError("主 Chat 暂未接受请求，请处理当前待确认事项后重试。");
+            }
+          } catch (failure) { persistDraft(actions, instruction); setError(String(failure)); }
           finally { setBusy(false); }
         }}>
         {page.actions.some((action) => action.type === "speech") ? "在主 Chat 重新生成本页讲解" : "在主 Chat 生成本页讲解"}
       </button>
-      <p>{t("panel.pptEditor.teachingTimingScope")}</p>
-      <CoursewareTeachingEffects key={`effects:${view.viewId}`} view={view} actions={actions} disabled={!canEdit} onChange={editActions} />
+      <details><summary>{t("panel.pptEditor.sidebarHelp")}</summary><p>{t("panel.pptEditor.teachingTimingScope")}</p></details>
       {actions.map((action, index) => action.type === "speech" && typeof action.text === "string" ?
         <div key={String(action.id)}>
           <label>
@@ -425,15 +439,20 @@ export function CoursewareTeachingPanel({ sessionId, enabled }: { sessionId?: st
         ].filter(Boolean).join("\n\n")} />
       </div>}
       {draftError && <p role="alert">{t("panel.pptEditor.teachingDraftFailed")} {draftError}</p>}
+      </div>
+      <div hidden={activeTab !== "effects"}>
+        <CoursewareTeachingEffects key={`effects:${view.viewId}`} view={view} actions={actions} disabled={!canEdit} onChange={editActions} />
+      </div>
     </>}
-    {view && sessionId && <>
+    {view && sessionId && <div hidden={activeTab !== "voice"}>
       <CoursewareTtsTasks key={`tts:${view.viewId}:${view.project.teachingRevision}`} view={view}
-        enabled={enabled && !draftLoading && !staleDraft && !draftError && !working && !previewActive && !visualActive && !imageActive && !assetLocksActive && !changed && !review && !candidate && !pptxCandidate}
+        enabled={enabled && !draftLoading && !staleDraft && !draftError && !working && !previewActive && !imageActive && !assetLocksActive && !changed && !review && !pptxCandidate}
         onActiveChange={setTtsActive} onAdopt={applyView} />
       <CoursewarePlaybackPanel key={`${view.viewId}:${view.project.teachingRevision}`} view={view} sessionId={sessionId}
-        enabled={enabled && !draftLoading && !staleDraft && !draftError && !working && !ttsActive && !visualActive && !imageActive && !assetLocksActive && !changed && !review && !candidate && !pptxCandidate} onActiveChange={setPreviewActive} />
-    </>}
+        enabled={enabled && !draftLoading && !staleDraft && !draftError && !working && !ttsActive && !imageActive && !assetLocksActive && !changed && !review && !pptxCandidate} onActiveChange={setPreviewActive} />
+    </div>}
     {!enabled && <p role="status">{t("panel.pptEditor.teachingSaveFirst")}</p>}
     {error && <p role="alert">{error}</p>}
+    </div>
   </aside>;
 }

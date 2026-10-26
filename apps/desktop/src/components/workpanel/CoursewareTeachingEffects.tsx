@@ -1,4 +1,4 @@
-import { isCoursewareAttentionCue, type CoursewareAttentionCue, type CoursewareTeachingView } from "@pi-desktop/shared";
+import { isCoursewareAttentionCue, isCoursewareAttentionIntent, type CoursewareAttentionCue, type CoursewareTeachingView } from "@pi-desktop/shared";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -57,6 +57,10 @@ export function CoursewareTeachingEffects({ view, actions, disabled, onChange }:
     {page?.reviewState !== "ready" ? <p role="status">{t("panel.pptEditor.effectsConfirmPage")}</p> : null}
     {!objects.length ? <p role="status">{t("panel.pptEditor.effectsObjectsRequired")}</p> : null}
     {!audioReady ? <p role="status">{t("panel.pptEditor.effectsAudioRequired")}</p> : null}
+    {isCoursewareAttentionIntent(speech?.attention) ? <p role="status">{t("panel.pptEditor.candidateAttention", {
+      effect: t(`panel.pptEditor.effects${speech.attention.type === "highlight" ? "Highlight" : "Spotlight"}`),
+      targets: speech.attention.objectIds.map(id => { const object = objects.find(o => o.objectId === id); return object ? objectLabel(object) : id; }).join(" · "),
+    })}</p> : null}
     <label>{t("panel.pptEditor.effectsSpeech")}
       <select value={String(speech?.id ?? "")} disabled={!editable || !speeches.length} onChange={event => { setSpeechId(event.target.value); reset(); }}>
         {!speeches.length ? <option value="">{t("panel.pptEditor.effectsAudioRequired")}</option> : null}

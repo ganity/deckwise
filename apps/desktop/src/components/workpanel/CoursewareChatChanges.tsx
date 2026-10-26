@@ -5,7 +5,7 @@ import type { CoursewareTeachingView } from "@pi-desktop/shared";
 const progressLabels = {
   "needs-review": "chatCandidatePending", stale: "chatCandidateStale", adopted: "chatCandidateAdopted",
   superseded: "chatCandidateChanged", rejected: "chatCandidateRejected", unknown: "chatCandidateUnknown",
-  "not-recorded": "chatPlanNotRecorded", "native-unsaved": "chatPlanNativeResponse",
+  saved: "teachingSaved", "not-recorded": "chatPlanNotRecorded", "native-unsaved": "chatPlanNativeResponse",
 } as const;
 
 /** Human disposition keeps the original tool failures and omissions visible. */

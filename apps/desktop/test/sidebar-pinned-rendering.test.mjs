@@ -13,7 +13,7 @@ test("sidebar renders global pins once, outside project folding and history limi
   const server = await createServer({
     root: fileURLToPath(new URL("..", import.meta.url)),
     configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
+    server: { middlewareMode: true, hmr: false, ws: false, watch: null },
     esbuild: { jsx: "automatic" },
     appType: "custom",
     optimizeDeps: { noDiscovery: true, include: [] },

@@ -1,6 +1,6 @@
-# Host-owned courseware projects and teaching records
+# ADR: Host-owned courseware projects and teaching records
 
-Status: accepted for the approved courseware implementation, 2026-10-19.
+- Status: accepted for the approved courseware implementation, 2026-10-19.
 
 ## Context
 

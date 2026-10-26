@@ -45,6 +45,12 @@ also referenced by canonical speech cues fail closed before publication; timing
 diagnostics cannot be waived by warning review. Generic `objectAnimations` stays
 false. Old static packages remain valid without the optional field.
 
+A standalone manual audio/video timing marker is handled by existing page-media
+controls, not projected as an object animation. Only the inert root marker with
+an indefinite manual start, one whole-shape target and no duration or repeat is
+accepted this way. Scheduled, automatic, delayed, looping and partial-text media
+timing retain their diagnostics and remain subject to the fixed-build refusal.
+
 These native clicks execute in saved order before the page's unchanged canonical
 speech/wait sequence. Each requires an explicit teacher action and uses the
 existing `pptxTimeline`/PlaybackCore scheduler. The visible player rule states

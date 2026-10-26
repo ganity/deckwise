@@ -35,10 +35,10 @@ use crate::transcripts::{self, CompactionRecord};
 use crate::turn_queue;
 use crate::workspace;
 
+mod courseware_chat_changes;
 mod courseware_fixed_share;
 mod courseware_online_prepare;
 mod courseware_projects;
-mod courseware_chat_changes;
 
 #[derive(Debug, Deserialize)]
 struct JsonRpcRequest {
@@ -1873,7 +1873,8 @@ async fn handle_request(
         | "courseware.sceneImage.list"
         | "courseware.sceneImage.get"
         | "courseware.sceneImage.begin"
-        | "courseware.sceneImage.bind" | "courseware.sceneImage.reject"
+        | "courseware.sceneImage.bind"
+        | "courseware.sceneImage.reject"
         | "courseware.sceneImage.asset.stage"
         | "courseware.sceneImage.asset.get"
         | "courseware.sceneImage.asset.adopt"
@@ -1884,16 +1885,19 @@ async fn handle_request(
         | "courseware.tts.get"
         | "courseware.tts.list"
         | "courseware.tts.begin"
-        | "courseware.tts.bind" | "courseware.tts.reject"
+        | "courseware.tts.bind"
+        | "courseware.tts.reject"
         | "courseware.tts.audio.stage"
         | "courseware.tts.audio.get"
         | "courseware.tts.audio.adopt"
         | "courseware.project.openSaved"
         | "courseware.project.initializeGenerated"
         | "courseware.pageText"
+        | "courseware.pageEvidence"
         | "courseware.pageNotes"
         | "courseware.review.prepare"
         | "courseware.review.adopt"
+        | "courseware.narration.save"
         | "courseware.narrationCandidate.stage"
         | "courseware.narrationCandidate.get"
         | "courseware.narrationCandidate.reject"
@@ -1933,7 +1937,8 @@ async fn handle_request(
         | "courseware.mediaCanvas.image.list"
         | "courseware.mediaCanvas.image.get"
         | "courseware.mediaCanvas.image.begin"
-        | "courseware.mediaCanvas.image.bind" | "courseware.mediaCanvas.image.reject"
+        | "courseware.mediaCanvas.image.bind"
+        | "courseware.mediaCanvas.image.reject"
         | "courseware.mediaCanvas.image.reference"
         | "courseware.mediaCanvas.image.asset.stage"
         | "courseware.mediaCanvas.image.asset.restore"

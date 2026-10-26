@@ -35,7 +35,7 @@ it("accepts only bounded deleted-page narration projections without old media or
 describe("manual narration edits", () => {
   it("preserves voice and pacing but invalidates audio and its timing", () => {
     const original = { id: "speech-1", type: "speech", text: "Old", speakerId: "teacher", voice: "warm", pauseAfterMs: 1000,
-      audioId: "old", audioUrl: "local", audioAssetId: "a1", durationMs: 2000, visualCues: [{}], speechCuePlans: [{}], pptxCue: {} };
+      audioId: "old", audioUrl: "local", audioAssetId: "a1", durationMs: 2000, visualCues: [{}], speechCuePlans: [{}], pptxCue: {}, attention: { type: "highlight", objectIds: ["old"] } };
     expect(replaceNarrationText(original, "New")).toEqual({ id: "speech-1", type: "speech", text: "New", speakerId: "teacher", voice: "warm", pauseAfterMs: 1000 });
     expect(original.audioId).toBe("old");
     expect(replaceNarrationText(original, "Old")).toBe(original);

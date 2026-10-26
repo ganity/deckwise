@@ -1542,9 +1542,24 @@ export const api = {
   },
   onHostStatus: (listener: (status: HostStatusEvent) => void) => {
     if (!window.piDesktop?.on) return () => undefined;
-    return window.piDesktop.on(IPC.event.hostStatus, (payload) =>
-      listener(payload as HostStatusEvent),
+    let active = true;
+    let receivedLiveStatus = false;
+    const off = window.piDesktop.on(IPC.event.hostStatus, (payload) => {
+      receivedLiveStatus = true;
+      listener(payload as HostStatusEvent);
+    });
+    // Auth gating or a reload can mount the shell after the boot event.
+    void invoke<HostStatusEvent | null>(IPC.invoke.appHostStatus).then(
+      (status) => {
+        if (active && !receivedLiveStatus && status) {
+          listener({ ...status, restarted: false });
+        }
+      },
+      () => {
+        if (active) console.warn("Host status read failed; live subscription remains active.");
+      },
     );
+    return () => { active = false; off(); };
   },
   onNotificationChanged: (
     listener: (notification: AppNotification) => void,

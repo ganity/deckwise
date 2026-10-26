@@ -1,0 +1,20 @@
+✔ host-core's downgrade refusal is parsed from stderr (2.491186ms)
+✔ the schema error keeps both numbers and is recognised in every shape (0.598858ms)
+✔ machine architectures normalise to Node's arch names (0.25946ms)
+✔ an Intel build under Rosetta is a mismatch; native builds are not (0.37351ms)
+✔ host-process turns the refusal into a typed error before glibc matching (0.325293ms)
+✔ main stops restarting on a schema refusal and pushes a named status (0.44435ms)
+✔ the renderer phrases both notices in every locale (1.013169ms)
+✔ a late shell subscriber receives the actual retained boot failure (8.585044ms)
+✔ a newer live recovery wins over a held stale status read (3.961577ms)
+Host status read failed; live subscription remains active.
+✔ unmount fences the held read and a null initial status does not invent a failure (2.608632ms)
+✔ status read failure keeps live subscription and retained restart state does not replay success effects (2.821432ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 757.762324

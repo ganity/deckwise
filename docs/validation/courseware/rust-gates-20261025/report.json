@@ -1,0 +1,68 @@
+{
+  "status": "PASS_SCOPED_RUST_GATES",
+  "format": {
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ],
+    "exitCode": 0
+  },
+  "architecture": {
+    "command": [
+      "node",
+      "scripts/check-architecture.mjs",
+      "--base",
+      "origin/main"
+    ],
+    "exitCode": 0
+  },
+  "diff": {
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "exitCode": 0
+  },
+  "hostTests": {
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "host-core",
+      "--locked",
+      "--jobs",
+      "2"
+    ],
+    "exitCode": 0,
+    "status": "PASS"
+  },
+  "clippy": {
+    "command": [
+      "cargo",
+      "clippy",
+      "-p",
+      "host-core",
+      "--all-targets",
+      "--locked",
+      "--jobs",
+      "2"
+    ],
+    "exitCode": 0,
+    "status": "PASS"
+  },
+  "hostCounts": {
+    "passed": 1211,
+    "failed": 0,
+    "ignored": 2
+  },
+  "equivalence": "PASS_RUSTFMT_ONLY_AND_TEST_MOVE",
+  "strictClippyWarningsDenied": false,
+  "trialArtifactUnchanged": {
+    "path": "apps/desktop/release/repository-gates-20261025/DeckWise-0.17.7.AppImage",
+    "sha256": "eb6401b464f092b919b303ae7e33ccb802bcd65193b754adbc4f9e1775b6ad78"
+  }
+}

@@ -86,18 +86,19 @@ export class CoursewareCandidateCoordinator {
           Object.entries(baseline).some(([key, value]) => Reflect.get(requested, key) !== value)) throw new Error("Narration baseline changed; read the current page again");
         if (fade) return stagePageFadeCandidate({ host, sessionId, jobId, sourcePath: snapshot.path, baseline,
           generationBaseline, pageText: text, current, parseOutput, signal: controller.signal });
-        const stageNarration = async (generate: Parameters<typeof generateNarrationWrite>[0]["generate"], beforeStage: () => Promise<void>) => {
+        const saveNarration = async (generate: Parameters<typeof generateNarrationWrite>[0]["generate"], beforeSave: () => Promise<void>) => {
           const result = await generateNarrationWrite({ project, pageId: page.pageId, baseline: generationBaseline, pageText: text,
             instruction: Reflect.get(args, "instruction"), getCurrentBaseline: current, signal: controller.signal, generate });
-          await beforeStage();
+          await beforeSave();
           await current();
           checkTurn();
-          await host.call("courseware.narrationCandidate.stage", { sessionId, jobId, ...result });
-          // A cancelled/lost reply may leave a pending proposal, never an adopted write.
-          checkTurn();
-          return { candidateId: result.candidateId, kind: "page-narration", baseline, reviewState: "needs-review", applied: false };
+          const { project: saved } = await host.call<{ project: unknown }>("courseware.narration.save", { sessionId, jobId, baseline: project, write: result.write });
+          if (!isCoursewareProject(saved) || saved.projectId !== project.projectId || saved.source.sha256 !== snapshot.sha256)
+            throw new Error("Invalid narration save result; read saved teaching before retrying");
+          return { kind: "page-narration", baseline, teachingRevision: saved.teachingRevision, pageNumber: editor.page,
+            applied: true, saved: true, audioReady: false };
         };
-        if (selectedNarration) return stageNarration(async () => selectedNarration, async () => { checkTurn(); });
+        if (selectedNarration) return saveNarration(async () => selectedNarration, async () => { checkTurn(); });
         const detail = await host.call<{ session?: { providerId?: string; modelId?: string; thinkingLevel?: string; mode?: string } }>("session.get", { id: sessionId });
         const session = detail.session;
         if (session?.mode !== "agent") throw new Error("An active Agent model is required");
@@ -146,7 +147,7 @@ export class CoursewareCandidateCoordinator {
           return { candidateId: receipt.candidateId, kind: receipt.kind, baseline, outputSha256: receipt.outputSha256,
             reviewState: receipt.reviewState, applied: receipt.applied };
         }
-        return stageNarration(async ({ system, data }) => {
+        return saveNarration(async ({ system, data }) => {
             await current();
             await assertModel();
             // Same Main auth resolver as existing plugin/title completions; no keys cross renderer IPC.

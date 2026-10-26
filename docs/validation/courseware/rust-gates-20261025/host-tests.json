@@ -1,0 +1,13 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "host-core",
+    "--locked",
+    "--jobs",
+    "2"
+  ],
+  "exitCode": 0,
+  "status": "PASS"
+}

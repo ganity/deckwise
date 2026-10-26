@@ -4,6 +4,7 @@ import type { CoursewareWorkflowView } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
 import { pptEditorWorkPanelTab } from "../../lib/work-panel-tabs";
 import { useAppStore } from "../../stores/app-store";
+import { CoursewareSourceVisuals } from "../workpanel/CoursewareSourceVisuals";
 import { CoursewareChatImages } from "./CoursewareChatImages";
 import { CoursewareChatPresentation } from "./CoursewareChatPresentation";
 import { CoursewareChatNarration } from "./CoursewareChatNarration";
@@ -22,6 +23,8 @@ function Workflow({ sessionId }: { sessionId: string }) {
   const [view, setView] = useState<CoursewareWorkflowView | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [visualBusy, setVisualBusy] = useState(false);
+  const visualWasBusy = useRef(false);
   const [refresh, setRefresh] = useState(0);
   const active = useRef(true), inFlight = useRef(false);
   useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
@@ -45,7 +48,7 @@ function Workflow({ sessionId }: { sessionId: string }) {
   }, [sessionId, projectPath, isRunning, messageCount, refresh]);
 
   const run = async (operation: () => Promise<void>) => {
-    if (!current() || inFlight.current || useAppStore.getState().runningSessions[sessionId]) return;
+    if (!current() || inFlight.current || visualBusy || useAppStore.getState().runningSessions[sessionId]) return;
     inFlight.current = true; setBusy(true); setError("");
     try { await operation(); }
     catch (failure) { if (current()) setError(String(failure)); }
@@ -70,8 +73,17 @@ function Workflow({ sessionId }: { sessionId: string }) {
   </section> : null;
   const plan = view?.plan;
   const approved = !!plan && plan.sha256 === plan.approvedSha256;
-  const blocked = busy || isRunning;
+  const blocked = busy || isRunning || visualBusy;
   const ordinary = view.task.taskType === "plain" && !view.task.generated;
+  const sourceVisuals = <details>
+        <summary>{t("panel.pptEditor.visualTitle")}</summary>
+        <CoursewareSourceVisuals sessionId={sessionId} enabled disabled={busy || isRunning} onActiveChange={value => {
+          const finished = visualWasBusy.current && !value;
+          visualWasBusy.current = value;
+          setVisualBusy(value);
+          if (finished && current()) useAppStore.setState({ coursewareTeachingRefresh: { sessionId, reread: true } });
+        }} />
+      </details>;
 
   return <section className="courseware-chat-workflow" aria-label={t("coursewareWorkflow.title")} aria-busy={blocked}>
     {!ordinary && <header><strong>{t("coursewareWorkflow.title")}</strong><span role="status">{t(isRunning ? "coursewareWorkflow.working" :
@@ -99,7 +111,8 @@ function Workflow({ sessionId }: { sessionId: string }) {
         if (!current()) return;
         await openEditor();
       })}>{t("coursewareWorkflow.selectPpt")}</button>}
-      {ordinary && <CoursewareChatPresentation sessionId={sessionId} disabled={blocked} refreshKey={refresh} />}
+      {ordinary && <CoursewareChatPresentation sessionId={sessionId} disabled={blocked} refreshKey={refresh} sourceVisuals={sourceVisuals} />}
+      {(view.task.generated || view.task.imported) && sourceVisuals}
       <CoursewareChatNarration sessionId={sessionId} disabled={blocked} />
       <CoursewareChatPptxCandidates sessionId={sessionId} disabled={blocked} />
       {(view.task.generated || view.task.imported) && <button type="button" disabled={blocked} onClick={() => void run(openEditor)}>{t("coursewareWorkflow.openEditor")}</button>}

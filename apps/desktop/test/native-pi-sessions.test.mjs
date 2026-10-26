@@ -214,6 +214,7 @@ function forkHarness({ host, sidecar }) {
     "../importers": { convertSession() {}, scanAllSources() {}, scanModelConfigs() {} },
     "../services/session-collaboration": { readSessionCollaboration() {} },
     "../services/session-search": { searchSessionsAcrossSources },
+    "../courseware-scene-draft": { approveSceneCourseDraft: assert.fail, readSceneCourseDraft: assert.fail },
   });
   registerSessionIpc({
     registrar: { handle: (channel, handler) => handlers.set(channel, handler) },

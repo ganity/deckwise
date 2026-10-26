@@ -1,8 +1,34 @@
-# Durable narration candidates
+# Saved narration
 
-Status: A5 Host lifecycle, A6 existing-sidebar review and A7 existing-main-Chat
-current-page narration generation. No new assistant. Actual acceptance evidence
-is recorded in the A7 handoff, separately from module checks.
+## Direct save (2026-10-26)
+
+Narration generation directly saves authoritative teaching. There is no candidate
+review or adoption step in Chat or the teaching sidebar. The existing tool names
+are retained for compatibility. Source-edit candidates keep their separate review.
+
+`courseware.narration.save` accepts strict `{sessionId,jobId,baseline,write}` and
+returns `{project}`. Host derives the workspace from the persisted Agent session,
+verifies the saved parser source, validates the complete project baseline and
+write revisions, rejects locked target pages and stored target-page drafts, then
+archives the old project and writes teaching in one SQLite transaction. A failure
+rolls back both writes. Independent music is retained; replaced speech audio and
+cues are cleared. Other pages and the original PPTX remain unchanged.
+
+The single-page receipt contains `kind:"page-narration"`, its original `baseline`,
+new `teachingRevision`, `pageNumber`, `applied:true`, `saved:true`, `audioReady:false`.
+The runtime validates that receipt without rereading the obsolete pre-save
+teaching revision. Chat progress records `saved`, without a candidate reference.
+The batch receipt contains sorted `savedPages`, per-page `failures`, `diagnostics`
+and the deck plan. Its aggregate `saved` is true only when every requested page
+saved; `applied` reports whether any page saved. Cancellation may retain completed
+pages. Never retry an uncertain save without rereading authoritative teaching.
+
+Legacy candidate records and RPCs below remain supported for compatibility; their
+review/adoption contract no longer describes new narration generation. No legacy
+data is automatically adopted or deleted. Current behavior is specified here and
+in the saved-page section below.
+
+## Legacy candidate compatibility
 
 ## Scope and authority
 
@@ -36,7 +62,8 @@ the existing `tools.execute` permission/turn/cancellation path for proposals and
 validates active Chat ownership, native binding/page/generation, dirty,
 readonly and uncertain-save state before dispatch. A parser job alone cannot
 prove the native editor is still clean or that the on-disk live file still equals
-its saved archive. No bypass or fallback generator is enabled here.
+its saved archive. These native-selection requirements apply to the legacy tools;
+the explicit saved-page tools below use independently verified saved source.
 
 ## Host methods
 
@@ -46,7 +73,7 @@ Host reopens the archived bytes and verifies the completed-job hash on each call
 
 | Method | Parameters | Result |
 | --- | --- | --- |
-| `courseware.narrationCandidate.stage` | `{sessionId, jobId, candidateId, write}` | Candidate view |
+| `courseware.narrationCandidate.stage` | `{sessionId, jobId, candidateId, write, pageScoped?}` | Candidate view |
 | `courseware.narrationCandidate.get` | `{sessionId, projectId, candidateId}` | Candidate view |
 | `courseware.narrationCandidate.reject` | `{sessionId, projectId, candidateId}` | Candidate view |
 | `courseware.narrationCandidate.adopt` | `{sessionId, jobId, candidateId}` | `{project}` |
@@ -87,8 +114,8 @@ reject or adopt another project's proposal, even with a known ID.
 Adoption revalidates saved source hash, page count and canonical project identity
 against the fresh parser seed. It compares the **complete current project** to
 the captured baseline, covering source/teaching revisions, all page content and
-locks, task type, title and education policy. A change on another page also
-invalidates the proposal under the current project-wide teaching revision.
+locks, task type, title and education policy. For legacy candidates, a change on
+another page also invalidates the proposal under the project-wide teaching revision.
 Any future education-policy setter must advance that revision too.
 
 One SQLite transaction archives the complete old project in
@@ -335,3 +362,59 @@ Existing review/adopt/CAS decides authoritative teaching; source PPTX and notes
 are never written. Current vendored writer rejects interactive or audio-bearing
 target actions rather than silently discarding them. New speech has no ready
 audio. Notes are an input option, not a second teaching authority.
+
+## Saved-page narration (2026-10-25)
+
+The main Chat exposes `courseware_narration_context` and
+`courseware_narration_propose` independently of the Office binding. The former
+returns a saved deck outline, source hash and optional explicitly numbered page
+text. The latter accepts explicit page numbers, that source hash and an
+instruction; it processes the complete requested range without human navigation.
+It directly saves each completed page and returns savedPages plus per-page errors.
+No PPTX or audio is generated or applied. Model calls reuse the current Chat's authorized
+model, including its vision input path when available.
+
+Host extracts bounded plain text, tables, speaker notes and saved-page objects.
+Main renders a sanitized disposable copy of the saved PPTX with local
+`libreoffice` and `pdftoppm`, without opening an editor. The copy removes external
+relationships, macros and embedded objects; the original source is unchanged.
+If rasterization is unavailable, bounded embedded images are used and a diagnostic
+is returned. Image-only pages are supported when the authorized model can read
+their visual evidence; pages without readable evidence fail individually.
+
+Visual observations for the ordered deck feed one whole-deck plan, then each
+requested page receives its own evidence, purpose and adjacent-page bridges.
+Successful page evidence is cached for the same session, source, mapping and
+model. A batch has at most three concurrent calls, a 180-second per-call timeout
+and a 14-minute overall deadline. This does not establish real-model quality.
+
+Speech may carry bounded `attention` intent (`highlight` or `spotlight`, with
+1–8 unique saved logical object IDs). Runtime and Host reject invented,
+cross-page or unsupported targets. Generation supplies no model-authored timing.
+After narration is saved, the existing TTS flow converts this intent
+into speech-local visual cues from zero through the decoded audio duration on
+audio adoption. It removes the intent and requires fresh teaching review.
+No audio is generated or adopted automatically.
+
+Main derives the source from the persisted Chat task, verifies workspace-contained
+saved bytes, reuses the Office revision archive and Host parser, and releases the
+parser on success, failure and cancellation. Saved-source, teaching, model and
+turn changes prevent saving. Preview visibility, selection and page navigation
+are absent from this path. Interactive native edits keep their existing binding.
+
+Main serializes current-state checks and direct saves so parallel model calls do
+not mistake peer saves from this batch for user edits. Each successful save
+advances the expected project. Source, policy, identity, lock, model or external
+teaching changes still stop later saves. Failed pages are reported independently;
+successful pages remain authoritative and survive Host restart.
+
+Chat displays saved page receipts and invalidates the clean teaching view for
+reread. No candidate lookup, review or adoption is shown for narration. Existing
+stored drafts are preserved; the sidebar moves its instruction-only draft into
+the Chat request before generation so it cannot block its own save.
+
+The human Office sidebar has Narration, Voice, Effects, Assets and Review tabs.
+Narration is selected initially. Inputs remain mounted across tab changes, while
+only selected-tab content is visible. Source-edit review forms and recovery records
+are in Review; detailed usage copy is collapsed. Keyboard arrows, Home and End
+navigate the tabs. This human UI is not an Agent execution dependency.

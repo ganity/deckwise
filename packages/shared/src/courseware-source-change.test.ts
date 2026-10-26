@@ -101,3 +101,14 @@ it("validates explicit human disposition without rewriting unexecuted or unknown
   expect(() => read({ ...group, receiptSha256: undefined })).toThrow();
   expect(() => read({ ...group, plan: undefined })).toThrow();
 });
+
+it("recognizes saved narration without a candidate and rejects save claims from native source edits", () => {
+  const operation = { toolCallId: "narration", toolName: "ppt_propose_page_narration", outcome: { state: "acknowledged", saved: true } };
+  const change = { changeGroupId: "group", operations: [operation], plan: { pageId: "page-1", pageNumber: 1,
+    items: [{ label: "Generate narration", toolName: operation.toolName, toolCallId: operation.toolCallId, status: "saved" }] } };
+  expect(chatChangesForTeaching({ chatChanges: [change] })?.[0].plan?.items[0].status).toBe("saved");
+  for (const patch of [{ state: "uncertain" }, { saved: false }]) {
+    expect(() => chatChangesForTeaching({ chatChanges: [{ ...change, operations: [{ ...operation, outcome: { ...operation.outcome, ...patch } }] }] })).toThrow();
+  }
+  expect(() => chatChangesForTeaching({ chatChanges: [{ ...change, operations: [{ ...operation, toolName: "ppt_add_slide_text" }] }] })).toThrow();
+});

@@ -12,7 +12,7 @@ test("rendered Markdown and file chips map source-only hits to their visible own
   const server = await createServer({
     root: fileURLToPath(new URL("..", import.meta.url)),
     configFile: false,
-    server: { middlewareMode: true, hmr: false, ws: false },
+    server: { middlewareMode: true, hmr: false, ws: false, watch: null },
     esbuild: { jsx: "automatic" },
     appType: "custom",
     optimizeDeps: { noDiscovery: true, include: [] },

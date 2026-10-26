@@ -167,6 +167,10 @@ pub(super) fn progress(plan: &Plan, operations: &Value, requests: &[Operation]) 
                     json!("unknown")
                 } else if op["candidate"].is_object() {
                     op["candidate"]["status"].clone()
+                } else if item.tool_name == "ppt_propose_page_narration"
+                    && op["outcome"]["saved"] == true
+                {
+                    json!("saved")
                 } else {
                     json!("native-unsaved")
                 };

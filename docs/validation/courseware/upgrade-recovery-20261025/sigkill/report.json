@@ -1,0 +1,42 @@
+{
+  "status": "PASS_PACKAGED_MIGRATION_SIGKILL_RECOVERY",
+  "paidCalls": false,
+  "userData": false,
+  "checks": [
+    "Packaged Host is SIGKILLed after real migration WAL writes, with zero commit markers and schema18 still visible",
+    "Reopening after SIGKILL preserves all 24001 sessions, message/KV fingerprints and referenced asset",
+    "The same packaged Host completes upgrade to24, retains six valid backups, and preserves data through a second restart"
+  ],
+  "currentHost": {
+    "path": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop/release/schema-notice-20261025/linux-unpacked/resources/bin/pi-desktop-host-core",
+    "sha256": "15d27f22650797e52893604c8d7f197367e71a8d09f466736af1a3d5445380b6"
+  },
+  "olderHost": {
+    "path": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop/release/parallel-A-a29/linux-unpacked/resources/bin/pi-desktop-host-core",
+    "sha256": "4e04e8a61108f52cdae3ec7f4d7af16a9fc413003cc191779f23a7e05db597e5"
+  },
+  "killPoint": {
+    "bytes": 94792,
+    "pageSize": 4096,
+    "uncommittedFrames": 23,
+    "commitMarkers": 0
+  },
+  "before": {
+    "schema": 18,
+    "tables": {
+      "sessions": {
+        "rows": 24001,
+        "sha256": "f9af5e07b5f8cf924dc02b6f01ba48d626d6b44e947f543bb5096032fa20d933"
+      },
+      "messages": {
+        "rows": 1,
+        "sha256": "3f8d6c4565f7fab94b2505875709ff40203048451c5bcfa98e75df9c3260ac7d"
+      },
+      "kv": {
+        "rows": 1,
+        "sha256": "6173d3fed7c6bfd6bea099e171eb0aff0c9914a00043af1d4282e4e049077074"
+      }
+    }
+  },
+  "assetSha256": "e2fbb51a36bea1eaddd4862e250f693b8ff375820484784a41ba51b5b8bffaa7"
+}

@@ -50,17 +50,18 @@ test("first snapshot is written immediately and a burst collapses to one trailin
   checkpointer.dispose();
 });
 
-test("settle drops the pending snapshot once the final row is on its way", async () => {
+test("settle drops the pending snapshot once the final row is on its way", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
   const saved = [];
   const checkpointer = new InflightCheckpointer(async (checkpoint) => {
     saved.push(checkpoint.message.content);
   }, 30);
 
   checkpointer.observe({ sessionId: "s", message: assistant("a", "h") });
-  await sleep(0);
+  await checkpointer.flush("s");
   checkpointer.observe({ sessionId: "s", message: assistant("a", "he") });
   checkpointer.settle("s");
-  await sleep(60);
+  t.mock.timers.tick(60);
   assert.deepEqual(saved, ["h"]);
   assert.deepEqual(checkpointer.pendingSessions(), []);
   checkpointer.dispose();

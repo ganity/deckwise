@@ -12,6 +12,7 @@ const record = (value: unknown): value is Record<string, unknown> => !!value && 
 /** Main Chat and panel reuse the same durable jobs; model tools never grant paid submission or human approval. */
 export class CoursewareChatWorkflow {
   private compiling = false;
+  narration?: { execute(sessionId: string, name: string, args: unknown, canDispatch: () => boolean): Promise<unknown> };
   constructor(private getHost: () => Host | null, private getViewingSession: () => string | null,
     private auth: Pick<DesktopAuthSession, "getCoursewarePrincipal" | "coursewareMedia">,
     private generation: SceneCourseGenerationServices) {}
@@ -50,6 +51,10 @@ export class CoursewareChatWorkflow {
     const { session } = await host.call<{ session?: { mode?: string } }>("session.get", { id: sessionId, messageLimit: 1 });
     check();
     if (session?.mode !== "agent") throw new Error("Courseware workflow tools require Agent mode");
+    if (["courseware_narration_context", "courseware_narration_propose"].includes(name)) {
+      if (!this.narration) throw new Error("Saved courseware narration is unavailable");
+      return this.narration.execute(sessionId, name, input, canDispatch);
+    }
     if (name === "courseware_requirements_update") {
       if (!view.task || Object.keys(input).sort().join(",") !== "educationContext,expectedEducationContext")
         throw new Error("Invalid teaching requirements update");

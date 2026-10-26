@@ -3,7 +3,7 @@
 > **翻译说明：** 本页是与 [英文源规格](/spec/03-runtime/README) 一一对应的机器辅助翻译。代码、协议字段和标识符保持原文；如翻译与英文源事实有歧义，以英文版本为准。
 
 
-| 医生 | 描述 |
+| 文档 | 描述 |
 |---|---|
 | [01-ipc-protocol.md](/zh-CN/spec/03-runtime/01-ipc-protocol) | Electron IPC 协议 |
 | [02-agent-runtime.md](/zh-CN/spec/03-runtime/02-agent-runtime) | pi 代理运行时 |
@@ -25,3 +25,11 @@
 | [18-line-anchored-edit-contract.md](/zh-CN/spec/03-runtime/18-line-anchored-edit-contract) | 按行锚定的 Edit 合约 |
 | [19-remote-agent-control-protocol.md](/zh-CN/spec/03-runtime/19-remote-agent-control-protocol) | 远程 Agent 控制协议 |
 | [20-speech.md](/zh-CN/spec/03-runtime/20-speech) | 宿主语音（转写/朗读） |
+| [21-courseware-parser.md](/zh-CN/spec/03-runtime/21-courseware-parser) | Optional local PPTX worker lifecycle |
+| [22-courseware-contract-v1.md](/zh-CN/spec/03-runtime/22-courseware-contract-v1) | Courseware project/teaching contract and session-scoped Host persistence |
+| [23-courseware-native-chat.md](/zh-CN/spec/03-runtime/23-courseware-native-chat) | Existing Chat native Office tools, ownership and Host permission dispatch |
+| [24-courseware-narration-candidates.md](/zh-CN/spec/03-runtime/24-courseware-narration-candidates) | Internal Host narration proposal storage, review lifecycle and atomic adoption |
+| [25-courseware-source-candidates.md](/zh-CN/spec/03-runtime/25-courseware-source-candidates) | Internal Host PPTX baseline/output archives, generator mapping context and restart recovery |
+| [26-courseware-fixed-snapshots.md](/zh-CN/spec/03-runtime/26-courseware-fixed-snapshots) | Explicit per-page teaching confirmation and Host-owned immutable source/teaching/mapping/audio exports |
+| [27-courseware-authorized-media.md](/zh-CN/spec/03-runtime/27-courseware-authorized-media) | Main-only authenticated TTS transport; Host ingestion remains pending |
+| [29-courseware-chat-workflow.md](/zh-CN/spec/03-runtime/29-courseware-chat-workflow) | Main Chat generation, finite tools, human approvals and teaching requirements CAS |

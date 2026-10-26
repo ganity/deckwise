@@ -24,6 +24,7 @@ import { coursewareOnlineDeployment } from "../courseware-online-deployment";
 
 export function registerPptEditorIpc(input: {
   registrar: IpcRegistrar;
+  savedNarration?: import("../courseware-saved-narration").CoursewareSavedNarration;
   completeNarration: import("../courseware-candidates").NarrationComplete;
   completeScene: import("../courseware-candidates").SceneComplete;
   resolveModel?: import("../courseware-candidates").CandidateModelResolver;
@@ -143,6 +144,7 @@ export function registerPptEditorIpc(input: {
     registrar.handleWithEvent(channel, async (event, payload: unknown, ...extra: unknown[]) => {
       assertSender(event);
       if (extra.length) throw new Error("Unexpected teaching draft parameters");
+      if (!changing && input.savedNarration?.ownsView(payload)) return input.savedNarration.draft(payload);
       return teaching.draft(payload, changing);
     });
   }
@@ -162,6 +164,8 @@ export function registerPptEditorIpc(input: {
   for (const [channel, decide] of [[IPC.invoke.pptEditorNarrationReview, false], [IPC.invoke.pptEditorNarrationDecide, true]] as const) registrar.handleWithEvent(channel, async (event, payload: unknown, ...extra: unknown[]) => {
     assertSender(event);
     if (extra.length) throw new Error("Unexpected narration parameters");
+    if (input.savedNarration?.ownsReview(payload, decide))
+      return decide ? input.savedNarration.decide(payload) : input.savedNarration.review(payload);
     return decide ? teaching.decideNarration(payload) : teaching.reviewNarration(payload);
   });
 

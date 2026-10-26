@@ -1,4 +1,4 @@
-import { isTeachingWrite, type CoursewareProject, type TeachingWrite } from "@pi-desktop/shared";
+import { isTeachingWrite, isCoursewareAttentionCue, isCoursewareAttentionIntent, type CoursewareProject, type TeachingWrite } from "@pi-desktop/shared";
 import { generatePageNarrationCandidate } from "./page-narration-candidate.js";
 
 /** Normalize B's structured blocks at the canonical teaching boundary. */
@@ -13,7 +13,9 @@ export async function generateNarrationWrite(input: Omit<Parameters<typeof gener
       typeof action.checkpointId !== "string" || !/^[\w.-]{1,128}$/u.test(action.checkpointId) ||
       Object.keys(action).some((key) => !["id", "type", "checkpointId", "checkpointKind"].includes(key));
     return action.type !== "speech" || typeof action.text !== "string" ||
-      Object.keys(action).some((key) => !["id", "type", "text", "pauseAfterMs", "source", "audioAssetId"].includes(key));
+      (action.attention !== undefined && !isCoursewareAttentionIntent(action.attention)) ||
+      (action.visualCues !== undefined && (!Array.isArray(action.visualCues) || !action.visualCues.every(isCoursewareAttentionCue))) ||
+      Object.keys(action).some((key) => !["id", "type", "text", "pauseAfterMs", "source", "audioAssetId", "visualCues", "attention"].includes(key));
   })) throw new Error("Unsupported or locked teaching; retain current narration");
   const educationContext = project.educationContext ? { ...project.educationContext,
     schoolStage: project.educationContext.schoolStage?.trim().toUpperCase(), subject: project.educationContext.subject?.trim().toUpperCase() } : undefined;
@@ -30,7 +32,8 @@ export async function generateNarrationWrite(input: Omit<Parameters<typeof gener
       const previous = actions.at(-1);
       if (!previous || previous.type !== "speech" || Number(previous.pauseAfterMs ?? 0) + block.durationMs > 30000) throw new Error("Waiting requires preceding speech and at most 30 seconds per speech");
       previous.pauseAfterMs = Number(previous.pauseAfterMs ?? 0) + block.durationMs;
-    } else actions.push({ id: `speech-${candidate.candidateId}-${actions.length}`, type: "speech", text: block.text });
+    } else actions.push({ id: `speech-${candidate.candidateId}-${actions.length}`, type: "speech", text: block.text,
+      ...(block.type === "speech" && block.attention ? { attention: block.attention } : {}) });
   }
   const write = { projectId: project.projectId, pageId: page.pageId, expectedSourceRevision: project.source.revision, expectedTeachingRevision: project.teachingRevision, actions };
   if (!isTeachingWrite(write)) throw new Error("Invalid canonical teaching proposal");

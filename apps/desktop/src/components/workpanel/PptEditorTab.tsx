@@ -46,8 +46,10 @@ export function PptEditorTab({
   useEffect(() => api.onPptEditorState(setState), []);
 
   useEffect(() => {
-    openEditor();
+    // Cancel transient mounts before starting a native open (React StrictMode).
+    const openTimer = setTimeout(openEditor, 0);
     return () => {
+      clearTimeout(openTimer);
       ++openRequest.current;
       void api.pptEditorSetVisible(false);
       setTimeout(() => {

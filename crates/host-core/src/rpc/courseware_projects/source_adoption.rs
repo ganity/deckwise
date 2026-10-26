@@ -128,7 +128,13 @@ pub(super) async fn handle(
                 .map_err(error)?;
             let receipt = state
                 .db
-                .prepare_source_adoption_with_path(&root, &seed, &p.candidate_id, source_path, &p.effect_bindings)
+                .prepare_source_adoption_with_path(
+                    &root,
+                    &seed,
+                    &p.candidate_id,
+                    source_path,
+                    &p.effect_bindings,
+                )
                 .map_err(error)?;
             state.db.source_adoption_barrier().map_err(error)?;
             Ok(json!({ "adoption": receipt, "path": path }))

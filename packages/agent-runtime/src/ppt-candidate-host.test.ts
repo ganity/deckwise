@@ -10,22 +10,21 @@ it("offers four proposal tools and routes narration through the same active-turn
   const host = { async call<T>(method: string, params: unknown): Promise<T> {
     const p = params as Record<string, unknown>;
     calls.push({ method, params: p });
-    return { ok: true, content: p.toolName === "ppt_get_narration_context" ? context : { candidateId: "candidate", kind: "page-narration", baseline, reviewState: "needs-review", applied: false } } as T;
+    return { ok: true, content: p.toolName === "ppt_get_narration_context" ? context : { kind: "page-narration", baseline, teachingRevision: "T2", pageNumber: 1, saved: true, applied: true, audioReady: false } } as T;
   } };
   const tools = createAuthorizedPptCandidateTools(host, "chat", binding, () => "turn");
   expect(tools.map((tool) => tool.name)).toEqual(["ppt_propose_page_redo", "ppt_propose_page_narration", "ppt_propose_page_fade", "ppt_propose_page_style_batch"]);
   const result = await tools.find(tool => tool.name === "ppt_propose_page_narration")!.execute("proposal", { editGeneration: 1, instruction: "Rewrite" });
-  expect(result.details).toMatchObject({ candidateId: "candidate", audioReady: false, applied: false });
+  expect(result.details).toMatchObject({ saved: true, audioReady: false, applied: true });
   expect(calls.map(({ method, params }) => [method, params.toolName, params.sessionId, params.turnId, params.mode])).toEqual([
     ["tools.execute", "ppt_get_narration_context", "chat", "turn", "agent"],
     ["tools.execute", "ppt_propose_page_narration", "chat", "turn", "agent"],
-    ["tools.execute", "ppt_get_narration_context", "chat", "turn", "agent"],
   ]);
   expect(calls[1]!.params.toolCallId).toBe("proposal");
   expect(calls[0]!.params.args).toEqual(binding);
   expect(calls[0]!.params.toolCallId).not.toBe("proposal");
   await expect(createAuthorizedPptCandidateTools(host, "chat", binding, () => undefined)[1]!.execute("call", { editGeneration: 1, instruction: "Rewrite" })).rejects.toThrow("active Chat turn");
-  expect(calls).toHaveLength(3);
+  expect(calls).toHaveLength(2);
 });
 
 it("redo requires an approved capability and uses the authorized active-turn path without adopting", async () => {

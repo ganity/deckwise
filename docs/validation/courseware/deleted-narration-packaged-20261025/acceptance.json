@@ -1,0 +1,18 @@
+{
+  "status": "PASS_PACKAGED_DELETED_NARRATION_RECOVERY",
+  "artifact": {
+    "path": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop/release/chat-pptx-review-20261025/DeckWise-0.17.7.AppImage",
+    "bytes": 340987223,
+    "sha256": "1ae9725ae35dac79a3376c85acebf4b1ee02fadce8bb48aea173fa22a569aa36"
+  },
+  "headCommit": "f9600d6293f2995bf72b77243b1723117c803e8c",
+  "sourceInventory": "29d3da7e861d3172855852d30ae6e6e2fe9d40d1e4df00e55ff75bd34fa2aee3",
+  "productInputsUnchanged": 1179,
+  "officeInventory": "../chat-pptx-review-20261025/package/office-check.json",
+  "reportSha256": "0e87373af2952993ebec8989333aebf922094750b05c8a125d901937467edee9",
+  "checks": 6,
+  "paidCalls": false,
+  "targetedTests": 12,
+  "scope": "Existing linux-unpacked package with separately served pinned Office; no product changes or package rebuild; local auth fixture.",
+  "cleanup": "Runner exited and removed temporary profile/workspace; assistant-owned Office session 83568 stopped."
+}

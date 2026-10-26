@@ -9,7 +9,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { coursewareLaunch } from "./e2e/boot.mjs";
-import { chatFirstEditResponse, chatFirstNarrationResponse, testChatFirstEditing } from "./e2e/chat-first-edit.mjs";
+import { chatFirstEditResponse, chatFirstNarrationResponse, chatFirstRedoSceneResponse, testChatFirstEditing } from "./e2e/chat-first-edit.mjs";
 
 const launch = coursewareLaunch();
 assert(process.env.DECKWISE_E2E_OUTPUT && (launch.packaged || process.env.PI_DESKTOP_HOST_BIN));
@@ -108,7 +108,9 @@ const server = createServer(async (req, res) => {
     let name, args, content;
     let scene;
     try { scene = JSON.parse(Array.isArray(body.messages[last]?.content) ? body.messages[last].content.find(item => item.type === "text")?.text : user); } catch {}
-    if (scene?.canvas && Array.isArray(scene.availableAssets)) {
+    if (scene?.canvas && Array.isArray(scene.availableAssets) && scene.availableAssets.length === 2) {
+      content = chatFirstRedoSceneResponse(scene, report.ordinary.visuals, report.ordinary.pptxReview.installedSha256);
+    } else if (scene?.canvas && Array.isArray(scene.availableAssets)) {
       compiledPages++;
       const layers = scene.availableAssets.filter(asset => ![scene.visualMasterAssetId, scene.cleanPlateAssetId].includes(asset.assetId));
       assert.equal(layers.length, 1);
@@ -120,7 +122,7 @@ const server = createServer(async (req, res) => {
             semanticRole: "Circle flower", spokenAliases: ["Circle"], objectKind: "prop", animationPolicy: "static" }] });
     } else if (body.messages.some(row => row.role === "system" && plain(row.content).includes("Rewrite only this page."))) {
       content = chatFirstNarrationResponse(body, plain);
-    } else if (/CHAT_FIRST_(EDIT|REWRITE)\b/.test(user)) {
+    } else if (/CHAT_FIRST_(EDIT|REWRITE|FADE|REDO)\b/.test(user)) {
       assert(user.includes("The Host bound this Chat to the active Office PPTX"), "Use the native editing route after generation");
       ({ name, args, content } = chatFirstEditResponse({ body, user, has, result, plain }));
     } else if (user.includes("# Skill:") && user.includes("(deckwise/ppt-master)")) {
@@ -487,7 +489,7 @@ try {
     await expect(page.locator(".ppt-master-tab")).toHaveCount(0);
     await page.screenshot({ path: join(out, "ordinary-wiseoffice.png") });
   });
-  await testChatFirstEditing({ getPage: () => page, invoke, expect, workflow, composer, step, start, stop, workspace, report, hash, out,
+  await testChatFirstEditing({ getPage: () => page, getApp: () => app, invoke, expect, workflow, composer, step, start, stop, workspace, report, hash, out,
     requestCount: () => requests.length });
   assert(!logs.some(line => /PAGEERROR|FIXTUREERROR/.test(line)), "Unexpected renderer or fixture failure");
   report.status = "PASS_CHAT_FIRST_PLAN_ASSETS_COMPILE_AND_WISEOFFICE";

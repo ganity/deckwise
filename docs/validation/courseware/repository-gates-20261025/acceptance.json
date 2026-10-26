@@ -1,0 +1,52 @@
+{
+  "status": "PASS_SCOPED_MAIN_CHAT_FIXTURE_TRIAL",
+  "checkedAt": "2026-10-24T22:37:13.730253+00:00",
+  "branch": "feat/courseware-par-A",
+  "headCommit": "f9600d6293f2995bf72b77243b1723117c803e8c",
+  "knownOriginMain": "58a9c4f57203c93da3f590e426b42ebba1072fb6",
+  "remoteRefRefreshedThisRound": false,
+  "uncommittedProductChanges": true,
+  "sourceInputs": 1181,
+  "sourceInventoryAggregateSha256": "6cd6ae8fcb4a56c75078264744e9857a7cfd62aa506d69d55b5224d903628184",
+  "sourceInventoryUnchangedThroughPackageGates": true,
+  "appImage": {
+    "path": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop/release/repository-gates-20261025/DeckWise-0.17.7.AppImage",
+    "bytes": 340986890,
+    "sha256": "eb6401b464f092b919b303ae7e33ccb802bcd65193b754adbc4f9e1775b6ad78"
+  },
+  "packagedElectronScenarios": 17,
+  "packagedSchemaNoticeChecks": 4,
+  "finalPerPackageJsTests": {
+    "passed": 7226,
+    "skipped": 9
+  },
+  "packagedHostUnchangedFromPriorMigrationEvidence": true,
+  "repositoryGateStatus": "NOT_ALL_GREEN: cargo fmt reports 33 files unchanged from HEAD",
+  "paidCalls": false,
+  "externalServices": "Loopback identity/model/media fixtures; separately served pinned real WiseOffice",
+  "reportSha256": {
+    "chat-e2e/report.json": "94ac4e386a0d707216683f74532ccf605b3f7eb237de6d989b2a7ea0321fe72d",
+    "schema-notice/report.json": "701552065d901dc089c4bb05a476c3d519cf966c505073b6abe1e4e66970679c",
+    "appimage-smoke.json": "b3120c447153e547d75341c8d37a7ae4285bbf7fb67032c936f879f29eb0d23b",
+    "package-check.json": "da0bfdd55aeeb427eb5855ec069db756379418a510d612ebb4edd5487c31bb3a",
+    "package-credentials.json": "3ed6f1ef5822d4f39a0583748cc0d23d6b5a7e7b0e33558fc4fd7202d1eddbf2",
+    "office-check.json": "9d025056ad2763ed28a693f406f08cf7e8345c7ea43abd7122c500be829ee8e6",
+    "checks-summary.json": "ff3e48158193cc54ec746fb3f24bc48fa71be25e38458cc9a66830e50365810e",
+    "rust-format-boundary.json": "8f2e306a59d92c1216da78c6edb02b62ec9408128334a8bd5b45af7edbfce723"
+  },
+  "notAccepted": [
+    "Normal teacher login and intended target service deployment",
+    "Real supplier output and representative lesson quality",
+    "Managed text atomic-budget policy",
+    "Physical power loss and Windows/macOS qualification",
+    "Deferred team collaboration and virtual classroom",
+    "Complete repository formatting gate, PR/main integration and formal release"
+  ],
+  "cleanup": {
+    "officePid": 3464824,
+    "officePort": 4379,
+    "assistantOwnedPreviewStopped": true,
+    "desktopE2EExited": true,
+    "userServicesUntouched": true
+  }
+}

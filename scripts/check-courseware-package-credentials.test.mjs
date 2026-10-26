@@ -3,8 +3,18 @@ import { createHash } from "node:crypto";
 import { mkdtemp, mkdir, writeFile, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createRequire } from "node:module";
 import test from "node:test";
-import { asar, scanPackage, checkFixedBuild, contentCategories } from "./check-courseware-package-credentials.mjs";
+import { asar, scanPackage, checkFixedBuild, contentCategories, scanPptxExport } from "./check-courseware-package-credentials.mjs";
+
+const JSZip = createRequire(new URL("../packages/courseware-runtime/package.json", import.meta.url))("jszip");
+const pptxFixture = async (extra = {}) => {
+  const zip = new JSZip();
+  zip.file("[Content_Types].xml", "<Types/>");
+  zip.file("ppt/presentation.xml", "<presentation/>");
+  for (const [name, bytes] of Object.entries(extra)) zip.file(name, bytes);
+  return zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
+};
 
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const fakeToken = () => "sk-proj-" + "gateFixtureA91b2C3d4E5f6G7h8I9j0K".repeat(2);
@@ -62,7 +72,7 @@ test("content scanning catches provider tokens and private key/database signatur
 });
 
 test("real team export reader ignores local extras, rejects forbidden manifest members and symlink escapes", () => fixture(async (root) => {
-  const payload = Buffer.from('{"assets":[]}'), report = Buffer.from('{}'), source = Buffer.from('pptx fixture');
+  const payload = Buffer.from('{"assets":[]}'), report = Buffer.from('{}'), source = await pptxFixture();
   const buildId = hash(payload);
   const entries = [{ path: "package.json", sha256: buildId }, { path: "report.json", sha256: hash(report) }, { path: "source.pptx", sha256: hash(source) }];
   const manifest = (files) => writeFile(join(root, "manifest.json"), JSON.stringify({ schemaVersion: "deckwise-build-manifest/1", buildId, packageHash: buildId, files }));
@@ -83,9 +93,57 @@ test("real team export reader ignores local extras, rejects forbidden manifest m
   const contaminated = await checkFixedBuild(root);
   assert.equal(contaminated.passed, false);
   assert.ok(contaminated.findings.some((finding) => finding.path === tokenPath && finding.category === "provider-token"));
+  const secretSource = await pptxFixture({ "ppt/notesSlides/notesSlide1.xml": fakeToken() });
+  await writeFile(join(root, "source.pptx"), secretSource);
+  await manifest(entries.map((entry) => entry.path === "source.pptx" ? { ...entry, sha256: hash(secretSource) } : entry));
+  const compressed = await checkFixedBuild(root);
+  assert.equal(compressed.passed, false);
+  assert.ok(compressed.findings.some((finding) => finding.path === "source.pptx!/ppt/notesSlides/notesSlide1.xml" && finding.category === "provider-token"));
+  await writeFile(join(root, "source.pptx"), source);
   await manifest(entries);
   await rm(join(root, "source.pptx"));
   await writeFile(join(root, "outside.pptx"), source);
   await symlink(join(root, "outside.pptx"), join(root, "source.pptx"));
   await assert.rejects(checkFixedBuild(root), /escaped/u);
 }));
+
+test("PPTX export scanning decodes notes, metadata and embedded bytes without emitting secrets", async () => {
+  const clean = await scanPptxExport(await pptxFixture(), "lesson.pptx");
+  assert.equal(clean.passed, true);
+  assert.equal(clean.files.length, 2);
+  const token = fakeToken();
+  const bytes = await pptxFixture({
+    "ppt/notesSlides/notesSlide1.xml": `<notes>${token}</notes>`,
+    "docProps/custom.xml": token,
+    "ppt/embeddings/object.bin": Buffer.from(token),
+    "auth.json": "fixture-only",
+  });
+  const report = await scanPptxExport(bytes, "lesson.pptx");
+  assert.equal(report.passed, false);
+  assert.equal(report.findings.filter((finding) => finding.category === "provider-token").length, 3);
+  assert.ok(report.findings.some((finding) => finding.category === "credential-file"));
+  assert.equal(JSON.stringify(report).includes(token), false);
+});
+
+test("PPTX export scanning refuses malformed, escaping and symlink archives", async () => {
+  assert.equal((await scanPptxExport(Buffer.from("not a zip"), "bad.pptx")).passed, false);
+  const zip = new JSZip(); zip.file("public.txt", "fixture");
+  assert.equal((await scanPptxExport(await zip.generateAsync({ type: "nodebuffer" }), "not-pptx.pptx")).passed, false);
+  zip.file("[Content_Types].xml", "<Types/>"); zip.file("ppt/presentation.xml", "<presentation/>");
+  zip.file("../outside.txt", "fixture");
+  assert.equal((await scanPptxExport(await zip.generateAsync({ type: "nodebuffer" }), "escape.pptx")).passed, false);
+  zip.remove("../");
+  zip.file("link", "outside", { unixPermissions: 0o120777 });
+  const linked = await scanPptxExport(await zip.generateAsync({ type: "nodebuffer", platform: "UNIX" }), "link.pptx");
+  assert.ok(linked.findings.some((finding) => finding.category === "archive-link"));
+});
+
+test("PPTX export scanning bounds decompressed members and entry count", async () => {
+  const large = await pptxFixture({ "ppt/media/oversize.bin": Buffer.alloc(64 * 1024 * 1024 + 1, 0) });
+  const report = await scanPptxExport(large, "large.pptx");
+  assert.ok(report.findings.some((finding) => finding.category === "archive-size-limit"));
+  const zip = new JSZip();
+  for (let index = 0; index < 4097; index++) zip.file(`file-${index}`, "");
+  const crowded = await scanPptxExport(await zip.generateAsync({ type: "nodebuffer" }), "crowded.pptx");
+  assert.ok(crowded.findings.some((finding) => finding.category === "archive-entry-limit"));
+});

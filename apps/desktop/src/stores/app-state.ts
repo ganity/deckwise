@@ -120,7 +120,8 @@ export type AppState = {
   sessionMeta: Record<string, SessionMeta>;
   /** Invalidation hint only; teaching content remains owned by Host. */
   coursewareTeachingRefresh?: { sessionId: string } & (
-    { teachingRevision: string; sourceSha256?: never } | { sourceSha256: string; teachingRevision?: never }
+    { teachingRevision: string; sourceSha256?: never } | { sourceSha256: string; teachingRevision?: never } |
+    { reread: true; sourceSha256?: never; teachingRevision?: never }
   );
   sessionView: SessionView;
   /** Open project tabs and the host's currently active workspace. */

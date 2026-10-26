@@ -38,6 +38,15 @@ export type CoursewareAssetLocksView = {
 };
 
 /** Existing fixed-player visualCues, timed only against their parent speech audio. */
+export type CoursewareAttentionIntent = { type: "highlight" | "spotlight"; objectIds: string[] };
+export function isCoursewareAttentionIntent(value: unknown): value is CoursewareAttentionIntent {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const intent = value as Record<string, unknown>;
+  return Object.keys(intent).sort().join(",") === "objectIds,type" && ["highlight", "spotlight"].includes(String(intent.type)) &&
+    Array.isArray(intent.objectIds) && intent.objectIds.length > 0 && intent.objectIds.length <= 8 &&
+    intent.objectIds.every(id => typeof id === "string" && id.length > 0 && id.length <= 200) && new Set(intent.objectIds).size === intent.objectIds.length;
+}
+
 export type CoursewareAttentionCue = {
   id: string;
   atMs: number;
@@ -168,7 +177,7 @@ export function replaceNarrationText(action: Record<string, unknown>, text: stri
   if (action.type !== "speech" || typeof action.text !== "string") throw new Error("Not an editable speech action");
   if (action.text === text) return action;
   const changed: Record<string, unknown> = { ...action, text };
-  for (const key of ["audioId", "audioUrl", "audioAssetId", "duration", "durationMs", "visualCues", "speechCuePlans", "pptxCue"]) {
+  for (const key of ["audioId", "audioUrl", "audioAssetId", "duration", "durationMs", "visualCues", "speechCuePlans", "pptxCue", "attention"]) {
     delete changed[key];
   }
   return changed;

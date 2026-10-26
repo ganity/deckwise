@@ -49,6 +49,10 @@ fn projection(page: &CoursewarePage) -> Option<(Vec<Value>, usize, usize)> {
                     }
                     cues += visual.len();
                 }
+                if let Some(intent) = action.get("attention") {
+                    attention::targets(intent).ok()?;
+                    cues += 1;
+                }
                 actions.push(projected);
             }
             "interaction_checkpoint" if action["checkpointKind"] == "teacher_continue" => {

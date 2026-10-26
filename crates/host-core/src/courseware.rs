@@ -14,7 +14,9 @@ use tokio::task::JoinHandle;
 pub mod identity;
 mod narration;
 mod online_source_review;
-pub use online_source_review::{ResolveRequest as OnlineSourceResolveRequest, Target as OnlineSourceReviewTarget};
+pub use online_source_review::{
+    ResolveRequest as OnlineSourceResolveRequest, Target as OnlineSourceReviewTarget,
+};
 mod process;
 pub mod snapshot_assets;
 pub mod source_candidates;

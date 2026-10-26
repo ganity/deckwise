@@ -4,10 +4,10 @@ use super::*;
 use crate::courseware::{identity::SavedSourceIdentity, SavedProjectSeed};
 
 const REVIEW_NAMESPACE: &str = "coursewareReviews.v1";
-pub(crate) mod effects;
-mod change_groups;
 #[cfg(test)]
 mod change_group_tests;
+mod change_groups;
+pub(crate) mod effects;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

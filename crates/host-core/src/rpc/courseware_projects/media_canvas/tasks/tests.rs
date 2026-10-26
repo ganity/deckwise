@@ -244,24 +244,46 @@ async fn canvas_image_submission_scope_uses_begin_order_and_survives_restart() {
     let team = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
     for bind_first in [true, false] {
         let (dir, state, prepare, _) = fixture().await;
-        call(&state, "courseware.mediaCanvas.image.prepare", prepare.clone()).await.unwrap();
+        call(
+            &state,
+            "courseware.mediaCanvas.image.prepare",
+            prepare.clone(),
+        )
+        .await
+        .unwrap();
         let op = operation(&prepare);
         let bind = json!({"sessionId":prepare["sessionId"],"teamProjectId":team});
         if bind_first {
-            call(&state, "courseware.task.bindTeam", bind.clone()).await.unwrap();
+            call(&state, "courseware.task.bindTeam", bind.clone())
+                .await
+                .unwrap();
         }
-        let begun = call(&state, "courseware.mediaCanvas.image.begin", op.clone()).await.unwrap();
+        let begun = call(&state, "courseware.mediaCanvas.image.begin", op.clone())
+            .await
+            .unwrap();
         let expected_team = if bind_first { json!(team) } else { Value::Null };
-        assert_eq!(begun["intent"]["submissionScope"], json!({"sessionId":prepare["sessionId"],"teamProjectId":expected_team}));
+        assert_eq!(
+            begun["intent"]["submissionScope"],
+            json!({"sessionId":prepare["sessionId"],"teamProjectId":expected_team})
+        );
         if !bind_first {
-            call(&state, "courseware.task.bindTeam", bind).await.unwrap();
+            call(&state, "courseware.task.bindTeam", bind)
+                .await
+                .unwrap();
         }
         drop(state);
         let mut app = AppState::open(dir.path()).unwrap();
         app.handshook = true;
         let state = Arc::new(Mutex::new(app));
-        assert_eq!(call(&state, "courseware.mediaCanvas.image.get", op.clone()).await.unwrap(), begun);
-        assert!(call(&state, "courseware.mediaCanvas.image.begin", op).await.is_err());
+        assert_eq!(
+            call(&state, "courseware.mediaCanvas.image.get", op.clone())
+                .await
+                .unwrap(),
+            begun
+        );
+        assert!(call(&state, "courseware.mediaCanvas.image.begin", op)
+            .await
+            .is_err());
     }
 }
 
@@ -270,36 +292,87 @@ async fn rejected_canvas_image_keeps_history_and_cannot_begin_or_bind_after_rest
     for team in [false, true] {
         let (dir, state, prepare, _) = fixture().await;
         if team {
-            call(&state, "courseware.task.bindTeam", json!({"sessionId":prepare["sessionId"],
-                "teamProjectId":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"})).await.unwrap();
+            call(
+                &state,
+                "courseware.task.bindTeam",
+                json!({"sessionId":prepare["sessionId"],
+                "teamProjectId":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}),
+            )
+            .await
+            .unwrap();
         }
-        let prepared = call(&state, "courseware.mediaCanvas.image.prepare", prepare.clone()).await.unwrap();
+        let prepared = call(
+            &state,
+            "courseware.mediaCanvas.image.prepare",
+            prepare.clone(),
+        )
+        .await
+        .unwrap();
         let op = operation(&prepare);
         let mut reject = op.clone();
         reject["rejectedRequest"] = json!({"idempotencyKey":prepared["intent"]["idempotencyKey"],
             "requestHash":prepared["intent"]["requestHash"]});
-        assert!(call(&state, "courseware.mediaCanvas.image.reject", reject.clone()).await.is_err());
-        let begun = call(&state, "courseware.mediaCanvas.image.begin", op.clone()).await.unwrap();
-        let mut wrong = reject.clone(); wrong["rejectedRequest"]["idempotencyKey"] = json!(uuid::Uuid::new_v4());
-        assert!(call(&state, "courseware.mediaCanvas.image.reject", wrong).await.is_err());
-        assert_eq!(call(&state, "courseware.mediaCanvas.image.get", op.clone()).await.unwrap(), begun);
+        assert!(call(
+            &state,
+            "courseware.mediaCanvas.image.reject",
+            reject.clone()
+        )
+        .await
+        .is_err());
+        let begun = call(&state, "courseware.mediaCanvas.image.begin", op.clone())
+            .await
+            .unwrap();
+        let mut wrong = reject.clone();
+        wrong["rejectedRequest"]["idempotencyKey"] = json!(uuid::Uuid::new_v4());
+        assert!(call(&state, "courseware.mediaCanvas.image.reject", wrong)
+            .await
+            .is_err());
+        assert_eq!(
+            call(&state, "courseware.mediaCanvas.image.get", op.clone())
+                .await
+                .unwrap(),
+            begun
+        );
         if !team {
-            assert!(call(&state, "courseware.mediaCanvas.image.reject", reject).await.is_err());
+            assert!(call(&state, "courseware.mediaCanvas.image.reject", reject)
+                .await
+                .is_err());
             continue;
         }
-        let rejected = call(&state, "courseware.mediaCanvas.image.reject", reject).await.unwrap();
+        let rejected = call(&state, "courseware.mediaCanvas.image.reject", reject)
+            .await
+            .unwrap();
         assert_eq!(rejected["intent"]["phase"], "rejected");
         drop(state);
-        let mut app = AppState::open(dir.path()).unwrap(); app.handshook = true;
+        let mut app = AppState::open(dir.path()).unwrap();
+        app.handshook = true;
         let state = Arc::new(Mutex::new(app));
-        assert_eq!(call(&state, "courseware.mediaCanvas.image.get", op.clone()).await.unwrap(), rejected);
-        assert!(call(&state, "courseware.mediaCanvas.image.begin", op.clone()).await.is_err());
-        let mut binding = op; binding["taskRef"] = json!({"taskId":"late", "idempotencyKey":begun["intent"]["idempotencyKey"],
+        assert_eq!(
+            call(&state, "courseware.mediaCanvas.image.get", op.clone())
+                .await
+                .unwrap(),
+            rejected
+        );
+        assert!(
+            call(&state, "courseware.mediaCanvas.image.begin", op.clone())
+                .await
+                .is_err()
+        );
+        let mut binding = op;
+        binding["taskRef"] = json!({"taskId":"late", "idempotencyKey":begun["intent"]["idempotencyKey"],
             "requestHash":begun["intent"]["requestHash"]});
-        assert!(call(&state, "courseware.mediaCanvas.image.bind", binding).await.is_err());
-        let mut next = prepare; next["intentId"] = json!("explicit-new-attempt");
-        let fresh = call(&state, "courseware.mediaCanvas.image.prepare", next).await.unwrap();
+        assert!(call(&state, "courseware.mediaCanvas.image.bind", binding)
+            .await
+            .is_err());
+        let mut next = prepare;
+        next["intentId"] = json!("explicit-new-attempt");
+        let fresh = call(&state, "courseware.mediaCanvas.image.prepare", next)
+            .await
+            .unwrap();
         assert_eq!(fresh["intent"]["phase"], "prepared");
-        assert_ne!(fresh["intent"]["idempotencyKey"], rejected["intent"]["idempotencyKey"]);
+        assert_ne!(
+            fresh["intent"]["idempotencyKey"],
+            rejected["intent"]["idempotencyKey"]
+        );
     }
 }

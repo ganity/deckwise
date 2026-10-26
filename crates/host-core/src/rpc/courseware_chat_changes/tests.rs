@@ -171,7 +171,7 @@ async fn intent_is_durable_before_dispatch_and_lost_ack_cannot_replay_after_rest
 }
 
 #[tokio::test]
-async fn same_turn_retains_native_success_and_failed_narration_without_mutating_teaching() {
+async fn same_turn_retains_native_failed_and_saved_narration_receipts() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().to_str().unwrap();
     let (state, session, args) = setup(dir.path());
@@ -191,10 +191,16 @@ async fn same_turn_retains_native_success_and_failed_narration_without_mutating_
             false,
             json!({"error":"fixture generation failure"}),
         ),
+        (
+            2,
+            "ppt_propose_page_narration",
+            true,
+            json!({"kind":"page-narration","saved":true,"applied":true}),
+        ),
     ] {
         let mut p = request(&session, &args, &format!("step-{index}"));
         p.tool_name = name.into();
-        if index == 1 {
+        if name == "ppt_propose_page_narration" {
             p.args = json!({"baseline":{"projectId":args["projectId"],"documentId":"chat-test"},"instruction":"Also change narration"});
         }
         let pending = tokio::spawn({
@@ -211,10 +217,11 @@ async fn same_turn_retains_native_success_and_failed_narration_without_mutating_
     assert_eq!(saved["project"], baseline);
     assert_eq!(saved["chatChanges"].as_array().unwrap().len(), 1);
     let ops = saved["chatChanges"][0]["operations"].as_array().unwrap();
-    assert_eq!(ops.len(), 2);
+    assert_eq!(ops.len(), 3);
     assert_eq!(ops[0]["outcome"]["state"], "acknowledged");
     assert_eq!(ops[0]["outcome"]["saved"], false);
     assert_eq!(ops[1]["outcome"]["state"], "uncertain");
+    assert_eq!(ops[2]["outcome"]["saved"], true);
     assert!(ops.iter().all(|op| op.get("args").is_none()));
 }
 

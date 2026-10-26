@@ -1,0 +1,13 @@
+{
+  "status": "PASS_TARGETED_EXPORT_CREDENTIAL_REGRESSIONS",
+  "command": "node --experimental-strip-types --test scripts/check-courseware-package-credentials.test.mjs",
+  "tests": 8,
+  "passed": 8,
+  "failed": 0,
+  "skipped": 0,
+  "sourceSha256": {
+    "scripts/check-courseware-package-credentials.mjs": "b49a391ce6e71dda2021a2f5717eb7ff11b01ed67dde65392c44e87f0a762daf",
+    "scripts/check-courseware-package-credentials.test.mjs": "2d5139c2793ba1d2541ad108db618c2469e800134457b3ea85c0e97dfbd87e0c",
+    "docs/validation/courseware/export-credentials-20261025/verify-exports.mjs": "78b121146c06fc9a87c19e28e819a23556bff8165f0134713a58668d39216bd2"
+  }
+}

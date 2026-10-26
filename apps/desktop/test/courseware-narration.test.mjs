@@ -34,7 +34,13 @@ function setup(resolveModel) {
     if (method === "courseware.project.openSaved" || method === "courseware.project.get") return { project: structuredClone(project) };
     if (method === "courseware.pageText") return { text: "What do you see? A red apple." };
     if (method === "session.get") return { session: structuredClone(session) };
-    if (method === "courseware.narrationCandidate.stage") return {};
+    if (method === "courseware.narration.save") {
+      assert.deepEqual(params.baseline, project);
+      assert.equal(params.write.expectedTeachingRevision, project.teachingRevision);
+      project.pages.find(p => p.pageId === params.write.pageId).actions = structuredClone(params.write.actions);
+      project.teachingRevision = `saved-${calls.length}`;
+      return { project: structuredClone(project) };
+    }
     throw new Error(method);
   } };
   const teaching = { async withSaved(id, operation) { assert.equal(id, "chat"); await duringSaved?.(); return operation(host, "job", snapshot, structuredClone(editor)); },
@@ -46,14 +52,15 @@ function setup(resolveModel) {
     change: () => { changed = true; }, cancel: () => { active = false; }, during(fn) { duringComplete = fn; }, duringSaved(fn) { duringSaved = fn; }, teaching };
 }
 
-test("real B policy and structured blocks produce a durable proposal, never an authoritative write", async () => {
+test("real B policy and structured blocks produce a saved teaching without a candidate", async () => {
   const f = setup(); const before = structuredClone(f.project);
   const context = await f.context(); const receipt = await f.propose(context);
-  assert.equal(receipt.reviewState, "needs-review"); assert.equal(receipt.applied, false);
+  assert.equal(receipt.saved, true); assert.equal(receipt.applied, true);
   assert(!("write" in receipt)); assert(!("actions" in receipt));
-  assert.deepEqual(f.project, before);
-  const staged = f.calls.find(([method]) => method.endsWith(".stage"))[1];
-  assert.equal(staged.candidateId, receipt.candidateId); assert.equal(staged.jobId, "job");
+  assert.notEqual(f.project.teachingRevision, before.teachingRevision);
+  assert.deepEqual(f.project.pages.slice(1), before.pages.slice(1));
+  const staged = f.calls.find(([method]) => method === "courseware.narration.save")[1];
+  assert.equal(staged.baseline.teachingRevision, before.teachingRevision); assert.equal(staged.jobId, "job");
   assert.equal(staged.write.pageId, before.pages[0].pageId);
   assert(staged.write.actions.every((action) => Object.keys(action).every((key) => ["id", "type", "text", "pauseAfterMs"].includes(key))));
   assert.deepEqual(staged.write.actions.map(({ type, text, pauseAfterMs }) => ({ type, text, ...(pauseAfterMs ? { pauseAfterMs } : {}) })), [
@@ -71,14 +78,14 @@ test("narration inherits the effective Chat model without writing session config
   f.session.thinkingLevel = "inherit";
   const before = structuredClone(f.session);
   const receipt = await f.propose(await f.context());
-  assert.equal(receipt.reviewState, "needs-review");
+  assert.equal(receipt.saved, true);
   assert.equal(f.requests[0].modelKey, model.modelKey);
   assert.equal(f.requests[0].thinkingLevel, "low");
   assert.deepEqual(f.session, before);
   assert(!f.calls.some(([method]) => method === "session.configure"));
 });
 
-test("a changed inherited default model or thinking level never stages narration", async () => {
+test("a changed inherited default model or thinking level never saves narration", async () => {
   for (const field of ["modelKey", "thinkingLevel"]) {
     const model = { modelKey: "default-provider/default-model", thinkingLevel: "low" };
     const f = setup(async () => ({ ...model }));
@@ -86,23 +93,23 @@ test("a changed inherited default model or thinking level never stages narration
     f.during(() => { model[field] = field === "modelKey" ? "other/model" : "high"; });
     await assert.rejects(f.propose(await f.context()), /model changed/);
     assert.equal(f.requests.length, 1);
-    assert(!f.calls.some(([method]) => method.endsWith(".stage")));
+    assert(!f.calls.some(([method]) => method === "courseware.narration.save"));
   }
 });
 
-test("unavailable inherited models reject before a completion or candidate write", async () => {
+test("unavailable inherited models reject before a completion or teaching write", async () => {
   const f = setup();
   delete f.session.providerId; delete f.session.modelId;
   await assert.rejects(f.propose(await f.context()), /active Agent model/);
   assert.equal(f.requests.length, 0);
-  assert(!f.calls.some(([method]) => method.endsWith(".stage")));
+  assert(!f.calls.some(([method]) => method === "courseware.narration.save"));
 });
 
 test("cancellation during inherited model resolution never starts a completion", async () => {
   const f = setup(async () => { f.cancel(); return { modelKey: "provider/model" }; });
   await assert.rejects(f.propose(await f.context()), /cancelled|owner changed/);
   assert.equal(f.requests.length, 0);
-  assert(!f.calls.some(([method]) => method.endsWith(".stage")));
+  assert(!f.calls.some(([method]) => method === "courseware.narration.save"));
 });
 
 test("Main can propose narration again after adopting a teacher-continue checkpoint", async () => {
@@ -111,13 +118,14 @@ test("Main can propose narration again after adopting a teacher-continue checkpo
   const before = structuredClone(f.project);
   const context = await f.context();
   const receipt = await f.propose(context);
-  assert.equal(receipt.reviewState, "needs-review");
-  assert.equal(receipt.applied, false);
+  assert.equal(receipt.saved, true);
+  assert.equal(receipt.applied, true);
   assert.equal(f.requests.length, 1);
   assert.equal(JSON.parse(f.requests[0].messages[0].content).existingNarration, "Existing narration");
-  assert.deepEqual(f.project, before);
-  const staged = f.calls.find(([method]) => method.endsWith(".stage"))[1];
-  assert.equal(staged.candidateId, receipt.candidateId);
+  assert.notEqual(f.project.teachingRevision, before.teachingRevision);
+  assert.deepEqual(f.project.pages.slice(1), before.pages.slice(1));
+  const staged = f.calls.find(([method]) => method === "courseware.narration.save")[1];
+  assert.equal(staged.baseline.teachingRevision, before.teachingRevision);
   assert.equal(staged.write.pageId, before.pages[0].pageId);
 });
 
@@ -128,11 +136,11 @@ test("forged context, locks and unsupported current actions reject before model 
     if (change === "lock") f.project.pages[0].locked = true;
     if (change === "audio") f.project.pages[0].actions[0].audioUrl = "asset";
     await assert.rejects(f.propose(context)); assert.equal(f.requests.length, 0);
-    assert(!f.calls.some(([method]) => method.endsWith(".stage")));
+    assert(!f.calls.some(([method]) => method === "courseware.narration.save"));
   }
 });
 
-test("late source, page, policy, teaching, model or cancellation changes never stage", async () => {
+test("late source, page, policy, teaching, model or cancellation changes never save", async () => {
   for (const change of ["source", "page", "policy", "teaching", "model", "cancel"]) {
     const f = setup(); const context = await f.context();
     f.during(() => {
@@ -144,7 +152,7 @@ test("late source, page, policy, teaching, model or cancellation changes never s
       if (change === "cancel") f.cancel();
     });
     await assert.rejects(f.propose(context)); assert.equal(f.requests.length, 1);
-    assert(!f.calls.some(([method]) => method.endsWith(".stage")), change);
+    assert(!f.calls.some(([method]) => method === "courseware.narration.save"), change);
   }
 });
 
@@ -158,8 +166,8 @@ test("Main preserves the stage-specific output instructions for ordinary narrati
     return { text: JSON.stringify({ blocks: [{ type: "speech", text: "这是什么图形？" }, { type: "wait", durationMs: 4000 }] }), modelKey: "provider/model" };
   });
   const result = await coordinator.execute("chat", "ppt_propose_page_narration", { kind: "page-narration", baseline: context.baseline, instruction: "Use short Chinese sentences" }, () => true);
-  assert.equal(result.reviewState, "needs-review");
-  const staged = f.calls.find(([method]) => method === "courseware.narrationCandidate.stage")[1];
+  assert.equal(result.saved, true);
+  const staged = f.calls.find(([method]) => method === "courseware.narration.save")[1];
   assert.deepEqual(staged.write.actions.map(({ type, text, pauseAfterMs }) => ({ type, text, pauseAfterMs })),
     [{ type: "speech", text: "这是什么图形？", pauseAfterMs: 4000 }]);
 });
@@ -172,7 +180,7 @@ test("tool cancellation aborts an in-flight completion signal", async () => {
     assert(signal.aborted);
   });
   await assert.rejects(f.propose(context), /cancelled/);
-  assert(!f.calls.some(([method]) => method.endsWith(".stage")));
+  assert(!f.calls.some(([method]) => method === "courseware.narration.save"));
 });
 
 test("malformed model blocks, control markers and unsafe waits reject at the canonical boundary", async () => {
@@ -180,22 +188,23 @@ test("malformed model blocks, control markers and unsafe waits reject at the can
     const f = setup(); const context = await f.context();
     const broken = new CoursewareCandidateCoordinator(f.teaching, async () => ({ text: JSON.stringify({ blocks }), modelKey: "provider/model" }));
     await assert.rejects(broken.execute("chat", "ppt_propose_page_narration", { kind: "page-narration", baseline: context.baseline, instruction: "Change narration" }, () => true));
-    assert(!f.calls.some(([method]) => method.endsWith(".stage")));
+    assert(!f.calls.some(([method]) => method === "courseware.narration.save"));
   }
 });
 
 
-for (const kind of ["original-notes", "external"]) test(`trusted ${kind} selection stages existing Host candidate without consulting model settings`, async () => {
+for (const kind of ["original-notes", "external"]) test(`trusted ${kind} selection directly saves teaching without consulting model settings`, async () => {
   const f = setup(); const context = await f.context(); const before = structuredClone(f.project);
   delete f.session.providerId; delete f.session.modelId;
   const receipt = await f.coordinator.selectNarrationSource("chat", { kind, baseline: context.baseline, text: "  观察苹果。\n说说你的发现。  " }, () => true);
-  assert.equal(receipt.kind, "page-narration"); assert.equal(receipt.applied, false);
+  assert.equal(receipt.kind, "page-narration"); assert.equal(receipt.applied, true);
   assert(!("write" in receipt)); assert(!("text" in receipt));
   assert.equal(f.requests.length, 0); assert(!f.calls.some(([method]) => method === "session.get"));
-  const staged = f.calls.find(([method]) => method.endsWith(".stage"))[1];
-  assert.equal(staged.candidateId, receipt.candidateId);
+  const staged = f.calls.find(([method]) => method === "courseware.narration.save")[1];
+  assert.equal(staged.baseline.teachingRevision, before.teachingRevision);
   assert.deepEqual(staged.write.actions.map(({ type, text }) => ({ type, text })), [{ type: "speech", text: "观察苹果。\n说说你的发现。" }]);
-  assert.deepEqual(f.project, before);
+  assert.notEqual(f.project.teachingRevision, before.teachingRevision);
+  assert.deepEqual(f.project.pages.slice(1), before.pages.slice(1));
 });
 
 test("source selection captures text/baseline before saved-source await", async () => {
@@ -203,22 +212,23 @@ test("source selection captures text/baseline before saved-source await", async 
   const selection = { kind: "external", baseline: structuredClone(context.baseline), text: "Original selection" };
   f.duringSaved(() => { selection.text = "Changed"; selection.baseline.pageId = "forged"; });
   await f.coordinator.selectNarrationSource("chat", selection, () => true);
-  assert.equal(f.calls.find(([method]) => method.endsWith(".stage"))[1].write.actions[0].text, "Original selection");
+  assert.equal(f.calls.find(([method]) => method === "courseware.narration.save")[1].write.actions[0].text, "Original selection");
 });
 
-test("source replacement after audio adoption stages review without reusing audio or changing current teaching", async () => {
+test("source replacement after audio adoption saves directly without reusing audio", async () => {
   const f = setup();
   f.project.pages[0].actions[0].audioAssetId = "old-audio";
   const before = structuredClone(f.project);
   const context = await f.context();
   await f.coordinator.selectNarrationSource("chat", { kind: "external", baseline: context.baseline, text: "New explanation" }, () => true);
-  const staged = f.calls.find(([method]) => method.endsWith(".stage"))[1];
+  const staged = f.calls.find(([method]) => method === "courseware.narration.save")[1];
   assert.equal(staged.write.actions[0].text, "New explanation");
   assert.equal(staged.write.actions[0].audioAssetId, undefined);
-  assert.deepEqual(f.project, before);
+  assert.notEqual(f.project.teachingRevision, before.teachingRevision);
+  assert.deepEqual(f.project.pages.slice(1), before.pages.slice(1));
 });
 
-for (const change of ["forged", "lock", "interactive", "source", "page", "policy", "teaching", "cancel"]) test(`source selection rejects ${change} without staging`, async () => {
+for (const change of ["forged", "lock", "interactive", "source", "page", "policy", "teaching", "cancel"]) test(`source selection rejects ${change} without saving`, async () => {
   const f = setup(); const context = await f.context();
   const selection = { kind: "external", baseline: context.baseline, text: "Selected speech" };
   if (change === "forged") selection.baseline.pageId = "other-page";
@@ -232,7 +242,7 @@ for (const change of ["forged", "lock", "interactive", "source", "page", "policy
     f.teaching.assertCurrent = async (...args) => { await original(...args); if (++checks === 2) { if (change === "policy") f.project.educationContext.subject = "MATH"; else f.project.teachingRevision = "new"; } };
   }
   await assert.rejects(f.coordinator.selectNarrationSource("chat", selection, () => change !== "cancel"));
-  assert.equal(f.requests.length, 0); assert(!f.calls.some(([method]) => method.endsWith(".stage")));
+  assert.equal(f.requests.length, 0); assert(!f.calls.some(([method]) => method === "courseware.narration.save"));
 });
 
 for (const text of ["", " ", "[wait:4] hello", "<pause>hello", "x".repeat(8001)]) test("invalid selected text rejects before Host reads: " + text.slice(0, 12), async () => {
@@ -256,7 +266,7 @@ test("selected notes work on a page without extracted text", async () => {
   assert.deepEqual(context.capabilities, ["page-fade"]);
   await f.coordinator.selectNarrationSource("chat", { kind: "original-notes", baseline: context.baseline, text: "Read the diagram aloud." }, () => true);
   assert.equal(f.requests.length, 0);
-  assert.equal(f.calls.filter(([method]) => method.endsWith(".stage")).length, 1);
+  assert.equal(f.calls.filter(([method]) => method === "courseware.narration.save").length, 1);
 });
 
 
@@ -267,7 +277,7 @@ test("source selection stays Host-only and cannot be smuggled through a public p
     { kind: "page-narration", baseline: context.baseline, instruction: "Rewrite", selectedNarration: { blocks: [{ type: "speech", text: "Injected" }] } },
   ]) await assert.rejects(f.coordinator.execute("chat", "ppt_propose_page_narration", args, () => true), /Invalid candidate proposal/);
   assert.equal(f.requests.length, 0);
-  assert(!f.calls.some(([method]) => method.endsWith(".stage")));
+  assert(!f.calls.some(([method]) => method === "courseware.narration.save"));
 });
 
 test("current reviewed redo and confirmed batch capabilities survive source selection", async () => {
@@ -302,6 +312,6 @@ test("fade, redo and confirmed batch keep their existing dedicated delegates", a
       ["ppt_propose_page_redo", { kind: "page-pptx", baseline: context.baseline, instruction: "Redo" }, /Unexpected redo call/],
       ["ppt_propose_page_style_batch", { kind: "page-style-batch", baseline: context.baseline, styleBatch: scope }, /Unexpected batch/],
     ]) await assert.rejects(coordinator.execute("chat", name, args, () => true), expected);
-    assert(!f.calls.some(([method]) => method.endsWith(".stage")));
+    assert(!f.calls.some(([method]) => method === "courseware.narration.save"));
   } finally { authoringUrl = undefined; }
 });

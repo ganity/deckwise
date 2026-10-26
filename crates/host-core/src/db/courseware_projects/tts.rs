@@ -127,7 +127,11 @@ impl Intent {
     fn validate(&self) -> Result<()> {
         self.selection.validate()?;
         anyhow::ensure!(
-            self.phase != Phase::Rejected || self.submission_scope.as_ref().is_some_and(|scope| scope.team_project_id.is_some()),
+            self.phase != Phase::Rejected
+                || self
+                    .submission_scope
+                    .as_ref()
+                    .is_some_and(|scope| scope.team_project_id.is_some()),
             "COURSEWARE_INVALID: rejected request has no team scope"
         );
         anyhow::ensure!(
@@ -143,9 +147,9 @@ impl Intent {
             "COURSEWARE_INVALID: invalid stored TTS intent"
         );
         anyhow::ensure!(
-            self.submission_scope.as_ref().is_none_or(|scope| {
-                scope.valid() && self.phase != Phase::Prepared
-            }),
+            self.submission_scope
+                .as_ref()
+                .is_none_or(|scope| { scope.valid() && self.phase != Phase::Prepared }),
             "COURSEWARE_INVALID: invalid stored TTS submission scope"
         );
         if let Some(task) = &self.task_ref {
@@ -425,16 +429,24 @@ impl Database {
     }
 
     pub fn reject_courseware_tts(
-        &self, workspace: &str, project_id: &str, principal_key: &str,
-        intent_id: &str, rejected: RejectedRequest,
+        &self,
+        workspace: &str,
+        project_id: &str,
+        principal_key: &str,
+        intent_id: &str,
+        rejected: RejectedRequest,
     ) -> Result<Value> {
         let tx = self.conn.unchecked_transaction()?;
         let mut intent = self.tts_intent(workspace, project_id, principal_key, intent_id)?;
         anyhow::ensure!(
-            intent.phase == Phase::SubmissionUnknown && intent.task_ref.is_none()
+            intent.phase == Phase::SubmissionUnknown
+                && intent.task_ref.is_none()
                 && intent.idempotency_key == rejected.idempotency_key
                 && intent.request_hash == rejected.request_hash
-                && intent.submission_scope.as_ref().is_some_and(|scope| scope.team_project_id.is_some()),
+                && intent
+                    .submission_scope
+                    .as_ref()
+                    .is_some_and(|scope| scope.team_project_id.is_some()),
             "COURSEWARE_CONFLICT: no matching unbound team submission"
         );
         intent.phase = Phase::Rejected;

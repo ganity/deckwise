@@ -1,0 +1,23 @@
+{
+  "status": "PASS_APPIMAGE_LAUNCH_AND_PAYLOAD",
+  "executablePath": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop/release/repository-gates-20261025/DeckWise-0.17.7.AppImage",
+  "paidCalls": false,
+  "scope": "AppImage launcher, packaged Main UI and five runtime payload hashes",
+  "sandbox": "--no-sandbox",
+  "temporaryData": "/tmp/deckwise-appimage-smoke-slmkhv",
+  "runtime": {
+    "packaged": true,
+    "appPath": "/tmp/appimage_extracted_7360b854346dc62a4c7c5d1893c33eb4/resources/app.asar",
+    "mainPid": 3472392,
+    "resourcesPath": "/tmp/appimage_extracted_7360b854346dc62a4c7c5d1893c33eb4/resources",
+    "executablePath": "/tmp/appimage_extracted_7360b854346dc62a4c7c5d1893c33eb4/deckwise",
+    "hashes": {
+      "app.asar": "10468811a9fcf77976590924282a1c0ff0fa6c265af21db660d252969567f63a",
+      "bin/pi-desktop-host-core": "15d27f22650797e52893604c8d7f197367e71a8d09f466736af1a3d5445380b6",
+      "agent-runtime/sidecar.js": "67ca21e676ce19d1dddb58368bf15bef187e203c7b4df9f828d3df3bc81c767c",
+      "pptx-worker/pptx-worker.mjs": "9df334e62bd535bc3663c3b28a9082b4a5c0ab59fbf730f0ccdcf9856b1ba3f3",
+      "pptx-worker/authoring.mjs": "586ba532f841b0c59c1fdaebecc230bb1f31fec9118626556ff6927dfd10637c"
+    }
+  },
+  "cleanup": "Disposable AppImage exited"
+}

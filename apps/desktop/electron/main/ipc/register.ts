@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import type { BrowserWindow, IpcMain, IpcMainInvokeEvent } from "electron";
-import { err, ErrorCodes, IPC, ok, type Result } from "@pi-desktop/shared";
+import { err, ErrorCodes, IPC, ok, type Result, type HostStatusEvent } from "@pi-desktop/shared";
 import type { AgentHostBridge } from "../agent-host-bridge";
 import type { AgentSidecar } from "../agent-sidecar";
 import type { HostProcess } from "../host-process";
@@ -22,6 +22,7 @@ import { registerCoursewareSceneImageIpc } from "./courseware-scene-image-ipc";
 import { registerCoursewareMediaCanvasIpc } from "./courseware-media-canvas-ipc";
 import { registerCoursewareCanvasImageIpc } from "./courseware-canvas-image-ipc";
 import type { CoursewareMediaCanvasCoordinator } from "../courseware-media-canvas";
+import { CoursewareSavedNarration } from "../courseware-saved-narration";
 import { CoursewareChatWorkflow } from "../courseware-chat-workflow";
 import { registerSettingsIpc } from "./settings-ipc";
 import { registerSkillsIpc } from "./skills-ipc";
@@ -43,6 +44,7 @@ export type RegisterIpcDependencies = {
   ipcMain: IpcMain;
   getMainWindow: () => BrowserWindow | null;
   getHost: () => HostProcess | null;
+  getHostStatus: () => HostStatusEvent | null;
   getSidecar: () => AgentSidecar | null;
   getAgentHostBridge: () => AgentHostBridge | null;
   authSession: DesktopAuthSession;
@@ -220,6 +222,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
   registerAppIpc({
     registrar,
     getHost,
+    getHostStatus: dependencies.getHostStatus,
     getPluginLauncherWindow,
     togglePluginLauncher,
     safeOpenExternal,
@@ -240,6 +243,9 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
   registerCoursewareSceneImageIpc({ registrar, getHost, getViewingSessionId: getNotificationViewingSessionId,
     activeTurns, authSession, generation: dependencies.sceneGeneration });
   const coursewareWorkflow = new CoursewareChatWorkflow(getHost, getNotificationViewingSessionId, authSession, dependencies.sceneGeneration);
+  const savedNarration = new CoursewareSavedNarration(getHost, getNotificationViewingSessionId,
+    dependencies.completeNarration, dependencies.sceneGeneration?.resolveModel, dependencies.completeScene);
+  coursewareWorkflow.narration = savedNarration;
   dependencies.onCoursewareWorkflowReady?.(coursewareWorkflow);
   registrar.handleWithEvent(IPC.invoke.coursewareWorkflowGet, async (event, value: unknown, ...extra: unknown[]) => {
     registrar.assertMainWindowSender(event);
@@ -339,6 +345,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
   cancelCoursewarePlayback = registerCoursewarePlaybackIpc({ registrar, getMainWindow, getHost,
     getWorkspaceRoot: optionalWorkspaceRoot, getViewingSessionId: getNotificationViewingSessionId, dataDir, authSession });
   registerPptEditorIpc({
+    savedNarration,
     registrar,
     activeTurns,
     authSession,

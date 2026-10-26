@@ -5,6 +5,7 @@ import { readdir, readlink, realpath, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { Readable } from "node:stream";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const require = createRequire(join(root, "apps/desktop/package.json"));
@@ -35,6 +36,47 @@ export function contentCategories(bytes) {
   const found = signatures.filter(([, expression]) => expression.test(text)).map(([category]) => category);
   if (bytes.subarray(0, 16).equals(Buffer.from("SQLite format 3\0"))) found.push("sqlite-content");
   return found;
+}
+
+export async function scanPptxExport(bytes, name) {
+  const report = { path: name, sha256: digest(bytes), passed: false, files: [], findings: [],
+    limits: ["Known credential signatures only; arbitrary or obfuscated values require content review.",
+      "Nested archives inside embedded objects are scanned as bytes, not recursively decoded."] };
+  const fail = (path, category) => { report.findings.push({ path, category, blocking: true }); return report; };
+  if (bytes.length > 256 * 1024 * 1024) return fail(name, "archive-size-limit");
+  const JSZip = createRequire(join(root, "packages/courseware-runtime/package.json"))("jszip");
+  let zip;
+  try { zip = await JSZip.loadAsync(bytes); } catch { return fail(name, "invalid-pptx-archive"); }
+  const entries = Object.values(zip.files);
+  if (entries.length > 4096) return fail(name, "archive-entry-limit");
+  if (!zip.file("[Content_Types].xml") || !zip.file("ppt/presentation.xml")) return fail(name, "invalid-pptx-archive");
+  let totalBytes = 0;
+  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+    const original = (entry.unsafeOriginalName ?? entry.name).replaceAll("\\", "/");
+    const path = `${name}!/${normalize(entry.name)}`;
+    if (original.startsWith("/") || /^[A-Za-z]:/u.test(original) || /(^|\/)\.\.(\/|$)/u.test(original))
+      return fail(path, "archive-path-escape");
+    if ((Number(entry.unixPermissions) & 0o170000) === 0o120000) return fail(path, "archive-link");
+    const category = pathCategory(entry.name);
+    if (category) fail(path, category);
+    if (entry.dir) continue;
+    const categories = new Set(), hash = createHash("sha256");
+    let size = 0, overlap = Buffer.alloc(0);
+    try {
+      for await (const chunk of new Readable().wrap(entry.nodeStream())) {
+        size += chunk.length; totalBytes += chunk.length;
+        if (size > 64 * 1024 * 1024 || totalBytes > 256 * 1024 * 1024) return fail(path, "archive-size-limit");
+        hash.update(chunk);
+        const window = Buffer.concat([overlap, chunk]);
+        for (const value of contentCategories(window)) categories.add(value);
+        overlap = window.subarray(Math.max(0, window.length - 16384));
+      }
+    } catch { return fail(path, "invalid-pptx-member"); }
+    report.files.push({ path, bytes: size, sha256: hash.digest("hex") });
+    for (const value of categories) fail(path, value);
+  }
+  report.passed = report.findings.length === 0;
+  return report;
 }
 
 export async function scanPackage(resources) {
@@ -101,9 +143,15 @@ export async function checkFixedBuild(directory) {
   const members = [{ path: "manifest.json", bytes: upload.manifestBytes }, ...upload.files];
   const findings = members.flatMap(({ path, bytes }) => [...new Set([pathCategory(path), ...contentCategories(Buffer.from(bytes))].filter(Boolean))]
     .map((category) => ({ path, category, blocking: true })));
+  const pptxExports = [];
+  for (const { path, bytes } of members.filter(({ path }) => path.toLowerCase().endsWith(".pptx"))) {
+    const inspected = await scanPptxExport(Buffer.from(bytes), path);
+    pptxExports.push(inspected);
+    findings.push(...inspected.findings);
+  }
   return { directory, passed: findings.length === 0, buildId: manifest.buildId, manifestSha256: upload.manifestHash,
-    files: members.map(({ path, bytes }) => ({ path, bytes: bytes.length, sha256: digest(bytes) })), findings,
-    limit: "The allowlist prevents attaching arbitrary local files. User-authored slide/notes/media content and PPTX embedded parts require a separate content review." };
+    files: members.map(({ path, bytes }) => ({ path, bytes: bytes.length, sha256: digest(bytes) })), findings, pptxExports,
+    limit: "The allowlist prevents attaching arbitrary local files. PPTX members are decompressed and scanned for known signatures; nested embedded archives and arbitrary user-authored content still require review." };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

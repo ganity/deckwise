@@ -1,0 +1,32 @@
+{
+  "status": "PASS",
+  "scope": "Source main Chat page-visual preparation and explicit review; not packaged/live-provider acceptance",
+  "head": "f9600d6293f2995bf72b77243b1723117c803e8c",
+  "workingTree": "uncommitted; prior changes retained",
+  "checks": {
+    "targetedTests": {
+      "passed": 82,
+      "failed": 0,
+      "log": "tests.txt"
+    },
+    "reactDom": {
+      "passed": 7,
+      "report": "dom-guarded/report.json"
+    },
+    "desktopTypecheck": "PASS",
+    "desktopBuild": "PASS with bundler chunk/import warnings",
+    "configuredLint": "PASS",
+    "architecture": "PASS",
+    "diffCheck": "PASS"
+  },
+  "paidCalls": false,
+  "newInstaller": false,
+  "sourceSha256": {
+    "apps/desktop/src/components/courseware/CoursewareChatWorkflow.tsx": "c28dc02c8f1b506aedf52530eb863ecc85d6b06ba6b0a4220c1e31f761e9ed2e",
+    "apps/desktop/src/components/workpanel/CoursewareSourceVisuals.tsx": "18d3113e67cd8a8689a3d21bd2ea31c18ac81c9e0791194faaa481a34f30140a",
+    "apps/desktop/src/components/workpanel/CoursewareTeachingPanel.tsx": "d0de77acc0706c1c787c58f92e68be55a05f2b088b213585e66d146fa70e363b",
+    "apps/desktop/resources/skills/ppt-edit/SKILL.md": "98d9fdee217a9037e39150c945a54df4f5237230dc47ddaedfc7ff838ca00621",
+    "apps/desktop/test/courseware-chat-workflow-ui.test.mjs": "a393e17cc8f83e9e7ca0349818c9845271773e5e6bc1c07fef06e3eb000fcd43",
+    "scripts/e2e-courseware-chat-pptx-review.mjs": "f1890189b6cb5df1e4984ecf375562f30e0e5317bbac7ec82deda6052921c48a"
+  }
+}

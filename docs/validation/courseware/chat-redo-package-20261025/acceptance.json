@@ -1,0 +1,48 @@
+{
+  "status": "PASS_SCOPED_PACKAGED_MAIN_CHAT_REDO_TRIAL",
+  "checkedAt": "2026-10-25T00:14:43.743935+00:00",
+  "branch": "feat/courseware-par-A",
+  "headCommit": "f9600d6293f2995bf72b77243b1723117c803e8c",
+  "knownOriginMain": "58a9c4f57203c93da3f590e426b42ebba1072fb6",
+  "remoteRefRefreshedThisRound": false,
+  "uncommittedProductChanges": true,
+  "sourceInputs": 1125,
+  "sourceInventorySha256": "14cf7400aa85045f38f04f0f086b10f6cf86db2c36256477650a1b80a78f1839",
+  "sourceInventoryUnchangedThroughPackageGates": true,
+  "appImage": {
+    "path": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop/release/chat-redo-20261025/DeckWise-0.17.7.AppImage",
+    "resolvedPath": "/mnt/docker-disk/deckwise-delivery/chat-redo-20261025/release/DeckWise-0.17.7.AppImage",
+    "bytes": 340991166,
+    "sha256": "3b1bb4b62f69447a0276d6840fab1efcdefcbfbb6d62d861a3b5caae982f4154",
+    "previousAppImageUnchanged": true,
+    "scope": "Local Linux x64 AppImage; not signed/published/deployed"
+  },
+  "packagedElectronScenarios": 21,
+  "packagedHostUpgradeChecks": 5,
+  "appImageLauncherAndPayloadSmoke": true,
+  "packageCredentialScan": true,
+  "matchingOfficeFiles": 2893,
+  "paidCalls": false,
+  "externalServices": "Loopback identity/model/media fixtures; real separate matching WiseOffice",
+  "reportSha256": {
+    "chat-e2e/report.json": "9ebcf68f3266834236781d207df849ec2616be1da86202fdfb17b8cd8e740101",
+    "appimage-smoke.json": "888b7d249406466a30d367c8b55238d263b517f9fd497ea520d432db79867366",
+    "host-upgrade/report.json": "54e87ebe0161adcbe3654c81de334940c058e8be4850cf008961491e6c5c4038",
+    "package-check.json": "c0cbee1a6a96dbe12692a3c9236c9df9b4a8a9709beaf26a1aaccc6cf1480ea9",
+    "package-credentials.json": "34507b0165c102f4b181eea42187fb170930598a8d2be4ad47108eca9097d3b1",
+    "office-check.json": "e8391817af37a5e1f15a9cac494cd4cd5bc0d3a2e95d2a7d03f0022c0d4c730a",
+    "artifact-identity.json": "b51210f6c23e088203aa954f4349a3575e82f7eea2d11174aa466ef5e06839d4",
+    "source-before.json": "5bbd399116f38641e46e62437d87048937b15f78dd86d71ea478ef8860ef17c5",
+    "source-after.json": "5bbd399116f38641e46e62437d87048937b15f78dd86d71ea478ef8860ef17c5",
+    "built-inputs.json": "f849b8687cd7b6b706ea2d9ec2d84398a19bba9a157a14856b27f900e67ade65",
+    "prior-runtime-comparison.json": "05ba06033e3eacd0541c64f5dfe6ecf65fea03c473bd4f386e8c06a71d27f9a5"
+  },
+  "notAccepted": [
+    "Normal teacher identity and intended deployed services",
+    "Representative real scene and voice quality",
+    "Approved managed text budget/settlement policy",
+    "PR/main integration, signing, updates and formal release",
+    "Windows/macOS, normal sandbox and physical power loss",
+    "Deferred team collaboration and virtual classroom"
+  ]
+}

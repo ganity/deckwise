@@ -187,7 +187,16 @@ fn revoice_preserves_cues_but_requires_fresh_page_review_before_snapshot() {
         identity: Some(identity),
     };
     let initial = db.open_identified_courseware_project(root, &seed).unwrap();
-    let speech = vec![json!({"id":"narration-0","type":"speech","text":"Look at the square."})];
+    let focus_id = db
+        .courseware_project_context(root, &initial.project_id)
+        .unwrap()["mapping"]["pages"][0]["objects"][0]["objectId"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let speech = vec![
+        json!({"id":"narration-0","type":"speech","text":"Look at the square.",
+        "attention":{"type":"highlight","objectIds":[focus_id]}}),
+    ];
     let mut p = write(&db, root, &initial, speech);
     let receipt = |p: &CoursewareProject, name: &str, digest: char| {
         let selection = Selection {
@@ -202,8 +211,14 @@ fn revoice_preserves_cues_but_requires_fresh_page_review_before_snapshot() {
             voice: None,
         };
         let prepared = db.prepare_courseware_tts(root, selection.clone()).unwrap();
-        db.begin_courseware_tts(root, &p.project_id, &selection.principal_key, name, "test-session")
-            .unwrap();
+        db.begin_courseware_tts(
+            root,
+            &p.project_id,
+            &selection.principal_key,
+            name,
+            "test-session",
+        )
+        .unwrap();
         let task = TaskRef {
             task_id: format!("task-{name}"),
             idempotency_key: prepared["intent"]["idempotencyKey"]
@@ -231,7 +246,16 @@ fn revoice_preserves_cues_but_requires_fresh_page_review_before_snapshot() {
         (selection, audio)
     };
     let (old_intent, old_audio) = receipt(&p, "old", 'b');
+    assert!(p.pages[0].actions[0].get("visualCues").is_none());
     p = adopt(&db, root, &old_intent, &p.teaching_revision, None).unwrap();
+    assert!(p.pages[0].actions[0].get("attention").is_none());
+    assert_eq!(
+        p.pages[0].actions[0]["visualCues"],
+        json!([
+            {"id":"focus-narration-0","atMs":0,"endMs":old_audio.duration_ms,
+             "effect":{"type":"highlight","elementIds":[focus_id]}}
+        ])
+    );
     let cues = json!([
         {"id":"old-highlight","atMs":100,"endMs":300,"effect":{"type":"highlight","elementIds":["square"]}},
         {"id":"old-spotlight","atMs":400,"endMs":800,"effect":{"type":"spotlight","elementId":"square"}}

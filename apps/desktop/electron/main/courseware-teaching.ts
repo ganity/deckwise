@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { objectsForTeaching } from "./courseware-scene-object-view";
-import { isCoursewareTeachingDraft, isCoursewareTeachingHistory, isCoursewareAttentionCue, sourceChangeForTeaching, chatChangesForTeaching, type CoursewareTeachingHistory } from "@pi-desktop/shared";
+import { isCoursewareTeachingDraft, isCoursewareTeachingHistory, isCoursewareAttentionCue, isCoursewareAttentionIntent, sourceChangeForTeaching, chatChangesForTeaching, type CoursewareTeachingHistory } from "@pi-desktop/shared";
 import { setTimeout as delay } from "node:timers/promises";
 import { isCoursewareProject, isCoursewareSnapshot, isTeachingWrite, samePptEditorBinding, type CoursewareTeachingDraft, type CoursewareSnapshot, type CoursewareTeachingView, type CoursewareNarrationReview, type CoursewarePptxCandidateReview, type CoursewareSourceReview, type PptEditorBinding, type PptEditorContext } from "@pi-desktop/shared";
 
@@ -19,6 +19,10 @@ type SnapshotAsset = { asset: { id: string; sha256: string; mimeType: string } }
 function sourceEffectTargets(review: Pick<CoursewareSourceReview, "project" | "pageCount" | "effectTargets" | "targetPages">, pageIds?: string[]): Set<string> {
   const expected = new Set<string>();
   for (const page of review.project.pages.filter(page => !pageIds || pageIds.includes(page.pageId))) for (const action of page.actions) {
+    if (action.attention !== undefined) {
+      if (action.type !== "speech" || !isCoursewareAttentionIntent(action.attention)) throw new Error("Unsupported speech attention");
+      for (const objectId of action.attention.objectIds) expected.add(JSON.stringify([page.pageId, objectId]));
+    }
     if (action.visualCues === undefined) continue;
     if (action.type !== "speech" || !Array.isArray(action.visualCues) || action.visualCues.length > 200)
       throw new Error("Unsupported source-review effect cues");

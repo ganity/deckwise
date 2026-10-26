@@ -312,3 +312,11 @@ Each ADR includes:
 | 0283 | [Use a bounded main-process bridge for native SVG editing](0283-bounded-main-process-bridge-for-native-svg-editing.md) | Accepted |
 | turn-process-and-thinking-display | [Turn process and thinking presentation](turn-process-and-thinking-display.md) | Accepted |
 | host-owned-courseware-projects | [Host-owned courseware projects and teaching records](host-owned-courseware-projects.md) | Accepted for courseware implementation |
+| provider-system-certificates | [Desktop sidecar uses the operating system trusted certificates](provider-system-certificates.md) | Accepted |
+| 0285 | [ADR 0285: `RACP-WS` transport in `packages/racp`](0285-racp-ws-transport.md) | Historical upstream context |
+| 0304 | [ADR 0304: Trust the network endpoints the user enters themselves](0304-user-supplied-endpoint-trust.md) | Historical upstream context |
+| 0284 | [ADR 0284: Headless runtime boundary in `packages/host-runtime`](0284-headless-runtime-boundary.md) | Historical upstream context |
+| 0300 | [ADR 0300: Host-owned encrypted portable configuration sync](0300-host-owned-encrypted-portable-configuration-sync.md) | Historical upstream context |
+| 0301 | [ADR 0301: Explicit append-only WebDAV compatibility mode](0301-explicit-append-only-webdav-compatibility-mode.md) | Historical upstream context |
+| playback-presentation-events | [Fixed playback presentation observers](playback-presentation-events.md) | Accepted for the independent player module |
+| 0305 | [Saved-page narration independent of Office preview](0305-saved-page-narration.md) | Accepted for courseware narration |

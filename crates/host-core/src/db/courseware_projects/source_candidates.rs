@@ -210,7 +210,8 @@ impl Database {
             serde_json::to_value(&current)? == serde_json::to_value(&candidate.baseline)?
                 && self.courseware_mapping_revision(workspace, &current)?
                     == candidate.mapping_revision
-                && self.courseware_asset_locks(workspace, &current.project_id)? == candidate.asset_locks
+                && self.courseware_asset_locks(workspace, &current.project_id)?
+                    == candidate.asset_locks
                 && self.batch_representative_current(workspace, candidate)?,
         )
     }
@@ -286,7 +287,11 @@ impl Database {
             !page.locked,
             "COURSEWARE_LOCKED: candidate target is locked"
         );
-        let targets: Vec<&str> = request.style_batch.as_ref().map(|batch|batch.page_ids.iter().map(String::as_str).collect()).unwrap_or_else(||vec![request.page_id.as_str()]);
+        let targets: Vec<&str> = request
+            .style_batch
+            .as_ref()
+            .map(|batch| batch.page_ids.iter().map(String::as_str).collect())
+            .unwrap_or_else(|| vec![request.page_id.as_str()]);
         let asset_locks = self.candidate_asset_locks(workspace, &baseline, &targets)?;
         let candidate = Candidate {
             request,
@@ -371,12 +376,27 @@ impl Database {
             Option<StyleBatchEvidence>,
         ),
     ) -> Result<Value> {
-        self.stage_source_candidate_with_locked_proofs(workspace, project_id, candidate_id, output, evidence, vec![])
+        self.stage_source_candidate_with_locked_proofs(
+            workspace,
+            project_id,
+            candidate_id,
+            output,
+            evidence,
+            vec![],
+        )
     }
 
     pub fn stage_source_candidate_with_locked_proofs(
-        &self, workspace: &str, project_id: &str, candidate_id: &str, output: ParsedOutput,
-        evidence: (Option<FadeEvidence>, Option<RedoEvidence>, Option<StyleBatchEvidence>),
+        &self,
+        workspace: &str,
+        project_id: &str,
+        candidate_id: &str,
+        output: ParsedOutput,
+        evidence: (
+            Option<FadeEvidence>,
+            Option<RedoEvidence>,
+            Option<StyleBatchEvidence>,
+        ),
         preserved_images: Vec<super::asset_locks::PreservedImage>,
     ) -> Result<Value> {
         let (fade_evidence, redo_evidence, batch_evidence) = evidence;
@@ -413,12 +433,22 @@ impl Database {
                     vec![]
                 },
             )?;
-            super::asset_locks::verify_preserved_images(&saved, output.identity.as_ref().unwrap(),
-                &if redo_evidence.is_some() || batch_evidence.is_some() { candidate.target_page_ids() } else { vec![] },
-                &candidate.asset_locks, &preserved_images)?;
+            super::asset_locks::verify_preserved_images(
+                &saved,
+                output.identity.as_ref().unwrap(),
+                &if redo_evidence.is_some() || batch_evidence.is_some() {
+                    candidate.target_page_ids()
+                } else {
+                    vec![]
+                },
+                &candidate.asset_locks,
+                &preserved_images,
+            )?;
         }
-        anyhow::ensure!(candidate.preserved_images.is_empty() || candidate.preserved_images==preserved_images,
-            "COURSEWARE_CONFLICT: locked-image evidence differs");
+        anyhow::ensure!(
+            candidate.preserved_images.is_empty() || candidate.preserved_images == preserved_images,
+            "COURSEWARE_CONFLICT: locked-image evidence differs"
+        );
         candidate.preserved_images = preserved_images;
         if let Some(previous) = &candidate.output {
             anyhow::ensure!(

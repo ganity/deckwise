@@ -1,0 +1,35 @@
+{
+  "status": "PASS_LOCAL_FIXTURE_TRIAL",
+  "checkedAt": "2026-10-24T21:12:19.751169+00:00",
+  "branch": "feat/courseware-par-A",
+  "headCommit": "f9600d6293f2995bf72b77243b1723117c803e8c",
+  "knownOriginMain": "58a9c4f57203c93da3f590e426b42ebba1072fb6",
+  "remoteRefRefreshedThisRound": false,
+  "uncommittedProductChanges": true,
+  "sourceInputs": 1179,
+  "sourceInventoryAggregateSha256": "29d3da7e861d3172855852d30ae6e6e2fe9d40d1e4df00e55ff75bd34fa2aee3",
+  "sourceUnchangedThroughValidation": true,
+  "appImage": {
+    "path": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop/release/chat-pptx-review-20261025/DeckWise-0.17.7.AppImage",
+    "bytes": 340987223,
+    "sha256": "1ae9725ae35dac79a3376c85acebf4b1ee02fadce8bb48aea173fa22a569aa36"
+  },
+  "sourceElectronScenarios": 17,
+  "packagedElectronScenarios": 17,
+  "paidCalls": false,
+  "externalServices": "Loopback identity/model/media fixtures; real separate pinned WiseOffice",
+  "reportSha256": {
+    "e2e/report.json": "adb9dc196e677e12f7f3608caffc36edfc2ba9cdf8caf5b605ab0111cf36a09c",
+    "appimage-smoke.json": "848537f7bed406fc2e3c233136018fba507bff37f4d974414b72eead80778f3b",
+    "package-check.json": "d90a6db5ed9bd98906ee3a05fc956b02c49390d56979eeddb1447ad662078b8a",
+    "credential-check.json": "e751934975e4398ee6887f7e28c85d3aa84edfaf2a7e9e12678ef2b281f90bc6",
+    "office-check.json": "68b8c5fa25ba595301f28ae3f6d05f4295b20e97ae1a337f7b5e779ed3cf1d09"
+  },
+  "notAccepted": [
+    "Real teacher login and target deployment",
+    "Real model/media output and representative lesson quality",
+    "Managed text atomic budget policy",
+    "PR/main integration or final release"
+  ],
+  "cleanup": "Assistant-owned WiseOffice preview session 25936 stopped after both E2E runs; user services untouched"
+}

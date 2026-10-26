@@ -28,6 +28,12 @@ no teaching content. A clean, idle teaching sidebar rereads Host through its
 existing open/apply path. Busy views and manual drafts are never overwritten by
 this hint; their normal revision checks remain. No duplicate teaching store is
 introduced.
+Closing or rejecting either Chat candidate review, or exiting after a failed
+operation, publishes a one-shot `reread` hint for its owning session. A clean,
+idle sidebar rereads even when source/teaching revisions are unchanged, because
+the intervening Main review invalidates its private active view. This does not
+decide, regenerate or replay a candidate. Manual drafts and disabled/busy/error
+views retain the existing refresh guards; switching Chat suppresses late hints.
 Review and decision check for a stored manual narration draft and refuse to
 supersede it. A failed decision closes the transient review and requires a fresh
 read of persisted status before another decision; it is never replayed silently.
@@ -58,9 +64,41 @@ status and may be outdated. Failed operations close the transient review and
 require a fresh read, never replay a write. Task switches, disabled actions,
 active Agent turns and repeated clicks fence asynchronous dispatch. The same
 edit skill directs the teacher to Chat review; the retained editor lookup is a
-fallback for off-window history. Preparing the original/native-textless visuals
-before redo remains in the existing teaching sidebar. This change does not
-relocate every editor operation or certify production model quality.
+fallback for off-window history. After a generated/imported source exists, the
+collapsed page-visuals section in the main Chat prepares and explicitly approves
+the current saved Office page's original/native-textless previews. Preparation
+checks stored narration drafts, never calls a model, and leaves the source
+unchanged. Its existing Main coordinator remains the sole approval owner; the
+sidebar no longer mounts a second visual reviewer. Busy preparation fences Chat
+stage actions. Agent turns disable its controls without clearing approval needed
+by the proposal. Switching Chat/unmounting clears it; source/page/teaching changes
+still reject in Main. Completion/failure notifies a clean, idle sidebar to reread
+its teaching pin, preserving manual drafts. An idle mount or clear does not emit
+that notification: only an active preparation/review operation ending does, so
+opening teaching cannot race a spurious reread from the visual component mount.
+WiseOffice must already be open on
+the saved page; this is not automatic save or source association. Other native,
+teaching and publication operations retain their editor entrances. This does
+not certify production model quality.
+
+Ordinary tasks do not use the scene-specific `generatedPath` attachment. Their
+existing project inspector exposes the same single visual-review section after
+it finds a current exported PPTX. Scene/import retain their attachment flags.
+Refreshing an ordinary project, receiving new Chat messages or starting a turn
+keeps its last inspected result mounted while rechecking, so approval is not
+revoked before the proposal can use it. A changed project path resets inspection;
+a returned stale/missing export removes that entrance. Main remains authoritative
+for the actual clean Office source/page and all approval guards. This adds no
+attachment metadata, migration or alternate export logic.
+
+Native-textless preview validation accepts ordinary nested groups in the slide,
+layout and master when every descendant is a supported opaque shape or picture.
+The same shadow, transparency, text-warp and unknown-object refusals still apply;
+traversal rejects excessive nesting or more than 1,000 objects. This allows the
+ordinary PPT Master's grouped native output to use Chat visual review without
+flattening its editable objects or changing the document. Raster image text still
+needs human review. The editor change requires the matching updated Office build;
+it is not supplied by updating Desktop alone.
 
 The main-window-only `deckwise/courseware/workflow/get` IPC accepts exactly
 `{sessionId}`. Main validates the active viewing Chat, stable Host and workspace.
@@ -202,6 +240,14 @@ return to its older SVG to apply a native edit. Native edits are unsaved until
 the user explicitly saves; changed source bytes require the existing reviewed
 page association before teaching can be edited again.
 
+For PPTX, Desktop waits for a valid native bridge context matching the opened
+document and access mode before publishing editor readiness. WiseOffice's
+`document:opened` acknowledges construction and can precede SDK readiness.
+Only its two known loading responses are polled, within the existing opening
+deadline and cancellation scope; other failures stop opening. This also applies
+when reopening an adopted candidate, so a clean teaching sidebar can refresh
+against the replacement instead of consuming its hint before the SDK loads.
+
 Narration and reviewed page candidates resolve their effective model through
 the same Main launch resolver as Chat and scene compilation, including inherited
 defaults and thinking level. They do not write provider/model fields into the
@@ -247,6 +293,13 @@ Native readback and saved hashes prove the text persisted; the completion
 received the saved edited page, and adopted teaching retained its logical page,
 speech and pause. Restart made no new model requests. The gate also exposed and
 closed candidate generation's inherited-model gap described above.
+
+The subsequent source gate passed sixteen scenarios, adding real main-Chat fade
+preview/adoption, automatic clean-sidebar refresh, direct teaching confirmation
+and restart with the adopted source. It exposed the premature native-readiness
+issue fixed above. The installed PPTX preserved 22 non-target parts plus native
+slide content/timing and narration. Evidence:
+`../../validation/courseware/chat-pptx-review-20261025/README.md`.
 
 The right generation form stayed unmounted; only artifact editing opened there.
 At 1080x760, the workflow stayed above the composer. Identity, model JSON and

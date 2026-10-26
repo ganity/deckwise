@@ -33,7 +33,7 @@ export type PptCandidateReceipt = {
   reviewState: "needs-review";
   applied: false;
 };
-/** Host owns source bytes, identity mapping, authorized generation and pending candidate storage. */
+/** Host owns source bytes, identity mapping, authorized generation and persistence. */
 export interface PptCandidateToolHost {
   binding: PptEditorBinding;
   getContext(signal?: AbortSignal): Promise<unknown>;
@@ -69,7 +69,7 @@ export function registerPptCandidateTools(api: Pick<ExtensionAPI, "registerTool"
   for (const tool of createPptCandidateTools(host)) api.registerTool(tool);
 }
 
-/** Independent proposals for the existing Chat; never execute native edits, adopt or save. */
+/** Narration saves teaching directly; source edits still produce review candidates. */
 export function createPptCandidateTools(host: PptCandidateToolHost): AgentTool[] {
   const binding = { ...host.binding };
   const getContext = host.getContext.bind(host);
@@ -103,7 +103,7 @@ export function createPptCandidateTools(host: PptCandidateToolHost): AgentTool[]
   const instruction = Type.String({ minLength: 1, maxLength: 8000 });
   const tools = [
     { kind: "page-pptx", name: "ppt_propose_page_redo", description: "Create a review candidate for the current logical page from the latest clean PPTX copy. Rebuilds target objects; review mapping and teaching. Does not edit, adopt or save the open document." },
-    { kind: "page-narration", name: "ppt_propose_page_narration", description: "Propose replacement narration for the current logical page using its teaching policy. Waits are structured; no answer assessment or ready audio is claimed. Does not adopt or save." },
+    { kind: "page-narration", name: "ppt_propose_page_narration", description: "Generate and directly save replacement narration for the current logical page using its teaching policy. Regeneration replaces that page's narration and clears its previous speech audio. Waits are structured; no answer assessment or ready audio is claimed. Does not alter PPTX." },
     { kind: "page-fade", name: "ppt_propose_page_fade", description: "Propose one medium smooth fade on the current logical page using a clean PPTX copy. Preserves page objects. No arbitrary transition or object animation. Does not adopt or save." },
     { kind: "page-style-batch", name: "ppt_propose_page_style_batch", description: "Create one pending style batch using only the representative, original instruction and exact 2–20 unlocked pages explicitly reviewed in the existing sidebar. Supply only the latest edit generation. Cannot choose scope, change instructions, adopt or save." },
   ] as const;
@@ -128,19 +128,29 @@ export function createPptCandidateTools(host: PptCandidateToolHost): AgentTool[]
         const request = { kind, baseline: { ...expected }, ...(needsInstruction ? { instruction: requestedInstruction as string } : {}),
           ...(batch ? { styleBatch: structuredClone(scope) } : {}) };
         const raw = structuredClone(await propose(request, signal));
+        if (kind === "page-narration") {
+          if (!record(raw) || raw.kind !== kind || raw.applied !== true || raw.saved !== true || raw.audioReady !== false ||
+            !id(raw.teachingRevision) || raw.teachingRevision === expected.teachingRevision ||
+            !Number.isSafeInteger(raw.pageNumber) || Number(raw.pageNumber) < 1 ||
+            Object.keys(raw).some(key => !["kind", "baseline", "teachingRevision", "pageNumber", "applied", "saved", "audioReady"].includes(key)) ||
+            !sameBaseline(expected, baseline(raw.baseline))) {
+            throw new Error("Invalid narration save receipt; read saved teaching before retrying");
+          }
+          return { content: [{ type: "text", text: JSON.stringify(raw) }], details: raw };
+        }
         signal?.throwIfAborted();
         if (!record(raw) || !id(raw.candidateId) || raw.kind !== kind || raw.reviewState !== "needs-review" || raw.applied !== false ||
           Object.keys(raw).some((key) => !["candidateId", "kind", "baseline", "outputSha256", "reviewState", "applied", ...(batch ? ["targetPageIds"] : [])].includes(key)) ||
-          (kind === "page-narration" ? Object.hasOwn(raw, "outputSha256") : !hash(raw.outputSha256)) || !sameBaseline(expected, baseline(raw.baseline)) ||
+          !hash(raw.outputSha256) || !sameBaseline(expected, baseline(raw.baseline)) ||
           (batch && JSON.stringify(raw.targetPageIds) !== JSON.stringify(scope?.pageIds))) {
           throw new Error("Invalid or mismatched candidate receipt; inspect pending candidates before retrying");
         }
         const after = await context(signal);
         if (!sameBaseline(expected, after.baseline) || !after.capabilities.includes(kind) || (batch && JSON.stringify(after.styleBatch) !== JSON.stringify(scope))) throw new Error("Candidate baseline changed while generating; do not adopt the late result");
         const receipt: PptCandidateReceipt = { candidateId: raw.candidateId, kind, baseline: expected, reviewState: "needs-review", applied: false,
-          ...(kind === "page-narration" ? {} : { outputSha256: (raw.outputSha256 as string).toLowerCase() }),
+          outputSha256: (raw.outputSha256 as string).toLowerCase(),
           ...(batch ? { targetPageIds: [...scope!.pageIds] } : {}) };
-        const details = { ...receipt, saved: false as const, ...(kind === "page-narration" ? { audioReady: false as const } : {}) };
+        const details = { ...receipt, saved: false as const };
         return { content: [{ type: "text", text: JSON.stringify(details) }], details };
       },
     };

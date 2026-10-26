@@ -29,7 +29,13 @@ fn get(db: &Database, workspace: &str, s: &Selection) -> Value {
 }
 
 fn begin(db: &Database, workspace: &str, s: &Selection) -> Result<Value> {
-    db.begin_courseware_tts(workspace, &s.project_id, &s.principal_key, &s.intent_id, "test-session")
+    db.begin_courseware_tts(
+        workspace,
+        &s.project_id,
+        &s.principal_key,
+        &s.intent_id,
+        "test-session",
+    )
 }
 
 fn task(view: &Value) -> TaskRef {
@@ -476,26 +482,54 @@ fn submission_scope_is_atomic_durable_and_legacy_unknown_never_restarts() {
     let prepared = db.prepare_courseware_tts(root, selection.clone()).unwrap();
     assert!(prepared["intent"].get("submissionScope").is_none());
     let team = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
-    db.kv_set("coursewareTask.v1", "test-session", &json!({"taskType":"plain", "teamProjectId":team})).unwrap();
+    db.kv_set(
+        "coursewareTask.v1",
+        "test-session",
+        &json!({"taskType":"plain", "teamProjectId":team}),
+    )
+    .unwrap();
     db.conn.execute_batch("CREATE TRIGGER fail_scope BEFORE UPDATE ON kv WHEN NEW.ns='coursewareTtsIntents.v1' BEGIN SELECT RAISE(FAIL, 'fixture scope write'); END;").unwrap();
     assert!(begin(&db, root, &selection).is_err());
     assert_eq!(get(&db, root, &selection), prepared);
     db.conn.execute_batch("DROP TRIGGER fail_scope;").unwrap();
     let begun = begin(&db, root, &selection).unwrap();
-    assert_eq!(begun["intent"]["submissionScope"], json!({"sessionId":"test-session", "teamProjectId":team}));
-    assert_eq!(begun["intent"]["idempotencyKey"], prepared["intent"]["idempotencyKey"]);
-    assert_eq!(begun["intent"]["requestHash"], prepared["intent"]["requestHash"]);
+    assert_eq!(
+        begun["intent"]["submissionScope"],
+        json!({"sessionId":"test-session", "teamProjectId":team})
+    );
+    assert_eq!(
+        begun["intent"]["idempotencyKey"],
+        prepared["intent"]["idempotencyKey"]
+    );
+    assert_eq!(
+        begun["intent"]["requestHash"],
+        prepared["intent"]["requestHash"]
+    );
     drop(db);
     let db = Database::open(&path).unwrap();
     assert_eq!(get(&db, root, &selection), begun);
     assert!(begin(&db, root, &selection).is_err());
-    let key = key(root, &selection.project_id, &selection.principal_key, &selection.intent_id).unwrap();
+    let key = key(
+        root,
+        &selection.project_id,
+        &selection.principal_key,
+        &selection.intent_id,
+    )
+    .unwrap();
     let mut legacy = begun["intent"].clone();
     legacy.as_object_mut().unwrap().remove("submissionScope");
     db.kv_set(INTENTS, &key, &legacy).unwrap();
     assert_eq!(get(&db, root, &selection)["intent"], legacy);
     assert!(begin(&db, root, &selection).is_err());
-    let bound = db.bind_courseware_tts(root, &selection.project_id, &selection.principal_key, &selection.intent_id, task(&begun)).unwrap();
+    let bound = db
+        .bind_courseware_tts(
+            root,
+            &selection.project_id,
+            &selection.principal_key,
+            &selection.intent_id,
+            task(&begun),
+        )
+        .unwrap();
     assert!(bound["intent"].get("submissionScope").is_none());
     assert_eq!(bound["intent"]["phase"], "submitted");
 }
@@ -508,11 +542,19 @@ fn invalid_stored_team_scope_cannot_begin_or_become_personal() {
     let (_, selection) = setup(&db, root);
     let prepared = db.prepare_courseware_tts(root, selection.clone()).unwrap();
     for team in [Value::Null, json!("../foreign"), json!(42)] {
-        db.kv_set("coursewareTask.v1", "test-session", &json!({"teamProjectId":team})).unwrap();
+        db.kv_set(
+            "coursewareTask.v1",
+            "test-session",
+            &json!({"teamProjectId":team}),
+        )
+        .unwrap();
         assert!(begin(&db, root, &selection).is_err());
         assert_eq!(get(&db, root, &selection), prepared);
     }
-    for raw in [json!({"sessionId":"test-session"}), json!({"sessionId":"test-session", "teamProjectId":42})] {
+    for raw in [
+        json!({"sessionId":"test-session"}),
+        json!({"sessionId":"test-session", "teamProjectId":42}),
+    ] {
         assert!(serde_json::from_value::<super::super::media_scope::SubmissionScope>(raw).is_err());
     }
 }
@@ -526,11 +568,21 @@ fn rejected_team_tts_is_durable_cannot_replay_and_requires_a_new_attempt() {
     let (original, selection) = setup(&db, root);
     let prepared = db.prepare_courseware_tts(root, selection.clone()).unwrap();
     let receipt = || RejectedRequest {
-        idempotency_key: prepared["intent"]["idempotencyKey"].as_str().unwrap().into(),
+        idempotency_key: prepared["intent"]["idempotencyKey"]
+            .as_str()
+            .unwrap()
+            .into(),
         request_hash: prepared["intent"]["requestHash"].as_str().unwrap().into(),
     };
-    let reject = |db: &Database, request| db.reject_courseware_tts(root, &selection.project_id,
-        &selection.principal_key, &selection.intent_id, request);
+    let reject = |db: &Database, request| {
+        db.reject_courseware_tts(
+            root,
+            &selection.project_id,
+            &selection.principal_key,
+            &selection.intent_id,
+            request,
+        )
+    };
     assert!(reject(&db, receipt()).is_err());
     let personal = begin(&db, root, &selection).unwrap();
     assert!(reject(&db, receipt()).is_err());
@@ -538,17 +590,30 @@ fn rejected_team_tts_is_durable_cannot_replay_and_requires_a_new_attempt() {
 
     let mut selection = selection.clone();
     selection.intent_id = "team-attempt".into();
-    db.kv_set("coursewareTask.v1", "test-session", &json!({"taskType":"plain",
-        "teamProjectId":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"})).unwrap();
+    db.kv_set(
+        "coursewareTask.v1",
+        "test-session",
+        &json!({"taskType":"plain",
+        "teamProjectId":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}),
+    )
+    .unwrap();
     let team = db.prepare_courseware_tts(root, selection.clone()).unwrap();
     let request = || RejectedRequest {
         idempotency_key: team["intent"]["idempotencyKey"].as_str().unwrap().into(),
         request_hash: team["intent"]["requestHash"].as_str().unwrap().into(),
     };
-    let reject = |db: &Database, request| db.reject_courseware_tts(root, &selection.project_id,
-        &selection.principal_key, &selection.intent_id, request);
+    let reject = |db: &Database, request| {
+        db.reject_courseware_tts(
+            root,
+            &selection.project_id,
+            &selection.principal_key,
+            &selection.intent_id,
+            request,
+        )
+    };
     let begun = begin(&db, root, &selection).unwrap();
-    let mut wrong = request(); wrong.request_hash = "f".repeat(64);
+    let mut wrong = request();
+    wrong.request_hash = "f".repeat(64);
     assert!(reject(&db, wrong).is_err());
     assert_eq!(get(&db, root, &selection), begun);
     db.conn.execute_batch("CREATE TRIGGER ignore_reject BEFORE UPDATE ON kv WHEN NEW.ns='coursewareTtsIntents.v1' BEGIN SELECT RAISE(IGNORE); END;").unwrap();
@@ -559,17 +624,41 @@ fn rejected_team_tts_is_durable_cannot_replay_and_requires_a_new_attempt() {
     assert_eq!(rejected["intent"]["phase"], "rejected");
     assert!(rejected["intent"]["taskRef"].is_null());
     assert!(begin(&db, root, &selection).is_err());
-    assert!(db.bind_courseware_tts(root, &selection.project_id, &selection.principal_key,
-        &selection.intent_id, task(&begun)).is_err());
+    assert!(db
+        .bind_courseware_tts(
+            root,
+            &selection.project_id,
+            &selection.principal_key,
+            &selection.intent_id,
+            task(&begun)
+        )
+        .is_err());
     drop(db);
     let db = Database::open(&path).unwrap();
     assert_eq!(get(&db, root, &selection), rejected);
-    assert_eq!(db.prepare_courseware_tts(root, selection.clone()).unwrap(), rejected);
-    assert_eq!(serde_json::to_value(db.get_courseware_project(root, &selection.project_id).unwrap().unwrap()).unwrap(),
-        serde_json::to_value(original).unwrap());
-    let mut next = selection.clone(); next.intent_id = "explicit-new-attempt".into();
+    assert_eq!(
+        db.prepare_courseware_tts(root, selection.clone()).unwrap(),
+        rejected
+    );
+    assert_eq!(
+        serde_json::to_value(
+            db.get_courseware_project(root, &selection.project_id)
+                .unwrap()
+                .unwrap()
+        )
+        .unwrap(),
+        serde_json::to_value(original).unwrap()
+    );
+    let mut next = selection.clone();
+    next.intent_id = "explicit-new-attempt".into();
     let fresh = db.prepare_courseware_tts(root, next).unwrap();
     assert_eq!(fresh["intent"]["phase"], "prepared");
-    assert_ne!(fresh["intent"]["idempotencyKey"], rejected["intent"]["idempotencyKey"]);
-    assert_eq!(fresh["intent"]["requestHash"], rejected["intent"]["requestHash"]);
+    assert_ne!(
+        fresh["intent"]["idempotencyKey"],
+        rejected["intent"]["idempotencyKey"]
+    );
+    assert_eq!(
+        fresh["intent"]["requestHash"],
+        rejected["intent"]["requestHash"]
+    );
 }

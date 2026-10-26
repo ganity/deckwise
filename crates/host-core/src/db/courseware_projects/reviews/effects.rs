@@ -104,6 +104,13 @@ pub(in crate::db::courseware_projects) fn referenced(
     let mut unique = HashSet::new();
     for page in &mut plain.pages {
         for action in &mut page.actions {
+            if let Some(intent) = action.get("attention") {
+                anyhow::ensure!(action["type"] == "speech", "COURSEWARE_INVALID: attention requires speech");
+                for id in attention::targets(intent)? {
+                    if unique.insert((page.page_id.clone(), id.clone())) { targets.push((page.page_id.clone(), id)); }
+                }
+                action.as_object_mut().unwrap().remove("attention");
+            }
             if let Some(cues) = action.get("visualCues") {
                 let cues = cues
                     .as_array()
@@ -225,6 +232,10 @@ pub(in crate::db::courseware_projects) fn rebind(
     }
     for page in &mut next.pages {
         for action in &mut page.actions {
+            for id in action.get_mut("attention").and_then(|v| v.get_mut("objectIds")).and_then(Value::as_array_mut).into_iter().flatten() {
+                *id = replacements.get(&(page.page_id.clone(), id.as_str().unwrap_or_default().to_owned()))
+                    .ok_or_else(|| anyhow!("COURSEWARE_INVALID: attention association is incomplete"))?.clone();
+            }
             for cue in action
                 .get_mut("visualCues")
                 .and_then(Value::as_array_mut)

@@ -18,7 +18,6 @@ import {
   APP_VERSION,
   ErrorCodes as SharedErrorCodes,
   IPC,
-  IPC_WHITELIST,
   isActiveInProject,
   type ActivationScope,
   type AgentEventEnvelope,
@@ -61,6 +60,7 @@ import {
 } from "./bootstrap/window";
 import { registerApplicationActivation } from "./bootstrap/app-activation";
 import type { RuntimeState } from "./runtime/context";
+import { createRendererEventSender } from "./runtime/renderer-events";
 import { createHostRuntime } from "./runtime/host";
 import type { PptEditorChatBridge } from "./ppt-editor-chat";
 import { CoursewareMediaCanvasCoordinator } from "./courseware-media-canvas";
@@ -377,6 +377,7 @@ const windowLifecycleState: WindowLifecycleState = {
 };
 
 const runtimeState: RuntimeState = {
+  hostStatus: null,
   get host() {
     return host;
   },
@@ -398,6 +399,13 @@ const runtimeState: RuntimeState = {
 };
 
 let applicationLifecycle: ReturnType<typeof createApplicationLifecycle> | null = null;
+const sendToRenderer = createRendererEventSender({
+  getWindow: () => mainWindow,
+  state: runtimeState,
+  onPluginChanged: () => applicationLifecycle?.applyNativeThemeSource({
+    theme: applicationAppearanceState.appThemePreference,
+  }),
+});
 let launcherRuntime: ReturnType<typeof createLauncher> | null = null;
 let closeBehaviorRuntime: ReturnType<typeof createCloseBehaviorRuntime> | null = null;
 const showPluginLauncherForLifecycle = (): Promise<void> => {
@@ -763,33 +771,6 @@ function isHostUnavailable(error: unknown): boolean {
     (error as { errorCode?: string } | null | undefined)?.errorCode ===
     ErrorCodes.HOST_UNAVAILABLE
   );
-}
-
-/** Pull the user's MCP server records from host-core into the local runtime. */
-function sendToRenderer(channel: string, payload: unknown) {
-  if (channel === IPC.event.pluginChanged) {
-    applicationLifecycle?.applyNativeThemeSource({
-      theme: applicationAppearanceState.appThemePreference,
-    });
-  }
-  if (!IPC_WHITELIST.has(channel)) return;
-  const window = mainWindow;
-  if (
-    !window ||
-    window.isDestroyed() ||
-    window.webContents.isDestroyed()
-  ) {
-    return;
-  }
-  try {
-    window.webContents.send(channel, payload);
-  } catch {
-    // The renderer's main frame can be disposed — the window closed while the
-    // app keeps running (macOS dock, resident tray) or a teardown race where
-    // webContents.isDestroyed() has not flipped yet — before the send reaches
-    // it. Notifying a gone frame is routine teardown, never an error:
-    // supervision must keep running with no window attached.
-  }
 }
 
 let appliedMenuSettings: string | null = null;
@@ -1242,6 +1223,7 @@ function registerIpc() {
     getAgentHostBridge: () => agentHostBridge,
     authSession,
     mediaCanvas,
+    getHostStatus: () => runtimeState.hostStatus,
     registerDocumentCleanup,
     sceneGeneration: { resolveModel: pluginServices.resolveSceneModel, build: pluginServices.buildSceneCourseware, stage: pluginServices.stageSceneCourseware },
     completeNarration: async (input: Parameters<typeof pluginServices.complete>[0]) => {

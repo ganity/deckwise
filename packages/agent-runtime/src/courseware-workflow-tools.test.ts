@@ -32,7 +32,7 @@ it("validates boundaries before dispatch and requires a bounded compiler timeout
   f.turn(undefined);
   await expect(f.tools[0]!.execute("no-turn", {})).rejects.toThrow("active Chat turn");
   f.turn("turn-1");
-  await f.tools.at(-1)!.execute("compile", { planSha256: "a".repeat(64) });
+  await f.tools.find(tool => tool.name === "courseware_scene_compile")!.execute("compile", { planSha256: "a".repeat(64) });
   expect(f.calls.at(-1)?.params).toMatchObject({ timeoutMs: 960_000 });
 });
 
@@ -47,4 +47,17 @@ it("rejects late receipts, failed operations and cancellation instead of claimin
   const count = f.calls.length;
   await expect(f.tools[0]!.execute("abort", {}, controller.signal)).rejects.toThrow();
   expect(f.calls).toHaveLength(count);
+});
+
+
+it("mounts saved-page tools without any Office binding and dispatches the complete range", async () => {
+  const f = fixture();
+  const context = f.tools.find(tool => tool.name === "courseware_narration_context")!;
+  await context.execute("outline", {});
+  const generate = f.tools.find(tool => tool.name === "courseware_narration_propose")!;
+  const args = { pageNumbers: [1, 2, 56], sourceSha256: "a".repeat(64), instruction: "Explain each page" };
+  await generate.execute("batch", args);
+  expect(f.calls.at(-1)?.params).toMatchObject({ toolName: "courseware_narration_propose", args, timeoutMs: 960000 });
+  for (const pageNumbers of [[], [0], [1, 1], [101]])
+    await expect(generate.execute("invalid", { ...args, pageNumbers })).rejects.toThrow("Invalid courseware");
 });

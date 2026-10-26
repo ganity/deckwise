@@ -1,0 +1,41 @@
+{
+  "status": "PASS_FOCUSED_PACKAGED_SCHEMA_NOTICE",
+  "branch": "feat/courseware-par-A",
+  "head": "f9600d6293f2995bf72b77243b1723117c803e8c",
+  "uncommittedProductChanges": true,
+  "packageRoot": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop/release/schema-notice-20261025/linux-unpacked",
+  "sourceHashes": {
+    "apps/desktop/electron/main/index.ts": "c6f5ecaaabbf1390a13819ae0e4367e374759f9f82a0bf980b3b1ec177a9ca79",
+    "apps/desktop/electron/main/runtime/context.ts": "4fc0eb45dbcb138db816c4ac44501ebd4ebdcf65b7f2176c0ab54f6308685962",
+    "apps/desktop/electron/main/ipc/register.ts": "c8032bb69015d36d49b0fc5661bc83405830aee30424dac5f41d4e1715c5e4e2",
+    "apps/desktop/electron/main/ipc/app-ipc.ts": "c58ebe60dbf410fc08dd0c934ce57c024d50715c8180cf3f573e4caf6a64d17f",
+    "apps/desktop/src/lib/api.ts": "c7e894ce9fd3e4a7f550b9d77c80df4c38a963984b75711c8f52f9069ddcfd15",
+    "packages/shared/src/protocol.ts": "7b4e206b3f79fd17d65e22af7c29fa250793585c2b4264ed3647a67deb7bb877",
+    "apps/desktop/test/host-status-subscription.test.mjs": "77b6fa477bd7b6e3e96a4ce3b57cfd8da89df97c74a61b0a1c7a16f82a88aef7",
+    "scripts/e2e-courseware-schema-refusal.mjs": "c522e55ce7e12fe1d504b4134845571c9d693927789d7adc14f8e5070ddd5738",
+    "scripts/check-courseware-upgrade.py": "07e74217c4d0db62fd96d8374f1cdfd899e1a8dad08383fb0d1f529e90318826"
+  },
+  "payloadHashes": {
+    "app.asar": "e87e8aaec30bfee27c0fec922c18410f1a4e4df7455f8a3e1b1e8cbbc5c9172a",
+    "bin/pi-desktop-host-core": "15d27f22650797e52893604c8d7f197367e71a8d09f466736af1a3d5445380b6",
+    "agent-runtime/sidecar.js": "67ca21e676ce19d1dddb58368bf15bef187e203c7b4df9f828d3df3bc81c767c",
+    "pptx-worker/pptx-worker.mjs": "1a3fd5a363208b2d1107bc0be1422803f0c1f146d667f1cc289737846e6aef50",
+    "pptx-worker/authoring.mjs": "586ba532f841b0c59c1fdaebecc230bb1f31fec9118626556ff6927dfd10637c"
+  },
+  "resourceInventorySha256": "14ddd8c0b17e3d4b63db220759639ca588b27e9bed8bd0c3a65d9d9f434f6ecb",
+  "nonAsarResourceDifferencesFromPreviousTrial": [],
+  "reports": {
+    "electron-final/report.json": "9dfac30af41671beed7959ce0788b6e145f21527dd81261f146e33be49ad5114",
+    "host/report.json": "c4e025b809ee753cb7088010d6465f6f3a5a3a51e8093f23a9ef65f77e512e76",
+    "host-status-tests.txt": "4a7685155af0ce011556314fa55d7307aad6e5887a7a4b93d1bf4c1c6b9b51b0",
+    "protocol-tests.txt": "57e7de890d665174758275c85d8980f796e860c4208180408629ac1df63936e8"
+  },
+  "paidCalls": false,
+  "trialAppImageReplaced": false,
+  "limits": [
+    "Focused packaged gate only; earlier 17 business groups were not rerun on this candidate.",
+    "No OS-kill migration, playback-pointer, real-service or release acceptance."
+  ],
+  "historicalScope": "Initial focused schema-notice gate, before the subsequent 17 Chat groups and AppImage promotion",
+  "supersededBy": "acceptance.json"
+}

@@ -167,6 +167,8 @@ function collectSteps(
         rotationAnimation?.targetNode ??
         findDescendant(node, 'spTgt');
       const isMedia = node.local === 'video' || node.local === 'audio';
+      // Plain manual media is already handled by the importer's page-media controls.
+      if (isMedia && isStandaloneManualMedia(node, ancestors)) return;
       const setVisibility =
         node.local === 'set' ? findDescendant(node, 'strVal')?.attrs.val?.toLowerCase() : undefined;
       const durationMs =
@@ -504,6 +506,24 @@ function startConditions(node: TimingNode): StartCondition[] {
     }
   }
   return conditions;
+}
+
+function isStandaloneManualMedia(node: TimingNode, ancestors: TimingNode[]): boolean {
+  if (ancestors.map(ancestor => ancestor.local).join('/') !== 'timing/tnLst/par/cTn/childTnLst' ||
+      ancestors[3].attrs.nodeType !== 'tmRoot' || ancestors[3].children.length !== 1 ||
+      Object.keys(ancestors[3].attrs).some(key => !['id', 'dur', 'restart', 'nodeType'].includes(key)) ||
+      ancestors[3].attrs.dur !== 'indefinite' || ancestors[3].attrs.restart !== 'never') return false;
+  const media = node.children[0];
+  if (node.children.length !== 1 || media.local !== 'cMediaNode' || media.children.length !== 2) return false;
+  const timing = media.children.find(child => child.local === 'cTn');
+  const target = media.children.find(child => child.local === 'tgtEl');
+  const list = timing?.children[0], condition = list?.children[0], shape = target?.children[0];
+  return !!timing && Object.keys(timing.attrs).every(key => ['id', 'fill', 'display'].includes(key)) &&
+    (!timing.attrs.fill || timing.attrs.fill === 'hold') && timing.children.length === 1 &&
+    list?.local === 'stCondLst' && list.children.length === 1 && condition?.local === 'cond' &&
+    condition.children.length === 0 && Object.keys(condition.attrs).join(',') === 'delay' &&
+    condition.attrs.delay === 'indefinite' && target?.children.length === 1 && shape?.local === 'spTgt' &&
+    shape.children.length === 0 && Object.keys(shape.attrs).join(',') === 'spid' && !!shape.attrs.spid;
 }
 
 function isStartDependency(condition: StartCondition): condition is StartDependency {

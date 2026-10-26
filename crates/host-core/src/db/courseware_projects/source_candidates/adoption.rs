@@ -84,7 +84,11 @@ impl Database {
         journal.baseline.validate()?;
         journal.next.validate()?;
         let identity = SavedSourceIdentity::parse(&serde_json::to_vec(&journal.identity)?)?;
-        super::super::reviews::effects::projection(&journal.next, identity.value(), identity.value())?;
+        super::super::reviews::effects::projection(
+            &journal.next,
+            identity.value(),
+            identity.value(),
+        )?;
         anyhow::ensure!(
             journal.baseline.project_id == project_id
                 && journal.next.project_id == project_id
@@ -119,7 +123,10 @@ impl Database {
         source_path: Option<String>,
         effect_bindings: &[Value],
     ) -> Result<Value> {
-        anyhow::ensure!(effect_bindings.len() <= 20000, "COURSEWARE_INVALID: too many effect associations");
+        anyhow::ensure!(
+            effect_bindings.len() <= 20000,
+            "COURSEWARE_INVALID: too many effect associations"
+        );
         let tx = self.conn.unchecked_transaction()?;
         let project_key = storage_key(workspace, &seed.project_id)?;
         if let Some(lock) = self.kv_get(LOCKS, &storage_key(workspace, "source-adoption")?)? {
@@ -177,7 +184,13 @@ impl Database {
                 vec![]
             };
         verify_candidate_identity(&original, &identity, &replaced_pages)?;
-        super::super::asset_locks::verify_preserved_images(&original, &identity, &replaced_pages, &candidate.asset_locks, &candidate.preserved_images)?;
+        super::super::asset_locks::verify_preserved_images(
+            &original,
+            &identity,
+            &replaced_pages,
+            &candidate.asset_locks,
+            &candidate.preserved_images,
+        )?;
         // Only explicitly locked, verified images retain their logical object IDs.
         for (page, old) in identity["pages"]
             .as_array_mut()
@@ -188,9 +201,16 @@ impl Database {
             page["logicalId"] = old["logicalId"].clone();
             if replaced_pages.iter().any(|id| old["logicalId"] == *id) {
                 for object in page["objects"].as_array_mut().into_iter().flatten() {
-                    object["logicalId"] = candidate.preserved_images.iter()
-                        .find(|proof| old["logicalId"] == proof.page_id && object["sourceShapeId"] == proof.output_shape_id)
-                        .map(|proof|proof.object_id.clone()).unwrap_or_else(||uuid::Uuid::new_v4().to_string()).into();
+                    object["logicalId"] = candidate
+                        .preserved_images
+                        .iter()
+                        .find(|proof| {
+                            old["logicalId"] == proof.page_id
+                                && object["sourceShapeId"] == proof.output_shape_id
+                        })
+                        .map(|proof| proof.object_id.clone())
+                        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string())
+                        .into();
                 }
             } else {
                 for (object, old) in page["objects"]
@@ -324,9 +344,19 @@ impl Database {
         );
         self.check_adoption_baseline(workspace, &journal)?;
         if commit {
-            let candidate = self.source_candidate(&key(workspace, &seed.project_id, &journal.candidate_id)?, &seed.project_id, &journal.candidate_id)?;
-            self.rebind_candidate_asset_locks(workspace, &journal.baseline, &journal.next,
-                journal.identity["mappingRevision"].as_str().unwrap(), &candidate.asset_locks, &candidate.preserved_images)?;
+            let candidate = self.source_candidate(
+                &key(workspace, &seed.project_id, &journal.candidate_id)?,
+                &seed.project_id,
+                &journal.candidate_id,
+            )?;
+            self.rebind_candidate_asset_locks(
+                workspace,
+                &journal.baseline,
+                &journal.next,
+                journal.identity["mappingRevision"].as_str().unwrap(),
+                &candidate.asset_locks,
+                &candidate.preserved_images,
+            )?;
             self.rebind_courseware_review_audio(workspace, &journal.baseline, &journal.next)?;
             let original = serde_json::to_string(&journal.baseline)?;
             let history_key =

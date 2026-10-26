@@ -95,6 +95,7 @@ impl SnapshotRecord {
         );
         let mut used = std::collections::HashSet::new();
         for action in self.project.pages.iter().flat_map(|page| &page.actions) {
+            anyhow::ensure!(action.get("attention").is_none(), "COURSEWARE_CONFLICT: adopt decoded speech audio to resolve automatic attention before snapshot capture");
             if action["type"] == "speech" || action["type"] == "audio_clip" {
                 let audio = action["audioAssetId"].as_str().unwrap_or("");
                 anyhow::ensure!(

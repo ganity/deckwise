@@ -23,6 +23,7 @@ async function fixture(t, component, props, overrides = {}) {
   const project = { report: { stage: "final", summary: { errors: 0 } }, inputTime: 10, reportTime: 20, exported: false };
   const master = { intentId: "master", planSha256: plan.sha256, pageId: "scene-001", target: { kind: "visualMaster" },
     current: true, selected: false, phase: "prepared", prompt: "Circle in a garden", model: "image-model", task: null, asset: null };
+  let attached = false;
   let taskType = "scene", rows = [master], picker = { token: "picked" }, fail = false;
   let cursor = 0, tree;
   const slot = initial => { const index = cursor++; if (!(index in state)) state[index] = initial; return index; };
@@ -36,7 +37,7 @@ async function fixture(t, component, props, overrides = {}) {
     },
   };
   const api = {
-    async coursewareWorkflowGet() { if (fail) throw new Error("Invalid scene draft"); return { task: taskType ? { taskType, imported: false, generated: false } : null,
+    async coursewareWorkflowGet() { if (fail) throw new Error("Invalid scene draft"); return { task: taskType ? { taskType, imported: attached && taskType === "import", generated: attached && taskType !== "import" } : null,
       plan: taskType === "scene" ? structuredClone(currentPlan) : null }; },
     async coursewareScenePlanApprove(...args) { calls.push(["approve", ...args]); currentPlan.approvedSha256 = currentPlan.sha256; return { plan: structuredClone(currentPlan) }; },
     async pickFiles() { calls.push(["pick"]); return picker; },
@@ -79,7 +80,7 @@ async function fixture(t, component, props, overrides = {}) {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
   }).outputText)(id => { assert.equal(id, "./api"); return { api }; }, projectModule);
   const isDialog = component === "CoursewareTaskDialog";
-  const source = await readFile(new URL(`../src/components/${isDialog ? component : "courseware/" + component}.tsx`, import.meta.url), "utf8");
+  const source = await readFile(new URL(`../src/components/${isDialog ? component : (component === "CoursewareSourceVisuals" ? "workpanel/" : "courseware/") + component}.tsx`, import.meta.url), "utf8");
   const compiled = ts.transpileModule(source + (component === "CoursewareChatWorkflow" ? "\nexports.Workflow = Workflow;" : isDialog ? "\nexports.TaskForm = TaskForm;" : ""), {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
@@ -93,13 +94,14 @@ async function fixture(t, component, props, overrides = {}) {
     if (id === "../../lib/ppt-master-project") return projectModule;
     if (id === "../../lib/tool-presentation") return toolModule;
     if (id === "../../lib/courseware-chat-candidates") return candidateModule;
-    if (id === "../workpanel/CoursewareNarrationReview") return { CoursewareNarrationReview: "narration-review" };
+    if (id === "../workpanel/CoursewareSourceVisuals") return { CoursewareSourceVisuals: "source-visuals" };
     if (id === "../workpanel/CoursewarePptxCandidateReview") return { CoursewarePptxCandidateReview: "pptx-review" };
     if (id === "../../lib/work-panel-tabs") return { pptEditorWorkPanelTab: path => ({ path }), svgEditorWorkPanelTab: path => ({ svgPath: path }) };
     if (id === "../../stores/app-store" || id === "../stores/app-store") return { useAppStore };
     if (id === "./ui") return { Button: "button", TooltipButton: "button", portalOverlay: value => value };
     if (id === "./icons") return { IconClose: "icon" };
-    if (id === "./CoursewareChatImages" || id === "./CoursewareChatPresentation" || id === "./CoursewareChatNarration" || id === "./CoursewareChatPptxCandidates") return {};
+    if (id === "./CoursewareChatPresentation") return { CoursewareChatPresentation: "plain-presentation" };
+    if (id === "./CoursewareChatImages" || id === "./CoursewareChatNarration" || id === "./CoursewareChatPptxCandidates") return {};
     assert.fail(id);
   }, exports);
   const render = () => { cursor = 0; tree = exports[component === "CoursewareChatWorkflow" ? "Workflow" : isDialog ? "TaskForm" : component](props);
@@ -111,99 +113,54 @@ async function fixture(t, component, props, overrides = {}) {
   };
   const button = name => nodes().find(node => node.type === "button" && node.props.children === "coursewareWorkflow." + name);
   const click = async name => { const node = button(name); assert(node, name); assert.equal(!!node.props.disabled, false, name); node.props.onClick(); await flush(); };
-  t.after(() => { for (const effect of effects) effect?.cleanup?.(); });
+  const unmount = () => { for (const effect of effects) effect?.cleanup?.(); };
+  t.after(unmount);
   render(); await flush();
-  return { calls, store, nodes, button, click, flush, render, props, image: master, empty: () => { taskType = null; },
+  return { calls, store, nodes, button, click, flush, render, unmount, props, image: master, empty: () => { taskType = null; },
+    attached: type => { taskType = type; attached = true; },
     import: () => { taskType = "import"; }, plain: () => { taskType = "plain"; }, picker: value => { picker = value; }, fail: () => { fail = true; },
     rows: value => { rows = value; }, plan: currentPlan, project, projectPath };
 }
 
 const narrationReceipt = (patch = {}) => ({ role: "tool", toolName: "ppt_propose_page_narration", toolStatus: "success",
-  toolResult: { details: { kind: "page-narration", candidateId: "candidate-1", reviewState: "needs-review",
-    applied: false, saved: false, baseline: { sessionId: "office-mount-1" } } }, ...patch });
-const narrationButton = f => f.nodes().find(node => node.type === "button" && Array.isArray(node.props.children));
-const narrationReview = f => f.nodes().find(node => node.type === "narration-review");
+  toolResult: { details: { kind: "page-narration", applied: true, saved: true, pageNumber: 1,
+    teachingRevision: "T2", baseline: { sessionId: "office-mount-1", pageId: "page-1" } } }, ...patch });
 const showNarration = async (f, rows = [narrationReceipt()]) => { f.store.messages = rows; f.render(); await f.flush(); };
-const narrationView = { reviewId: "review-1", candidateId: "candidate-1", status: "needs-review", stale: false,
-  teaching: { viewId: "teaching-1" }, actions: [] };
 
-test("main Chat narration entrances read native-session receipts from its own transcript, not assistant prose", async t => {
+test("narration shows successful saves and refreshes teaching without review or adoption controls", async t => {
   const f = await fixture(t, "CoursewareChatNarration", { sessionId: "chat", disabled: false });
   const receipt = narrationReceipt();
-  await showNarration(f, [receipt, receipt,
-    narrationReceipt({ role: "assistant" }), narrationReceipt({ role: "user" }),
-    narrationReceipt({ toolStatus: "error" }), narrationReceipt({ isError: true }),
-    narrationReceipt({ parentToolCallId: "delegate" }), narrationReceipt({ toolName: "Write" }),
-    narrationReceipt({ toolResult: { details: { ...receipt.toolResult.details, baseline: { sessionId: "" } } } }),
-    narrationReceipt({ toolResult: { details: { ...receipt.toolResult.details, candidateId: "../../outside" } } }),
-    narrationReceipt({ toolResult: { details: { ...receipt.toolResult.details, applied: true } } }),
-    narrationReceipt({ toolResult: "broken JSON" })]);
-  assert.equal(f.nodes().filter(node => node.type === "button").length, 1);
-  assert.equal(f.calls.length, 0, "Reading receipts never opens a review or adopts");
+  await showNarration(f, [receipt, receipt, narrationReceipt({ role: "assistant" }), narrationReceipt({ toolStatus: "error" }),
+    narrationReceipt({ isError: true }), narrationReceipt({ parentToolCallId: "delegate" }), narrationReceipt({ toolName: "Write" })]);
+  assert.equal(f.nodes().filter(n => n.type === "li").length, 1);
+  assert.equal(f.nodes().filter(n => ["button", "input", "narration-review"].includes(n.type)).length, 0);
+  assert(f.nodes().some(n => n.props.role === "status" && n.props.children === "panel.pptEditor.teachingSaved"));
+  assert.deepEqual(f.store.coursewareTeachingRefresh, { sessionId: "chat", reread: true });
+  assert.equal(f.calls.length, 0);
   await showNarration(f, [narrationReceipt({ toolResult: { content: [{ type: "text", text: JSON.stringify(receipt.toolResult.details) }] } })]);
-  assert(narrationButton(f), "Persisted text envelopes use the existing tool-result decoder");
+  assert.equal(f.nodes().filter(n => n.type === "li").length, 1);
 });
 
-test("main Chat reviews and explicitly adopts through existing APIs without exposing a candidate-ID field", async t => {
-  const calls = [];
-  const f = await fixture(t, "CoursewareChatNarration", { sessionId: "chat", disabled: false }, {
-    async pptEditorNarrationReview(...args) { calls.push(["review", ...args]); return narrationView; },
-    async pptEditorTeachingDraftGet(...args) { calls.push(["draft", ...args]); return { draft: null }; },
-    async pptEditorNarrationDecide(...args) { calls.push(["decide", ...args]); return { project: { teachingRevision: "new-revision" } }; },
-  });
+test("partial batch displays all saved pages while ignoring failed and malformed entries", async t => {
+  const f = await fixture(t, "CoursewareChatNarration", { sessionId: "chat", disabled: false });
+  const rows = [1, 2, 3].map(pageNumber => ({ pageNumber, pageId: `page-${pageNumber}`, teachingRevision: `T${pageNumber}`, saved: true }));
+  await showNarration(f, [narrationReceipt({ toolName: "courseware_narration_propose", toolResult: { details: {
+    saved: false, savedPages: [...rows, rows[0], { ...rows[0], pageId: "../bad" }, { ...rows[0], saved: false }], failures: [{ pageNumber: 4 }],
+  } } })]);
+  assert.equal(f.nodes().filter(n => n.type === "li").length, 3);
+  assert.equal(f.nodes().filter(n => n.type === "button").length, 0);
+  assert.equal(f.calls.length, 0);
+  assert.equal(f.store.coursewareTeachingRefresh.reread, true);
+});
+
+test("legacy candidates never expose narration adoption and other sessions cannot refresh teaching", async t => {
+  const f = await fixture(t, "CoursewareChatNarration", { sessionId: "chat", disabled: false });
+  await showNarration(f, [narrationReceipt({ toolResult: { details: { candidateId: "old", kind: "page-narration", reviewState: "needs-review", applied: false, saved: false } } })]);
+  assert.equal(f.nodes().length, 0);
+  assert.equal(f.store.coursewareTeachingRefresh, undefined);
+  f.store.activeSessionId = "other";
   await showNarration(f);
-  narrationButton(f).props.onClick(); narrationButton(f).props.onClick(); await f.flush();
-  assert.deepEqual(calls, [["review", "chat", "candidate-1"], ["draft", "teaching-1"]]);
-  assert(!f.nodes().some(node => node.type === "input"));
-  narrationReview(f).props.decide("adopt"); await f.flush();
-  assert.deepEqual(calls.slice(-2), [["draft", "teaching-1"], ["decide", "review-1", "adopt"]]);
-  assert(!narrationReview(f));
-  assert.deepEqual(f.store.coursewareTeachingRefresh, { sessionId: "chat", teachingRevision: "new-revision" });
-  assert(f.nodes().some(node => node.props?.role === "status" && node.props.children.endsWith("_adopted")));
-});
-
-test("manual narration drafts block review and a draft written after review blocks adoption", async t => {
-  let draft = {}, decisions = 0;
-  const f = await fixture(t, "CoursewareChatNarration", { sessionId: "chat", disabled: false }, {
-    async pptEditorNarrationReview() { return narrationView; },
-    async pptEditorTeachingDraftGet() { return { draft }; },
-    async pptEditorNarrationDecide() { decisions++; },
-  });
-  await showNarration(f); narrationButton(f).props.onClick(); await f.flush();
-  assert(!narrationReview(f));
-  assert(f.nodes().some(node => node.props?.role === "alert" && node.props.children.includes("reviewDraftFirst")));
-  draft = null; narrationButton(f).props.onClick(); await f.flush();
-  assert(narrationReview(f)); draft = {};
-  narrationReview(f).props.decide("adopt"); await f.flush();
-  assert.equal(decisions, 0); assert(!narrationReview(f));
-});
-
-test("an uncertain narration decision requires rereading persisted status, never automatic replay", async t => {
-  let decisions = 0, status = "needs-review";
-  const f = await fixture(t, "CoursewareChatNarration", { sessionId: "chat", disabled: false }, {
-    async pptEditorNarrationReview() { return { ...narrationView, status }; },
-    async pptEditorTeachingDraftGet() { return { draft: null }; },
-    async pptEditorNarrationDecide() { decisions++; status = "adopted"; throw new Error("Response lost"); },
-  });
-  await showNarration(f); narrationButton(f).props.onClick(); await f.flush();
-  narrationReview(f).props.decide("adopt"); await f.flush();
-  assert(!narrationReview(f)); assert.equal(decisions, 1);
-  assert(f.nodes().some(node => node.props?.role === "alert" && node.props.children.includes("Response lost")));
-  narrationButton(f).props.onClick(); await f.flush();
-  assert.equal(narrationReview(f).props.review.status, "adopted"); assert.equal(decisions, 1);
-});
-
-test("narration actions fence stale clicks, running turns and late reads after navigation", async t => {
-  let complete, reads = 0;
-  const f = await fixture(t, "CoursewareChatNarration", { sessionId: "chat", disabled: false }, {
-    pptEditorNarrationReview() { reads++; return new Promise(resolve => { complete = resolve; }); },
-    async pptEditorTeachingDraftGet() { assert.fail("Do not read drafts after switching tasks"); },
-  });
-  await showNarration(f); const button = narrationButton(f);
-  f.store.activeSessionId = "other"; button.props.onClick(); await f.flush(); assert.equal(reads, 0);
-  f.store.activeSessionId = "chat"; f.store.runningSessions.chat = true; button.props.onClick(); await f.flush(); assert.equal(reads, 0);
-  f.store.runningSessions.chat = false; button.props.onClick(); await f.flush(); assert.equal(reads, 1);
-  f.store.activeSessionId = "other"; complete(narrationView); await f.flush(); assert(!narrationReview(f));
+  assert.equal(f.store.coursewareTeachingRefresh, undefined);
 });
 
 const pptxReceipt = (kind = "page-fade", patch = {}) => ({ role: "tool", toolStatus: "success",
@@ -274,6 +231,22 @@ test("uncertain PPTX adoption is never replayed and rejection uses the existing 
   assert(f.nodes().some(node => node.props?.role === "alert" && node.props.children.includes("Lost adoption response")));
   pptxButtons(f)[0].props.onClick(); await f.flush(); assert.equal(reads, 2); assert.equal(adopts, 1);
   pptxReview(f).props.reject(); await f.flush(); assert.equal(rejected, 1); assert.equal(pptxButtons(f).length, 0);
+  assert.deepEqual(f.store.coursewareTeachingRefresh, { sessionId: "chat", reread: true });
+});
+
+test("closing a Chat PPTX review refreshes teaching without deciding or regenerating the candidate", async t => {
+  const f = await fixture(t, "CoursewareChatPptxCandidates", { sessionId: "chat", disabled: false }, {
+    ...pptxDraftApi, async pptEditorPptxCandidateReview() { return pptxView; },
+  });
+  f.store.messages = [pptxReceipt()]; f.render(); await f.flush();
+  pptxButtons(f)[0].props.onClick(); await f.flush();
+  pptxReview(f).props.close(); await f.flush();
+  assert(!pptxReview(f)); assert.equal(pptxButtons(f).length, 1);
+  assert.deepEqual(f.store.coursewareTeachingRefresh, { sessionId: "chat", reread: true });
+  f.store.coursewareTeachingRefresh = undefined;
+  pptxButtons(f)[0].props.onClick(); await f.flush();
+  f.store.activeSessionId = "other"; pptxReview(f).props.close(); await f.flush();
+  assert.equal(f.store.coursewareTeachingRefresh, undefined);
 });
 
 test("PPTX actions fence switched tasks, running turns, disabled state and late reads", async t => {
@@ -492,4 +465,118 @@ test("repeated create clicks share one operation, and failed creation retains th
   f.nodes().find(node => node.type === "form").props.onSubmit({ preventDefault() {} }); await f.flush();
   assert.equal(f.calls.length, 2);
   assert.equal(f.calls.at(-1)[1].courseware.initialPrompt, "Circles");
+});
+
+
+const visualButton = (f, name) => f.nodes().find(node => node.type === "button" && node.props.children === "panel.pptEditor." + name);
+const sourceVisual = { reviewId: "visual-1", pageNumber: 1, original: { preview: "original.png" }, nativeTextless: { preview: "textless.png" } };
+
+async function visuals(t, overrides = {}) {
+  const calls = [];
+  const f = await fixture(t, "CoursewareSourceVisuals", { sessionId: "chat", enabled: true, disabled: false, onActiveChange() {} }, {
+    async pptEditorVisualClear() { calls.push(["clear"]); },
+    async pptEditorTeachingOpen() { calls.push(["teaching"]); return { viewId: "teaching-1" }; },
+    async pptEditorTeachingDraftGet() { return { draft: null }; },
+    async pptEditorVisualPrepare(...args) { calls.push(["prepare", ...args]); return sourceVisual; },
+    async pptEditorVisualApprove(...args) { calls.push(["approve", ...args]); },
+    ...overrides,
+  });
+  return { ...f, visualCalls: calls };
+}
+
+test("main Chat offers visual preparation only after a PPTX source exists", async t => {
+  const f = await fixture(t, "CoursewareChatWorkflow", { sessionId: "chat" });
+  assert(!f.nodes().some(node => node.type === "source-visuals"));
+  f.import(); f.render(); await f.click("refresh");
+  assert(!f.nodes().some(node => node.type === "source-visuals"));
+  for (const type of ["plain", "scene", "import"]) {
+    f.attached(type); await f.click("refresh");
+    const node = f.nodes().find(node => node.type === "source-visuals");
+    assert(node, type); assert.equal(node.props.sessionId, "chat");
+    f.store.coursewareTeachingRefresh = undefined;
+    node.props.onActiveChange(false); f.render();
+    assert.equal(f.store.coursewareTeachingRefresh, undefined, "Idle mount must not start a competing teaching read");
+    node.props.onActiveChange(true); f.render();
+    assert(f.button("continue").props.disabled);
+    node.props.onActiveChange(false); f.render();
+    assert.equal(f.store.coursewareTeachingRefresh.reread, true);
+    assert.equal(f.calls.filter(call => call[0] === "editor").length, 0);
+  }
+});
+
+test("visual preparation requires explicit unchecked confirmation and never adopts a PPTX", async t => {
+  const f = await visuals(t);
+  visualButton(f, "visualPrepare").props.onClick(); await f.flush();
+  assert.deepEqual(f.visualCalls, [["clear"], ["clear"], ["teaching"], ["prepare", "chat"]]);
+  assert.equal(f.nodes().filter(node => node.type === "img").length, 2);
+  assert(visualButton(f, "visualApprove").props.disabled);
+  const checkbox = f.nodes().find(node => node.type === "input");
+  assert.equal(checkbox.props.checked, false);
+  checkbox.props.onChange({ target: { checked: true } }); f.render();
+  visualButton(f, "visualApprove").props.onClick(); await f.flush();
+  assert.deepEqual(f.visualCalls.at(-1), ["approve", "visual-1"]);
+  f.props.disabled = true; f.render(); await f.flush();
+  f.props.disabled = false; f.render(); await f.flush();
+  assert(f.nodes().some(node => node.props?.role === "status"));
+  assert.equal(f.visualCalls.filter(call => call[0] === "clear").length, 2, "An Agent turn must not revoke the reviewed inputs it needs");
+});
+
+test("visual preparation fences duplicate clicks, active turns and stored narration drafts", async t => {
+  let release;
+  const f = await visuals(t, { async pptEditorVisualPrepare() { f.visualCalls.push(["prepare"]); return new Promise(resolve => { release = resolve; }); } });
+  const click = visualButton(f, "visualPrepare").props.onClick;
+  click(); click(); await f.flush();
+  assert.equal(f.visualCalls.filter(call => call[0] === "prepare").length, 1);
+  release(sourceVisual); await f.flush();
+  f.props.disabled = true; f.render();
+  visualButton(f, "visualPrepare").props.onClick(); await f.flush();
+  assert.equal(f.visualCalls.filter(call => call[0] === "prepare").length, 1);
+  const draft = await visuals(t, { async pptEditorTeachingDraftGet() { return { draft: { instruction: "Keep my manual draft" } }; } });
+  visualButton(draft, "visualPrepare").props.onClick(); await draft.flush();
+  assert(!draft.visualCalls.some(call => call[0] === "prepare"));
+  assert(draft.nodes().some(node => node.props?.role === "alert"));
+});
+
+
+test("late visual preparation cannot dispatch after switching Chat", async t => {
+  let release;
+  const f = await visuals(t, { async pptEditorTeachingDraftGet() { return new Promise(resolve => { release = resolve; }); } });
+  visualButton(f, "visualPrepare").props.onClick(); await f.flush();
+  f.props.sessionId = "other"; f.render(); await f.flush();
+  release({ draft: null }); await f.flush();
+  assert(!f.visualCalls.some(call => call[0] === "prepare"));
+  assert.equal(f.nodes().filter(node => node.type === "img").length, 0);
+});
+
+
+test("unmounted Chat visual controls cannot clear or prepare another review", async t => {
+  const f = await visuals(t);
+  const click = visualButton(f, "visualPrepare").props.onClick;
+  f.unmount();
+  const count = f.visualCalls.length;
+  click(); await f.flush();
+  assert.equal(f.visualCalls.length, count);
+});
+
+
+test("ordinary exported projects expose the shared visuals without a scene generatedPath flag and retain them during an Agent turn", async t => {
+  const marker = { type: "ordinary-source-visuals", props: {} };
+  const props = { sessionId: "chat", disabled: false, refreshKey: 0, sourceVisuals: marker };
+  const f = await fixture(t, "CoursewareChatPresentation", props);
+  assert(!f.nodes().some(node => node.type === marker.type));
+  f.project.exported = true; props.refreshKey++; f.render(); await f.flush();
+  assert(f.nodes().some(node => node.type === marker.type));
+  props.disabled = true; f.store.runningSessions.chat = true; f.render();
+  assert(f.nodes().some(node => node.type === marker.type), "Reinspection cannot unmount and revoke approved inputs before redo starts");
+  await f.flush(); assert(f.nodes().some(node => node.type === marker.type));
+  props.disabled = false; f.store.runningSessions.chat = false; f.project.inputTime = 40; props.refreshKey++; f.render(); await f.flush();
+  assert(!f.nodes().some(node => node.type === marker.type), "Changed generation inputs require a current exported source");
+});
+
+test("the ordinary workflow passes its single visual reviewer through the project inspector", async t => {
+  const f = await fixture(t, "CoursewareChatWorkflow", { sessionId: "chat" });
+  f.plain(); await f.click("refresh");
+  const ordinary = f.nodes().find(node => node.type === "plain-presentation");
+  assert(ordinary?.props.sourceVisuals);
+  assert.equal(f.nodes().filter(node => node.type === "source-visuals").length, 0, "Parent attachment flags must not decide ordinary readiness");
 });

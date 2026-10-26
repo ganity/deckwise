@@ -1,0 +1,8 @@
+{
+  "path": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop/release/chat-redo-20261025/DeckWise-0.17.7.AppImage",
+  "resolvedPath": "/mnt/docker-disk/deckwise-delivery/chat-redo-20261025/release/DeckWise-0.17.7.AppImage",
+  "bytes": 340991166,
+  "sha256": "3b1bb4b62f69447a0276d6840fab1efcdefcbfbb6d62d861a3b5caae982f4154",
+  "previousAppImageUnchanged": true,
+  "scope": "Local Linux x64 AppImage; not signed/published/deployed"
+}

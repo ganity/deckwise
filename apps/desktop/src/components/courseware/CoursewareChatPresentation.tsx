@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "../../lib/api";
 import { inspectProject, pptMasterRepairPrompt, referencedProject, type PptProjectState } from "../../lib/ppt-master-project";
 import { pptEditorWorkPanelTab, svgEditorWorkPanelTab } from "../../lib/work-panel-tabs";
 import { useAppStore } from "../../stores/app-store";
 
-export function CoursewareChatPresentation({ sessionId, disabled, refreshKey }: { sessionId: string; disabled: boolean; refreshKey: number }) {
+export function CoursewareChatPresentation({ sessionId, disabled, refreshKey, sourceVisuals }: { sessionId: string; disabled: boolean; refreshKey: number; sourceVisuals?: ReactNode }) {
   const { t } = useTranslation();
   const messages = useAppStore(state => state.messages);
   const isRunning = useAppStore(state => state.runningSessions[sessionId] ?? false);
@@ -14,9 +14,9 @@ export function CoursewareChatPresentation({ sessionId, disabled, refreshKey }: 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const working = useRef(false);
+  useEffect(() => { setProject(null); }, [path]);
   useEffect(() => {
     let disposed = false, request = 0;
-    setProject(null);
     const load = async () => {
       if (!path) return;
       const id = ++request;
@@ -63,6 +63,7 @@ export function CoursewareChatPresentation({ sessionId, disabled, refreshKey }: 
         throw new Error(t("coursewareWorkflow.sendFailed"));
     })}>{t("coursewareWorkflow.repairPages")}</button>}
     </div>}
+    {project?.pptxPath && !project.needsPptxRegeneration && sourceVisuals}
     {error && <p role="alert" className="courseware-workflow-error">{error}</p>}
   </>;
 }

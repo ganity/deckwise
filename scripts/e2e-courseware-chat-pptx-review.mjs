@@ -25,6 +25,11 @@ const stubs = new Map([
       pptEditorTeachingOpen:async()=>({viewId:'teaching'}),
       pptEditorTeachingDraftGet:async()=>({draft:f.draft?{}:null}),
       pptEditorStyleClear:async()=>({ok:true}),
+      pptEditorVisualClear:async()=>{f.calls.push(['visual-clear']);return{ok:true}},
+      pptEditorVisualPrepare:async session=>{f.calls.push(['visual-prepare',session]);if(f.visualHold)await new Promise(resolve=>{f.releaseVisual=resolve});return{reviewId:'visual',pageNumber:1,
+        original:{preview:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aR1cAAAAASUVORK5CYII='},
+        nativeTextless:{preview:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aR1cAAAAASUVORK5CYII='}}},
+      pptEditorVisualApprove:async id=>{f.calls.push(['visual-approve',id]);if(f.rejectVisual)throw Error('Saved page changed');return{approved:true}},
       pptEditorPptxCandidateReview:async(sessionId,candidateId)=>{
         f.calls.push(['review',sessionId,candidateId]);if(f.hold)await new Promise(resolve=>{f.release=resolve});
         if(f.status!=='needs-review')throw Error('Invalid or outdated PPTX candidate');
@@ -44,18 +49,23 @@ try {
     import React from 'react';import{createRoot}from'react-dom/client';
     import i18next from 'i18next';import{I18nextProvider}from'react-i18next';
     import{zhCN}from'../../packages/i18n/src/locales/zh-CN/index';
+    import{en}from'../../packages/i18n/src/locales/en/index';
     import{CoursewareChatPptxCandidates}from'./src/components/courseware/CoursewareChatPptxCandidates';
+    import{CoursewareSourceVisuals}from'./src/components/workpanel/CoursewareSourceVisuals';
     import{useAppStore}from'../../stores/app-store';
-    i18next.init({lng:'zh-CN',resources:{'zh-CN':{translation:zhCN}},interpolation:{escapeValue:false}});
-    let generation=0;const root=createRoot(document.getElementById('root'));
+    i18next.init({lng:'zh-CN',resources:{'zh-CN':{translation:zhCN},en:{translation:en}},interpolation:{escapeValue:false}});
+    let generation=0,showVisuals=false;const root=createRoot(document.getElementById('root'));
     function App(){const session=useAppStore(s=>s.activeSessionId),running=useAppStore(s=>s.runningSessions);
-      return <I18nextProvider i18n={i18next}><section className='courseware-chat-workflow'><CoursewareChatPptxCandidates
-        key={session+generation} sessionId={session} disabled={!!running[session]}/></section></I18nextProvider>}
-    window.reset=(kind='page-fade',effects=false)=>{generation++;Object.assign(window.fixture,{calls:[],draft:false,loss:false,hold:false,status:'needs-review',effects,kind});
+      return <I18nextProvider i18n={i18next}><section className='courseware-chat-workflow'>{showVisuals?<CoursewareSourceVisuals
+        key={session+generation} sessionId={session} enabled disabled={!!running[session]} onActiveChange={()=>{}}/>:<CoursewareChatPptxCandidates
+        key={session+generation} sessionId={session} disabled={!!running[session]}/>}</section></I18nextProvider>}
+    window.reset=(kind='page-fade',effects=false)=>{showVisuals=false;generation++;Object.assign(window.fixture,{calls:[],draft:false,loss:false,hold:false,status:'needs-review',effects,kind});
       const toolName={'page-fade':'ppt_propose_page_fade','page-pptx':'ppt_propose_page_redo','page-style-batch':'ppt_propose_page_style_batch'}[kind];
       useAppStore.setState({activeSessionId:'chat',runningSessions:{},messages:[{role:'tool',toolName,toolStatus:'success',
         toolResult:{details:{kind,candidateId:'candidate',reviewState:'needs-review',applied:false,saved:false,outputSha256:'a'.repeat(64),baseline:{sessionId:'native-mount'}}}}]});root.render(<App/>)};
-    window.setChatState=useAppStore.setState;window.reset();`,
+    window.resetVisuals=()=>{generation++;showVisuals=true;Object.assign(window.fixture,{calls:[],draft:false,visualHold:false,rejectVisual:false,releaseVisual:null});
+      useAppStore.setState({activeSessionId:'chat',runningSessions:{},messages:[]});root.render(<App/>)};
+    window.language=lng=>i18next.changeLanguage(lng);window.setChatState=useAppStore.setState;window.reset();`,
     resolveDir: desktop, sourcefile: "chat-pptx-review-entry.tsx", loader: "tsx" },
     bundle: true, format: "iife", platform: "browser", jsx: "automatic", outfile: join(temporary, "bundle.js"),
     plugins: [{ name: "ipc-store-fixtures", setup(build) {
@@ -122,6 +132,61 @@ try {
     await page.evaluate(() => { window.setChatState({ activeSessionId: "other", messages: [] }); });
     await expect(entrance()).toHaveCount(0); await page.evaluate(() => window.fixture.release());
     await expect(review()).toHaveCount(0);
+  });
+  await step("Chat page visuals require explicit approval and survive an Agent turn without regeneration", async () => {
+    await page.evaluate(() => window.resetVisuals());
+    const visuals = page.locator('.courseware-source-visuals');
+    await visuals.getByRole('button', { name: '准备当前页底图', exact: true }).click();
+    await expect(visuals.locator('img')).toHaveCount(2);
+    const approval = visuals.getByRole('button', { name: '确认使用此背景', exact: true });
+    await expect(approval).toBeDisabled(); await expect(visuals.getByRole('checkbox')).not.toBeChecked();
+    await visuals.getByRole('checkbox').check(); await approval.click();
+    await expect(visuals.getByRole('status')).toContainText('已审核');
+    const calls = await page.evaluate(() => window.fixture.calls);
+    assert.deepEqual(calls, [['visual-clear'], ['visual-clear'], ['visual-prepare', 'chat'], ['visual-approve', 'visual']]);
+    await page.evaluate(() => window.setChatState({runningSessions:{chat:true}}));
+    await expect(visuals.getByRole('button', { name: '准备当前页底图', exact: true })).toBeDisabled();
+    await expect(visuals.getByRole('button', { name: '放弃本次底图', exact: true })).toBeDisabled();
+    await page.evaluate(() => window.setChatState({runningSessions:{}}));
+    await expect(visuals.getByRole('status')).toContainText('已审核');
+    assert.deepEqual(await page.evaluate(() => window.fixture.calls), calls);
+    if (output) await page.screenshot({path:join(output,'chat-source-visuals.png')});
+  });
+  await step("Stored narration drafts block Chat visual preparation and navigation revokes the review", async () => {
+    await page.evaluate(() => {window.resetVisuals();window.fixture.draft=true});
+    const visuals = page.locator('.courseware-source-visuals');
+    await visuals.getByRole('button', {name:'准备当前页底图',exact:true}).click();
+    await expect(visuals.getByRole('alert')).toContainText('草稿');
+    assert(!(await page.evaluate(() => window.fixture.calls)).some(call => call[0] === 'visual-prepare'));
+    await page.evaluate(() => window.setChatState({activeSessionId:'other'}));
+    await expect(visuals.getByRole('alert')).toHaveCount(0);
+    await expect(visuals.locator('img')).toHaveCount(0);
+  });
+  await step("Visual consent and approval work in English as well as Chinese", async () => {
+    await page.evaluate(async () => { await window.language('en'); window.resetVisuals(); });
+    const visuals = page.locator('.courseware-source-visuals');
+    await visuals.getByRole('button', {name:'Prepare current page visuals',exact:true}).click();
+    await expect(visuals.getByAltText('Original saved page')).toBeVisible();
+    const approval = visuals.getByRole('button', {name:'Approve this background',exact:true});
+    await expect(approval).toBeDisabled(); await visuals.getByRole('checkbox').check(); await approval.click();
+    await expect(visuals.getByRole('status')).toContainText('Background reviewed');
+    await page.evaluate(() => window.language('zh-CN'));
+    await expect(visuals.getByRole('status')).toContainText('已审核');
+  });
+  await step("Late visual replies and stale approvals cannot leave a usable preview", async () => {
+    await page.evaluate(() => { window.resetVisuals(); window.fixture.visualHold=true; });
+    const visuals = page.locator('.courseware-source-visuals');
+    await visuals.getByRole('button', {name:'准备当前页底图',exact:true}).click();
+    await page.waitForFunction(() => typeof window.fixture.releaseVisual === 'function');
+    await page.evaluate(() => window.setChatState({activeSessionId:'other'}));
+    await page.evaluate(() => window.fixture.releaseVisual());
+    await expect(visuals.locator('img')).toHaveCount(0);
+    await page.evaluate(() => { window.resetVisuals(); window.fixture.rejectVisual=true; });
+    await visuals.getByRole('button', {name:'准备当前页底图',exact:true}).click();
+    await visuals.getByRole('checkbox').check();
+    await visuals.getByRole('button', {name:'确认使用此背景',exact:true}).click();
+    await expect(visuals.getByRole('alert')).toContainText('Saved page changed');
+    await expect(visuals.locator('img')).toHaveCount(0);
   });
   assert.deepEqual(errors, []); report.status = "PASS";
 } catch (error) { report.status = "FAIL"; report.error = String(error); throw error; }

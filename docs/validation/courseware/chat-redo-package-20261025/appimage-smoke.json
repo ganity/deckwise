@@ -1,0 +1,23 @@
+{
+  "status": "PASS_APPIMAGE_LAUNCH_AND_PAYLOAD",
+  "executablePath": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop/release/chat-redo-20261025/DeckWise-0.17.7.AppImage",
+  "paidCalls": false,
+  "scope": "AppImage launcher, packaged Main UI and five runtime payload hashes",
+  "sandbox": "--no-sandbox",
+  "temporaryData": "/mnt/docker-disk/deckwise-delivery/chat-redo-20261025/tmp/deckwise-appimage-smoke-ukvY7b",
+  "runtime": {
+    "packaged": true,
+    "appPath": "/mnt/docker-disk/deckwise-delivery/chat-redo-20261025/tmp/appimage_extracted_96054583dad9ce1c8a7c1f8a5a927f65/resources/app.asar",
+    "mainPid": 3551569,
+    "resourcesPath": "/mnt/docker-disk/deckwise-delivery/chat-redo-20261025/tmp/appimage_extracted_96054583dad9ce1c8a7c1f8a5a927f65/resources",
+    "executablePath": "/mnt/docker-disk/deckwise-delivery/chat-redo-20261025/tmp/appimage_extracted_96054583dad9ce1c8a7c1f8a5a927f65/deckwise",
+    "hashes": {
+      "app.asar": "adc4f1ebc11df638924d100145efe8642996bd895045486a827599e1c75d7c7c",
+      "bin/pi-desktop-host-core": "df346a256a06e1e6041a91233ad6894803241f5bc9689183b62894300dda9d8e",
+      "agent-runtime/sidecar.js": "67ca21e676ce19d1dddb58368bf15bef187e203c7b4df9f828d3df3bc81c767c",
+      "pptx-worker/pptx-worker.mjs": "9df334e62bd535bc3663c3b28a9082b4a5c0ab59fbf730f0ccdcf9856b1ba3f3",
+      "pptx-worker/authoring.mjs": "586ba532f841b0c59c1fdaebecc230bb1f31fec9118626556ff6927dfd10637c"
+    }
+  },
+  "cleanup": "Disposable AppImage exited"
+}

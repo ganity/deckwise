@@ -162,7 +162,8 @@ pub(super) fn finish(
             "page":result.content.pointer("/result/page"),
             "candidateId":result.content.get("candidateId"),
             "reviewState":result.content.get("reviewState"),
-            "saved":false,
+            "saved":result.ok && result.content["kind"] == "page-narration"
+                && result.content["saved"] == true && result.content["applied"] == true,
         }),
     )
 }

@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { stageNarrationFixtures } from "./e2e/narration-candidates.mjs";
 import { coursewareLaunch } from "./e2e/boot.mjs";
+import { verifyDeletedNarrationRecovery } from "./e2e/deleted-narration-recovery.mjs";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
@@ -43,7 +44,7 @@ async function persistedIdentities() {
 const button = (name) => page.locator(".courseware-teaching").getByRole("button", { name });
 const load = () => button(/Load current page|读取当前页讲解/);
 const save = () => button(/Save narration|保存讲解/);
-const lock = () => page.locator(".courseware-teaching input[type=checkbox]");
+const lock = () => page.locator(".courseware-teaching").getByRole("checkbox", { name: /^(Lock this page|锁定本页)$/ });
 async function step(name, action) {
   console.log("START", name);
   await action(); report.checks.push(name); console.log("PASS", name);
@@ -142,7 +143,7 @@ async function stop() {
 }
 async function loadPage() {
   await load().click();
-  await expect(page.locator(".courseware-teaching input[type=checkbox]")).toBeVisible({ timeout: 120_000 });
+  await expect(lock()).toBeVisible({ timeout: 120_000 });
   await expect(load()).toBeEnabled({ timeout: 120_000 });
   await expect(page.locator(".courseware-teaching [role=alert]")).toHaveCount(0);
 }
@@ -161,12 +162,17 @@ try {
   const followPage = process.argv.includes("--follow-page");
   const draftRestart = process.argv.includes("--draft-restart");
   const copyReorder = process.argv.includes("--copy-reorder");
+  const deletedRecovery = process.argv.includes("--deleted-recovery");
   await step("Open real Desktop, native Office and saved-source teaching", async () => {
     await start(); await goToPage(0);
-    if (followPage || draftRestart || (copyReorder && !notesSmoke)) await invoke("coursewareTaskSet", { sessionId, taskType: "plain", educationContext: {} });
+    if (followPage || draftRestart || deletedRecovery || (copyReorder && !notesSmoke)) await invoke("coursewareTaskSet", { sessionId, taskType: "plain", educationContext: {} });
     if (!notesSmoke || copyReorder) await loadPage();
   });
-  if (copyReorder) {
+  if (deletedRecovery) {
+    report.case = "W06.1-PACKAGED-DELETED-NARRATION-RECOVERY";
+    await verifyDeletedNarrationRecovery({ page: () => page, sdk: () => sdk, invoke, sessionId,
+      file, out, report, step, start, stop, goToPage, loadPage, load, save, database: join(temp, "data/pi.sqlite") });
+  } else if (copyReorder) {
     report.case = notesSmoke === "import-picker" ? "W06.1-IMPORT-NATIVE-COPY-REORDER" : "W06.1-NATIVE-COPY-REORDER";
     const sourceFile = importedPath || file;
     const narration = () => page.locator(".courseware-teaching label textarea").nth(1);

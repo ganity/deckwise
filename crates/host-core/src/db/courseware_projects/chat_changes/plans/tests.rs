@@ -320,3 +320,36 @@ fn declared_chat_plan_tracks_real_narration_proposal_and_explicit_adoption() {
         "adopted"
     );
 }
+
+#[test]
+fn declared_chat_plan_records_direct_narration_save_without_candidate() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_str().unwrap();
+    let db = Database::open_in_dir(dir.path()).unwrap();
+    let p = project(&db, root);
+    let mut plan = plan(&p);
+    plan.items.remove(0);
+    let args = json!({});
+    db.declare_courseware_chat_plan(
+        root,
+        &p.project_id,
+        request("plan-1", "ppt_record_change_plan", &args),
+        &plan,
+        &p.source.revision,
+        &p.teaching_revision,
+    )
+    .unwrap();
+    let args = json!({"baseline":{"pageId":plan.page_id}});
+    let pending = db
+        .prepare_courseware_chat_change(
+            root,
+            &p.project_id,
+            request("narration", "ppt_propose_page_narration", &args),
+        )
+        .unwrap();
+    db.finish_courseware_chat_change(&pending, json!({"state":"acknowledged","saved":true}))
+        .unwrap();
+    let changes = db.courseware_chat_change_context(root, &p).unwrap();
+    assert_eq!(changes[0]["plan"]["items"][0]["status"], "saved");
+    assert!(changes[0]["operations"][0].get("candidate").is_none());
+}

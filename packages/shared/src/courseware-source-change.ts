@@ -27,7 +27,7 @@ export type CoursewareChatChange = { changeGroupId: string; acknowledged: number
   receiptSha256?: string;
   resolution?: { note: string; sourceSha256: string; teachingRevision: string };
   plan?: { pageId: string; pageNumber: number; items: {
-    label: string; toolName: string; status: CoursewareChatCandidate["status"] | "not-recorded" | "native-unsaved";
+    label: string; toolName: string; status: CoursewareChatCandidate["status"] | "not-recorded" | "native-unsaved" | "saved";
     toolCallId?: string;
   }[] } };
 
@@ -50,7 +50,9 @@ export function chatChangesForTeaching(raw: unknown): CoursewareChatChange[] | u
         throw new Error("Invalid Chat operation");
       if (operation.outcome === null) summary.pending++;
       else if (operation.outcome && typeof operation.outcome === "object" && !Array.isArray(operation.outcome) &&
-          operation.outcome.saved === false && ["acknowledged", "uncertain"].includes(operation.outcome.state)) {
+          (operation.outcome.saved === false || (operation.outcome.saved === true &&
+            operation.toolName === "ppt_propose_page_narration" && operation.outcome.state === "acknowledged")) &&
+          ["acknowledged", "uncertain"].includes(operation.outcome.state)) {
         if (operation.outcome.state === "acknowledged") summary.acknowledged++;
         else summary.uncertain++;
       } else throw new Error("Invalid Chat outcome");
@@ -91,7 +93,9 @@ export function chatChangesForTeaching(raw: unknown): CoursewareChatChange[] | u
             !operation || operation.toolName !== item.toolName) throw new Error("Chat step has no matching operation");
         used.add(item.toolCallId);
         const expected = !operation.outcome || operation.outcome.state !== "acknowledged" ? "unknown"
-          : operation.candidate ? operation.candidate.status : operation.outcome.page === plan.pageNumber ? "native-unsaved" : null;
+          : operation.candidate ? operation.candidate.status
+          : operation.toolName === "ppt_propose_page_narration" && operation.outcome.saved === true ? "saved"
+          : operation.outcome.page === plan.pageNumber ? "native-unsaved" : null;
         if (item.status !== expected) throw new Error("Chat plan progress differs from its actual operation");
       }
       summary.plan = structuredClone(plan);

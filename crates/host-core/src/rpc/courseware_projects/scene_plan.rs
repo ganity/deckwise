@@ -32,7 +32,10 @@ impl Page {
     pub(super) fn source_hash(&self) -> Result<String, JsonRpcError> {
         // Match Main's hash of the ordered {title,visibleText,visualIntent,narration} object.
         let bytes = serde_json::to_vec(self).map_err(|e| error(e.into()))?;
-        Ok(format!("sha256:{}", hex::encode(sha2::Sha256::digest(bytes))))
+        Ok(format!(
+            "sha256:{}",
+            hex::encode(sha2::Sha256::digest(bytes))
+        ))
     }
 }
 
@@ -405,9 +408,15 @@ mod tests {
 
     #[test]
     fn source_hash_matches_main_json_with_unicode_and_control_characters() {
-        let page: Page = serde_json::from_value(json!({"title":"苹果与梨 😀", "visibleText":["Apple", "梨 <&>"],
-            "visualIntent":"分层\n前景", "narration":"Good job! 苹果。"})).unwrap();
-        assert_eq!(page.source_hash().unwrap(), "sha256:53189ad924861bd6c42e7112eb48effd735afc5abaeb573d78fa34623376a308");
+        let page: Page = serde_json::from_value(
+            json!({"title":"苹果与梨 😀", "visibleText":["Apple", "梨 <&>"],
+            "visualIntent":"分层\n前景", "narration":"Good job! 苹果。"}),
+        )
+        .unwrap();
+        assert_eq!(
+            page.source_hash().unwrap(),
+            "sha256:53189ad924861bd6c42e7112eb48effd735afc5abaeb573d78fa34623376a308"
+        );
     }
 
     #[cfg(unix)]

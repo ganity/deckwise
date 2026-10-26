@@ -102,8 +102,16 @@ pub(super) async fn handle(
         "courseware.tts.reject" => {
             let p: Reject = serde_json::from_value(params).map_err(invalid)?;
             let root = project_workspace(&state, &p.session_id)?;
-            state.db.reject_courseware_tts(&root, &p.project_id, &p.principal_key,
-                &p.intent_id, p.rejected_request).map_err(error)
+            state
+                .db
+                .reject_courseware_tts(
+                    &root,
+                    &p.project_id,
+                    &p.principal_key,
+                    &p.intent_id,
+                    p.rejected_request,
+                )
+                .map_err(error)
         }
         "courseware.tts.bind" => {
             let p: Bind = serde_json::from_value(params).map_err(invalid)?;

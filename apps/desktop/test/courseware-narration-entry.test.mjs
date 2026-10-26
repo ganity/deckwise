@@ -20,7 +20,7 @@ function render({ taskType = "plain", speech = true, locked = false, unsaved = f
   const view = { viewId: "view-1", project, pageId: page.pageId, pageNumber: 1 };
   let index = 0;
   const calls = [], updates = [];
-  const effects = [], refreshReads = [];
+  const effects = [], refreshReads = [], draftWrites = [];
   const states = [view, unsaved ? [{ id: "draft", type: "speech", text: "Unsaved" }] : page.actions];
   const module = { exports: {} };
   new Function("require", "exports", outputText)((id) => {
@@ -41,6 +41,7 @@ function render({ taskType = "plain", speech = true, locked = false, unsaved = f
     if (id === "../../lib/api") return { api: {
       async pptEditorTeachingOpen(id) { refreshReads.push(id); return view; },
       async pptEditorTeachingDraftGet() { return { draft: null }; },
+      async pptEditorTeachingDraftSet(...args) { draftWrites.push(args); return { draft: args[2] ? { revision: "restored", ...args[2] } : null }; },
     } };
     return new Proxy({}, { get: () => () => null });
   }, module.exports);
@@ -50,7 +51,7 @@ function render({ taskType = "plain", speech = true, locked = false, unsaved = f
     if (node.type === "button" && String(node.props.children).includes("在主 Chat")) return node;
     return [node.props?.children].flat(Infinity).map(find).find(Boolean);
   }
-  return { button: find(tree), calls, updates, page, project, refreshReads,
+  return { button: find(tree), calls, updates, page, project, refreshReads, draftWrites,
     refresh: () => effects.find(([, deps]) => refreshNotice && deps?.includes(refreshNotice))?.[0]() };
 }
 
@@ -83,6 +84,18 @@ test("Chat source adoption refreshes clean teaching once, preserving current or 
   }
 });
 
+test("dismissed Chat reviews repin unchanged teaching once without replacing manual drafts", async () => {
+  const notice = { sessionId: "chat", reread: true };
+  const f = render({ refreshNotice: notice }); f.refresh(); await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(f.refreshReads, ["chat"]);
+  f.refresh(); await new Promise(resolve => setImmediate(resolve)); assert.deepEqual(f.refreshReads, ["chat"]);
+  for (const options of [{ unsaved: true }, { enabled: false }, { instruction: "Keep my draft" },
+    { refreshNotice: { ...notice, sessionId: "other" } }]) {
+    const guarded = render({ refreshNotice: notice, ...options }); guarded.refresh(); await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(guarded.refreshReads, [], JSON.stringify(options));
+  }
+});
+
 test("all three paths offer page narration generation and regeneration in the original Chat", async () => {
   for (const taskType of ["plain", "scene", "import"]) for (const speech of [false, true]) {
     const f = render({ taskType, speech });
@@ -94,7 +107,7 @@ test("all three paths offer page narration generation and regeneration in the or
     const [prompt, draft, session] = f.calls[0];
     assert.equal(session, "chat"); assert.equal(draft, undefined);
     for (const value of [f.page.pageId, f.project.projectId, f.project.teachingRevision,
-      "ppt_get_narration_context", "ppt_propose_page_narration", "不要直接覆盖"]) assert(prompt.includes(value));
+      "courseware_narration_context", "courseware_narration_propose", "直接保存"]) assert(prompt.includes(value));
     assert.deepEqual(f.page.actions, speech ? [{ id: "speech", type: "speech", text: "Existing narration" }] : []);
   }
 });
@@ -125,6 +138,20 @@ test("page-specific requests reach Chat without leaking from a previous view", a
   const previous = render({ instruction, instructionViewId: "old-view" });
   await previous.button.props.onClick();
   assert(!previous.calls[0][0].includes(instruction));
+});
+
+test("generation moves its instruction-only draft into Chat and restores it if Chat refuses", async () => {
+  const instruction = "Use short sentences";
+  const accepted = render({ instruction });
+  await accepted.button.props.onClick();
+  assert.deepEqual(accepted.draftWrites[0], ["view-1", null, null]);
+  assert(accepted.calls[0][0].includes(instruction));
+  assert(accepted.updates.some(([, value]) => value?.viewId === "view-1" && value.text === ""));
+  const refused = render({ instruction, result: false });
+  await refused.button.props.onClick();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(refused.draftWrites.at(-1)[2].instruction, instruction);
+  assert.deepEqual(refused.draftWrites.at(-1)[2].actions, refused.page.actions);
 });
 
 // Exercise the component's public controls and API boundary across renders.

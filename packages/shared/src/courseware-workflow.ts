@@ -4,6 +4,7 @@ import type { CoursewareSceneImageView, CoursewareScenePlanSnapshot } from "./co
 export const COURSEWARE_WORKFLOW_TOOLS = [
   "courseware_workflow_get", "courseware_requirements_update", "courseware_scene_image_prepare",
   "courseware_scene_image_refresh", "courseware_scene_compile",
+  "courseware_narration_context", "courseware_narration_propose",
 ] as const;
 
 export type CoursewareWorkflowView = {

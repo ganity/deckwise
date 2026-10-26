@@ -90,13 +90,27 @@ async fn private_rpc_uses_persisted_session_and_never_accepts_input_or_workspace
             .code,
         1007
     );
-    super::super::super::handle_request(state.clone(), "courseware.task.set", json!({
-        "sessionId":a.id,"taskType":"plain"
-    }), tx.clone()).await.unwrap();
+    super::super::super::handle_request(
+        state.clone(),
+        "courseware.task.set",
+        json!({
+            "sessionId":a.id,"taskType":"plain"
+        }),
+        tx.clone(),
+    )
+    .await
+    .unwrap();
     let team = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
-    super::super::super::handle_request(state.clone(), "courseware.task.bindTeam", json!({
-        "sessionId":a.id,"teamProjectId":team
-    }), tx.clone()).await.unwrap();
+    super::super::super::handle_request(
+        state.clone(),
+        "courseware.task.bindTeam",
+        json!({
+            "sessionId":a.id,"teamProjectId":team
+        }),
+        tx.clone(),
+    )
+    .await
+    .unwrap();
     let uncertain = super::super::super::handle_request(
         state.clone(),
         "courseware.tts.begin",
@@ -106,8 +120,18 @@ async fn private_rpc_uses_persisted_session_and_never_accepts_input_or_workspace
     .await
     .unwrap();
     assert_eq!(uncertain["intent"]["phase"], "submission-unknown");
-    assert_eq!(uncertain["intent"]["submissionScope"], json!({"sessionId":a.id,"teamProjectId":team}));
-    assert!(super::super::super::handle_request(state.clone(), "courseware.tts.begin", get.clone(), tx.clone()).await.is_err());
+    assert_eq!(
+        uncertain["intent"]["submissionScope"],
+        json!({"sessionId":a.id,"teamProjectId":team})
+    );
+    assert!(super::super::super::handle_request(
+        state.clone(),
+        "courseware.tts.begin",
+        get.clone(),
+        tx.clone()
+    )
+    .await
+    .is_err());
     let mut bind = get.clone();
     bind["taskRef"] = json!({"taskId":"remote-task","idempotencyKey":saved["intent"]["idempotencyKey"],"requestHash":saved["intent"]["requestHash"]});
     let bound =

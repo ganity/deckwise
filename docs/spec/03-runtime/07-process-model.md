@@ -108,6 +108,12 @@ Two more boot outcomes are named rather than left as a generic outage (D380):
   `hostStatus` with `message: "DB_SCHEMA_TOO_NEW"` and both numbers. The banner
   tells the user to install the newer PI-Desktop that last opened this data.
   No data is migrated down.
+- **Late shell mount.** Main retains the most recent `hostStatus` even without
+  a renderer. `appHostStatus` reads that status without calling host-core.
+  The renderer subscribes before reading it, so login gating or reload does
+  not lose a boot refusal. A live status supersedes an in-flight read; an
+  unmounted subscriber receives no read result. Replaying a retained status
+  never repeats restart-success notifications or checkpoint refreshes.
 - **Non-native build.** At boot Electron compares `process.arch` with the CPU
   (on macOS via `sysctl.proc_translated`, which is `1` only under Rosetta 2;
   elsewhere via `os.machine()`). A mismatch rides on the boot `hostStatus` as

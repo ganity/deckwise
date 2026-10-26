@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { createReadStream, promises as fs } from "node:fs";
 import { basename, dirname, extname, join, relative } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { getOfficeExtension, assertPptEditorCommand, assertPptEditorContext, assertPptEditorCommandResult, samePptEditorBinding, type PptEditorBinding, type OfficeExtension } from "@pi-desktop/shared";
 import { jobIdFor, listRevisions, publishRevision, replaceSourceFile, type Revision } from "./ppt-editor-files";
 import { requestPptEditor } from "./ppt-editor-request";
@@ -172,6 +173,25 @@ export class PptEditorController {
         abort.signal,
       );
       if (this.view !== view) throw new Error("Editor opening was cancelled");
+      if (extension === "pptx") {
+        // document:opened acknowledges construction, before the native SDK is loaded.
+        const binding = this.bridgeBinding!;
+        const signal = AbortSignal.any([abort.signal, AbortSignal.timeout(Math.max(1, deadline - Date.now()))]);
+        while (true) {
+          signal.throwIfAborted();
+          if (this.view !== view) throw new Error("Editor opening was cancelled");
+          try {
+            const context = await this.bridgeRequest("document:get-context", "document:context", binding, undefined, signal);
+            assertPptEditorContext(context);
+            if (!samePptEditorBinding(binding, context) || context.readOnly !== readOnly) throw new Error("Editor context belongs to another session or access mode");
+            break;
+          } catch (error) {
+            if (!(error instanceof Error) || !["OnlyOffice editor is not ready", "Editor is still loading"].includes(error.message)) throw error;
+            await delay(100, undefined, { signal });
+          }
+        }
+        if (this.view !== view) throw new Error("Editor opening was cancelled");
+      }
       this.opening = false;
       this.ready = true;
       if (this.visible) this.attach();

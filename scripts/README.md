@@ -26,6 +26,7 @@ disagrees, so a green `check:release-docs` is a precondition, not a substitute.
 | `release-macos.sh` | `scripts/release-macos.sh` | Signed and notarized local native macOS release lane. Requires `MAC_SIGNING_IDENTITY` and Apple notarization credentials; local package and distribution lanes remain unsigned when no signing identity is configured. |
 | `staple-macos-release-dmg.sh` | `scripts/staple-macos-release-dmg.sh [release-dir]` | Attach Apple's notarization ticket (`xcrun stapler staple`) to the single DMG a native macOS job produced; run by the Release workflow when `sign_macos` is set |
 | `verify-macos-release.sh` | `scripts/verify-macos-release.sh [release-dir]` | Fail unless the one `DeckWise.app` and DMG under the release directory are Developer ID-signed, notarized, and stapled; run by the Release workflow after stapling |
+| `check-courseware-package-credentials.mjs` | `node --experimental-strip-types scripts/check-courseware-package-credentials.mjs --resources <dir> --output <report> [--fixed-build <dir>]` | Scan package signatures and fixed-build allowlisted files, including bounded PPTX decompression; known signatures and embedded-archive limits remain explicit. |
 | `export-linux-asar.mjs` | `node scripts/export-linux-asar.mjs` | Copy the Linux `linux-unpacked/resources/app.asar` into the versioned release asset used for system-Electron repackaging |
 | `create-download-manifest.mjs` | `node scripts/create-download-manifest.mjs <directory> <version> [--mac-signed]` | Validate all seven installers and generate the download page's version, sizes, filenames, and signing status |
 | `check-linux-host-glibc.mjs` | `node scripts/check-linux-host-glibc.mjs [bin]` | Fail a Linux host-core binary whose needed glibc is above 2.35 |
@@ -88,6 +89,17 @@ The release workflow defaults to unsigned macOS artifacts; manually dispatch
 it with `sign_macos: true` to opt into signing and notarization. See the [release
 runbook](../docs/spec/06-delivery/06-release-runbook.md).
 
+
+### Saved-page narration without editor navigation
+
+Run `scripts/e2e-courseware-saved-narration.mjs` with Electron, passing
+`SOURCE.pptx STAGED_WORKER.mjs OUTPUT_DIRECTORY` and setting
+`PI_DESKTOP_HOST_BIN` to the current Host binary. Build agent-runtime first.
+Local `libreoffice` and `pdftoppm` enable full-page visual evidence; embedded
+images are the fallback. The gate uses deterministic model callbacks and actual
+Main/Host parsing, candidate adoption and restart, without paid calls or an
+editor window. It writes `result.json` and `host.log`; it does not assess real
+model quality. Use a fresh test output directory and temporary storage.
 
 ### Tolerant transcript reads
 

@@ -4,6 +4,7 @@ import { loadCoursewareMedia } from "./fixtures/courseware-media-loader.mjs";
 import { createHash } from "node:crypto";
 import { crc32 } from "node:zlib";
 import * as crypto from "node:crypto";
+import * as util from "node:util";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { tmpdir } from "node:os";
@@ -60,6 +61,13 @@ async function load(name, dependencies) {
   return exports;
 }
 const media = await loadCoursewareMedia();
+const office = await load("office-file", { "@pi-desktop/shared": shared });
+const onlineEditing = await load("courseware-online-editing", {
+  "node:crypto": crypto,
+  "node:util": util,
+  "@pi-desktop/shared": shared,
+  "./office-file": office,
+});
 const sceneContext = electron
   ? await load("courseware-scene-context", { electron, "node:crypto": crypto, "node:zlib": { crc32 } })
   : null;
@@ -306,6 +314,18 @@ test("actual DesktopAuthSession reads team PNGs, rechecks revocation and rejects
     await once(server, "listening");
     const before = process.env.DECKWISE_PLATFORM_BASE_URL;
     process.env.DECKWISE_PLATFORM_BASE_URL = `http://127.0.0.1:${server.address().port}`;
+    let auth;
+    t.after(async () => {
+      try {
+        await auth?.logout();
+      } finally {
+        server.closeAllConnections();
+        server.close();
+        await fs.rm(root, { recursive: true, force: true });
+        if (before === undefined) delete process.env.DECKWISE_PLATFORM_BASE_URL;
+        else process.env.DECKWISE_PLATFORM_BASE_URL = before;
+      }
+    });
     const { DesktopAuthSession } = await load("auth-session", {
       "node:crypto": crypto,
       "node:fs/promises": fs,
@@ -314,17 +334,10 @@ test("actual DesktopAuthSession reads team PNGs, rechecks revocation and rejects
       electron: { net: { fetch: transportFetch } },
       "@pi-desktop/shared": shared,
       "./courseware-media": media,
+      "./courseware-online-editing": onlineEditing,
       "./courseware-team-images": resolver,
     });
-    const auth = new DesktopAuthSession({ dataDir: root, onChanged() {}, log() {} });
-    t.after(async () => {
-      await auth.logout();
-      server.closeAllConnections();
-      server.close();
-      await fs.rm(root, { recursive: true, force: true });
-      if (before === undefined) delete process.env.DECKWISE_PLATFORM_BASE_URL;
-      else process.env.DECKWISE_PLATFORM_BASE_URL = before;
-    });
+    auth = new DesktopAuthSession({ dataDir: root, onChanged() {}, log() {} });
     await auth.startQrLogin();
     await auth.pollQrLogin("team-ticket");
     const principal = auth.getCoursewarePrincipal();

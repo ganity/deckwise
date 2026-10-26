@@ -10,10 +10,9 @@ function setup() {
     clean: true, manualLocked: false, capabilities: ["page-pptx", "page-narration", "page-fade"],
   };
   const getContext = vi.fn(async (): Promise<unknown> => structuredClone(current));
-  const propose = vi.fn(async (request: Parameters<PptCandidateToolHost["propose"]>[0]): Promise<unknown> => ({
-    candidateId: "candidate-b", kind: request.kind, baseline: request.baseline, reviewState: "needs-review", applied: false,
-    ...(request.kind === "page-narration" ? {} : { outputSha256: "c".repeat(64) }),
-  } satisfies PptCandidateReceipt));
+  const propose = vi.fn(async (request: Parameters<PptCandidateToolHost["propose"]>[0]): Promise<unknown> => request.kind === "page-narration"
+    ? { kind: request.kind, baseline: request.baseline, teachingRevision: "T9", pageNumber: 2, applied: true, saved: true, audioReady: false }
+    : { candidateId: "candidate-b", kind: request.kind, baseline: request.baseline, reviewState: "needs-review", applied: false, outputSha256: "c".repeat(64) } satisfies PptCandidateReceipt);
   const host = { binding, getContext, propose };
   return { host, tools: createPptCandidateTools(host), current: () => current, change: (patch: Partial<PptCandidateContext>) => { current = { ...current, ...patch }; } };
 }
@@ -26,14 +25,31 @@ describe("existing Chat candidate tools", () => {
       ["ppt_propose_page_redo", "sequential"], ["ppt_propose_page_narration", "sequential"], ["ppt_propose_page_fade", "sequential"], ["ppt_propose_page_style_batch", "sequential"],
     ]);
   });
-  it.each([0, 1, 2])("returns only a bounded review receipt for tool %s without source paths/bytes or save/adoption claims", async (index) => {
+  it.each([0, 2])("returns only a bounded review receipt for tool %s without source paths/bytes or save/adoption claims", async (index) => {
     const state = setup();
     const input = index === 2 ? { editGeneration: 7 } : args;
     const result = await state.tools[index]!.execute("call", input);
     expect(result.details).toMatchObject({ candidateId: "candidate-b", baseline: state.current().baseline, applied: false, saved: false, reviewState: "needs-review" });
     expect(JSON.stringify(result.details).length).toBeLessThan(1200);
-    if (index === 1) expect(result.details).toMatchObject({ audioReady: false });
     expect(state.host.propose.mock.calls[0]?.[0]).toEqual({ kind: state.current().capabilities[index], baseline: state.current().baseline, ...(index === 2 ? {} : { instruction: args.instruction }) });
+  });
+  it("returns a direct save receipt without rereading the old teaching baseline", async () => {
+    const state = setup();
+    const before = structuredClone(state.current().baseline);
+    state.host.propose.mockImplementationOnce(async request => {
+      state.change({ baseline: { ...before, teachingRevision: "T9" } });
+      return { kind: request.kind, baseline: request.baseline, teachingRevision: "T9", pageNumber: 2, applied: true, saved: true, audioReady: false };
+    });
+    const result = await state.tools[1]!.execute("call", args);
+    expect(result.details).toMatchObject({ baseline: before, teachingRevision: "T9", saved: true, applied: true, audioReady: false });
+    expect(state.host.getContext).toHaveBeenCalledTimes(1);
+    expect(result.details).not.toHaveProperty("candidateId");
+  });
+  it.each([{ saved: false }, { applied: false }, { teachingRevision: "T8" }, { pageNumber: 0 }, { candidateId: "pending" }])("rejects an invalid direct save receipt %s", async patch => {
+    const state = setup();
+    const receipt = await state.host.propose({ kind: "page-narration", baseline: state.current().baseline });
+    state.host.propose.mockResolvedValue({ ...(receipt as object), ...patch });
+    await expect(state.tools[1]!.execute("call", args)).rejects.toThrow("read saved teaching before retrying");
   });
   it.each(["dirty", "readOnly", "lock", "capability", "generation", "document", "missingPage", "badSchema"])("refuses %s before generation", async (change) => {
     const state = setup(); const now = state.current();

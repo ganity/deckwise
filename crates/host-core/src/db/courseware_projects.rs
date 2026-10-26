@@ -5,18 +5,18 @@ const NAMESPACE: &str = "coursewareProjects.v1";
 const MAX_BYTES: usize = 2 * 1024 * 1024;
 const HISTORY_NAMESPACE: &str = "coursewareHistory.v1";
 
-mod candidates;
-mod identities;
-mod teaching_history;
-pub mod chat_changes;
 pub mod asset_locks;
-pub mod scene_objects;
-pub mod reviews;
-pub mod snapshots;
-pub mod source_candidates;
-pub mod tts;
+mod candidates;
+pub mod chat_changes;
+mod identities;
 pub mod media_scope;
 pub mod music;
+pub mod reviews;
+pub mod scene_objects;
+pub mod snapshots;
+pub mod source_candidates;
+mod teaching_history;
+pub mod tts;
 
 fn present_option<'de, D, T>(deserializer: D) -> std::result::Result<Option<T>, D::Error>
 where
@@ -140,6 +140,8 @@ pub(super) fn valid_online_clip(action: &Value) -> bool {
         })
 }
 
+mod attention;
+
 fn validate_actions(actions: &[Value]) -> Result<()> {
     validate_actions_mode(actions, false)
 }
@@ -150,7 +152,10 @@ fn validate_actions_mode(actions: &[Value], online: bool) -> Result<()> {
         || actions.iter().any(|action| {
             let id = action.get("id").and_then(Value::as_str).unwrap_or("");
             let kind = action.get("type").and_then(Value::as_str).unwrap_or("");
-            !valid_id(id) || !valid_id(kind) || !ids.insert(id)
+            !valid_id(id)
+                || !valid_id(kind)
+                || !ids.insert(id)
+                || action.get("attention").is_some_and(|intent| kind != "speech" || attention::targets(intent).is_err() || action.get("visualCues").is_some())
                 || kind == "audio_clip"
                     && !(music::valid_clip(action) || online && valid_online_clip(action))
         })
@@ -234,7 +239,9 @@ impl Database {
         sha256: &str,
         page_count: usize,
     ) -> Result<CoursewareProject> {
-        self.open_saved_courseware_project_with_metadata(workspace, project_id, sha256, page_count, "import", None)
+        self.open_saved_courseware_project_with_metadata(
+            workspace, project_id, sha256, page_count, "import", None,
+        )
     }
 
     fn open_saved_courseware_project_with_metadata(
@@ -327,24 +334,47 @@ impl Database {
         narrations: &[String],
     ) -> Result<CoursewareProject> {
         let key = storage_key(workspace, project_id)?;
-        let mut project = self.get_courseware_project(workspace, project_id)?
+        let mut project = self
+            .get_courseware_project(workspace, project_id)?
             .ok_or_else(|| anyhow!("COURSEWARE_NOT_FOUND: project not found"))?;
         if !matches!(project.task_type.as_str(), "plain" | "scene")
             || project.source.sha256 != source_sha256
             || project.pages.len() != narrations.len()
-            || title.trim().is_empty() || title.encode_utf16().count() > 500
-            || narrations.iter().any(|text| text.trim().is_empty() || text.encode_utf16().count() > 2500)
+            || title.trim().is_empty()
+            || title.encode_utf16().count() > 500
+            || narrations
+                .iter()
+                .any(|text| text.trim().is_empty() || text.encode_utf16().count() > 2500)
         {
-            return Err(anyhow!("COURSEWARE_INVALID: generated narration does not match source"));
+            return Err(anyhow!(
+                "COURSEWARE_INVALID: generated narration does not match source"
+            ));
         }
-        let expected: Vec<_> = narrations.iter().map(|text| vec![serde_json::json!({
-            "id": "narration-0", "type": "speech", "text": text,
-        })]).collect();
-        if project.title == title && project.pages.iter().zip(&expected).all(|(page, actions)| page.actions == *actions) {
+        let expected: Vec<_> = narrations
+            .iter()
+            .map(|text| {
+                vec![serde_json::json!({
+                    "id": "narration-0", "type": "speech", "text": text,
+                })]
+            })
+            .collect();
+        if project.title == title
+            && project
+                .pages
+                .iter()
+                .zip(&expected)
+                .all(|(page, actions)| page.actions == *actions)
+        {
             return Ok(project);
         }
-        if project.pages.iter().any(|page| !page.actions.is_empty() || page.locked || page.review_state != "review") {
-            return Err(anyhow!("COURSEWARE_CONFLICT: generated narration would overwrite teaching"));
+        if project
+            .pages
+            .iter()
+            .any(|page| !page.actions.is_empty() || page.locked || page.review_state != "review")
+        {
+            return Err(anyhow!(
+                "COURSEWARE_CONFLICT: generated narration would overwrite teaching"
+            ));
         }
         let original = serde_json::to_string(&project)?;
         project.title = title.to_string();
@@ -358,7 +388,9 @@ impl Database {
             params![serde_json::to_string(&project)?, now_ms(), NAMESPACE, key, original],
         )?;
         if changed != 1 {
-            return Err(anyhow!("COURSEWARE_CONFLICT: project changed during narration initialization"));
+            return Err(anyhow!(
+                "COURSEWARE_CONFLICT: project changed during narration initialization"
+            ));
         }
         Ok(project)
     }

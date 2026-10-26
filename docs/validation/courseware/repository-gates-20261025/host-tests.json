@@ -1,0 +1,16 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "host-core",
+    "--locked",
+    "--jobs",
+    "2"
+  ],
+  "startedAt": "2026-10-24T22:07:58.789395+00:00",
+  "finishedAt": "2026-10-24T22:09:39.268594+00:00",
+  "exitCode": 0,
+  "status": "PASS",
+  "secretsRemovedFromEnvironment": true
+}

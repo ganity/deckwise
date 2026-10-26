@@ -4,6 +4,20 @@ import { candidateHash } from "./page-candidate-baseline.js";
 import { generateNarrationWrite } from "./narration-write.js";
 
 describe("page narration source", () => {
+  it("binds automatic attention to supplied objects and defers timing to decoded audio", async () => {
+    const project: CoursewareProject = { schemaVersion: COURSEWARE_CONTRACT_VERSION, projectId: "project", taskType: "import", title: "Lesson",
+      source: { revision: "R1", sha256: candidateHash("pptx") }, teachingRevision: "T1",
+      pages: [{ pageId: "page-1", locked: false, reviewState: "review", actions: [] }] };
+    const baseline = { projectId: "project", documentId: "document", pageId: "page-1", sourceRevision: "R1", sourceHash: project.source.sha256,
+      teachingRevision: "T1", contentHash: candidateHash(""), clean: true, readOnly: false, manualLocked: false };
+    const input = { project, pageId: "page-1", baseline, pageText: "", instruction: "Explain the picture",
+      evidence: { notes: "Compare shadows", visualSummary: "Two children and their shadows", objects: [{ objectId: "object-1", kind: "image", text: "", bbox: [0, 0, 100, 100] }] },
+      getCurrentBaseline: async () => baseline };
+    const result = await generateNarrationWrite({ ...input, generate: async () => ({ blocks: [{ type: "speech", text: "Look at the shadow.", attention: { type: "spotlight", objectIds: ["object-1"] } }] }) });
+    expect(result.write.actions[0]).toMatchObject({ attention: { type: "spotlight", objectIds: ["object-1"] } });
+    expect(result.write.actions[0]).not.toHaveProperty("visualCues");
+    await expect(generateNarrationWrite({ ...input, generate: async () => ({ blocks: [{ type: "speech", text: "Look.", attention: { type: "highlight", objectIds: ["invented"] } }] }) })).rejects.toThrow("attention target");
+  });
   it.each(["plain", "import", "scene"] as const)("regenerates %s narration beside retained music and teacher continuation", async (taskType) => {
     const project: CoursewareProject = {
       schemaVersion: COURSEWARE_CONTRACT_VERSION, projectId: "project", taskType, title: "Lesson",

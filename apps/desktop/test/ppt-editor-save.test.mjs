@@ -13,7 +13,7 @@ const require = createRequire(import.meta.url);
 // Package signature only: native PPTX roundtrips are covered by the desktop E2E.
 const fixtureBytes = Buffer.from("PK\x03\x04ppt/presentation.xml[Content_Types].xml");
 
-async function fixture(t) {
+async function fixture(t, { contextErrors = [], contextPatch = {}, onContext = () => {} } = {}) {
   const root = await fs.mkdtemp(join(tmpdir(), "ppt-save-test-"));
   const source = join(root, "lesson.pptx");
   await fs.writeFile(source, fixtureBytes);
@@ -33,6 +33,13 @@ async function fixture(t) {
           commands.push(command);
           sent.emit(command.type, command);
           if (command.type === "document:open-buffer") queueMicrotask(() => reply({ type: "message", message: { type: "document:opened", id: command.id } }));
+          if (command.type === "document:get-context") {
+            onContext(controller, states);
+            const error = contextErrors.shift();
+            const payload = error ? { message: error } : { ...command.payload, kind: "slide", page: 1,
+              editGeneration: 1, selectedText: "", selectionCharacters: 0, readOnly: false, capabilities: [], ...contextPatch };
+            queueMicrotask(() => reply({ type: "message", message: { type: error ? "document:error" : "document:context", id: command.id, payload } }));
+          }
         },
       });
     }
@@ -69,6 +76,36 @@ async function fixture(t) {
   const ack = (save, dirty, success = true) => reply({ type: "message", message: { type: "document:save-committed", id: save.id, payload: { dirty, success } } });
   return { root, source, controller, commands, states, reply, start, exported, ack, dirty, window };
 }
+
+test("PPTX stays opening until the loaded native editor answers, even after document:opened", async t => {
+  let reads = 0;
+  const f = await fixture(t, { contextErrors: ["OnlyOffice editor is not ready", "Editor is still loading"],
+    onContext(controller, states) {
+      reads++;
+      assert.equal(states.at(-1).status, "opening");
+      assert.throws(() => controller.teachingSnapshot(null), /No ready PPTX/);
+    } });
+  assert.equal(reads, 3);
+  assert.equal(f.states.at(-1).status, "ready");
+  assert(f.controller.teachingSnapshot(f.root));
+});
+
+test("a definite native startup error does not become ready or retry", async t => {
+  let reads = 0;
+  await assert.rejects(fixture(t, { contextErrors: ["Document conversion failed"], onContext() { reads++; } }), /Document conversion failed/);
+  assert.equal(reads, 1);
+});
+
+test("closing during native startup cannot publish a late ready editor", async t => {
+  let states;
+  await assert.rejects(fixture(t, { onContext(controller, current) { states = current; controller.close(); } }), /cancel|changed|closed/i);
+  assert(!states.some(state => state.status === "ready"));
+});
+
+test("native startup rejects a foreign binding, access mode or malformed context", async t => {
+  for (const contextPatch of [{ sessionId: "foreign" }, { readOnly: true }, { editGeneration: -1 }])
+    await assert.rejects(fixture(t, { contextPatch }));
+});
 
 test("exports are correlated, published once, and stay saving until host commit is acknowledged", async (t) => {
   const f = await fixture(t);

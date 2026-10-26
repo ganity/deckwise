@@ -199,7 +199,12 @@ impl ImageRequest {
 
 impl Intent {
     fn validate(&self) -> Result<(), JsonRpcError> {
-        if self.phase == Phase::Rejected && !self.submission_scope.as_ref().is_some_and(|scope| scope.team_project_id.is_some()) {
+        if self.phase == Phase::Rejected
+            && !self
+                .submission_scope
+                .as_ref()
+                .is_some_and(|scope| scope.team_project_id.is_some())
+        {
             return Err(invalid("Rejected request has no team scope"));
         }
         if !valid_id(&self.intent_id)
@@ -225,9 +230,10 @@ impl Intent {
             || uuid::Uuid::parse_str(&self.idempotency_key).is_err()
             || self.request_hash != self.request.hash()
             || (self.phase == Phase::Submitted) != self.task_ref.is_some()
-            || self.submission_scope.as_ref().is_some_and(|scope| {
-                !scope.valid() || self.phase == Phase::Prepared
-            })
+            || self
+                .submission_scope
+                .as_ref()
+                .is_some_and(|scope| !scope.valid() || self.phase == Phase::Prepared)
             || self.task_ref.as_ref().is_some_and(|task| {
                 !valid_id(&task.task_id)
                     || task.idempotency_key != self.idempotency_key
@@ -527,8 +533,16 @@ pub(super) async fn handle(
         }
         "courseware.sceneImage.reject" => {
             let p: Reject = serde_json::from_value(params).map_err(decode)?;
-            (Scope { session_id: p.session_id, principal_key: p.principal_key },
-                None, Some(p.intent_id), None, Some(p.rejected_request))
+            (
+                Scope {
+                    session_id: p.session_id,
+                    principal_key: p.principal_key,
+                },
+                None,
+                Some(p.intent_id),
+                None,
+                Some(p.rejected_request),
+            )
         }
         _ => return Err(rpc_err(-32601, "Method not found", "METHOD_NOT_FOUND")),
     };
@@ -592,7 +606,8 @@ pub(super) async fn handle(
             },
         };
         if let Some(existing) = intents.iter().find(|i| {
-            i.phase != Phase::Rejected && i.plan_sha256 == p.plan_sha256
+            i.phase != Phase::Rejected
+                && i.plan_sha256 == p.plan_sha256
                 && i.page_id == p.page_id
                 && i.target == p.target
                 && i.request_hash == request.hash()
@@ -647,13 +662,22 @@ pub(super) async fn handle(
             ));
         }
         intent.submission_scope = Some(
-            state.db.courseware_media_submission_scope(&scope.session_id).map_err(error)?,
+            state
+                .db
+                .courseware_media_submission_scope(&scope.session_id)
+                .map_err(error)?,
         );
         intent.phase = Phase::SubmissionUnknown;
     } else if let Some(rejected) = rejection {
-        if intent.phase != Phase::SubmissionUnknown || intent.task_ref.is_some()
-            || intent.idempotency_key != rejected.idempotency_key || intent.request_hash != rejected.request_hash
-            || !intent.submission_scope.as_ref().is_some_and(|scope| scope.team_project_id.is_some()) {
+        if intent.phase != Phase::SubmissionUnknown
+            || intent.task_ref.is_some()
+            || intent.idempotency_key != rejected.idempotency_key
+            || intent.request_hash != rejected.request_hash
+            || !intent
+                .submission_scope
+                .as_ref()
+                .is_some_and(|scope| scope.team_project_id.is_some())
+        {
             return Err(conflict("No matching unbound team submission"));
         }
         intent.phase = Phase::Rejected;

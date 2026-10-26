@@ -37,8 +37,14 @@ fn fixture(db: &Database, root: &str) -> (CoursewareProject, Vec<(String, Audio,
                 },
             )
             .unwrap();
-        db.begin_courseware_tts(root, &project.project_id, PRINCIPAL, &intent_id, "test-session")
-            .unwrap();
+        db.begin_courseware_tts(
+            root,
+            &project.project_id,
+            PRINCIPAL,
+            &intent_id,
+            "test-session",
+        )
+        .unwrap();
         let task = TaskRef {
             task_id: format!("task-{index}"),
             idempotency_key: prepared["intent"]["idempotencyKey"]

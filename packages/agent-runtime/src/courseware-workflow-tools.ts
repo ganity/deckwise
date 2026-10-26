@@ -9,6 +9,7 @@ const shortText = () => Type.Optional(Type.String({ maxLength: 500 }));
 const education = Type.Object({ schoolStage: shortText(), grade: shortText(), subject: shortText(),
   customSubjectName: shortText(), textbookVersion: shortText(), chapter: shortText(), lessonType: shortText(),
   fullEnglishTeaching: Type.Optional(Type.Boolean()) }, { additionalProperties: false });
+const pageNumbers = Type.Array(Type.Integer({ minimum: 1, maximum: 100 }), { minItems: 1, maxItems: 100, uniqueItems: true });
 const definitions = [
   { name: "courseware_workflow_get", label: "Read courseware workflow", parameters: Type.Object({}, { additionalProperties: false }),
     description: "Read this Chat's saved task, teaching settings, current scene plan, approval, image models, jobs and exact missing assets. Read before continuing. Unapproved plans require human review in the main Chat. Never claim an operation completed from prose." },
@@ -27,6 +28,10 @@ const definitions = [
     description: "Query an existing image task without submitting or retrying it. Archive verified ready/settled image bytes for human preview/selection in Chat. Unknown submission outcomes remain status-only. Do not poll indefinitely or claim selection before the user selects it." },
   { name: "courseware_scene_compile", label: "Build editable courseware", parameters: Type.Object({ planSha256: hash }, { additionalProperties: false }),
     description: "Compile the approved scene plan and human-selected assets into editable PPTX and page narration. Read workflow readiness first; report missing assets rather than inventing them. Does not generate or charge for images, approve a plan, select assets, publish, or overwrite Office edits. Never retry an uncertain compilation automatically." },
+  { name: "courseware_narration_context", label: "Read saved courseware pages", parameters: Type.Object({ pageNumbers: Type.Optional(pageNumbers) }, { additionalProperties: false }),
+    description: "Read saved courseware page numbers, logical IDs, teaching policy, locks and text without opening an editor. Omit pageNumbers for the deck outline; specify pages for source text. Use before narration generation. Human preview and current selection are irrelevant." },
+  { name: "courseware_narration_propose", label: "Generate saved page narration", parameters: Type.Object({ pageNumbers, sourceSha256: hash, instruction: Type.String({ minLength: 1, maxLength: 8000 }) }, { additionalProperties: false }),
+    description: "Generate and directly save narration for every requested saved page, independently of preview or editor navigation. Use sourceSha256 from courseware_narration_context. For a whole deck, request all pages in one call. Reports savedPages and per-page failures; successful pages remain saved if others fail. Never ask the user to turn pages, review candidates or continue between pages. Regeneration replaces only the requested pages and clears their old speech audio. Does not alter PPTX or generate audio. Read saved teaching before retrying an uncertain save." },
 ];
 
 export function createCoursewareWorkflowTools(host: Host, sessionId: string, getTurnId: () => string | undefined): AgentTool[] {
@@ -41,7 +46,7 @@ export function createCoursewareWorkflowTools(host: Host, sessionId: string, get
       try {
         const result = await host.call<{ ok: boolean; content: unknown; errorCode?: string }>("tools.execute", {
           sessionId, turnId, toolCallId, toolName: definition.name, mode: "agent", args: structuredClone(input),
-          ...(definition.name === "courseware_scene_compile" ? { timeoutMs: 16 * 60_000 } : {}),
+          ...(["courseware_scene_compile", "courseware_narration_propose"].includes(definition.name) ? { timeoutMs: 16 * 60_000 } : {}),
         });
         signal?.throwIfAborted();
         if (getTurnId() !== turnId) throw new Error("Courseware Chat turn changed; read saved workflow before continuing");

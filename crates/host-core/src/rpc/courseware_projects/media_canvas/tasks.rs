@@ -61,7 +61,12 @@ fn hash(value: &str) -> bool {
 
 impl Intent {
     fn validate(&self) -> Result<(), JsonRpcError> {
-        if self.phase == Phase::Rejected && !self.submission_scope.as_ref().is_some_and(|scope| scope.team_project_id.is_some()) {
+        if self.phase == Phase::Rejected
+            && !self
+                .submission_scope
+                .as_ref()
+                .is_some_and(|scope| scope.team_project_id.is_some())
+        {
             return Err(invalid("Rejected request has no team scope"));
         }
         let sample = Document {
@@ -95,9 +100,10 @@ impl Intent {
             || uuid::Uuid::parse_str(&self.idempotency_key).is_err()
             || self.request_hash != self.request.hash()
             || (self.phase == Phase::Submitted) != self.task_ref.is_some()
-            || self.submission_scope.as_ref().is_some_and(|scope| {
-                !scope.valid() || self.phase == Phase::Prepared
-            })
+            || self
+                .submission_scope
+                .as_ref()
+                .is_some_and(|scope| !scope.valid() || self.phase == Phase::Prepared)
             || self.task_ref.as_ref().is_some_and(|task| {
                 !id(&task.task_id)
                     || task.idempotency_key != self.idempotency_key
@@ -212,7 +218,8 @@ pub(super) async fn handle(
         | "courseware.mediaCanvas.image.asset.get" => fields.push("intentId"),
         "courseware.mediaCanvas.image.bind" => fields.extend(["intentId", "taskRef"]),
         "courseware.mediaCanvas.image.reject" => fields.extend(["intentId", "rejectedRequest"]),
-        "courseware.mediaCanvas.image.asset.stage" | "courseware.mediaCanvas.image.asset.restore" => {
+        "courseware.mediaCanvas.image.asset.stage"
+        | "courseware.mediaCanvas.image.asset.restore" => {
             fields.extend(["intentId", "asset", "bytesBase64"])
         }
         _ => return Err(invalid("Unsupported canvas image operation")),
@@ -362,7 +369,10 @@ pub(super) async fn handle(
                 "COURSEWARE_NOT_FOUND",
             )
         })?;
-    if matches!(method, "courseware.mediaCanvas.image.asset.stage" | "courseware.mediaCanvas.image.asset.restore") {
+    if matches!(
+        method,
+        "courseware.mediaCanvas.image.asset.stage" | "courseware.mediaCanvas.image.asset.restore"
+    ) {
         assets::stage(
             &state,
             &mut intents[index],
@@ -412,14 +422,25 @@ pub(super) async fn handle(
             )?;
         }
         intent.submission_scope = Some(
-            state.db.courseware_media_submission_scope(&p.session_id).map_err(error)?,
+            state
+                .db
+                .courseware_media_submission_scope(&p.session_id)
+                .map_err(error)?,
         );
         intent.phase = Phase::SubmissionUnknown;
     } else if method == "courseware.mediaCanvas.image.reject" {
-        let rejected = p.rejected_request.ok_or_else(|| invalid("Missing rejected request"))?;
-        if intent.phase != Phase::SubmissionUnknown || intent.task_ref.is_some()
-            || intent.idempotency_key != rejected.idempotency_key || intent.request_hash != rejected.request_hash
-            || !intent.submission_scope.as_ref().is_some_and(|scope| scope.team_project_id.is_some()) {
+        let rejected = p
+            .rejected_request
+            .ok_or_else(|| invalid("Missing rejected request"))?;
+        if intent.phase != Phase::SubmissionUnknown
+            || intent.task_ref.is_some()
+            || intent.idempotency_key != rejected.idempotency_key
+            || intent.request_hash != rejected.request_hash
+            || !intent
+                .submission_scope
+                .as_ref()
+                .is_some_and(|scope| scope.team_project_id.is_some())
+        {
             return Err(conflict());
         }
         intent.phase = Phase::Rejected;

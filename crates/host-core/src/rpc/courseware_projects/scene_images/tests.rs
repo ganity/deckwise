@@ -866,20 +866,36 @@ async fn scene_image_submission_scope_uses_begin_order_and_survives_restart() {
     let team = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
     for bind_first in [true, false] {
         let mut f = Fixture::new().await;
-        let prepared = f.call("courseware.sceneImage.prepare", f.prepare()).await.unwrap();
+        let prepared = f
+            .call("courseware.sceneImage.prepare", f.prepare())
+            .await
+            .unwrap();
         let op = f.operation(&prepared);
         let bind = json!({"sessionId":f.session,"teamProjectId":team});
         if bind_first {
-            f.call("courseware.task.bindTeam", bind.clone()).await.unwrap();
+            f.call("courseware.task.bindTeam", bind.clone())
+                .await
+                .unwrap();
         }
-        let begun = f.call("courseware.sceneImage.begin", op.clone()).await.unwrap();
+        let begun = f
+            .call("courseware.sceneImage.begin", op.clone())
+            .await
+            .unwrap();
         let expected_team = if bind_first { json!(team) } else { Value::Null };
-        assert_eq!(begun["intent"]["submissionScope"], json!({"sessionId":f.session,"teamProjectId":expected_team}));
+        assert_eq!(
+            begun["intent"]["submissionScope"],
+            json!({"sessionId":f.session,"teamProjectId":expected_team})
+        );
         if !bind_first {
             f.call("courseware.task.bindTeam", bind).await.unwrap();
         }
         f.restart().await;
-        assert_eq!(f.call("courseware.sceneImage.get", op.clone()).await.unwrap(), begun);
+        assert_eq!(
+            f.call("courseware.sceneImage.get", op.clone())
+                .await
+                .unwrap(),
+            begun
+        );
         assert!(f.call("courseware.sceneImage.begin", op).await.is_err());
     }
 }
@@ -889,35 +905,79 @@ async fn rejected_scene_image_prepares_a_fresh_attempt_without_replaying_history
     for team in [false, true] {
         let mut f = Fixture::new().await;
         if team {
-            f.call("courseware.task.bindTeam", json!({"sessionId":f.session,
-                "teamProjectId":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"})).await.unwrap();
+            f.call(
+                "courseware.task.bindTeam",
+                json!({"sessionId":f.session,
+                "teamProjectId":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}),
+            )
+            .await
+            .unwrap();
         }
-        let prepared = f.call("courseware.sceneImage.prepare", f.prepare()).await.unwrap();
+        let prepared = f
+            .call("courseware.sceneImage.prepare", f.prepare())
+            .await
+            .unwrap();
         let op = f.operation(&prepared);
         let mut reject = op.clone();
         reject["rejectedRequest"] = json!({"idempotencyKey":prepared["intent"]["idempotencyKey"],
             "requestHash":prepared["intent"]["requestHash"]});
-        assert!(f.call("courseware.sceneImage.reject", reject.clone()).await.is_err());
-        let begun = f.call("courseware.sceneImage.begin", op.clone()).await.unwrap();
-        let mut wrong = reject.clone(); wrong["rejectedRequest"]["requestHash"] = json!("f".repeat(64));
+        assert!(f
+            .call("courseware.sceneImage.reject", reject.clone())
+            .await
+            .is_err());
+        let begun = f
+            .call("courseware.sceneImage.begin", op.clone())
+            .await
+            .unwrap();
+        let mut wrong = reject.clone();
+        wrong["rejectedRequest"]["requestHash"] = json!("f".repeat(64));
         assert!(f.call("courseware.sceneImage.reject", wrong).await.is_err());
-        assert_eq!(f.call("courseware.sceneImage.get", op.clone()).await.unwrap(), begun);
+        assert_eq!(
+            f.call("courseware.sceneImage.get", op.clone())
+                .await
+                .unwrap(),
+            begun
+        );
         if !team {
-            assert!(f.call("courseware.sceneImage.reject", reject).await.is_err());
+            assert!(f
+                .call("courseware.sceneImage.reject", reject)
+                .await
+                .is_err());
             continue;
         }
-        let rejected = f.call("courseware.sceneImage.reject", reject).await.unwrap();
+        let rejected = f
+            .call("courseware.sceneImage.reject", reject)
+            .await
+            .unwrap();
         assert_eq!(rejected["intent"]["phase"], "rejected");
         f.restart().await;
-        assert_eq!(f.call("courseware.sceneImage.get", op.clone()).await.unwrap(), rejected);
-        assert!(f.call("courseware.sceneImage.begin", op.clone()).await.is_err());
-        let mut binding = op; binding["taskRef"] = json!({"taskId":"late", "idempotencyKey":begun["intent"]["idempotencyKey"],
+        assert_eq!(
+            f.call("courseware.sceneImage.get", op.clone())
+                .await
+                .unwrap(),
+            rejected
+        );
+        assert!(f
+            .call("courseware.sceneImage.begin", op.clone())
+            .await
+            .is_err());
+        let mut binding = op;
+        binding["taskRef"] = json!({"taskId":"late", "idempotencyKey":begun["intent"]["idempotencyKey"],
             "requestHash":begun["intent"]["requestHash"]});
         assert!(f.call("courseware.sceneImage.bind", binding).await.is_err());
-        let fresh = f.call("courseware.sceneImage.prepare", f.prepare()).await.unwrap();
+        let fresh = f
+            .call("courseware.sceneImage.prepare", f.prepare())
+            .await
+            .unwrap();
         assert_eq!(fresh["intent"]["phase"], "prepared");
         assert_ne!(fresh["intent"]["intentId"], rejected["intent"]["intentId"]);
-        assert_ne!(fresh["intent"]["idempotencyKey"], rejected["intent"]["idempotencyKey"]);
-        assert_eq!(fresh["intent"]["requestHash"], rejected["intent"]["requestHash"]);
+        assert_ne!(
+            fresh["intent"]["idempotencyKey"],
+            rejected["intent"]["idempotencyKey"]
+        );
+        assert_eq!(
+            fresh["intent"]["requestHash"],
+            rejected["intent"]["requestHash"]
+        );
     }
 }

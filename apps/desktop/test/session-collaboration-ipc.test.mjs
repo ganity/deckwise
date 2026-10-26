@@ -35,6 +35,7 @@ const { registerSessionIpc } = load("../electron/main/ipc/session-ipc.ts", {
   "../importers": {},
   "../services/session-collaboration": collaboration,
   "../services/session-search": { searchSessionsAcrossSources: async () => ({ hits: [], nextOffset: null }) },
+  "../courseware-scene-draft": { approveSceneCourseDraft: assert.fail, readSceneCourseDraft: assert.fail },
 });
 const summary = {
   sessionId: "worker-session-id",
