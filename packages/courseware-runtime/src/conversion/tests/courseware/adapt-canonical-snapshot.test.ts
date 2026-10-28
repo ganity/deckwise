@@ -76,6 +76,7 @@ it('preserves opaque teaching revisions and accepts education context without mu
     educationContext: {
       schoolStage: 'kindergarten',
       subject: 'english',
+      visualStyle: '2D 卡通',
       fullEnglishTeaching: false,
     },
   };
@@ -102,6 +103,8 @@ it('rejects stricter canonical envelopes before the fixed-file adapter', () => {
     },
     { ...f.project, educationContext: { fullEnglishTeaching: 'false' } },
     { ...f.project, educationContext: { apiKey: 'unexpected' } },
+    { ...f.project, educationContext: { visualStyle: 123 } },
+    { ...f.project, educationContext: { visualStyle: 'x'.repeat(501) } },
   ];
   for (const project of badProjects)
     expect(() => adaptCanonicalSnapshot(project, f.snapshot, f.files)).toThrow(

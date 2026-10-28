@@ -11,6 +11,7 @@ export type CoursewareEducationContext = {
   textbookVersion?: string;
   chapter?: string;
   lessonType?: string;
+  visualStyle?: string;
   fullEnglishTeaching?: boolean;
 };
 export type CoursewarePage = {
@@ -57,10 +58,32 @@ export type CoursewareBuildRef = {
   snapshotId: string;
   packageSha256: string;
 };
+export type CoursewareTeamProject = {
+  projectId: string;
+  ownerUserId: number;
+  role: "OWNER" | "EDITOR" | "VIEWER";
+  createdAt: string;
+};
+export type CoursewareTeamMember = { userId: number; role: "OWNER" | "EDITOR" | "VIEWER" };
 export type CoursewareTaskRef = {
   taskId: string;
   idempotencyKey: string;
   requestHash: string;
+};
+
+export const COURSEWARE_MAX_MEDIA_ASSET_BYTES = 16 * 1024 * 1024;
+export type CoursewareTeamAssetRef = {
+  projectId: string;
+  assetRef: {
+    assetId: string;
+    sha256: string;
+    mime: "image/png" | "image/jpeg" | "image/webp" | "audio/wav" | "audio/mpeg";
+    byteLength: number;
+    downloadPath: string;
+    width?: number;
+    height?: number;
+    durationMs?: number;
+  };
 };
 
 const id = (value: unknown): value is string =>
@@ -87,7 +110,7 @@ const actions = (value: unknown): value is Array<Record<string, unknown>> =>
   new Set(value.map((action) => action.id)).size === value.length && withinBudget(value);
 
 function educationContext(value: unknown): value is CoursewareEducationContext {
-  const texts = ["schoolStage", "grade", "subject", "customSubjectName", "textbookVersion", "chapter", "lessonType"];
+  const texts = ["schoolStage", "grade", "subject", "customSubjectName", "textbookVersion", "chapter", "lessonType", "visualStyle"];
   return fields(value, [], [...texts, "fullEnglishTeaching"]) &&
     texts.every((key) => !Object.hasOwn(value, key) || (typeof value[key] === "string" && value[key].length <= 500)) &&
     (!Object.hasOwn(value, "fullEnglishTeaching") || typeof value.fullEnglishTeaching === "boolean");
@@ -133,8 +156,38 @@ export function isCoursewareBuildRef(value: unknown): value is CoursewareBuildRe
   return fields(value, ["buildId", "snapshotId", "packageSha256"]) && id(value.buildId) && id(value.snapshotId) && sha256(value.packageSha256);
 }
 
+export function isCoursewareTeamProject(value: unknown): value is CoursewareTeamProject {
+  return fields(value, ["projectId", "ownerUserId", "role", "createdAt"]) &&
+    id(value.projectId) && typeof value.ownerUserId === "number" && Number.isSafeInteger(value.ownerUserId) && value.ownerUserId > 0 &&
+    ["OWNER", "EDITOR", "VIEWER"].includes(String(value.role)) &&
+    typeof value.createdAt === "string" && Number.isFinite(Date.parse(value.createdAt));
+}
+
+export function isCoursewareTeamMember(value: unknown): value is CoursewareTeamMember {
+  return fields(value, ["userId", "role"]) && typeof value.userId === "number" && Number.isSafeInteger(value.userId) && value.userId > 0 &&
+    ["OWNER", "EDITOR", "VIEWER"].includes(String(value.role));
+}
+
 export function isCoursewareTaskRef(value: unknown): value is CoursewareTaskRef {
   return fields(value, ["taskId", "idempotencyKey", "requestHash"]) && id(value.taskId) && id(value.idempotencyKey) && sha256(value.requestHash);
+}
+
+/** Structural pins only; current team membership is checked by the server on every read. */
+export function isCoursewareTeamAssetRef(value: unknown): value is CoursewareTeamAssetRef {
+  const uuid = (v: unknown): v is string => typeof v === "string" && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/u.test(v);
+  const integer = (v: unknown, min: number, max: number) => Number.isSafeInteger(v) && Number(v) >= min && Number(v) <= max;
+  if (!fields(value, ["projectId", "assetRef"]) || !uuid(value.projectId) ||
+      !fields(value.assetRef, ["assetId", "sha256", "mime", "byteLength", "downloadPath"], ["width", "height", "durationMs"])) return false;
+  const asset = value.assetRef;
+  if (!uuid(asset.assetId) || typeof asset.mime !== "string" || typeof asset.sha256 !== "string" || !/^[a-f0-9]{64}$/u.test(asset.sha256) ||
+      !integer(asset.byteLength, 1, COURSEWARE_MAX_MEDIA_ASSET_BYTES) ||
+      asset.downloadPath !== `/courseware/team/projects/${value.projectId}/assets/${asset.assetId}/content`) return false;
+  if (["image/png", "image/jpeg", "image/webp"].includes(String(asset.mime))) {
+    return !Object.hasOwn(asset, "durationMs") && ["width", "height"].every(key => !Object.hasOwn(asset, key) || integer(asset[key], 1, 2147483647));
+  }
+  return ["audio/wav", "audio/mpeg"].includes(String(asset.mime)) &&
+    !Object.hasOwn(asset, "width") && !Object.hasOwn(asset, "height") &&
+    (!Object.hasOwn(asset, "durationMs") || integer(asset.durationMs, 0, Number.MAX_SAFE_INTEGER));
 }
 
 export function checkCoursewareCandidate(

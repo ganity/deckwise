@@ -5,9 +5,16 @@
   "deliveryManifestSha256": "8ad6093371008dc35c3574717d64e32ccd246113bc52d69e6f90d011be31e9be",
   "policy": "Unmodified canonical contract snapshot; replace from A as a unit, do not edit its schema in D.",
   "sourceHashes": {
-    "courseware-contract.ts": "dd16a1562e64cb4010f461d1c4b4bb2389e9ac2c9c9059b01421ccbc491de297",
+    "courseware-contract.ts": "34e50f3d0b37c565270713f2e51322e57b8aad0d9def2688d3f145452c64fdb4",
     "courseware-contract.fixtures/accepted.json": "936cde4e26303b5997110f93430055e1445f6b0676d2f40678918bfa8208a805",
     "courseware-contract.fixtures/stale-write.json": "f3072afd96ddbfbbf0d747ed8af627fe9eb091cf2be18639cb8873b30603a384",
-    "courseware-contract.fixtures/references.json": "cf6b9df7e19e7e7d7b77068d581ad035d874d44d8c4adf88be697749e71841e8"
+    "courseware-contract.fixtures/references.json": "cf6b9df7e19e7e7d7b77068d581ad035d874d44d8c4adf88be697749e71841e8",
+    "courseware-contract.fixtures/team-image.json": "ace4ad04cce0528dcacd302301246efa8cc6ace815a19ff0508066329db6a318",
+    "courseware-contract.fixtures/team-audio.json": "fb2b61d7f8eadc159848379cc9cd19ff4dd4be1e472fd92d9c32047ee411111c"
+  },
+  "refresh": {
+    "date": "2026-10-28",
+    "source": "packages/shared/src (current working tree)",
+    "reason": "Synchronize the canonical contract and fixtures, including scene visualStyle."
   }
 }

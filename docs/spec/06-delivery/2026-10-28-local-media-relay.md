@@ -53,3 +53,14 @@ once, clears its reservation and is excluded from the generic background settler
 These local checks use supplier stand-ins. This change has not been deployed or accepted against
 paid production generation/teaching playback. Network loss after supplier acceptance cannot reconstruct
 Doubao's synchronous audio: it remains unknown and requires billing reconciliation rather than automatic recharging.
+
+## Real deployment acceptance — 2026-10-28
+
+The same saved five-page task has now exercised the deployed finite-relay path:
+44 actual Doubao TTS requests, one mxapi music submission and one free export
+succeeded and were adopted locally. Production billing totals 46 points. All
+45 audio files were decoded and hash-verified; the actual Electron player ran
+all five pages to completion with three teacher checkpoints, all 12 focus
+overlays and 21 mapped fade/pulse targets. No publishing or production media
+schema migration was performed. The earlier stand-in-only limitation above
+is historical; see `2026-10-28-real-scene-flow-validation.md` for scope and evidence.
