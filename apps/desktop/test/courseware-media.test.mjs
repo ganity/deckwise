@@ -799,3 +799,23 @@ test("actual DesktopAuthSession login, private transport, restart/replay and log
   assert.equal(requests.length, count);
   assert(requests.filter((req) => req.url.startsWith("/courseware/")).every((req) => req.auth === `Bearer ${token}`));
 });
+
+
+test("video uses the quoted original task and verifies MP4 integrity on Platform", async () => {
+  const input = { kind: "video", model: "scene-video", input: "小朋友😀 watches a turning square" };
+  const bytes = Buffer.alloc(24); bytes.write("ftyp", 4);
+  const task = { ...ready(input, "video-key"), kind: "video", assetRef: { assetId: "clip", sha256: sha(bytes), mime: "video/mp4", byteLength: bytes.length,
+    downloadPath: "/courseware/media/tasks/task-1/asset" } };
+  const quote = { ...imageQuote(), kind: "video", model: input.model };
+  const f = setup(async url => url.endsWith("/asset") ? new Response(bytes, { headers: { "content-type": "video/mp4" } }) : json(task));
+  const result = await f.client.video.submit("video-key", input, quote);
+  assert.equal(result.requestHash, hashRequest(input));
+  assert.deepEqual(JSON.parse(f.calls[0][1].body).request, input);
+  assert.deepEqual((await f.client.video.download(reference(task))).bytes, bytes);
+  assert.equal((await f.client.video.find(reference(task))).taskId, task.taskId);
+  assert.equal(f.calls.filter(([, init]) => init.method === "POST").length, 1);
+  assert(f.calls.every(([url]) => new URL(url).origin === "https://platform.test"));
+  const invalid = setup(async url => url.endsWith("/asset") ? new Response(Buffer.alloc(24), { headers: { "content-type": "video/mp4" } }) : json(task));
+  await assert.rejects(invalid.client.video.download(reference(task)), /INTEGRITY_ERROR/);
+  await assert.rejects(f.client.video.submit("video-key", input, { ...quote, kind: "image" }), /INVALID_RESPONSE/);
+});

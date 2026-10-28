@@ -23,6 +23,8 @@ import { registerCoursewareMediaCanvasIpc } from "./courseware-media-canvas-ipc"
 import { registerCoursewareCanvasImageIpc } from "./courseware-canvas-image-ipc";
 import type { CoursewareMediaCanvasCoordinator } from "../courseware-media-canvas";
 import { CoursewareSavedNarration } from "../courseware-saved-narration";
+import { CoursewareSavedMedia } from "../courseware-saved-media";
+import { decodeCoursewareAudio, decodeCoursewareVideo } from "../courseware-audio-decode";
 import { CoursewareChatWorkflow } from "../courseware-chat-workflow";
 import { registerSettingsIpc } from "./settings-ipc";
 import { registerSkillsIpc } from "./skills-ipc";
@@ -246,6 +248,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
   const savedNarration = new CoursewareSavedNarration(getHost, getNotificationViewingSessionId,
     dependencies.completeNarration, dependencies.sceneGeneration?.resolveModel, dependencies.completeScene);
   coursewareWorkflow.narration = savedNarration;
+  coursewareWorkflow.media = new CoursewareSavedMedia(savedNarration, authSession, decodeCoursewareAudio, decodeCoursewareVideo);
   dependencies.onCoursewareWorkflowReady?.(coursewareWorkflow);
   registrar.handleWithEvent(IPC.invoke.coursewareWorkflowGet, async (event, value: unknown, ...extra: unknown[]) => {
     registrar.assertMainWindowSender(event);

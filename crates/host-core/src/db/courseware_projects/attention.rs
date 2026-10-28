@@ -5,8 +5,15 @@ use serde_json::json;
 pub(super) fn targets(value: &Value) -> Result<Vec<String>> {
     let ids = value["objectIds"].as_array();
     anyhow::ensure!(
-        value.as_object().is_some_and(|fields| fields.len() == 2)
+        value
+            .as_object()
+            .is_some_and(|fields| fields
+                .keys()
+                .all(|key| ["type", "objectIds", "animation"].contains(&key.as_str())))
             && matches!(value["type"].as_str(), Some("highlight" | "spotlight"))
+            && value
+                .get("animation")
+                .is_none_or(|effect| matches!(effect.as_str(), Some("fadeIn" | "pulse")))
             && ids.is_some_and(|ids| (1..=8).contains(&ids.len())),
         "COURSEWARE_INVALID: invalid speech attention"
     );
@@ -38,7 +45,83 @@ pub(super) fn cue(value: &Value, action_id: &str, duration_ms: u64) -> Result<Va
     Ok(json!({"id":format!("focus-{action_id}"),"atMs":0,"endMs":duration_ms,"effect":effect}))
 }
 
+pub(super) fn cues(value: &Value, action_id: &str, duration_ms: u64) -> Result<Vec<Value>> {
+    let mut focus = cue(value, action_id, duration_ms)?;
+    let mut cues = Vec::new();
+    if let Some(effect) = value.get("animation") {
+        let end = duration_ms.min(600);
+        for (index, id) in targets(value)?.iter().enumerate() {
+            cues.push(
+                json!({"id":format!("motion-{action_id}-{index}"),"atMs":0,"endMs":end,
+                "effect":{"type":"element_animation","elementId":id,"effect":effect}}),
+            );
+        }
+        // Reveal before focusing; a very short speech still gets a valid final focus interval.
+        if effect == "fadeIn" {
+            focus["atMs"] = json!(end.min(duration_ms - 1));
+        }
+    }
+    cues.push(focus);
+    Ok(cues)
+}
+
 impl Database {
+    /// Automatic readiness applies only to generated scene teaching after durable audio adoption.
+    pub(super) fn finish_generated_scene_page(
+        &self,
+        workspace: &str,
+        project: CoursewareProject,
+        page_id: &str,
+    ) -> Result<CoursewareProject> {
+        let page = project
+            .pages
+            .iter()
+            .find(|p| p.page_id == page_id)
+            .ok_or_else(|| anyhow!("COURSEWARE_PAGE_NOT_FOUND: generated teaching page missing"))?;
+        let speeches: Vec<_> = page
+            .actions
+            .iter()
+            .filter(|a| a["type"] == "speech")
+            .collect();
+        if project.task_type != "scene"
+            || page.locked
+            || page.review_state == "ready"
+            || page.actions.iter().any(|a| a["type"] == "video_slot")
+            || speeches.is_empty()
+            || speeches.iter().any(|a| {
+                a["source"] != "generated"
+                    || a.get("attention").is_some()
+                    || a["text"].as_str().is_none_or(|text| text.trim().is_empty())
+                    || !a["audioAssetId"].is_string()
+            })
+        {
+            return Ok(project);
+        }
+        anyhow::ensure!(
+            !self.conn.is_autocommit(),
+            "COURSEWARE_INVALID: generated readiness requires adoption transaction"
+        );
+        let mut scoped = project.clone();
+        scoped.pages.retain(|p| p.page_id == page_id);
+        let targets = reviews::effects::referenced(&scoped)?;
+        for (_, target) in targets {
+            self.validate_narration_attention(
+                workspace,
+                &project,
+                page_id,
+                &[json!({"attention":{"type":"highlight","objectIds":[target]}})],
+            )?;
+        }
+        self.validate_courseware_review_audio(workspace, &scoped, &scoped)?;
+        self.review_courseware_page(
+            workspace,
+            &project.project_id,
+            page_id,
+            &project.source.revision,
+            &project.teaching_revision,
+        )
+    }
+
     pub(super) fn validate_narration_attention(
         &self,
         workspace: &str,
@@ -107,5 +190,19 @@ mod tests {
         assert!(targets(&json!({"type":"laser","objectIds":["one"]})).is_err());
         assert!(targets(&json!({"type":"highlight","objectIds":["one","one"]})).is_err());
         assert!(cue(&intent, "speech", 0).is_err());
+        for duration in [1, 100, 2345] {
+            let planned = cues(
+                &json!({"type":"highlight","objectIds":["one"],"animation":"fadeIn"}),
+                "speech",
+                duration,
+            )
+            .unwrap();
+            assert_eq!(planned.len(), 2);
+            for cue in planned {
+                assert!(cue["atMs"].as_u64().unwrap() < cue["endMs"].as_u64().unwrap());
+                assert!(cue["endMs"].as_u64().unwrap() <= duration);
+                reviews::effects::cue_targets(&cue).unwrap();
+            }
+        }
     }
 }

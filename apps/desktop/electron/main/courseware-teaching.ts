@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { objectsForTeaching } from "./courseware-scene-object-view";
-import { isCoursewareTeachingDraft, isCoursewareTeachingHistory, isCoursewareAttentionCue, isCoursewareAttentionIntent, sourceChangeForTeaching, chatChangesForTeaching, type CoursewareTeachingHistory } from "@pi-desktop/shared";
+import { isCoursewareTeachingDraft, isCoursewareTeachingHistory, isCoursewareAttentionCue, isCoursewareAttentionIntent, isCoursewareInteractionCheckpoint, sourceChangeForTeaching, chatChangesForTeaching, type CoursewareTeachingHistory } from "@pi-desktop/shared";
 import { setTimeout as delay } from "node:timers/promises";
 import { isCoursewareProject, isCoursewareSnapshot, isTeachingWrite, samePptEditorBinding, type CoursewareTeachingDraft, type CoursewareSnapshot, type CoursewareTeachingView, type CoursewareNarrationReview, type CoursewarePptxCandidateReview, type CoursewareSourceReview, type PptEditorBinding, type PptEditorContext } from "@pi-desktop/shared";
 
@@ -14,7 +14,8 @@ type Editor = {
 type Pin = { view: CoursewareTeachingView; snapshot: Snapshot; context: PptEditorContext; sessionId: string; host: Host };
 type SnapshotAsset = { asset: { id: string; sha256: string; mimeType: string } } &
   ({ path: string; tts?: never; music?: never } | { tts: { principalKey: string; intentId: string }; path?: never; music?: never } |
-    { music: { principalKey: string; intentId: string }; path?: never; tts?: never });
+    { music: { principalKey: string; intentId: string }; path?: never; tts?: never } |
+    { video: { principalKey: string; intentId: string }; path?: never; tts?: never; music?: never });
 
 function sourceEffectTargets(review: Pick<CoursewareSourceReview, "project" | "pageCount" | "effectTargets" | "targetPages">, pageIds?: string[]): Set<string> {
   const expected = new Set<string>();
@@ -76,7 +77,7 @@ function candidateEffects(project: CoursewareTeachingView["project"], candidate:
   const effectCues: NonNullable<CoursewarePptxCandidateReview["effectCues"]> = [];
   for (const [index, page] of project.pages.entries()) if (scope.includes(page.pageId)) for (const action of page.actions)
     if (Array.isArray(action.visualCues)) for (const cue of action.visualCues) if (isCoursewareAttentionCue(cue))
-      effectCues.push({ pageNumber: index + 1, effect: cue.effect.type, atMs: cue.atMs, endMs: cue.endMs });
+      effectCues.push({ pageNumber: index + 1, effect: cue.effect.type === "element_animation" ? cue.effect.effect : cue.effect.type, atMs: cue.atMs, endMs: cue.endMs });
   return { effectTargets: review.effectTargets!.map(target => ({ ...target, pageIndex: project.pages.findIndex(page => page.pageId === target.pageId) })),
     effectPages: structuredClone(review.targetPages), effectCues };
 }
@@ -343,7 +344,7 @@ export class CoursewareTeachingCoordinator {
           Reflect.get(candidate, "candidateId") !== Reflect.get(payload, "candidateId") || Reflect.get(candidate, "kind") !== "page-narration" || Reflect.get(candidate, "audioReady") !== false) throw new Error("Invalid narration candidate");
       const write = Reflect.get(candidate, "write");
       const status = Reflect.get(candidate, "status");
-      if (!isTeachingWrite(write) || write.actions.some((action) => !(action.type === "interaction_checkpoint" && action.checkpointKind === "teacher_continue" && Object.keys(action).every((key) => ["id", "type", "checkpointId", "checkpointKind"].includes(key)) && typeof action.checkpointId === "string") &&
+      if (!isTeachingWrite(write) || write.actions.some((action) => !isCoursewareInteractionCheckpoint(action) &&
           !(action.type === "speech" && typeof action.text === "string" && Object.keys(action).every((key) => ["id", "type", "text", "pauseAfterMs"].includes(key)) &&
             (!Object.hasOwn(action, "pauseAfterMs") || (Number.isInteger(action.pauseAfterMs) && Number(action.pauseAfterMs) >= 0 && Number(action.pauseAfterMs) <= 30000)))) || write.projectId !== teaching.project.projectId || write.pageId !== teaching.pageId ||
           !["needs-review", "adopted", "rejected"].includes(status)) throw new Error("Candidate belongs to another page or has invalid data");

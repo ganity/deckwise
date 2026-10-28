@@ -12,6 +12,7 @@ export type CoursewareScenePlanSnapshot = {
   relativePath: string;
   sha256: string;
   approvedSha256: string | null;
+  visualBible?: { artDirection: string; characters: string; setting: string };
   title: string;
   pages: CoursewareScenePlanPage[];
 };

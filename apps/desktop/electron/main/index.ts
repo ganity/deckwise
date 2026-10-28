@@ -1168,7 +1168,7 @@ const { wireSidecar, startSidecar } = sidecarRuntime;
 
 const { wireHost, startHost } = createHostRuntime({
   executePptEditorTool: async (...args) => {
-    if (args[1].startsWith("courseware_workflow_") || args[1].startsWith("courseware_scene_") || args[1] === "courseware_requirements_update") {
+    if (args[1].startsWith("courseware_workflow_") || args[1].startsWith("courseware_scene_") || args[1].startsWith("courseware_media_") || args[1].startsWith("courseware_narration_") || args[1] === "courseware_requirements_update") {
       if (!coursewareChatWorkflow) throw new Error("Courseware workflow is unavailable");
       return coursewareChatWorkflow.execute(...args);
     }

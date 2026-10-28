@@ -25,7 +25,8 @@ async function load(name, dependencies) {
 }
 const context = await load("courseware-scene-context", { electron, "node:crypto": { createHash }, "node:zlib": { crc32 } });
 const assets = await load("courseware-scene-image-assets", { electron, "node:crypto": { createHash },
-  "node:fs": fsConstants, "node:fs/promises": files, "node:path": paths, "./courseware-scene-context": context });
+  "node:fs": fsConstants, "node:fs/promises": files, "node:path": paths, "./courseware-scene-context": context, "./public-https-fetch": await load("public-https-fetch", {
+    "node:dns/promises": await import("node:dns/promises"), "@pi-desktop/shared": shared }) });
 const { CoursewareImageReview } = await load("courseware-image-review", { electron, "node:crypto": { createHash, randomUUID },
   "@pi-desktop/shared": shared, "./courseware-scene-image-assets": assets });
 const reference = JSON.parse(await files.readFile(new URL("../../../packages/shared/src/courseware-contract.fixtures/team-image.json", import.meta.url), "utf8")).data;

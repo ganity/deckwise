@@ -79,7 +79,12 @@ impl SnapshotRecord {
                         .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
                     && matches!(
                         asset.mime_type.as_str(),
-                        "audio/wav" | "audio/mpeg" | "audio/ogg" | "audio/mp4" | "audio/webm"
+                        "audio/wav"
+                            | "audio/mpeg"
+                            | "audio/ogg"
+                            | "audio/mp4"
+                            | "audio/webm"
+                            | "video/mp4"
                     ),
                 "COURSEWARE_INVALID: invalid fixed audio asset"
             );
@@ -96,6 +101,22 @@ impl SnapshotRecord {
         let mut used = std::collections::HashSet::new();
         for action in self.project.pages.iter().flat_map(|page| &page.actions) {
             anyhow::ensure!(action.get("attention").is_none(), "COURSEWARE_CONFLICT: adopt decoded speech audio to resolve automatic attention before snapshot capture");
+            anyhow::ensure!(
+                action["type"] != "video_slot",
+                "COURSEWARE_CONFLICT: generate and adopt planned video before publishing"
+            );
+            if action["type"] == "video_clip" {
+                let video = action["videoAssetId"].as_str().unwrap_or_default();
+                anyhow::ensure!(
+                    super::video::valid_clip(action)
+                        && self
+                            .assets
+                            .iter()
+                            .any(|asset| asset.id == video && asset.mime_type == "video/mp4"),
+                    "COURSEWARE_CONFLICT: video clip requires its archived video asset"
+                );
+                used.insert(video);
+            }
             if action["type"] == "speech" || action["type"] == "audio_clip" {
                 let audio = action["audioAssetId"].as_str().unwrap_or("");
                 anyhow::ensure!(
@@ -105,7 +126,7 @@ impl SnapshotRecord {
                             && action["text"]
                                 .as_str()
                                 .is_some_and(|s| !s.trim().is_empty()))
-                        && ids.contains(audio),
+                        && self.assets.iter().any(|asset| asset.id == audio && asset.mime_type.starts_with("audio/")),
                     "COURSEWARE_CONFLICT: each speech or music clip requires a fixed audio asset"
                 );
                 used.insert(audio);

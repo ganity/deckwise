@@ -1,6 +1,8 @@
+import { createHash } from "node:crypto";
+import type { CoursewareImageRequest, CoursewareImageReference } from "./courseware-media";
 import { COURSEWARE_MAX_MEDIA_ASSET_BYTES, isCoursewareTaskRef, type CoursewareTaskRef } from "@pi-desktop/shared";
 
-export type MediaKind = "tts" | "image" | "image-layers" | "music" | "music-export";
+export type MediaKind = "tts" | "image" | "image-layers" | "video" | "music" | "music-export";
 export type MediaQuote<K extends MediaKind> = { version: "courseware-media-quote-v1"; kind: K; model: string;
   priceVersion: string; maxPoints: number; maxChars: number; expiresAt: string; quoteToken: string };
 type AudioAsset = { assetId: string; sha256: string; mime: "audio/wav" | "audio/mpeg"; byteLength: number;
@@ -12,6 +14,7 @@ type TaskBase = CoursewareTaskRef & { version: "courseware-media-v1"; model: str
   feeState: "reserved" | "settled" | "released"; reservedPoints: number; actualPoints: number | null;
   receiptId: string | null; errorCode: string | null };
 export type MediaTasks = {
+  video: TaskBase & { kind: "video"; assetRef: { assetId: string; sha256: string; mime: "video/mp4"; byteLength: number; downloadPath: string; durationMs?: number } | null };
   tts: TaskBase & { kind: "tts"; assetRef: AudioAsset | null };
   image: TaskBase & { kind: "image"; assetRef: ImageAsset | null };
   "image-layers": TaskBase & { kind: "image-layers"; assetRef: {
@@ -66,16 +69,38 @@ export function mediaTask<K extends MediaKind>(value: unknown, expected: MediaTa
       if (asset !== null) throw invalid();
     } else {
       const layers = kind === "image-layers";
-      const audio = kind !== "image" && !layers;
-      if (!exact(asset, ["assetId", "sha256", "mime", "byteLength", "downloadPath"], audio ? ["durationMs"] : ["width", "height"]) ||
+      const video = kind === "video";
+      const audio = kind !== "image" && !layers && !video;
+      if (!exact(asset, ["assetId", "sha256", "mime", "byteLength", "downloadPath"], audio || video ? ["durationMs"] : ["width", "height"]) ||
           !id(asset.assetId) || typeof asset.sha256 !== "string" || !/^[a-f0-9]{64}$/u.test(asset.sha256) ||
-          !(layers ? ["application/vnd.trainwise.image-layers+json"] : kind === "music-export" ? ["audio/mpeg"] : audio ? ["audio/wav", "audio/mpeg"] : ["image/png", "image/jpeg", "image/webp"]).includes(String(asset.mime)) ||
+          !(video ? ["video/mp4"] : layers ? ["application/vnd.trainwise.image-layers+json"] : kind === "music-export" ? ["audio/mpeg"] : audio ? ["audio/wav", "audio/mpeg"] : ["image/png", "image/jpeg", "image/webp"]).includes(String(asset.mime)) ||
           !integer(asset.byteLength, COURSEWARE_MAX_MEDIA_ASSET_BYTES) || asset.byteLength < 1 ||
           asset.downloadPath !== `/courseware/media/tasks/${value.taskId}/asset` ||
-          (audio && asset.durationMs !== undefined && !integer(asset.durationMs, Number.MAX_SAFE_INTEGER)) ||
-          (!audio && !layers && (!integer(asset.width, 4096) || asset.width < 1 || !integer(asset.height, 4096) || asset.height < 1)) ||
+          ((audio || video) && asset.durationMs !== undefined && !integer(asset.durationMs, Number.MAX_SAFE_INTEGER)) ||
+          (!audio && !layers && !video && (!integer(asset.width, 4096) || asset.width < 1 || !integer(asset.height, 4096) || asset.height < 1)) ||
           (layers && (asset.width !== undefined || asset.height !== undefined))) throw invalid();
     }
   } else if (value.assetRef !== null) throw invalid();
   return value as MediaTasks[K];
+}
+
+export function imageRequest(input: unknown): CoursewareImageRequest {
+  if (!exact(input, ["kind", "model", "input"], ["referenceImage"]) || !["image", "image-layers"].includes(String(input.kind)) || !id(input.model) ||
+      typeof input.input !== "string" || !input.input.trim() || input.input.length > 4000 ||
+      Buffer.from(input.input, "utf8").toString("utf8") !== input.input) throw new Error("COURSEWARE_MEDIA_INVALID_REQUEST");
+  const ref = input.referenceImage;
+  if (ref !== undefined) {
+    if (!exact(ref, ["sha256", "mimeType", "byteLength", "bytesBase64"]) || typeof ref.sha256 !== "string" ||
+        !/^[a-f0-9]{64}$/u.test(ref.sha256) || !["image/png", "image/jpeg"].includes(String(ref.mimeType)) ||
+        !integer(ref.byteLength, 8 * 1024 * 1024) || ref.byteLength < 1 || typeof ref.bytesBase64 !== "string" ||
+        ref.bytesBase64.length > Math.ceil(8 * 1024 * 1024 / 3) * 4) throw new Error("COURSEWARE_MEDIA_INVALID_REQUEST");
+    const bytes = Buffer.from(ref.bytesBase64, "base64");
+    if (bytes.toString("base64") !== ref.bytesBase64 || bytes.length !== ref.byteLength ||
+        createHash("sha256").update(bytes).digest("hex") !== ref.sha256 ||
+        (ref.mimeType === "image/png" ? !bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) :
+          !(bytes.subarray(0, 3).equals(Buffer.from([255, 216, 255])) && bytes.subarray(-2).equals(Buffer.from([255, 217])))))
+      throw new Error("COURSEWARE_MEDIA_INVALID_REQUEST");
+  }
+  if (input.kind === "image-layers" && ref === undefined) throw new Error("COURSEWARE_MEDIA_REFERENCE_REQUIRED");
+  return { kind: input.kind as CoursewareImageRequest["kind"], model: input.model, input: input.input, ...(ref === undefined ? {} : { referenceImage: { ...ref } as CoursewareImageReference }) };
 }

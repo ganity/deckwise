@@ -4,6 +4,85 @@ import { candidateHash } from "./page-candidate-baseline.js";
 import { generateNarrationWrite } from "./narration-write.js";
 
 describe("page narration source", () => {
+  it("creates a video slot at its lesson position and preserves existing video on regeneration", async () => {
+    const project: CoursewareProject = { schemaVersion: COURSEWARE_CONTRACT_VERSION, projectId: "project", taskType: "scene", title: "Shapes",
+      source: { revision: "R1", sha256: candidateHash("pptx") }, teachingRevision: "T1",
+      pages: [{ pageId: "page-1", locked: false, reviewState: "review", actions: [] }] };
+    const baseline = { projectId: "project", documentId: "doc", pageId: "page-1", sourceRevision: "R1", sourceHash: project.source.sha256,
+      teachingRevision: "T1", contentHash: candidateHash("A square"), clean: true, readOnly: false, manualLocked: false };
+    const input = { project, pageId: "page-1", baseline, pageText: "A square", instruction: "Show the approved five-second demonstration",
+      getCurrentBaseline: async () => baseline, generate: async () => ({ blocks: [
+        { type: "speech", text: "Watch the square turn." }, { type: "video", prompt: "A silent five-second square rotation" },
+        { type: "speech", text: "Its sides stay equal." },
+      ] }) };
+    const result = await generateNarrationWrite(input);
+    expect(result.write.actions.map(a => a.type)).toEqual(["speech", "video_slot", "speech"]);
+    expect(result.write.actions[1].prompt).toBe("A silent five-second square rotation");
+    for (const existing of [result.write.actions[1], { id: "clip", type: "video_clip", videoAssetId: "video-" + "a".repeat(64) }]) {
+      project.pages[0].actions = [existing];
+      const regenerated = await generateNarrationWrite(input);
+      expect(regenerated.write.actions.map(a => a.type)).toEqual(["speech", "speech"]);
+      expect(project.pages[0].actions).toEqual([existing]);
+    }
+  });
+  it.each(["kindergarten", "primary"])("writes a real question checkpoint and can regenerate it for %s", async schoolStage => {
+    const project: CoursewareProject = { schemaVersion: COURSEWARE_CONTRACT_VERSION, projectId: "project", taskType: "scene", title: "Shapes",
+      source: { revision: "R1", sha256: candidateHash("pptx") }, teachingRevision: "T1", educationContext: { schoolStage, subject: "math" },
+      pages: [{ pageId: "page-1", locked: false, reviewState: "review", actions: [] }] };
+    const baseline = { projectId: "project", documentId: "doc", pageId: "page-1", sourceRevision: "R1", sourceHash: project.source.sha256,
+      teachingRevision: "T1", contentHash: candidateHash("A square"), clean: true, readOnly: false, manualLocked: false };
+    const input = { project, pageId: "page-1", baseline, pageText: "A square", instruction: "Compare its sides",
+      getCurrentBaseline: async () => baseline, generate: async () => ({ blocks: [
+        { type: "speech", text: "Look at the square and compare its sides." },
+        { type: "interaction", question: "What do you notice about the four sides?", referenceAnswer: { summary: "All four sides are equal.", keyPoints: ["Four equal sides"] } },
+        { type: "speech", text: "Let's compare each side together." },
+      ] }) };
+    const { write } = await generateNarrationWrite(input);
+    expect(write.actions[1]).toMatchObject({ type: "interaction_checkpoint", checkpointKind: "chapter_summary", chapterId: "page-1",
+      question: "What do you notice about the four sides?", referenceAnswer: { summary: "All four sides are equal.", keyPoints: ["Four equal sides"] },
+      context: { sourceSceneIds: ["page-1"] } });
+    expect(write.actions.filter(a => a.type === "speech")).toHaveLength(2);
+    project.pages[0].actions = write.actions;
+    await expect(generateNarrationWrite(input)).resolves.toMatchObject({ write: { actions: expect.any(Array) } });
+  });
+  it.each(["kindergarten", "primary"])("keeps scene teaching motion and participation for %s", async schoolStage => {
+    const project: CoursewareProject = { schemaVersion: COURSEWARE_CONTRACT_VERSION, projectId: "project", taskType: "scene", title: "Lesson",
+      source: { revision: "R1", sha256: candidateHash("pptx") }, teachingRevision: "T1", educationContext: { schoolStage, subject: "math" },
+      pages: [{ pageId: "page-1", locked: false, reviewState: "review", actions: [] }] };
+    const baseline = { projectId: "project", documentId: "doc", pageId: "page-1", sourceRevision: "R1", sourceHash: project.source.sha256,
+      teachingRevision: "T1", contentHash: candidateHash(""), clean: true, readOnly: false, manualLocked: false };
+    const result = await generateNarrationWrite({ project, pageId: "page-1", baseline, pageText: "", instruction: "Explain and let students compare",
+      evidence: { notes: "", visualSummary: "A square", objects: [{ objectId: "square", kind: "image", text: "", bbox: [0,0,100,100] }] },
+      getCurrentBaseline: async () => baseline, generate: async ({ system }) => {
+        expect(system).toContain("Scene mode");
+        return { blocks: [{ type: "speech", text: "Look at this square.", attention: { type: "spotlight", objectIds: ["square"], animation: "fadeIn" } },
+          { type: "speech", text: "Compare its sides.", attention: { type: "highlight", objectIds: ["square"], animation: "pulse" } },
+          { type: "wait", mode: "teacher_continue" }] };
+      } });
+    expect(result.write.actions[0]).toMatchObject({ attention: { animation: "fadeIn", objectIds: ["square"] } });
+    expect(result.write.actions[1].attention).toEqual({ type: "highlight", objectIds: ["square"] });
+    expect(result.write.actions[2]).toMatchObject({ type: "interaction_checkpoint", checkpointKind: "teacher_continue" });
+  });
+  it("splits long speech without dropping text, duplicating entrances or moving the final pause", async () => {
+    const project: CoursewareProject = { schemaVersion: COURSEWARE_CONTRACT_VERSION, projectId: "project", taskType: "scene", title: "Lesson",
+      source: { revision: "R1", sha256: candidateHash("pptx") }, teachingRevision: "T1",
+      pages: [{ pageId: "page-1", locked: false, reviewState: "review", actions: [] }] };
+    const baseline = { projectId: "project", documentId: "doc", pageId: "page-1", sourceRevision: "R1", sourceHash: project.source.sha256,
+      teachingRevision: "T1", contentHash: candidateHash(""), clean: true, readOnly: false, manualLocked: false };
+    for (const text of ["Sentence. ".repeat(700).trim(), "x".repeat(3999) + "😀" + "y".repeat(500), "z".repeat(8000)]) {
+      const { write } = await generateNarrationWrite({ project, pageId: "page-1", baseline, pageText: "", instruction: "Explain",
+        evidence: { notes: "", visualSummary: "A square", objects: [{ objectId: "square", kind: "image", text: "", bbox: [0,0,100,100] }] },
+        getCurrentBaseline: async () => baseline, generate: async () => ({ blocks: [
+          { type: "speech", text, attention: { type: "spotlight", objectIds: ["square"], animation: "fadeIn" } },
+          { type: "wait", durationMs: 1500 },
+        ] }) });
+      expect(write.actions.map(a => a.text).join("")).toBe(text);
+      expect(write.actions.every(a => typeof a.text === "string" && a.text.length <= 4000 && Buffer.from(a.text).toString() === a.text)).toBe(true);
+      expect(write.actions.filter(a => (a.attention as { animation?: string }).animation)).toHaveLength(1);
+      expect(write.actions.at(-1)?.pauseAfterMs).toBe(1500);
+      expect(write.actions[0].pauseAfterMs).toBeUndefined();
+    }
+  });
   it("binds automatic attention to supplied objects and defers timing to decoded audio", async () => {
     const project: CoursewareProject = { schemaVersion: COURSEWARE_CONTRACT_VERSION, projectId: "project", taskType: "import", title: "Lesson",
       source: { revision: "R1", sha256: candidateHash("pptx") }, teachingRevision: "T1",

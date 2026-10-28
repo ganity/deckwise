@@ -29,6 +29,9 @@
 .courseware-task-brief { margin-top: 20px; }
 .courseware-task-brief textarea { resize: vertical; min-height: 88px; }
 .courseware-task-brief small { color: var(--ds-text-muted); }
+.courseware-task-style-hint { color: var(--ds-text-muted); font-size: var(--text-xs-plus); margin: 8px 0 0; }
+.courseware-task-style-fields { display: grid; gap: 12px; }
+.courseware-task-style-fields textarea { resize: vertical; }
 .courseware-task-details { margin-top: 16px; }
 .courseware-task-details summary { cursor: pointer; font-size: var(--text-sm); }
 .courseware-task-details .courseware-task-fields { margin-top: 14px; }

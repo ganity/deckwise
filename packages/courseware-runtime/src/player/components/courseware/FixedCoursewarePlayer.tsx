@@ -258,7 +258,10 @@ export function FixedCoursewarePlayer({
             {labels.resume}
           </Button>
         ) : mode === "waiting_interaction" ? (
-          <Button onClick={() => engine.current?.resumeInteraction()}>
+          <Button
+            disabled={waiting?.checkpointKind === "media_playback"}
+            onClick={() => engine.current?.resumeInteraction()}
+          >
             {nativeWaitIndex >= 0 ? `${labels.nextNativeAnimation ?? labels.teacherContinue} ${nativeWaitIndex / 2 + 1}/${native!.steps.length}` : labels.teacherContinue}
           </Button>
         ) : (
@@ -310,6 +313,16 @@ export function FixedCoursewarePlayer({
               ? waiting.question
               : labels.continueWhenReady}
           </p>
+          {waiting.checkpointKind === "chapter_summary" && <details key={waiting.checkpointId}>
+            <summary>{labels.referenceAnswer ?? englishPlayerLabels.referenceAnswer}</summary>
+            <p>{waiting.referenceAnswer.summary}</p>
+            <ul>{waiting.referenceAnswer.keyPoints.map((point, index) => <li key={index}>{point}</li>)}</ul>
+          </details>}
+          {waiting.checkpointKind === "media_playback" && waiting.videoUrl && <video key={waiting.checkpointId}
+            controls playsInline preload="metadata" src={waiting.videoUrl}
+            onEnded={() => engine.current?.resumeInteraction(waiting.checkpointId)}
+            onError={() => resourceError(new Error("Video playback failed. Retry this page."))} aria-label={labels.videoClip ?? englishPlayerLabels.videoClip}
+            style={{ width: "100%", maxHeight: "60vh" }} />}
         </div>
       )}
       {error && (

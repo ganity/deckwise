@@ -2,40 +2,196 @@ use super::*;
 use serde_json::json;
 
 #[test]
-fn generated_attention_requires_review_and_uses_decoded_audio_timing() {
-    use crate::db::courseware_projects::tts::{audio::Audio, Selection, TaskRef};
-    let dir = tempfile::tempdir().unwrap();
-    let root = dir.path().to_str().unwrap();
-    let db = Database::open_in_dir(dir.path()).unwrap();
-    let s = seed('a', "generated-attention");
-    let initial = db.open_identified_courseware_project(root, &s).unwrap();
-    let context = db.courseware_project_context(root, &initial.project_id).unwrap();
-    let target = context["savedObjects"]["pages"][0]["objects"][0]["objectId"].clone();
-    let mut write = TeachingWrite { project_id: initial.project_id.clone(), page_id: initial.pages[0].page_id.clone(),
-        expected_source_revision: initial.source.revision.clone(), expected_teaching_revision: initial.teaching_revision.clone(),
-        actions: vec![json!({"id":"speech","type":"speech","text":"Look at this object.","attention":{"type":"spotlight","objectIds":[target]}})] };
-    let valid = write.actions[0]["attention"].clone();
-    write.actions[0]["attention"]["objectIds"] = json!(["invented"]);
-    assert!(db.stage_scoped_narration_candidate(root,&s,"bad",&write,true).is_err());
-    write.actions[0]["attention"] = valid;
-    db.stage_scoped_narration_candidate(root,&s,"generated",&write,true).unwrap();
-    assert!(db.get_courseware_project(root,&s.project_id).unwrap().unwrap().pages[0].actions.is_empty());
-    let adopted = db.adopt_narration_candidate(root,&s,"generated").unwrap();
-    assert!(adopted.pages[0].actions[0].get("visualCues").is_none());
-    let selection = Selection { intent_id:"focus-voice".into(), principal_key:"c".repeat(64), project_id:s.project_id.clone(),
-        page_id:adopted.pages[0].page_id.clone(), action_id:"speech".into(), expected_source_revision:adopted.source.revision.clone(),
-        expected_teaching_revision:adopted.teaching_revision.clone(), model:"test-tts".into(), voice:None };
-    let prepared = db.prepare_courseware_tts(root,selection.clone()).unwrap();
-    db.begin_courseware_tts(root,&s.project_id,&selection.principal_key,&selection.intent_id,"session").unwrap();
-    let task = TaskRef { task_id:"task".into(), idempotency_key:prepared["intent"]["idempotencyKey"].as_str().unwrap().into(),
-        request_hash:prepared["intent"]["requestHash"].as_str().unwrap().into() };
-    db.bind_courseware_tts(root,&s.project_id,&selection.principal_key,&selection.intent_id,task.clone()).unwrap();
-    db.stage_courseware_tts_audio(root,&s.project_id,&selection.principal_key,&selection.intent_id,Audio { task_ref:task, sha256:"b".repeat(64),mime_type:"audio/wav".into(),byte_length:100,duration_ms:2345 }).unwrap();
-    let ready = db.adopt_courseware_tts_audio(root,&s.project_id,&selection.principal_key,&selection.intent_id,&adopted.teaching_revision,None).unwrap();
-    assert!(ready.pages[0].actions[0].get("attention").is_none());
-    assert_eq!(ready.pages[0].actions[0]["visualCues"][0],json!({"id":"focus-speech","atMs":0,"endMs":2345,"effect":{"type":"spotlight","elementId":target,"elementIds":[]}}));
-    let persisted = db.get_courseware_project(root,&s.project_id).unwrap().unwrap();
-    assert_eq!(persisted.pages[0].actions,ready.pages[0].actions);
+fn generated_attention_uses_decoded_audio_and_auto_readies_only_generated_scenes() {
+    for (task_type, generated) in [("scene", true), ("scene", false), ("import", true)] {
+        use crate::db::courseware_projects::tts::{audio::Audio, Selection, TaskRef};
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().to_str().unwrap();
+        let db = Database::open_in_dir(dir.path()).unwrap();
+        let s = seed('a', "generated-attention");
+        let initial = db
+            .open_identified_courseware_project_with_metadata(root, &s, task_type, None)
+            .unwrap();
+        let context = db
+            .courseware_project_context(root, &initial.project_id)
+            .unwrap();
+        let target = context["savedObjects"]["pages"][0]["objects"][0]["objectId"].clone();
+        let mut write = TeachingWrite {
+            project_id: initial.project_id.clone(),
+            page_id: initial.pages[0].page_id.clone(),
+            expected_source_revision: initial.source.revision.clone(),
+            expected_teaching_revision: initial.teaching_revision.clone(),
+            actions: vec![
+                json!({"id":"speech","type":"speech","text":"Look at this object.","attention":{"type":"spotlight","objectIds":[target]}}),
+            ],
+        };
+        if generated {
+            write.actions[0]["source"] = json!("generated");
+        }
+        write.actions[0]["attention"]["animation"] = json!("fadeIn");
+        if generated && task_type == "scene" {
+            write.actions.push(json!({"id":"second-speech","type":"speech","text":"Now compare.","source":"generated"}));
+        }
+        let valid = write.actions[0]["attention"].clone();
+        write.actions[0]["attention"]["objectIds"] = json!(["invented"]);
+        assert!(db
+            .stage_scoped_narration_candidate(root, &s, "bad", &write, true)
+            .is_err());
+        write.actions[0]["attention"] = valid;
+        db.stage_scoped_narration_candidate(root, &s, "generated", &write, true)
+            .unwrap();
+        assert!(db
+            .get_courseware_project(root, &s.project_id)
+            .unwrap()
+            .unwrap()
+            .pages[0]
+            .actions
+            .is_empty());
+        let adopted = db.adopt_narration_candidate(root, &s, "generated").unwrap();
+        assert!(adopted.pages[0].actions[0].get("visualCues").is_none());
+        let selection = Selection {
+            intent_id: "focus-voice".into(),
+            principal_key: "c".repeat(64),
+            project_id: s.project_id.clone(),
+            page_id: adopted.pages[0].page_id.clone(),
+            action_id: "speech".into(),
+            expected_source_revision: adopted.source.revision.clone(),
+            expected_teaching_revision: adopted.teaching_revision.clone(),
+            model: "test-tts".into(),
+            voice: None,
+        };
+        let prepared = db.prepare_courseware_tts(root, selection.clone()).unwrap();
+        db.begin_courseware_tts(
+            root,
+            &s.project_id,
+            &selection.principal_key,
+            &selection.intent_id,
+            "session",
+        )
+        .unwrap();
+        let task = TaskRef {
+            task_id: "task".into(),
+            idempotency_key: prepared["intent"]["idempotencyKey"]
+                .as_str()
+                .unwrap()
+                .into(),
+            request_hash: prepared["intent"]["requestHash"].as_str().unwrap().into(),
+        };
+        db.bind_courseware_tts(
+            root,
+            &s.project_id,
+            &selection.principal_key,
+            &selection.intent_id,
+            task.clone(),
+        )
+        .unwrap();
+        db.stage_courseware_tts_audio(
+            root,
+            &s.project_id,
+            &selection.principal_key,
+            &selection.intent_id,
+            Audio {
+                task_ref: task,
+                sha256: "b".repeat(64),
+                mime_type: "audio/wav".into(),
+                byte_length: 100,
+                duration_ms: 2345,
+            },
+        )
+        .unwrap();
+        let mut ready = db
+            .adopt_courseware_tts_audio(
+                root,
+                &s.project_id,
+                &selection.principal_key,
+                &selection.intent_id,
+                &adopted.teaching_revision,
+                None,
+            )
+            .unwrap();
+        assert_eq!(
+            ready.pages[0].review_state, "review",
+            "one missing speech cannot complete a scene page"
+        );
+        if generated && task_type == "scene" {
+            let second = Selection {
+                intent_id: "second-voice".into(),
+                action_id: "second-speech".into(),
+                expected_teaching_revision: ready.teaching_revision.clone(),
+                ..selection.clone()
+            };
+            let prepared = db.prepare_courseware_tts(root, second.clone()).unwrap();
+            db.begin_courseware_tts(
+                root,
+                &s.project_id,
+                &second.principal_key,
+                &second.intent_id,
+                "session",
+            )
+            .unwrap();
+            let task = TaskRef {
+                task_id: "second-task".into(),
+                idempotency_key: prepared["intent"]["idempotencyKey"]
+                    .as_str()
+                    .unwrap()
+                    .into(),
+                request_hash: prepared["intent"]["requestHash"].as_str().unwrap().into(),
+            };
+            db.bind_courseware_tts(
+                root,
+                &s.project_id,
+                &second.principal_key,
+                &second.intent_id,
+                task.clone(),
+            )
+            .unwrap();
+            db.stage_courseware_tts_audio(
+                root,
+                &s.project_id,
+                &second.principal_key,
+                &second.intent_id,
+                Audio {
+                    task_ref: task,
+                    sha256: "d".repeat(64),
+                    mime_type: "audio/wav".into(),
+                    byte_length: 100,
+                    duration_ms: 100,
+                },
+            )
+            .unwrap();
+            ready = db
+                .adopt_courseware_tts_audio(
+                    root,
+                    &s.project_id,
+                    &second.principal_key,
+                    &second.intent_id,
+                    &ready.teaching_revision,
+                    None,
+                )
+                .unwrap();
+        }
+        assert!(ready.pages[0].actions[0].get("attention").is_none());
+        assert_eq!(
+            ready.pages[0].actions[0]["visualCues"],
+            json!([
+                {"id":"motion-speech-0","atMs":0,"endMs":600,"effect":{"type":"element_animation","elementId":target,"effect":"fadeIn"}},
+                {"id":"focus-speech","atMs":600,"endMs":2345,"effect":{"type":"spotlight","elementId":target,"elementIds":[]}}
+            ])
+        );
+        assert_eq!(
+            ready.pages[0].review_state,
+            if generated && task_type == "scene" {
+                "ready"
+            } else {
+                "review"
+            }
+        );
+        let persisted = db
+            .get_courseware_project(root, &s.project_id)
+            .unwrap()
+            .unwrap();
+        assert_eq!(persisted.pages[0].actions, ready.pages[0].actions);
+    }
 }
 
 #[test]
@@ -58,9 +214,10 @@ fn attention_source_review_requires_every_explicit_current_target_and_is_atomic(
         let first = objects[0]["objectId"].as_str().unwrap();
         let second = objects[1]["objectId"].as_str().unwrap();
         let actions = vec![
-            json!({"id":"speech","type":"speech","text":"Find both.","pauseAfterMs":1200,"visualCues":[
+            json!({"id":"speech","type":"speech","text":"Find both.","source":"generated","pauseAfterMs":1200,"visualCues":[
                 {"id":"highlight","atMs":0,"endMs":800,"effect":{"type":"highlight","elementIds":[first,second],"color":"#ff00aa","opacity":0.5}},
-                {"id":"spotlight","atMs":800,"endMs":1900,"effect":{"type":"spotlight","elementId":second,"elementIds":[first],"dimOpacity":0.7}}
+                {"id":"spotlight","atMs":800,"endMs":1900,"effect":{"type":"spotlight","elementId":second,"elementIds":[first],"dimOpacity":0.7}},
+                {"id":"motion","atMs":0,"endMs":600,"effect":{"type":"element_animation","elementId":first,"effect":"fadeIn"}}
             ]}),
             json!({"id":"wait","type":"interaction_checkpoint","checkpointId":"wait","checkpointKind":"teacher_continue"}),
             json!({"id":"pending-focus","type":"speech","text":"Look again.","attention":{"type":"highlight","objectIds":[first]}}),
@@ -133,6 +290,7 @@ fn attention_source_review_requires_every_explicit_current_target_and_is_atomic(
             json!([new_objects[1]["objectId"], new_objects[0]["objectId"]]);
         expected[0]["visualCues"][1]["effect"]["elementId"] = new_objects[0]["objectId"].clone();
         expected[0]["visualCues"][1]["effect"]["elementIds"] = json!([new_objects[1]["objectId"]]);
+        expected[0]["visualCues"][2]["effect"]["elementId"] = new_objects[1]["objectId"].clone();
         expected[2]["attention"]["objectIds"] = json!([new_objects[1]["objectId"]]);
         assert_eq!(adopted.pages[0].actions, expected);
         assert_eq!(adopted.pages[0].review_state, "review");

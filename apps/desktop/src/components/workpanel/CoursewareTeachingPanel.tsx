@@ -1,4 +1,4 @@
-import { replaceNarrationText, type CoursewareTeachingDraft, type CoursewareTeachingView, type CoursewarePptxCandidateReview as PptxReview, type CoursewareSourceReview as SourceReview } from "@pi-desktop/shared";
+import { replaceNarrationText, isCoursewareInteractionCheckpoint, type CoursewareTeachingDraft, type CoursewareTeachingView, type CoursewarePptxCandidateReview as PptxReview, type CoursewareSourceReview as SourceReview } from "@pi-desktop/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IconFileText, IconMic, IconSparkles, IconImage, IconCheck } from "../icons";
@@ -13,10 +13,6 @@ import { CoursewareTeachingEffects } from "./CoursewareTeachingEffects";
 import { CoursewareAssetLocks } from "./CoursewareAssetLocks";
 import { CoursewareChatChanges } from "./CoursewareChatChanges";
 import { CoursewareTeachingHistory } from "./CoursewareTeachingHistory";
-
-const isTeacherContinue = (action: Record<string, unknown>) => action.type === "interaction_checkpoint" &&
-  action.checkpointKind === "teacher_continue" && typeof action.checkpointId === "string" && /^[\w.-]{1,128}$/u.test(action.checkpointId) &&
-  Object.keys(action).every(key => ["id", "type", "checkpointId", "checkpointKind"].includes(key));
 
 export function CoursewareTeachingPanel({ sessionId, enabled }: { sessionId?: string; enabled: boolean }) {
   const { t } = useTranslation();
@@ -260,7 +256,8 @@ export function CoursewareTeachingPanel({ sessionId, enabled }: { sessionId?: st
         disabled={!canEdit || changed || instructionPending || draftSaving || !!draftError || actions.some(action => action.type !== "audio_clip")}
         onRestore={restored => {
           if (!canEdit || changed || instructionPending || draftSaving || draftError || actions.some(action => action.type !== "audio_clip")) return;
-          editActions([...restored, ...actions]);
+          editActions([...restored.map(action => action.checkpointKind === "chapter_summary" ? { ...action,
+            chapterId: page.pageId, context: { ...action.context as Record<string, unknown>, sourceSceneIds: [page.pageId] } } : action), ...actions]);
         }} />
       <CoursewareChatChanges key={`chat:${view.viewId}`} view={view} disabled={!enabled || busy || changed || draftLoading || draftSaving ||
         !!staleDraft || !!draftError || instructionPending}
@@ -386,8 +383,18 @@ export function CoursewareTeachingPanel({ sessionId, enabled }: { sessionId?: st
           <button type="button" disabled={!canEdit} onClick={() => editActions(actions.filter((_, position) => position !== index))}>
             {t("panel.canvasMusic.removeClip")}
           </button>
-        </div> : isTeacherContinue(action) ? <div key={String(action.id)}>
+        </div> : isCoursewareInteractionCheckpoint(action) ? <div key={String(action.id)}>
           <p>{t("panel.pptEditor.teachingCheckpoint")}</p>
+          {action.checkpointKind === "chapter_summary" && <>
+            <label>{t("panel.pptEditor.teachingQuestion")}
+              <textarea rows={2} value={String(action.question)} maxLength={4000} disabled={!canEdit} onChange={event =>
+                editActions(actions.map((entry, position) => position === index ? { ...entry, question: event.target.value } : entry))} />
+            </label>
+            <details><summary>{t("panel.pptEditor.teachingReferenceAnswer")}</summary>
+              <p>{String((action.referenceAnswer as Record<string, unknown>).summary)}</p>
+              <ul>{((action.referenceAnswer as { keyPoints: string[] }).keyPoints).map((point, position) => <li key={position}>{point}</li>)}</ul>
+            </details>
+          </>}
           <button type="button" disabled={!canEdit} onClick={() => editActions(actions.filter((_, position) => position !== index))}>
             {t("panel.pptEditor.teachingRemoveCheckpoint")}
           </button>

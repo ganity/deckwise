@@ -1,6 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { isCoursewareTeachingDraft, isCoursewareTeachingHistory, replaceNarrationText } from "./courseware-editor.js";
+import { isCoursewareTeachingDraft, isCoursewareTeachingHistory, isCoursewareInteractionCheckpoint, replaceNarrationText } from "./courseware-editor.js";
 import fixture from "./courseware-contract.fixtures/accepted.json";
+
+it("bounds teacher-led question payloads and retains them in deleted-page history", () => {
+  const checkpoint = { id: "question", type: "interaction_checkpoint", checkpointId: "question", checkpointKind: "chapter_summary",
+    chapterId: "page", chapterTitle: "Shapes", question: "How many sides?", referenceAnswer: { summary: "Four", keyPoints: ["Four equal sides"] },
+    context: { chapterSummary: "A square has four equal sides", sourceSceneIds: ["page"] } };
+  expect(isCoursewareInteractionCheckpoint(checkpoint)).toBe(true);
+  expect(isCoursewareTeachingHistory({ entries: [{ teachingRevision: "T1", sourceRevision: "R1", pageId: "page", pageNumber: 1,
+    actions: [checkpoint], omittedAudioCount: 0, omittedCueCount: 0 }], skippedEntryCount: 0 })).toBe(true);
+  for (const patch of [{ question: "" }, { question: "x".repeat(4001) }, { checkpointId: ".." },
+    { referenceAnswer: { summary: "Four", keyPoints: [] } }, { context: { ...checkpoint.context, sourceSceneIds: ["page", "page"] } },
+    { assessedCorrect: true }, { checkpointKind: "quiz" }]) expect(isCoursewareInteractionCheckpoint({ ...checkpoint, ...patch })).toBe(false);
+});
 
 it("validates recovery drafts separately from authoritative teaching", () => {
   const draft = { revision: "draft-1", baseline: fixture.project, pageId: fixture.project.pages[0].pageId,

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Choose a scene art style or enter a custom description when creating a task.
+  Preserve it in planning and across pages instead of forcing hand-painted
+  picture-book styling.
+
 - Review Chat-generated page rebuilds, fade transitions and style batches in the
   main Chat. Reuse the existing read-only preview, explicit object associations
   and adoption flow; preserve current-page narration drafts and reread uncertain

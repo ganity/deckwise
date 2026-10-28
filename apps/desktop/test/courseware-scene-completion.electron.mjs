@@ -28,7 +28,8 @@ const helpers = await load("plugin-agent-complete", { "@pi-desktop/agent-runtime
 const scene = await load("courseware-scene-context", { electron: { nativeImage }, "node:crypto": crypto, "node:zlib": { crc32 } });
 const sceneImages = await load("courseware-scene-image-assets", { electron: { nativeImage }, "node:crypto": crypto,
   "node:fs": await import("node:fs"), "node:fs/promises": await import("node:fs/promises"), "node:path": await import("node:path"),
-  "./courseware-scene-context": scene });
+  "./courseware-scene-context": scene, "./public-https-fetch": await load("public-https-fetch", {
+    "node:dns/promises": await import("node:dns/promises"), "@pi-desktop/shared": shared }) });
 const { CoursewareSceneGeneration } = await load("courseware-scene-generation", { "./courseware-scene-image-assets": sceneImages });
 const generator = await load("courseware-scene-generator", { "node:crypto": crypto, "./courseware-scene-context": scene });
 const planner = await load("courseware-scene-plan", { "node:crypto": crypto, "@pi-desktop/agent-runtime": runtime });
@@ -89,6 +90,32 @@ test("Native normalization letterboxes reference/background without stretching a
   assert.deepEqual(result.bytes, layer.bytes);
   assert.equal(result.width, 4); assert.equal(result.height, 4);
   assert.equal(nativeImage.createFromBuffer(result.bytes).toBitmap()[3], 0);
+  const chunk = Buffer.alloc(5 * 1024 * 1024 + 12);
+  chunk.writeUInt32BE(chunk.length - 12); chunk.write("caBX", 4);
+  chunk.writeUInt32BE(crc32(chunk.subarray(4, -4)), chunk.length - 4);
+  const large = Buffer.concat([png.subarray(0, -12), chunk, png.subarray(-12)]);
+  const data = Array.from({ length: 5 }, (_, z_index) => ({ z_index, b64_json: large.toString("base64"),
+    ...(z_index ? { bounding_box: { normalized: [100, 100, 900, 900] } } : {}) }));
+  const decoded = sceneImages.decodeSceneImageBundle(Buffer.from(JSON.stringify({ data })), {
+    taskId: "gw-large", idempotencyKey: "00000000-0000-4000-8000-000000000001", requestHash: "a".repeat(64) });
+  assert.equal(decoded.length, 5);
+  assert.equal(decoded[4].bytesBase64, large.toString("base64"));
+  assert(Buffer.byteLength(JSON.stringify({ images: decoded })) < shared.MAX_HOST_STDIN_LINE_BYTES);
+
+});
+
+test("Native compiler fits decomposed foreground pixels to their pinned canvas bounds", () => {
+  const width = 1600, height = 1200;
+  const pixels = Buffer.alloc(width * height * 4, 180);
+  for (let i = 3; i < pixels.length; i += 4) pixels[i] = 255;
+  const bytes = nativeImage.createFromBitmap(pixels, { width, height }).toPNG();
+  const result = sceneImages.sceneImageForCompiler({ intentId: "large-layer", target: { kind: "layer", name: "Character" }, bytes,
+    asset: { sha256: digest(bytes), byteLength: bytes.length, mimeType: "image/png", width, height,
+      sourceZIndex: 1, normalizedBoundingBox: [100, 100, 600, 850] } }, { width: 1280, height: 800 }, { width: 640, height: 600 });
+  assert.equal(result.width, 640);
+  assert.equal(result.height, 480);
+  assert(result.bytes.length < bytes.length);
+  assert.equal(nativeImage.createFromBuffer(bytes).getSize().width, width);
 });
 
 export async function withModel(run) {
@@ -188,19 +215,20 @@ test("Reviewed private assets reach actual model transport/compiler with separat
       staged++; assert.deepEqual(request.sceneProof, proof); assert.deepEqual(request.teaching, [{ pageId: "scene-001", narration: pages[0].narration }]);
       await request.assertCurrent();
       const zip = await JSZip.loadAsync(request.pptx), slide = await zip.file("ppt/slides/slide1.xml").async("string");
-      assert(slide.includes("Circle")); assert(slide.includes("<p:pic>")); assert(!slide.includes("看看圆形"));
+      assert(!slide.includes("<a:t>"), "decomposed lettering stays in image pixels");
+      assert(slide.includes("<p:pic>")); assert(!slide.includes("看看圆形"));
       assert((await zip.file("ppt/presentation.xml").async("string")).includes('cx="11704320" cy="7315200"'));
       return { path: "/fixture/workspace/generated.pptx" };
     },
   });
   f.respond(body => {
     const prompt = JSON.parse(body.messages.find(message => message.role === "user").content[0].text);
+    assert.equal(prompt.pageText, "Hello");
+    assert.match(prompt.instruction, /visual master as the design authority/);
     const layerId = prompt.availableAssets.find(asset => asset.assetId.includes("layer")).assetId;
     return JSON.stringify({ version: 1, slideId: prompt.pageId, sourceHash: prompt.sourceHash, canvas: prompt.canvas,
       visualMasterAssetId: prompt.visualMasterAssetId, cleanPlateAssetId: prompt.cleanPlateAssetId,
-      elements: [{ id: "title", type: "native_text", bboxPx: [60, 60, 900, 100], zIndex: 1, content: "Circle",
-        style: { fontFace: "Arial", fontSizePt: 32, color: "#173B65" } },
-      { id: "circle", type: "image_layer", bboxPx: [300, 220, 240, 240], zIndex: 2, assetId: layerId, layerRoute: "A1", semanticRole: "teaching circle" }] });
+      elements: [{ id: "circle", type: "image_layer", bboxPx: [300, 220, 240, 240], zIndex: 2, assetId: layerId, layerRoute: "A1", semanticRole: "teaching circle" }] });
   });
   const result = await coordinator.generate({ sessionId: "chat-1", planSha256: proof.planSha256 }).catch(error => { console.error(error); throw error; });
   assert.deepEqual(result, { path: "/fixture/workspace/generated.pptx" });

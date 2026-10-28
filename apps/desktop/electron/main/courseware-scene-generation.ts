@@ -36,16 +36,22 @@ export class CoursewareSceneGeneration {
       const canvas = { width: 1280, height: 800 };
       const visuals = selected.plan.pages.map(page => {
         const rows = selected.images.filter(image => image.pageId === page.pageId);
-        const images = rows.map(image => sceneImageForCompiler(image, canvas));
-        const assetId = (kind: "visualMaster" | "cleanPlate") => images[rows.findIndex(row => row.target.kind === kind)].assetIds[0];
         const base = rows.find(row => row.target.kind === "cleanPlate")!.asset;
         const scale = Math.min(canvas.width / base.width, canvas.height / base.height);
         const fitWidth = Math.max(1, Math.round(base.width * scale)), fitHeight = Math.max(1, Math.round(base.height * scale));
         const offsetX = Math.floor((canvas.width - fitWidth) / 2), offsetY = Math.floor((canvas.height - fitHeight) / 2);
+        const images = rows.map(image => {
+          const box = image.asset.normalizedBoundingBox;
+          return sceneImageForCompiler(image, canvas, box ? {
+            width: Math.max(1, Math.ceil((box[2] - box[0]) * fitWidth / 1000)),
+            height: Math.max(1, Math.ceil((box[3] - box[1]) * fitHeight / 1000)),
+          } : undefined);
+        });
+        const assetId = (kind: "visualMaster" | "cleanPlate") => images[rows.findIndex(row => row.target.kind === kind)].assetIds[0];
         const foregroundPlacements = rows.flatMap((row, index) => {
           const box = row.asset.normalizedBoundingBox;
           if (row.target.kind !== "layer" || !box) return [];
-          return [{ assetId: images[index].assetIds[0], zIndex: row.asset.sourceZIndex,
+          return [{ assetId: images[index].assetIds[0], zIndex: row.asset.sourceZIndex, semanticRole: row.target.name,
             bboxPx: [offsetX + box[0] * fitWidth / 1000, offsetY + box[1] * fitHeight / 1000,
               (box[2] - box[0]) * fitWidth / 1000, (box[3] - box[1]) * fitHeight / 1000] as [number, number, number, number] }];
         });

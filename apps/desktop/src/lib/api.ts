@@ -1229,6 +1229,8 @@ export const api = {
     target: CoursewareSceneImageTarget = { kind: "visualMaster" }, instructions = "", referenceIntentId?: string) =>
     invoke<CoursewareSceneImageView>(IPC.invoke.coursewareSceneImagePrepare, { sessionId, planSha256, pageId, model, target, instructions,
       ...(referenceIntentId === undefined ? {} : { referenceIntentId }) }),
+  coursewareSceneImageGenerate: (sessionId: string, intentId: string) =>
+    invoke<CoursewareSceneImageView>(IPC.invoke.coursewareSceneImageSubmitConfirmed, { sessionId, intentId }),
   coursewareSceneImageQuote: (sessionId: string, intentId: string) =>
     invoke<CoursewareSceneImageQuoteView>(IPC.invoke.coursewareSceneImageQuote, { sessionId, intentId }),
   coursewareSceneImageSubmitConfirmed: (sessionId: string, intentId: string, quoteId: string) =>

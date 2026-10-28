@@ -261,3 +261,16 @@ test("TXT files and plain-text attachments open the text viewer with their conte
     assert.equal(preview.content, content);
   }
 });
+
+
+test("scene image preview is a recognized per-Chat resource that reopens without duplication", () => {
+  const tab = toolWorkPanelTab("scene-images");
+  assert.equal(isKnownWorkPanelTab(tab), true);
+  const once = openWorkPanelTabState({ tabs: [], activeTabId: null }, tab);
+  const twice = openWorkPanelTabState(once, tab);
+  assert.equal(twice.tabs.length, 1);
+  assert.equal(sanitizeWorkPanelTabsState(twice).activeTabId, "scene-images");
+  const switched = switchWorkPanelContextState({}, "chat-a", { ...twice, open: true, fileRequest: null }, "chat-b");
+  assert.equal(switched.visible.tabs.length, 0);
+  assert.equal(switched.contexts["chat-a"].tabs[0].kind, "scene-images");
+});

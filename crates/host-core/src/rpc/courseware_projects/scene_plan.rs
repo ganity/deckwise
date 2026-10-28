@@ -17,13 +17,34 @@ struct ApproveParams {
 pub(super) struct Plan {
     pub(super) title: String,
     pub(super) pages: Vec<Page>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "visualBible",
+        deserialize_with = "read_visual_bible"
+    )]
+    pub(super) visual_bible: Option<VisualBible>,
+}
+
+fn read_visual_bible<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<VisualBible>, D::Error> {
+    VisualBible::deserialize(deserializer).map(Some)
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(super) struct VisualBible {
+    pub(super) art_direction: String,
+    pub(super) characters: String,
+    pub(super) setting: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(super) struct Page {
     pub(super) title: String,
-    visible_text: Vec<String>,
+    pub(super) visible_text: Vec<String>,
     pub(super) visual_intent: String,
     pub(super) narration: String,
 }
@@ -116,6 +137,15 @@ pub(super) fn read_plan(
     let bounded =
         |text: &str, max: usize| !text.trim().is_empty() && text.encode_utf16().count() <= max;
     if !bounded(&plan.title, 200)
+        || plan.visual_bible.as_ref().is_some_and(|bible| {
+            let fields = [&bible.art_direction, &bible.characters, &bible.setting];
+            fields.iter().any(|text| !bounded(text, 1000))
+                || fields
+                    .iter()
+                    .map(|text| text.encode_utf16().count())
+                    .sum::<usize>()
+                    > 1000
+        })
         || plan.pages.is_empty()
         || plan.pages.len() > 30
         || plan.pages.iter().any(|page| {
@@ -391,6 +421,19 @@ mod tests {
                     .code,
                 1002
             );
+        }
+        for bible in [
+            Value::Null,
+            json!({}),
+            json!({"artDirection":" ","characters":"Pandy","setting":"Classroom"}),
+            json!({"artDirection":"x".repeat(1001),"characters":"Pandy","setting":"Classroom"}),
+            json!({"artDirection":"Matte","characters":"Pandy","setting":"Classroom","path":"foreign"}),
+        ] {
+            let mut plan = good.clone();
+            plan["visualBible"] = bible;
+            let bytes = serde_json::to_vec(&plan).unwrap();
+            std::fs::write(&path, &bytes).unwrap();
+            assert!(read_plan(root.path().to_str().unwrap(), "chat-a", &hash(&bytes)).is_err());
         }
         for bytes in [vec![b'x'; MAX_BYTES as usize + 1], vec![255], b"{".to_vec()] {
             std::fs::write(&path, &bytes).unwrap();

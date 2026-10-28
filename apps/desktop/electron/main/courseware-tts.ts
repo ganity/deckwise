@@ -16,7 +16,8 @@ type Journal = { intent: Omit<Summary, "current" | "audioReady"> & { request: Co
 type Audio = { taskRef: CoursewareTaskRef; sha256: string; mimeType: "audio/wav" | "audio/mpeg"; byteLength: number; durationMs: number };
 type TtsSnapshotAudio = { asset: { id: string; sha256: string; mimeType: string }; tts: { principalKey: string; intentId: string } };
 type MusicSnapshotAudio = { asset: { id: string; sha256: string; mimeType: string }; music: { principalKey: string; intentId: string } };
-type SnapshotAudio = TtsSnapshotAudio | MusicSnapshotAudio;
+type VideoSnapshotAsset = { asset: { id: string; sha256: string; mimeType: string }; video: { principalKey: string; intentId: string } };
+type SnapshotAudio = TtsSnapshotAudio | MusicSnapshotAudio | VideoSnapshotAsset;
 const id = (value: unknown): value is string => typeof value === "string" && /^[A-Za-z0-9._-]{1,128}$/u.test(value) && value !== "." && value !== "..";
 function payload(value: unknown, extra: string[]): Record<string, unknown> {
   const keys = ["viewId", "expectedTeachingRevision", ...extra];
@@ -38,7 +39,7 @@ export class CoursewareTtsCoordinator {
   private quotes = new Map<string, { scope: string; requestHash: string; quote: CoursewareTtsQuote }>();
   private submitting = new Set<string>();
   private archiving = new Set<string>();
-  constructor(private teaching: Pick<CoursewareTeachingCoordinator, "ttsContext" | "captureSnapshot">,
+  constructor(private teaching: Pick<CoursewareTeachingCoordinator, "ttsContext"> & Partial<Pick<CoursewareTeachingCoordinator, "captureSnapshot">>,
     private auth: Pick<DesktopAuthSession, "getCoursewarePrincipal" | "coursewareMedia">,
     private decodeAudio: (bytes: Buffer, mime: Audio["mimeType"]) => Promise<number>) {}
 
@@ -223,6 +224,7 @@ export class CoursewareTtsCoordinator {
   }
 
   async captureSnapshot(value: unknown): Promise<import("@pi-desktop/shared").CoursewareSnapshot> {
+    if (!this.teaching.captureSnapshot) throw new Error("COURSEWARE_SNAPSHOT_CAPTURE_UNAVAILABLE");
     const input = payload(value, []);
     const pinned = await this.teaching.ttsContext({ viewId: input.viewId, expectedTeachingRevision: input.expectedTeachingRevision });
     const speeches = pinned.project.pages.flatMap((page) => page.actions
@@ -230,7 +232,8 @@ export class CoursewareTtsCoordinator {
       .map((action) => ({ pageId: page.pageId, actionId: action.id, text: action.text, assetId: action.audioAssetId })));
     const clipAssetIds = pinned.project.pages.flatMap(page => page.actions)
       .filter(action => action.type === "audio_clip").map(action => action.audioAssetId);
-    if (!speeches.length && !clipAssetIds.length) return this.teaching.captureSnapshot(value);
+    const videoClips = pinned.project.pages.flatMap(page => page.actions.filter(action => action.type === "video_clip").map(action => ({ pageId: page.pageId, action })));
+    if (!speeches.length && !clipAssetIds.length && !videoClips.length) return this.teaching.captureSnapshot(value);
     const context = await this.context(input);
     const assets = new Map<string, SnapshotAudio>();
     if (speeches.length) {
@@ -286,6 +289,17 @@ export class CoursewareTtsCoordinator {
           JSON.stringify(music.assets.map(entry => entry.asset.id).sort()) !== JSON.stringify([...new Set(clipAssetIds)].sort()))
         throw new Error("COURSEWARE_AUDIO_REQUIRED: adopted music does not match current teaching");
       for (const entry of music.assets) assets.set(entry.asset.id, entry);
+    }
+    if (videoClips.length) {
+      const { intents } = await context.host.call<{ intents: import("./courseware-saved-video").SavedVideoIntent[] }>("courseware.video.list", context.scope);
+      for (const { pageId, action } of videoClips) {
+        const matched = intents.find(intent => intent.phase === "adopted" && intent.pageId === pageId && intent.slotId === action.id &&
+          intent.source.sha256 === context.project.source.sha256 && intent.source.revision === context.project.source.revision &&
+          intent.asset && action.videoAssetId === `video-${intent.asset.sha256}`);
+        if (!matched?.asset) throw new Error("COURSEWARE_VIDEO_REQUIRED: adopted video does not match current teaching");
+        const asset = { id: `video-${matched.asset.sha256}`, sha256: matched.asset.sha256, mimeType: "video/mp4" };
+        assets.set(asset.id, { asset, video: { principalKey: context.principal.key, intentId: matched.intentId } });
+      }
     }
     await context.assertCurrent();
     return this.teaching.captureSnapshot(value, [...assets.values()], () => context.principal.assertCurrent());

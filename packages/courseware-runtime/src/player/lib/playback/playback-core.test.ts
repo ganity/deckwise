@@ -205,6 +205,22 @@ it.each([29_999, 30_000])(
     }
   },
 );
+it("delivers question and reference answer while waiting for teacher continuation", async () => {
+  const page = scene("question");
+  const question = { id: "question", type: "interaction_checkpoint" as const, checkpointId: "question", checkpointKind: "chapter_summary" as const,
+    chapterId: "question", chapterTitle: "Shapes", question: "How many sides?", referenceAnswer: { summary: "Four", keyPoints: ["Four equal sides"] },
+    context: { chapterSummary: "A square has four equal sides", sourceSceneIds: ["question"] } };
+  page.actions = [question];
+  const checkpoint = vi.fn(), complete = vi.fn();
+  const core = new PlaybackCore([page], actions, fixture(async () => true).audio, { onInteractionStart: checkpoint, onComplete: complete });
+  core.start(); await Promise.resolve();
+  expect(core.getMode()).toBe("waiting_interaction");
+  expect(checkpoint).toHaveBeenCalledWith(expect.objectContaining({ question: question.question, referenceAnswer: question.referenceAnswer }));
+  expect(complete).not.toHaveBeenCalled();
+  core.resumeInteraction("question");
+  expect(complete).toHaveBeenCalledOnce();
+  core.stop();
+});
 it("waits at a teacher checkpoint until explicitly resumed", async () => {
   const page = scene("teacher-wait");
   page.actions = [{ id: "continue", type: "interaction_checkpoint", checkpointId: "continue", checkpointKind: "teacher_continue" }];
@@ -426,5 +442,20 @@ it("keeps legacy narration seek working without visual cues or progress subscrib
   await Promise.resolve();
   core.seekCurrentSpeech(800);
   expect(f.audio.seek).toHaveBeenCalledWith(800);
+  core.stop();
+});
+
+it("waits for archived video playback before speaking and never executes a draft", async () => {
+  const f = fixture(async () => true), interaction = vi.fn(), complete = vi.fn();
+  const page = scene("video");
+  page.actions!.unshift({ id: "clip", type: "video_clip", videoAssetId: "asset", videoUrl: "blob:verified-video" });
+  const core = new PlaybackCore([page], actions, f.audio, { onInteractionStart: interaction, onInteractionComplete: complete });
+  core.start(); await Promise.resolve();
+  expect(core.getMode()).toBe("waiting_interaction");
+  expect(f.audio.play).not.toHaveBeenCalled();
+  expect(interaction).toHaveBeenCalledWith(expect.objectContaining({ checkpointId: "clip", checkpointKind: "media_playback", videoUrl: "blob:verified-video" }));
+  core.resumeInteraction(); await Promise.resolve();
+  expect(complete).toHaveBeenCalledWith("clip");
+  expect(f.audio.play).toHaveBeenCalledTimes(1);
   core.stop();
 });

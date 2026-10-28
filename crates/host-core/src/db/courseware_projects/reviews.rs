@@ -35,16 +35,14 @@ pub(super) fn portable_narration(project: &CoursewareProject, preserve_audio: bo
     // shortcut: saved-source review rebinds adopted audio; cues/effects still need object-specific review.
     anyhow::ensure!(
         project.pages.iter().flat_map(|page| &page.actions).all(|action| {
-            (preserve_audio && music::valid_clip(action)) || (action["type"] == "interaction_checkpoint" && action["checkpointKind"] == "teacher_continue"
-                && action.as_object().is_some_and(|object| object.keys().all(|key| ["id", "type", "checkpointId", "checkpointKind"].contains(&key.as_str())))
-                && valid_id(action["checkpointId"].as_str().unwrap_or_default()))
+            (preserve_audio && music::valid_clip(action)) || super::video::valid_clip(action) || super::video::valid_slot(action) || valid_teaching_checkpoint(action)
                 || (action["type"] == "speech" && action["text"].is_string()
                     && action.as_object().is_some_and(|object| object.keys().all(|key| ["id", "type", "text", "source", "pauseAfterMs", "audioAssetId"].contains(&key.as_str())))
-                    && action.get("source").is_none_or(|source| matches!(source.as_str(), Some("notes" | "external")))
+                    && action.get("source").is_none_or(|source| matches!(source.as_str(), Some("notes" | "external" | "original" | "light_rewrite" | "generated")))
                     && action.get("audioAssetId").is_none_or(|asset| preserve_audio && asset.as_str().and_then(|value| value.strip_prefix("tts-")).is_some_and(|hash| hash.len() == 64 && hash.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))))
                     && action.get("pauseAfterMs").is_none_or(|pause| pause.as_u64().is_some_and(|pause| pause <= 30000)))
         }),
-        "COURSEWARE_INVALID: source review supports speech, adopted TTS audio, bounded pauses and teacher-continue checkpoints only; cues and effects require separate review"
+        "COURSEWARE_INVALID: source review supports speech, adopted TTS audio, bounded pauses and teacher-led checkpoints only; cues and effects require separate review"
     );
     Ok(())
 }

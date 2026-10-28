@@ -13,14 +13,21 @@ export const pageNarrationOutputSchema = z.object({
   blocks: z.array(z.union([
     z.object({ type: z.literal('speech'), text: spokenText, attention: z.object({
       type: z.enum(['highlight', 'spotlight']), objectIds: z.array(z.string().min(1).max(200)).min(1).max(8),
+      animation: z.enum(['fadeIn', 'pulse']).optional(),
     }).strict().optional() }).strict(),
     z.object({ type: z.literal('english_phrase'), text: z.string().trim().min(1).max(80) }).strict(),
     z.object({ type: z.literal('wait'), mode: z.literal('fixed').optional(), durationMs: z.number().int().min(500).max(60000) }).strict(),
     z.object({ type: z.literal('wait'), mode: z.literal('teacher_continue') }).strict(),
+    z.object({ type: z.literal('interaction'), question: spokenText.max(4000), referenceAnswer: z.object({
+      summary: spokenText.max(4000), keyPoints: z.array(spokenText.max(1000)).min(1).max(8),
+    }).strict() }).strict(),
+    z.object({ type: z.literal('video'), prompt: spokenText.max(4000) }).strict(),
     z.object({ type: z.literal('praise'), text: z.enum(['谢谢你的尝试。', '谢谢大家的参与。', 'Thank you for trying.', 'Thank you for joining in.']) }).strict(),
   ])).min(1).max(100),
 }).strict()
   .refine((value) => value.blocks.some((block) => block.type === 'speech'), 'Narration requires speech')
+  .refine((value) => value.blocks.filter((block) => block.type === 'interaction').length <= 3, 'Narration allows at most three questions per page')
+  .refine((value) => value.blocks.filter((block) => block.type === 'video').length <= 1, 'Narration allows at most one video per page')
   .refine((value) => value.blocks.filter((block) => block.type === 'praise').length <= 1, 'Narration allows at most one praise block per page')
   .refine((value) => value.blocks.filter((block) => block.type === 'english_phrase').length <= 2, 'Narration allows at most two English phrases per page');
 
@@ -31,7 +38,8 @@ export async function generatePageNarrationCandidate(input: {
   existingNarration?: string;
   instruction: string;
   educationContext?: EducationContext;
-  evidence?: { notes: string; visualSummary: string; objects: Array<{ objectId: string; kind: string; text: string; bbox: number[] }> };
+  sceneTeaching?: boolean;
+  evidence?: { notes: string; visualSummary: string; objects: Array<{ objectId: string; kind: string; text: string; bbox: number[]; name?: string; role?: string; aliases?: string[] }> };
   coursePlan?: unknown;
   getCurrentBaseline: () => Promise<unknown>;
   generate: (request: { system: string; data: string; schema: typeof pageNarrationOutputSchema }, signal?: AbortSignal) => Promise<unknown>;
@@ -56,6 +64,9 @@ export async function generatePageNarrationCandidate(input: {
         : 'Allowed block types: speech and wait. Do not emit english_phrase or praise blocks. Follow the audience language policy and the requested narration language.',
       ...(input.evidence ? ['Use visible text, speaker notes, visual observations and the supplied course plan together. Image-only pages are valid. Do not invent unreadable content. Connect to the preceding page without repeating its introduction; prepare the next page without teaching its full content.',
         'When speech refers to a supplied object, add attention:{"type":"highlight" or "spotlight","objectIds":["exact supplied ID"]} to that speech block. Prefer highlight for text, spotlight for pictures. Split speech when the focus changes. Use only relevant, unambiguous supplied objects; omit attention when no safe target exists. Do not invent IDs or millisecond timing.'] : []),
+      ...(input.sceneTeaching ? ['Scene mode supports kindergarten and primary with the same teaching capabilities. Plan actual student participation using bounded wait or teacher_continue blocks, without fabricating assessment results. When revealing a teaching object helps, add animation:"fadeIn" to its attention; use animation:"pulse" for emphasis. Animate a target only once on this page. Omit animation for backgrounds, decoration, already-visible targets or uncertain timing. Speech starts the cue and verified audio supplies its interval; never invent milliseconds. Keep each speech about one teaching focus.'] : []),
+      'For a discussion, comparison, practice or review activity, emit an interaction block after introducing the question in speech: {"type":"interaction","question":"...","referenceAnswer":{"summary":"...","keyPoints":["..."]}}. This additional block type is allowed for every stage and subject. Use at most three per page, with short age-appropriate questions grounded in this page. The player pauses for the teacher to collect responses and optionally reveal the reference answer. Never claim to recognize or grade a response. Do not replace a substantive question with a blank teacher_continue wait.',
+      'Only when the supplied approved course plan or explicit page instruction requires video, emit one {"type":"video","prompt":"..."} block at the intended point in the lesson. Describe one five-second silent visual demonstration, exact character identities, motion, setting and style grounded in the supplied evidence. This block is allowed for all stages and subjects; do not add a video for every page or use it instead of explanation/interaction. Do not claim a video has already been generated. Existing playable video and saved video slots are retained by Host; do not emit another video when regenerating a page that already has one.',
       'Return only a JSON object with a blocks array, including speech. Speech is {"type":"speech","text":"..."}. Fixed waiting is {"type":"wait","durationMs":1000}, after speech and at most 30000 ms per speech. Teacher continuation is {"type":"wait","mode":"teacher_continue"}. No Markdown or extra keys.'].join('\n'),
     data: JSON.stringify({ pageText, existingNarration: existing, instruction, ...(input.evidence ? { evidence: input.evidence, coursePlan: input.coursePlan } : {}) }),
     schema: pageNarrationOutputSchema,

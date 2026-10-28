@@ -12,8 +12,9 @@ const background = await sharp({ create: { width: 1280, height: 800, channels: 4
 const source = await readFile(new URL("../electron/main/courseware-scene-deck.ts", import.meta.url), "utf8");
 const { outputText } = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } });
 let conflict = false;
-let imageOnly = false;
-let foreground = false;
+let nativeText = false;
+let missingForeground = false;
+let duplicateForeground = false;
 const calls = [];
 const exports = {};
 new Function("require", "exports", outputText)((id) => {
@@ -22,10 +23,13 @@ new Function("require", "exports", outputText)((id) => {
     return async (request) => {
       calls.push({ config, request });
       return { scene: { version: 1, slideId: request.pageId, sourceHash: request.sourceHash, canvas: request.canvas,
-        visualMasterAssetId: "master", cleanPlateAssetId: "clean", elements: imageOnly ? [{ id: "flat", type: "image_layer", layerRoute: "A1", assetId: "clean", bboxPx: [0, 0, 1280, 800], zIndex: 1 }] : [{ id: "title", type: "native_text", bboxPx: [80, 70, 800, 100], zIndex: 1,
-          content: request.pageText.split("\n")[0], style: { fontFace: "Arial", fontSizePt: 32, color: "#000000", align: "left", lineHeight: 1.2 }, spokenAliases: [] },
-          ...(foreground ? [{ id: "teacher", type: "image_layer", assetId: "teacher", semanticRole: "Teacher", layerRoute: "A1", bboxPx: [0, 0, 100, 100], rotate: 90, zIndex: 1, crop: [[0, 0], [50, 50]] }] : [])] },
-        assets: { master: background, clean: conflict && calls.length === 2 ? Buffer.from("different") : background, ...(foreground ? { teacher: background } : {}) } };
+        visualMasterAssetId: "master", cleanPlateAssetId: "clean", elements: [
+          ...(nativeText ? [{ id: "title", type: "native_text", bboxPx: [80, 70, 800, 100], zIndex: 3,
+            content: request.pageText, style: { fontFace: "Arial", fontSizePt: 32, color: "#000000", align: "left", lineHeight: 1.2 } }] : []),
+          ...(missingForeground ? [] : [{ id: "teacher", type: "image_layer", assetId: "teacher", semanticRole: "Hello lettering", layerRoute: "A1", bboxPx: [0, 0, 100, 100], rotate: 90, zIndex: 1, crop: [[0, 0], [50, 50]] }]),
+          ...(duplicateForeground ? [{ id: "duplicate", type: "image_layer", assetId: "teacher", semanticRole: "Hello lettering", layerRoute: "A1", bboxPx: [0, 0, 100, 100], zIndex: 2 }] : []),
+        ] },
+        assets: { master: background, clean: conflict && calls.length === 2 ? Buffer.from("different") : background, teacher: background } };
     };
   } };
   throw new Error(`Unexpected dependency: ${id}`);
@@ -33,7 +37,7 @@ new Function("require", "exports", outputText)((id) => {
 const { buildSceneCourseDeck } = exports;
 const pages = [1, 2].map((number) => ({ pageId: `scene-00${number}`, sourceHash: `sha256:${"a".repeat(64)}`,
   title: `Page ${number}`, visibleText: ["Hello"], visualIntent: "孩子挥手", narration: `讲解 ${number}` }));
-const visuals = pages.map(({ pageId }) => ({ pageId, visualMasterAssetId: "master", cleanPlateAssetId: "clean", images: [] }));
+const visuals = pages.map(({ pageId }) => ({ pageId, visualMasterAssetId: "master", cleanPlateAssetId: "clean", images: [{ assetIds: ["teacher"], bytes: background }] }));
 const input = { sessionId: "s", modelKey: "provider/model", pages, visuals, canvas: { width: 1280, height: 800 } };
 
 test("planned scene pages compile as one editable PPTX and keep page narration separate", async () => {
@@ -42,7 +46,11 @@ test("planned scene pages compile as one editable PPTX and keep page narration s
   assert.equal(deck.mapping.pages.length, 2);
   assert.deepEqual(deck.teaching, pages.map(({ pageId, narration }) => ({ pageId, narration })));
   assert.equal(calls.length, 2);
-  assert.match(calls[0].request.instruction, /teacher narration is separate/);
+  assert.match(calls[0].request.instruction, /teacher narration is separate/i);
+  assert.equal(calls[0].request.pageText, "Hello");
+  assert.match(calls[0].request.instruction, /visual master as the design authority/);
+  assert.match(calls[0].request.instruction, /only image_layer/);
+  assert.match(calls[0].request.instruction, /Do not create native_text/);
   assert(!calls[0].request.pageText.includes("讲解"));
   assert(deck.pptx.length > 1000);
 });
@@ -55,13 +63,13 @@ test("conflicting asset IDs and missing page visuals fail before compiling", asy
   finally { conflict = false; }
 });
 
-test("a raster-only scene cannot be presented as independently editable output", async () => {
-  imageOnly = true;
-  try { await assert.rejects(buildSceneCourseDeck(input, async () => ({ text: "" }), authoring), /independently editable native objects/); }
-  finally { imageOnly = false; }
+test("compilation rejects added native text rather than duplicating image lettering", async () => {
+  nativeText = true;
+  try { await assert.rejects(buildSceneCourseDeck(input, async () => ({ text: "" }), authoring), /decomposed image layers only/); }
+  finally { nativeText = false; }
 });
 
-test("a scene cannot silently drop a reviewed foreground even when native text remains", async () => {
+test("a scene cannot silently drop a reviewed foreground or lettering image", async () => {
   const withForegrounds = visuals.map(visual => ({ ...visual, images: [
     { assetIds: ["master"], bytes: background }, { assetIds: ["clean"], bytes: background },
     { assetIds: ["apple"], bytes: background },
@@ -71,21 +79,40 @@ test("a scene cannot silently drop a reviewed foreground even when native text r
 });
 
 test("decomposition bounds and stacking replace guessed image placement before editable compilation", async () => {
-  foreground = true;
   let captured;
-  const selectedVisuals = visuals.map(visual => ({ ...visual, images: [{ assetIds: ["teacher"], bytes: background }],
+  const selectedVisuals = visuals.map(visual => ({ ...visual, images: ["master", "clean", "teacher"].map(id => ({ assetIds: [id], bytes: background })),
     foregroundPlacements: [{ assetId: "teacher", bboxPx: [128, 184, 768, 504], zIndex: 2 }] }));
-  try {
-    await buildSceneCourseDeck({ ...input, visuals: selectedVisuals }, async () => ({ text: "" }), {
-      editablePptxSceneSchema: authoring.editablePptxSceneSchema,
-      async compileScenesToPptx(scenes) { captured = scenes; return { pptx: Buffer.from("verified"), mapping: { pages: scenes } }; },
-    });
-    for (const scene of captured) {
-      const layer = scene.elements.find(element => element.id === "teacher");
-      assert.deepEqual(layer.bboxPx, [128, 184, 768, 504]);
-      assert.equal(layer.zIndex, 2);
-      assert.equal(layer.rotate, 0);
-      assert.equal(layer.crop, undefined);
-    }
-  } finally { foreground = false; }
+  await buildSceneCourseDeck({ ...input, visuals: selectedVisuals }, async () => ({ text: "" }), {
+    editablePptxSceneSchema: authoring.editablePptxSceneSchema,
+    async compileScenesToPptx(scenes) { captured = scenes; return { pptx: Buffer.from("verified"), mapping: { pages: scenes } }; },
+  });
+  for (const scene of captured) {
+    const layer = scene.elements.find(element => element.id === "teacher");
+    assert.deepEqual(layer.bboxPx, [128, 184, 768, 504]);
+    assert.equal(layer.zIndex, 2);
+    assert.equal(layer.rotate, 0);
+    assert.equal(layer.crop, undefined);
+  }
+});
+
+
+test("a flattened background or duplicate foreground is refused", async () => {
+  for (const mode of ["missing", "duplicate"]) {
+    missingForeground = mode === "missing"; duplicateForeground = mode === "duplicate";
+    try { await assert.rejects(buildSceneCourseDeck(input, async () => ({ text: "" }), authoring), /retain every reviewed foreground/); }
+    finally { missingForeground = false; duplicateForeground = false; }
+  }
+});
+
+test("scene compilation accepts decomposed lettering images without native text", async () => {
+  calls.length = 0;
+  const selectedVisuals = visuals.map(visual => ({ ...visual, images: ["master", "clean", "teacher"].map(id => ({ assetIds: [id], bytes: background })),
+    foregroundPlacements: [{ assetId: "teacher", bboxPx: [128, 184, 768, 504], zIndex: 2 }] }));
+  const deck = await buildSceneCourseDeck({ ...input, visuals: selectedVisuals }, async () => ({ text: "" }), authoring);
+  assert.equal(deck.mapping.pages.length, 2);
+  const zip = await requireCourseware("jszip").loadAsync(deck.pptx);
+  const xml = await zip.file("ppt/slides/slide1.xml").async("string");
+  assert.equal((xml.match(/<p:pic>/gu) ?? []).length, 1, "one independent image layer over the base background");
+  assert(!xml.includes("<a:t>"), "lettering stays in the layer pixels");
+  assert.equal(calls.length, 0, "complete native placements do not require model reconstruction");
 });

@@ -1,14 +1,69 @@
 # 04. E2E Test Plan
 
+## E2E-COURSEWARE-scene-preview-recovery
+
+- Start with a prepared cover, one selected second-page master and ready later
+  masters. The cover must say generation is required, show Generate, and expose
+  no style confirmation. Empty/model-unavailable catalogs remain failures.
+- Default refresh must not submit. Explicit `generatePrepared:true` recovers the
+  same prepared intent and promptly returns the submitted state. A later refresh
+  archives verified settled bytes and then exposes cover review.
+  Repeat with unknown/submitted receipts: query the original job, never submit.
+  Changed plans, stopped turns and unconfirmed-cover dependent assets must refuse.
+- Verify the left pane has one numbered entry per planned page, lazy thumbnails
+  and statuses. Additional layers/attempts stay under the same page in the right
+  pane. Previous/next and page clicks update the actual image and page text.
+- Fail image reads/decoding; show retry, preserve the error across background
+  polling and allow no unseen-image adoption. Retry successfully, confirm cover
+  once, and continue the same Chat. Generation errors must survive list refresh.
+- Check wide and narrow panels, collapsing either/both sidebars, scrolling the
+  page list and details, and keeping actions visible. Account/session switches
+  must fence late previews and mutations. Use isolated fixtures without paid APIs.
+
+## E2E-COURSEWARE-active-job-continuation
+
+- Use the real Desktop Agent loop with a fixture model that closes its response
+  after submitting a master or decomposition. Keep the saved job pending beyond
+  30 seconds. Require no `agent_end`, no extra model requests per polling tick,
+  and original-intent status queries at three-second intervals.
+- Complete the saved job; require automatic continuation and compilation in the
+  same user turn with exactly one terminal `agent_end`. A pending cover must
+  instead yield only once it is ready for first-page style review. An explicit
+  wait on an unknown existing intent must never prepare or resubmit another job.
+- Verify Stop, graceful stop and plan replacement fence further work; terminal
+  task failure is reported. Query failures and a model repeating the same closing
+  response must not enter provider retries or claim completion. Status-only
+  questions must finish without generation, and saved continuation instructions
+  must expire before the next user turn.
+- Automated fixture coverage: `packages/agent-runtime/src/courseware-turn-continuation.test.ts`.
+  This is runtime-loop acceptance, not a paid supplier or packaged Desktop test.
+
 ## E2E-COURSEWARE-llm-ha-scene-images
 
 - Configure llm-ha courseware-only MXAPI/Seedream providers and Platform IMAGE /
   per_image billing rules. Verify catalogs and quotes with GET. Omit model in Chat;
   verify automatic selection and reject invented model IDs before prepare.
-- Confirm one master generation, preview/select it, then prepare cleanPlate using
-  its exact reviewed reference. One Seedream task creates the base and foregrounds;
+- Prepare one master in Chat and verify it submits without a fee prompt. Use the
+  panel's Generate action on an older prepared attempt in the same Chat and verify
+  the same internal quote/begin/submit path. Repeating Generate on an already
+  begun attempt must only query status, including after a lost receipt/restart.
+  Verify the right preview actually renders the first master during and after
+  the Chat turn, then confirm its style once. Later pages must not submit before
+  that choice. Return prepare snapshots promptly and keep preview GET polling
+  active. After style confirmation, allow independent missing intents despite an
+  unknown submission; query that original intent without resubmission. When only
+  pending jobs remain, use bounded waitForUpdate refreshes in the active turn,
+  without another user continuation or approval. Pending decomposition must not
+  clear styleConfirmed or expose manual adoption controls. After readiness,
+  select verified later masters automatically and prepare cleanPlate using
+  its exact selected reference. One Seedream task creates the base and foregrounds;
   billing reserves at most 17 images and settles actual count at the frozen rate.
-  Review/select each, compile editable PPTX and verify bounds, offsets and stacking.
+  Select each verified decomposition group automatically, compile editable PPTX
+  with saved page narration, and verify bounds, offsets and stacking. Stop, Chat
+  switch and account change must prevent later selection/submission; GET polling
+  must never retry generation. Check narrow/wide right preview layouts and
+  confirmed-style continuation. This does not establish automatic TTS, music or
+  video generation.
 - With distinct Platform/gateway origins, verify catalog, quote, new submission,
   status and bytes reach llm-ha with user auth. Verify Platform receives only
   billing metadata/counts, while TTS/music retain their previous routing.
@@ -26,9 +81,9 @@
 ## E2E-COURSEWARE-prepared-image-model-recovery
 
 - Keep an old unsubmitted image intent with an unavailable model, then expose a
-  different same-kind model in llm-ha. Open its quote in the same Chat. The prompt,
+  different same-kind model in llm-ha. Use Generate in the same Chat. The prompt,
   page, reviewed reference and intent stay pinned; Host saves a fresh hash/key and
-  the quote displays the actual model. Nothing generates before confirmation.
+  the internal quote uses the actual model. No renderer fee confirmation is needed.
 - Confirm that quote, verify one request uses the new saved model/key, and reopen
   to recover it. Old quotes and stale hash updates reject. Missing catalogs,
   account/plan changes and wrong owners cannot change the intent. Begun/unknown
@@ -16209,6 +16264,24 @@ coverage: `packages/agent-runtime/src/system-ca.test.ts`; upstream `8c267ab24`.
   must preserve the exact previous package bytes using the current converter
   manifest; historical build IDs are not valid across converter changes.
 
+### Saved-course media continuation (2026-10-27)
+
+- Use deterministic provider fixtures and real saved-page adapters/coordinators
+  to cover TTS and music without mounting Office. A lost submission/export
+  response must recover the original job with no second purchase.
+- TTS must verify real bytes, decode duration, archive and attach speech audio.
+  Music must complete generation/export and mount an audio clip preserving speech.
+- Stop, source/account changes, locked pages and foreign-page handles must prevent
+  writes. Own completed audio adoptions must not invalidate another unchanged
+  speech's original request.
+- The runtime must keep the same Chat active beyond a 30-second poll window and
+  continue from compiled PPTX through missing narration/TTS. Explicit PPTX-only
+  compilation must not start narration or paid media.
+- Compare both MAIC school-stage paths, including kindergarten animation,
+  interaction, highlight and spotlight. Transport/JSON tests do not prove final
+  player execution or full video/interaction parity. Track actual remaining gaps
+  in `docs/validation/courseware/maic-stage-workflows-20261027.md`.
+
 ### E2E-COURSEWARE-saved-narration-visuals
 
 - Run `scripts/e2e-courseware-saved-narration.mjs` under Electron with the real
@@ -16242,3 +16315,123 @@ coverage: `packages/agent-runtime/src/system-ca.test.ts`; upstream `8c267ab24`.
   nested embedded archives and shadowed ZIP records need separate review.
 - Evidence: `validation/courseware/export-credentials-20261025/README.md`.
   This is artifact verification, not a runtime DLP feature or full W04.3 acceptance.
+
+
+## E2E-COURSEWARE-course-visual-consistency
+
+- In new scene task creation, choose a style preset, edit its description, switch
+  to import and back, then create the scene task. The exact custom style is saved
+  with the task and restored after restart; the brief is unchanged and no model
+  request is sent automatically. Plain/import creation omits the scene-only style.
+  Clearing the selector clears the optional description. Existing empty settings
+  remain valid; null, non-string and over-500-UTF-16 styles refuse at the boundary.
+- Inspect both one-shot and production Chat planning requests: they retain the
+  saved style as user data and require visualBible/page intents to follow it,
+  including negative texture requirements. Check an approved 3D or vector plan's
+  Host master prompt preserves that medium and does not add a hand-painted
+  picture-book default. User-selected watercolor remains supported. New settings
+  do not regenerate existing paid images or bypass plan/cover decisions.
+- Create a scene plan with a course visualBible, recurring named characters and a
+  coherent setting. Approve it, generate and select the first master, then continue
+  the same Chat. Verify each later master request includes the selected first
+  image's SHA-256 and actual archived bytes, with the shared bible in its prompt.
+- A master cannot reference itself or another page/account/session/old plan.
+  Missing selection, unsupported reference capability or changed style selection
+  must refuse before supplier submission. Decomposition still uses the same-page
+  selected master. Restart and verify references remain pinned and replayable.
+- Inspect the actual Host image request: include every approved `visibleText`
+  string exactly once as literal render targets, including Chinese/English,
+  quoted and multiline strings. It requests a complete MAIC-style teaching-page
+  design, full-canvas environment, text hierarchy and independent components.
+  It retains requested art direction and printed words without adding internal
+  lesson/page titles or teacher narration. Empty visible text stays textless;
+  oversized prompt data refuses before any paid submission.
+- Open the right preview: show the actual master with text in its design and a
+  separate wording checklist; no caption describes a deliberately untypeset
+  illustration. Change pages and verify text follows the selected image. Inspect
+  decomposition instructions: preserve lettering on complete text carriers,
+  using the MAIC prompt unchanged. Compile the base and each returned image layer
+  at the supplier bounds and stacking; do not add native text, shapes or extra
+  internal page titles. Refuse missing/duplicated foregrounds and native text
+  overlays. Inspect the PPTX for separate image objects and no generated a:t
+  text nodes; opaque native text-card crops retain their exact PNG bytes.
+  Inspect the final render for text ghosts or duplication. Legacy plans remain readable and old
+  assets are not automatically regenerated or charged.
+- Targeted automated evidence: scene plan, Main image transport, Host scene-image,
+  Chat preview and editable-deck tests. Supplier appearance and final rendered
+  typography need separate authorized provider/Office acceptance.
+
+
+### Scene-mode baseline teaching continuation (2026-10-27)
+
+- Keep teaching-plan approval and cover-style selection. An unapproved plan cannot
+  prepare assets; neither status reads nor the Agent can approve it implicitly.
+- Run kindergarten and primary through the same scene path and unified editor.
+  Generate detailed narration from saved mapped objects; keep role/alias identity.
+- Verify original TTS/music submissions survive lost transport replies without
+  replacement purchases; Stop/source/account/locks still prevent adoption.
+- Split long speeches without losing text, breaking Unicode, repeating entrances
+  or moving the final pause. Bind focus and finite object motion to decoded audio.
+- Confirm incomplete/generated/imported/locked page cases: only fully adopted,
+  validated generated scene teaching becomes ready automatically. No per-page
+  human confirmation. Audio-only readiness cannot terminate the teaching chain.
+- Resume a saved course with explicit full-course continuation, without recompiling
+  PPTX. Status-only/PPTX-only requests never generate extra teaching or media.
+- Verify bounded motion in editor/source-association/fixed-export tests. Preserve
+  speech provenance in canonical data; omit recognized provenance only in strict
+  player input. Unknown fields and unsupported motion remain rejected.
+- Generation returns editable PPTX plus teaching data; no publication snapshot,
+  PPTist conversion, upload or publishing occurs until explicitly requested.
+
+Local regression evidence does not establish live provider quality, full MAIC
+assessment/video parity, native PPTX animation authoring or packaged application
+acceptance. Do not run `verify:ui:*` without an explicit current-task request.
+
+
+### Saved teaching questions and planned video (2026-10-27)
+
+- Inspect the actual Host-approved scene agenda in saved media context. Verify
+  it reaches whole-course and per-page narration planning after PPTX compilation.
+- Generate age-appropriate questions for kindergarten and primary, retain their
+  reference answers through Host save/regeneration, and pause playback for a
+  teacher response. Do not fabricate recognition or grading.
+- Plan a video block only for a required five-second demonstration. Keep its
+  saved slot incomplete while generation is pending. Quote from the actual video
+  catalog using a per-clip tariff, never the image/character tariff.
+- Lose a submission response and restart: poll the retained request/remote receipt
+  without another POST. Keep Chat active while the original video job is pending.
+- Reject foreign accounts, changed source/slots, locked pages, unpaid results,
+  corrupted bytes and failed decode before adopting a clip. Preserve speech/music.
+- Publish explicitly: include the verified MP4 in the immutable snapshot and fixed
+  package. Reject a speech referencing video or a video referencing audio. On
+  playback, start the real clip through video controls, resume narration on its
+  matching completion and reject stale completion callbacks after navigation.
+
+Loopback supplier and unit evidence establishes protocol/persistence behavior;
+live supplier availability, generated identity/style quality and packaged video
+playback require separate acceptance. No paid supplier request was made here.
+
+### Seedream native decomposition errors (2026-10-27)
+
+- Submit an approved decomposition through llm-ha. While executing, refresh
+  returns submitting and Chat waits in the same turn. Return native URL layers
+  with z_index, names and normalized bounds; preserve them through adoption.
+  Normalize a JPEG base to PNG and keep transparent PNG foregrounds.
+- Return provider HTTP 401: the original task becomes failed with
+  UPSTREAM_HTTP_401 and released fees. Desktop reports it without waiting,
+  style confirmation, or another supplier POST.
+- Reject a returned layer CDN origin: the task becomes archive_failed with
+  LAYER_DOWNLOAD_FAILED_ASSET_ORIGIN_DENIED, reserved fees and no invented asset.
+  A transport timeout/lost response becomes submission_unknown with an error.
+  Both end Chat polling; querying/replaying the key never generates again.
+- Restart during an executing call: report GATEWAY_INTERRUPTED without replay.
+  Reloading config while the process remains alive must preserve the live call.
+- Targeted loopback gateway, Main workflow and scene-asset tests cover these
+  boundaries; live provider/model access and deployed CDN origins require a
+  separate real-provider run.
+
+### Desktop Seedream URL delivery
+
+Return a native layer bundle containing supplier URLs. Verify Desktop downloads and archives the base and foreground with original bounds and pixels, sends no authorization to asset hosts, rejects private destinations and unsuccessful downloads, and still reads legacy inline bundles. llm-ha must complete the URL receipt without contacting the image hosts.
+
+Native Seedream size/DNS regression: replay a group larger than 16 MiB containing valid PNG provenance metadata; verify Desktop and Host archive all images unchanged and remain below the 64 MiB RPC frame. Verify DNS checks use the Electron session resolver/proxy route instead of Node DNS, while private-address and oversized-image refusals remain enforced.

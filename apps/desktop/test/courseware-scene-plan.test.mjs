@@ -90,12 +90,12 @@ const { registerAgentIpc } = await loadSource("../electron/main/ipc/agent-ipc.ts
     ? { id, name: "scene-courseware", body: sceneSkill } : null },
 });
 
-async function dispatchChat(educationContext, { taskType = "scene", nativeEditing = false, importPath } = {}) {
+async function dispatchChat(educationContext, { taskType = "scene", nativeEditing = false, importPath, generatedPath } = {}) {
   const handlers = new Map(), requests = [], persisted = [];
   const host = { async call(method, params) {
     if (method === "settings.get") return {};
     if (method === "session.get") return { session: { id: input.sessionId, projectPath: "/workspace", messages: [] } };
-    if (method === "courseware.task.get") return { task: { taskType, educationContext, importPath } };
+    if (method === "courseware.task.get") return { task: { taskType, educationContext, importPath, generatedPath } };
     if (method === "session.beginTurn") return { turnId: "turn-1" };
     if (method === "session.appendMessage") { persisted.push(params.message); return {}; }
     assert.fail(`Unexpected RPC ${method}`);
@@ -121,6 +121,12 @@ async function dispatchChat(educationContext, { taskType = "scene", nativeEditin
   return requests[0].content;
 }
 
+test("generated scene teaching can resume without an active Office binding", async () => {
+  const content = await dispatchChat(input.education, { generatedPath: "/workspace/generated.pptx" });
+  assert.match(content, /courseware_media_context/);
+  assert.match(content, /without Office navigation/);
+});
+
 test("production Main Chat forwards the same MAIC policy and actual scene skill to the existing runtime", async () => {
   for (const [education, expected, excluded] of [
     [input.education, /BILINGUAL_ENGLISH_KINDERGARTEN/, /FULL_ENGLISH_KINDERGARTEN/],
@@ -134,6 +140,10 @@ test("production Main Chat forwards the same MAIC policy and actual scene skill 
     assert.doesNotMatch(content, excluded);
     assert(content.includes(planning.sceneCourseTeachingPolicy(education)));
     assert(content.includes(sceneSkill));
+    assert.match(content, /planned five-second video slots/);
+    assert.match(content, /courseware_media_context\(kind:video\)/);
+    assert.match(content, /teacher-led questions with reference answers/);
+    assert.doesNotMatch(content, /not generated video|video generation\/postprocessing\/mounting chain remain incomplete/);
     assert(content.includes(planning.sceneCoursePlanRelativePath(input.sessionId)));
     assert.match(content, /Narration contains only words spoken directly to students/);
     assert.doesNotMatch(content, /Keep teacher instructions in narration/);
@@ -186,4 +196,39 @@ test("a Chat-edited saved draft is revalidated and only changed page content cha
   draft.pages[0].file = "/tmp/other.pptx";
   assert.throws(() => parseSceneCoursePlan(JSON.stringify(draft)), /Invalid scene course page/);
   assert.throws(() => parseSceneCoursePlan("x".repeat(256 * 1024 + 1)), /exceeds limits/);
+});
+
+
+test("course visual bible survives parsing and reaches the planning prompt without breaking legacy drafts", async () => {
+  const visualBible = { artDirection: "Warm matte 3D, soft lighting, cream and green palette",
+    characters: "Pandy: one round black and white panda, green scarf, fixed eye patches and proportions",
+    setting: "One woodland classroom; outdoor scenes only for an explicit teaching reason" };
+  const draft = { ...JSON.parse(answer), visualBible };
+  assert.deepEqual(parseSceneCoursePlan(JSON.stringify(draft)).visualBible, visualBible);
+  assert.equal(parseSceneCoursePlan(answer).visualBible, undefined);
+  await createSceneCoursePlan(input, async request => {
+    assert.match(request.system, /visualBible/);
+    assert.match(request.system, /recurring character/);
+    return { text: JSON.stringify(draft) };
+  });
+  for (const invalid of [null, {}, { ...visualBible, path: "/tmp/reference" },
+    { ...visualBible, characters: " " }, { ...visualBible, artDirection: "x".repeat(1001) }])
+    assert.throws(() => parseSceneCoursePlan(JSON.stringify({ ...draft, visualBible: invalid })), /visual bible/i);
+});
+
+test("preset and custom art directions reach both planning entrances as saved user requirements", async () => {
+  for (const visualStyle of ["Clean 2D cartoon, crisp outlines", "哑光黏土 3D，奶油白和蓝色，柔光，不要水彩或蜡笔纹理"]) {
+    const education = { ...input.education, visualStyle };
+    const visualBible = { artDirection: visualStyle, characters: "Monkey in a blue vest", setting: "A classroom" };
+    const result = await createSceneCoursePlan({ ...input, education }, async request => {
+      assert.equal(JSON.parse(request.messages[0].content).education.visualStyle, visualStyle);
+      assert.match(request.system, /user's explicit art direction/);
+      assert.match(request.system, /Preserve its medium, materials, palette, lighting and exclusions/);
+      return { text: JSON.stringify({ ...JSON.parse(answer), visualBible }) };
+    });
+    assert.equal(result.visualBible.artDirection, visualStyle);
+    const content = await dispatchChat(education);
+    assert(content.includes(JSON.stringify(education)));
+    assert.match(content, /Never change a user-selected style without a new user request/);
+  }
 });

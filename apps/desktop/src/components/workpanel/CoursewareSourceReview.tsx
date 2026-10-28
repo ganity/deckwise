@@ -38,7 +38,7 @@ export function CoursewareSourceReview({ review, disabled, adopt, cancel }: {
         {page.actions.filter(action => action.type === "speech").map(action =>
           Array.isArray(action.visualCues) && action.visualCues.filter(isCoursewareAttentionCue).map(cue =>
             <p key={`${String(action.id)}:${cue.id}`}>{t("panel.pptEditor.effectsCue", {
-              effect: t(cue.effect.type === "highlight" ? "panel.pptEditor.effectsHighlight" : "panel.pptEditor.effectsSpotlight"),
+              effect: t(cue.effect.type === "element_animation" ? `panel.pptEditor.effects${({ fadeIn: "FadeIn", fadeOut: "FadeOut", pulse: "Pulse" } as const)[cue.effect.effect]}` : cue.effect.type === "highlight" ? "panel.pptEditor.effectsHighlight" : "panel.pptEditor.effectsSpotlight"),
               start: cue.atMs, end: cue.endMs,
             })}</p>))}
       </div>)}

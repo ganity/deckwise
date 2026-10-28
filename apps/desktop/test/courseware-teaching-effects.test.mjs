@@ -14,6 +14,12 @@ test("attention cues reuse the fixed player's exact bounded audio-clock shapes",
   const spotlight = { ...highlight, effect: { type: "spotlight", elementId: "object-a", elementIds: ["object-b"], dimOpacity: 0.6 } };
   assert.equal(exports.isCoursewareAttentionCue(highlight), true);
   assert.equal(exports.isCoursewareAttentionCue(spotlight), true);
+  const animation = { id: "motion", atMs: 0, endMs: 600, effect: { type: "element_animation", elementId: "object-a", effect: "fadeIn" } };
+  assert.equal(exports.isCoursewareAttentionCue(animation), true);
+  assert.equal(exports.isCoursewareAttentionCue({ ...animation, endMs: 5001 }), false);
+  assert.equal(exports.isCoursewareAttentionCue({ ...animation, effect: { ...animation.effect, effect: "arbitrary" } }), false);
+  assert.equal(exports.isCoursewareAttentionIntent({ type: "spotlight", objectIds: ["object-a"], animation: "pulse" }), true);
+  assert.equal(exports.isCoursewareAttentionIntent({ type: "spotlight", objectIds: ["object-a"], animation: "arbitrary" }), false);
   for (const patch of [{ atMs: -1 }, { endMs: 100 }, { endMs: 3_600_001 }, { atMs: 1.5 }, { timeline: "other" },
     { effect: { type: "highlight", elementIds: [] } }, { effect: { type: "highlight", elementIds: ["object-a", "object-a"] } },
     { effect: { type: "highlight", elementIds: ["object-a"], nativeAnimation: true } },
@@ -69,7 +75,7 @@ test("user adds, edits and removes multi-object attention cues without altering 
   assert.equal(cue.atMs, 0); assert.equal(cue.endMs, 1000);
   assert.equal(actions[0].audioAssetId, "voice"); assert.equal(actions[0].text, f.speech.text); assert.equal(actions[0].pauseAfterMs, 500);
   assert.deepEqual(actions[0].visualCues[0], f.speech.visualCues[0]); assert.deepEqual(actions[1], f.checkpoint);
-  f.named("button", "effectsEdit").props.onClick(); f.render();
+  f.nodes().filter(n => n.type === "button" && n.props.children === "panel.pptEditor.effectsEdit").at(-1).props.onClick(); f.render();
   const effect = f.nodes().find(node => node.type === "select" && node.props.value === "highlight");
   effect.props.onChange({ target: { value: "spotlight" } }); f.render();
   f.inputFor("effectsStart").props.onChange({ target: { value: "200" } }); f.render();
@@ -79,7 +85,7 @@ test("user adds, edits and removes multi-object attention cues without altering 
   const edited = f.changes.at(-1)[0].visualCues.at(-1);
   assert.equal(edited.id, cue.id); assert.equal(edited.atMs, 200); assert.equal(edited.endMs, 900);
   assert.deepEqual(edited.effect, { type: "spotlight", elementId: "apple", elementIds: ["banana"] });
-  f.named("button", "effectsRemove").props.onClick(); f.render();
+  f.nodes().filter(n => n.type === "button" && n.props.children === "panel.pptEditor.effectsRemove").at(-1).props.onClick(); f.render();
   assert.deepEqual(f.changes.at(-1), [f.speech, f.checkpoint]);
 });
 
@@ -113,4 +119,19 @@ test("ordinary and imported projects use the same reviewed form with saved-page 
     assert.equal(f.changes.at(-1)[0].audioAssetId, "voice");
     assert.deepEqual(f.changes.at(-1)[1], f.checkpoint);
   }
+});
+
+test("object animations can be edited but cannot exceed five seconds or duplicate a page target", () => {
+  const f = controls();
+  f.named("button", "effectsEdit").props.onClick(); f.render();
+  const kind = f.nodes().find(n => n.type === "select" && n.props.value === "fadeIn");
+  assert(kind, "motion must not be mislabeled as spotlight");
+  kind.props.onChange({ target: { value: "pulse" } }); f.render(); f.review(); f.submit();
+  assert.equal(f.changes.at(-1)[0].visualCues[0].effect.effect, "pulse");
+  f.named("button", "effectsEdit").props.onClick(); f.render();
+  f.inputFor("effectsEnd").props.onChange({ target: { value: "5001" } }); f.render(); f.review(); f.submit();
+  assert.equal(f.changes.length, 1);
+  f.named("button", "effectsCancel").props.onClick(); f.render();
+  f.selectObject("Apple"); f.review(); f.submit();
+  assert.equal(f.changes.length, 1, "cannot animate one object twice");
 });

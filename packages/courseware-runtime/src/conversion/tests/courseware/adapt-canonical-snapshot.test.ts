@@ -213,3 +213,30 @@ it('rejects invalid schema, unresolved files, review state, assets and pages', (
     'PAGE_MAPPING_MISMATCH',
   );
 });
+
+it.each(['notes', 'external', 'original', 'light_rewrite', 'generated'])(
+  'exports %s narration provenance without leaking it into player actions', (source) => {
+    const f = fixture();
+    const project = { ...f.project, pages: f.project.pages.map(page => ({ ...page,
+      actions: page.actions.map(action => action.type === 'speech' ? { ...action, source } : action),
+    })) };
+    const before = JSON.stringify(project);
+    expect(adaptCanonicalSnapshot(project, f.snapshot, f.files).teaching).toEqual(
+      adaptCanonicalSnapshot(f.project, f.snapshot, f.files).teaching);
+    expect(JSON.stringify(project)).toBe(before);
+    const bad = { ...project, pages: project.pages.map(page => ({ ...page,
+      actions: page.actions.map(action => ({ ...action, source: 'unverified' })),
+    })) };
+    expect(() => adaptCanonicalSnapshot(bad, f.snapshot, f.files)).toThrow('SNAPSHOT_SCHEMA_INVALID');
+  },
+);
+
+it('preserves an archived teaching video in the canonical snapshot adapter', () => {
+  const f = fixture();
+  const asset = { id: 'video-' + 'a'.repeat(64), path: '/archive/clip.mp4', sha256: 'a'.repeat(64), mimeType: 'video/mp4' };
+  f.files.assets.push(asset); f.snapshot.assetIds.push(asset.id);
+  f.project.pages[0].actions.push({ id: 'clip', type: 'video_clip', videoAssetId: asset.id });
+  const result = adaptCanonicalSnapshot(f.project, f.snapshot, f.files);
+  expect(result.teaching.pages[0].actions.at(-1)).toEqual({ id: 'clip', type: 'video_clip', videoAssetId: asset.id });
+  expect(result.assets.at(-1)).toEqual(asset);
+});

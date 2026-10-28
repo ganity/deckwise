@@ -30,6 +30,8 @@ export function registerCoursewareSceneImageIpc(input: {
     input.registrar.handleWithEvent(channel, async (event, value: unknown, ...extra: unknown[]) => {
       input.registrar.assertMainWindowSender(event);
       if (extra.length) throw new Error("Unexpected scene image parameters");
+      if (method === "submitConfirmed" && value && typeof value === "object" && !Object.hasOwn(value, "quoteId"))
+        return images.generate(value);
       return images[method](value);
     });
   }

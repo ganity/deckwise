@@ -157,12 +157,21 @@ fn portable(project: &CoursewareProject) -> Result<()> {
                 Some("audio_clip") => &["id", "type", "audioAssetId"],
                 Some("interaction_checkpoint") => {
                     anyhow::ensure!(
-                        action["checkpointKind"] == "teacher_continue"
-                            && safe_id(&action["checkpointId"]),
+                        crate::db::courseware_projects::valid_teaching_checkpoint(action),
                         "{}",
                         invalid("unsupported original checkpoint")
                     );
-                    &["id", "type", "checkpointId", "checkpointKind"]
+                    &[
+                        "id",
+                        "type",
+                        "checkpointId",
+                        "checkpointKind",
+                        "chapterId",
+                        "chapterTitle",
+                        "question",
+                        "referenceAnswer",
+                        "context",
+                    ]
                 }
                 _ => return Err(invalid("unsupported original action type")),
             };

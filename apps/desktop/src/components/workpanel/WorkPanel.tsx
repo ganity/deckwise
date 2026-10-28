@@ -42,6 +42,7 @@ import { CoursewareMediaCanvasTab } from "./CoursewareMediaCanvasTab";
 import { FilesTab } from "./FilesTab";
 import { PluginViewTab } from "./PluginViewTab";
 import { SubagentPanel } from "./SubagentPanel";
+import { CoursewareScenePreviewTab } from "./CoursewareScenePreviewTab";
 import { PptMasterTab } from "./PptMasterTab";
 import { PptEditorTab } from "./PptEditorTab";
 import { SvgEditorTab } from "./SvgEditorTab";
@@ -60,6 +61,7 @@ const TAB_ICONS = {
   team: IconFolderOpen,
   "media-canvas": IconFileText,
   ppt: IconFileText,
+  "scene-images": IconFileText,
   "svg-editor": IconFileText,
   editor: IconFileText,
   file: IconFileText,
@@ -90,6 +92,7 @@ function tabLabel(
   t: (key: string) => string,
   pluginViews: PluginViewMeta[],
 ) {
+  if (tab.kind === "scene-images") return t("coursewareWorkflow.imagePreview");
   if (tab.kind === "plugin") {
     if (tab.resource === `${BROWSER_PLUGIN_TAB.pluginId}/${BROWSER_PLUGIN_TAB.viewId}`) {
       return "预览编辑";
@@ -662,6 +665,12 @@ export function WorkPanel({
               aria-labelledby={`work-panel-tab-${activeTab.id}`}
             >
               <PptMasterTab />
+            </div>
+          )}
+          {!subagentPanel && activeTab?.kind === "scene-images" && (
+            <div key={activeTab.id} id={`work-panel-surface-${activeTab.id}`} className="work-panel-tabpane"
+              role="tabpanel" aria-labelledby={`work-panel-tab-${activeTab.id}`}>
+              <CoursewareScenePreviewTab />
             </div>
           )}
           {!subagentPanel && activeTab?.kind === "editor" && activeTab.resource && (

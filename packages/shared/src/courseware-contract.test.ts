@@ -84,6 +84,9 @@ describe("courseware contract v1", () => {
     expect(isCoursewareProject({ ...project, taskType: ["scene"] })).toBe(false);
     expect(isCoursewareProject({ ...project, educationContext: { fullEnglishTeaching: "false" } })).toBe(false);
     expect(isCoursewareProject({ ...project, educationContext: { apiKey: "secret" } })).toBe(false);
+    expect(isCoursewareProject({ ...project, educationContext: { visualStyle: "Matte clay 3D" } })).toBe(true);
+    for (const visualStyle of [null, 3, "x".repeat(501), "🖌".repeat(251)])
+      expect(isCoursewareProject({ ...project, educationContext: { visualStyle } })).toBe(false);
     expect(isTeachingWrite({ ...write, actions: [{ id: "a", type: "speech", text: "x".repeat(2 * 1024 * 1024) }] })).toBe(false);
   });
 

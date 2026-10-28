@@ -58,7 +58,10 @@ async function fixture(t, component, props, overrides = {}) {
     },
     async pptPreviewOpen(path) { calls.push(["preview", path]); },
     onAuthChanged: () => () => {},
+    async coursewareSceneImagePreview(_sessionId, intentId) { return { image: structuredClone(rows.find(row => row.intentId === intentId)), dataUrl: "data:image/png;base64,aGVsbG8=" }; },
     async coursewareSceneImageList() { return structuredClone(rows); },
+    async coursewareSceneImageGenerate(...args) { calls.push(["generate", ...args]); rows = rows.map(row => ({ ...row, phase: "submitted" })); return rows[0]; },
+    async coursewareSceneImageStatus(_sessionId, intentId) { return structuredClone(rows.find(row => row.intentId === intentId)); },
     async coursewareSceneImageQuote() { calls.push(["quote"]); return { quoteId: "priced", model: "image-model", maxPoints: 3, expiresAt: "2099-01-01T00:00:00Z" }; },
     async coursewareSceneImageSubmitConfirmed(...args) { calls.push(["paid", ...args]); return { ...master, phase: "submitted" }; },
     ...overrides,
@@ -89,6 +92,7 @@ async function fixture(t, component, props, overrides = {}) {
     if (id === "react") return react;
     if (id === "react/jsx-runtime") return { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) };
     if (id === "react-i18next") return { useTranslation: () => ({ t: key => key }) };
+    if (id === "lucide-react") return new Proxy({}, { get: (_target, key) => `icon-${key}` });
     if (id === "@pi-desktop/shared") return shared;
     if (id === "../../lib/api") return { api };
     if (id === "../../lib/ppt-master-project") return projectModule;
@@ -96,12 +100,13 @@ async function fixture(t, component, props, overrides = {}) {
     if (id === "../../lib/courseware-chat-candidates") return candidateModule;
     if (id === "../workpanel/CoursewareSourceVisuals") return { CoursewareSourceVisuals: "source-visuals" };
     if (id === "../workpanel/CoursewarePptxCandidateReview") return { CoursewarePptxCandidateReview: "pptx-review" };
-    if (id === "../../lib/work-panel-tabs") return { pptEditorWorkPanelTab: path => ({ path }), svgEditorWorkPanelTab: path => ({ svgPath: path }) };
+    if (id === "../../lib/work-panel-tabs") return { pptEditorWorkPanelTab: path => ({ path }), svgEditorWorkPanelTab: path => ({ svgPath: path }), toolWorkPanelTab: kind => ({ id: kind, kind }) };
     if (id === "../../stores/app-store" || id === "../stores/app-store") return { useAppStore };
     if (id === "./ui") return { Button: "button", TooltipButton: "button", portalOverlay: value => value };
     if (id === "./icons") return { IconClose: "icon" };
     if (id === "./CoursewareChatPresentation") return { CoursewareChatPresentation: "plain-presentation" };
     if (id === "./CoursewareChatImages" || id === "./CoursewareChatNarration" || id === "./CoursewareChatPptxCandidates") return {};
+    if (id === "./CoursewareSceneThumbnail") return { CoursewareSceneThumbnail: "scene-thumbnail" };
     assert.fail(id);
   }, exports);
   const render = () => { cursor = 0; tree = exports[component === "CoursewareChatWorkflow" ? "Workflow" : isDialog ? "TaskForm" : component](props);
@@ -375,40 +380,51 @@ test("PPT import can be cancelled and retried in the same Chat without the workb
   assert.deepEqual(f.calls.at(-1), ["editor", { path: "/workspace/import.pptx" }]);
 });
 
-test("main Chat asset quotation requires an unchecked explicit cost confirmation and rejects stale task clicks", async t => {
+test("scene image generation is direct, opens no fee dialog and rejects stale task clicks", async t => {
   const f = await fixture(t, "CoursewareChatImages", { sessionId: "chat", plan: { ...plan, approvedSha256: plan.sha256 }, disabled: false, onContinue: async () => {} });
-  await f.click("quote");
-  assert.equal(f.button("submitImage").props.disabled, true);
-  assert.equal(f.calls.some(call => call[0] === "paid"), false);
-  f.nodes().find(node => node.type === "input" && node.props.type === "checkbox").props.onChange({ target: { checked: true } }); f.render();
+  assert.equal(f.nodes().some(node => node.type === "input"), false);
   const stale = f.button("submitImage");
   f.store.activeSessionId = "peer"; stale.props.onClick(); await f.flush();
-  assert.equal(f.calls.some(call => call[0] === "paid"), false);
+  assert.equal(f.calls.length, 0);
   f.store.activeSessionId = "chat"; await f.click("submitImage");
-  assert.deepEqual(f.calls.at(-1), ["paid", "chat", "master", "priced"]);
+  assert.deepEqual(f.calls, [["generate", "chat", "master"]]);
 });
 
-test("refresh reconciles assets prepared in the retained secondary panel", async t => {
-  const props = { sessionId: "chat", plan: { ...plan, approvedSha256: plan.sha256 }, disabled: false, refreshKey: 0, onContinue: async () => {} };
+test("refresh reconciles asset intents without requiring Chat to be idle", async t => {
+  const props = { sessionId: "chat", plan: { ...plan, approvedSha256: plan.sha256 }, disabled: true, refreshKey: 0, onContinue: async () => {} };
   const f = await fixture(t, "CoursewareChatImages", props);
-  assert(f.button("quote"));
+  assert(f.button("submitImage"));
   f.rows([]); props.refreshKey++; f.render(); await f.flush();
-  assert.equal(f.button("quote"), undefined);
+  assert.equal(f.button("submitImage"), undefined);
 });
 
-test("Chat image rows show task status and refusals without offering another paid submission", async t => {
+test("scene preview distinguishes pending and failed tasks without payment controls", async t => {
   const props = { sessionId: "chat", plan: { ...plan, approvedSha256: plan.sha256 }, disabled: false, refreshKey: 0, onContinue: async () => {} };
   const f = await fixture(t, "CoursewareChatImages", props);
   f.rows([{ ...f.image, phase: "submission-unknown" }]); props.refreshKey++; f.render(); await f.flush();
-  assert(f.nodes().some(node => node.props?.role === "status" && node.props.children?.[0] === "panel.sceneImages.submission-unknown"));
-  assert.equal(f.button("quote"), undefined); assert.equal(f.button("inspect").props.disabled, false);
-  f.rows([{ ...f.image, phase: "submitted", task: { state: "failed", feeState: "refunded", reservedPoints: 3, actualPoints: 0, errorCode: "IMAGE_PROVIDER_FAILED" } }]);
+  assert(f.nodes().some(node => node.props?.role === "status" && node.props.children === "coursewareWorkflow.imageState.submission-unknown"));
+  assert.equal(f.button("submitImage"), undefined);
+  f.rows([{ ...f.image, phase: "submitted", task: { state: "failed", feeState: "refunded", errorCode: "IMAGE_PROVIDER_FAILED" } }]);
   props.refreshKey++; f.render(); await f.flush();
   assert(f.nodes().some(node => node.props?.role === "alert" && node.props.children === "IMAGE_PROVIDER_FAILED"));
-  assert(f.nodes().some(node => node.props?.role === "status" && node.props.children?.[1]?.includes("panel.sceneImages.task")));
-  f.rows([{ ...f.image, phase: "rejected" }]); props.refreshKey++; f.render(); await f.flush();
-  assert.equal(f.button("inspect").props.disabled, true); assert.equal(f.button("quote"), undefined);
-  assert.equal(f.calls.some(call => call[0] === "paid"), false);
+  assert.equal(f.button("submitImage"), undefined);
+  assert.equal(f.calls.length, 0);
+});
+
+test("ready images actually render and style confirmation adopts then continues the same Chat", async t => {
+  let continued = 0;
+  const props = { sessionId: "chat", plan: { ...plan, approvedSha256: plan.sha256 }, disabled: false, refreshKey: 0, onContinue: async () => { continued++; } };
+  let image;
+  const f = await fixture(t, "CoursewareChatImages", props, {
+    async coursewareSceneImagePreview() { return { image, dataUrl: "data:image/png;base64,aGVsbG8=" }; },
+    async coursewareSceneImageAdopt(...args) { f.calls.push(["adopt", ...args]); return [{ ...image, selected: true }]; },
+  });
+  image = { ...f.image, phase: "submitted", asset: { sha256: "b".repeat(64) } };
+  f.rows([image]); props.refreshKey++; f.render(); await f.flush(); await f.flush();
+  assert.equal(f.nodes().find(node => node.type === "img").props.src, "data:image/png;base64,aGVsbG8=");
+  await f.click("confirmStyle");
+  assert.deepEqual(f.calls, [["adopt", "chat", "master", null]]);
+  assert.equal(continued, 1);
 });
 
 test("new-task dialog saves the chosen route and teaching settings before returning to Chat", async t => {
@@ -465,6 +481,47 @@ test("repeated create clicks share one operation, and failed creation retains th
   f.nodes().find(node => node.type === "form").props.onSubmit({ preventDefault() {} }); await f.flush();
   assert.equal(f.calls.length, 2);
   assert.equal(f.calls.at(-1)[1].courseware.initialPrompt, "Circles");
+});
+
+test("scene style presets can be customized and persist without changing the brief or other routes", async t => {
+  const f = await fixture(t, "CoursewareTaskDialog", { projectPath: "/workspace", onClose() {} });
+  const chooseRoute = kind => {
+    f.nodes().find(node => node.type === "input" && node.props.value === kind).props.onChange(); f.render();
+  };
+  const styleField = () => f.nodes().find(node => node.type === "select" && node.props.id === "courseware-task-style");
+  assert.equal(styleField(), undefined);
+  chooseRoute("scene");
+  const preset = styleField().props.children.flat().find(node => node?.type === "option" && node.props.value)?.props.value;
+  assert(preset, "scene creation offers a style preset");
+  styleField().props.onChange({ target: { value: preset } }); f.render();
+  assert.equal(f.nodes().find(node => node.props.id === "courseware-task-style-description").props.value, preset);
+  const custom = "Matte clay 3D, cream and blue, soft daylight; no watercolor or crayon texture.";
+  f.nodes().find(node => node.props.id === "courseware-task-style-description").props.onChange({ target: { value: custom } }); f.render();
+  assert.equal(styleField().props.value, "");
+  chooseRoute("import");
+  assert.equal(styleField(), undefined);
+  chooseRoute("scene");
+  assert.equal(f.nodes().find(node => node.props.id === "courseware-task-style-description").props.value, custom);
+  styleField().props.onChange({ target: { value: "" } }); f.render();
+  assert.equal(f.nodes().find(node => node.props.id === "courseware-task-style-description").props.value, "");
+  f.nodes().find(node => node.props.id === "courseware-task-style-description").props.onChange({ target: { value: custom } }); f.render();
+  const brief = "  A greeting lesson.  ";
+  f.nodes().find(node => node.type === "textarea").props.onChange({ target: { value: brief } }); f.render();
+  f.nodes().find(node => node.type === "form").props.onSubmit({ preventDefault() {} }); await f.flush();
+  const setup = f.calls.at(-1)[1].courseware;
+  assert.equal(setup.educationContext.visualStyle, custom);
+  assert.equal(setup.initialPrompt, brief);
+});
+
+test("creating another route omits any previously entered scene-only style", async t => {
+  for (const kind of ["plain", "import"]) {
+    const f = await fixture(t, "CoursewareTaskDialog", { projectPath: "/workspace", onClose() {} });
+    f.nodes().find(node => node.type === "input" && node.props.value === "scene").props.onChange(); f.render();
+    f.nodes().find(node => node.props.id === "courseware-task-style-description").props.onChange({ target: { value: "Clay 3D" } }); f.render();
+    f.nodes().find(node => node.type === "input" && node.props.value === kind).props.onChange(); f.render();
+    f.nodes().find(node => node.type === "form").props.onSubmit({ preventDefault() {} }); await f.flush();
+    assert.equal(f.calls.at(-1)[1].courseware.educationContext.visualStyle, undefined);
+  }
 });
 
 
@@ -579,4 +636,171 @@ test("the ordinary workflow passes its single visual reviewer through the projec
   const ordinary = f.nodes().find(node => node.type === "plain-presentation");
   assert(ordinary?.props.sourceVisuals);
   assert.equal(f.nodes().filter(node => node.type === "source-visuals").length, 0, "Parent attachment flags must not decide ordinary readiness");
+});
+
+
+test("preview polling survives Chat completion and disposes its timer on unmount", async t => {
+  const interval = window.setInterval, clear = window.clearInterval;
+  let tick, cleared = 0, statusReads = 0;
+  window.setInterval = callback => { tick = callback; return 42; };
+  window.clearInterval = id => { assert.equal(id, 42); cleared++; };
+  t.after(() => { window.setInterval = interval; window.clearInterval = clear; });
+  const props = { sessionId: "chat", plan: { ...plan, approvedSha256: plan.sha256 }, disabled: false, refreshKey: 0, onContinue: async () => {} };
+  const f = await fixture(t, "CoursewareChatImages", props, {
+    async coursewareSceneImageStatus() { statusReads++; return { ...f.image, phase: "submitted", task: { state: "submitted" } }; },
+  });
+  f.rows([{ ...f.image, phase: "submitted" }]);
+  tick(); await f.flush();
+  assert.equal(statusReads, 1);
+  f.store.runningSessions.chat = true;
+  tick(); await f.flush();
+  assert.equal(statusReads, 2);
+  f.store.runningSessions.chat = false;
+  tick(); await f.flush();
+  assert.equal(statusReads, 3);
+  f.unmount();
+  assert.equal(cleared, 1);
+  tick(); await f.flush();
+  assert.equal(statusReads, 3);
+});
+
+
+test("approved scene tasks open a real right preview tab and keep the footer compact", async t => {
+  const f = await fixture(t, "CoursewareChatWorkflow", { sessionId: "chat" });
+  await f.click("approveContinue");
+  assert(f.calls.some(call => call[0] === "editor" && call[1].kind === "scene-images"));
+  assert(f.button("imagePreview"));
+  assert.equal(f.nodes().filter(node => node.props?.["data-scene-image-intent"]).length, 0);
+  const before = f.calls.length;
+  await f.click("imagePreview");
+  assert.equal(f.calls.length, before + 1);
+  assert.deepEqual(f.calls.at(-1), ["editor", { id: "scene-images", kind: "scene-images" }]);
+});
+
+
+test("visual master preview exposes the actual planned student text, never narration", async t => {
+  const props = { sessionId: "chat", plan: { ...plan, approvedSha256: plan.sha256,
+    pages: [{ ...plan.pages[0], visibleText: ["Hello, Pandy!", "I am a panda."], narration: "Teacher-only narration" }] },
+    disabled: false, onContinue: async () => {} };
+  const f = await fixture(t, "CoursewareChatImages", props, {
+    async coursewareSceneImagePreview() { return { image: { ...f.image, asset: { sha256: "b".repeat(64) } }, dataUrl: "data:image/png;base64,aGVsbG8=" }; },
+  });
+  f.rows([{ ...f.image, phase: "submitted", asset: { sha256: "b".repeat(64) } }]);
+  props.refreshKey = 1; f.render(); await f.flush(); await f.flush();
+  const text = f.nodes().map(node => node.props?.children).filter(value => typeof value === "string");
+  assert(text.includes("Hello, Pandy!"));
+  assert(text.includes("I am a panda."));
+  assert(!text.includes("Teacher-only narration"));
+});
+
+test("course visual guide is visible in the plan review before approval", async t => {
+  const f = await fixture(t, "CoursewareChatWorkflow", { sessionId: "chat" });
+  f.plan.visualBible = { artDirection: "Matte watercolor", characters: "Pandy wears a green scarf", setting: "Woodland classroom" };
+  await f.click("refresh");
+  const text = f.nodes().map(node => node.props?.children).filter(value => typeof value === "string");
+  for (const value of Object.values(f.plan.visualBible)) assert(text.includes(value));
+  assert(f.button("approveContinue"));
+});
+
+test("preview student text follows the focused page and is hidden for decomposed layers", async t => {
+  const props = { sessionId: "chat", plan: { ...plan, approvedSha256: plan.sha256,
+    pages: [plan.pages[0], { ...plan.pages[0], pageId: "scene-002", visibleText: ["Hello, Pandy!"] }] },
+    disabled: false, onContinue: async () => {} };
+  let images;
+  const f = await fixture(t, "CoursewareChatImages", props, {
+    async coursewareSceneImagePreview(_session, id) { return { image: images.find(row => row.intentId === id), dataUrl: "data:image/png;base64,aGVsbG8=" }; },
+  });
+  images = [{ ...f.image, phase: "submitted", asset: { sha256: "b".repeat(64) } },
+    { ...f.image, intentId: "second", pageId: "scene-002", phase: "submitted", asset: { sha256: "c".repeat(64) } },
+    { ...f.image, intentId: "layer", target: { kind: "layer", name: "Pandy" }, phase: "submitted", asset: { sha256: "d".repeat(64) } }];
+  f.rows(images); props.refreshKey = 1; f.render(); await f.flush(); await f.flush();
+  const focus = async id => {
+    f.nodes().find(node => node.props?.["data-scene-page"] === images.find(row => row.intentId === id).pageId).props.onClick();
+    f.render(); await f.flush();
+    f.nodes().find(node => node.props?.["data-scene-image-intent"] === id).props.onClick();
+    f.render(); await f.flush(); await f.flush(); };
+  await focus("second");
+  assert(f.nodes().some(node => node.type === "p" && node.props.children === "Hello, Pandy!"));
+  await focus("layer");
+  assert(!f.nodes().some(node => node.props?.["aria-label"] === "coursewareWorkflow.pageText"));
+});
+
+test("a prepared cover has an explicit generation hint and no false style confirmation", async t => {
+  const props = { sessionId: "chat", plan: { ...plan, approvedSha256: plan.sha256 }, disabled: false, onContinue: async () => {} };
+  const f = await fixture(t, "CoursewareChatImages", props);
+  assert(f.nodes().some(node => node.props?.role === "status" && node.props.children === "coursewareWorkflow.sceneNeedsGeneration"));
+  assert(f.button("submitImage"));
+  assert(!f.button("confirmStyle"));
+  assert(!f.nodes().some(node => node.props?.children === "coursewareWorkflow.sceneStyleReview"));
+});
+
+test("service uncertainty never asks for another style confirmation or blocks independent generation", async t => {
+  for (const unknown of [{ phase: "submission-unknown", task: null },
+    { phase: "submitted", task: { state: "submission_unknown", feeState: "reserved" } }]) {
+    const props = { sessionId: "chat", plan: { ...plan, approvedSha256: plan.sha256 }, disabled: false, refreshKey: 0, onContinue: async () => {} };
+    const f = await fixture(t, "CoursewareChatImages", props);
+    f.rows([{ ...f.image, selected: true, asset: { sha256: "b".repeat(64) } },
+      { ...f.image, intentId: "uncertain", target: { kind: "cleanPlate" }, ...unknown },
+      { ...f.image, intentId: "prepared-layer", target: { kind: "layer", name: "Pandy" } }]);
+    props.refreshKey++; f.render(); await f.flush();
+    assert(!f.nodes().some(node => ["coursewareWorkflow.sceneSubmissionUnknown", "coursewareWorkflow.sceneStyleReview"].includes(node.props?.children)));
+    f.nodes().find(node => node.props?.["data-scene-image-intent"] === "prepared-layer").props.onClick();
+    f.render(); await f.flush();
+    assert.equal(f.button("submitImage").props.disabled, false);
+    assert(!f.button("confirmStyle"));
+    assert(!f.calls.some(call => call[0] === "generate"));
+  }
+});
+
+test("scene workspace groups requests under numbered pages and keeps navigation and details separate", async t => {
+  const props = { sessionId: "chat", plan: { ...plan, approvedSha256: plan.sha256,
+    pages: [plan.pages[0], { ...plan.pages[0], pageId: "scene-002", title: "Panda" }] },
+    disabled: false, refreshKey: 0, onContinue: async () => {} };
+  const f = await fixture(t, "CoursewareChatImages", props);
+  f.rows([f.image, { ...f.image, intentId: "layer", target: { kind: "layer", name: "Circle" } },
+    { ...f.image, intentId: "second", pageId: "scene-002" }]);
+  props.refreshKey++; f.render(); await f.flush();
+  assert.equal(f.nodes().filter(node => node.props?.["data-scene-page"]).length, 2);
+  for (const tag of ["nav", "main", "aside"]) assert(f.nodes().some(node => node.type === tag), tag);
+  assert(f.nodes().some(node => node.props?.["data-scene-image-intent"] === "layer"));
+  const next = f.nodes().find(node => node.type === "button" && node.props["aria-label"] === "coursewareWorkflow.nextPage");
+  assert(next); next.props.onClick(); f.render(); await f.flush();
+  assert(f.nodes().some(node => node.props?.["data-scene-page"] === "scene-002" && node.props["aria-current"] === "page"));
+  assert(!f.nodes().some(node => node.props?.["data-scene-image-intent"] === "layer"));
+});
+
+test("failed preview offers a retry and cannot adopt an unseen image", async t => {
+  let fail = true;
+  const props = { sessionId: "chat", plan: { ...plan, approvedSha256: plan.sha256 }, disabled: false, refreshKey: 0, onContinue: async () => {} };
+  const f = await fixture(t, "CoursewareChatImages", props, {
+    async coursewareSceneImagePreview() {
+      if (fail) throw new Error("Archive read failed");
+      return { image: { ...f.image, asset: { sha256: "b".repeat(64) } }, dataUrl: "data:image/png;base64,aGVsbG8=" };
+    },
+  });
+  f.rows([{ ...f.image, asset: { sha256: "b".repeat(64) }, phase: "submitted" }]);
+  props.refreshKey++; f.render(); await f.flush(); await f.flush();
+  assert(!f.button("confirmStyle")); assert(f.button("retryPreview"));
+  fail = false; await f.click("retryPreview"); await f.flush();
+  assert(f.nodes().some(node => node.type === "img")); assert(f.button("confirmStyle"));
+});
+
+
+test("later masters and decomposition previews have no manual adoption control", async t => {
+  const props = { sessionId: "chat", plan: { ...plan, approvedSha256: plan.sha256,
+    pages: [plan.pages[0], { ...plan.pages[0], pageId: "scene-002" }] }, disabled: false, refreshKey: 0, onContinue: async () => {} };
+  let images;
+  const f = await fixture(t, "CoursewareChatImages", props, {
+    async coursewareSceneImagePreview(_session, id) { return { image: images.find(row => row.intentId === id), dataUrl: "data:image/png;base64,aGVsbG8=" }; },
+  });
+  images = [{ ...f.image, selected: true, asset: { sha256: "c".repeat(64) } },
+    { ...f.image, intentId: "later", pageId: "scene-002", asset: { sha256: "b".repeat(64) } },
+    { ...f.image, intentId: "clean", target: { kind: "cleanPlate" }, asset: { sha256: "d".repeat(64) } }];
+  f.rows(images); props.refreshKey++; f.render(); await f.flush();
+  for (const image of images.slice(1)) {
+    f.nodes().find(node => node.props?.["data-scene-page"] === image.pageId).props.onClick(); f.render(); await f.flush();
+    f.nodes().find(node => node.props?.["data-scene-image-intent"] === image.intentId).props.onClick(); f.render(); await f.flush();
+    assert(!f.button("selectContinue"));
+    assert(!f.button("confirmStyle"));
+  }
 });

@@ -75,7 +75,7 @@ export function CoursewareOnlineSourceReview({ view, disabled, onConfirm, onCanc
           } else valid = false;
         }
         const deleting = choice?.deleteCue === true;
-        const primary = cue.effect.type === "spotlight" ? cue.effect.elementId : null;
+        const primary = cue.effect.type !== "highlight" ? cue.effect.elementId : null;
         if (deleting && !targets.every(entry => entry.decision === "remove")) valid = false;
         if (!deleting && (targets.every(entry => entry.decision === "remove") || (primary !== null && targets.find(entry => entry.oldObjectId === primary)?.decision === "remove"))) valid = false;
         decisions.cues.push({ oldPageId: page!.pageId, actionId: String(action.id), cueId: cue.id, deleteCue: deleting, targets });
@@ -115,7 +115,7 @@ export function CoursewareOnlineSourceReview({ view, disabled, onConfirm, onCanc
           {typeof action.pauseAfterMs === "number" && <p>{t("panel.pptEditor.candidatePause", { ms: action.pauseAfterMs })}</p>}
           {typeof action.audioAssetId === "string" && <p>{t("panel.onlineSource.audio", { asset: action.audioAssetId })}</p>}
           {action.type === "interaction_checkpoint" && <p>{t("panel.pptEditor.candidateTeacherContinue")}</p>}
-          {Array.isArray(action.visualCues) && action.visualCues.filter(isCoursewareAttentionCue).map(cue => <p key={cue.id}>{t("panel.pptEditor.effectsCue", { effect: t(cue.effect.type === "highlight" ? "panel.pptEditor.effectsHighlight" : "panel.pptEditor.effectsSpotlight"), start: cue.atMs, end: cue.endMs })}</p>)}
+          {Array.isArray(action.visualCues) && action.visualCues.filter(isCoursewareAttentionCue).map(cue => <p key={cue.id}>{t("panel.pptEditor.effectsCue", { effect: t(cue.effect.type === "element_animation" ? `panel.pptEditor.effects${({ fadeIn: "FadeIn", fadeOut: "FadeOut", pulse: "Pulse" } as const)[cue.effect.effect]}` : cue.effect.type === "highlight" ? "panel.pptEditor.effectsHighlight" : "panel.pptEditor.effectsSpotlight"), start: cue.atMs, end: cue.endMs })}</p>)}
         </div>)}
       </div>)}
     </details>
@@ -135,7 +135,7 @@ export function CoursewareOnlineSourceReview({ view, disabled, onConfirm, onCanc
           const key = cueKey(page.pageId, String(action.id), cue.id), choice = draft.cues[key] ?? { deleteCue: false, targets: {} };
           const ids = cue.effect.type === "highlight" ? cue.effect.elementIds : [cue.effect.elementId, ...(cue.effect.elementIds ?? [])];
           return <fieldset key={key}>
-            <legend>{t("panel.pptEditor.effectsCue", { effect: t(cue.effect.type === "highlight" ? "panel.pptEditor.effectsHighlight" : "panel.pptEditor.effectsSpotlight"), start: cue.atMs, end: cue.endMs })}</legend>
+            <legend>{t("panel.pptEditor.effectsCue", { effect: t(cue.effect.type === "element_animation" ? `panel.pptEditor.effects${({ fadeIn: "FadeIn", fadeOut: "FadeOut", pulse: "Pulse" } as const)[cue.effect.effect]}` : cue.effect.type === "highlight" ? "panel.pptEditor.effectsHighlight" : "panel.pptEditor.effectsSpotlight"), start: cue.atMs, end: cue.endMs })}</legend>
             <p>{String(action.text ?? "")}</p>
             {ids.map(id => {
               const previous = view.previousPages.find(value => value.pageId === page.pageId)?.objects.find(value => value.objectId === id);

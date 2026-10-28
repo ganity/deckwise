@@ -1,3 +1,4 @@
+import { parseSceneCoursePlan } from "./courseware-scene-plan";
 import { randomUUID } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
 import { generateSavedNarrationBatch, type NarrationPageCache } from "./courseware-narration-batch";
@@ -11,7 +12,7 @@ import type { NarrationComplete, CandidateModelResolver } from "./courseware-can
 
 type Host = { call<T>(method: string, params: unknown): Promise<T> };
 type Task = { task?: { importPath?: string; generatedPath?: string } };
-type Saved = { host: Host; jobId: string; project: CoursewareProject; bytes: Uint8Array; check(): Promise<void> };
+export type SavedCourseware = { host: Host; jobId: string; project: CoursewareProject; bytes: Uint8Array; check(): Promise<void> };
 const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 const savedId = (v: unknown): v is string => typeof v === "string" && /^saved-[\w.-]{1,120}$/u.test(v);
 
@@ -24,7 +25,7 @@ export class CoursewareSavedNarration {
     private complete: NarrationComplete, private resolveModel?: CandidateModelResolver,
     private completeVision?: (input: CoursewareSceneCompleteInput) => Promise<{ text: string }>) {}
 
-  private async withSaved<T>(sessionId: string, canDispatch: () => boolean, operation: (saved: Saved) => Promise<T>): Promise<T> {
+  async withSaved<T>(sessionId: string, canDispatch: () => boolean, operation: (saved: SavedCourseware) => Promise<T>): Promise<T> {
     const host = this.getHost();
     const assert = () => {
       if (!host || this.getHost() !== host || this.getSession() !== sessionId || !canDispatch())
@@ -100,6 +101,9 @@ export class CoursewareSavedNarration {
         throw new Error("Invalid saved page numbers");
       if (propose && project.source.sha256 !== input.sourceSha256) throw new Error("Saved source changed; read narration context again");
       const selected: number[] = Array.isArray(numbers) ? numbers : project.pages.map((_, i) => i + 1);
+      const approval = project.taskType === "scene" ? await host.call<{ approval: { plan: unknown } | null }>("courseware.scenePlan.get", { sessionId }) : null;
+      const approvedPlan = approval?.approval ? parseSceneCoursePlan(JSON.stringify(approval.approval.plan)) : undefined;
+      await check();
       if (!propose) {
         const pages = [];
         for (const pageNumber of selected) {
@@ -110,16 +114,27 @@ export class CoursewareSavedNarration {
             text = evidence.text; notes = evidence.notes; hasImages = evidence.elements.some(element => element.kind === "image");
           }
           catch (error) { diagnostic = String(error); }
-          pages.push({ pageNumber, pageId: page.pageId, locked: page.locked, hasNarration: page.actions.some(a => a.type === "speech"), ...(text === undefined ? {} : { text, notes, hasImages }), ...(diagnostic ? { diagnostic } : {}) });
+          const speeches = page.actions.filter(a => a.type === "speech").map(a => ({ actionId: a.id, text: a.text,
+            audioReady: typeof a.audioAssetId === "string", ...(a.audioAssetId ? { audioAssetId: a.audioAssetId } : {}) }));
+          const narrationReady = speeches.length > 0 && page.actions.some(a => a.type === "speech" &&
+            (a.source === "generated" || a.id !== "narration-0"));
+          pages.push({ pageNumber, pageId: page.pageId, locked: page.locked, hasNarration: speeches.length > 0,
+            narrationReady, audioReady: speeches.length > 0 && speeches.every(a => a.audioReady),
+            teachingReady: page.reviewState === "ready" && !page.actions.some(a => a.attention !== undefined),
+            actions: page.actions, speeches,
+            ...(text === undefined ? {} : { text, notes, hasImages }), ...(diagnostic ? { diagnostic } : {}) });
         }
         await check();
         return { projectId: project.projectId, sourceRevision: project.source.revision,
           teachingRevision: project.teachingRevision, sourceSha256: project.source.sha256,
-          educationContext: project.educationContext, pageCount: project.pages.length, pages };
+          educationContext: project.educationContext, pageCount: project.pages.length, pages,
+          ...(approvedPlan ? { approvedPlan } : {}),
+          narrationReady: pages.every(page => page.narrationReady), audioReady: pages.every(page => page.audioReady), teachingReady: pages.every(page => page.teachingReady) };
       }
       const detail = await host.call<{ session?: { providerId?: string; modelId?: string; thinkingLevel?: string; mode?: string } }>("session.get", { id: sessionId });
       const session = detail.session;
-      if (!session?.providerId || !session.modelId || session.mode !== "agent") throw new Error("Select an Agent model first");
+      if (!session || session.mode !== "agent" || !this.resolveModel && (!session.providerId || !session.modelId))
+        throw new Error("Select an Agent model first");
       const model = this.resolveModel ? await this.resolveModel(sessionId) : { modelKey: `${session.providerId}/${session.modelId}`, thinkingLevel: session.thinkingLevel };
       const current = async (expected = project) => {
         await check();
@@ -131,7 +146,7 @@ export class CoursewareSavedNarration {
             effective.modelKey !== model.modelKey || effective.thinkingLevel !== model.thinkingLevel) throw new Error("Teaching or Chat model changed during generation");
         await check();
       };
-      return generateSavedNarrationBatch({ host, sessionId, jobId, project, bytes, selected,
+      return generateSavedNarrationBatch({ host, sessionId, jobId, project, bytes, selected, approvedPlan,
         instruction: input.instruction as string, model, complete: this.complete, completeVision: this.completeVision,
         current, cache: this.pageEvidenceCache, canDispatch: () => canDispatch() && this.getSession() === sessionId });
     });

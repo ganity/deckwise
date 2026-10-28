@@ -10,7 +10,7 @@ export function CoursewareTeachingEffects({ view, actions, disabled, onChange }:
 }) {
   const { t } = useTranslation();
   const [speechId, setSpeechId] = useState("");
-  const [kind, setKind] = useState<"highlight" | "spotlight">("highlight");
+  const [kind, setKind] = useState<"highlight" | "spotlight" | "fadeIn" | "fadeOut" | "pulse">("highlight");
   const [targets, setTargets] = useState<string[]>([]);
   const [start, setStart] = useState("0"), [end, setEnd] = useState("1000");
   const [editing, setEditing] = useState<string | null>(null);
@@ -23,6 +23,9 @@ export function CoursewareTeachingEffects({ view, actions, disabled, onChange }:
   const editable = !disabled && !!page && !page.locked && page.reviewState === "ready";
   const audioReady = typeof speech?.audioAssetId === "string" && !!speech.audioAssetId;
   const atMs = Number(start), endMs = Number(end);
+  const animation = !["highlight", "spotlight"].includes(kind);
+  const effectName = (effect: CoursewareAttentionCue["effect"]) => effect.type === "element_animation" ?
+    ({ fadeIn: "FadeIn", fadeOut: "FadeOut", pulse: "Pulse" } as const)[effect.effect] : effect.type === "highlight" ? "Highlight" : "Spotlight";
   const objectLabel = (object: NonNullable<CoursewareTeachingView["teachingObjects"]>[number]) =>
     object.savedKind && object.savedIndex ? t(object.savedKind === "text" ? "panel.pptEditor.effectsObjectText" :
       object.savedKind === "shape" ? "panel.pptEditor.effectsObjectShape" : object.savedKind === "image" ?
@@ -31,6 +34,9 @@ export function CoursewareTeachingEffects({ view, actions, disabled, onChange }:
   const valid = start.trim() !== "" && end.trim() !== "" && Number.isInteger(atMs) && atMs >= 0 &&
     Number.isInteger(endMs) && endMs > atMs && endMs <= 3_600_000 && targets.length > 0 &&
     targets.every(id => objects.some(object => object.objectId === id)) &&
+    (!animation || targets.length === 1 && endMs - atMs <= 5000 && !actions.some(action =>
+      Array.isArray(action.visualCues) && action.visualCues.some(cue => isCoursewareAttentionCue(cue) &&
+        !(action === speech && cue.id === editing) && cue.effect.type === "element_animation" && cue.effect.elementId === targets[0]))) &&
     (!editing || cues.some(cue => isCoursewareAttentionCue(cue) && cue.id === editing));
   const reset = () => { setEditing(null); setTargets([]); setStart("0"); setEnd("1000"); setReviewed(false); };
   const replace = (nextCues: unknown[]) => {
@@ -45,7 +51,7 @@ export function CoursewareTeachingEffects({ view, actions, disabled, onChange }:
   };
   const edit = (cue: CoursewareAttentionCue) => {
     if (!editable) return;
-    setEditing(cue.id); setKind(cue.effect.type); setStart(String(cue.atMs)); setEnd(String(cue.endMs));
+    setEditing(cue.id); setKind(cue.effect.type === "element_animation" ? cue.effect.effect : cue.effect.type); setStart(String(cue.atMs)); setEnd(String(cue.endMs));
     setTargets(cue.effect.type === "highlight" ? [...cue.effect.elementIds] : [cue.effect.elementId, ...(cue.effect.elementIds ?? [])]);
     setReviewed(false);
   };
@@ -70,7 +76,7 @@ export function CoursewareTeachingEffects({ view, actions, disabled, onChange }:
       </select>
     </label>
     {cues.map((cue, index) => isCoursewareAttentionCue(cue) ? <div key={cue.id}>
-      <p>{t("panel.pptEditor.effectsCue", { effect: t(`panel.pptEditor.effects${cue.effect.type === "highlight" ? "Highlight" : "Spotlight"}`), start: cue.atMs, end: cue.endMs })}</p>
+      <p>{t("panel.pptEditor.effectsCue", { effect: t(`panel.pptEditor.effects${effectName(cue.effect)}`), start: cue.atMs, end: cue.endMs })}</p>
       <p>{(cue.effect.type === "highlight" ? cue.effect.elementIds : [cue.effect.elementId, ...(cue.effect.elementIds ?? [])])
         .map(id => { const object = view.teachingObjects?.find(entry => entry.objectId === id); return object ? objectLabel(object) : id; }).join(" · ")}</p>
       <button type="button" disabled={!editable || !audioReady} onClick={() => edit(cue)}>{t("panel.pptEditor.effectsEdit")}</button>
@@ -82,7 +88,8 @@ export function CoursewareTeachingEffects({ view, actions, disabled, onChange }:
       if (!editable || !audioReady || !reviewed || !valid || (!editing && cues.length >= 200) ||
           (speech?.visualCues !== undefined && !Array.isArray(speech.visualCues))) return;
       const old = cues.find(cue => isCoursewareAttentionCue(cue) && cue.id === editing);
-      const effect: CoursewareAttentionCue["effect"] = kind === "highlight"
+      const effect: CoursewareAttentionCue["effect"] = kind !== "highlight" && kind !== "spotlight"
+        ? { type: "element_animation", elementId: targets[0], effect: kind } : kind === "highlight"
         ? { ...(isCoursewareAttentionCue(old) && old.effect.type === kind ? old.effect : {}), type: kind, elementIds: [...targets] }
         : { ...(isCoursewareAttentionCue(old) && old.effect.type === kind ? old.effect : {}), type: kind, elementId: targets[0],
           elementIds: targets.slice(1) };
@@ -92,9 +99,12 @@ export function CoursewareTeachingEffects({ view, actions, disabled, onChange }:
       <fieldset disabled={!editable || !audioReady || !objects.length}>
         <legend>{t(editing ? "panel.pptEditor.effectsEdit" : "panel.pptEditor.effectsAdd")}</legend>
         <label>{t("panel.pptEditor.effectsType")}
-          <select value={kind} onChange={event => { if (event.target.value === "highlight" || event.target.value === "spotlight") { setKind(event.target.value); setReviewed(false); } }}>
+          <select value={kind} onChange={event => { if (["highlight", "spotlight", "fadeIn", "fadeOut", "pulse"].includes(event.target.value)) { setKind(event.target.value as typeof kind); setReviewed(false); } }}>
             <option value="highlight">{t("panel.pptEditor.effectsHighlight")}</option>
             <option value="spotlight">{t("panel.pptEditor.effectsSpotlight")}</option>
+            <option value="fadeIn">{t("panel.pptEditor.effectsFadeIn")}</option>
+            <option value="fadeOut">{t("panel.pptEditor.effectsFadeOut")}</option>
+            <option value="pulse">{t("panel.pptEditor.effectsPulse")}</option>
           </select>
         </label>
         <p>{t("panel.pptEditor.effectsTargets")}</p>

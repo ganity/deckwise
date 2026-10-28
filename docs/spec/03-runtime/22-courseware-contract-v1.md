@@ -129,6 +129,11 @@ slide's visual contents or replace Office Undo.
 - `projectId` identifies the local courseware project. `taskType` is `plain`, `scene`, or `import`; age, grade, and subject are context and do not choose the task path.
 - Optional `educationContext` preserves MAIC's `schoolStage`, `grade`, `subject`, `customSubjectName`, `textbookVersion`, `chapter`, `lessonType` and `fullEnglishTeaching`. Missing context remains missing; no age/English policy is inferred from `taskType`. Provided text fields are capped at 500 UTF-16 code units, known optional fields may be omitted but not null, and unknown keys are rejected. The context survives page writes/locks and restart. It is immutable through the initial teaching RPC; a later context-change operation must advance the teaching baseline and invalidate affected candidates/audio.
 - `pageId` is a stable logical ID owned by the project, not an Office slide index or native slide ID. Reorder preserves it; a copied/new page receives a new ID. If source lineage is ambiguous, do not attach existing teaching to a guessed page.
+- Desktop additionally accepts optional `educationContext.visualStyle` under the
+  same string/null/size guards. It stores the user's scene art direction; it does
+  not choose the task route or grant image approval. Existing records omit it
+  without migration. The matching updated Host is required to accept the added
+  field; older strict readers may reject records that contain it.
 - `source.revision` and `source.sha256` pin the current saved PPTX bytes. `teachingRevision` changes when page actions, lock, or review state changes.
 - A page write carries both expected revisions. The Host accepts it only when both match and that page is not locked. A stale write must return conflict without changing the project.
 - Teaching writes mark the changed page `review`; they preserve other page actions and source bytes. Lock changes also advance the teaching revision. Explicit unlock is required before a manual write; there is no model-side override flag.

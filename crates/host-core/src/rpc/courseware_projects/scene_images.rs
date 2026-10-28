@@ -3,6 +3,7 @@ use crate::db::courseware_projects::tts::{request_hash, Phase, RejectedRequest, 
 use sha2::{Digest, Sha256};
 
 pub(super) mod assets;
+mod prompts;
 
 const NAMESPACE: &str = "coursewareSceneImages.v1";
 const MAX_INTENTS: usize = 300;
@@ -60,7 +61,7 @@ impl Target {
 
     fn prompt(&self) -> String {
         match self {
-            Self::VisualMaster {} => "Create a clear classroom visual reference. No text, labels, letters or watermarks; slide text is added separately.".into(),
+            Self::VisualMaster {} => "Create one polished full-bleed teaching-slide visual master including the final composition, exact display text and main visual. Follow the course art direction. Preserve recurring character anatomy, proportions, markings, clothes, materials, palette and lighting. Show only page-required subjects, each exactly once; no duplicate mascots, character badges, decorative animals, logos or watermarks. Keep the default setting unless this page requires a teaching-related location change.".into(),
             Self::CleanPlate {} => "Create ONLY a clean, empty environment background for this page. Match the scene's art direction. Remove all teaching objects, characters, foreground props, text, labels, letters and watermarks; these will be added as separate editable objects. Do not render a complete slide.".into(),
             Self::Layer { name } => format!("Create ONLY the isolated foreground asset named {name:?}, in the scene's art direction. Transparent PNG background, visible isolated subject, no surrounding scene, floor, text, labels, letters or watermark. Do not render a complete slide; this asset will be placed as an independent editable object."),
         }
@@ -240,8 +241,6 @@ impl Intent {
                 .reference_intent_id
                 .as_ref()
                 .is_some_and(|id| !valid_id(id))
-            || (self.reference_intent_id.is_some()
-                && matches!(self.target, Target::VisualMaster {}))
             || uuid::Uuid::parse_str(&self.idempotency_key).is_err()
             || self.request_hash != self.request.hash()
             || (self.phase == Phase::Submitted) != self.task_ref.is_some()
@@ -334,7 +333,15 @@ fn verify_reference(intents: &[Intent], intent: &Intent) -> Result<(), JsonRpcEr
     if let (Some(id), Some(reference)) =
         (&intent.reference_intent_id, &intent.request.reference_image)
     {
-        let asset = selected_reference(intents, &intent.plan_sha256, &intent.page_id, id)?;
+        let page = if matches!(intent.target, Target::VisualMaster {}) {
+            if intent.page_id == "scene-001" {
+                return Err(invalid("The representative page cannot reference itself"));
+            }
+            "scene-001"
+        } else {
+            &intent.page_id
+        };
+        let asset = selected_reference(intents, &intent.plan_sha256, page, id)?;
         if asset.sha256 != reference.sha256
             || asset.mime_type != reference.mime_type
             || asset.byte_length != reference.byte_length
@@ -447,6 +454,7 @@ pub(super) fn verify_generation(
         {
             return Err(conflict("Each scene page needs separate reviewed reference, background and foreground assets"));
         }
+        verify_reference(&intents, master.unwrap())?;
         verify_decomposition_selection(&intents, clean.unwrap())?;
     }
     for intent in selected {
@@ -620,7 +628,7 @@ pub(super) async fn handle(
     let key = storage_key(&root, &scope)?;
     let mut intents = load(&state, &key)?;
     let current = current_plan(&state, &root, &scope);
-    if let Some(p) = prepare {
+    if let Some(mut p) = prepare {
         if !valid_hash(&p.plan_sha256)
             || !valid_id(&p.model)
             || current.as_deref() != Some(&p.plan_sha256)
@@ -645,21 +653,41 @@ pub(super) async fn handle(
         {
             return Err(invalid("Invalid scene image target or instructions"));
         }
-        let mut prompt = format!(
-            "Lesson: {}. Page: {}.\n{}\n{}",
-            plan.title,
-            page.title,
-            page.visual_intent,
-            p.target.prompt()
-        );
-        if p.decomposition {
-            prompt = "Separate the reference image into an empty environment base plate and independently editable foreground teaching elements. Keep room decorations in the base. Separate people, animals, teaching props and text carriers with their text intact. Preserve the exact appearance and positions of all subjects.".into();
+        if matches!(p.target, Target::VisualMaster {}) {
+            if p.page_id == "scene-001" {
+                if p.reference_intent_id.is_some() {
+                    return Err(invalid("The representative page cannot reference itself"));
+                }
+            } else {
+                let style = intents
+                    .iter()
+                    .find(|i| {
+                        i.plan_sha256 == p.plan_sha256
+                            && i.page_id == "scene-001"
+                            && i.selected
+                            && i.asset.is_some()
+                            && matches!(i.target, Target::VisualMaster {})
+                    })
+                    .ok_or_else(|| conflict("Select the representative page style first"))?;
+                if p.reference_intent_id
+                    .as_ref()
+                    .is_some_and(|id| id != &style.intent_id)
+                {
+                    return Err(conflict("Selected course style reference changed"));
+                }
+                p.reference_intent_id = Some(style.intent_id.clone());
+            }
         }
-        if !p.instructions.trim().is_empty() {
-            prompt.push_str(&format!(
-                "\nAdditional requirements: {}",
-                p.instructions.trim()
-            ));
+        let prompt = prompts::build(
+            &plan,
+            page,
+            &p.target,
+            p.decomposition,
+            p.reference_intent_id.is_some(),
+            &p.instructions,
+        );
+        if prompt.encode_utf16().count() > 4000 {
+            return Err(invalid("Scene image prompt exceeds 4000 UTF-16 units; shorten the visual intent, visual bible or additional instructions"));
         }
         let request = ImageRequest {
             kind: if p.decomposition {
@@ -671,10 +699,12 @@ pub(super) async fn handle(
             model: p.model,
             input: prompt,
             reference_image: if let Some(id) = &p.reference_intent_id {
-                if matches!(p.target, Target::VisualMaster {}) {
-                    return Err(invalid("A visual master cannot reference itself"));
-                }
-                let asset = selected_reference(&intents, &p.plan_sha256, &p.page_id, id)?;
+                let reference_page = if matches!(p.target, Target::VisualMaster {}) {
+                    "scene-001"
+                } else {
+                    &p.page_id
+                };
+                let asset = selected_reference(&intents, &p.plan_sha256, reference_page, id)?;
                 Some(ReferenceImage {
                     sha256: asset.sha256.clone(),
                     mime_type: asset.mime_type.clone(),

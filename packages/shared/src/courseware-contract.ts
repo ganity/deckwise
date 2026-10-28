@@ -11,6 +11,7 @@ export type CoursewareEducationContext = {
   textbookVersion?: string;
   chapter?: string;
   lessonType?: string;
+  visualStyle?: string;
   fullEnglishTeaching?: boolean;
 };
 export type CoursewarePage = {
@@ -109,7 +110,7 @@ const actions = (value: unknown): value is Array<Record<string, unknown>> =>
   new Set(value.map((action) => action.id)).size === value.length && withinBudget(value);
 
 function educationContext(value: unknown): value is CoursewareEducationContext {
-  const texts = ["schoolStage", "grade", "subject", "customSubjectName", "textbookVersion", "chapter", "lessonType"];
+  const texts = ["schoolStage", "grade", "subject", "customSubjectName", "textbookVersion", "chapter", "lessonType", "visualStyle"];
   return fields(value, [], [...texts, "fullEnglishTeaching"]) &&
     texts.every((key) => !Object.hasOwn(value, key) || (typeof value[key] === "string" && value[key].length <= 500)) &&
     (!Object.hasOwn(value, "fullEnglishTeaching") || typeof value.fullEnglishTeaching === "boolean");

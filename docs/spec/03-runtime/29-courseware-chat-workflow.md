@@ -1,5 +1,9 @@
 # Main Chat courseware generation
 
+Scene compilation accepts up to 256 MiB of verified original selected assets. Compiler copies of native cropped foregrounds fit their mapped display bounds without enlargement; private originals and separate image objects remain intact. Normalized compiler input remains bounded at 32 MiB.
+When every foreground has a native placement, compilation uses those coordinates and supplier labels directly. It does not ask a model to reconstruct the image lettering or invent replacement layout metadata.
+Saved teaching continuation remains available after compilation without an active Office editor binding. Native canvas edits still use the existing editor binding checks.
+
 Status: implemented locally. Source Electron/Host/Agent-to-WiseOffice plain,
 scene and import gates pass with loopback provider/media fixtures. Ordinary
 generation/repair/export uses the actual official tools. Production-model
@@ -118,6 +122,20 @@ the input rather than underneath the floating composer, also in smaller windows.
 
 The three-route creation dialog accepts an optional brief, audience/grade and
 subject. Textbook, chapter and lesson type are under expandable teaching details.
+Scene creation also offers six localized style presets (3D cartoon, 2D cartoon,
+flat vector, watercolor, paper-cut and realistic illustration) and an editable
+500-unit style description. Choosing a preset fills that description; typing
+custom text preserves it verbatim. An empty value leaves style to the brief.
+The optional `educationContext.visualStyle` is saved with the task before Chat
+activation, not appended to or substituted for the user's brief. Switching routes
+retains the input in the form but omits it when creating plain/import tasks.
+Both planning entrances treat the saved style as an explicit user requirement
+and carry its medium, palette, materials, lighting and exclusions into the
+approved visualBible and page intents. Age alone cannot override it. Host master
+prompts no longer force a hand-painted picture-book fallback for legacy plans.
+Approval and cover selection retain their existing lifecycle; changes after
+approval still require plan revision and invalidate affected asset bindings.
+Existing paid images are not silently regenerated.
 Changing stage or subject preserves entered grade/custom-subject text; an
 incompatible full-English option is reset. The dialog traps keyboard focus,
 including its textarea and expandable details, and blocks duplicate submission.
@@ -306,3 +324,22 @@ At 1080x760, the workflow stayed above the composer. Identity, model JSON and
 media used loopback fixtures; no real cost, production-model quality, audio,
 publication or packaged-release acceptance is claimed. Evidence is recorded in
 `../../validation/courseware/chat-first-20261025/README.md`.
+
+Seedream layer decomposition follows the MAIC native images/generations request
+with layer_decomposition, PNG/2K output and URL results. Host reuses MAIC's
+foreground/environment prompt unchanged. Lettering remains in its returned image
+layers; compilation never erases it or reconstructs native text.
+A returned JPEG base is normalized to PNG before archive; foreground PNG bounds
+and stacking are preserved. The gateway distinguishes executing `submitting`
+from terminal `submission_unknown` and persists safe error codes for provider
+HTTP/timeout and result validation failures. Desktop reports layer-download failures. Chat polls only
+executing jobs; error or unknown outcomes are reported without another style
+confirmation, infinite polling, or paid resubmission. A definite provider 4xx
+rejection (except request timeout) releases the reservation; lost outcomes and
+post-generation archive failures retain their actual reserved fee status.
+Process startup marks interrupted calls unknown; config reload preserves live
+calls. Neither operation sends generation requests.
+
+Layer delivery: llm-ha preserves the supplier URL result and metadata without downloading layer images. Desktop downloads public HTTPS layers without credentials or redirects, bounds response sizes, validates the images, and archives them locally. Legacy inline Base64 bundles remain readable. A failed download retries delivery from the existing receipt, never generation.
+
+Native layer delivery uses the Electron default session for both DNS safety checks and image fetching. A group is bounded to 44 MiB raw and 60 MiB JSON, preserving the existing 64 MiB Host frame; the per-image 8 MiB and 4096×4096 validation still applies. Oversized groups report COURSEWARE_SCENE_IMAGE_LAYER_BUNDLE_TOO_LARGE rather than a generic asset failure.

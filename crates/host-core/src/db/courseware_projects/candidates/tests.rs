@@ -24,6 +24,44 @@ fn value(project: &CoursewareProject) -> Value {
 }
 
 #[test]
+fn saves_and_regenerates_teacher_led_questions_without_losing_answers() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_str().unwrap();
+    let db = Database::open(&dir.path().join("questions.sqlite")).unwrap();
+    let (project, seed, mut write) = fixture();
+    let question = json!({"id":"question", "type":"interaction_checkpoint", "checkpointId":"question", "checkpointKind":"chapter_summary",
+        "chapterId":write.page_id, "chapterTitle":"Shapes", "question":"How many sides?",
+        "referenceAnswer":{"summary":"Four", "keyPoints":["Four equal sides"]},
+        "context":{"chapterSummary":"A square has four equal sides", "sourceSceneIds":[write.page_id]}});
+    write.actions.push(question.clone());
+    db.create_courseware_project(root, &project).unwrap();
+    let saved = db
+        .save_generated_narration(root, &seed, &project, &write)
+        .unwrap();
+    assert_eq!(saved.pages[0].actions.last(), Some(&question));
+    reviews::portable_narration(&saved, false).unwrap();
+    write.expected_teaching_revision = saved.teaching_revision.clone();
+    let next = db
+        .save_generated_narration(root, &seed, &saved, &write)
+        .unwrap();
+    assert_eq!(next.pages[0].actions.last(), Some(&question));
+    for (path, value) in [
+        ("question", json!("")),
+        ("checkpointId", json!("..")),
+        ("assessedCorrect", json!(true)),
+        ("referenceAnswer", json!({"summary":"Four", "keyPoints":[]})),
+        (
+            "context",
+            json!({"chapterSummary":"Shapes", "sourceSceneIds":["page", "page"]}),
+        ),
+    ] {
+        let mut invalid = question.clone();
+        invalid[path] = value;
+        assert!(!valid_teaching_checkpoint(&invalid));
+    }
+}
+
+#[test]
 fn generated_narration_saves_and_regenerates_without_candidates_and_survives_restart() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().to_str().unwrap();

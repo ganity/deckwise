@@ -25,7 +25,8 @@ const electron = { nativeImage: { createFromBuffer: () => ({ isEmpty: () => fals
   getSize: () => ({ width: 2, height: 2 }), toBitmap: () => Buffer.alloc(16) }) } };
 const context = await load("courseware-scene-context", { electron, "node:crypto": { createHash }, "node:zlib": { crc32 } });
 const assets = await load("courseware-scene-image-assets", { electron, "node:crypto": { createHash },
-  "node:fs": fsConstants, "node:fs/promises": files, "node:path": paths, "./courseware-scene-context": context });
+  "node:fs": fsConstants, "node:fs/promises": files, "node:path": paths, "./courseware-scene-context": context, "./public-https-fetch": await load("public-https-fetch", {
+    "node:dns/promises": await import("node:dns/promises"), "@pi-desktop/shared": shared }) });
 const mediaScope = await load("courseware-media-scope", {});
 const { CoursewareCanvasImages } = await load("courseware-canvas-images", { "node:crypto": { createHash, randomUUID },
   "@pi-desktop/shared": shared, "./courseware-scene-image-assets": assets, "./courseware-media-scope": mediaScope });

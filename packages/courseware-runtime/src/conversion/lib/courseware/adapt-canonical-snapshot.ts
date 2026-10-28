@@ -55,7 +55,14 @@ export function adaptCanonicalSnapshot(
     teaching: {
       revision: snapshot.teachingRevision,
       sourceSha256: snapshot.source.sha256.toLowerCase(),
-      pages: project.pages.map(({ pageId, actions }) => ({ pageId, actions })),
+      pages: project.pages.map(({ pageId, actions }) => ({ pageId, actions: actions.map(action => {
+        // Host provenance is edit metadata; unknown fields must still fail the strict player schema.
+        if (action.type === 'speech' && ['notes', 'external', 'original', 'light_rewrite', 'generated'].includes(String(action.source))) {
+          const { source: _source, ...playback } = action;
+          return playback;
+        }
+        return action;
+      }) })),
     },
     mapping: files.mapping,
     assets: files.assets,

@@ -210,11 +210,11 @@ impl Database {
                 &page.page_id,
                 std::slice::from_ref(speech),
             )?;
-            speech["visualCues"] = json!([attention::cue(
+            speech["visualCues"] = json!(attention::cues(
                 &intent,
                 speech["id"].as_str().unwrap(),
                 record.audio.duration_ms
-            )?]);
+            )?);
             speech.as_object_mut().unwrap().remove("attention");
         }
         speech["audioAssetId"] = Value::String(asset_id);
@@ -241,6 +241,8 @@ impl Database {
                     == serde_json::to_value(Some(&saved))?,
             "COURSEWARE_CONFLICT: audio adoption was not saved"
         );
+        let saved =
+            self.finish_generated_scene_page(workspace, saved, &intent.selection.page_id)?;
         tx.commit()?;
         self.source_adoption_barrier()?;
         Ok(saved)

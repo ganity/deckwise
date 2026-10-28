@@ -38,11 +38,13 @@ export type CoursewareAssetLocksView = {
 };
 
 /** Existing fixed-player visualCues, timed only against their parent speech audio. */
-export type CoursewareAttentionIntent = { type: "highlight" | "spotlight"; objectIds: string[] };
+export type CoursewareAttentionIntent = { type: "highlight" | "spotlight"; objectIds: string[]; animation?: "fadeIn" | "pulse" };
 export function isCoursewareAttentionIntent(value: unknown): value is CoursewareAttentionIntent {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const intent = value as Record<string, unknown>;
-  return Object.keys(intent).sort().join(",") === "objectIds,type" && ["highlight", "spotlight"].includes(String(intent.type)) &&
+  return Object.hasOwn(intent, "type") && Object.hasOwn(intent, "objectIds") &&
+    Object.keys(intent).every(key => ["type", "objectIds", "animation"].includes(key)) &&
+    (intent.animation === undefined || ["fadeIn", "pulse"].includes(String(intent.animation))) && ["highlight", "spotlight"].includes(String(intent.type)) &&
     Array.isArray(intent.objectIds) && intent.objectIds.length > 0 && intent.objectIds.length <= 8 &&
     intent.objectIds.every(id => typeof id === "string" && id.length > 0 && id.length <= 200) && new Set(intent.objectIds).size === intent.objectIds.length;
 }
@@ -52,7 +54,8 @@ export type CoursewareAttentionCue = {
   atMs: number;
   endMs: number;
   effect: { type: "highlight"; elementIds: string[]; color?: string; style?: "outline" | "fill" | "glow"; opacity?: number } |
-    { type: "spotlight"; elementId: string; elementIds?: string[]; dimOpacity?: number };
+    { type: "spotlight"; elementId: string; elementIds?: string[]; dimOpacity?: number } |
+    { type: "element_animation"; elementId: string; elementIds?: never; effect: "fadeIn" | "fadeOut" | "pulse" };
 };
 
 export function isCoursewareAttentionCue(value: unknown): value is CoursewareAttentionCue {
@@ -76,6 +79,10 @@ export function isCoursewareAttentionCue(value: unknown): value is CoursewareAtt
     if (!fields(effect, ["type", "elementId"], ["elementIds", "dimOpacity"]) || !id(effect.elementId) ||
         (effect.elementIds !== undefined && !Array.isArray(effect.elementIds)) || (effect.dimOpacity !== undefined && !unit(effect.dimOpacity))) return false;
     targets = [effect.elementId, ...(Array.isArray(effect.elementIds) ? effect.elementIds : [])];
+  } else if (effect.type === "element_animation") {
+    if (!fields(effect, ["type", "elementId", "effect"]) || !id(effect.elementId) ||
+        !["fadeIn", "fadeOut", "pulse"].includes(String(effect.effect)) || value.endMs - value.atMs > 5000) return false;
+    targets = [effect.elementId];
   } else return false;
   return targets.length <= 200 && targets.every(id) && new Set(targets).size === targets.length;
 }
@@ -100,6 +107,24 @@ export type CoursewareTeachingHistoryEntry = {
   omittedCueCount: number;
 };
 export type CoursewareTeachingHistory = { entries: CoursewareTeachingHistoryEntry[]; skippedEntryCount: number };
+
+/** Portable teacher-led questions use the fixed player's existing checkpoint contract. */
+export function isCoursewareInteractionCheckpoint(value: unknown): boolean {
+  const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+  const fields = (v: Record<string, unknown>, keys: string[]) => Object.keys(v).length === keys.length && keys.every(key => Object.hasOwn(v, key));
+  const id = (v: unknown) => typeof v === "string" && /^[\w.-]{1,128}$/u.test(v) && v !== "." && v !== "..";
+  const text = (v: unknown, max = 4000) => typeof v === "string" && !!v.trim() && v.length <= max;
+  if (!record(value) || value.type !== "interaction_checkpoint" || !id(value.id) || !id(value.checkpointId)) return false;
+  if (value.checkpointKind === "teacher_continue") return fields(value, ["id", "type", "checkpointId", "checkpointKind"]);
+  const answer = value.referenceAnswer, context = value.context;
+  return value.checkpointKind === "chapter_summary" && fields(value, ["id", "type", "checkpointId", "checkpointKind", "chapterId", "chapterTitle", "question", "referenceAnswer", "context"]) &&
+    id(value.chapterId) && text(value.chapterTitle, 1000) && text(value.question) &&
+    record(answer) && fields(answer, ["summary", "keyPoints"]) && text(answer.summary) &&
+    Array.isArray(answer.keyPoints) && answer.keyPoints.length > 0 && answer.keyPoints.length <= 8 && answer.keyPoints.every(point => text(point, 1000)) &&
+    record(context) && fields(context, ["chapterSummary", "sourceSceneIds"]) && text(context.chapterSummary) &&
+    Array.isArray(context.sourceSceneIds) && context.sourceSceneIds.length > 0 && context.sourceSceneIds.length <= 100 &&
+    context.sourceSceneIds.every(id) && new Set(context.sourceSceneIds).size === context.sourceSceneIds.length;
+}
 
 export function isCoursewareTeachingHistory(value: unknown): value is CoursewareTeachingHistory {
   const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
@@ -128,8 +153,9 @@ export function isCoursewareTeachingHistory(value: unknown): value is Courseware
         typeof action.text === "string" && action.text.length <= 32_000 &&
         (!Object.hasOwn(action, "source") || (typeof action.source === "string" && ["notes", "external", "original", "light_rewrite", "generated"].includes(action.source))) &&
         (!Object.hasOwn(action, "pauseAfterMs") || count(action.pauseAfterMs, 30_000));
-      return action.type === "interaction_checkpoint" && fields(action, ["id", "type", "checkpointId", "checkpointKind"]) &&
-        id(action.checkpointId) && action.checkpointKind === "teacher_continue";
+      if (action.type === "video_slot") return fields(action, ["id", "type", "prompt"]) && id(action.id) &&
+        typeof action.prompt === "string" && !!action.prompt.trim() && action.prompt.length <= 4000;
+      return isCoursewareInteractionCheckpoint(action);
     });
   });
 }
@@ -205,7 +231,7 @@ export type CoursewarePptxCandidateReview = {
   targetPages: Array<{ pageId: string; pageNumber: number }>;
   effectTargets?: Array<{ pageId: string; pageIndex: number; objectId: string; kind: string; index: number }>;
   effectPages?: CoursewareSourceReview["targetPages"];
-  effectCues?: Array<{ pageNumber: number; effect: "highlight" | "spotlight"; atMs: number; endMs: number }>;
+  effectCues?: Array<{ pageNumber: number; effect: "highlight" | "spotlight" | "fadeIn" | "fadeOut" | "pulse"; atMs: number; endMs: number }>;
   outputSha256: string;
   pageCount: number;
   stale: boolean;

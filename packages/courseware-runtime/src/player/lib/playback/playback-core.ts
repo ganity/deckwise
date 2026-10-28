@@ -638,6 +638,13 @@ export class PlaybackCore {
     }
 
     switch (action.type) {
+      case "video_clip": {
+        this.currentInteractionCheckpointId = action.id;
+        this.callbacks.onInteractionStart?.({ checkpointId: action.id, checkpointKind: "media_playback", elementId: action.id,
+          mediaType: "video", startMode: "teacher_triggered", waitForCompletion: true, videoUrl: action.videoUrl });
+        this.setMode("waiting_interaction");
+        break;
+      }
       case "speech":
       case "audio_clip": {
         const executionEpoch = this.executionEpoch;

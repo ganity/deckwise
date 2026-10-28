@@ -69,6 +69,7 @@ const chapterSummaryWait = z
   .strict();
 const teacherContinueWait = z.object({ id, type: z.literal('interaction_checkpoint'), checkpointId: id, checkpointKind: z.literal('teacher_continue') }).strict();
 const audioClip = z.object({ id, type: z.literal('audio_clip'), audioAssetId: id }).strict();
+const videoClip = z.object({ id, type: z.literal('video_clip'), videoAssetId: id }).strict();
 
 // Internal converter input; adaptCanonicalSnapshot consumes A's canonical Host export. Actions are the existing
 // Scene actions; pageId/objectId are supplied by the persisted mapping, never inferred here.
@@ -81,7 +82,7 @@ export const fixedBuildInputSchema = z
         revision: id,
         sourceSha256: hash,
         pages: z
-          .array(z.object({ pageId: id, actions: z.array(z.union([speech, audioClip, chapterSummaryWait, teacherContinueWait])) }).strict())
+          .array(z.object({ pageId: id, actions: z.array(z.union([speech, audioClip, videoClip, chapterSummaryWait, teacherContinueWait])) }).strict())
           .min(1),
       })
       .strict(),

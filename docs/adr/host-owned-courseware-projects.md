@@ -28,6 +28,12 @@ corresponding lifecycle has been implemented.
 
 ## Consequences
 
+The optional `educationContext.visualStyle` keeps scene style requirements in the
+same Host-owned task/project context and existing revision-checked requirements
+update. No extra style store, route or database migration is introduced. New
+records remain within the existing text/task budgets; binaries with older strict
+context schemas can reject the additive field and must be updated together.
+
 Verified source candidates reuse the saved-source review's bounded attention
 validation. Fade preserves current and peer highlight/spotlight targets; redo
 and batch preserve non-target cues. Host checks original target identity

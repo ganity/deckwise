@@ -59,15 +59,15 @@ fn narration(actions: &[Value]) -> Result<()> {
     // shortcut: reject existing audio/effects intact; add action-specific invalidation before replacing them.
     anyhow::ensure!(
         actions.iter().all(|action| {
-            (action["type"] == "interaction_checkpoint" && action["checkpointKind"] == "teacher_continue"
-                && action.as_object().is_some_and(|object| object.keys().all(|key| ["id", "type", "checkpointId", "checkpointKind"].contains(&key.as_str())))
-                && valid_id(action["checkpointId"].as_str().unwrap_or_default()))
+            valid_teaching_checkpoint(action)
+                || super::video::valid_slot(action)
                 || (action["type"] == "speech"
                     && action["text"].as_str().is_some_and(|text| text.encode_utf16().count() <= 32000)
-                    && action.as_object().is_some_and(|object| object.keys().all(|key| ["id", "type", "text", "pauseAfterMs", "attention"].contains(&key.as_str())))
+                    && action.get("source").is_none_or(|source| source == "generated")
+                    && action.as_object().is_some_and(|object| object.keys().all(|key| ["id", "type", "text", "pauseAfterMs", "attention", "source"].contains(&key.as_str())))
                     && action.get("pauseAfterMs").is_none_or(|pause| pause.as_u64().is_some_and(|pause| pause <= 30000)))
         }),
-        "COURSEWARE_INVALID: narration candidate supports speech, bounded pauses and teacher-continue checkpoints only"
+        "COURSEWARE_INVALID: narration candidate supports speech, bounded pauses and teacher-led checkpoints only"
     );
     Ok(())
 }
@@ -75,7 +75,7 @@ fn narration(actions: &[Value]) -> Result<()> {
 fn replaceable_narration(actions: &[Value]) -> Result<Vec<Value>> {
     actions
         .iter()
-        .filter(|a| a["type"] != "audio_clip")
+        .filter(|a| a["type"] != "audio_clip" && a["type"] != "video_clip")
         .map(|action| {
             let mut clean = action.clone();
             if action["type"] == "speech" {
@@ -105,7 +105,10 @@ fn replaceable_narration(actions: &[Value]) -> Result<Vec<Value>> {
                 }
                 if let Some(source) = action.get("source") {
                     anyhow::ensure!(
-                        matches!(source.as_str(), Some("notes" | "external")),
+                        matches!(
+                            source.as_str(),
+                            Some("notes" | "external" | "original" | "light_rewrite" | "generated")
+                        ),
                         "COURSEWARE_INVALID: unsupported narration source"
                     );
                     clean.as_object_mut().unwrap().remove("source");
@@ -160,15 +163,16 @@ impl Database {
         narration(&replaceable_narration(&page.actions)?)?;
         self.validate_narration_attention(workspace, &current, &write.page_id, &write.actions)?;
         let mut write = write.clone();
-        for (index, clip) in page
-            .actions
-            .iter()
-            .enumerate()
-            .filter(|(_, action)| action["type"] == "audio_clip")
-        {
+        for (index, clip) in page.actions.iter().enumerate().filter(|(_, action)| {
+            action["type"] == "audio_clip"
+                || action["type"] == "video_slot"
+                || action["type"] == "video_clip"
+        }) {
             anyhow::ensure!(
-                music::valid_clip(clip),
-                "COURSEWARE_INVALID: invalid retained music clip"
+                music::valid_clip(clip)
+                    || super::video::valid_slot(clip)
+                    || super::video::valid_clip(clip),
+                "COURSEWARE_INVALID: invalid retained media action"
             );
             write
                 .actions
@@ -415,12 +419,11 @@ impl Database {
             .iter()
             .find(|page| page.page_id == write.page_id)
             .unwrap();
-        for (index, clip) in page
-            .actions
-            .iter()
-            .enumerate()
-            .filter(|(_, action)| action["type"] == "audio_clip")
-        {
+        for (index, clip) in page.actions.iter().enumerate().filter(|(_, action)| {
+            action["type"] == "audio_clip"
+                || action["type"] == "video_slot"
+                || action["type"] == "video_clip"
+        }) {
             write
                 .actions
                 .insert(index.min(write.actions.len()), clip.clone());

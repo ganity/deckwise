@@ -5,6 +5,8 @@ import { useAppStore } from "../stores/app-store";
 import { Button, portalOverlay, TooltipButton } from "./ui";
 import { IconClose } from "./icons";
 
+const visualStyles = ["cartoon3d", "cartoon2d", "vector", "watercolor", "papercut", "realistic"] as const;
+
 export function CoursewareTaskDialog() {
   const request = useAppStore((state) => state.newTaskDialog);
   const close = useAppStore((state) => state.closeNewTaskDialog);
@@ -59,7 +61,9 @@ function TaskForm({ projectPath, onClose }: { projectPath: string; onClose: () =
     setBusy(true);
     setError(null);
     try {
-      await useAppStore.getState().newSession({ projectPath, courseware: { taskType, educationContext: education,
+      const { visualStyle, ...teaching } = education;
+      await useAppStore.getState().newSession({ projectPath, courseware: { taskType,
+        educationContext: { ...teaching, ...(taskType === "scene" && visualStyle?.trim() ? { visualStyle } : {}) },
         ...(brief.trim() ? { initialPrompt: brief } : {}) } });
       onClose();
       requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>(".composer-input")?.focus());
@@ -143,6 +147,27 @@ function TaskForm({ projectPath, onClose }: { projectPath: string; onClose: () =
                 </div>
               </details>
             </fieldset>
+            {taskType === "scene" && <fieldset disabled={busy} className="courseware-task-education">
+              <legend>{t("coursewareTask.visualStyle")}</legend>
+              <div className="courseware-task-style-fields">
+                <label className="courseware-task-field" htmlFor="courseware-task-style">
+                  <span>{t("coursewareTask.stylePreset")}</span>
+                  <select id="courseware-task-style" className="field-input"
+                    value={visualStyles.some(key => t(`coursewareTask.${key}`) === education.visualStyle) ? education.visualStyle : ""}
+                    onChange={event => setEducation({ ...education, visualStyle: event.target.value || undefined })}>
+                    <option value="">{t("coursewareTask.styleCustom")}</option>
+                    {visualStyles.map(key => <option key={key} value={t(`coursewareTask.${key}`)}>{t(`coursewareTask.${key}`)}</option>)}
+                  </select>
+                </label>
+                <label className="courseware-task-field" htmlFor="courseware-task-style-description">
+                  <span>{t("coursewareTask.styleDescription")}</span>
+                  <textarea id="courseware-task-style-description" className="field-input" maxLength={500} rows={2}
+                    value={education.visualStyle ?? ""} placeholder={t("coursewareTask.styleHint")}
+                    onChange={event => setEducation({ ...education, visualStyle: event.target.value || undefined })} />
+                </label>
+              </div>
+              <p className="courseware-task-style-hint">{t("coursewareTask.styleScope")}</p>
+            </fieldset>}
             {error ? <p role="alert" className="courseware-task-error">{error}</p> : null}
           </div>
           <footer className="courseware-task-footer">

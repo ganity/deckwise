@@ -1,8 +1,174 @@
 # Authorized private courseware media transport
 
+## Course visual consistency and student text (2026-10-26)
+
+New scene plans contain an optional-for-compatibility `visualBible` object with
+nonempty `artDirection`, `characters` and `setting` strings, at most 1000 UTF-16
+code units in total. Main and Host validate it and preserve it through draft
+approval. Legacy drafts remain readable. Image prompts include this shared bible,
+page-required subjects, character identity constraints and a coherent default
+setting; teaching-related location changes remain allowed.
+
+For later visual masters, Main and Host automatically bind the selected first-page
+master from the same approved plan and private account/session scope. Its immutable
+archive bytes are supplied to the image role through llm-ha. Style conditioning
+preserves palette, lighting, materials and recurring character identity without
+copying the representative page's composition or character count. Models lacking
+reference-image support, missing selection, changed references and foreign scopes
+refuse before submission. Decomposition continues to reference only its own page's
+selected master through the decomposition role. No model ID is hardcoded in Desktop.
+
+The visual master is a complete teaching-page design, including every approved
+`visibleText` string exactly once. The Host prompt ports MAIC's complete-master,
+full-canvas environment, focal-action, text-hierarchy and independent-component
+rules from `lib/generation/kindergarten/image2-pptist/slide-authoring.ts` at
+`fdb27892e642c997cde6f29a07257540fda75f4e`. It preserves the course art direction
+and character identities; it no longer requests a textless illustration or an
+empty header reserved for later text. Only `visibleText` authorizes printed copy;
+internal lesson/page titles and teacher narration do not add display text.
+Empty `visibleText` still permits a deliberately textless page. Literal strings
+are JSON-encoded without paraphrasing. The existing 4000 UTF-16-unit request
+limit remains enforced, with an actionable error for oversized prompt data.
+
+The right preview shows the actual master, with a separate text checklist for
+exact wording. Decomposition reuses MAIC's native prompt unchanged: complete
+text carriers retain their original lettering. The compiler places the base and
+every returned foreground image at its supplied bounds and stacking as separate
+PPTX image objects. It adds no native text, shapes, connectors or internal titles.
+Missing/duplicate foregrounds and non-image objects block compilation. Text
+remains raster artwork, so glyphs are not editable as native PowerPoint text.
+These checks establish request/data flow, not guaranteed supplier text accuracy
+or final rendered legibility.
+Existing generated assets are neither regenerated nor charged automatically;
+requested regeneration creates a new intent without rewriting original tasks.
+
+## Scene progression and actual MAIC coverage (2026-10-26)
+
+The right work panel has a dedicated scene image preview, page/layer list and
+first-page style confirmation. The main Chat footer links to that preview instead
+of rendering an overflowing task list. GET status and verified archive preview
+remain available during the owning Chat turn; generation/selection mutations
+still require their existing active-turn and ownership checks.
+
+The image preview uses the existing SVG workbench's three-pane arrangement:
+numbered pages and lazy archive thumbnails at left, a central aspect-preserving
+image and previous/next navigation, and page text, visual requirements, per-page
+asset choices and persistent actions at right. Both side panes can be collapsed.
+Pages come from the approved plan, not the number of image intents; layers and
+replacement attempts stay inside their page. A prepared cover explicitly asks
+for generation. Preview failures expose a retry and never expose selection of
+an unseen image. Operation errors survive successful background list polling.
+
+The existing refresh tool accepts optional `generatePrepared:boolean` (default
+false). With true, it submits only the same known prepared intent through the
+existing generation service and model rebinding. Current-plan and cover-style
+guards apply before submission. Unknown/submitted/rejected requests are never
+resubmitted by this option. A result without an asset sets
+`requiresHumanSelection:false` and reports `requiresGeneration` for prepared
+requests. The scene skill reports model errors and requests review only after
+verified archive bytes exist. Existing Chat prose is not rewritten.
+
+Image prepare returns the submission snapshot. Refresh defaults to one snapshot;
+optional `waitForUpdate:true` polls the original job every three seconds for up
+to 30 seconds, returning sooner on readiness or failure. After style confirmation,
+independent missing assets proceed even when another submission is unknown.
+When only pending jobs remain, the Agent keeps its turn active and continues
+bounded refreshes without asking the user to continue. The mounted preview also
+queries original jobs. Stop/session/auth/plan changes prevent later dispatch or
+adoption. Unknown outcomes stay query-only for that intent; they do not revoke
+style confirmation or block independent intents. No query resubmits an unknown
+request. `styleConfirmed` reflects the saved selected cover, while
+`requiresHumanSelection` refers only to an unselected, archived cover master.
+Only that first visual master requires human style confirmation. After it,
+later verified images and complete decomposition groups are selected
+automatically and Chat proceeds to compilation. Pending, failed, generated and
+selected remain separate UI states.
+
+The runtime enforces completion through pi-agent-core's `finishTurn` hook.
+Submitting an image or explicitly refreshing with `waitForUpdate` /
+`generatePrepared` arms the current turn's scene continuation; status-only
+workflow reads do not authorize generation. If the model closes the turn while
+jobs remain, runtime queries the original intents every three seconds through
+the existing scoped tools, without another model request on each timer tick.
+It waits beyond an individual tool's 30-second window. Verified progress feeds
+a saved-state system update into the same Agent loop so it can generate the next
+missing assets or compile. This update is superseded by newer tool results and
+expires at the next user turn. No synthetic human message or renderer-triggered
+Chat restart is used. A ready unselected cover yields for style review; job
+failure is returned for reporting, while Stop, steering, mode change and plan
+replacement interrupt waiting. Invalid state, failed queries and a repeated
+unchanged closing response are local failures, never provider retry loops or
+evidence of completion. The same turn guard also waits on saved-page TTS/music/video
+jobs. A full-course compile or explicit saved-course media context read uses
+`continueTeaching:true`; omitted/false preserves PPTX-only/status behavior. Read-only status never starts generation or adopts a new scope.
+
+Saved narration context distinguishes the initial outline seed from detailed
+narration and exposes actual speech IDs and per-page audio readiness. The Agent
+can generate missing detailed teaching, then use `courseware_media_context`,
+`courseware_media_prepare` and `courseware_media_refresh` without opening Office.
+These tools reuse existing Host journals, principal/source/teaching checks,
+server quotes, durable submission and verified archive/adoption. Music completes
+its original generation and export before mounting a separate playable clip.
+Prepared jobs are not polled as submitted; uncertain submissions are query-only.
+Successful page results remain saved when other pages fail. Planned video uses a quoted five-second supplier task; an unknown submit receipt stays query-only, and a ready MP4 is decoded, Host-archived and attached to its saved page before the turn can complete.
+
+| Capability | Current automatic scene/saved workflow | Remaining boundary |
+| --- | --- | --- |
+| Plan and detailed narration | Approved outline; saved evidence, whole-course arc and per-page generation | Preserve full teaching design; initial plan text alone is insufficient |
+| Visual masters | Role catalog, submit, original status, verified archive, preview | First-page style decision required |
+| Layer decomposition | Selected master; clean base and foregrounds; automatic selection | Real supplier quality acceptance remains separate |
+| Editable PPTX | Validated native objects and saved outline narration | Intermediate, not complete MAIC playback |
+| TTS | Saved speech IDs, original jobs, byte/decode verification and automatic adoption | Normalization splits to the 4000-unit transport limit; live provider and final playback acceptance remain |
+| Music | Saved-page generation, export, verification and playable clip adoption | Lesson song-slot planning/placement parity remains |
+| Highlight and spotlight | Mapped narration intent resolved against decoded speech duration | Final executable snapshot/player verification remains |
+| Animation and interaction | Mapped finite fadeIn/pulse plus saved teacher-led questions, reference answers and teacher-controlled checkpoints | Automated answer recognition/grading is not claimed |
+| Video and sound | Saved five-second video slots, quoted async supplier tasks, owner-bound Host receipts and verified MP4 archive | Live supplier and packaged playback acceptance remain |
+
+Desktop modes are ordinary generation, scene generation and PPT import. They
+share one PPTX editor and baseline teaching features. Scene mode supports both
+kindergarten and primary; stage influences pedagogy, never basic capability.
+Video and music are driven by actual lesson requirements. Do not infer that only primary needs interaction or that video replaces
+object animation. See [the inspected MAIC workflows](../../validation/courseware/maic-stage-workflows-20261027.md)
+and [the saved-media decision](../../adr/courseware-saved-media-continuation.md).
+No full-parity claim follows from transport or TTS/music tests alone.
+
+## Scene teaching readiness (2026-10-27)
+
+Teaching-plan approval remains a human decision, followed by first-page visual
+style selection. Later generated masters, decomposition, detailed narration,
+TTS and generated teaching results need no per-page approval. Status reads do
+not start generation. Source, account, lock and Stop fences remain enforced.
+
+Narration uses current mapped scene roles/names/aliases together with actual
+page evidence. The shared attention intent accepts optional `animation:fadeIn`
+or `pulse`. TTS adoption resolves finite motion and focus using decoded duration,
+with entrance before focus. The editor supports the fixed player's bounded
+fadeIn/fadeOut/pulse cues, at most five seconds and one animation per page object.
+Source association preserves the explicit logical object references.
+
+Host marks a generated scene page ready atomically after media adoption only if
+all generated speeches have adopted audio, no unresolved attention remains, and
+strict page actions, mapped targets and durable TTS/music/video receipts validate,
+with no unresolved video slot.
+Incomplete, imported and locked pages are not automatically confirmed. Saved
+context exposes actions and `teachingReady`; audio readiness alone does not end
+an authorized complete baseline teaching workflow.
+
+A lost submission response with a transport failure queries the retained intent;
+it does not purchase another task. Other errors are surfaced. The current
+transport's 4000 UTF-16-unit speech limit is applied during normalization without
+text loss or invalid surrogate splitting; pauses stay on the final segment.
+
+Editing returns PPTX plus unified teaching data, with no snapshot or PPTist build
+triggered at generation completion. Publication alone freezes source/teaching
+versions and builds the teaching package. The snapshot adapter strips recognized
+speech provenance for strict player validation; unknown fields remain invalid.
+Finite teaching cues do not claim native PowerPoint timing authoring or full
+MAIC assessment/video/motion parity.
+
 ## llm-ha scene images and Seedream decomposition (2026-10-26)
 
-Desktop connects directly to llm-ha for image catalogs, quotes, confirmed
+Desktop connects directly to llm-ha for image catalogs, internal quotes, confirmed
 submission, status and original assets. Platform authenticates users and provides
 billing quotes, reservations and settlement; supplier inputs and image task data
 stay in llm-ha. Provider keys and actual models are configured there. Main uses
@@ -23,13 +189,17 @@ cleanPlate and deterministic derived layer intents in the existing private scene
 journal. Children share the original submitted task/key/hash and cannot begin
 another generation. Archive replay verifies existing entries without duplication;
 changed assets/targets reject. Journal metadata saves only after all inputs pass.
-Every image still needs explicit preview/selection.
+The first page visual master requires human style selection. After that approval,
+Chat selects verified later masters and complete decomposition groups automatically.
 
 Assets optionally carry `normalizedBoundingBox:[left,top,right,bottom]` (0–1000)
 and `sourceZIndex`. Compilation preserves these with the base's aspect-fit scale
 and offset, clearing guessed image rotation/cropping. Legacy images retain their
-existing behavior. Gateway bundle JSON ≤16 MiB; 2–17 PNGs; each ≤8 MiB and
-4096×4096. Existing scene archive/compile/journal budgets still apply.
+existing behavior. Gateway receipt JSON contains supplier URLs; Desktop downloads
+2–17 images, each ≤8 MiB and 4096×4096. One native group may total 44 MiB
+of original bytes (Base64 JSON ≤60 MiB), remaining below the existing 64 MiB
+Host RPC frame. Downloads and safety checks share Electron defaultSession DNS
+and proxy routing. Existing whole-course compiler/journal budgets still apply.
 
 Omitting the model in Chat preparation uses the first server catalog model for
 the role; explicit unavailable IDs reject before Host preparation. cleanPlate
@@ -38,8 +208,11 @@ errors remain visible. Before quoting a current `prepared` request whose model
 has disappeared from the matching catalog, Main selects the first compatible
 model of the same image kind. Host atomically verifies its expected request hash,
 retains prompt/reference/target/intent identity and issues a new request hash/key.
-The actual replacement model and price appear in the confirmation. No generation
-occurs until that new quote is explicitly confirmed. Begun, uncertain, submitted,
+Main obtains a fresh server quote after replacement and submits automatically.
+Chat preparation and the image panel's Generate action use the same coordinator;
+no payment prompt or fee confirmation is shown. Quote proofs remain in Main and
+the durable begin checkpoint still precedes dispatch. Old prepared attempts can
+use Generate in the existing Chat. Begun, uncertain, submitted,
 archived and selected requests retain their original model/key. New `gw-`
 receipts persist in llm-ha SQLite. Old non-gateway receipts have read-only
 Platform recovery; only an explicit gateway task-not-found permits old by-key GET.
@@ -543,8 +716,11 @@ Selection CAS is now scoped to plan/page/target, including a layer's exact name.
 A page can retain its reference, background and multiple named layers together;
 replacing one layer preserves the other choices. The UI invalidates its quote
 when page/model/purpose/name/requirements change. Archived layers must be PNGs
-with both actual transparent and visible pixels after native decoding. Opaque
-or completely invisible results cannot be archived or selected as layers;
+with both actual transparent and visible pixels after native decoding. A native
+Seedream crop pinned by sourceZIndex and normalizedBoundingBox may be fully
+opaque (for example a rectangular text card); it still needs visible pixels and
+retains its original PNG bytes. Independently generated opaque layers and
+completely invisible results cannot be archived or selected as layers;
 there is no automatic background removal or paid retry. Host additionally
 rejects non-PNG layer metadata before storage.
 

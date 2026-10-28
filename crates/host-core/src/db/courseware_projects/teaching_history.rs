@@ -14,6 +14,13 @@ fn projection(page: &CoursewarePage) -> Option<(Vec<Value>, usize, usize)> {
     for action in &page.actions {
         match action["type"].as_str()? {
             "audio_clip" => audio += 1,
+            "video_slot" if video::valid_slot(action) => {
+                actions.push(json!({"id":uuid::Uuid::new_v4().to_string(), "type":"video_slot", "prompt":action["prompt"]}));
+            }
+            "video_clip" if video::valid_clip(action) => {
+                // Archived video remains historical until its saved source can be rebound.
+                return None;
+            }
             "speech" => {
                 let text = action["text"].as_str()?;
                 if text.encode_utf16().count() > 32000 {
@@ -55,12 +62,17 @@ fn projection(page: &CoursewarePage) -> Option<(Vec<Value>, usize, usize)> {
                 }
                 actions.push(projected);
             }
-            "interaction_checkpoint" if action["checkpointKind"] == "teacher_continue" => {
-                if !valid_id(action["checkpointId"].as_str()?) {
+            "interaction_checkpoint" if valid_teaching_checkpoint(action) => {
+                // A recovered question must be local to the deleted page, not stale cross-page context.
+                if action["checkpointKind"] == "chapter_summary"
+                    && action["context"]["sourceSceneIds"] != json!([page.page_id])
+                {
                     return None;
                 }
-                actions.push(json!({"id":uuid::Uuid::new_v4().to_string(), "type":"interaction_checkpoint",
-                    "checkpointId":uuid::Uuid::new_v4().to_string(), "checkpointKind":"teacher_continue"}));
+                let mut projected = action.clone();
+                projected["id"] = json!(uuid::Uuid::new_v4().to_string());
+                projected["checkpointId"] = json!(uuid::Uuid::new_v4().to_string());
+                actions.push(projected);
             }
             _ => return None,
         }

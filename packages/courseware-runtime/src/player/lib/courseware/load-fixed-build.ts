@@ -57,6 +57,7 @@ const visualCueSchema = z
       (cue.effect.type !== "element_animation" || cue.endMs - cue.atMs <= 5000),
   );
 const actionSchema = z.union([
+  z.object({ id, type: z.literal("video_clip"), videoAssetId: id }).strict(),
   z.object({ id, type: z.literal("audio_clip"), audioAssetId: id }).strict(),
   z
     .object({
@@ -385,6 +386,11 @@ export async function loadFixedBuild(
         nativeAnimations.set(page.pageId, page.nativeAnimations);
       }
       const actions: Action[] = page.actions.map((action) => {
+        if (action.type === "video_clip") {
+          const videoUrl = urls.get(action.videoAssetId);
+          check(videoUrl && payload.assets.some(asset => asset.id === action.videoAssetId && asset.mimeType === "video/mp4"), "VIDEO_ASSET_MISSING");
+          return { ...action, videoUrl };
+        }
         if (action.type === "audio_clip") {
           const audioUrl = urls.get(action.audioAssetId);
           check(audioUrl && payload.assets.some(asset => asset.id === action.audioAssetId && asset.mimeType.startsWith("audio/")), "AUDIO_ASSET_MISSING");

@@ -18,6 +18,7 @@ struct InputAsset {
     path: Option<String>,
     tts: Option<TtsAsset>,
     music: Option<TtsAsset>,
+    video: Option<TtsAsset>,
 }
 
 #[derive(Deserialize)]
@@ -97,12 +98,14 @@ pub(super) async fn handle(
                     asset.path.is_some(),
                     asset.tts.is_some(),
                     asset.music.is_some(),
+                    asset.video.is_some(),
                 ]
                 .into_iter()
                 .filter(|present| *present)
                 .count()
                     != 1
                 || asset.asset.id.starts_with("music-") && asset.music.is_none()
+                || asset.asset.id.starts_with("video-") && asset.video.is_none()
         })
     {
         return Err(rpc_err(
@@ -215,6 +218,54 @@ pub(super) async fn handle(
                 ));
             }
             total += size;
+        }
+        if let Some(video) = &input.video {
+            let project = state
+                .db
+                .get_courseware_project(&root, &seed.project_id)
+                .map_err(error)?
+                .ok_or_else(|| rpc_err(1002, "Missing project", "COURSEWARE_NOT_FOUND"))?;
+            let intent = state
+                .db
+                .get_courseware_video(
+                    &root,
+                    &seed.project_id,
+                    &video.principal_key,
+                    &video.intent_id,
+                )
+                .map_err(error)?;
+            let asset = intent
+                .asset
+                .as_ref()
+                .ok_or_else(|| rpc_err(1002, "Missing video archive", "COURSEWARE_CONFLICT"))?;
+            let scope = intent
+                .submission_scope
+                .as_ref()
+                .ok_or_else(|| rpc_err(1002, "Missing video scope", "COURSEWARE_CONFLICT"))?;
+            if intent.phase != "adopted"
+                || !intent.matches(&project)
+                || scope.session_id != p.session_id
+                || project.source.sha256 != seed.sha256
+                || input.asset.id != asset.asset().id
+                || input.asset.sha256 != asset.sha256
+                || input.asset.mime_type != "video/mp4"
+            {
+                return Err(rpc_err(
+                    1002,
+                    "Video is not attached to current teaching",
+                    "COURSEWARE_CONFLICT",
+                ));
+            }
+            let (_, length) =
+                snapshot_assets::verify(&state.data_dir, &asset.sha256).map_err(error)?;
+            if length != asset.byte_length {
+                return Err(rpc_err(
+                    1002,
+                    "Wrong video archive length",
+                    "COURSEWARE_CONFLICT",
+                ));
+            }
+            total += length;
         }
         if total > snapshot_assets::MAX_TOTAL_BYTES {
             return Err(rpc_err(

@@ -5,6 +5,7 @@ export type WorkPanelTabKind =
   | "review"
   | "team"
   | "media-canvas"
+  | "scene-images"
   | "ppt"
   | "svg-editor"
   | "editor"
@@ -166,7 +167,7 @@ export function parsePluginViewRef(
 export function isKnownWorkPanelTab(tab: WorkPanelTab): boolean {
   return (
     Boolean(tab) &&
-    (tab.kind === "new" || tab.kind === "review" || tab.kind === "team" || tab.kind === "media-canvas" || tab.kind === "ppt" || tab.kind === "svg-editor" || tab.kind === "editor" ||
+    (tab.kind === "new" || tab.kind === "review" || tab.kind === "team" || tab.kind === "media-canvas" || tab.kind === "ppt" || tab.kind === "scene-images" || tab.kind === "svg-editor" || tab.kind === "editor" ||
       tab.kind === "file" || tab.kind === "plugin")
   );
 }

@@ -1,8 +1,9 @@
-import { mediaQuote, mediaTask as task, taskRef, type MediaQuote, type MediaTasks } from "./courseware-media-contracts";
+import { imageRequest, mediaQuote, mediaTask as task, taskRef, type MediaQuote, type MediaTasks } from "./courseware-media-contracts";
 import { CoursewareMediaTransport, mediaEnvelope as envelope, mediaSubmissionPath as submissionPath, type CoursewareMediaOptions } from "./courseware-media-transport";
 import { createHash } from "node:crypto";
 import { CoursewareLocalMedia } from "./courseware-local-media";
 import { CoursewareMusicMediaClient } from "./courseware-music-media";
+import { CoursewareVideoMediaClient } from "./courseware-video-media";
 import { COURSEWARE_MAX_MEDIA_ASSET_BYTES, isCoursewareTeamAssetRef, isCoursewareTeamMember, isCoursewareTeamProject, type CoursewareTaskRef, type CoursewareTeamAssetRef, type CoursewareTeamMember, type CoursewareTeamProject } from "@pi-desktop/shared";
 
 export type CoursewareTtsRequest = { kind: "tts"; model: string; input: string; voice?: string | null };
@@ -83,26 +84,6 @@ function request(input: unknown): CoursewareTtsRequest {
   return { kind: "tts", model: input.model, input: input.input, ...(input.voice !== undefined ? { voice: input.voice as string | null } : {}) };
 }
 
-function imageRequest(input: unknown): CoursewareImageRequest {
-  if (!exact(input, ["kind", "model", "input"], ["referenceImage"]) || !["image", "image-layers"].includes(String(input.kind)) || !id(input.model) ||
-      typeof input.input !== "string" || !input.input.trim() || input.input.length > 4000 ||
-      Buffer.from(input.input, "utf8").toString("utf8") !== input.input) throw new Error("COURSEWARE_MEDIA_INVALID_REQUEST");
-  const ref = input.referenceImage;
-  if (ref !== undefined) {
-    if (!exact(ref, ["sha256", "mimeType", "byteLength", "bytesBase64"]) || typeof ref.sha256 !== "string" ||
-        !/^[a-f0-9]{64}$/u.test(ref.sha256) || !["image/png", "image/jpeg"].includes(String(ref.mimeType)) ||
-        !integer(ref.byteLength, 8 * 1024 * 1024) || ref.byteLength < 1 || typeof ref.bytesBase64 !== "string" ||
-        ref.bytesBase64.length > Math.ceil(8 * 1024 * 1024 / 3) * 4) throw new Error("COURSEWARE_MEDIA_INVALID_REQUEST");
-    const bytes = Buffer.from(ref.bytesBase64, "base64");
-    if (bytes.toString("base64") !== ref.bytesBase64 || bytes.length !== ref.byteLength ||
-        createHash("sha256").update(bytes).digest("hex") !== ref.sha256 ||
-        (ref.mimeType === "image/png" ? !bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) :
-          !(bytes.subarray(0, 3).equals(Buffer.from([255, 216, 255])) && bytes.subarray(-2).equals(Buffer.from([255, 217])))))
-      throw new Error("COURSEWARE_MEDIA_INVALID_REQUEST");
-  }
-  if (input.kind === "image-layers" && ref === undefined) throw new Error("COURSEWARE_MEDIA_REFERENCE_REQUIRED");
-  return { kind: input.kind as CoursewareImageRequest["kind"], model: input.model, input: input.input, ...(ref === undefined ? {} : { referenceImage: { ...ref } as CoursewareImageReference }) };
-}
 
 function requestHash(input: CoursewareTtsRequest | CoursewareImageRequest): string {
   const fields = [input.kind, input.model, input.input, input.kind === "tts" ? input.voice ?? null : null];
@@ -115,9 +96,10 @@ function requestHash(input: CoursewareTtsRequest | CoursewareImageRequest): stri
 export class CoursewareMediaClient extends CoursewareMediaTransport {
   private readonly local: CoursewareLocalMedia | null;
   readonly music: CoursewareMusicMediaClient;
+  readonly video: CoursewareVideoMediaClient;
   private readonly teamPlaybackOwners = new WeakMap<object, object>();
   private readonly teamPlaybackRefreshes = new WeakMap<object, CoursewareTeamFixedPlayback>();
-  constructor(options: CoursewareMediaOptions) { super(options); this.local = options.relayJournal ? new CoursewareLocalMedia(options) : null; this.music = new CoursewareMusicMediaClient(options); }
+  constructor(options: CoursewareMediaOptions) { super(options); this.local = options.relayJournal ? new CoursewareLocalMedia(options) : null; this.music = new CoursewareMusicMediaClient(options); this.video = new CoursewareVideoMediaClient(options); }
 
   /** Read-only offer; callers still need server-verified price binding before enabling submission. */
   async getTtsQuote(model: string, signal?: AbortSignal): Promise<CoursewareTtsQuote> {

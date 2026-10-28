@@ -9,11 +9,11 @@ import * as shared from "@pi-desktop/shared";
 const require = createRequire(import.meta.url);
 const fixtureProject = JSON.parse(await readFile(new URL("../../../packages/shared/src/courseware-contract.fixtures/accepted.json", import.meta.url), "utf8")).project;
 
-async function fixture({ failPage, saveFailPage, sourceChange = false, pageCount = 3, cancelAfterSave = false, lostSaveReply = false } = {}) {
+async function fixture({ scene = false, failPage, saveFailPage, sourceChange = false, pageCount = 3, cancelAfterSave = false, lostSaveReply = false, inheritedModel = false } = {}) {
   const source = await readFile(new URL("../electron/main/courseware-saved-narration.ts", import.meta.url), "utf8");
   const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
   const project = structuredClone(fixtureProject);
-  project.taskType = "import";
+  project.taskType = scene ? "scene" : "import";
   project.projectId = "office-doc";
   project.source.sha256 = "a".repeat(64);
   project.pages = Array.from({ length: pageCount }, (_, i) => i + 1).map(n => ({ ...structuredClone(project.pages[0]), pageId: `page-${n}`, actions: [], locked: n === 3 }));
@@ -21,7 +21,8 @@ async function fixture({ failPage, saveFailPage, sourceChange = false, pageCount
   let active = true, changed = false;
   const host = { async call(method, args) {
     calls.push([method, args]);
-    if (method === "session.get") return { session: { projectPath: "/workspace", mode: "agent", providerId: "test", modelId: "model" } };
+    if (method === "session.get") return { session: { projectPath: "/workspace", mode: "agent", ...(inheritedModel ? {} : { providerId: "test", modelId: "model" }) } };
+    if (method === "courseware.scenePlan.get") return { approval: { plan: { title: "Approved teaching", pages: Array.from({length: pageCount}, (_, i) => ({title:`Approved ${i+1}`, visibleText:["Square"], visualIntent:"A five-second silent turning square video", narration:"Look at the square"})) } } };
     if (method === "courseware.task.get") return { task: { taskType: "import", importPath: "/workspace/lesson.pptx" } };
     if (method === "courseware.parseStart") return { jobId: "parser" };
     if (method === "courseware.parseStatus") return { status: "SUCCEEDED", summary: { sourceSha256: project.source.sha256 } };
@@ -64,14 +65,22 @@ async function fixture({ failPage, saveFailPage, sourceChange = false, pageCount
   load(compiled, exports);
   const coordinator = new exports.CoursewareSavedNarration(() => host, () => "chat", async input => {
     const data = JSON.parse(input.messages[0].content);
+    if (scene) assert.equal((data.approvedPlan ?? data.coursePlan?.approvedPlan)?.pages[0].visualIntent, "A five-second silent turning square video");
     if (data.outline) return { text: JSON.stringify({ goal: "Understand shadows", pages: data.outline.filter(p => !p.unavailable).map(p => ({ pageNumber: p.pageNumber, purpose: "Explain", bridge: "Continue", focus: "Shadow" })) }) };
     if (data.pageText === `Page ${failPage}`) throw new Error("Model failed");
     if (sourceChange) changed = true;
     return { text: JSON.stringify({ blocks: [{ type: "speech", text: `Narration ${data.pageText}` }] }) };
-  });
+  }, inheritedModel ? async () => ({ modelKey: "test/model", thinkingLevel: "off" }) : undefined);
   return { coordinator, project, calls, saved, stop: () => { active = false; },
     execute: (name, args = {}) => coordinator.execute("chat", name, args, () => active) };
 }
+
+test("saved narration inherits the current resolved Chat model", async () => {
+  const f = await fixture({ inheritedModel: true });
+  const result = await f.execute("courseware_narration_propose", { pageNumbers: [1], sourceSha256: f.project.source.sha256, instruction: "Explain the saved page" });
+  assert.equal(result.saved, true);
+  assert.equal(result.savedPages.length, 1);
+});
 
 test("reads saved deck and generates all selected pages without an editor or page navigation", async () => {
   const f = await fixture();
@@ -80,11 +89,17 @@ test("reads saved deck and generates all selected pages without an editor or pag
   assert.equal(outline.projectId, f.project.projectId);
   assert.equal(outline.teachingRevision, f.project.teachingRevision);
   assert.equal(outline.pages[2].locked, true);
+  assert.equal(outline.narrationReady, false);
+  assert.equal(outline.audioReady, false);
   const result = await f.execute("courseware_narration_propose", { pageNumbers: [1, 2], sourceSha256: outline.sourceSha256, instruction: "Explain to first graders" });
   assert.equal(result.savedPages.length, 2);
   assert.deepEqual(result.savedPages.map(c => c.pageNumber), [1, 2]);
   assert.equal(f.saved.length, 2);
   assert.equal(result.saved, true);
+  const after = await f.execute("courseware_narration_context");
+  assert.equal(after.pages[0].narrationReady, true);
+  assert.equal(after.pages[0].speeches[0].text, "Narration Page 1");
+  assert.equal(after.pages[0].speeches[0].audioReady, false);
   assert(!f.calls.some(([name]) => name.includes("Candidate")));
   assert(!f.calls.some(([name]) => /editor|selection/i.test(name)));
   assert.deepEqual(f.project.pages.map(p => p.actions.some(a => a.type === "speech")), [true, true, false]);
@@ -155,4 +170,14 @@ test("a lost save reply never triggers automatic replay or a false success recei
   assert.equal(result.failures.length, 2);
   assert(result.failures.some(p => p.error.includes("read saved teaching")));
   assert.equal(f.project.pages.filter(p => p.actions.length).length, 1);
+});
+
+
+test("approved scene requirements reach saved media context and every detailed narration generation", async () => {
+  const f = await fixture({ scene: true, pageCount: 1 });
+  const context = await f.execute("courseware_narration_context");
+  assert.equal(context.approvedPlan.title, "Approved teaching");
+  const result = await f.execute("courseware_narration_propose", { pageNumbers: [1], sourceSha256: "a".repeat(64), instruction: "Follow the approved teaching plan" });
+  assert.equal(result.saved, true);
+  assert.equal(f.saved.length, 1);
 });

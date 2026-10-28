@@ -541,3 +541,14 @@ it("binds limited player animations and rejects unsupported/conflicting targets 
   value.pages[0].actions[0].visualCues[0].effect.effect = "arbitrary-effect";
   await expect(load()).rejects.toThrow("PACKAGE_SCHEMA_INVALID");
 });
+
+it("loads verified MP4 clips and rejects a video referencing an audio asset", async () => {
+  const original = await payload();
+  const candidate = { ...original, pages: [{ ...original.pages[0], actions: [{ id: "video", type: "video_clip", videoAssetId: "voice" }] }],
+    assets: [{ ...original.assets[0], mimeType: "video/mp4", path: `assets/${await digestBytes(audio)}.mp4` }] };
+  const load = async () => { const bytes = encode(candidate); return loadFixedBuild(bytes, await digestBytes(bytes), async () => audio); };
+  const loaded = await load();
+  expect(loaded.scenes[0].actions?.[0]).toMatchObject({ type: "video_clip", videoUrl: expect.stringMatching(/^blob:/) });
+  loaded.dispose(); candidate.assets[0].mimeType = "audio/wav"; candidate.assets[0].path = `assets/${await digestBytes(audio)}.wav`;
+  await expect(load()).rejects.toThrow("VIDEO_ASSET_MISSING");
+});

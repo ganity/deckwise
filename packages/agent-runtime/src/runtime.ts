@@ -24,6 +24,7 @@ import { createAuthorizedPptEditorTools } from "./ppt-editor-host.js";
 import { createPptChangePlanTool } from "./ppt-change-plan.js";
 import { createAuthorizedMediaCanvasTools } from "./courseware-media-canvas-tools.js";
 import { createCoursewareWorkflowTools } from "./courseware-workflow-tools.js";
+import { CoursewareTurnContinuation } from "./courseware-turn-continuation.js";
 import type { PptEditorBinding } from "@pi-desktop/shared";
 import { mkdirSync } from "node:fs";
 import {
@@ -46,6 +47,7 @@ import {
 } from "@earendil-works/pi-agent-core";
 import {
   isContextOverflow,
+  getCurrentSystemMessage,
   getCurrentTools,
   getToolStateChanges,
   toToolDeclaration,
@@ -1949,6 +1951,7 @@ export class DesktopAgentRuntime {
   private suppressSilentTurnRunEnd = false;
   /** Autonomous plan/goal execution: one progress-only continue (#43). */
   private autonomousExecution = false;
+  private readonly coursewareTurn = new CoursewareTurnContinuation();
   private pendingProgressTurnRerun = false;
   private progressTurnRerunAttempted = false;
   private progressTurnRerunInProgress = false;
@@ -2304,11 +2307,31 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       // pi-agent-core 0.87 replaces shouldStopAfterTurn with finishTurn. A
       // queued renderer prompt ends a completed turn at the next boundary,
       // without treating an error or abort as a graceful stop.
-      finishTurn: async ({ message }) => {
-        if (!this.gracefulStopRequested) return;
+      finishTurn: async (turn, signal) => {
+        const { message } = turn;
         if (message.stopReason === "error" || message.stopReason === "aborted") return;
-        this.gracefulStopRequested = false;
-        return { action: "end" };
+        if (!this.gracefulStopRequested) {
+          const canWait = () => this.mode === "agent" && !this.disposed && !this.runCancelled && !this.turnHadError &&
+            !this.gracefulStopRequested && this.pendingSteering.size === 0;
+          const instruction = await this.coursewareTurn.finish(turn, {
+            canWait,
+            execute: async (name, args, signal) => {
+              const tool = this.toolCatalog.get(name);
+              if (!tool) throw new Error("Courseware workflow tool is unavailable");
+              this.setAgentActivity({ phase: "preparing", since: Date.now() });
+              return tool.execute(randomUUID(), args, signal);
+            },
+          }, signal);
+          if (!canWait()) this.coursewareTurn.reset();
+          if (instruction && canWait()) {
+            this.agent.steer({ role: "system", content: "", sections: { courseware_workflow: instruction }, timestamp: Date.now() });
+            return { action: "continue" };
+          }
+        }
+        if (this.gracefulStopRequested) {
+          this.gracefulStopRequested = false;
+          return { action: "end" };
+        }
       },
     });
 
@@ -6399,6 +6422,10 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
    * following turn ends invisibly even though nothing went wrong in it.
    */
   private resetRunRecoveryState(): void {
+    this.coursewareTurn.reset();
+    if (getCurrentSystemMessage(this.agent.state.messages)?.sections?.courseware_workflow) {
+      this.agent.state.messages.push({ role: "system", content: "", sections: { courseware_workflow: null }, timestamp: Date.now() });
+    }
     this.pendingOverflow = false;
     this.overflowRecoveryAttempted = false;
     this.overflowRecoveryInProgress = false;

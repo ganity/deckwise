@@ -32,3 +32,16 @@ Team permissions remain checked for submissions and downloads. Existing Host ass
 archive, reference review and compiler boundaries remain authoritative.
 
 See [the media contract](../spec/03-runtime/27-courseware-authorized-media.md).
+
+## Layer delivery amendment (2026-10-27)
+
+For Seedream decomposition, llm-ha archives the supplier JSON receipt with URLs and metadata, rather than fetching image bytes. Desktop downloads the public HTTPS layers without credentials, validates them and stores the existing Host-owned private assets. This avoids coupling supplier CDN origins to the gateway API origin. URL expiry can prevent delayed downloads; delivery errors must not resubmit paid generation. Inline historical receipts remain compatible.
+
+## TTS and music routing correction (2026-10-28)
+
+Platform never forwards media generation to llm-ha. TTS and music retain their
+Desktop task API but Platform calls MAIC directly: the internal Doubao TTS route
+uses MAIC's native speech adapter, and the mxapi music route uses its existing
+music adapter. The Platform llm-ha media proxy is removed. MAIC owns supplier
+credentials; Platform owns task admission, quotes and charging. Images and layer
+decomposition continue to go directly from Desktop to the gateway as above.

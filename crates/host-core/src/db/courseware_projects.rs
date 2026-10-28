@@ -17,6 +17,7 @@ pub mod snapshots;
 pub mod source_candidates;
 mod teaching_history;
 pub mod tts;
+pub mod video;
 
 fn present_option<'de, D, T>(deserializer: D) -> std::result::Result<Option<T>, D::Error>
 where
@@ -83,6 +84,12 @@ pub struct CoursewareEducationContext {
         skip_serializing_if = "Option::is_none",
         deserialize_with = "present_option"
     )]
+    pub visual_style: Option<String>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_option"
+    )]
     pub full_english_teaching: Option<bool>,
 }
 
@@ -142,6 +149,70 @@ pub(super) fn valid_online_clip(action: &Value) -> bool {
 
 mod attention;
 
+pub(crate) fn valid_teaching_checkpoint(action: &Value) -> bool {
+    let id = |value: &Value| {
+        value
+            .as_str()
+            .is_some_and(|id| valid_id(id) && !matches!(id, "." | ".."))
+    };
+    let fields = |value: &Value, keys: &[&str]| {
+        value.as_object().is_some_and(|object| {
+            object.len() == keys.len() && keys.iter().all(|key| object.contains_key(*key))
+        })
+    };
+    let text = |value: &Value, max: usize| {
+        value
+            .as_str()
+            .is_some_and(|text| !text.trim().is_empty() && text.encode_utf16().count() <= max)
+    };
+    if action["type"] != "interaction_checkpoint"
+        || !id(&action["id"])
+        || !id(&action["checkpointId"])
+    {
+        return false;
+    }
+    if action["checkpointKind"] == "teacher_continue" {
+        return fields(action, &["id", "type", "checkpointId", "checkpointKind"]);
+    }
+    let answer = &action["referenceAnswer"];
+    let context = &action["context"];
+    action["checkpointKind"] == "chapter_summary"
+        && fields(
+            action,
+            &[
+                "id",
+                "type",
+                "checkpointId",
+                "checkpointKind",
+                "chapterId",
+                "chapterTitle",
+                "question",
+                "referenceAnswer",
+                "context",
+            ],
+        )
+        && id(&action["chapterId"])
+        && text(&action["chapterTitle"], 1000)
+        && text(&action["question"], 4000)
+        && fields(answer, &["summary", "keyPoints"])
+        && text(&answer["summary"], 4000)
+        && answer["keyPoints"].as_array().is_some_and(|points| {
+            !points.is_empty() && points.len() <= 8 && points.iter().all(|point| text(point, 1000))
+        })
+        && fields(context, &["chapterSummary", "sourceSceneIds"])
+        && text(&context["chapterSummary"], 4000)
+        && context["sourceSceneIds"].as_array().is_some_and(|ids| {
+            let mut seen = std::collections::HashSet::new();
+            !ids.is_empty()
+                && ids.len() <= 100
+                && ids.iter().all(|id| {
+                    id.as_str().is_some_and(|id| {
+                        valid_id(id) && !matches!(id, "." | "..") && seen.insert(id)
+                    })
+                })
+        })
+}
+
 fn validate_actions(actions: &[Value]) -> Result<()> {
     validate_actions_mode(actions, false)
 }
@@ -155,9 +226,15 @@ fn validate_actions_mode(actions: &[Value], online: bool) -> Result<()> {
             !valid_id(id)
                 || !valid_id(kind)
                 || !ids.insert(id)
-                || action.get("attention").is_some_and(|intent| kind != "speech" || attention::targets(intent).is_err() || action.get("visualCues").is_some())
+                || action.get("attention").is_some_and(|intent| {
+                    kind != "speech"
+                        || attention::targets(intent).is_err()
+                        || action.get("visualCues").is_some()
+                })
                 || kind == "audio_clip"
                     && !(music::valid_clip(action) || online && valid_online_clip(action))
+                || kind == "video_slot" && !video::valid_slot(action)
+                || kind == "video_clip" && !video::valid_clip(action)
         })
     {
         return Err(anyhow!("COURSEWARE_INVALID: invalid action envelope"));
@@ -199,6 +276,7 @@ impl CoursewareProject {
                 &context.textbook_version,
                 &context.chapter,
                 &context.lesson_type,
+                &context.visual_style,
             ]
             .iter()
             .any(|text| {

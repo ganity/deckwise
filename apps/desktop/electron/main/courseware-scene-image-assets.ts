@@ -2,9 +2,14 @@ import { createHash } from "node:crypto";
 import { constants } from "node:fs";
 import { open } from "node:fs/promises";
 import { basename, isAbsolute } from "node:path";
-import { nativeImage } from "electron";
+import { nativeImage, net, session } from "electron";
+import { createPublicHttpsClient } from "./public-https-fetch";
 import type { CoursewareSceneImageAsset, CoursewareSceneImageTarget, CoursewareTaskRef } from "@pi-desktop/shared";
 import { captureCoursewareSceneImages } from "./courseware-scene-context";
+
+// Keep Base64 plus metadata below the existing 64 MiB Host RPC frame.
+const MAX_LAYER_BYTES = 44 * 1024 * 1024;
+const MAX_LAYER_JSON_BYTES = 60 * 1024 * 1024;
 
 const invalid = () => new Error("COURSEWARE_SCENE_IMAGE_INVALID_ASSET");
 
@@ -69,18 +74,72 @@ export function isSceneImageAsset(value: unknown): value is CoursewareSceneImage
       v.normalizedBoundingBox[0] < v.normalizedBoundingBox[2] && v.normalizedBoundingBox[1] < v.normalizedBoundingBox[3]));
 }
 
+/** Download supplier layers in Desktop without forwarding platform/provider credentials. */
+export async function downloadSceneImageBundle(bytes: Buffer, taskRef: CoursewareTaskRef) {
+  if (bytes.length < 1 || bytes.length > MAX_LAYER_JSON_BYTES) throw invalid();
+  const value = JSON.parse(bytes.toString("utf8"));
+  if (!Array.isArray(value?.data) || value.data.length < 2 || value.data.length > 32) throw invalid();
+  const client = createPublicHttpsClient({
+    fetchImpl: (url, init) => net.fetch(url, init),
+    lookupImpl: async host => (await session.defaultSession.resolveHost(host)).endpoints,
+    routeImpl: url => session.defaultSession.resolveProxy(url),
+  });
+  let total = 0;
+  for (const item of value.data) {
+    if (typeof item?.url !== "string") continue; // Preserve legacy inline receipts.
+    if (item.b64_json !== undefined) throw invalid();
+    await client.assertPublicUrl(item.url);
+    const response = await net.fetch(item.url, { method: "GET", credentials: "omit", redirect: "error",
+      cache: "no-store", signal: AbortSignal.timeout(60_000) });
+    const reader = response.body?.getReader();
+    try {
+      if (!response.ok || !reader || !["image/png", "image/jpeg"].includes(response.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase() ?? "")) throw invalid();
+      const chunks: Buffer[] = [];
+      let size = 0;
+      while (true) {
+        const next = await reader.read();
+        if (next.done) break;
+        size += next.value.byteLength;
+        total += next.value.byteLength;
+        if (size > 8 * 1024 * 1024 || total > MAX_LAYER_BYTES) throw new Error("COURSEWARE_SCENE_IMAGE_LAYER_BUNDLE_TOO_LARGE");
+        chunks.push(Buffer.from(next.value));
+      }
+      item.b64_json = Buffer.concat(chunks, size).toString("base64");
+      delete item.url;
+    } finally {
+      if (reader) {
+        try { await reader.cancel(); } catch { /* Preserve the download failure. */ }
+        reader.releaseLock();
+      }
+    }
+  }
+  return decodeSceneImageBundle(Buffer.from(JSON.stringify(value)), taskRef);
+}
+
 /** One authenticated decomposition receipt becomes private, separately reviewable scene assets. */
 export function decodeSceneImageBundle(bytes: Buffer, taskRef: CoursewareTaskRef) {
-  if (bytes.length < 1 || bytes.length > 16 * 1024 * 1024) throw invalid();
+  if (bytes.length < 1 || bytes.length > MAX_LAYER_JSON_BYTES) throw invalid();
   const value = JSON.parse(bytes.toString("utf8"));
   if (!Array.isArray(value?.data) || value.data.length < 2 || value.data.length > 32) throw invalid();
   const indexes = new Set<number>();
+  let total = 0;
   const images = value.data.map((item: Record<string, unknown>) => {
     if (!item || !Number.isSafeInteger(item.z_index) || Number(item.z_index) < 0 || indexes.has(Number(item.z_index)) ||
         Number(item.z_index) > 1_000_000 || typeof item.b64_json !== "string" || item.url !== undefined) throw invalid();
     indexes.add(Number(item.z_index));
-    const png = Buffer.from(item.b64_json, "base64");
+    let png: Buffer = Buffer.from(item.b64_json, "base64");
     if (png.length < 33 || png.length > 8 * 1024 * 1024 || png.toString("base64") !== item.b64_json) throw invalid();
+    total += png.length;
+    if (total > MAX_LAYER_BYTES) throw new Error("COURSEWARE_SCENE_IMAGE_LAYER_BUNDLE_TOO_LARGE");
+    // MAIC normalizes the base to PNG; native Seedream may return a JPEG base and PNG foregrounds.
+    if (item.z_index === 0 && png.subarray(0, 3).equals(Buffer.from([255, 216, 255]))) {
+      const [width, height] = jpegSize(png);
+      if (width < 1 || width > 4096 || height < 1 || height > 4096) throw invalid();
+      const image = nativeImage.createFromBuffer(png);
+      if (image.isEmpty() || image.getSize().width !== width || image.getSize().height !== height) throw invalid();
+      png = image.toPNG();
+      if (png.length < 33) throw invalid();
+    }
     const bounds = item.bounding_box && typeof item.bounding_box === "object" ? Reflect.get(item.bounding_box, "normalized") : undefined;
     const asset = { taskRef, mimeType: "image/png" as const, byteLength: png.length,
       sha256: createHash("sha256").update(png).digest("hex"), width: png.readUInt32BE(16), height: png.readUInt32BE(20),
@@ -123,7 +182,9 @@ export function verifySceneImageAsset(bytes: Buffer, asset: CoursewareSceneImage
       transparent ||= pixels[i] === 0;
       visible ||= pixels[i] > 0;
     }
-    if (!transparent || !visible) throw new Error("COURSEWARE_SCENE_IMAGE_LAYER_REQUIRES_TRANSPARENT_PNG");
+    // Native text carriers can fill their crop; preserve provider pixels at their pinned bounds.
+    const nativeCrop = asset.sourceZIndex !== undefined && asset.normalizedBoundingBox !== undefined;
+    if (!visible || !transparent && !nativeCrop) throw new Error("COURSEWARE_SCENE_IMAGE_LAYER_REQUIRES_TRANSPARENT_PNG");
   }
   return bytes;
 }
@@ -149,7 +210,7 @@ export async function readSceneImageAsset(path: unknown, asset: CoursewareSceneI
 /** Fit references/backgrounds without cropping or stretching; foreground PNGs stay independent. */
 export function sceneImageForCompiler(input: {
   intentId: string; target: CoursewareSceneImageTarget; asset: CoursewareSceneImageAsset; bytes: Buffer;
-}, canvas: { width: number; height: number }) {
+}, canvas: { width: number; height: number }, layerBounds?: { width: number; height: number }) {
   verifySceneImageAsset(input.bytes, input.asset, input.target);
   let bytes: Buffer = Buffer.from(input.bytes), width = input.asset.width, height = input.asset.height;
   if (input.target.kind !== "layer") {
@@ -162,6 +223,12 @@ export function sceneImageForCompiler(input: {
     for (let row = 0; row < fitHeight; row++) pixels.copy(fitted, ((row + y) * canvas.width + x) * 4, row * fitWidth * 4, (row + 1) * fitWidth * 4);
     bytes = nativeImage.createFromBitmap(fitted, { ...canvas, scaleFactor: 1 }).toPNG();
     width = canvas.width; height = canvas.height;
+  }
+  if (input.target.kind === "layer" && layerBounds && (width > layerBounds.width || height > layerBounds.height)) {
+    const scale = Math.min(1, layerBounds.width / width, layerBounds.height / height);
+    width = Math.max(1, Math.round(width * scale));
+    height = Math.max(1, Math.round(height * scale));
+    bytes = nativeImage.createFromBuffer(bytes).resize({ width, height, quality: "best" }).toPNG();
   }
   return { assetIds: [`scene-image-${input.intentId}`], bytes, width, height,
     sha256: createHash("sha256").update(bytes).digest("hex") };

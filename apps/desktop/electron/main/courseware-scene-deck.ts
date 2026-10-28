@@ -5,10 +5,10 @@ import type { SceneCoursePlanPage } from "./courseware-scene-plan";
 
 type Authoring = Pick<typeof import("@pi-desktop/courseware-runtime/authoring"), "editablePptxSceneSchema" | "compileScenesToPptx">;
 type Visuals = { pageId: string; visualMasterAssetId: string; cleanPlateAssetId: string; images: CoursewareSceneImage[];
-  foregroundPlacements?: { assetId: string; bboxPx: [number, number, number, number]; zIndex?: number }[] };
+  foregroundPlacements?: { assetId: string; bboxPx: [number, number, number, number]; zIndex?: number; semanticRole?: string }[] };
 const hash = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 
-/** Resolve every planned page to native editable objects before handing the deck to Host. */
+/** Preserve decomposed images as independently editable PPTX objects, including lettering. */
 export async function buildSceneCourseDeck(input: {
   sessionId: string;
   modelKey: string;
@@ -36,13 +36,25 @@ export async function buildSceneCourseDeck(input: {
     const generate = createCoursewareSceneGenerator({ sessionId: input.sessionId, modelKey: input.modelKey,
       thinkingLevel: input.thinkingLevel, visualMasterAssetId: visual.visualMasterAssetId,
       cleanPlateAssetId: visual.cleanPlateAssetId, images: visual.images }, complete);
-    const result = await generate({ pageId: page.pageId, sourceHash: page.sourceHash,
-      pageText: [page.title, ...page.visibleText].join("\n"),
-      instruction: `Build this page as independently editable layers. Visual intent: ${page.visualIntent}. Use only the supplied child-facing text; teacher narration is separate and must not appear on the slide.`,
+    const foregrounds = visual.images.filter(image => !image.assetIds.includes(visual.visualMasterAssetId) &&
+      !image.assetIds.includes(visual.cleanPlateAssetId));
+    const nativePlacements = visual.foregroundPlacements;
+    const completeNative = nativePlacements?.length === foregrounds.length && foregrounds.length > 0 &&
+      foregrounds.every(image => nativePlacements.some(placement => image.assetIds.includes(placement.assetId)));
+    const result = completeNative ? {
+      scene: { version: 1, slideId: page.pageId, sourceHash: page.sourceHash, canvas: input.canvas,
+        visualMasterAssetId: visual.visualMasterAssetId, cleanPlateAssetId: visual.cleanPlateAssetId,
+        elements: nativePlacements.map((placement, index) => ({ id: placement.assetId, type: "image_layer",
+          assetId: placement.assetId, bboxPx: placement.bboxPx, zIndex: placement.zIndex ?? index + 1,
+          layerRoute: "A1", semanticRole: placement.semanticRole || placement.assetId })) },
+      assets: Object.fromEntries(visual.images.flatMap(image => image.assetIds.map(id => [id, image.bytes]))),
+    } : await generate({ pageId: page.pageId, sourceHash: page.sourceHash,
+      pageText: page.visibleText.join("\n"),
+      instruction: `Build this page from the supplied image layers only. Page context (not extra display text): ${page.title}. Visual intent: ${page.visualIntent}. Treat the visual master as the design authority: preserve its composition and all lettering exactly as rendered in the decomposed image pixels. Use only image_layer elements, one per supplied foreground, including text carriers. Do not create native_text, shapes, connectors or replacement lettering. These approved child-facing strings are already in the images and are semantic context only: ${JSON.stringify(page.visibleText)}. Do not redesign, duplicate, omit or flatten the layers. Teacher narration is separate and must not appear on the slide.`,
       canvas: input.canvas, schema: authoring.editablePptxSceneSchema }, signal);
     const scene = authoring.editablePptxSceneSchema.parse(result.scene);
-    if (!scene.elements.some(element => element.type !== "image_layer"))
-      throw new Error(`Scene page needs independently editable native objects: ${page.pageId}`);
+    if (scene.elements.some(element => element.type !== "image_layer"))
+      throw new Error(`Scene pages use decomposed image layers only: ${page.pageId}`);
     const layers = visual.images.filter(image => !image.assetIds.includes(visual.visualMasterAssetId) &&
       !image.assetIds.includes(visual.cleanPlateAssetId));
     const placed = scene.elements.filter(element => element.type === "image_layer");
@@ -61,7 +73,7 @@ export async function buildSceneCourseDeck(input: {
       }
       delete element.crop;
     }
-    if (layers.some(image => !placed.some(element => image.assetIds.includes(element.assetId))) ||
+    if (!layers.length || placed.length !== layers.length || layers.some(image => !placed.some(element => image.assetIds.includes(element.assetId))) ||
         placed.some(element => !layers.some(image => image.assetIds.includes(element.assetId))))
       throw new Error(`Scene page must retain every reviewed foreground as a separate object: ${page.pageId}`);
     if (placed.some(element => !element.semanticRole))

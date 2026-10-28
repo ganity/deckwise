@@ -499,7 +499,7 @@ describe("DesktopAgentRuntime configuration matching", () => {
     expect(await agent.finishTurn({ message: { stopReason: "error" } })).toBeUndefined();
     expect(await agent.finishTurn({ message: { stopReason: "aborted" } })).toBeUndefined();
     expect(await agent.finishTurn({ message: { stopReason: "stop" } })).toEqual({ action: "end" });
-    expect(await agent.finishTurn({ message: { stopReason: "stop" } })).toBeUndefined();
+    expect(await agent.finishTurn({ message: { stopReason: "stop", content: [] }, toolResults: [] })).toBeUndefined();
 
     agent.state.isStreaming = false;
     expect(runtime.requestGracefulStop()).toEqual({ requested: false });

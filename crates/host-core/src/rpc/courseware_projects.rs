@@ -14,6 +14,7 @@ mod source_adoption;
 mod source_candidates;
 mod teaching_history;
 mod tts;
+mod video;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -255,6 +256,7 @@ pub(super) async fn handle(
                         &context.textbook_version,
                         &context.chapter,
                         &context.lesson_type,
+                        &context.visual_style,
                     ]
                     .iter()
                     .any(|value| {
@@ -359,6 +361,7 @@ pub(super) async fn handle(
                 &p.education_context.textbook_version,
                 &p.education_context.chapter,
                 &p.education_context.lesson_type,
+                &p.education_context.visual_style,
             ]
             .iter()
             .any(|value| {
@@ -569,7 +572,16 @@ pub(super) async fn handle(
         "courseware.assetLocks.context" | "courseware.assetLocks.set" => {
             asset_locks::handle(state, method, params).await
         }
-        "courseware.mediaRelay.read" | "courseware.mediaRelay.write" => media_relay::handle(state, method, params).await,
+        "courseware.video.prepare"
+        | "courseware.video.get"
+        | "courseware.video.list"
+        | "courseware.video.begin"
+        | "courseware.video.bind"
+        | "courseware.video.stage"
+        | "courseware.video.adopt" => video::handle(state, method, params).await,
+        "courseware.mediaRelay.read" | "courseware.mediaRelay.write" => {
+            media_relay::handle(state, method, params).await
+        }
         "courseware.tts.prepare"
         | "courseware.tts.get"
         | "courseware.tts.list"
@@ -606,7 +618,10 @@ pub(super) async fn handle(
             let p: PageTextParams = serde_json::from_value(params).map_err(invalid)?;
             let state = state.lock().await;
             let root = workspace(&state, &p.session_id)?;
-            state.courseware.narration_page_evidence(&p.job_id, Path::new(&root), p.page_number).map_err(error)
+            state
+                .courseware
+                .narration_page_evidence(&p.job_id, Path::new(&root), p.page_number)
+                .map_err(error)
         }
         "courseware.pageText" => {
             let p: PageTextParams = serde_json::from_value(params).map_err(invalid)?;

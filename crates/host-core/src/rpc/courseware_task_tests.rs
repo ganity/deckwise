@@ -27,7 +27,7 @@ async fn chat_requirements_update_is_revision_checked_and_preserves_task_identit
     .await
     .unwrap();
     let update = json!({"sessionId":session.id, "expectedEducationContext":{"subject":"english"},
-        "educationContext":{"subject":"english", "schoolStage":"kindergarten", "grade":"K2"}});
+        "educationContext":{"subject":"english", "schoolStage":"kindergarten", "grade":"K2", "visualStyle":"Matte clay 3D; no watercolor"}});
     let saved = handle_request(
         state.clone(),
         "courseware.task.updateEducation",
@@ -38,6 +38,10 @@ async fn chat_requirements_update_is_revision_checked_and_preserves_task_identit
     .unwrap();
     assert_eq!(saved["task"]["taskType"], "scene");
     assert_eq!(saved["task"]["educationContext"]["grade"], "K2");
+    assert_eq!(
+        saved["task"]["educationContext"]["visualStyle"],
+        "Matte clay 3D; no watercolor"
+    );
     assert!(handle_request(
         state.clone(),
         "courseware.task.updateEducation",
@@ -50,6 +54,9 @@ async fn chat_requirements_update_is_revision_checked_and_preserves_task_identit
         json!({"unknown":true}),
         json!({"grade":"x".repeat(501)}),
         json!({"grade":null}),
+        json!({"visualStyle":null}),
+        json!({"visualStyle":3}),
+        json!({"visualStyle":"🖌".repeat(251)}),
     ] {
         assert!(handle_request(state.clone(), "courseware.task.updateEducation", json!({
             "sessionId":session.id, "expectedEducationContext":saved["task"]["educationContext"], "educationContext":education
@@ -157,7 +164,7 @@ async fn courseware_task_selection_persists_and_is_session_scoped() {
             "courseware.task.set",
             json!({
                 "sessionId": session.id, "taskType": "scene",
-                "educationContext": { "schoolStage": "kindergarten", "subject": "English" },
+                "educationContext": { "schoolStage": "kindergarten", "subject": "English", "visualStyle":"Clean 2D cartoon" },
             }),
             tx.clone(),
         )
@@ -201,6 +208,10 @@ async fn courseware_task_selection_persists_and_is_session_scoped() {
     .unwrap();
     assert_eq!(restored["task"]["taskType"], "scene");
     assert_eq!(restored["task"]["educationContext"]["subject"], "English");
+    assert_eq!(
+        restored["task"]["educationContext"]["visualStyle"],
+        "Clean 2D cartoon"
+    );
 }
 
 #[tokio::test]

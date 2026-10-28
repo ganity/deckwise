@@ -5,6 +5,7 @@ export const COURSEWARE_WORKFLOW_TOOLS = [
   "courseware_workflow_get", "courseware_requirements_update", "courseware_scene_image_prepare",
   "courseware_scene_image_refresh", "courseware_scene_compile",
   "courseware_narration_context", "courseware_narration_propose",
+  "courseware_media_context", "courseware_media_prepare", "courseware_media_refresh",
 ] as const;
 
 export type CoursewareWorkflowView = {
@@ -44,7 +45,7 @@ export function sceneAssetBlockers(plan: CoursewareScenePlanSnapshot, images: re
       blockers.push({ pageId: page.pageId, kind: "distinctBackground" });
   }
   if (selected.some(row => !row.asset || !plan.pages.some(page => page.pageId === row.pageId)) ||
-      selected.reduce((sum, row) => sum + (row.asset?.byteLength ?? 0), 0) > 32 * 1024 * 1024)
+      selected.reduce((sum, row) => sum + (row.asset?.byteLength ?? 0), 0) > 256 * 1024 * 1024)
     blockers.push({ pageId: "", kind: "budget" });
   return blockers;
 }

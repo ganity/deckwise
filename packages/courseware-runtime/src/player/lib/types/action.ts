@@ -141,6 +141,12 @@ export interface AudioClipAction extends ActionBase {
   audioUrl: string;
 }
 
+export interface VideoClipAction extends ActionBase {
+  type: "video_clip";
+  videoAssetId: string;
+  videoUrl: string;
+}
+
 /** Open whiteboard (wait for animation) */
 export interface WbOpenAction extends ActionBase {
   type: "wb_open";
@@ -298,6 +304,7 @@ type MediaPlaybackInteractionCheckpointAction = ActionBase & {
   mediaType: "video" | "audio";
   startMode: "teacher_triggered";
   waitForCompletion: boolean;
+  videoUrl?: string;
 };
 
 type TeacherContinueInteractionCheckpointAction = ActionBase & {
@@ -329,6 +336,7 @@ export type Action =
   | PlayAudioAction
   | SpeechAction
   | AudioClipAction
+  | VideoClipAction
   | WbOpenAction
   | WbDrawTextAction
   | WbDrawShapeAction

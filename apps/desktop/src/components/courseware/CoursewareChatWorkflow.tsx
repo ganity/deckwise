@@ -2,10 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { CoursewareWorkflowView } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
-import { pptEditorWorkPanelTab } from "../../lib/work-panel-tabs";
+import { pptEditorWorkPanelTab, toolWorkPanelTab } from "../../lib/work-panel-tabs";
 import { useAppStore } from "../../stores/app-store";
 import { CoursewareSourceVisuals } from "../workpanel/CoursewareSourceVisuals";
-import { CoursewareChatImages } from "./CoursewareChatImages";
 import { CoursewareChatPresentation } from "./CoursewareChatPresentation";
 import { CoursewareChatNarration } from "./CoursewareChatNarration";
 import { CoursewareChatPptxCandidates } from "./CoursewareChatPptxCandidates";
@@ -26,7 +25,7 @@ function Workflow({ sessionId }: { sessionId: string }) {
   const [visualBusy, setVisualBusy] = useState(false);
   const visualWasBusy = useRef(false);
   const [refresh, setRefresh] = useState(0);
-  const active = useRef(true), inFlight = useRef(false);
+  const active = useRef(true), inFlight = useRef(false), previewPlan = useRef("");
   useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
   const current = () => active.current && useAppStore.getState().activeSessionId === sessionId;
 
@@ -46,6 +45,14 @@ function Workflow({ sessionId }: { sessionId: string }) {
     const timer = isRunning ? window.setInterval(() => void load(), 2000) : undefined;
     return () => { disposed = true; if (timer !== undefined) window.clearInterval(timer); };
   }, [sessionId, projectPath, isRunning, messageCount, refresh]);
+
+  useEffect(() => {
+    const plan = view?.plan;
+    if (current() && plan && plan.sha256 === plan.approvedSha256 && previewPlan.current !== plan.sha256) {
+      previewPlan.current = plan.sha256;
+      useAppStore.getState().openWorkPanelTab(toolWorkPanelTab("scene-images"));
+    }
+  }, [view?.plan?.sha256, view?.plan?.approvedSha256]);
 
   const run = async (operation: () => Promise<void>) => {
     if (!current() || inFlight.current || visualBusy || useAppStore.getState().runningSessions[sessionId]) return;
@@ -92,6 +99,10 @@ function Workflow({ sessionId }: { sessionId: string }) {
     <>
       {!ordinary && !plan && !view.task.imported && !view.task.generated && <p>{t(view.task.taskType === "import" ? "coursewareWorkflow.importHint" : "coursewareWorkflow.briefHint")}</p>}
       {plan && <details><summary>{plan.title} · {t("coursewareWorkflow.pages", { count: plan.pages.length })}</summary>
+        {plan.visualBible && <section aria-label={t("coursewareWorkflow.visualBible")}>
+          <strong>{t("coursewareWorkflow.visualBible")}</strong>
+          <p>{plan.visualBible.artDirection}</p><p>{plan.visualBible.characters}</p><p>{plan.visualBible.setting}</p>
+        </section>}
         <ol>{plan.pages.map(page => <li key={page.pageId}><strong>{page.title}</strong>
           <p>{page.visibleText.join(" · ")}</p><p>{page.visualIntent}</p><p>{page.narration}</p></li>)}</ol>
       </details>}
@@ -102,8 +113,8 @@ function Workflow({ sessionId }: { sessionId: string }) {
         setView(value => value ? { ...value, plan: result.plan } : value);
         await continueChat();
       })}>{t("coursewareWorkflow.approveContinue")}</button>}
-      {plan && approved && <CoursewareChatImages key={plan.sha256} sessionId={sessionId} plan={plan} disabled={blocked}
-        refreshKey={refresh} onContinue={() => run(continueChat)} />}
+      {plan && approved && <button type="button" onClick={() => useAppStore.getState().openWorkPanelTab(toolWorkPanelTab("scene-images"))}>
+        {t("coursewareWorkflow.imagePreview")}</button>}
       {view.task.taskType === "import" && !view.task.imported && <button type="button" disabled={blocked} onClick={() => void run(async () => {
         const picked = await api.pickFiles();
         if (!picked.token || !current()) return;

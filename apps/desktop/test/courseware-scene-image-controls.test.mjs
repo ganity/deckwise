@@ -31,7 +31,7 @@ function fixture(options = {}) {
     async coursewareSceneImagePrepare(...args) { calls.push(["prepare", ...args]); return intent; },
     async coursewareSceneImageQuote() { calls.push(["quote"]); return { quoteId: "quote", model: "image-model", maxPoints: 3, expiresAt: "2099-01-01T00:00:00Z" }; },
     async coursewareSceneImagePreview() { calls.push(["preview"]); return { image: ref, dataUrl: "data:image/png;base64,local-private-preview" }; },
-    async coursewareSceneImageSubmitConfirmed(...args) { calls.push(["submit", ...args]); return { ...intent, phase: "submitted" }; },
+    async coursewareSceneImageGenerate(...args) { calls.push(["submit", ...args]); return { ...intent, phase: "submitted" }; },
   };
   const exports = {};
   new Function("require", "exports", output)(id => {
@@ -57,33 +57,27 @@ function fixture(options = {}) {
   return { calls, nodes, button, click, choose, render };
 }
 
-test("reference controls disclose the exact private image and require explicit fee and egress consent", async () => {
+test("reference generation uses the selected private master directly without a fee dialog", async () => {
   const f = fixture();
   await f.click("models"); await f.click("refresh");
   f.choose(0, "scene-001"); f.choose(1, "image-model"); f.choose(2, "cleanPlate");
-  await f.click("quote");
-  assert.deepEqual(f.calls.map(call => call[0]), ["prepare", "quote", "preview"]);
-  assert.equal(f.calls[0].at(-1), "master");
-  assert(f.nodes().some(node => node.type === "img" && node.props.src.includes("local-private-preview")));
-  assert(f.nodes().some(node => typeof node.props?.children === "string" && node.props.children.includes("referenceDisclosure") &&
-    node.props.children.includes("master") && node.props.children.includes("b".repeat(64))));
-  assert.equal(f.button("submit").props.disabled, true);
-  const checkbox = f.nodes().find(node => node.type === "input" && node.props.type === "checkbox");
-  checkbox.props.onChange({ target: { checked: true } }); f.render();
   await f.click("submit");
-  assert.equal(f.calls.filter(call => call[0] === "submit").length, 1);
-  assert.deepEqual(f.calls.at(-1), ["submit", "chat", "background", "quote"]);
+  assert.deepEqual(f.calls.map(call => call[0]), ["prepare", "submit"]);
+  assert.equal(f.calls[0].at(-1), "master");
+  assert.equal(f.calls.some(call => ["quote", "preview"].includes(call[0])), false);
+  assert.equal(f.nodes().some(node => node.type === "input" && node.props.type === "checkbox"), false);
+  assert.deepEqual(f.calls.at(-1), ["submit", "chat", "background"]);
 });
 
-test("missing selection and unsupported or absent model capability visibly disable reference quotation", async () => {
+test("missing selection and unsupported or absent model capability visibly disable reference generation", async () => {
   for (const options of [{ supported: false }, { supported: undefined }, { selected: false }]) {
     const f = fixture(options);
     await f.click("models"); await f.click("refresh");
     f.choose(0, "scene-001"); f.choose(1, "image-model"); f.choose(2, "cleanPlate");
-    assert.equal(f.button("quote").props.disabled, true);
+    assert.equal(f.button("submit").props.disabled, true);
     assert(f.nodes().some(node => typeof node.props?.children === "string" && node.props.children.includes("referenceRequired")));
     assert.equal(f.calls.length, 0);
     f.choose(2, "visualMaster");
-    assert.equal(f.button("quote").props.disabled, false, "text-only visual masters keep existing model behavior");
+    assert.equal(f.button("submit").props.disabled, false, "text-only visual masters keep existing model behavior");
   }
 });

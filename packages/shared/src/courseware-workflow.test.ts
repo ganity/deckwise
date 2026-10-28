@@ -25,7 +25,9 @@ describe("scene compilation readiness", () => {
   it("rejects incomplete selected records and aggregate asset overflow", () => {
     const rows = [image("visualMaster", "b"), image("cleanPlate", "c"), image("layer", "d")];
     expect(sceneAssetBlockers(plan, [{ ...rows[0], asset: null }, ...rows.slice(1)]).map(row => row.kind)).toContain("budget");
-    rows[0].asset!.byteLength = 32 * 1024 * 1024;
+    rows[0].asset!.byteLength = 40 * 1024 * 1024;
+    expect(sceneAssetBlockers(plan, rows)).toEqual([]);
+    rows[0].asset!.byteLength = 256 * 1024 * 1024;
     expect(sceneAssetBlockers(plan, rows).map(row => row.kind)).toContain("budget");
   });
 });

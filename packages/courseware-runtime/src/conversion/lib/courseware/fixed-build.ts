@@ -181,6 +181,7 @@ export function validateFixedMapping(input: FixedBuildInput, ir: SlideIR) {
     }
   }
   for (const action of input.teaching.pages.flatMap((p) => p.actions)) {
+    if (action.type === 'video_clip') requireBuild(input.assets.some(asset => asset.id === action.videoAssetId && asset.mimeType === 'video/mp4'), 'VIDEO_ASSET_MISSING');
     if (action.type === 'interaction_checkpoint' && action.checkpointKind === 'chapter_summary')
       requireBuild(
         action.context.sourceSceneIds.every((id) =>

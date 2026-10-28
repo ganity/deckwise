@@ -26,10 +26,11 @@ async function load(name, dependencies) {
 // Native codec is an external edge here; actual Electron decoding is covered by the UI gate.
 let nativePixels = Buffer.alloc(16);
 const electron = { nativeImage: { createFromBuffer: () => ({ isEmpty: () => false,
-  getSize: () => ({ width: 2, height: 2 }), toBitmap: () => Buffer.from(nativePixels) }) } };
+  getSize: () => ({ width: 2, height: 2 }), toPNG: () => png, toBitmap: () => Buffer.from(nativePixels) }) } };
 const context = await load("courseware-scene-context", { electron, "node:crypto": { createHash }, "node:zlib": { crc32 } });
 const assetHelpers = await load("courseware-scene-image-assets", { electron, "node:crypto": { createHash },
-  "node:fs": fsConstants, "node:fs/promises": files, "node:path": paths, "./courseware-scene-context": context });
+  "node:fs": fsConstants, "node:fs/promises": files, "node:path": paths, "./courseware-scene-context": context,
+  "./public-https-fetch": await import("../electron/main/public-https-fetch.ts") });
 const mediaScope = await load("courseware-media-scope", {});
 const module = { exports: {} };
 new Function("require", "exports", ts.transpileModule(await readFile(new URL("../electron/main/courseware-scene-images.ts", import.meta.url), "utf8"), {
@@ -49,11 +50,11 @@ const plan = { title: "Shapes", pages: [{ title: "Circle", visibleText: ["圆"],
 const digest = (v) => createHash("sha256").update(v).digest("hex");
 const pause = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 
-async function fixture(t) {
+async function fixture(t, coursePlan = plan) {
   const root = await mkdtemp(join(tmpdir(), "deckwise-scene-images-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const path = join(root, sceneCoursePlanRelativePath("chat-a"));
-  await mkdir(dirname(path), { recursive: true }); await writeFile(path, JSON.stringify(plan));
+  await mkdir(dirname(path), { recursive: true }); await writeFile(path, JSON.stringify(coursePlan));
   const sha256 = digest(await readFile(path));
   let account = "a".repeat(64), active = "chat-a", running = false, approval = sha256;
   let lostReceipt = false, missing = false, wrongTask = false, submitGate, quoteGate, downloadGate, downloadBytes = png;
@@ -72,7 +73,7 @@ async function fixture(t) {
     if (method === "courseware.sceneImage.prepare") {
       const target = p.target ?? { kind: "visualMaster" }, input = `Bright circle${p.instructions ? `\n${p.instructions}` : ""}`;
       const reference = p.referenceIntentId === undefined ? null : records(p).find(row => row.intentId === p.referenceIntentId &&
-        row.selected && row.asset && row.planSha256 === p.planSha256 && row.pageId === p.pageId && row.target.kind === "visualMaster");
+        row.selected && row.asset && row.planSha256 === p.planSha256 && row.pageId === (target.kind === "visualMaster" ? "scene-001" : p.pageId) && row.target.kind === "visualMaster");
       if (p.referenceIntentId !== undefined && !reference) throw new Error("REFERENCE_CHANGED");
       let j = records(p).find(j => j.phase !== "rejected" && j.pageId === p.pageId && j.planSha256 === p.planSha256 && j.request.model === p.model &&
         JSON.stringify(j.target) === JSON.stringify(target) && j.request.input === input && j.referenceIntentId === p.referenceIntentId);
@@ -449,6 +450,27 @@ test("lost receipt survives coordinator restart and recovers only with GET; abse
   assert.equal(f.calls.filter(c => c === "GET by-key").length, 3);
 });
 
+test("uncertain original jobs stay query-only without blocking independent image submissions", async t => {
+  for (const lostReceipt of [false, true]) {
+    const f = await fixture(t), original = await f.priced();
+    if (lostReceipt) {
+      f.lost();
+      await assert.rejects(f.coordinator.submitConfirmed(original.payload), /receipt lost/);
+      f.missing();
+    } else {
+      await f.coordinator.submitConfirmed(original.payload);
+      const get = f.media.getImage;
+      f.media.getImage = async (...args) => ({ ...await get(...args), state: "submission_unknown", errorCode: "SUBMISSION_UNKNOWN" });
+    }
+    const next = await f.prepare({ instructions: "A different visual" });
+    f.lost(false);
+    await f.coordinator.generate(f.operation(next));
+    assert.equal(f.calls.filter(c => c === "POST confirmed").length, 2);
+    await f.create().generate(f.operation(original.view));
+    assert.equal(f.calls.filter(c => c === "POST confirmed").length, 2, "recovering the uncertain intent never submits it again");
+  }
+});
+
 test("stale plan, forged payload, absent quote and restarted quote all reject before begin/POST", async t => {
   const f = await fixture(t), p = await f.priced();
   await assert.rejects(f.coordinator.submitConfirmed({ ...p.payload, quoteId: "unknown" }), /QUOTE_REQUIRED/);
@@ -672,4 +694,126 @@ for (const code of [46100, 46102]) test(`definite team scene refusal ${code} pre
   assert.notEqual(next.payload.quoteId, first.payload.quoteId);
   assert.equal(f.calls.filter(v => v === "POST confirmed").length, 1);
   assert.equal((await f.coordinator.submitConfirmed(next.payload)).phase, "submitted");
+});
+
+test("generation quotes internally and submits once without a renderer fee confirmation", async t => {
+  const f = await fixture(t), prepared = await f.prepare();
+  const result = await f.coordinator.generate(f.operation(prepared));
+  assert.equal(result.phase, "submitted");
+  await f.coordinator.generate(f.operation(prepared));
+  assert.equal(f.calls.filter(call => call === "POST confirmed").length, 1);
+});
+
+
+test("the current Chat can inspect existing images during generation but cannot submit or select from the renderer", async t => {
+  const f = await fixture(t), p = await f.prepare();
+  f.running(true);
+  assert.equal((await f.coordinator.list({ sessionId: "chat-a" })).length, 1);
+  assert.equal((await f.coordinator.status(f.operation(p))).phase, "prepared");
+  await assert.rejects(f.coordinator.generate(f.operation(p)), /CONTEXT_CHANGED/);
+  await assert.rejects(f.coordinator.adopt({ ...f.operation(p), expectedSelectedIntentId: null }), /CONTEXT_CHANGED/);
+  f.active("other");
+  await assert.rejects(f.coordinator.list({ sessionId: "chat-a" }), /CONTEXT_CHANGED/);
+});
+
+
+test("later visual masters automatically upload the selected first page as a pinned style reference", async t => {
+  const f = await fixture(t, { ...plan, pages: [...plan.pages, { ...plan.pages[0], title: "Pandy waves" }] });
+  const master = await f.prepare();
+  await f.coordinator.generate(f.operation(master));
+  f.ready(); await f.coordinator.archive(f.operation(master));
+  await f.coordinator.adopt({ ...f.operation(master), expectedSelectedIntentId: null });
+  await assert.rejects(f.prepare({ pageId: "scene-002" }), /REFERENCE_UNSUPPORTED/);
+  f.supportsReference(true);
+  const next = await f.prepare({ pageId: "scene-002" });
+  assert.equal(next.referenceImage.intentId, master.intentId);
+  await f.coordinator.generate(f.operation(next));
+  const posted = f.calls.filter(value => typeof value === "object").at(-1).postedRequest;
+  assert.deepEqual(Buffer.from(posted.referenceImage.bytesBase64, "base64"), png);
+  assert.equal(posted.referenceImage.sha256, digest(png));
+  f.deselect(master.intentId);
+  await assert.rejects(f.prepare({ pageId: "scene-002" }), /REFERENCE_CHANGED/);
+});
+
+test("native Seedream JPEG base is normalized to PNG without changing foreground bounds", async () => {
+  const jpeg = await sharp(png).jpeg({ quality: 95 }).toBuffer();
+  nativePixels = Buffer.from([0, 0, 0, 0, 0, 0, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0]);
+  const taskRef = { taskId: "layers-task", idempotencyKey: randomUUID(), requestHash: "a".repeat(64) };
+  const images = assetHelpers.decodeSceneImageBundle(Buffer.from(JSON.stringify({ data: [
+    { z_index: 1, b64_json: png.toString("base64"), bounding_box: { normalized: [187, 59, 808, 188] } },
+    { z_index: 0, b64_json: jpeg.toString("base64"), output_format: "jpeg" },
+  ] })), taskRef);
+  assert.equal(images[0].target.kind, "cleanPlate");
+  assert.equal(images[0].asset.mimeType, "image/png");
+  assert.equal(images[0].bytesBase64, png.toString("base64"));
+  assert.deepEqual(images[1].asset.normalizedBoundingBox, [187, 59, 808, 188]);
+});
+
+
+test("native decomposition keeps opaque PNG text carriers and rejects invisible layers", () => {
+  const taskRef = { taskId: "layers-task", idempotencyKey: randomUUID(), requestHash: "a".repeat(64) };
+  const bytes = Buffer.from(JSON.stringify({ data: [
+    { z_index: 0, b64_json: png.toString("base64") },
+    { z_index: 1, name: "Hello text card", b64_json: png.toString("base64"), bounding_box: { normalized: [187, 59, 808, 188] } },
+  ] }));
+  nativePixels = Buffer.alloc(16, 255);
+  const images = assetHelpers.decodeSceneImageBundle(bytes, taskRef);
+  assert.equal(images[1].bytesBase64, png.toString("base64"));
+  nativePixels = Buffer.alloc(16);
+  assert.throws(() => assetHelpers.decodeSceneImageBundle(bytes, taskRef), /LAYER_REQUIRES_TRANSPARENT_PNG/);
+});
+
+
+test("supplier layer URLs download in Desktop without credentials and retain native pixels", async () => {
+  const calls = [], resolutions = [];
+  electron.session = { defaultSession: {
+    resolveHost: async host => { resolutions.push(host); return { endpoints: [{ address: "8.8.8.8", family: "ipv4" }] }; },
+    resolveProxy: async () => "DIRECT",
+  } };
+  electron.net = { fetch: async (url, init) => {
+    calls.push({ url, init });
+    return new Response(png, { headers: { "content-type": "image/png" } });
+  } };
+  const taskRef = { taskId: "gw-url", idempotencyKey: randomUUID(), requestHash: "a".repeat(64) };
+  const bundle = Buffer.from(JSON.stringify({ data: [
+    { z_index: 0, url: "https://ark-cdn.example/base.png" },
+    { z_index: 1, url: "https://ark-cdn.example/title.png", name: "Hello", bounding_box: { normalized: [100, 100, 900, 900] } },
+  ] }));
+  nativePixels = Buffer.alloc(16, 255);
+  const images = await assetHelpers.downloadSceneImageBundle(bundle, taskRef);
+  assert.equal(images.length, 2);
+  assert.equal(images[1].bytesBase64, png.toString("base64"));
+  assert.deepEqual(images[1].asset.normalizedBoundingBox, [100, 100, 900, 900]);
+  assert.equal(calls.length, 2);
+  assert.deepEqual(resolutions, ["ark-cdn.example", "ark-cdn.example"]);
+  for (const { init } of calls) {
+    assert.equal(init.headers, undefined);
+    assert.equal(init.credentials, "omit");
+    assert.equal(init.redirect, "error");
+  }
+  const bad = Buffer.from(bundle.toString().replaceAll("ark-cdn.example", "127.0.0.1"));
+  await assert.rejects(assetHelpers.downloadSceneImageBundle(bad, taskRef));
+  assert.equal(calls.length, 2);
+  electron.net.fetch = async () => new Response("denied", { status: 403 });
+  await assert.rejects(assetHelpers.downloadSceneImageBundle(bundle, taskRef), /INVALID_ASSET/);
+  electron.net.fetch = async () => new Response(Buffer.alloc(8 * 1024 * 1024 + 1), { headers: { "content-type": "image/png" } });
+  await assert.rejects(assetHelpers.downloadSceneImageBundle(bundle, taskRef), /BUNDLE_TOO_LARGE/);
+});
+
+test("native layer bundles above 16 MiB retain every provider pixel within Host RPC bounds", () => {
+  // Valid ancillary PNG metadata models the multi-megabyte provenance chunks in real Ark output.
+  const type = Buffer.from("caBX"), metadata = Buffer.alloc(5 * 1024 * 1024);
+  const chunk = Buffer.alloc(metadata.length + 12);
+  chunk.writeUInt32BE(metadata.length); type.copy(chunk, 4); metadata.copy(chunk, 8);
+  chunk.writeUInt32BE(crc32(chunk.subarray(4, -4)), chunk.length - 4);
+  const large = Buffer.concat([png.subarray(0, -12), chunk, png.subarray(-12)]);
+  nativePixels = Buffer.alloc(16, 255);
+  const data = Array.from({ length: 5 }, (_, z_index) => ({ z_index, b64_json: large.toString("base64"),
+    ...(z_index ? { bounding_box: { normalized: [100, 100, 900, 900] } } : {}) }));
+  const bytes = Buffer.from(JSON.stringify({ data }));
+  assert(bytes.length > 16 * 1024 * 1024);
+  const images = assetHelpers.decodeSceneImageBundle(bytes, { taskId: "gw-large", idempotencyKey: randomUUID(), requestHash: "a".repeat(64) });
+  assert.equal(images.length, 5);
+  assert.equal(images[4].bytesBase64, large.toString("base64"));
+  assert(Buffer.byteLength(JSON.stringify({ images })) < shared.MAX_HOST_STDIN_LINE_BYTES);
 });

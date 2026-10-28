@@ -239,6 +239,8 @@ impl Database {
             &serde_json::to_value(&records)?,
         )?;
         self.courseware_music_adoptions(workspace, &saved.project_id)?;
+        let saved =
+            self.finish_generated_scene_page(workspace, saved, &record.selection.page_id)?;
         tx.commit()?;
         self.source_adoption_barrier()?;
         Ok((saved, record))

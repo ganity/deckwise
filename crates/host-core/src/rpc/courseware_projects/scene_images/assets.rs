@@ -235,7 +235,7 @@ struct BundleImage {
 async fn stage_bundle(state: Arc<Mutex<AppState>>, params: Value) -> Result<Value, JsonRpcError> {
     let p: Bundle = serde_json::from_value(params).map_err(|_| invalid("Invalid layer bundle"))?;
     if !(2..=32).contains(&p.images.len())
-        || p.images.iter().map(|i| i.asset.byte_length).sum::<usize>() > 16 * 1024 * 1024
+        || p.images.iter().map(|i| i.asset.byte_length).sum::<usize>() > 44 * 1024 * 1024
     {
         return Err(invalid("Layer bundle exceeds limits"));
     }
