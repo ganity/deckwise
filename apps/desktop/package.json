@@ -26,6 +26,7 @@
     "bundle:runtime": "pnpm -C ../../packages/agent-runtime bundle",
     "build:python-runtime": "node runtime/python/build-runtime.mjs --output dist/runtime/current",
     "prepare:ppt-master": "node ../../scripts/prepare-ppt-master.mjs --output dist/ppt-master",
+    "stage:wiseoffice": "node ../../scripts/stage-wiseoffice.mjs",
     "stage:pptx-worker": "node ../../scripts/stage-pptx-worker.mjs",
     "check:pptx-worker": "node ../../scripts/stage-pptx-worker.mjs --check \"$PWD/resources/pptx-worker\"",
     "pack:courseware:linux": "pnpm run check:pptx-worker && pnpm --filter @pi-desktop/courseware-runtime test:authoring-bundle && pnpm run pack --linux --x64",
@@ -150,6 +151,10 @@
       {
         "from": "resources/editor-host",
         "to": "editor-host"
+      },
+      {
+        "from": "resources/wiseoffice",
+        "to": "wiseoffice"
       },
       {
         "from": "resources/models.dev",

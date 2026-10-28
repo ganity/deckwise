@@ -483,3 +483,26 @@ unsaved until explicit normal save. No presentation-wide loop change, arbitrary
 object animation, XML execution, SVG rollback or uncertain automatic retry is
 introduced. Actual source Chat/save/restart evidence is separate from installed
 package or provider-quality acceptance.
+
+## Bundled WiseOffice runtime (2026-10-28)
+
+Normal Office opening uses `deckwise-editor://wiseoffice` and installation-owned
+resources. Missing resources fail explicitly; there is no remote fallback.
+An explicit HTTP(S) development override remains supported. Document bytes still
+come from authorized workspace resolution, with the existing revision baseline
+and external-write hash guard. The initial validated buffer is reused for the
+open command rather than rereading its archived copy. This does not remove the
+archive baseline or change save acknowledgement semantics.
+
+The editor session serves only the bundled tree, rejects traversal and symlink
+escapes, retains sandbox/context isolation, and enables cross-origin isolation
+through COOP/COEP and explicit iframe delegation. Its Brotli WASM is decoded by
+the protocol handler because Electron does not perform HTTP content decoding for
+a custom-protocol response. Ordinary file MIME handling remains with Chromium.
+
+`stage-wiseoffice.mjs` records build source revision, dirty state, resource sizes
+and SHA-256 hashes. Staging refuses an existing destination. The packaged artifact
+includes that directory. Release provenance must identify both repositories; a
+dirty development manifest is not a release certification. Native teaching sidebar,
+portable sidecar ownership and combined lesson playback remain separate gates in
+the approved implementation plan.

@@ -6,7 +6,7 @@ import { getOfficeExtension, assertPptEditorCommand, assertPptEditorContext, ass
 import { jobIdFor, listRevisions, publishRevision, replaceSourceFile, type Revision } from "./ppt-editor-files";
 import { requestPptEditor } from "./ppt-editor-request";
 import { MAX_OFFICE_BYTES, validateOfficeBytes, officeSaveExtension } from "./office-file";
-import { session, WebContentsView, type BrowserWindow, type IpcMain } from "electron";
+import { app, session, WebContentsView, type BrowserWindow, type IpcMain } from "electron";
 import { resolveRealOpenablePath, resolveRealPathForCreateWithinRoot } from "./fs-panel";
 import { installEditorHostProtocol } from "./editor-host-protocol";
 import {
@@ -68,22 +68,30 @@ export class PptEditorController {
   private readonly bridgeRequests = new Set<string>();
   private readonly activeBridgeRequests = new Set<string>();
   private readonly editorUrl: URL;
+  private readonly editorOrigin: string;
   private readonly onDownload = (event: Electron.Event) => event.preventDefault();
 
   constructor(
     private readonly ipcMain: IpcMain,
     private readonly emit: (state: PptEditorState) => void,
-    editorUrl = process.env.DECKWISE_EDITOR_URL || "https://trainwise.efrobot.com/wiseoffice",
+    editorUrl = process.env.DECKWISE_EDITOR_URL || "deckwise-editor://wiseoffice",
   ) {
     this.editorUrl = new URL(editorUrl);
-    if (!/^https?:$/.test(this.editorUrl.protocol)) {
-      throw new Error("DECKWISE_EDITOR_URL 必须使用 HTTP 或 HTTPS");
+    if (!/^https?:$/.test(this.editorUrl.protocol) && this.editorUrl.href !== "deckwise-editor://wiseoffice") {
+      throw new Error("Editor URL must use HTTP(S) or the bundled WiseOffice origin");
     }
+    this.editorOrigin = this.editorUrl.protocol === "deckwise-editor:" ? "deckwise-editor://wiseoffice" : this.editorUrl.origin;
     this.ipcMain.on("deckwise-editor:event", this.onEditorEvent);
   }
 
   async open(window: BrowserWindow, workspaceRoot: string, requestedPath: string, mimeType?: string, extraRoots: string[] = [], forceReadOnly = false) {
     if (this.pendingSave) throw new Error("Finish the current save before opening another document");
+    if (this.editorUrl.protocol === "deckwise-editor:") {
+      const resources = app.isPackaged ? process.resourcesPath : join(app.getAppPath(), "resources");
+      await fs.access(join(resources, "wiseoffice", "editor.html")).catch(() => {
+        throw new Error("Bundled WiseOffice is missing. Stage the WiseOffice production build before opening documents.");
+      });
+    }
     const sourcePath = await resolveRealOpenablePath(requestedPath, workspaceRoot, extraRoots);
     if (!sourcePath) throw new Error("Document is outside allowed roots");
     const extension = getOfficeExtension(sourcePath, mimeType);
@@ -139,7 +147,7 @@ export class PptEditorController {
     this.view = view;
     const hostUrl = new URL(HOST_PAGE);
     hostUrl.searchParams.set("editor", this.editorUrl.href.replace(/\/$/, ""));
-    hostUrl.searchParams.set("editorOrigin", this.editorUrl.origin);
+    hostUrl.searchParams.set("editorOrigin", this.editorOrigin);
     if (extension === "pptx") hostUrl.searchParams.set("deckwise", "1");
     view.setBounds(this.bounds);
     const abort = new AbortController();
@@ -155,11 +163,10 @@ export class PptEditorController {
         abort.signal,
       );
       await Promise.all([ready, view.webContents.loadURL(hostUrl.href)]);
-      const revisionBytes = await fs.readFile(revision.documentPath);
       if (this.view !== view || abort.signal.aborted) throw new Error("Editor opening was cancelled");
       const commandId = this.sendCommand("document:open-buffer", {
         fileName: `${basename(sourcePath, extname(sourcePath))}.${getOfficeExtension(revision.file) ?? extension}`,
-        buffer: transferableBuffer(revisionBytes),
+        buffer: transferableBuffer(sourceBytes),
         readonly: readOnly,
         editorBinding: extension === "pptx" ? this.bridgeBinding : undefined,
         trackPageLineage: extension === "pptx" ? true : undefined,
@@ -597,7 +604,8 @@ export class PptEditorController {
         event.preventDefault();
         return;
       }
-      if (url.origin !== this.editorUrl.origin && !target.startsWith(HOST_PAGE)) {
+      const origin = url.protocol === "deckwise-editor:" ? `${url.protocol}//${url.host}` : url.origin;
+      if (origin !== this.editorOrigin && !target.startsWith(HOST_PAGE)) {
         event.preventDefault();
       }
     };

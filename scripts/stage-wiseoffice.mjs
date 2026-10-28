@@ -1,0 +1,97 @@
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import {
+  cp,
+  lstat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  realpath,
+  rename,
+  rm,
+  writeFile,
+} from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const [sourceArgument, destinationArgument] = process.argv.slice(2);
+assert(
+  sourceArgument,
+  "Usage: stage-wiseoffice.mjs <WiseOffice production build> [new destination]",
+);
+const source = await realpath(resolve(sourceArgument));
+const destination = resolve(
+  destinationArgument ||
+    fileURLToPath(
+      new URL("../apps/desktop/resources/wiseoffice", import.meta.url),
+    ),
+);
+assert(
+  !destination.startsWith(source + "/"),
+  "Destination must be outside the source",
+);
+await assert.rejects(
+  lstat(destination),
+  { code: "ENOENT" },
+  "Destination already exists; keep the previous bundle intact",
+);
+for (const name of [
+  "editor.html",
+  "sdkjs/slide/sdk-all-min.js",
+  "web-apps/apps/presentationeditor/main/index.html",
+  "sdkjs/common/wasm/x2t/x2t.wasm.br",
+])
+  assert(
+    (await lstat(join(source, name))).isFile(),
+    `Missing editor resource: ${name}`,
+  );
+
+const files = [];
+async function inventory(directory, prefix = "") {
+  for (const entry of (await readdir(directory, { withFileTypes: true })).sort(
+    (a, b) => a.name.localeCompare(b.name),
+  )) {
+    assert(!entry.isSymbolicLink(), `Symlink is not allowed: ${entry.name}`);
+    const path = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) await inventory(join(directory, entry.name), path);
+    else {
+      assert(entry.isFile(), `Unsupported resource: ${path}`);
+      const bytes = await readFile(join(directory, entry.name));
+      files.push({
+        path,
+        bytes: bytes.length,
+        sha256: createHash("sha256").update(bytes).digest("hex"),
+      });
+    }
+  }
+}
+await inventory(source);
+const commit = execFileSync("git", ["-C", source, "rev-parse", "HEAD"], {
+  encoding: "utf8",
+}).trim();
+const dirty =
+  execFileSync(
+    "git",
+    ["-C", source, "status", "--porcelain", "--untracked-files=no"],
+    { encoding: "utf8" },
+  ).trim().length > 0;
+await mkdir(dirname(destination), { recursive: true });
+const temporary = await mkdtemp(
+  join(dirname(destination), ".wiseoffice-stage-"),
+);
+try {
+  await cp(source, temporary, { recursive: true, dereference: false });
+  await writeFile(
+    join(temporary, "deckwise-bundle.json"),
+    JSON.stringify({ version: 1, commit, dirty, files }, null, 2),
+  );
+  await rename(temporary, destination);
+} catch (error) {
+  await rm(temporary, { recursive: true, force: true });
+  throw error;
+}
+console.log(
+  JSON.stringify({ destination, commit, dirty, files: files.length }),
+);

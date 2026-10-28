@@ -16435,3 +16435,22 @@ playback require separate acceptance. No paid supplier request was made here.
 Return a native layer bundle containing supplier URLs. Verify Desktop downloads and archives the base and foreground with original bounds and pixels, sends no authorization to asset hosts, rejects private destinations and unsuccessful downloads, and still reads legacy inline bundles. llm-ha must complete the URL receipt without contacting the image hosts.
 
 Native Seedream size/DNS regression: replay a group larger than 16 MiB containing valid PNG provenance metadata; verify Desktop and Host archive all images unchanged and remain below the 64 MiB RPC frame. Verify DNS checks use the Electron session resolver/proxy route instead of Node DNS, while private-address and oversized-image refusals remain enforced.
+
+## E2E-WISEOFFICE-bundled-runtime
+
+- Stage a WiseOffice production build into a new resource directory and verify
+  its source revision/dirty flag and per-file hashes. Missing/incomplete bundles
+  fail explicitly, without falling back to the network.
+- Run `scripts/verify-local-wiseoffice.mjs` using Electron and an isolated profile
+  with every HTTP(S) request denied. Open a local PPTX in memory, wait for actual
+  native readiness, save through the host acknowledgement protocol, reopen the
+  exported bytes, check page count and isolation, and assert the source unchanged.
+- Check encoded traversal, backslash, NUL, symlink escapes, unknown hosts, missing
+  files and unsupported methods; assert decoded WASM magic and isolation headers.
+- In WiseOffice run `test/e2e/deckwise-native-animation.spec.ts`: use the bounded
+  DeckWise command bridge, apply native fade, undo/redo, acknowledge save, inspect
+  exported timing and reopen to verify the native effect and duration. This is
+  deterministic SDK evidence, not a paid LLM run or complete animation coverage.
+- Repeat packaged cold/warm open, edit/save/reopen on Linux, macOS and Windows
+  before claiming release readiness. Current source probes do not certify those
+  lanes, full timeline playback, object identity or same-canvas overlay geometry.

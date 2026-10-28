@@ -8096,3 +8096,22 @@ uses identity/media fixtures and does not replace the real Spring boundary.
   nested embedded archives and shadowed ZIP records need separate review.
 - Evidence: `validation/courseware/export-credentials-20261025/README.md`.
   This is artifact verification, not a runtime DLP feature or full W04.3 acceptance.
+
+## E2E-WISEOFFICE-bundled-runtime
+
+- Stage a WiseOffice production build into a new resource directory and verify
+  its source revision/dirty flag and per-file hashes. Missing/incomplete bundles
+  fail explicitly, without falling back to the network.
+- Run `scripts/verify-local-wiseoffice.mjs` using Electron and an isolated profile
+  with every HTTP(S) request denied. Open a local PPTX in memory, wait for actual
+  native readiness, save through the host acknowledgement protocol, reopen the
+  exported bytes, check page count and isolation, and assert the source unchanged.
+- Check encoded traversal, backslash, NUL, symlink escapes, unknown hosts, missing
+  files and unsupported methods; assert decoded WASM magic and isolation headers.
+- In WiseOffice run `test/e2e/deckwise-native-animation.spec.ts`: use the bounded
+  DeckWise command bridge, apply native fade, undo/redo, acknowledge save, inspect
+  exported timing and reopen to verify the native effect and duration. This is
+  deterministic SDK evidence, not a paid LLM run or complete animation coverage.
+- Repeat packaged cold/warm open, edit/save/reopen on Linux, macOS and Windows
+  before claiming release readiness. Current source probes do not certify those
+  lanes, full timeline playback, object identity or same-canvas overlay geometry.
