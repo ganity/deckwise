@@ -73,6 +73,23 @@ test("music and export offers are separate and reject voice/duplicate/foreign fi
   assert.equal(f.calls.length, count);
 });
 
+test("free MP3 exports accept zero quotes and ready receipts while generation stays priced", async () => {
+  const request = { kind: "music-export", model: "export-model", input: ids[0] };
+  const free = { ...quote("music-export"), maxPoints: 0, priceVersion: "export-free-v1" };
+  const result = { ...ready(request, "free-export"), reservedPoints: 0, actualPoints: 0 };
+  const f = setup(async url => json(url.includes("/quote?") ? free : result));
+  const offered = await f.music.quote(request.model, request.kind);
+  assert.equal(offered.maxPoints, 0);
+  const saved = await f.music.submitConfirmed("free-export", request, offered);
+  assert.equal(saved.actualPoints, 0);
+  assert.equal((await f.music.get(ref(saved), "music-export")).assetRef.mime, "audio/mpeg");
+  const unpaid = setup(async () => json({ ...quote(), maxPoints: 0 }));
+  await assert.rejects(unpaid.music.quote("song-model", "music"), /INVALID_RESPONSE/);
+  const zeroGeneration = { ...ready(), reservedPoints: 0, actualPoints: 0 };
+  const invalid = setup(async () => json(zeroGeneration));
+  await assert.rejects(invalid.music.get(ref(zeroGeneration), "music"), /INVALID_RESPONSE/);
+});
+
 test("confirmed music freezes caller parameters and the team route never falls back", async () => {
   const request = input(), original = structuredClone(request), project = "12345678-1234-1234-1234-123456789abc";
   const f = setup(async (url, init) => {

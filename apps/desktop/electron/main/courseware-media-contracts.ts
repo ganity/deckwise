@@ -31,7 +31,7 @@ const invalid = () => new Error("COURSEWARE_MEDIA_INVALID_RESPONSE");
 export function mediaQuote<K extends MediaKind>(value: unknown, model: string, kind: K): MediaQuote<K> {
   if (!exact(value, ["version", "kind", "model", "priceVersion", "maxPoints", "maxChars", "expiresAt", "quoteToken"]) ||
       value.version !== "courseware-media-quote-v1" || value.kind !== kind || value.model !== model ||
-      !id(value.priceVersion) || !integer(value.maxPoints, 1_000_000) || value.maxPoints < 1 ||
+      !id(value.priceVersion) || !integer(value.maxPoints, 1_000_000) || (value.maxPoints < 1 && kind !== "music-export") ||
       !integer(value.maxChars, 4000) || value.maxChars < 1 || typeof value.expiresAt !== "string" ||
       !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?Z$/u.test(value.expiresAt) ||
       !Number.isFinite(Date.parse(value.expiresAt)) || typeof value.quoteToken !== "string" ||
@@ -54,7 +54,7 @@ export function mediaTask<K extends MediaKind>(value: unknown, expected: MediaTa
       value.idempotencyKey !== expected.idempotencyKey || value.requestHash !== expected.requestHash ||
       (expected.taskId !== undefined && value.taskId !== expected.taskId) || (expected.model !== undefined && value.model !== expected.model) ||
       !["queued", "submitting", "submission_unknown", "submitted", "archiving", "archive_failed", "ready", "failed", "cancelled"].includes(String(value.state)) ||
-      !["reserved", "settled", "released"].includes(String(value.feeState)) || !integer(value.reservedPoints, 1_000_000) || value.reservedPoints < 1 ||
+      !["reserved", "settled", "released"].includes(String(value.feeState)) || !integer(value.reservedPoints, 1_000_000) || (value.reservedPoints < 1 && kind !== "music-export") ||
       (value.actualPoints !== null && !integer(value.actualPoints, value.reservedPoints)) ||
       (value.receiptId !== null && value.receiptId !== `courseware-media:${value.taskId}`) ||
       (value.errorCode !== null && (typeof value.errorCode !== "string" || !/^[A-Z0-9_]{1,128}$/u.test(value.errorCode)))) throw invalid();
