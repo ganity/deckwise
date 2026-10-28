@@ -5,6 +5,7 @@ mod asset_locks;
 mod candidates;
 mod drafts;
 mod media_canvas;
+mod media_relay;
 mod online_source_review;
 mod scene_images;
 mod scene_plan;
@@ -568,6 +569,7 @@ pub(super) async fn handle(
         "courseware.assetLocks.context" | "courseware.assetLocks.set" => {
             asset_locks::handle(state, method, params).await
         }
+        "courseware.mediaRelay.read" | "courseware.mediaRelay.write" => media_relay::handle(state, method, params).await,
         "courseware.tts.prepare"
         | "courseware.tts.get"
         | "courseware.tts.list"

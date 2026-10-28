@@ -56,6 +56,7 @@ type PresignedUpload = {
 
 type AuthSessionOptions = {
   dataDir: string;
+  mediaRelayHost?: { call(method: string, params: unknown): Promise<unknown> };
   onChanged: (state: DesktopAuthState) => void;
   log: (level: "info" | "warn", message: string) => void;
 };
@@ -156,6 +157,15 @@ export class DesktopAuthSession {
     this.sessionPath = join(options.dataDir, "auth", "session.token");
     this.legacySessionPath = join(options.dataDir, "auth", "session.bin");
     this.coursewareMedia = new CoursewareMediaClient({
+      relayJournal: async (method, key, value, expectedRevision) => {
+        const principal = this.getCoursewarePrincipal();
+        if (!this.options.mediaRelayHost) throw new Error("COURSEWARE_MEDIA_JOURNAL_UNAVAILABLE");
+        const result = await this.options.mediaRelayHost.call(`courseware.mediaRelay.${method}`, {
+          principalKey: principal.key, key, ...(method === "write" ? { value, expectedRevision } : {}),
+        });
+        principal.assertCurrent();
+        return result;
+      },
       baseUrl: this.baseUrl,
       imageBaseUrl: process.env.DECKWISE_LLM_BASE_URL?.trim() || DECKWISE_MANAGED_BASE_URL,
       fetch: (url, init) => net.fetch(url instanceof URL ? url.toString() : url, init),

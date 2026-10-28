@@ -1883,6 +1883,8 @@ async fn handle_request(
         | "courseware.project.get"
         | "courseware.project.context"
         | "courseware.teachingHistory.list"
+        | "courseware.mediaRelay.read"
+        | "courseware.mediaRelay.write"
         | "courseware.tts.prepare"
         | "courseware.tts.get"
         | "courseware.tts.list"

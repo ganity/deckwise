@@ -1,6 +1,7 @@
 import { mediaQuote, mediaTask as task, taskRef, type MediaQuote, type MediaTasks } from "./courseware-media-contracts";
 import { CoursewareMediaTransport, mediaEnvelope as envelope, mediaSubmissionPath as submissionPath, type CoursewareMediaOptions } from "./courseware-media-transport";
 import { createHash } from "node:crypto";
+import { CoursewareLocalMedia } from "./courseware-local-media";
 import { CoursewareMusicMediaClient } from "./courseware-music-media";
 import { COURSEWARE_MAX_MEDIA_ASSET_BYTES, isCoursewareTeamAssetRef, isCoursewareTeamMember, isCoursewareTeamProject, type CoursewareTaskRef, type CoursewareTeamAssetRef, type CoursewareTeamMember, type CoursewareTeamProject } from "@pi-desktop/shared";
 
@@ -112,10 +113,11 @@ function requestHash(input: CoursewareTtsRequest | CoursewareImageRequest): stri
 
 /** Main-only finite transport. Task persistence and teaching adoption belong to Host. */
 export class CoursewareMediaClient extends CoursewareMediaTransport {
+  private readonly local: CoursewareLocalMedia | null;
   readonly music: CoursewareMusicMediaClient;
   private readonly teamPlaybackOwners = new WeakMap<object, object>();
   private readonly teamPlaybackRefreshes = new WeakMap<object, CoursewareTeamFixedPlayback>();
-  constructor(options: CoursewareMediaOptions) { super(options); this.music = new CoursewareMusicMediaClient(options); }
+  constructor(options: CoursewareMediaOptions) { super(options); this.local = options.relayJournal ? new CoursewareLocalMedia(options) : null; this.music = new CoursewareMusicMediaClient(options); }
 
   /** Read-only offer; callers still need server-verified price binding before enabling submission. */
   async getTtsQuote(model: string, signal?: AbortSignal): Promise<CoursewareTtsQuote> {
@@ -161,6 +163,7 @@ export class CoursewareMediaClient extends CoursewareMediaTransport {
     const body = request(input);
     const confirmed = mediaQuote(quote, body.model, "tts");
     if (body.input.length > confirmed.maxChars) throw new Error("COURSEWARE_MEDIA_INVALID_REQUEST");
+    if (this.local) return this.local.submit(key, body, requestHash(body), confirmed, signal, projectId);
     const result = await this.json(submissionPath(projectId, true), this.principal(), signal,
       { method: "POST", headers: { "Idempotency-Key": key }, body: JSON.stringify({ request: body,
         confirmation: { priceVersion: confirmed.priceVersion, maxPoints: confirmed.maxPoints, quoteToken: confirmed.quoteToken } }) });
@@ -172,6 +175,7 @@ export class CoursewareMediaClient extends CoursewareMediaTransport {
   async submitTts(key: string, input: CoursewareTtsRequest, signal?: AbortSignal, projectId?: string): Promise<CoursewareTtsTask> {
     if (typeof key !== "string" || !/^[A-Za-z0-9._-]{1,96}$/u.test(key)) throw new Error("COURSEWARE_MEDIA_INVALID_KEY");
     const body = request(input);
+    if (this.local) throw new Error("COURSEWARE_MEDIA_QUOTE_REQUIRED");
     // Match Java UTF-16 lengths and UTF-8 bytes, including bilingual text and emoji.
     const hash = requestHash(body);
     const principal = this.principal();
@@ -210,10 +214,12 @@ export class CoursewareMediaClient extends CoursewareMediaTransport {
 
   async get(reference: CoursewareTaskRef, signal?: AbortSignal): Promise<CoursewareTtsTask> {
     const ref = taskRef(reference);
+    if (this.local) return this.local.get(ref, "tts", signal);
     return task(await this.json(`/courseware/media/tasks/${ref.taskId}`, this.principal(), signal), ref, "tts");
   }
 
   async findTts(reference: Pick<CoursewareTaskRef, "idempotencyKey" | "requestHash">, signal?: AbortSignal): Promise<CoursewareTtsTask | null> {
+    if (this.local) return this.local.find(reference, "tts");
     return this.findTask(reference, "tts", signal);
   }
 
@@ -263,6 +269,7 @@ export class CoursewareMediaClient extends CoursewareMediaTransport {
   }
 
   async download(reference: CoursewareTaskRef, signal?: AbortSignal): Promise<{ task: CoursewareTtsTask; bytes: Buffer }> {
+    if (this.local) return this.local.download(taskRef(reference), "tts", signal);
     const principal = this.principal();
     const current = await this.get(reference, signal);
     this.assertPrincipal(principal);

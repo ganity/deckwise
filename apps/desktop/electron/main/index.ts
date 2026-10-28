@@ -493,6 +493,10 @@ const logger = new Logger(
 );
 const authSession = new DesktopAuthSession({
   dataDir,
+  mediaRelayHost: { call: (method, params) => {
+    if (!host) throw new Error("COURSEWARE_MEDIA_JOURNAL_UNAVAILABLE");
+    return host.call(method, params);
+  } },
   onChanged: (state) => sendToRenderer(IPC.event.authChanged, state),
   log: (level, message) => logger.app("runtime", level, message),
 });

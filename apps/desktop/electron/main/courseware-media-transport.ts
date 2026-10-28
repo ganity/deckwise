@@ -1,5 +1,6 @@
+export type MediaRelayJournal = (method: "read" | "write", key: string, value?: unknown, expectedRevision?: number) => Promise<unknown>;
 export type CoursewareMediaOptions = { baseUrl: string; imageBaseUrl?: string; fetch: typeof fetch; resolveAccessToken: () => Promise<string>;
-  getPrincipal: () => object | null };
+  getPrincipal: () => object | null; relayJournal?: MediaRelayJournal };
 const invalid = () => new Error("COURSEWARE_MEDIA_INVALID_RESPONSE");
 const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 

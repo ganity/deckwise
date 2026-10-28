@@ -728,7 +728,7 @@ test("real HTTP redirects do not forward credentials or repeat a submission", as
 test("actual DesktopAuthSession login, private transport, restart/replay and logout over real loopback HTTP", async (t) => {
   const root = await fs.mkdtemp(path.join(tmpdir(), "deckwise-media-auth-"));
   let submissions = 0, charges = 0;
-  const stored = new Map(), requests = [];
+  const stored = new Map(), requests = [], relayAudio = Buffer.from([73,68,51,4,0,0,0,0,0,0,1,2]);
   const token = `header.${Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 })).toString("base64url")}.signature`;
   const server = createServer(async (req, res) => {
     let body = ""; for await (const chunk of req) body += chunk;
@@ -739,16 +739,12 @@ test("actual DesktopAuthSession login, private transport, restart/replay and log
     if (req.url === "/auth/me") return send({ edition: "EDUCATION", pcAllowed: true, role: "ADMIN", userId: 7, tenantId: 8 });
     if (req.url === "/auth/logout") return send({});
     if (req.headers.authorization !== `Bearer ${token}`) { res.writeHead(401); return res.end(); }
-    if (req.url === "/courseware/media/tasks" && req.method === "POST") {
-      submissions++; const key = req.headers["idempotency-key"], input = JSON.parse(body);
-      if (!stored.has(key)) { charges++; stored.set(key, ready(input, key)); }
-      const existing = stored.get(key);
-      return hashRequest(input) === existing.requestHash ? send(existing) : send(null, 46002);
+    if (req.url === "/courseware/media/relay" && req.method === "POST") {
+      submissions++; charges++;
+      assert.equal(JSON.parse(body).request.input, input.input);
+      return send({ kind: "tts", receipts: [], bytesBase64: relayAudio.toString("base64"), mime: "audio/mpeg",
+        actualPoints: 1, billingReceipt: "11111111-1111-4111-8111-111111111111" });
     }
-    if (req.url === "/courseware/media/tasks/task-1/asset") {
-      res.setHeader("content-type", "audio/wav"); res.setHeader("content-length", audio.length); return res.end(audio);
-    }
-    if (req.url === "/courseware/media/tasks/task-1") return send(stored.get("saved-key-1"));
     res.writeHead(404); res.end();
   });
   const before = process.env.DECKWISE_PLATFORM_BASE_URL;
@@ -769,7 +765,15 @@ test("actual DesktopAuthSession login, private transport, restart/replay and log
   const { DesktopAuthSession } = await load("auth-session", { "node:crypto": crypto, "node:fs/promises": fs,
     "node:os": { homedir: () => root }, "node:path": path, electron: { net: { fetch: transportFetch } }, "@pi-desktop/shared": shared,
     "./courseware-media": media, "./courseware-online-editing": online });
-  const options = { dataDir: root, onChanged() {}, log() {} };
+  const options = { dataDir: root, onChanged() {}, log() {}, mediaRelayHost: { async call(method, params) {
+    const key = params.principalKey + ":" + params.key, previous = stored.get(key);
+    if (method.endsWith(".read")) return structuredClone(previous ?? null);
+    assert.equal(params.expectedRevision, previous?.revision ?? 0);
+    const next = { revision: params.expectedRevision + 1, value: structuredClone(params.value) };
+    stored.set(key, next); return structuredClone(next);
+  } } };
+  const quote = { version: "courseware-media-quote-v1", kind: "tts", model: input.model,
+    priceVersion: "price-v1", maxPoints: 2, maxChars: 4000, expiresAt: "2099-01-01T00:00:00Z", quoteToken: "4070908800." + "a".repeat(43) };
   first = new DesktopAuthSession(options); second = new DesktopAuthSession(options);
   assert.throws(() => first.getCoursewarePrincipal(), /AUTH_REQUIRED/);
   assert.equal((await first.startQrLogin()).status, "waitingForScan");
@@ -777,16 +781,16 @@ test("actual DesktopAuthSession login, private transport, restart/replay and log
   const principal = first.getCoursewarePrincipal();
   assert.match(principal.key, /^[a-f0-9]{64}$/u);
   principal.assertCurrent();
-  const task = await first.coursewareMedia.submitTts("saved-key-1", input);
-  assert.deepEqual((await first.coursewareMedia.download(reference(task))).bytes, audio);
+  const task = await first.coursewareMedia.submitConfirmedTts("saved-key-1", input, quote);
+  assert.deepEqual((await first.coursewareMedia.download(reference(task))).bytes, relayAudio);
   assert.equal((await second.restore()).status, "authenticated");
   const recoveredPrincipal = second.getCoursewarePrincipal();
   assert.equal(recoveredPrincipal.key, principal.key);
   assert.equal((await second.coursewareMedia.get(reference(task))).taskId, task.taskId);
-  assert.deepEqual((await second.coursewareMedia.download(reference(task))).bytes, audio);
-  assert.deepEqual(await second.coursewareMedia.submitTts("saved-key-1", input), task);
-  await assert.rejects(second.coursewareMedia.submitTts("saved-key-1", { ...input, input: "different" }), /PLATFORM_46002/);
-  assert.equal(submissions, 3); assert.equal(charges, 1);
+  assert.deepEqual((await second.coursewareMedia.download(reference(task))).bytes, relayAudio);
+  assert.deepEqual(await second.coursewareMedia.submitConfirmedTts("saved-key-1", input, quote), task);
+  await assert.rejects(second.coursewareMedia.submitConfirmedTts("saved-key-1", { ...input, input: "different" }, quote), /INVALID_RESPONSE/);
+  assert.equal(submissions, 1); assert.equal(charges, 1);
   await second.logout();
   assert.throws(() => recoveredPrincipal.assertCurrent(), /AUTH_CHANGED/);
   assert.throws(() => second.getCoursewarePrincipal(), /AUTH_REQUIRED/);

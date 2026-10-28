@@ -12,7 +12,7 @@ import ts from "typescript";
 import * as shared from "../../../packages/shared/dist/index.js";
 import { Host } from "../../../scripts/e2e/host.mjs";
 
-test("actual Electron Main/auth + durable Host TTS submission, restart and late-result isolation", {
+test("legacy receipt compatibility through Electron Main/auth + durable Host restart and late-result isolation", {
   skip: process.env.DECKWISE_E2E_ELECTRON_NET !== "1", timeout: 160_000,
 }, async (t) => {
   const electron = (await import("electron")).default;
@@ -133,6 +133,7 @@ test("actual Electron Main/auth + durable Host TTS submission, restart and late-
   await load("courseware-media-contracts");
   await load("courseware-media-transport");
   await load("courseware-music-request");
+  await load("courseware-local-media");
   await load("courseware-music-media");
   await load("courseware-media");
   const { DesktopAuthSession } = await load("auth-session");
@@ -142,6 +143,13 @@ test("actual Electron Main/auth + durable Host TTS submission, restart and late-
   const { CoursewareTtsCoordinator } = await load("courseware-tts");
   const { decodeCoursewareAudio } = await load("courseware-audio-decode");
   const auth = new DesktopAuthSession({ dataDir: data, onChanged() {}, log() {} });
+  // This historical-receipt fixture keeps its old transport; the local relay has its own actual-Host test.
+  auth.coursewareMedia = new (modules.get("courseware-media").CoursewareMediaClient)({
+    baseUrl: process.env.DECKWISE_PLATFORM_BASE_URL,
+    fetch: (url, init) => electron.net.fetch(url, init),
+    resolveAccessToken: () => auth.resolveAccessToken(),
+    getPrincipal: () => auth.getState().status === "authenticated" ? auth.getState().profile : null,
+  });
   const report = { status: "RUNNING", checks, temp, http, realElectronNetFetch: true, realHost: true,
     realParser: true, realAudioDecoder: audioIngestion, realOffice: false, realSpringPlatform: false, paidCalls: false, audioReady: false, realProviderAudio: Boolean(realAudioPath),
     platformBaseUrl: process.env.DECKWISE_PLATFORM_BASE_URL,
