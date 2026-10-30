@@ -38,7 +38,7 @@ export async function savedVideo(input: Record<string, unknown>, saved: SavedCou
     const quote = await client.quote(intent.model); await check();
     intent = (await saved.host.call<{ intent: SavedVideoIntent }>("courseware.video.begin", params)).intent;
     await check();
-    try { task = await client.submit(intent.idempotencyKey, { kind: "video", model: intent.model, input: intent.prompt }, quote, intent.submissionScope?.teamProjectId ?? undefined); }
+    try { task = await client.submit(intent.idempotencyKey, { kind: "video", model: intent.model, input: intent.prompt }, quote, intent.submissionScope?.teamProjectId ?? undefined, check); }
     catch (error) {
       await check();
       if (!(error instanceof Error) || !["COURSEWARE_MEDIA_TRANSPORT_FAILED", "COURSEWARE_MEDIA_WAIT_CANCELLED"].includes(error.message)) throw error;

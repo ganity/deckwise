@@ -1,5 +1,34 @@
 # Authorized private courseware media transport
 
+## Shared generation concurrency (2026-10-30)
+
+Main shares five generation slots across TTS, images, image-layer decomposition,
+music collections/exports and video for the current authenticated principal.
+Both legacy and confirmed submission paths, including the local audio relay,
+use the same FIFO queue. A decomposition counts as one generation job, including
+its bundled foregrounds. Returning a remote task ID does not release a slot:
+`ready`, `failed`, `cancelled` and `archive_failed` do. Catalogue, quote, status
+and asset reads do not wait for generation capacity.
+
+When queued work needs capacity, Main reads the original active jobs at
+three-second intervals without repeating submission. It skips still-running
+submission calls. A failed submission retains its slot until read-only lookup
+finds a terminal task or confirms absence. Missing previously accepted tasks,
+unknown submissions and status-read failures fail waiting calls visibly and
+retain unresolved capacity; they never authorize another paid POST. No timer
+runs when there is no waiting work.
+
+Before actual dispatch, Main rechecks authentication, cancellation, quote expiry
+and the originating coordinator's context guard, including approved scene plan
+and selected references. Queued cancellation sends no request. Existing durable
+intent/key, ownership, billing and adoption rules remain in force.
+
+This is an in-process limit for one authentication lifetime. Restarted or other
+Desktop instances and supplier fan-out need server scheduling for a global cap;
+existing receipts still recover through their original read-only paths. Coverage:
+`courseware-generation-queue.test.mjs`, `courseware-media.test.mjs` and
+`courseware-local-media.test.mjs`; no paid-provider concurrency claim follows.
+
 ## Course visual consistency and student text (2026-10-26)
 
 New scene plans contain an optional-for-compatibility `visualBible` object with

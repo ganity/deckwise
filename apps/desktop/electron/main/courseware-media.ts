@@ -140,44 +140,55 @@ export class CoursewareMediaClient extends CoursewareMediaTransport {
     return value;
   }
 
-  async submitConfirmedTts(key: string, input: CoursewareTtsRequest, quote: CoursewareTtsQuote, signal?: AbortSignal, projectId?: string): Promise<CoursewareTtsTask> {
+  async submitConfirmedTts(key: string, input: CoursewareTtsRequest, quote: CoursewareTtsQuote, signal?: AbortSignal, projectId?: string, check?: () => void | Promise<void>): Promise<CoursewareTtsTask> {
     if (typeof key !== "string" || !/^[A-Za-z0-9._-]{1,96}$/u.test(key)) throw new Error("COURSEWARE_MEDIA_INVALID_KEY");
     const body = request(input);
     const confirmed = mediaQuote(quote, body.model, "tts");
     if (body.input.length > confirmed.maxChars) throw new Error("COURSEWARE_MEDIA_INVALID_REQUEST");
-    if (this.local) return this.local.submit(key, body, requestHash(body), confirmed, signal, projectId);
-    const result = await this.json(submissionPath(projectId, true), this.principal(), signal,
-      { method: "POST", headers: { "Idempotency-Key": key }, body: JSON.stringify({ request: body,
-        confirmation: { priceVersion: confirmed.priceVersion, maxPoints: confirmed.maxPoints, quoteToken: confirmed.quoteToken } }) });
-    const saved = task(result, { idempotencyKey: key, requestHash: requestHash(body), model: body.model }, "tts");
-    if (saved.reservedPoints > confirmed.maxPoints) throw invalid();
-    return saved;
+    const principal = this.principal(), ref = { idempotencyKey: key, requestHash: requestHash(body) };
+    const path = submissionPath(projectId, true);
+    return this.generate(principal, async () => {
+      if (this.local) return this.local.submit(key, body, ref.requestHash, confirmed, signal, projectId);
+      const result = await this.json(path, principal, signal,
+        { method: "POST", headers: { "Idempotency-Key": key }, body: JSON.stringify({ request: body,
+          confirmation: { priceVersion: confirmed.priceVersion, maxPoints: confirmed.maxPoints, quoteToken: confirmed.quoteToken } }) });
+      const saved = task(result, { idempotencyKey: key, requestHash: requestHash(body), model: body.model }, "tts");
+      if (saved.reservedPoints > confirmed.maxPoints) throw invalid();
+      return saved;
+    }, () => this.findTts(ref), signal, async () => { await check?.(); mediaQuote(confirmed, body.model, "tts"); });
   }
 
-  async submitTts(key: string, input: CoursewareTtsRequest, signal?: AbortSignal, projectId?: string): Promise<CoursewareTtsTask> {
+  async submitTts(key: string, input: CoursewareTtsRequest, signal?: AbortSignal, projectId?: string, check?: () => void | Promise<void>): Promise<CoursewareTtsTask> {
     if (typeof key !== "string" || !/^[A-Za-z0-9._-]{1,96}$/u.test(key)) throw new Error("COURSEWARE_MEDIA_INVALID_KEY");
     const body = request(input);
     if (this.local) throw new Error("COURSEWARE_MEDIA_QUOTE_REQUIRED");
     // Match Java UTF-16 lengths and UTF-8 bytes, including bilingual text and emoji.
     const hash = requestHash(body);
     const principal = this.principal();
-    // A failed submit may already exist remotely; the owner must retain this key, never invent a retry key.
-    const result = await this.json(submissionPath(projectId), principal, signal,
-      { method: "POST", headers: { "Idempotency-Key": key }, body: JSON.stringify(body) });
-    return task(result, { idempotencyKey: key, requestHash: hash, model: body.model }, "tts");
+    const path = submissionPath(projectId);
+    return this.generate(principal, async () => {
+      // A failed submit may already exist remotely; the owner must retain this key, never invent a retry key.
+      const result = await this.json(path, principal, signal,
+        { method: "POST", headers: { "Idempotency-Key": key }, body: JSON.stringify(body) });
+      return task(result, { idempotencyKey: key, requestHash: hash, model: body.model }, "tts");
+    }, () => this.findTts({ idempotencyKey: key, requestHash: hash }), signal, check);
   }
 
-  async submitImage(key: string, input: CoursewareImageRequest, signal?: AbortSignal, projectId?: string): Promise<CoursewareImageTask> {
+  async submitImage(key: string, input: CoursewareImageRequest, signal?: AbortSignal, projectId?: string, check?: () => void | Promise<void>): Promise<CoursewareImageTask> {
     if (this.options.imageBaseUrl) throw new Error("COURSEWARE_MEDIA_QUOTE_REQUIRED");
     if (typeof key !== "string" || !/^[A-Za-z0-9._-]{1,96}$/u.test(key)) throw new Error("COURSEWARE_MEDIA_INVALID_KEY");
     const body = imageRequest(input);
     if (body.referenceImage) throw new Error("COURSEWARE_MEDIA_REFERENCE_CONFIRMATION_REQUIRED");
-    const result = await this.json(submissionPath(projectId), this.principal(), signal,
-      { method: "POST", headers: { "Idempotency-Key": key }, body: JSON.stringify(body) });
-    return task(result, { idempotencyKey: key, requestHash: requestHash(body), model: body.model }, "image");
+    const principal = this.principal(), ref = { idempotencyKey: key, requestHash: requestHash(body) };
+    const path = submissionPath(projectId);
+    return this.generate(principal, async () => {
+      const result = await this.json(path, principal, signal,
+        { method: "POST", headers: { "Idempotency-Key": key }, body: JSON.stringify(body) });
+      return task(result, { idempotencyKey: key, requestHash: requestHash(body), model: body.model }, "image");
+    }, () => this.findImage(ref), signal, check);
   }
 
-  async submitConfirmedImage(key: string, input: CoursewareImageRequest, quote: CoursewareImageQuote, signal?: AbortSignal, projectId?: string): Promise<CoursewareImageTask> {
+  async submitConfirmedImage(key: string, input: CoursewareImageRequest, quote: CoursewareImageQuote, signal?: AbortSignal, projectId?: string, check?: () => void | Promise<void>): Promise<CoursewareImageTask> {
     if (typeof key !== "string" || !/^[A-Za-z0-9._-]{1,96}$/u.test(key)) throw new Error("COURSEWARE_MEDIA_INVALID_KEY");
     const body = imageRequest(input);
     const confirmed = mediaQuote(quote, body.model, body.kind);
@@ -185,13 +196,17 @@ export class CoursewareMediaClient extends CoursewareMediaTransport {
     const principal = this.principal();
     if (body.referenceImage && !(await (body.kind === "image-layers" ? this.getLayerModels(signal) : this.getImageModels(signal))).some(entry => entry.model === body.model && entry.supportsReferenceImage === true))
       throw new Error("COURSEWARE_MEDIA_REFERENCE_UNSUPPORTED");
-    const result = await this.imageJson(submissionPath(projectId, true), principal, signal,
-      { method: "POST", headers: { "Idempotency-Key": key }, body: JSON.stringify({ request: body,
-        confirmation: { priceVersion: confirmed.priceVersion, maxPoints: confirmed.maxPoints, quoteToken: confirmed.quoteToken } }) });
-    const saved = task(result, { idempotencyKey: key, requestHash: requestHash(body), model: body.model }, body.kind);
-    if (this.options.imageBaseUrl && !saved.taskId.startsWith("gw-")) throw invalid();
-    if (saved.reservedPoints > confirmed.maxPoints) throw invalid();
-    return saved;
+    const ref = { idempotencyKey: key, requestHash: requestHash(body) };
+    const path = submissionPath(projectId, true);
+    return this.generate(principal, async () => {
+      const result = await this.imageJson(path, principal, signal,
+        { method: "POST", headers: { "Idempotency-Key": key }, body: JSON.stringify({ request: body,
+          confirmation: { priceVersion: confirmed.priceVersion, maxPoints: confirmed.maxPoints, quoteToken: confirmed.quoteToken } }) });
+      const saved = task(result, { idempotencyKey: key, requestHash: requestHash(body), model: body.model }, body.kind);
+      if (this.options.imageBaseUrl && !saved.taskId.startsWith("gw-")) throw invalid();
+      if (saved.reservedPoints > confirmed.maxPoints) throw invalid();
+      return saved;
+    }, () => this.findImage(ref, undefined, body.kind), signal, async () => { await check?.(); mediaQuote(confirmed, body.model, body.kind); });
   }
 
   async get(reference: CoursewareTaskRef, signal?: AbortSignal): Promise<CoursewareTtsTask> {

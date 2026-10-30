@@ -36,6 +36,70 @@ function fixture() {
 const song = {kind:"music",model:"music",input:"Hello",music:{title:"Hello Song",tags:"gentle"}};
 const speech = {kind:"tts",model:"tts",input:"Hello children!",voice:"teacher"};
 
+test("bulk local TTS uses five relay calls across clients and cancels or fences queued work before POST", async () => {
+  const f = fixture(), respond = f.options.fetch;
+  let open, firstFive, active = 0, peak = 0, posted = 0, current = true;
+  const gate = new Promise(resolve => { open = resolve; });
+  const started = new Promise(resolve => { firstFive = resolve; });
+  f.options.fetch = async (url, init) => {
+    active++; peak = Math.max(peak, active); posted++;
+    if (posted === 5) firstFive();
+    await gate;
+    try { return await respond(url, init); } finally { active--; }
+  };
+  const jobs = Array.from({ length: 20 }, (_, i) => f.client().submitConfirmedTts(`batch-${i}`, speech, quote("tts")));
+  const controller = new AbortController();
+  const cancelled = f.client().submitConfirmedTts("cancelled", speech, quote("tts"), controller.signal);
+  const cancellation = assert.rejects(cancelled, /WAIT_CANCELLED/);
+  const stale = f.client().submitConfirmedTts("stale", speech, quote("tts"), undefined, undefined,
+    () => assert(current, "context changed"));
+  const refusal = assert.rejects(stale, /context changed/);
+  await started;
+  assert.equal(posted, 5);
+  controller.abort(); current = false; open();
+  await Promise.all([...jobs, cancellation, refusal]);
+  assert.equal(peak, 5); assert.equal(posted, 20);
+  assert.ok((await Promise.all(jobs)).every(task => task.state === "ready"));
+  assert.equal(f.db.has("task:cancelled"), false);
+  assert.equal(f.db.has("task:stale"), false);
+});
+
+test("queued TTS rechecks quote expiration instead of submitting an expired paid offer", async t => {
+  t.mock.timers.enable({ apis: ["Date"] });
+  const f = fixture(), respond = f.options.fetch;
+  let open, firstFive, posted = 0;
+  const gate = new Promise(resolve => { open = resolve; });
+  const started = new Promise(resolve => { firstFive = resolve; });
+  f.options.fetch = async (url, init) => {
+    if (++posted === 5) firstFive();
+    await gate;
+    return respond(url, init);
+  };
+  const jobs = Array.from({ length: 5 }, (_, i) => f.client().submitConfirmedTts(`active-${i}`, speech, quote("tts")));
+  const expires = Math.ceil(Date.now() / 1000) + 5;
+  const waiting = f.client().submitConfirmedTts("expired", speech, { ...quote("tts"),
+    expiresAt: new Date(expires * 1000).toISOString(), quoteToken: `${expires}.` + "a".repeat(43) });
+  const refusal = assert.rejects(waiting, /QUOTE_EXPIRED/);
+  await started;
+  t.mock.timers.tick(6000); open();
+  await Promise.all([...jobs, refusal]);
+  assert.equal(posted, 5);
+  assert.equal(f.db.has("task:expired"), false);
+});
+
+test("queued speech progresses after original local music receipts complete without another music POST", async t => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const f = fixture(), client = f.client();
+  await Promise.all(Array.from({ length: 5 }, (_, i) => client.music.submitConfirmed(`song-${i}`, song, quote("music"))));
+  const speechTask = client.submitConfirmedTts("speech", speech, quote("tts"));
+  assert.equal(f.calls.filter(call => call.init.method === "POST").length, 5);
+  f.setState("completed");
+  t.mock.timers.tick(3000);
+  assert.equal((await speechTask).state, "ready");
+  assert.equal(f.calls.filter(call => call.init.method === "POST").length, 6);
+  assert.equal(f.calls.filter(call => call.url.includes("/relay/query?")).length, 10);
+});
+
 test("TTS audio and receipt survive a client restart with no Platform task/asset lookup",async()=>{
   const f=fixture(), first=f.client();
   const task=await first.submitConfirmedTts("tts-1",speech,quote("tts"));

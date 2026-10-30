@@ -29,19 +29,23 @@ export class CoursewareVideoMediaClient extends CoursewareMediaTransport {
     if (!/^[\w.-]{1,128}$/u.test(model)) throw new Error("COURSEWARE_MEDIA_INVALID_REQUEST");
     return mediaQuote(await this.json(`/courseware/media/models/${model}/quote?kind=video`, this.principal()), model, "video");
   }
-  async submit(key: string, input: VideoRequest, quote: MediaQuote<"video">, projectId?: string) {
+  async submit(key: string, input: VideoRequest, quote: MediaQuote<"video">, projectId?: string, check?: () => void | Promise<void>) {
     const body = videoRequest(input), confirmed = mediaQuote(quote, body.model, "video");
     if (!/^[\w.-]{1,96}$/u.test(key) || body.input.length > confirmed.maxChars) throw new Error("COURSEWARE_MEDIA_INVALID_REQUEST");
     const principal = this.principal();
     if (body.referenceImage && !(await this.models()).some(model => model.model === body.model && model.supportsReferenceImage))
       throw new Error("COURSEWARE_MEDIA_REFERENCE_UNSUPPORTED");
     this.assertPrincipal(principal);
-    const result = mediaTask(await this.json(mediaSubmissionPath(projectId, true), principal, undefined, { method: "POST",
-      headers: { "Idempotency-Key": key }, body: JSON.stringify({ request: body, confirmation: {
-        priceVersion: confirmed.priceVersion, maxPoints: confirmed.maxPoints, quoteToken: confirmed.quoteToken } }) }),
-      { idempotencyKey: key, requestHash: videoRequestHash(body), model: body.model }, "video");
-    if (result.reservedPoints > confirmed.maxPoints) throw new Error("COURSEWARE_MEDIA_INVALID_RESPONSE");
-    return result;
+    const ref = { idempotencyKey: key, requestHash: videoRequestHash(body) };
+    const path = mediaSubmissionPath(projectId, true);
+    return this.generate(principal, async () => {
+      const result = mediaTask(await this.json(path, principal, undefined, { method: "POST",
+        headers: { "Idempotency-Key": key }, body: JSON.stringify({ request: body, confirmation: {
+          priceVersion: confirmed.priceVersion, maxPoints: confirmed.maxPoints, quoteToken: confirmed.quoteToken } }) }),
+        { idempotencyKey: key, requestHash: videoRequestHash(body), model: body.model }, "video");
+      if (result.reservedPoints > confirmed.maxPoints) throw new Error("COURSEWARE_MEDIA_INVALID_RESPONSE");
+      return result;
+    }, () => this.find(ref), undefined, async () => { await check?.(); mediaQuote(confirmed, body.model, "video"); });
   }
   async get(reference: CoursewareTaskRef) {
     const ref = taskRef(reference);

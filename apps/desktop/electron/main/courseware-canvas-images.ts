@@ -186,7 +186,7 @@ export class CoursewareCanvasImages {
       let task: CoursewareImageTask;
       try {
         task = await this.auth.coursewareMedia.submitConfirmedImage(begun.intent.idempotencyKey,
-          { kind: "image", model: begun.intent.request.model, input: begun.intent.request.input, ...(referenceImage ? { referenceImage } : {}) }, offer.quote, undefined, teamProjectId);
+          { kind: "image", model: begun.intent.request.model, input: begun.intent.request.input, ...(referenceImage ? { referenceImage } : {}) }, offer.quote, undefined, teamProjectId, async () => { c.assertCurrent(); await this.reference(c, begun); c.assertCurrent(); });
       } catch (failure) {
         if (!isCoursewareMediaPermissionRefusal(failure, teamProjectId)) throw failure;
         const rejected = checked(await c.host.call<Journal>("courseware.mediaCanvas.image.reject", { ...c.scope,

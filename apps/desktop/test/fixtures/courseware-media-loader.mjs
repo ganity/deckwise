@@ -5,7 +5,7 @@ import * as shared from "../../../../packages/shared/dist/index.js";
 
 export async function loadCoursewareMedia(name = "courseware-media") {
   const modules = new Map([["node:crypto", crypto], ["@pi-desktop/shared", shared]]);
-  for (const name of ["courseware-media-contracts", "courseware-media-transport", "courseware-music-request", "courseware-local-media", "courseware-music-media", "courseware-video-media", "courseware-media"]) {
+  for (const name of ["courseware-generation-queue", "courseware-media-contracts", "courseware-media-transport", "courseware-music-request", "courseware-local-media", "courseware-music-media", "courseware-video-media", "courseware-media"]) {
     const source = await readFile(new URL(`../../electron/main/${name}.ts`, import.meta.url), "utf8");
     const output = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
     const exports = {};

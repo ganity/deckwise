@@ -1,8 +1,12 @@
+import { CoursewareGenerationQueue } from "./courseware-generation-queue";
+
 export type MediaRelayJournal = (method: "read" | "write", key: string, value?: unknown, expectedRevision?: number) => Promise<unknown>;
 export type CoursewareMediaOptions = { baseUrl: string; imageBaseUrl?: string; fetch: typeof fetch; resolveAccessToken: () => Promise<string>;
   getPrincipal: () => object | null; relayJournal?: MediaRelayJournal };
 const invalid = () => new Error("COURSEWARE_MEDIA_INVALID_RESPONSE");
 const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+// shortcut: limits this authenticated Desktop process; persisted/provider-wide limits need server scheduling.
+const generationQueues = new WeakMap<object, CoursewareGenerationQueue>();
 
 export function mediaEnvelope(bytes: Buffer): unknown {
   let value: unknown;
@@ -42,6 +46,22 @@ export class CoursewareMediaTransport {
   }
   protected assertPrincipal(principal: object): void {
     if (this.options.getPrincipal() !== principal) throw new Error("COURSEWARE_MEDIA_AUTH_CHANGED");
+  }
+  protected generate<T extends { state: string }>(principal: object, submit: () => Promise<T>,
+    refresh: () => Promise<{ state: string } | null>, signal?: AbortSignal, check?: () => void | Promise<void>): Promise<T> {
+    let queue = generationQueues.get(principal);
+    if (!queue) { queue = new CoursewareGenerationQueue(); generationQueues.set(principal, queue); }
+    return queue.run(submit, async () => {
+      this.assertPrincipal(principal);
+      const task = await refresh();
+      this.assertPrincipal(principal);
+      return task;
+    }, signal, async () => {
+      this.assertPrincipal(principal);
+      await check?.();
+      this.assertPrincipal(principal);
+      signal?.throwIfAborted();
+    });
   }
   protected async imageJson(path: string, principal: object, signal?: AbortSignal, init: RequestInit = {}): Promise<unknown> {
     return this.json(path, principal, signal, init, 30_000, true);

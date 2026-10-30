@@ -38,6 +38,25 @@
 - Automated fixture coverage: `packages/agent-runtime/src/courseware-turn-continuation.test.ts`.
   This is runtime-loop acceptance, not a paid supplier or packaged Desktop test.
 
+## E2E-COURSEWARE-generation-concurrency
+
+- Submit more than five mixed TTS/image/decomposition/music/export/video jobs in
+  one authenticated Desktop process. Hold the first five supplier jobs pending
+  after their submission responses; require no sixth generation POST. Complete
+  original jobs and require FIFO progress through read-only status polling.
+- Exercise the local TTS relay across multiple client/coordinator instances;
+  require a peak of five calls, completion of all queued valid jobs, and no POST
+  for cancelled, stale-context or expired-quote work. Recheck account ownership
+  and scene/reference guards at queued dispatch.
+- Lose a submission response, return unknown or missing accepted status, and
+  fail a status read. Require retained unresolved capacity, a visible waiting
+  error and no automatic paid retry. Subsequent terminal/absent original status
+  may restore capacity; catalogue/status/asset reads must remain available.
+- Automated fixtures: `courseware-generation-queue.test.mjs`, the mixed-media
+  case in `courseware-media.test.mjs`, and bulk/expired local relay cases in
+  `courseware-local-media.test.mjs`. These do not establish supplier-wide limits,
+  restart persistence of the semaphore, or packaged Electron acceptance.
+
 ## E2E-COURSEWARE-llm-ha-scene-images
 
 - Configure llm-ha courseware-only MXAPI/Seedream providers and Platform IMAGE /

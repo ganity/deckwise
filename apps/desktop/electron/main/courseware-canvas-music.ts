@@ -166,7 +166,7 @@ export class CoursewareCanvasMusic {
       const projectId = coursewareMediaSubmissionProject(begun.intent.submissionScope, p.sessionId);
       c.assertCurrent();
       let task: Task;
-      try { task = await this.auth.coursewareMedia.music.submitConfirmed(begun.intent.idempotencyKey, begun.intent.request, offer.quote, undefined, projectId); }
+      try { task = await this.auth.coursewareMedia.music.submitConfirmed(begun.intent.idempotencyKey, begun.intent.request, offer.quote, undefined, projectId, c.assertCurrent); }
       catch (failure) {
         if (!isCoursewareMediaPermissionRefusal(failure, projectId)) throw failure;
         const rejected = checked(await c.host.call<Journal>(rpc("reject"), { ...c.scope,

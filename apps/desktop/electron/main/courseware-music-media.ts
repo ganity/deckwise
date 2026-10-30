@@ -32,18 +32,25 @@ export class CoursewareMusicMediaClient extends CoursewareMediaTransport {
   }
 
   async submitConfirmed(key: string, input: MusicRequest | MusicExportRequest, quote: MediaQuote<MusicOperation>,
-    signal?: AbortSignal, projectId?: string): Promise<MediaTasks[MusicOperation]> {
+    signal?: AbortSignal, projectId?: string, check?: () => void | Promise<void>): Promise<MediaTasks[MusicOperation]> {
     if (typeof key !== "string" || !/^[A-Za-z0-9._-]{1,96}$/u.test(key)) throw new Error("COURSEWARE_MEDIA_INVALID_KEY");
     const body = musicRequest(input), confirmed = mediaQuote(quote, body.model, body.kind);
     if (body.input.length > confirmed.maxChars) throw new Error("COURSEWARE_MEDIA_INVALID_REQUEST");
-    if (this.local) return this.local.submit(key, body, musicRequestHash(body), confirmed, signal, projectId);
-    const result = await this.json(mediaSubmissionPath(projectId, true), this.principal(), signal, {
-      method: "POST", headers: { "Idempotency-Key": key }, body: JSON.stringify({ request: body,
-        confirmation: { priceVersion: confirmed.priceVersion, maxPoints: confirmed.maxPoints, quoteToken: confirmed.quoteToken } }),
-    });
-    const task = mediaTask(result, { idempotencyKey: key, requestHash: musicRequestHash(body), model: body.model }, body.kind);
-    if (task.reservedPoints > confirmed.maxPoints) throw new Error("COURSEWARE_MEDIA_INVALID_RESPONSE");
-    return task;
+    const principal = this.principal(), ref = { idempotencyKey: key, requestHash: musicRequestHash(body) };
+    const path = mediaSubmissionPath(projectId, true);
+    return this.generate(principal, async () => {
+      if (this.local) return this.local.submit(key, body, ref.requestHash, confirmed, signal, projectId);
+      const result = await this.json(path, principal, signal, {
+        method: "POST", headers: { "Idempotency-Key": key }, body: JSON.stringify({ request: body,
+          confirmation: { priceVersion: confirmed.priceVersion, maxPoints: confirmed.maxPoints, quoteToken: confirmed.quoteToken } }),
+      });
+      const task = mediaTask(result, { idempotencyKey: key, requestHash: musicRequestHash(body), model: body.model }, body.kind);
+      if (task.reservedPoints > confirmed.maxPoints) throw new Error("COURSEWARE_MEDIA_INVALID_RESPONSE");
+      return task;
+    }, async () => {
+      const task = await this.find(ref, body.kind);
+      return task && this.local ? this.local.get({ taskId: task.taskId, ...ref }, body.kind) : task;
+    }, signal, async () => { await check?.(); mediaQuote(confirmed, body.model, body.kind); });
   }
 
   async get<K extends MusicOperation>(reference: CoursewareTaskRef, kind: K, signal?: AbortSignal): Promise<MediaTasks[K]> {

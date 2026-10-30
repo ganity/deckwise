@@ -136,6 +136,18 @@ function setup() {
 }
 const operation = (prepared) => ({ ...baseline, intentId: prepared.intentId });
 
+test("queued TTS dispatch carries the original editor guard to the media client", async () => {
+  const f = setup(), prepared = await f.coordinator.prepare(preparation);
+  f.auth.coursewareMedia.submitTts = async (...args) => {
+    assert.equal(typeof args[4], "function");
+    f.move();
+    await args[4]();
+    assert.fail("moved editor reached submission");
+  };
+  await assert.rejects(f.coordinator.submit(operation(prepared)), /editor or Chat changed/);
+  assert.equal(f.network.length, 0);
+});
+
 test("prepare persists exact Host speech before explicit submit and exposes only bounded status", async () => {
   const f = setup(), prepared = await f.coordinator.prepare(preparation);
   assert.equal(prepared.phase, "prepared"); assert.equal(f.network.length, 0);

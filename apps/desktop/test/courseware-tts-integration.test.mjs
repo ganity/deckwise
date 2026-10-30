@@ -131,6 +131,7 @@ test("legacy receipt compatibility through Electron Main/auth + durable Host res
     modules.set(name, exports); return exports;
   }
   await load("courseware-media-contracts");
+  await load("courseware-generation-queue");
   await load("courseware-media-transport");
   await load("courseware-music-request");
   await load("courseware-local-media");

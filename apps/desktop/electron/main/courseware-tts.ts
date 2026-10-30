@@ -152,8 +152,8 @@ export class CoursewareTtsCoordinator {
       let task: CoursewareTtsTask;
       try {
         task = saved
-          ? await this.auth.coursewareMedia.submitConfirmedTts(begun.intent.idempotencyKey, begun.intent.request, saved.quote, undefined, teamProjectId)
-          : await this.auth.coursewareMedia.submitTts(begun.intent.idempotencyKey, begun.intent.request, undefined, teamProjectId);
+          ? await this.auth.coursewareMedia.submitConfirmedTts(begun.intent.idempotencyKey, begun.intent.request, saved.quote, undefined, teamProjectId, context.assertCurrent)
+          : await this.auth.coursewareMedia.submitTts(begun.intent.idempotencyKey, begun.intent.request, undefined, teamProjectId, context.assertCurrent);
       } catch (failure) {
         if (!isCoursewareMediaPermissionRefusal(failure, teamProjectId)) throw failure;
         const rejected = await context.host.call<Journal>("courseware.tts.reject", { ...scope,

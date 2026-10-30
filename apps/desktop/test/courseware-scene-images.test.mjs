@@ -184,6 +184,18 @@ async function fixture(t, coursePlan = plan) {
   };
 }
 
+test("queued scene dispatch rechecks its approved plan before the paid request", async t => {
+  const f = await fixture(t), priced = await f.priced();
+  f.media.submitConfirmedImage = async (...args) => {
+    assert.equal(typeof args[5], "function");
+    f.approval("b".repeat(64));
+    await args[5]();
+    assert.fail("replaced plan reached submission");
+  };
+  await assert.rejects(f.coordinator.submitConfirmed(priced.payload), /PLAN_CHANGED/);
+  assert.equal(f.calls.includes("POST"), false);
+});
+
 test("one confirmed decomposition archives its base and foreground with the same receipt after coordinator restart", async t => {
   const f = await fixture(t), master = await f.priced();
   await f.coordinator.submitConfirmed(master.payload); f.ready();

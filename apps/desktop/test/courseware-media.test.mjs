@@ -26,6 +26,7 @@ async function load(file, dependencies) {
 }
 const media = await loadCoursewareMedia();
 const { CoursewareMediaClient } = media;
+const { musicRequestHash } = await loadCoursewareMedia("courseware-music-request");
 const sha = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const input = { kind: "tts", model: "courseware-tts-v1", input: "Good! 小朋友😀", voice: "teacher_1" };
 function hashRequest(value) {
@@ -53,6 +54,59 @@ function setup(fetch = async () => json(ready())) {
     resolveAccessToken: async () => `private-access-${++tokens}`, fetch: async (url, init) => { calls.push([url, init]); return fetch(url, init); } });
   return { client, calls, principal: (value) => { principal = value; } };
 }
+
+test("all media kinds share five slots, including async generation after submit returns", async t => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const submitted = [], completed = new Set(), tasks = new Map();
+  let releaseFirst, releaseSecond;
+  const firstStarted = new Promise(resolve => { releaseFirst = resolve; });
+  const secondStarted = new Promise(resolve => { releaseSecond = resolve; });
+  const f = setup(async (url, init) => {
+    const parsed = new URL(url);
+    if (parsed.pathname.endsWith("/models")) return json([{ model: imageInput.model, voices: [], providerDefaultVoice: false, supportsReferenceImage: true }]);
+    if (init.method === "POST") {
+      const body = JSON.parse(init.body).request;
+      const key = init.headers.get("Idempotency-Key");
+      submitted.push(key);
+      const value = { ...ready(body, key), taskId: `task-${key}`, kind: body.kind, state: "submitted", assetRef: null,
+        feeState: "reserved", actualPoints: null, receiptId: null,
+        requestHash: body.kind.startsWith("music") ? musicRequestHash(body) : hashRequest(body) };
+      tasks.set(key, value);
+      if (submitted.length === 5) releaseFirst();
+      if (submitted.length === 10) releaseSecond();
+      return json(value);
+    }
+    const key = parsed.searchParams.get("key") ?? parsed.pathname.split("/").at(-1).slice(5);
+    assert(tasks.has(key), "queued work must only poll existing tasks");
+    return json({ ...tasks.get(key), state: completed.has(key) ? "failed" : "submitted" });
+  });
+  const jobs = Array.from({ length: 12 }, (_, index) => {
+    const kind = ["tts", "image", "image-layers", "music", "video", "music-export"][index % 6];
+    const bytes = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg==", "base64");
+    const body = kind === "tts" ? input : kind.startsWith("music") ? { kind, model: kind,
+      input: kind === "music-export" ? "11111111-1111-4111-8111-111111111111" : "Hello song",
+      ...(kind === "music" ? { music: { title: "Hello" } } : {}) } : { ...imageInput, kind, ...(kind === "image-layers" ? {
+      referenceImage: { sha256: sha(bytes), mimeType: "image/png", byteLength: bytes.length, bytesBase64: bytes.toString("base64") },
+    } : {}) };
+    const quote = { ...imageQuote(), kind, model: body.model };
+    if (kind === "music" || kind === "music-export") return f.client.music.submitConfirmed(`batch-${index}`, body, quote);
+    if (kind === "video") return f.client.video.submit(`batch-${index}`, body, quote);
+    return kind === "tts" ? f.client.submitConfirmedTts(`batch-${index}`, body, quote)
+      : f.client.submitConfirmedImage(`batch-${index}`, body, quote);
+  });
+  await firstStarted;
+  for (let i = 0; i < 60; i++) await Promise.resolve();
+  assert.equal(submitted.length, 5, "pending remote jobs must retain their generation slots");
+  for (const key of submitted) completed.add(key);
+  t.mock.timers.tick(3000);
+  await secondStarted;
+  for (let i = 0; i < 60; i++) await Promise.resolve();
+  assert.equal(submitted.length, 10);
+  for (const key of submitted) completed.add(key);
+  t.mock.timers.tick(3000);
+  await Promise.all(jobs);
+  assert.deepEqual(submitted.toSorted(), Array.from({ length: 12 }, (_, i) => `batch-${i}`).sort());
+});
 
 test("team submission uses a distinct route with unchanged hashes and never falls back", async () => {
   const project = "12345678-1234-1234-1234-123456789abc";

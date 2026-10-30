@@ -331,7 +331,12 @@ export class CoursewareSceneImages {
       c.assertCurrent();
       let task: CoursewareImageTask;
       try {
-        task = await this.auth.coursewareMedia.submitConfirmedImage(begun.intent.idempotencyKey, request, saved.quote, undefined, teamProjectId);
+        task = await this.auth.coursewareMedia.submitConfirmedImage(begun.intent.idempotencyKey, request, saved.quote, undefined, teamProjectId, async () => {
+          c.assertCurrent();
+          await this.approved(c.host, p.sessionId, begun.intent.planSha256);
+          await this.reference(c, begun);
+          c.assertCurrent();
+        });
       } catch (failure) {
         if (!isCoursewareMediaPermissionRefusal(failure, teamProjectId)) throw failure;
         const rejected = checked(await c.host.call<Journal>("courseware.sceneImage.reject", { ...c.scope,
