@@ -29,11 +29,14 @@ impl Database {
             "pages": identity["pages"].as_array().into_iter().flatten().map(|page| serde_json::json!({
                 "pageId": page["logicalId"],
                 "objects": page["objects"].as_array().into_iter().flatten().enumerate().map(|(index, object)|
-                    serde_json::json!({"objectId":object["logicalId"], "kind":object["type"], "index":index + 1})
+                    serde_json::json!({"objectId":object["logicalId"], "kind":object["type"], "index":index + 1,
+                      "sourceShapeId":object["sourceShapeId"], "sourceObjectName":object["sourceObjectName"]})
                 ).collect::<Vec<_>>()
             })).collect::<Vec<_>>()
         });
-        let mut context = serde_json::json!({ "project": project, "mapping": mapping, "savedObjects": saved_objects });
+        let native_saved = self.kv_get("coursewareNativeSaveWarnings.v1", &storage_key(workspace, &project.project_id)?)?
+            .is_some_and(|value| value["sourceSha256"] == project.source.sha256);
+        let mut context = serde_json::json!({ "project": project, "mapping": mapping, "savedObjects": saved_objects, "nativeSaved": native_saved, "saveWarnings": self.native_save_warnings(workspace, &project)? });
         let chat_changes = self.courseware_chat_change_context(workspace, &project)?;
         if !chat_changes.is_empty() {
             context["chatChanges"] = serde_json::json!(chat_changes);
@@ -134,6 +137,14 @@ impl Database {
                             .all(|(page, canonical)| page["logicalId"] == canonical.page_id),
                     "COURSEWARE_CONFLICT: saved identity differs; explicit review is required"
                 );
+                // Backfill verified native names without changing logical identities or fingerprints.
+                let mut enriched = saved.value().clone();
+                for (old_page, fresh_page) in enriched["pages"].as_array_mut().unwrap().iter_mut().zip(identity.value()["pages"].as_array().unwrap()) {
+                    for (old, fresh) in old_page["objects"].as_array_mut().unwrap().iter_mut().zip(fresh_page["objects"].as_array().unwrap()) {
+                        if let Some(name) = fresh.get("sourceObjectName") { old["sourceObjectName"] = name.clone(); }
+                    }
+                }
+                self.kv_set(IDENTITY_NAMESPACE, &key, &enriched)?;
             } else {
                 let ids: Vec<_> = project
                     .pages

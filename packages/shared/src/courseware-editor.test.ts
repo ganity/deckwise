@@ -54,3 +54,13 @@ describe("manual narration edits", () => {
     expect(() => replaceNarrationText({ type: "wait" }, "New")).toThrow();
   });
 });
+
+it("preserves only strictly bounded explicit delays in deleted-page teaching history", () => {
+  const entry = { teachingRevision: "T", sourceRevision: "R", pageId: "p", pageNumber: 1,
+    actions: [{ id: "delay", type: "delay", durationMs: 1200 }], omittedAudioCount: 0, omittedCueCount: 0 };
+  const history = (action: unknown) => ({ entries: [{ ...entry, actions: [action] }], skippedEntryCount: 0 });
+  expect(isCoursewareTeachingHistory(history(entry.actions[0]))).toBe(true);
+  for (const durationMs of [-1, 0.5, 30001, "1000", null])
+    expect(isCoursewareTeachingHistory(history({ ...entry.actions[0], durationMs }))).toBe(false);
+  expect(isCoursewareTeachingHistory(history({ ...entry.actions[0], extra: true }))).toBe(false);
+});

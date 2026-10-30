@@ -1,4 +1,4 @@
-import type { CoursewareEducationContext, CoursewareTaskType } from "./courseware-contract.js";
+import type { CoursewareEducationContext, CoursewareTaskType, CoursewareProject } from "./courseware-contract.js";
 import type { CoursewareSceneImageView, CoursewareScenePlanSnapshot } from "./courseware-scene-plan.js";
 
 export const COURSEWARE_WORKFLOW_TOOLS = [
@@ -48,4 +48,15 @@ export function sceneAssetBlockers(plan: CoursewareScenePlanSnapshot, images: re
       selected.reduce((sum, row) => sum + (row.asset?.byteLength ?? 0), 0) > 256 * 1024 * 1024)
     blockers.push({ pageId: "", kind: "budget" });
   return blockers;
+}
+
+export type CoursewareTeachingProgress = { total: number; audio: number; ready: number };
+
+/** Summarize an already validated saved project without opening another teaching view. */
+export function coursewareTeachingProgress(project: CoursewareProject): CoursewareTeachingProgress {
+  return { total: project.pages.length,
+    audio: project.pages.filter(page => page.actions.some(action => action.type === "speech") &&
+      page.actions.filter(action => action.type === "speech").every(action => typeof action.audioAssetId === "string")).length,
+    ready: project.pages.filter(page => page.reviewState === "ready" &&
+      !page.actions.some(action => action.attention !== undefined || action.type === "video_slot")).length };
 }

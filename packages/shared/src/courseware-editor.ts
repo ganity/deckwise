@@ -1,3 +1,4 @@
+import { isCoursewareQuestionResponse } from "./courseware-question.js";
 import type { CoursewareBuildRef, CoursewareProject, CoursewareSnapshot } from "./courseware-contract.js";
 import { isCoursewareProject, isTeachingWrite } from "./courseware-contract.js";
 import type { CoursewareChatChange, CoursewareSourceChange } from "./courseware-source-change.js";
@@ -13,6 +14,7 @@ export type CoursewareTeachingView = {
   project: CoursewareProject;
   pageId: string;
   pageNumber: number;
+  saveWarnings?: string[];
   sourceChange?: CoursewareSourceChange;
   chatChanges?: CoursewareChatChange[];
   teachingObjects?: Array<{
@@ -22,6 +24,10 @@ export type CoursewareTeachingView = {
     aliases: string[];
     status: "mapped" | "missing" | "content_changed" | "identity_mismatch";
     effectTargetEligible?: boolean;
+    /** Current saved OOXML shape identity, never a display ordinal. */
+    sourceShapeId?: string;
+    /** Compiler-owned unique name for SDKs that renumber shape IDs on import. */
+    sourceObjectName?: string;
     savedKind?: string;
     savedIndex?: number;
   }>;
@@ -117,7 +123,8 @@ export function isCoursewareInteractionCheckpoint(value: unknown): boolean {
   if (!record(value) || value.type !== "interaction_checkpoint" || !id(value.id) || !id(value.checkpointId)) return false;
   if (value.checkpointKind === "teacher_continue") return fields(value, ["id", "type", "checkpointId", "checkpointKind"]);
   const answer = value.referenceAnswer, context = value.context;
-  return value.checkpointKind === "chapter_summary" && fields(value, ["id", "type", "checkpointId", "checkpointKind", "chapterId", "chapterTitle", "question", "referenceAnswer", "context"]) &&
+  return value.checkpointKind === "chapter_summary" && fields(value, ["id", "type", "checkpointId", "checkpointKind", "chapterId", "chapterTitle", "question", "referenceAnswer", "context", ...(Object.hasOwn(value, "response") ? ["response"] : [])]) &&
+    (!Object.hasOwn(value, "response") || isCoursewareQuestionResponse(value.response)) &&
     id(value.chapterId) && text(value.chapterTitle, 1000) && text(value.question) &&
     record(answer) && fields(answer, ["summary", "keyPoints"]) && text(answer.summary) &&
     Array.isArray(answer.keyPoints) && answer.keyPoints.length > 0 && answer.keyPoints.length <= 8 && answer.keyPoints.every(point => text(point, 1000)) &&
@@ -153,6 +160,7 @@ export function isCoursewareTeachingHistory(value: unknown): value is Courseware
         typeof action.text === "string" && action.text.length <= 32_000 &&
         (!Object.hasOwn(action, "source") || (typeof action.source === "string" && ["notes", "external", "original", "light_rewrite", "generated"].includes(action.source))) &&
         (!Object.hasOwn(action, "pauseAfterMs") || count(action.pauseAfterMs, 30_000));
+      if (action.type === "delay") return fields(action, ["id", "type", "durationMs"]) && count(action.durationMs, 30_000);
       if (action.type === "video_slot") return fields(action, ["id", "type", "prompt"]) && id(action.id) &&
         typeof action.prompt === "string" && !!action.prompt.trim() && action.prompt.length <= 4000;
       return isCoursewareInteractionCheckpoint(action);

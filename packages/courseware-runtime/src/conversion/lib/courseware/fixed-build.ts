@@ -6,7 +6,10 @@ import path from 'node:path';
 import { mapSlideIrToScenes } from '../import/mappers/import-ir-to-classroom';
 import type { SlideIR, ImportWarning } from '../import/types';
 import { fixedBuildInputSchema, type FixedBuildInput } from './fixed-build-input';
-import { projectNativeClicks } from './native-click-animations';
+import { hasGeneratedNativeMotions, projectNativeClicks } from './native-click-animations';
+import { validSpeechAnimationSequence } from '../../../speech-animation-sequence';
+import { validateNativeAnimationBindings } from '../../../native-animation-node';
+import type { NativeClickAnimations } from '../../../native-click-animations';
 
 export const sha256 = (bytes: string | Uint8Array) =>
   createHash('sha256').update(bytes).digest('hex');
@@ -138,8 +141,7 @@ export function validateFixedMapping(input: FixedBuildInput, ir: SlideIR) {
   );
   for (const teaching of input.teaching.pages) {
     const mapping = input.mapping.pages.find((p) => p.pageId === teaching.pageId)!;
-    // shortcut: one animation per static object; sequence composition needs a separately validated policy.
-    const animatedObjects = new Set<string>();
+    requireBuild(validSpeechAnimationSequence(teaching.actions), 'ANIMATION_TARGET_CONFLICT');
     for (const action of teaching.actions) {
       if (action.type !== 'speech') continue;
       unique(
@@ -158,10 +160,6 @@ export function validateFixedMapping(input: FixedBuildInput, ir: SlideIR) {
           targets.every((id) => mapping.objects.some((o) => o.objectId === id)),
           'EFFECT_BINDING_MISMATCH',
         );
-        if (effect.type === 'element_animation') {
-          requireBuild(!animatedObjects.has(effect.elementId), 'ANIMATION_TARGET_CONFLICT');
-          animatedObjects.add(effect.elementId);
-        }
         const page = ir.pages.find((p) => p.id === mapping.importPageId)!;
         for (const id of targets) {
           const element = page.elements.find(
@@ -322,20 +320,38 @@ export async function buildFixedCourseware(
       const mapping = input.mapping.pages.find((p) => p.importPageId === page.id)!;
       const scene = scenes[index];
       requireBuild(scene.content.type === 'slide', 'INVALID_SLIDE');
-      let nativeAnimations;
-      try { nativeAnimations = projectNativeClicks(page); }
+      const actions = input.teaching.pages.find((p) => p.pageId === mapping.pageId)!.actions;
+      let nativeAnimations: NativeClickAnimations | undefined;
+      try { nativeAnimations = hasGeneratedNativeMotions(page, actions, mapping.objects) ? undefined : projectNativeClicks(page); }
       catch { throw new FixedBuildError('NATIVE_ANIMATION_UNSUPPORTED', [...diagnostics, {
         code: 'NATIVE_ANIMATION_UNSUPPORTED', severity: 'error', pageIndex: index,
-        message: 'Fixed playback supports only whole-object on-click entrance appear/fade before narration.',
+        message: 'Fixed playback supports only whole-object on-click entrance appear/fade.',
       }]); }
-      const actions = input.teaching.pages.find((p) => p.pageId === mapping.pageId)!.actions;
+      if (actions.some(action => action.type === 'native_animation')) {
+        requireBuild(validateNativeAnimationBindings(actions, input.source.sha256, nativeAnimations?.steps.length ?? 0),
+          'NATIVE_ANIMATION_BINDING_MISMATCH');
+        nativeAnimations = { ...nativeAnimations!, version: 2 as const, sequence: 'teaching-timeline' as const };
+        const revealed = new Set<string>();
+        for (const action of actions) {
+          if (action.type === 'native_animation') revealed.add(nativeAnimations.steps[action.stepIndex].elementId);
+          if (action.type === 'speech') for (const cue of action.visualCues ?? []) {
+            const effect = cue.effect;
+            const ids = effect.type === 'highlight' ? effect.elementIds
+              : [effect.elementId, ...(effect.type === 'spotlight' ? effect.elementIds ?? [] : [])];
+            requireBuild(ids.every(id => {
+              const imported = mapping.objects.find(object => object.objectId === id)?.importElementId;
+              return !nativeAnimations!.steps.some(step => step.elementId === imported) || revealed.has(imported!);
+            }), 'NATIVE_ANIMATION_TARGET_NOT_REVEALED');
+          }
+        }
+      }
       if (nativeAnimations) {
         const nativeTargets = new Set(nativeAnimations.steps.map(step => step.elementId));
         for (const action of actions) if (action.type === 'speech') for (const cue of action.visualCues ?? []) {
           const effect = cue.effect;
-          const ids = effect.type === 'highlight' ? effect.elementIds
-            : [effect.elementId, ...(effect.type === 'spotlight' ? effect.elementIds ?? [] : [])];
-          requireBuild(!ids.some(id => nativeTargets.has(mapping.objects.find(object => object.objectId === id)?.importElementId ?? '')),
+          // Attention overlays preserve the native object animation owner.
+          if (effect.type === 'element_animation') requireBuild(
+            !nativeTargets.has(mapping.objects.find(object => object.objectId === effect.elementId)?.importElementId ?? ''),
             'NATIVE_ANIMATION_CUE_CONFLICT');
         }
       }
@@ -375,7 +391,8 @@ export async function buildFixedCourseware(
         ...(pages.some(page => page.actions.some(action => action.type === 'audio_clip')) ? { teachingAudioClips: 'sequential/1' } : {}),
         transitions: false,
         objectAnimations: false,
-        ...(pages.some(page => page.nativeAnimations) ? { nativeObjectAnimations: 'click-appear-fade/1' } : {}),
+        ...(pages.some(page => page.nativeAnimations) ? { nativeObjectAnimations:
+          pages.some(page => page.nativeAnimations?.version === 2) ? 'click-appear-fade/2' : 'click-appear-fade/1' } : {}),
         spotlight: visualCues.some((cue) => cue.effect.type === 'spotlight'),
         ...(visualCues.length
           ? { speechVisualCues: hasAnimations ? 'fixed-audio/2' : 'fixed-audio/1' }

@@ -201,6 +201,7 @@ interface PptxSlideElementMetadata {
 }
 
 interface PptxSlideSupplement {
+  sourceNames?: Map<string, string>;
   background?: SlidePageIR['background'];
   elementMetadata: PptxSlideElementMetadata[];
   fallbackElements: SlideElementIR[];
@@ -1202,6 +1203,10 @@ function mapPage(
     ),
     supplement?.pptxAnimation,
   );
+  for (const element of elements) {
+    const name = element.sourceShapeId && supplement?.sourceNames?.get(element.sourceShapeId);
+    if (name) element.sourceObjectName = name;
+  }
   return {
     id: page.id || `page_${index + 1}`,
     width: 1000,
@@ -5787,7 +5792,13 @@ async function extractPptxSlideSupplementsFromZip(
       layoutContext,
       themeStyle,
     );
+    const sourceNames = new Map<string, string>();
+    for (const tag of slideXml.match(/<(?:\w+:)?cNvPr\b[^>]*>/g) ?? []) {
+      const id = extractXmlAttr(tag, 'id'), name = extractXmlAttr(tag, 'name');
+      if (id && name && name.length <= 200) sourceNames.set(id, name);
+    }
     supplements.push({
+      sourceNames,
       background,
       elementMetadata,
       fallbackElements,

@@ -20,7 +20,11 @@ export class SpeechCueScheduler {
     this.stopFrame();
     this.fired.clear();
     const currentTime = this.getCurrentTime();
-    this.reconcile(currentTime);
+    if (currentTime > 0) this.reconcile(currentTime);
+    else {
+      this.onReconcile?.([], this.cues);
+      this.onTime?.(0);
+    }
     this.lastTime = currentTime > 0 ? currentTime : -1;
     this.schedule();
   }

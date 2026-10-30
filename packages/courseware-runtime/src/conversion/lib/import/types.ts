@@ -101,6 +101,7 @@ export interface DocumentIR {
 export interface SlideElementIR {
   id: string;
   sourceShapeId?: string;
+  sourceObjectName?: string;
   /** Internal marker for editable text promoted from a simple PPT shape. */
   promotedFromShapeText?: boolean;
   sourceGroupShapeIds?: string[];
@@ -245,7 +246,7 @@ export interface PptAnimationTargetIR {
 export interface PptAnimationItemIR {
   id: string;
   /** Additive provenance; old worker IR without it cannot authorize fixed native playback. */
-  nativePreset?: { version: 1; class: string; id: number };
+  nativePreset?: { version: 1; class: string; id: number; subtype?: number };
   target?: PptAnimationTargetIR;
   effect?: string;
   animationType: 'in' | 'out' | 'attention' | 'media';

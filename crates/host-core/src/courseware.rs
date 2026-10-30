@@ -14,6 +14,8 @@ use tokio::task::JoinHandle;
 pub mod identity;
 mod narration;
 mod online_source_review;
+#[cfg(target_os = "linux")]
+pub mod project_commit;
 pub use online_source_review::{
     ResolveRequest as OnlineSourceResolveRequest, Target as OnlineSourceReviewTarget,
 };
@@ -61,6 +63,7 @@ pub struct JobParams {
 
 struct Job {
     id: String,
+    portable_project: Option<(String, PathBuf)>,
     workspace: PathBuf,
     input: PathBuf,
     directory: PathBuf,
@@ -152,6 +155,7 @@ impl Parser {
         });
         self.job = Some(Job {
             id: id.clone(),
+            portable_project: None,
             workspace: project_workspace,
             input,
             directory,
@@ -207,14 +211,64 @@ impl Parser {
         }
         let (output, _) = self.verified_candidate_source(id, workspace)?;
         Ok(SavedProjectSeed {
-            project_id: format!("office-{}", parts[2]),
+            project_id: job
+                .portable_project
+                .as_ref()
+                .map(|(id, _)| id.clone())
+                .unwrap_or_else(|| format!("office-{}", parts[2])),
             sha256: output.sha256,
             pages: output.pages,
             identity: output
                 .identity
-                .map(|value| identity::SavedSourceIdentity::parse(&serde_json::to_vec(&value)?))
+                .map(|mut value| {
+                    // Portable identities omit diagnostic messages, which can contain old profile paths.
+                    if job.portable_project.is_some() {
+                        value["diagnostics"] = json!([]);
+                    }
+                    identity::SavedSourceIdentity::parse(&serde_json::to_vec(&value)?)
+                })
                 .transpose()?,
         })
+    }
+
+    /// Only the verified portable import RPC can bind this parser job to a persistent UUID.
+    pub fn bind_restored_project(
+        &mut self,
+        id: &str,
+        workspace: &Path,
+        project_uuid: uuid::Uuid,
+        source_path: &Path,
+    ) -> Result<()> {
+        let seed = self.saved_project_seed(id, workspace)?;
+        let project_id = format!("portable-{project_uuid}");
+        anyhow::ensure!(
+            !project_uuid.is_nil()
+                && source_path.is_absolute()
+                && source_path.starts_with(workspace.canonicalize()?),
+            "COURSEWARE_INVALID: missing portable project UUID"
+        );
+        let job = self.job.as_mut().unwrap();
+        anyhow::ensure!(
+            job.portable_project
+                .as_ref()
+                .is_none_or(|(saved, path)| *saved == project_id && path == source_path)
+                && (!seed.project_id.starts_with("portable-") || seed.project_id == project_id),
+            "COURSEWARE_CONFLICT: parser already belongs to another portable project"
+        );
+        job.portable_project = Some((project_id, source_path.to_owned()));
+        Ok(())
+    }
+
+    pub fn restored_source_path(&self, id: &str, workspace: &Path) -> Result<Option<&Path>> {
+        let job = self.get(id)?;
+        anyhow::ensure!(
+            job.workspace == workspace.canonicalize()?,
+            "COURSEWARE_INVALID: parser belongs to another workspace"
+        );
+        Ok(job
+            .portable_project
+            .as_ref()
+            .map(|(_, path)| path.as_path()))
     }
 
     fn verified_candidate_source(
@@ -664,6 +718,7 @@ mod tests {
         let mut parser = Parser {
             job: Some(Job {
                 id: "job".into(),
+                portable_project: None,
                 workspace: workspace.canonicalize().unwrap(),
                 input: input.clone(),
                 directory,

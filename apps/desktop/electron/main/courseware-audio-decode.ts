@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { BrowserWindow } from "electron";
 import { MAX_AUDIO_BYTES } from "./courseware-media";
+import type { PortableMediaMime } from "./courseware-portable-media";
 
 const partition = `courseware-audio-${randomUUID()}`;
 const document = "data:text/html;charset=utf-8," + encodeURIComponent('<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; media-src blob:">');
@@ -15,12 +16,18 @@ export async function decodeCoursewareVideo(bytes: Buffer): Promise<{ durationMs
   return decodeMedia(bytes, "video/mp4");
 }
 
-async function decodeMedia(bytes: Buffer, mime: "audio/wav" | "audio/mpeg" | "video/mp4"): Promise<{ durationMs: number; width: number; height: number }> {
+export async function decodeCoursewarePortableMedia(bytes: Buffer, mime: PortableMediaMime) {
+  return decodeMedia(bytes, mime, 50 * 1024 * 1024, 3_600_000);
+}
+
+async function decodeMedia(bytes: Buffer, mime: PortableMediaMime, maxBytes = MAX_AUDIO_BYTES,
+  maxDurationMs = mime === "video/mp4" ? 30_000 : 86_400_000): Promise<{ durationMs: number; width: number; height: number }> {
   const video = mime === "video/mp4";
   const matches = mime === "audio/wav" ? bytes.length >= 44 && bytes.toString("ascii", 0, 4) === "RIFF" && bytes.toString("ascii", 8, 12) === "WAVE"
-    : video ? bytes.length >= 12 && bytes.toString("ascii", 4, 8) === "ftyp"
+    : video || mime === "audio/mp4" ? bytes.length >= 12 && bytes.toString("ascii", 4, 8) === "ftyp"
+    : mime === "audio/ogg" ? bytes.length >= 4 && bytes.toString("ascii", 0, 4) === "OggS"
     : mime === "audio/mpeg" && bytes.length >= 4 && (bytes.toString("ascii", 0, 3) === "ID3" || (bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0));
-  if (!matches || bytes.length > MAX_AUDIO_BYTES) throw new Error("COURSEWARE_AUDIO_INVALID_FORMAT");
+  if (!matches || bytes.length > maxBytes) throw new Error("COURSEWARE_AUDIO_INVALID_FORMAT");
   if (decoding) throw new Error("COURSEWARE_AUDIO_DECODE_BUSY");
   decoding = true;
   let window: BrowserWindow | undefined;
@@ -63,7 +70,7 @@ async function decodeMedia(bytes: Buffer, mime: "audio/wav" | "audio/mpeg" | "vi
     const metadata: unknown = await Promise.race([decode(), failed]);
     if (!metadata || typeof metadata !== "object") throw new Error("COURSEWARE_AUDIO_INVALID_DURATION");
     const duration = Reflect.get(metadata, "durationMs"), width = Reflect.get(metadata, "width"), height = Reflect.get(metadata, "height");
-    if (!Number.isSafeInteger(duration) || duration < 1 || duration > (video ? 30_000 : 86_400_000) ||
+    if (!Number.isSafeInteger(duration) || duration < 1 || duration > maxDurationMs ||
       !Number.isSafeInteger(width) || !Number.isSafeInteger(height) || video && (width < 1 || height < 1 || width > 4096 || height > 4096))
       throw new Error("COURSEWARE_AUDIO_INVALID_DURATION");
     return { durationMs: duration, width, height };

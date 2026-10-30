@@ -2,7 +2,7 @@ import { isCoursewareProject, type CoursewareProject, type CoursewareTeachingVie
 import type { SavedCourseware } from "./courseware-saved-narration";
 
 /** Reuse media adoption with a saved logical page instead of a visible Office selection. */
-export function savedMediaPage(saved: SavedCourseware, sessionId: string, pageNumber: number) {
+export function savedMediaPage(saved: SavedCourseware, sessionId: string, pageNumber: number, musicSlotId?: string) {
   let project = saved.project;
   const pageId = project.pages[pageNumber - 1]?.pageId;
   if (!pageId) throw new Error("Invalid saved media page number");
@@ -46,7 +46,7 @@ export function savedMediaPage(saved: SavedCourseware, sessionId: string, pageNu
         if (project.pages.find(p => p.pageId === pageId)?.locked) throw new Error("Saved music page is locked");
         const result = await saved.host.call<{ project: CoursewareProject; adoption: { pageId: string; actionId: string; assetId: string } }>("courseware.mediaCanvas.music.adopt", {
           sessionId, projectId: project.projectId, pageId, principalKey: input.principalKey, intentId: input.intentId,
-          durationMs: input.durationMs, expectedSourceRevision: project.source.revision, expectedTeachingRevision: project.teachingRevision,
+          durationMs: input.durationMs, ...(musicSlotId ? { slotId: musicSlotId } : {}), expectedSourceRevision: project.source.revision, expectedTeachingRevision: project.teachingRevision,
         });
         if (!isCoursewareProject(result.project) || result.adoption?.pageId !== pageId || result.adoption.assetId !== input.assetId ||
             !result.project.pages.find(p => p.pageId === pageId)?.actions.some(a => a.type === "audio_clip" && a.id === result.adoption.actionId && a.audioAssetId === input.assetId))

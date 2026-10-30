@@ -11,10 +11,11 @@ struct Prepare {
     effect_bindings: Vec<Value>,
 }
 
-fn verify_live_path(
+pub(super) fn verify_live_path(
     root: &str,
     path: &str,
     seed: &crate::courseware::SavedProjectSeed,
+    portable_path: Option<&Path>,
 ) -> anyhow::Result<String> {
     use sha2::{Digest, Sha256};
     let root = Path::new(root).canonicalize()?;
@@ -51,8 +52,12 @@ fn verify_live_path(
         &name[..name.len().min(40)]
     };
     let digest = hex::encode(Sha256::digest(relative.as_bytes()));
+    let matches_project = match portable_path {
+        Some(attached) => seed.project_id.starts_with("portable-") && attached == resolved,
+        None => seed.project_id == format!("office-{name}-{}", &digest[..12]),
+    };
     anyhow::ensure!(
-        seed.project_id == format!("office-{name}-{}", &digest[..12]),
+        matches_project,
         "COURSEWARE_INVALID: live source path belongs to another editor document"
     );
     crate::courseware::source_candidates::verify_live_source(&root, &resolved, &seed.sha256)?;
@@ -65,6 +70,13 @@ struct Resolve {
     session_id: String,
     job_id: String,
     adoption_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ForPath {
+    session_id: String,
+    source_path: String,
 }
 
 fn archives(state: &AppState, receipt: &Value) -> Result<std::path::PathBuf, JsonRpcError> {
@@ -89,6 +101,28 @@ pub(super) async fn handle(
 ) -> Result<Value, JsonRpcError> {
     let invalid = |error: serde_json::Error| rpc_err(1002, error.to_string(), "INVALID_PARAMS");
     match method {
+        "courseware.sourceAdoption.forPath" => {
+            let p: ForPath = serde_json::from_value(params).map_err(invalid)?;
+            let state = state.lock().await;
+            let root = project_workspace(&state, &p.session_id)?;
+            let path = crate::workspace::resolve_in_workspace(Path::new(&root), &p.source_path)
+                .map_err(|message| rpc_err(1002, message, "COURSEWARE_INVALID"))?;
+            if path != Path::new(&p.source_path)
+                || path.extension().and_then(|ext| ext.to_str()) != Some("pptx")
+            {
+                return Err(rpc_err(
+                    1002,
+                    "Canonical workspace PPTX path is required",
+                    "COURSEWARE_INVALID",
+                ));
+            }
+            let adoption = state
+                .db
+                .source_adoption_for_path(&root, &p.source_path)
+                .map_err(error)?;
+            state.db.source_adoption_barrier().map_err(error)?;
+            Ok(json!({"adoption":adoption}))
+        }
         "courseware.sourceAdoption.get" => {
             let p: GetParams = serde_json::from_value(params).map_err(invalid)?;
             let state = state.lock().await;
@@ -123,7 +157,16 @@ pub(super) async fn handle(
             let source_path = p
                 .source_path
                 .as_deref()
-                .map(|path| verify_live_path(&root, path, &seed))
+                .map(|path| {
+                    verify_live_path(
+                        &root,
+                        path,
+                        &seed,
+                        state
+                            .courseware
+                            .restored_source_path(&p.job_id, Path::new(&root))?,
+                    )
+                })
                 .transpose()
                 .map_err(error)?;
             let receipt = state
@@ -155,7 +198,16 @@ pub(super) async fn handle(
                 archives(&state, &receipt)?;
             }
             if let Some(path) = receipt["sourcePath"].as_str() {
-                verify_live_path(&root, path, &seed).map_err(error)?;
+                verify_live_path(
+                    &root,
+                    path,
+                    &seed,
+                    state
+                        .courseware
+                        .restored_source_path(&p.job_id, Path::new(&root))
+                        .map_err(error)?,
+                )
+                .map_err(error)?;
             }
             let result = state
                 .db
@@ -192,20 +244,31 @@ mod tests {
             identity: None,
         };
         assert_eq!(
-            verify_live_path(root, path.to_str().unwrap(), &seed).unwrap(),
+            verify_live_path(root, path.to_str().unwrap(), &seed, None).unwrap(),
             path.to_str().unwrap()
         );
-        assert!(verify_live_path(root, "lesson.pptx", &seed).is_err());
+        assert!(verify_live_path(root, "lesson.pptx", &seed, None).is_err());
         seed.project_id = "office-wrong".into();
-        assert!(verify_live_path(root, path.to_str().unwrap(), &seed).is_err());
+        assert!(verify_live_path(root, path.to_str().unwrap(), &seed, None).is_err());
+        seed.project_id = "portable-b219f446-0cbc-4d35-97cb-fb8bb1a3e365".into();
+        assert!(verify_live_path(root, path.to_str().unwrap(), &seed, None).is_err());
+        assert!(verify_live_path(root, path.to_str().unwrap(), &seed, Some(&path)).is_ok());
+        assert!(verify_live_path(
+            root,
+            path.to_str().unwrap(),
+            &seed,
+            Some(&dir.path().join("other.pptx"))
+        )
+        .is_err());
         seed.project_id = format!("office-lesson-{}", &digest[..12]);
         std::fs::write(&path, b"external edit").unwrap();
-        assert!(verify_live_path(root, path.to_str().unwrap(), &seed).is_err());
+        assert!(verify_live_path(root, path.to_str().unwrap(), &seed, None).is_err());
         let outside = tempfile::tempdir().unwrap();
         assert!(verify_live_path(
             outside.path().to_str().unwrap(),
             path.to_str().unwrap(),
-            &seed
+            &seed,
+            None
         )
         .is_err());
     }

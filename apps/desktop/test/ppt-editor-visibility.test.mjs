@@ -119,3 +119,18 @@ test("failed opening can be retried and a ready editor rebinds when Chat changes
   await page.waitForFunction(() => window.fixture.calls.filter(([name, visible]) => name === "visible" && visible).length === 2);
   assert.equal(await page.evaluate(() => window.fixture.calls.filter(([name]) => name === "open").length), 3);
 });
+
+test("PPTX editing has one native teaching sidebar and no project-copy or advanced-panel entry", async t => {
+  const page = await fixture(t);
+  await page.evaluate(() => window.fixture.finish());
+  for (const nativeTeaching of [false, true]) {
+    await page.evaluate(nativeTeaching => {
+      for (const listener of window.fixture.listeners) listener({ status: "ready", path: "uploaded.pptx", nativeTeaching, canSave: true });
+    }, nativeTeaching);
+    await page.waitForTimeout(20);
+    assert.equal(await page.getByRole("button", { name: /高级教学工具|复制完整课件|打开课件副本目录/ }).count(), 0);
+    assert.equal(await page.locator(".courseware-teaching-panel").count(), 0);
+    assert.equal(await page.locator(".ppt-editor-surface").count(), 1);
+    assert.equal(await page.getByRole("button", { name: "panel.pptEditor.save", exact: true }).count(), 1);
+  }
+});

@@ -17,6 +17,8 @@ pub struct GeneratedScenePage {
     pub source_hash: String,
     slide_part: String,
     elements: Vec<GeneratedSceneObject>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    teaching: Option<scene_teaching::Teaching>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -68,6 +70,7 @@ impl GeneratedSceneMapping {
                 .ok_or_else(|| anyhow!("COURSEWARE_INVALID: scene identity objects are missing"))?;
             anyhow::ensure!(
                 valid_id(&page.slide_id)
+                    && page.teaching.as_ref().is_none_or(|t| t.valid())
                     && page_ids.insert(&page.slide_id)
                     && page
                         .source_hash
@@ -157,7 +160,88 @@ struct SceneObjectsRecord {
     mapping: GeneratedSceneMapping,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SceneSemanticEvidence {
+    pub object_id: String,
+    pub role: String,
+    pub aliases: Vec<String>,
+    pub text: String,
+    pub teaching_target: bool,
+}
+
 impl Database {
+    pub(super) fn restore_portable_scene_objects(
+        &self,
+        workspace: &str,
+        project: &CoursewareProject,
+        scene: &portable::SceneObjects,
+    ) -> Result<()> {
+        scene.validate()?;
+        let original_hash = scene.original_identity["sourceSha256"].as_str().unwrap();
+        let key = identities::identity_key(workspace, &project.project_id, original_hash)?;
+        if let Some(current) = self.kv_get(identities::IDENTITY_NAMESPACE, &key)? {
+            anyhow::ensure!(
+                current == scene.original_identity,
+                "COURSEWARE_CONFLICT: portable original scene identity differs"
+            );
+        } else {
+            self.kv_set(
+                identities::IDENTITY_NAMESPACE,
+                &key,
+                &scene.original_identity,
+            )?;
+        }
+        self.kv_set(
+            SCENE_OBJECTS_NAMESPACE,
+            &storage_key(workspace, &project.project_id)?,
+            &serde_json::to_value(SceneObjectsRecord {
+                schema_version: "deckwise-scene-objects/1".into(),
+                source_sha256: original_hash.into(),
+                mapping: scene.mapping.clone(),
+            })?,
+        )
+    }
+
+    /// Evidence updates metadata only; saved identities and layer geometry remain authoritative.
+    pub(super) fn save_scene_semantic_evidence(
+        &self, workspace: &str, project: &CoursewareProject, page_id: &str, evidence: &[SceneSemanticEvidence],
+    ) -> Result<()> {
+        if evidence.is_empty() { return Ok(()); }
+        anyhow::ensure!(project.task_type == "scene" && evidence.len() <= 200, "COURSEWARE_INVALID: invalid semantic evidence scope");
+        let projection = self.courseware_scene_objects(workspace, project)?
+            .ok_or_else(|| anyhow!("COURSEWARE_INVALID: generated scene mapping missing"))?;
+        let page = projection["pages"].as_array().into_iter().flatten().find(|p| p["pageId"] == page_id)
+            .ok_or_else(|| anyhow!("COURSEWARE_PAGE_NOT_FOUND: semantic page missing"))?;
+        let key = storage_key(workspace, &project.project_id)?;
+        let saved = self.kv_get(SCENE_OBJECTS_NAMESPACE, &key)?.ok_or_else(|| anyhow!("COURSEWARE_INVALID: semantic mapping missing"))?;
+        let mut record: SceneObjectsRecord = serde_json::from_value(saved)?;
+        let target = record.mapping.pages.iter_mut().find(|p| p.slide_id == page["planPageId"])
+            .ok_or_else(|| anyhow!("COURSEWARE_INVALID: semantic source page missing"))?;
+        let mut seen = HashSet::new();
+        for annotation in evidence {
+            anyhow::ensure!(seen.insert(&annotation.object_id) && bounded_text(&annotation.role, 1000)
+                && annotation.aliases.len() <= 50 && annotation.aliases.iter().all(|a| bounded_text(a, 500))
+                && annotation.text.encode_utf16().count() <= 4000, "COURSEWARE_INVALID: invalid semantic annotation");
+            let object = page["objects"].as_array().into_iter().flatten().find(|o| o["objectId"] == annotation.object_id && o["status"] == "mapped")
+                .ok_or_else(|| anyhow!("COURSEWARE_CONFLICT: semantic object changed or is unknown"))?;
+            let element = target.elements.iter_mut().find(|e| e.element_id == object["element"]["elementId"])
+                .ok_or_else(|| anyhow!("COURSEWARE_INVALID: semantic element missing"))?;
+            element.observed_semantic_role = Some(annotation.role.clone());
+            element.semantic_role = Some(annotation.role.clone());
+            element.spoken_aliases = annotation.aliases.clone();
+            element.spoken_aliases.sort(); element.spoken_aliases.dedup();
+            if !annotation.teaching_target { element.animation_policy = Some("static".into()); }
+            else if element.animation_policy.is_none() {
+                element.animation_policy = Some("emphasize_on_repeat".into());
+            }
+            element.source_text = (!annotation.text.trim().is_empty()).then(|| annotation.text.clone());
+        }
+        let original = self.scene_object_identity(workspace, &project.project_id, &record.source_sha256)?;
+        record.mapping.validate_source(&original)?;
+        self.kv_set(SCENE_OBJECTS_NAMESPACE, &key, &serde_json::to_value(record)?)
+    }
+
     pub fn initialize_generated_scene_objects(
         &self,
         workspace: &str,
@@ -208,6 +292,34 @@ impl Database {
         Ok(identity)
     }
 
+    pub(super) fn portable_scene_objects(
+        &self,
+        workspace: &str,
+        project: &CoursewareProject,
+    ) -> Result<Option<portable::SceneObjects>> {
+        if self.courseware_scene_objects(workspace, project)?.is_none() {
+            return Ok(None);
+        }
+        let record: SceneObjectsRecord = serde_json::from_value(
+            self.kv_get(
+                SCENE_OBJECTS_NAMESPACE,
+                &storage_key(workspace, &project.project_id)?,
+            )?
+            .unwrap(),
+        )?;
+        let mut original_identity = self
+            .scene_object_identity(workspace, &project.project_id, &record.source_sha256)?
+            .value()
+            .clone();
+        original_identity["diagnostics"] = serde_json::json!([]);
+        let result = portable::SceneObjects {
+            original_identity,
+            mapping: record.mapping,
+        };
+        result.validate()?;
+        Ok(Some(result))
+    }
+
     pub(super) fn courseware_scene_objects(
         &self,
         workspace: &str,
@@ -255,7 +367,7 @@ impl Database {
                     Ok(serde_json::json!({"objectId":old["logicalId"], "element":element, "status":status,
                         "currentSourceShapeId":live.map(|object| &object["sourceShapeId"])}))
                 }).collect();
-                Ok(serde_json::json!({"pageId":old_page["logicalId"], "planPageId":page.slide_id,
+                Ok(serde_json::json!({"pageId":old_page["logicalId"], "planPageId":page.slide_id, "teaching":page.teaching,
                     "status":if current_page.is_some() { "present" } else { "missing" }, "objects":objects?}))
             }).collect::<Result<Vec<Value>>>()?;
         Ok(Some(

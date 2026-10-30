@@ -6,7 +6,6 @@ import { useAppStore } from "../../stores/app-store";
 import { IconCheck, IconClose, IconExternal, IconFileText, IconPanelMaximize, IconPanelRestore, IconRefresh } from "../icons";
 import { WorkTabEmpty } from "./WorkTabEmpty";
 import { PptxInspectionPanel } from "./PptxInspectionPanel";
-import { CoursewareTeachingPanel } from "./CoursewareTeachingPanel";
 
 export function PptEditorTab({
   path,
@@ -124,8 +123,6 @@ export function PptEditorTab({
           </WorkTabEmpty>
         )}
       </div>
-      {extension === "pptx" && <CoursewareTeachingPanel key={`${path}:${sessionId}`} sessionId={sessionId}
-        enabled={!busy && !state.readOnly && !state.dirty && (state.status === "ready" || state.status === "saved")} />}
       </div>
     </div>
   );

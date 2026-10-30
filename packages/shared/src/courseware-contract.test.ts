@@ -120,3 +120,25 @@ describe("courseware contract v1", () => {
     expect(checkCoursewareCandidate(project, { ...candidate, targetPageIds: ["missing"] }, false)).toBe("missing-page");
   });
 });
+
+describe('saved-source native animation nodes', () => {
+  it('accepts source-bound steps in native order with speech and waits between them', () => {
+    const { project, write } = fixture(accepted);
+    const node = (stepIndex: number) => ({ id: `native-${stepIndex}`, type: 'native_animation', version: 1,
+      sourceSha256: project.source.sha256, stepIndex });
+    const actions = [node(0), ...write.actions, node(1)];
+    const bound = { ...project, pages: [{ ...project.pages[0], actions }, ...project.pages.slice(1)] };
+    expect(isCoursewareProject(bound)).toBe(true);
+    expect(isTeachingWrite({ ...write, actions })).toBe(true);
+    expect(checkTeachingWrite(project, { ...write, actions })).toBe('accepted');
+    expect(checkTeachingWrite({ ...project, source: { ...project.source, sha256: 'f'.repeat(64) } }, { ...write, actions })).toBe('stale');
+    for (const change of [{ version: 2 }, { stepIndex: -1 }, { stepIndex: .5 }, { stepIndex: 200 },
+      { sourceSha256: null }, { sourceSha256: 'A'.repeat(64) }, { extra: true }, { id: '' }]) {
+      expect(isTeachingWrite({ ...write, actions: [{ ...node(0), ...change }] })).toBe(false);
+    }
+    for (const sequence of [[node(1)], [node(0), { ...node(0), id: 'duplicate' }], [node(0), node(2)]])
+      expect(isTeachingWrite({ ...write, actions: sequence })).toBe(false);
+    const stale = { ...node(0), sourceSha256: 'f'.repeat(64) };
+    expect(isCoursewareProject({ ...project, pages: [{ ...project.pages[0], actions: [stale] }] })).toBe(false);
+  });
+});

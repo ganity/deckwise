@@ -1,9 +1,12 @@
+import { questionResponseSchema } from '../../../question-response';
 import { z } from "zod";
+import { validSpeechAnimationSequence } from "../../../speech-animation-sequence";
 import type { Slide } from "../types/slides";
 import type { Action, ElementAnimationAction } from "../types/action";
 import type { Effect } from "../playback/types";
 import type { Scene } from "../types/stage";
 import { nativeClickAnimationsSchema, type NativeClickAnimations } from "../../../native-click-animations";
+import { nativeAnimationNodeSchema, validateNativeAnimationBindings } from "../../../native-animation-node";
 
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const id = z.string().min(1);
@@ -45,7 +48,7 @@ const visualCueSchema = z
         .object({
           type: z.literal("element_animation"),
           elementId: id,
-          effect: z.enum(["fadeIn", "fadeOut", "pulse"]),
+          effect: z.enum(["fadeIn", "fadeOut", "pulse", "zoomIn", "slideInLeft", "slideInRight", "gentleRotate"]),
         })
         .strict(),
     ]),
@@ -57,6 +60,8 @@ const visualCueSchema = z
       (cue.effect.type !== "element_animation" || cue.endMs - cue.atMs <= 5000),
   );
 const actionSchema = z.union([
+  nativeAnimationNodeSchema,
+  z.object({ id, type: z.literal("delay"), durationMs: z.number().int().min(0).max(30_000) }).strict(),
   z.object({ id, type: z.literal("video_clip"), videoAssetId: id }).strict(),
   z.object({ id, type: z.literal("audio_clip"), audioAssetId: id }).strict(),
   z
@@ -74,7 +79,7 @@ const actionSchema = z.union([
       id,
       type: z.literal("interaction_checkpoint"),
       checkpointId: id,
-      checkpointKind: z.literal("chapter_summary"),
+      checkpointKind: z.literal("chapter_summary"), response: questionResponseSchema.optional(),
       chapterId: id,
       chapterTitle: z.string(),
       question: z.string(),
@@ -132,7 +137,7 @@ const payloadSchema = z
             teachingAudioClips: z.literal("sequential/1").optional(),
             transitions: z.literal(false),
             objectAnimations: z.literal(false),
-            nativeObjectAnimations: z.literal("click-appear-fade/1").optional(),
+            nativeObjectAnimations: z.enum(["click-appear-fade/1", "click-appear-fade/2"]).optional(),
             spotlight: z.boolean(),
             speechVisualCues: z
               .enum(["fixed-audio/1", "fixed-audio/2"])
@@ -237,8 +242,15 @@ export async function loadFixedBuild(
   );
   check(parsed.success, "PACKAGE_SCHEMA_INVALID");
   const payload = parsed.data;
-  check(payload.pages.some(page => page.nativeAnimations) ===
-    (payload.report.capabilities.nativeObjectAnimations === "click-appear-fade/1"), "NATIVE_ANIMATION_CAPABILITY_MISMATCH");
+  const nativeCapability = payload.pages.some(page => page.nativeAnimations?.version === 2) ? "click-appear-fade/2"
+    : payload.pages.some(page => page.nativeAnimations) ? "click-appear-fade/1" : undefined;
+  check(payload.report.capabilities.nativeObjectAnimations === nativeCapability, "NATIVE_ANIMATION_CAPABILITY_MISMATCH");
+  for (const page of payload.pages) {
+    const bound = page.actions.some(action => action.type === "native_animation");
+    check(bound === (page.nativeAnimations?.version === 2), "NATIVE_ANIMATION_BINDING_MISMATCH");
+    if (bound) check(validateNativeAnimationBindings(page.actions, payload.report.sourceSha256,
+      page.nativeAnimations?.steps.length ?? 0), "NATIVE_ANIMATION_BINDING_MISMATCH");
+  }
   check(
     !payload.report.diagnostics.some((d) => d.severity === "error"),
     "CONTENT_ERROR",
@@ -375,8 +387,15 @@ export async function loadFixedBuild(
           ),
         "OBJECT_BINDING_MISMATCH",
       );
-      const animatedObjects = new Set<string>();
+      check(validSpeechAnimationSequence(page.actions), "ANIMATION_TARGET_CONFLICT");
       const nativeTargets = new Set(page.nativeAnimations?.steps.map(step => step.elementId));
+      const revealed = new Set<string>();
+      const nativeAction = (step: NativeClickAnimations["steps"][number], id: string): ElementAnimationAction => ({
+        id, type: "element_animation", elementId: step.elementId,
+        effect: step.effect === "fade" ? "fadeIn" : "appear", animationType: "in",
+        duration: step.durationMs, startAtMs: 0, pptistTrigger: "click", pptistAnimationId: id,
+        pptxTimeline: { version: 1, stepId: id },
+      });
       if (page.nativeAnimations) {
         for (const step of page.nativeAnimations.steps) {
           const target = sourceElements.find(element => element.id === step.elementId);
@@ -386,6 +405,11 @@ export async function loadFixedBuild(
         nativeAnimations.set(page.pageId, page.nativeAnimations);
       }
       const actions: Action[] = page.actions.map((action) => {
+        if (action.type === "native_animation") {
+          const step = page.nativeAnimations!.steps[action.stepIndex];
+          revealed.add(step.elementId);
+          return nativeAction(step, action.id);
+        }
         if (action.type === "video_clip") {
           const videoUrl = urls.get(action.videoAssetId);
           check(videoUrl && payload.assets.some(asset => asset.id === action.videoAssetId && asset.mimeType === "video/mp4"), "VIDEO_ASSET_MISSING");
@@ -404,7 +428,8 @@ export async function loadFixedBuild(
         const bind = (id: string) => {
           const target = page.objects.find((o) => o.objectId === id);
           check(target, "EFFECT_BINDING_MISMATCH");
-          check(!nativeTargets.has(target.importElementId), "NATIVE_ANIMATION_CUE_CONFLICT");
+          check(page.nativeAnimations?.version !== 2 || !nativeTargets.has(target.importElementId) ||
+            revealed.has(target.importElementId), "NATIVE_ANIMATION_TARGET_NOT_REVEALED");
           const element = page.slide.elements.find(
             (e) => e.id === target.importElementId,
           )!;
@@ -420,6 +445,7 @@ export async function loadFixedBuild(
             const effect = cue.effect;
             if (effect.type === "element_animation") {
               const elementId = bind(effect.elementId);
+              check(!nativeTargets.has(elementId), "NATIVE_ANIMATION_CUE_CONFLICT");
               const element = page.slide.elements.find(
                 (e) => e.id === elementId,
               )!;
@@ -427,11 +453,6 @@ export async function loadFixedBuild(
                 element.type !== "audio" && element.type !== "video",
                 "ANIMATION_TARGET_UNSUPPORTED",
               );
-              check(
-                !animatedObjects.has(elementId),
-                "ANIMATION_TARGET_CONFLICT",
-              );
-              animatedObjects.add(elementId);
               return {
                 ...cue,
                 effect: {
@@ -442,7 +463,7 @@ export async function loadFixedBuild(
                     elementId,
                     effect: effect.effect,
                     animationType:
-                      effect.effect === "fadeIn"
+                      ["fadeIn", "zoomIn", "slideInLeft", "slideInRight"].includes(effect.effect)
                         ? ("in" as const)
                         : effect.effect === "fadeOut"
                           ? ("out" as const)
@@ -484,7 +505,7 @@ export async function loadFixedBuild(
         );
         return { ...action, audioId: action.audioAssetId, audioUrl };
       });
-      const nativeActions: Action[] = (page.nativeAnimations?.steps ?? []).flatMap((step, stepIndex) => {
+      const nativeActions: Action[] = (page.nativeAnimations?.version === 1 ? page.nativeAnimations.steps : []).flatMap((step, stepIndex) => {
         const prefix = `fixed-native-${index + 1}-${stepIndex + 1}`;
         const ids = [`${prefix}-wait`, `${prefix}-animation`];
         check(ids.every(id => !actionIds.has(id)), "DUPLICATE_ACTION_ID");
@@ -493,10 +514,7 @@ export async function loadFixedBuild(
         ids.forEach(id => actionIds.add(id));
         return [{ id: ids[0], type: "interaction_checkpoint" as const,
           checkpointId: ids[0], checkpointKind: "teacher_continue" as const },
-        { id: ids[1], type: "element_animation" as const, elementId: step.elementId,
-          effect: step.effect === "fade" ? "fadeIn" : "appear", animationType: "in" as const,
-          duration: step.durationMs, startAtMs: 0, pptistTrigger: "click" as const,
-          pptistAnimationId: ids[1], pptxTimeline: { version: 1 as const, stepId: prefix } }];
+        nativeAction(step, ids[1])];
       });
       return {
         id: page.pageId,

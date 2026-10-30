@@ -255,6 +255,7 @@ impl Database {
         next: &CoursewareProject,
     ) -> Result<()> {
         self.review_audio(workspace, previous, next, false)
+            .map(|_| ())
     }
 
     /// Called only inside an explicit source-change transaction; paid intents stay immutable.
@@ -265,6 +266,15 @@ impl Database {
         next: &CoursewareProject,
     ) -> Result<()> {
         self.review_audio(workspace, previous, next, true)
+            .map(|_| ())
+    }
+
+    pub(in crate::db::courseware_projects) fn portable_audio(
+        &self,
+        workspace: &str,
+        project: &CoursewareProject,
+    ) -> Result<Vec<Audio>> {
+        self.review_audio(workspace, project, project, false)
     }
 
     fn review_audio(
@@ -273,11 +283,37 @@ impl Database {
         previous: &CoursewareProject,
         next: &CoursewareProject,
         rebind: bool,
-    ) -> Result<()> {
+    ) -> Result<Vec<Audio>> {
         anyhow::ensure!(
             !self.conn.is_autocommit(),
             "COURSEWARE_INVALID: audio rebinding requires source-review transaction"
         );
+        let local = self.portable_courseware_media_entries(workspace, previous)?;
+        let mut provider_next = next.clone();
+        for page in &mut provider_next.pages {
+            page.actions.retain(|action| {
+                let id = action["id"].as_str().unwrap_or_default();
+                let field = if action["type"] == "video_clip" {
+                    "videoAssetId"
+                } else {
+                    "audioAssetId"
+                };
+                let original = previous
+                    .pages
+                    .iter()
+                    .find(|old| old.page_id == page.page_id)
+                    .and_then(|old| old.actions.iter().find(|old| old["id"] == id));
+                !local
+                    .get(&(page.page_id.clone(), id.into()))
+                    .is_some_and(|asset| {
+                        action[field] == asset.id
+                            && original.is_some_and(|old| {
+                                old["type"] == action["type"] && old["text"] == action["text"]
+                            })
+                    })
+            });
+        }
+        let next = &provider_next;
         self.review_courseware_music(workspace, previous, next, rebind)?;
         if !next
             .pages
@@ -285,7 +321,7 @@ impl Database {
             .flat_map(|page| &page.actions)
             .any(|action| action.get("audioAssetId").is_some())
         {
-            return Ok(());
+            return Ok(Vec::new());
         }
         let scope = storage_key(workspace, &previous.project_id)?;
         let prefix = format!("[{},", serde_json::to_string(&scope)?);
@@ -299,6 +335,7 @@ impl Database {
             records.len() <= MAX_INTENTS,
             "COURSEWARE_INVALID: too many audio receipts for source review"
         );
+        let mut audio = Vec::new();
         let mut matched = std::collections::HashSet::new();
         for (key, original) in records {
             let (saved_scope, principal, intent_id): (String, String, String) =
@@ -346,6 +383,7 @@ impl Database {
                     "COURSEWARE_CONFLICT: source audio binding was not saved"
                 );
             }
+            audio.push(record.audio);
             matched.insert((
                 intent.selection.page_id,
                 intent.selection.action_id,
@@ -363,7 +401,7 @@ impl Database {
                 }
             }
         }
-        Ok(())
+        Ok(audio)
     }
 }
 

@@ -19,6 +19,7 @@ struct InputAsset {
     tts: Option<TtsAsset>,
     music: Option<TtsAsset>,
     video: Option<TtsAsset>,
+    local: Option<bool>,
 }
 
 #[derive(Deserialize)]
@@ -99,13 +100,19 @@ pub(super) async fn handle(
                     asset.tts.is_some(),
                     asset.music.is_some(),
                     asset.video.is_some(),
+                    asset.local.is_some(),
                 ]
                 .into_iter()
                 .filter(|present| *present)
                 .count()
                     != 1
-                || asset.asset.id.starts_with("music-") && asset.music.is_none()
-                || asset.asset.id.starts_with("video-") && asset.video.is_none()
+                || asset.local == Some(false)
+                || asset.asset.id.starts_with("music-")
+                    && asset.music.is_none()
+                    && asset.local != Some(true)
+                || asset.asset.id.starts_with("video-")
+                    && asset.video.is_none()
+                    && asset.local != Some(true)
         })
     {
         return Err(rpc_err(
@@ -123,7 +130,86 @@ pub(super) async fn handle(
         .archive_candidate(&p.job_id, Path::new(&root), &state.data_dir, &seed.sha256)
         .map_err(error)?;
     let mut total = 0u64;
+    let local_entries = if p.assets.iter().any(|asset| asset.local == Some(true)) {
+        let project = state
+            .db
+            .get_courseware_project(&root, &seed.project_id)
+            .map_err(error)?
+            .ok_or_else(|| rpc_err(1002, "Missing local project", "COURSEWARE_NOT_FOUND"))?;
+        if project.source.sha256 != seed.sha256
+            || project.source.revision != p.expected_source_revision
+            || project.teaching_revision != p.expected_teaching_revision
+        {
+            return Err(rpc_err(
+                1002,
+                "Local media project changed",
+                "COURSEWARE_CONFLICT",
+            ));
+        }
+        let entries = state
+            .db
+            .portable_courseware_media_entries(&root, &project)
+            .map_err(error)?;
+        let mut assets = std::collections::HashMap::new();
+        for page in &project.pages {
+            for action in &page.actions {
+                let field = match action["type"].as_str() {
+                    Some("speech" | "audio_clip") => "audioAssetId",
+                    Some("video_clip") => "videoAssetId",
+                    _ => continue,
+                };
+                let Some(id) = action[field].as_str() else {
+                    continue;
+                };
+                if !p
+                    .assets
+                    .iter()
+                    .any(|input| input.local == Some(true) && input.asset.id == id)
+                {
+                    continue;
+                }
+                let asset = entries
+                    .get(&(
+                        page.page_id.clone(),
+                        action["id"].as_str().unwrap_or_default().into(),
+                    ))
+                    .ok_or_else(|| {
+                        rpc_err(
+                            1002,
+                            "Local media differs from current teaching",
+                            "COURSEWARE_CONFLICT",
+                        )
+                    })?;
+                assets.insert(id.to_string(), asset.clone());
+            }
+        }
+        assets
+    } else {
+        std::collections::HashMap::new()
+    };
     for input in &p.assets {
+        if input.local == Some(true) {
+            let asset = local_entries.get(&input.asset.id).ok_or_else(|| {
+                rpc_err(1002, "Local media is not attached", "COURSEWARE_CONFLICT")
+            })?;
+            if input.asset.sha256 != asset.sha256 || input.asset.mime_type != asset.mime_type {
+                return Err(rpc_err(
+                    1002,
+                    "Local media metadata differs",
+                    "COURSEWARE_CONFLICT",
+                ));
+            }
+            let (_, length) =
+                snapshot_assets::verify(&state.data_dir, &asset.sha256).map_err(error)?;
+            if length != asset.byte_length {
+                return Err(rpc_err(
+                    1002,
+                    "Local media length differs",
+                    "COURSEWARE_CONFLICT",
+                ));
+            }
+            total += length;
+        }
         if let Some(path) = &input.path {
             total += snapshot_assets::archive(
                 &state.data_dir,
@@ -225,27 +311,17 @@ pub(super) async fn handle(
                 .get_courseware_project(&root, &seed.project_id)
                 .map_err(error)?
                 .ok_or_else(|| rpc_err(1002, "Missing project", "COURSEWARE_NOT_FOUND"))?;
-            let intent = state
+            let asset = state
                 .db
-                .get_courseware_video(
+                .current_courseware_video_asset(
                     &root,
-                    &seed.project_id,
+                    &project,
                     &video.principal_key,
                     &video.intent_id,
+                    &p.session_id,
                 )
                 .map_err(error)?;
-            let asset = intent
-                .asset
-                .as_ref()
-                .ok_or_else(|| rpc_err(1002, "Missing video archive", "COURSEWARE_CONFLICT"))?;
-            let scope = intent
-                .submission_scope
-                .as_ref()
-                .ok_or_else(|| rpc_err(1002, "Missing video scope", "COURSEWARE_CONFLICT"))?;
-            if intent.phase != "adopted"
-                || !intent.matches(&project)
-                || scope.session_id != p.session_id
-                || project.source.sha256 != seed.sha256
+            if project.source.sha256 != seed.sha256
                 || input.asset.id != asset.asset().id
                 || input.asset.sha256 != asset.sha256
                 || input.asset.mime_type != "video/mp4"

@@ -13,7 +13,7 @@ const require = createRequire(import.meta.url);
 // Package signature only: native PPTX roundtrips are covered by the desktop E2E.
 const fixtureBytes = Buffer.from("PK\x03\x04ppt/presentation.xml[Content_Types].xml");
 
-async function fixture(t, { contextErrors = [], contextPatch = {}, onContext = () => {} } = {}) {
+async function fixture(t, { contextErrors = [], contextPatch = {}, onContext = () => {}, nativeTeaching } = {}) {
   const root = await fs.mkdtemp(join(tmpdir(), "ppt-save-test-"));
   const source = join(root, "lesson.pptx");
   await fs.writeFile(source, fixtureBytes);
@@ -62,7 +62,12 @@ async function fixture(t, { contextErrors = [], contextPatch = {}, onContext = (
   }
   const { PptEditorController } = load(new URL("../electron/main/ppt-editor.ts", import.meta.url).pathname);
   const states = [];
-  const controller = new PptEditorController(ipc, (state) => states.push(state), "http://127.0.0.1:4221");
+  if (nativeTeaching) {
+    await fs.mkdir(join(root, "resources/wiseoffice"), { recursive: true });
+    await fs.writeFile(join(root, "resources/wiseoffice/editor.html"), "fixture");
+  }
+  const controller = new PptEditorController(ipc, (state) => states.push(state), nativeTeaching ? "deckwise-editor://wiseoffice" : "http://127.0.0.1:4221");
+  controller.nativeTeaching = nativeTeaching;
   const window = { isDestroyed: () => false, contentView: { children: [], addChildView() {}, removeChildView() {} } };
   t.after(async () => { controller.dispose(); await fs.rm(root, { recursive: true, force: true }); });
   await controller.open(window, root, "lesson.pptx");
@@ -407,3 +412,72 @@ for(const change of ["dirty","cancelled","source","proof","receipt"])
     await assert.rejects(f.controller.executeFade(command,proof,f.root,async()=>{},()=>change!=="cancelled"));
     assert.equal(sent,change==="receipt"?1:0);
   });
+
+
+test("native teaching acknowledges only its own view and drops duplicate and late replies", async t => {
+  let calls = 0, finish;
+  const f = await fixture(t, { nativeTeaching: async () => { calls++; return new Promise(resolve => { finish = resolve; }); } });
+  assert.equal(f.commands.at(-1).type, "document:teaching-enable");
+  const ready = { type: "message", message: { type: "document:teaching-ready" } };
+  f.reply(ready, 999); assert.equal(f.states.at(-1).nativeTeaching, false);
+  f.reply(ready); assert.equal(f.states.at(-1).nativeTeaching, true);
+  const request = { type: "message", message: { type: "document:teaching-request", id: "native-request", payload: { operation: "open" } } };
+  f.reply(request, 999); assert.equal(calls, 0);
+  f.reply(request); f.reply(request); assert.equal(calls, 1);
+  f.controller.close(); finish({ viewId: "old" });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(f.commands.some(command => command.type === "document:teaching-response"), false);
+});
+
+test("native PPT save prepares teaching bindings before replacing source and commits them before acknowledging", async t => {
+  const f = await fixture(t);
+  const edited = Buffer.concat([fixtureBytes, Buffer.from("changed")]);
+  const order = [];
+  f.controller.nativeSave = async input => {
+    order.push("prepare");
+    assert.deepEqual(await fs.readFile(f.source), fixtureBytes);
+    assert.match(input.sourceSha256, /^[a-f0-9]{64}$/);
+    return {
+      async commit() { order.push("commit"); assert.deepEqual(await fs.readFile(f.source), edited); },
+      async cancel() { order.push("cancel"); },
+    };
+  };
+  const save = f.start();
+  const result = await f.exported(save, edited);
+  assert.equal(result.payload.success, true);
+  assert.deepEqual(order, ["prepare", "commit"]);
+});
+
+test("workspace progress reuses a validated native teaching response for the saved source", async t => {
+  let response;
+  const f = await fixture(t, { nativeTeaching: async () => response });
+  f.reply({ type: "message", message: { type: "document:teaching-ready" } });
+  const project = JSON.parse(readFileSync(new URL("../../../packages/shared/src/courseware-contract.fixtures/accepted.json", import.meta.url), "utf8")).project;
+  project.source.sha256 = f.states.at(-1).sha256;
+  project.pages[0].actions[0].audioAssetId = "audio-1";
+  response = { project };
+  assert(shared.isCoursewareProject(project));
+  f.reply({ type: "message", message: { type: "document:teaching-request", id: "progress", payload: { operation: "open" } } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(f.states.at(-1).teachingProgress, { total: 2, audio: 1, ready: 1 });
+  const previousCount = f.states.length;
+  response = { project: { ...project, source: { ...project.source, sha256: "f".repeat(64) } } };
+  f.reply({ type: "message", message: { type: "document:teaching-request", id: "foreign-source", payload: { operation: "open" } } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(f.states.length, previousCount, "Foreign source must not publish progress");
+  f.dirty(); assert.equal(f.states.at(-1).teachingProgress, undefined);
+  f.controller.close(); assert.equal(f.states.at(-1).teachingProgress, undefined);
+});
+
+test("late native progress cannot replace a newer response", async t => {
+  const pending = [];
+  const f = await fixture(t, { nativeTeaching: () => new Promise(resolve => pending.push(resolve)) });
+  f.reply({ type: "message", message: { type: "document:teaching-ready" } });
+  const project = JSON.parse(readFileSync(new URL("../../../packages/shared/src/courseware-contract.fixtures/accepted.json", import.meta.url), "utf8")).project;
+  project.source.sha256 = f.states.at(-1).sha256;
+  for (const id of ["older", "newer"]) f.reply({ type: "message", message: { type: "document:teaching-request", id, payload: { operation: "open" } } });
+  const newer = structuredClone(project); newer.pages[0].actions[0].audioAssetId = "audio-1";
+  pending[1]({ project: newer }); await new Promise(resolve => setImmediate(resolve));
+  pending[0]({ project }); await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(f.states.at(-1).teachingProgress, { total: 2, audio: 1, ready: 1 });
+});

@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
 import type { CoursewareCanvasMusicView, CoursewareTtsView, MediaCanvasDocument } from "@pi-desktop/shared";
 import type { DesktopAuthSession } from "./auth-session";
@@ -13,6 +13,7 @@ type Auth = Pick<DesktopAuthSession, "getCoursewarePrincipal" | "coursewareMedia
 type Job = { kind: "tts" | "music" | "video"; intentId: string; pageNumber: number; sourceSha256: string };
 const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 const id = (v: unknown): v is string => typeof v === "string" && /^[\w.-]{1,128}$/u.test(v) && ![".", ".."].includes(v);
+const slotKey = (id: string) => createHash("sha256").update(id).digest("hex").slice(0, 16);
 const musicPrefix = (sha: string, page: number) => `auto-music-${sha}-p${page}-`;
 const waiting = (v: CoursewareTtsView | CoursewareCanvasMusicView) => !["prepared", "rejected"].includes(v.phase) &&
   !["failed", "cancelled", "archive_failed"].includes(v.task?.state ?? "");
@@ -81,7 +82,7 @@ export class CoursewareSavedMedia {
         !["tts", "music", "video"].includes(String(input.kind)) || !Number.isInteger(input.pageNumber) || Number(input.pageNumber) < 1 ||
         typeof input.sourceSha256 !== "string" || !/^[a-f0-9]{64}$/u.test(input.sourceSha256)) throw new Error("Invalid saved media request");
     const prepare = name === "courseware_media_prepare";
-    const allowed = prepare ? ["kind", "pageNumber", "sourceSha256", "model", ...(input.kind === "tts" ? ["actionId", "voice"] : input.kind === "video" ? ["actionId"] : ["prompt", "music"])]
+    const allowed = prepare ? ["kind", "pageNumber", "sourceSha256", "model", ...(input.kind === "tts" ? ["actionId", "voice"] : input.kind === "video" ? ["actionId"] : ["prompt", "music", "actionId"])]
       : ["kind", "pageNumber", "sourceSha256", "intentId", "waitForUpdate"];
     if (Object.keys(input).some(k => !allowed.includes(k)) || prepare && !id(input.model) || !prepare && !id(input.intentId) ||
         input.waitForUpdate !== undefined && typeof input.waitForUpdate !== "boolean") throw new Error("Invalid saved media fields");
@@ -135,6 +136,10 @@ export class CoursewareSavedMedia {
         }
         return { job, media: row, saved: false, waitingFor: waiting(row) ? "service" : null };
       }
+      const slot = input.actionId === undefined ? undefined : page.actions.find(a => a.type === "music_slot" && a.id === input.actionId);
+      if (prepare && input.actionId !== undefined && (!id(input.actionId) || !slot)) throw new Error("Saved music slot changed");
+      if (prepare && page.actions.some(a => a.type === "music_slot") && !slot) throw new Error("Music requires its saved slot actionId");
+      let musicSlotId = slot?.id as string | undefined;
       const music = this.music(saved, sessionId, pageNumber, canDispatch);
       const rows = await music.list({ sessionId });
       let row: CoursewareCanvasMusicView;
@@ -142,7 +147,7 @@ export class CoursewareSavedMedia {
         if (typeof input.prompt !== "string" || input.prompt.length > 4000 || !record(input.music)) throw new Error("Invalid music prompt/options");
         const requestHash = musicRequestHash({ kind: "music", model: input.model as string,
           input: input.prompt, music: input.music as MusicOptions });
-        const draftId = musicPrefix(saved.project.source.sha256, pageNumber) + requestHash.slice(0, 32);
+        const draftId = musicPrefix(saved.project.source.sha256, pageNumber) + (musicSlotId ? `${slotKey(musicSlotId)}-` : "") + requestHash.slice(0, 32);
         row = rows.find(r => r.draft.id === draftId && r.operation === "music")!;
         const exported = row && rows.find(r => r.operation === "music-export" && r.sourceIntentId === row.intentId);
         if (exported?.asset && page.actions.some(a => a.type === "audio_clip" && a.audioAssetId === `music-${exported.asset!.sha256}`))
@@ -176,6 +181,12 @@ export class CoursewareSavedMedia {
         row = rows.find(r => r.intentId === input.intentId && r.operation === "music")!;
         if (!row || !row.draft.id.startsWith(musicPrefix(saved.project.source.sha256, pageNumber))) throw new Error("Music job belongs to another saved page");
         row = await music.status({ sessionId, intentId: row.intentId });
+        const suffix = row.draft.id.slice(musicPrefix(saved.project.source.sha256, pageNumber).length);
+        if (/^[a-f0-9]{16}-[a-f0-9]{32}$/u.test(suffix)) {
+          const matches = page.actions.filter(a => a.type === "music_slot" && slotKey(String(a.id)) === suffix.slice(0, 16));
+          if (matches.length !== 1) throw new Error("Original music slot changed; retain the generated asset without reassigning it");
+          musicSlotId = matches[0].id as string;
+        }
       }
       job = { kind: "music", intentId: row.intentId, pageNumber, sourceSha256: saved.project.source.sha256 };
       for (let attempt = 0; !prepare && input.waitForUpdate === true && attempt < 10 && waiting(row) && row.task?.state !== "ready"; attempt++) {
@@ -200,7 +211,8 @@ export class CoursewareSavedMedia {
         } else exported = await music.exportStatus({ sessionId, intentId: exported.intentId });
         if (exported.task?.state === "ready" && exported.task.feeState === "settled") {
           await music.exportArchive({ sessionId, intentId: exported.intentId });
-          const adopted = await music.adopt({ sessionId, intentId: exported.intentId, ...bound.input() });
+          const targetMusic = musicSlotId ? this.music(saved, sessionId, pageNumber, canDispatch, musicSlotId) : music;
+          const adopted = await targetMusic.adopt({ sessionId, intentId: exported.intentId, ...bound.input() });
           return { job, saved: true, audioReady: true, teachingRevision: adopted.project.teachingRevision };
         }
         return { job, media: exported, saved: false, waitingFor: waiting(exported) ? "service" : null };
@@ -209,8 +221,8 @@ export class CoursewareSavedMedia {
     });
   }
 
-  private music(saved: SavedCourseware, sessionId: string, page: number, canDispatch: () => boolean) {
+  private music(saved: SavedCourseware, sessionId: string, page: number, canDispatch: () => boolean, slotId?: string) {
     return new CoursewareCanvasMusic(() => saved.host, () => sessionId, () => !canDispatch(), this.auth,
-      { teaching: savedMediaPage(saved, sessionId, page), decodeAudio: this.decodeAudio });
+      { teaching: savedMediaPage(saved, sessionId, page, slotId), decodeAudio: this.decodeAudio });
   }
 }

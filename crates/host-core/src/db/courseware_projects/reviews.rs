@@ -35,7 +35,7 @@ pub(super) fn portable_narration(project: &CoursewareProject, preserve_audio: bo
     // shortcut: saved-source review rebinds adopted audio; cues/effects still need object-specific review.
     anyhow::ensure!(
         project.pages.iter().flat_map(|page| &page.actions).all(|action| {
-            (preserve_audio && music::valid_clip(action)) || super::video::valid_clip(action) || super::video::valid_slot(action) || valid_teaching_checkpoint(action)
+            (preserve_audio && music::valid_clip(action)) || super::video::valid_clip(action) || super::video::valid_slot(action) || valid_teaching_checkpoint(action) || valid_teaching_delay(action)
                 || (action["type"] == "speech" && action["text"].is_string()
                     && action.as_object().is_some_and(|object| object.keys().all(|key| ["id", "type", "text", "source", "pauseAfterMs", "audioAssetId"].contains(&key.as_str())))
                     && action.get("source").is_none_or(|source| matches!(source.as_str(), Some("notes" | "external" | "original" | "light_rewrite" | "generated")))

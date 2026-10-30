@@ -68,6 +68,7 @@ async function inventory(directory, prefix = "") {
   }
 }
 await inventory(source);
+files.length = 0;
 const commit = execFileSync("git", ["-C", source, "rev-parse", "HEAD"], {
   encoding: "utf8",
 }).trim();
@@ -83,6 +84,15 @@ const temporary = await mkdtemp(
 );
 try {
   await cp(source, temporary, { recursive: true, dereference: false });
+  // Bundle the same timing/geometry primitives used by the fixed player.
+  const { build } = await import("../packages/courseware-runtime/node_modules/esbuild/lib/main.js");
+  await build({
+    entryPoints: [fileURLToPath(new URL("../packages/courseware-runtime/src/teaching-preview.ts", import.meta.url))],
+    outfile: join(temporary, ".deckwise/teaching-preview.mjs"),
+    bundle: true, platform: "browser", format: "esm", target: "chrome130",
+    define: { "process.env": "{}" },
+  });
+  await inventory(temporary);
   await writeFile(
     join(temporary, "deckwise-bundle.json"),
     JSON.stringify({ version: 1, commit, dirty, files }, null, 2),

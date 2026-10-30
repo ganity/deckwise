@@ -278,3 +278,23 @@ test("all thirteen music IPC operations require the main sender and exact argume
     assert.equal(calls.length, before); assert.deepEqual(await fn(sender, { sessionId: "chat" }), { sessionId: "chat" });
   }
 });
+
+test("native library reuses the real music coordinator and never purchases on list/adopt", async t => {
+  const { CoursewareNativeMedia } = await load("courseware-native-media", {
+    "node:crypto": crypto, "node:fs": fs, "node:fs/promises": files, "node:path": paths,
+    "./courseware-video-placement": await load("courseware-video-placement", {}),
+  });
+  const f = await adoptableFixture(t), before = f.provider.length;
+  const call = f.host.call;
+  f.host.call = async (method, params) => method === "courseware.video.list" ? { intents: [] } : call(method, params);
+  const native = new CoursewareNativeMedia({ async ttsContext() { return {
+    ...f.target, pageId: "page", projectId: "project", expectedSourceRevision: "source", project: { pages: [{ pageId: "page", actions: [] }] },
+  }; } }, { getCoursewarePrincipal: () => ({ key: f.state.principal, assertCurrent() {} }) }, f.main);
+  const request = { viewId: "view-1", expectedTeachingRevision: "teaching-1" };
+  const library = await native.list(request);
+  assert.equal(library.length, 1); assert.equal(library[0].kind, "music"); assert.equal(library[0].intentId, f.op.intentId);
+  assert.equal(f.provider.length, before);
+  assert.deepEqual(await native.adopt({ ...request, kind: "music", intentId: f.op.intentId, actionId: "ui-operation" }), { viewId: "view-2" });
+  assert.deepEqual(f.provider.slice(before).map(entry => entry[0]), ["GET"]);
+  assert.equal(f.adopted.length, 1);
+});

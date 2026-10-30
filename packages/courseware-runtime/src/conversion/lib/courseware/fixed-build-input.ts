@@ -1,4 +1,6 @@
+import { questionResponseSchema } from '../../../question-response';
 import { z } from 'zod';
+import { nativeAnimationNodeSchema } from '../../../native-animation-node';
 
 const id = z.string().min(1).max(200);
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
@@ -33,7 +35,7 @@ const visualCueSchema = z
         .object({
           type: z.literal('element_animation'),
           elementId: id,
-          effect: z.enum(['fadeIn', 'fadeOut', 'pulse']),
+          effect: z.enum(['fadeIn', 'fadeOut', 'pulse', 'zoomIn', 'slideInLeft', 'slideInRight', 'gentleRotate']),
         })
         .strict(),
     ]),
@@ -59,7 +61,7 @@ const chapterSummaryWait = z
     id,
     type: z.literal('interaction_checkpoint'),
     checkpointId: id,
-    checkpointKind: z.literal('chapter_summary'),
+    checkpointKind: z.literal('chapter_summary'), response: questionResponseSchema.optional(),
     chapterId: id,
     chapterTitle: z.string(),
     question: z.string(),
@@ -82,7 +84,7 @@ export const fixedBuildInputSchema = z
         revision: id,
         sourceSha256: hash,
         pages: z
-          .array(z.object({ pageId: id, actions: z.array(z.union([speech, audioClip, videoClip, chapterSummaryWait, teacherContinueWait])) }).strict())
+          .array(z.object({ pageId: id, actions: z.array(z.union([nativeAnimationNodeSchema, speech, audioClip, videoClip, chapterSummaryWait, teacherContinueWait, z.object({ id, type: z.literal('delay'), durationMs: z.number().int().min(0).max(30_000) }).strict()])) }).strict())
           .min(1),
       })
       .strict(),

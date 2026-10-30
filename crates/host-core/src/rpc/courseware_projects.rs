@@ -6,7 +6,9 @@ mod candidates;
 mod drafts;
 mod media_canvas;
 mod media_relay;
+mod native_save;
 mod online_source_review;
+mod portable;
 mod scene_images;
 mod scene_plan;
 mod snapshots;
@@ -574,6 +576,8 @@ pub(super) async fn handle(
         }
         "courseware.video.prepare"
         | "courseware.video.get"
+        | "courseware.video.asset.get"
+        | "courseware.video.reuse"
         | "courseware.video.list"
         | "courseware.video.begin"
         | "courseware.video.bind"
@@ -591,12 +595,18 @@ pub(super) async fn handle(
         | "courseware.tts.audio.stage"
         | "courseware.tts.audio.get"
         | "courseware.tts.audio.adopt" => tts::handle(state, method, params).await,
+        "courseware.nativeSave.prepare" | "courseware.nativeSave.resolve" | "courseware.nativeSave.forPath" => native_save::handle(state, method, params).await,
+        "courseware.project.copy" => portable::handle(state, params).await,
+        "courseware.project.restore" => portable::restore(state, params).await,
+        "courseware.project.attach" => portable::attach(state, params).await,
+        "courseware.project.localMedia" => portable::local_media(state, params).await,
         "courseware.snapshot.capture"
         | "courseware.snapshot.get"
         | "courseware.snapshot.onlineOrigin"
         | "courseware.snapshot.importOnline" => snapshots::handle(state, method, params).await,
         "courseware.sourceAdoption.prepare"
         | "courseware.sourceAdoption.get"
+        | "courseware.sourceAdoption.forPath"
         | "courseware.sourceAdoption.commit"
         | "courseware.sourceAdoption.cancel" => {
             source_adoption::handle(state, method, params).await

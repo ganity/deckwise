@@ -177,7 +177,7 @@ export function FixedCoursewarePlayer({
   const mediaProgress = progress ?? clipProgress;
   const native = scene && build.nativeAnimations?.get(scene.id);
   const nativeTargets = new Set(native?.steps.map(step => step.elementId));
-  const nativeWaitIndex = waiting && native ? scene.actions?.slice(0, native.steps.length * 2).findIndex(action =>
+  const nativeWaitIndex = waiting && native?.version === 1 ? scene.actions?.slice(0, native.steps.length * 2).findIndex(action =>
     action.type === "interaction_checkpoint" && action.checkpointId === waiting.checkpointId) ?? -1 : -1;
   const speechIds = (scene?.actions ?? [])
     .filter((action) => action.type === "speech")
@@ -232,7 +232,9 @@ export function FixedCoursewarePlayer({
         />
       )}
       {native && <p role="note" data-native-animation-policy>
-        {labels.nativeAnimationRule ?? englishPlayerLabels.nativeAnimationRule}
+        {native.version === 2
+          ? labels.boundNativeAnimationRule ?? englishPlayerLabels.boundNativeAnimationRule
+          : labels.nativeAnimationRule ?? englishPlayerLabels.nativeAnimationRule}
       </p>}
       <nav
         aria-label={labels.controls}
@@ -313,6 +315,7 @@ export function FixedCoursewarePlayer({
               ? waiting.question
               : labels.continueWhenReady}
           </p>
+          {waiting.checkpointKind === "chapter_summary" && waiting.response?.options.length ? <ol>{waiting.response.options.map((option, index) => <li key={index}>{option}</li>)}</ol> : null}
           {waiting.checkpointKind === "chapter_summary" && <details key={waiting.checkpointId}>
             <summary>{labels.referenceAnswer ?? englishPlayerLabels.referenceAnswer}</summary>
             <p>{waiting.referenceAnswer.summary}</p>

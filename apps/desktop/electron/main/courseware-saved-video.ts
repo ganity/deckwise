@@ -7,6 +7,7 @@ export type SavedVideoIntent = { intentId: string; principalKey: string; project
   source: { revision: string; sha256: string }; model: string; prompt: string; idempotencyKey: string; requestHash: string;
   phase: "prepared" | "submission-unknown" | "submitted" | "adopted"; taskRef: CoursewareTaskRef | null;
   submissionScope: { sessionId: string; teamProjectId: string | null } | null;
+  placements?: Array<{ pageId: string; actionId: string }>;
   asset: { sha256: string; byteLength: number; durationMs: number; width: number; height: number } | null };
 
 /** Uses the original Host intent even after an uncertain submission or Chat restart. */

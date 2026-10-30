@@ -250,3 +250,42 @@ fn old_projects_need_no_migration_and_corrupt_scene_records_are_not_silently_ign
         );
     }
 }
+
+#[test]
+fn semantic_evidence_survives_restart_without_changing_identities_or_static_policy() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_str().unwrap();
+    let path = dir.path().join("semantics.sqlite");
+    let saved;
+    {
+        let db = Database::open(&path).unwrap();
+        let s = seed();
+        let project = db.open_identified_courseware_project_with_metadata(root, &s, "scene", None).unwrap();
+        let mut original = mapping(&s);
+        original.pages[0].elements[0].animation_policy = Some("static".into());
+        db.initialize_generated_scene_objects(root, &project, &original).unwrap();
+        let before = db.courseware_project_context(root, &project.project_id).unwrap();
+        let ids = before["sceneObjects"]["pages"][0]["objects"].as_array().unwrap();
+        let evidence = vec![SceneSemanticEvidence {
+            object_id: ids[0]["objectId"].as_str().unwrap().into(), role: "Monkey Munchy".into(),
+            aliases: vec!["小猴".into(), "Munchy".into()], text: "".into(), teaching_target: true,
+        }, SceneSemanticEvidence {
+            object_id: ids[1]["objectId"].as_str().unwrap().into(), role: "Decoration".into(),
+            aliases: vec![], text: "".into(), teaching_target: false,
+        }];
+        db.save_scene_semantic_evidence(root, &project, &project.pages[0].page_id, &evidence).unwrap();
+        saved = db.courseware_project_context(root, &project.project_id).unwrap();
+        assert_eq!(before["mapping"], saved["mapping"]);
+        let objects = &saved["sceneObjects"]["pages"][0]["objects"];
+        assert_eq!(objects[0]["element"]["semanticRole"], "Monkey Munchy");
+        assert_eq!(objects[0]["element"]["spokenAliases"], json!(["Munchy", "小猴"]));
+        assert_eq!(objects[0]["element"]["animationPolicy"], "static");
+        assert_eq!(objects[1]["element"]["animationPolicy"], "static");
+        let mut invalid = evidence[0].clone();
+        invalid.object_id = "foreign-object".into();
+        assert!(db.save_scene_semantic_evidence(root, &project, &project.pages[0].page_id, &[invalid]).is_err());
+        assert_eq!(saved, db.courseware_project_context(root, &project.project_id).unwrap());
+    }
+    let db = Database::open(&path).unwrap();
+    assert_eq!(saved, db.courseware_project_context(root, &seed().project_id).unwrap());
+}

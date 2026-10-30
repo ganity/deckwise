@@ -22,6 +22,15 @@ pub struct Intent {
     pub task_ref: Option<tts::TaskRef>,
     pub submission_scope: Option<media_scope::SubmissionScope>,
     pub asset: Option<VideoAsset>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub placements: Vec<Placement>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Placement {
+    pub page_id: String,
+    pub action_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -136,6 +145,16 @@ impl Intent {
                     == self.task_ref.is_some(),
             "COURSEWARE_INVALID: corrupt video journal"
         );
+        let mut ids = std::collections::HashSet::new();
+        anyhow::ensure!(
+            self.placements.len() <= 1000
+                && (self.placements.is_empty() || self.phase == "adopted")
+                && self.placements.iter().all(|p| id(&p.page_id)
+                    && id(&p.action_id)
+                    && p.action_id != self.slot_id
+                    && ids.insert(&p.action_id)),
+            "COURSEWARE_INVALID: invalid video placements"
+        );
         if let Some(asset) = &self.asset {
             asset.validate()?;
             anyhow::ensure!(
@@ -148,6 +167,24 @@ impl Intent {
             "COURSEWARE_INVALID: video adoption has no asset"
         );
         Ok(())
+    }
+    pub fn attached(&self, project: &CoursewareProject) -> bool {
+        self.source.revision == project.source.revision
+            && self.source.sha256 == project.source.sha256
+            && project.pages.iter().any(|page| {
+                !page.locked
+                    && page.actions.iter().any(|action| {
+                        valid_clip(action)
+                            && self
+                                .asset
+                                .as_ref()
+                                .is_some_and(|a| action["videoAssetId"] == a.asset().id)
+                            && (page.page_id == self.page_id && action["id"] == self.slot_id
+                                || self.placements.iter().any(|p| {
+                                    p.page_id == page.page_id && action["id"] == p.action_id
+                                }))
+                    })
+            })
     }
     pub fn matches(&self, project: &CoursewareProject) -> bool {
         self.source.revision == project.source.revision
@@ -183,6 +220,69 @@ impl Database {
         );
         Ok(())
     }
+    pub fn current_courseware_video_asset(
+        &self,
+        workspace: &str,
+        project: &CoursewareProject,
+        principal: &str,
+        intent_id: &str,
+        session_id: &str,
+    ) -> Result<VideoAsset> {
+        let intent =
+            self.get_courseware_video(workspace, &project.project_id, principal, intent_id)?;
+        anyhow::ensure!(
+            intent.phase == "adopted"
+                && intent.attached(project)
+                && intent
+                    .submission_scope
+                    .as_ref()
+                    .is_some_and(|scope| scope.session_id == session_id),
+            "COURSEWARE_CONFLICT: video is not attached to current teaching"
+        );
+        intent
+            .asset
+            .ok_or_else(|| anyhow::anyhow!("COURSEWARE_CONFLICT: missing video archive"))
+    }
+
+    pub(super) fn portable_video_assets(
+        &self,
+        workspace: &str,
+        project: &CoursewareProject,
+    ) -> Result<Vec<VideoAsset>> {
+        let scope = storage_key(workspace, &project.project_id)?;
+        let prefix = format!("[{},", serde_json::to_string(&scope)?);
+        let mut query = self.conn.prepare("SELECT key FROM kv WHERE ns=?1 AND substr(key,1,length(?2))=?2 ORDER BY key LIMIT 1001")?;
+        let keys = query
+            .query_map(params![NS, prefix], |row| row.get::<_, String>(0))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        anyhow::ensure!(
+            keys.len() <= 1000,
+            "COURSEWARE_INVALID: too many video receipts for copy"
+        );
+        let mut assets = Vec::new();
+        // A manual lock prevents editing, not copying an already adopted clip.
+        let mut readable = project.clone();
+        for page in &mut readable.pages {
+            page.locked = false;
+        }
+        for key in keys {
+            let (saved_scope, principal, intent): (String, String, String) =
+                serde_json::from_str(&key)?;
+            anyhow::ensure!(
+                saved_scope == scope,
+                "COURSEWARE_INVALID: video copy scope differs"
+            );
+            let record =
+                self.get_courseware_video(workspace, &project.project_id, &principal, &intent)?;
+            if record.phase == "adopted" && record.attached(&readable) {
+                if let Some(asset) = record.asset {
+                    assets.push(asset);
+                }
+            }
+        }
+        Ok(assets)
+    }
+
     pub fn get_courseware_video(
         &self,
         workspace: &str,
@@ -279,6 +379,7 @@ impl Database {
             task_ref: None,
             submission_scope: None,
             asset: None,
+            placements: Vec::new(),
         };
         self.save_video(workspace, &intent)?;
         tx.commit()?;
@@ -351,6 +452,84 @@ impl Database {
         tx.commit()?;
         Ok(saved)
     }
+    pub fn reuse_courseware_video(
+        &self,
+        workspace: &str,
+        write: &TeachingWrite,
+        principal: &str,
+        intent_id: &str,
+        session_id: &str,
+        action_id: &str,
+    ) -> Result<CoursewareProject> {
+        let tx = self.conn.unchecked_transaction()?;
+        self.ensure_no_source_adoption(workspace)?;
+        anyhow::ensure!(id(action_id), "COURSEWARE_INVALID: invalid video action");
+        let project = self
+            .get_courseware_project(workspace, &write.project_id)?
+            .ok_or_else(|| anyhow!("COURSEWARE_NOT_FOUND: project not found"))?;
+        let asset = self.current_courseware_video_asset(
+            workspace, &project, principal, intent_id, session_id,
+        )?;
+        let mut saved =
+            self.get_courseware_video(workspace, &write.project_id, principal, intent_id)?;
+        anyhow::ensure!(
+            saved
+                .submission_scope
+                .as_ref()
+                .map(serde_json::to_value)
+                .transpose()?
+                == Some(serde_json::to_value(
+                    self.courseware_media_submission_scope(session_id)?
+                )?),
+            "COURSEWARE_CONFLICT: video submission scope changed"
+        );
+        anyhow::ensure!(
+            project.source.revision == write.expected_source_revision,
+            "COURSEWARE_CONFLICT: video source changed"
+        );
+        if saved
+            .placements
+            .iter()
+            .any(|p| p.action_id == action_id && p.page_id == write.page_id)
+        {
+            anyhow::ensure!(
+                project.pages.iter().any(|p| p.page_id == write.page_id
+                    && p.actions.iter().any(|a| valid_clip(a)
+                        && a["id"] == action_id
+                        && a["videoAssetId"] == asset.asset().id)),
+                "COURSEWARE_CONFLICT: reused video was removed or changed"
+            );
+            tx.commit()?;
+            return Ok(project);
+        }
+        let page = project
+            .pages
+            .iter()
+            .find(|p| p.page_id == write.page_id && !p.locked)
+            .ok_or_else(|| anyhow!("COURSEWARE_CONFLICT: video target page missing or locked"))?;
+        anyhow::ensure!(
+            project
+                .pages
+                .iter()
+                .all(|p| p.actions.iter().all(|a| a["id"] != action_id)),
+            "COURSEWARE_CONFLICT: video action already exists"
+        );
+        let mut update = write.clone();
+        update.actions = page.actions.clone();
+        update
+            .actions
+            .push(json!({"id":action_id,"type":"video_clip","videoAssetId":asset.asset().id}));
+        let project = self.write_courseware_teaching(workspace, &update)?;
+        saved.placements.push(Placement {
+            page_id: write.page_id.clone(),
+            action_id: action_id.into(),
+        });
+        self.save_video(workspace, &saved)?;
+        let project = self.finish_generated_scene_page(workspace, project, &write.page_id)?;
+        tx.commit()?;
+        Ok(project)
+    }
+
     pub fn adopt_courseware_video(
         &self,
         workspace: &str,

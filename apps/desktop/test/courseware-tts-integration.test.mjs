@@ -165,7 +165,7 @@ test("legacy receipt compatibility through Electron Main/auth + durable Host res
   const step = async (name, operation) => { await operation(); checks.push(name); console.log("PASS", name); };
   let sessionId, project, view, coordinator, teaching, first, unknown, late;
   const snapshot = { projectId: officeIdentity ? digest(workspace) : "native-workspace",
-    documentId: officeIdentity ? officeJobId : "native-document", sessionId: "native-session", path: saved, revision: 1, sha256: report.sourceHash };
+    documentId: officeIdentity ? officeJobId : "native-document", sessionId: "native-session", path: saved, sourcePath: saved, revision: 1, sha256: report.sourceHash };
   const context = { ...snapshot, editGeneration: 1, page: 1, readOnly: false };
   let dirty = false;
   const editor = { teachingSnapshot() {

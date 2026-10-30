@@ -25,6 +25,8 @@ test("inspection IPC authenticates sender and accepts only a host-selected saved
   }
   const module = { exports: {} };
   new Function("require", "exports", "module", outputText)((id) => {
+    if (id === "../courseware-native-media") return { CoursewareNativeMedia: class {} };
+    if (id === "../courseware-native-sidebar") return { createNativeTeachingHandler() {} };
     if (id === "@pi-desktop/shared") return { IPC };
     if (id === "../ppt-editor") return { PptEditorController: Editor };
     if (id === "../courseware-teaching") return { CoursewareTeachingCoordinator: class {} };
@@ -41,7 +43,8 @@ test("inspection IPC authenticates sender and accepts only a host-selected saved
     if (id === "../courseware-candidates") return { CoursewareCandidateCoordinator: class {} };
     if (id === "../pptx-candidate-preview") return { PptxCandidatePreview: class { close() {} } };
     if (id === "../courseware-source-adoption") return { CoursewareSourceAdoption: class { async adopt(reviewId, _reopen, bindings) { adoptionCalls.push([reviewId, bindings]); } } };
-    if (id === "../courseware-audio-decode") return { decodeCoursewareAudio() {} };
+    if (id === "../courseware-audio-decode") return { decodeCoursewareAudio() {}, decodeCoursewarePortableMedia() {} };
+    if (id === "../courseware-portable-media") return { CoursewarePortableMedia: class {} };
     if (id === "../courseware-tts") return { CoursewareTtsCoordinator: class {} };
     if (id === "../courseware-image-review") return { CoursewareImageReview: class { clear() {} } };
     if (id === "../courseware-visual-review") return { CoursewareVisualReview: class { clear() {} } };

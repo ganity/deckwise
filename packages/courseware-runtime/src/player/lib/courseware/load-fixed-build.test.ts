@@ -116,12 +116,49 @@ it.each(["version", "effect", "trigger", "duration", "target", "group", "capabil
     if (kind === "capability") Reflect.deleteProperty(candidate.report.capabilities, "nativeObjectAnimations");
     if (kind === "cue-conflict") {
       Reflect.set(candidate.pages[0].actions[0], "visualCues", [{ id: "conflict", atMs: 0, endMs: 100,
-        effect: { type: "highlight", elementIds: ["logical-target"] } }]);
-      Reflect.set(candidate.report.capabilities, "speechVisualCues", "fixed-audio/1");
+        effect: { type: "element_animation", elementId: "logical-target", effect: "pulse" } }]);
+      Reflect.set(candidate.report.capabilities, "speechVisualCues", "fixed-audio/2");
+      Reflect.set(candidate.report.capabilities, "playerObjectAnimations", "fade-pulse/1");
     }
     const bytes = encode(candidate);
     await expect(loadFixedBuild(bytes, await digestBytes(bytes), async () => audio)).rejects.toThrow();
   });
+it("binds highlight and spotlight to an object revealed by native clicks, retaining target validation", async () => {
+  const candidate = await nativePayload();
+  const cues = [
+    { id: "highlight", atMs: 0, endMs: 100, effect: { type: "highlight", elementIds: ["logical-target"] } },
+    { id: "spotlight", atMs: 100, endMs: 200, effect: { type: "spotlight", elementId: "logical-target", dimOpacity: .7 } },
+  ];
+  Reflect.set(candidate.pages[0].actions[0], "visualCues", cues);
+  Reflect.set(candidate.report.capabilities, "speechVisualCues", "fixed-audio/1");
+  Reflect.set(candidate.report.capabilities, "spotlight", true);
+  const load = async () => { const bytes = encode(candidate); return loadFixedBuild(bytes, await digestBytes(bytes), async () => audio); };
+  const loaded = await load();
+  expect(loaded.scenes[0].actions?.map(action => action.type)).toEqual([
+    "interaction_checkpoint", "element_animation", "interaction_checkpoint", "element_animation", "speech",
+  ]);
+  expect(loaded.speechVisualCues.get("speech")).toEqual([
+    { id: "highlight", atMs: 0, endMs: 100, effect: { kind: "highlight", targetIds: ["target"] } },
+    { id: "spotlight", atMs: 100, endMs: 200, effect: { kind: "spotlight", targetId: "target", dimOpacity: .7 } },
+  ]);
+  loaded.dispose();
+  cues[1].effect.elementId = "deleted";
+  await expect(load()).rejects.toThrow("EFFECT_BINDING_MISMATCH");
+  cues[1].effect.elementId = "logical-target";
+  cues[1].effect.elementIds = ["deleted"];
+  await expect(load()).rejects.toThrow("EFFECT_BINDING_MISMATCH");
+});
+it.each(["fadeIn", "fadeOut", "pulse"])("rejects a competing %s cue on a native entrance target", async effect => {
+  const candidate = await nativePayload();
+  Reflect.set(candidate.pages[0].actions[0], "visualCues", [
+    { id: "attention", atMs: 0, endMs: 100, effect: { type: "highlight", elementIds: ["logical-target"] } },
+    { id: "animation", atMs: 100, endMs: 200, effect: { type: "element_animation", elementId: "logical-target", effect } },
+  ]);
+  Reflect.set(candidate.report.capabilities, "speechVisualCues", "fixed-audio/2");
+  Reflect.set(candidate.report.capabilities, "playerObjectAnimations", "fade-pulse/1");
+  const bytes = encode(candidate);
+  await expect(loadFixedBuild(bytes, await digestBytes(bytes), async () => audio)).rejects.toThrow("NATIVE_ANIMATION_CUE_CONFLICT");
+});
 it("loads a generated slide background without inventing a logical object binding", async () => {
   const value = await payload();
   const background = {
@@ -523,6 +560,16 @@ it("binds limited player animations and rejects unsupported/conflicting targets 
   });
   await expect(load()).rejects.toThrow("ANIMATION_TARGET_CONFLICT");
   value.pages[0].actions[0].visualCues.pop();
+  value.pages[0].actions.push({ ...value.pages[0].actions[0], id: "repeat-speech", visualCues: [{
+    ...value.pages[0].actions[0].visualCues[0], id: "repeat-pulse", atMs: 0,
+    effect: { type: "element_animation", elementId: "logical-shape", effect: "pulse" },
+  }] });
+  const repeated = await load();
+  expect(repeated.speechVisualCues.get("repeat-speech")?.[0].effect).toMatchObject({ kind: "element_animation", action: { effect: "pulse" } });
+  repeated.dispose();
+  value.pages[0].actions[1].visualCues[0].effect.effect = "fadeIn";
+  await expect(load()).rejects.toThrow("ANIMATION_TARGET_CONFLICT");
+  value.pages[0].actions.pop();
   value.pages[0].slide.elements[0].type = "video";
   await expect(load()).rejects.toThrow("ANIMATION_TARGET_UNSUPPORTED");
   value.pages[0].slide.elements[0].type = "shape";
@@ -552,3 +599,58 @@ it("loads verified MP4 clips and rejects a video referencing an audio asset", as
   loaded.dispose(); candidate.assets[0].mimeType = "audio/wav"; candidate.assets[0].path = `assets/${await digestBytes(audio)}.wav`;
   await expect(load()).rejects.toThrow("VIDEO_ASSET_MISSING");
 });
+
+it.each([-1, 0.5, 30001])('rejects invalid packaged delay %s before playback', async durationMs => {
+  const original = await payload();
+  const candidate = { ...original, pages: [{ ...original.pages[0], actions: [{ id: 'delay', type: 'delay', durationMs }] }] };
+  const bytes = encode(candidate);
+  await expect(loadFixedBuild(bytes, await digestBytes(bytes), async () => audio)).rejects.toThrow();
+});
+
+async function boundNativePayload() {
+  const value = await nativePayload();
+  const node = (stepIndex: number) => ({ id: `bound-${stepIndex}`, type: 'native_animation', version: 1,
+    sourceSha256: value.report.sourceSha256, stepIndex });
+  return { ...value, report: { ...value.report, capabilities: { ...value.report.capabilities,
+    nativeObjectAnimations: 'click-appear-fade/2', speechVisualCues: 'fixed-audio/1', spotlight: true } },
+    pages: [{ ...value.pages[0], nativeAnimations: { ...value.pages[0].nativeAnimations, version: 2, sequence: 'teaching-timeline' },
+      actions: [value.pages[0].actions[0], node(0), { ...value.pages[0].actions[0], id: 'after-first',
+        visualCues: [{ id: 'h', atMs: 0, endMs: 100, effect: { type: 'highlight', elementIds: ['logical-target'] } }] },
+      { id: 'teacher', type: 'interaction_checkpoint', checkpointId: 'teacher', checkpointKind: 'teacher_continue' }, node(1),
+      { ...value.pages[0].actions[0], id: 'after-second', visualCues: [{ id: 's', atMs: 0, endMs: 100,
+        effect: { type: 'spotlight', elementId: 'logical-target' } }] }],
+    }] };
+}
+it('compiles bound native steps at their authored timeline positions without inserting extra teacher gates', async () => {
+  const candidate = await boundNativePayload(), before = structuredClone(candidate);
+  const bytes = encode(candidate), loaded = await loadFixedBuild(bytes, await digestBytes(bytes), async () => audio);
+  try {
+    expect(loaded.scenes[0].actions?.map(action => [action.id, action.type])).toEqual([
+      ['speech', 'speech'], ['bound-0', 'element_animation'], ['after-first', 'speech'],
+      ['teacher', 'interaction_checkpoint'], ['bound-1', 'element_animation'], ['after-second', 'speech'],
+    ]);
+    expect(loaded.scenes[0].actions?.[1]).toMatchObject({ elementId: 'target', effect: 'fadeIn', duration: 500 });
+    expect(loaded.scenes[0].actions?.[4]).toMatchObject({ elementId: 'target', effect: 'appear', duration: 1 });
+    expect(loaded.nativeAnimations?.get('logical-page')).toMatchObject({ version: 2, sequence: 'teaching-timeline' });
+    expect(loaded.speechVisualCues.get('after-first')?.[0].effect).toMatchObject({ kind: 'highlight', targetIds: ['target'] });
+    expect(loaded.speechVisualCues.get('after-second')?.[0].effect).toMatchObject({ kind: 'spotlight', targetId: 'target' });
+    expect(candidate).toEqual(before);
+  } finally { loaded.dispose(); }
+});
+it.each(['source', 'missing', 'duplicate', 'reordered', 'legacy-metadata', 'unbound-metadata', 'capability', 'hidden-target'])(
+  'rejects %s timeline bindings before playing a different native step', async kind => {
+    const candidate = await boundNativePayload(), page = candidate.pages[0];
+    if (kind === 'source') Reflect.set(page.actions[1], 'sourceSha256', 'f'.repeat(64));
+    if (kind === 'missing') page.actions.splice(4, 1);
+    if (kind === 'duplicate') Reflect.set(page.actions[4], 'stepIndex', 0);
+    if (kind === 'reordered') [page.actions[1], page.actions[4]] = [page.actions[4], page.actions[1]];
+    if (kind === 'legacy-metadata') { page.nativeAnimations.version = 1; page.nativeAnimations.sequence = 'before-narration';
+      candidate.report.capabilities.nativeObjectAnimations = 'click-appear-fade/1'; }
+    if (kind === 'unbound-metadata') page.actions = page.actions.filter(action => action.type !== 'native_animation');
+    if (kind === 'capability') candidate.report.capabilities.nativeObjectAnimations = 'click-appear-fade/1';
+    if (kind === 'hidden-target') [page.actions[0], page.actions[2]] = [page.actions[2], page.actions[0]];
+    const bytes = encode(candidate);
+    await expect(loadFixedBuild(bytes, await digestBytes(bytes), async () => audio)).rejects.toThrow(
+      kind === 'capability' ? 'NATIVE_ANIMATION_CAPABILITY_MISMATCH' : kind === 'hidden-target'
+        ? 'NATIVE_ANIMATION_TARGET_NOT_REVEALED' : 'NATIVE_ANIMATION_BINDING_MISMATCH');
+  });

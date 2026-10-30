@@ -85,7 +85,7 @@ pub(crate) fn cue_targets(cue: &Value) -> Result<Vec<String>> {
                 fields(effect, &["type", "elementId", "effect"], &[])
                     && matches!(
                         effect["effect"].as_str(),
-                        Some("fadeIn" | "fadeOut" | "pulse")
+                        Some("fadeIn" | "fadeOut" | "pulse" | "zoomIn" | "slideInLeft" | "slideInRight" | "gentleRotate")
                     )
                     && cue["endMs"].as_u64().unwrap() - cue["atMs"].as_u64().unwrap() <= 5000,
                 "COURSEWARE_INVALID: unsupported object animation cue"
@@ -106,6 +106,33 @@ pub(crate) fn cue_targets(cue: &Value) -> Result<Vec<String>> {
         .collect())
 }
 
+/// Speech clocks are serial. Repeated emphasis is safe; duplicate entrances and hidden targets are not.
+pub(in crate::db::courseware_projects) fn validate_animation_sequence(
+    actions: &[Value],
+) -> Result<()> {
+    let mut previous = HashMap::new();
+    for action in actions.iter().filter(|action| action["type"] == "speech") {
+        let mut current = HashSet::new();
+        for cue in action["visualCues"].as_array().into_iter().flatten() {
+            let effect = &cue["effect"];
+            if effect["type"] != "element_animation" {
+                continue;
+            }
+            let id = effect["elementId"].as_str().unwrap_or_default();
+            let motion = effect["effect"].as_str().unwrap_or_default();
+            anyhow::ensure!(
+                current.insert(id)
+                    && previous
+                        .get(id)
+                        .is_none_or(|old| matches!(motion, "pulse" | "gentleRotate" | "fadeOut") && *old != "fadeOut"),
+                "COURSEWARE_INVALID: duplicate page animation target"
+            );
+            previous.insert(id, motion);
+        }
+    }
+    Ok(())
+}
+
 pub(in crate::db::courseware_projects) fn referenced(
     project: &CoursewareProject,
 ) -> Result<Vec<(String, String)>> {
@@ -113,7 +140,7 @@ pub(in crate::db::courseware_projects) fn referenced(
     let mut targets = Vec::new();
     let mut unique = HashSet::new();
     for page in &mut plain.pages {
-        let mut animated = HashSet::new();
+        validate_animation_sequence(&page.actions)?;
         for action in &mut page.actions {
             if let Some(intent) = action.get("attention") {
                 anyhow::ensure!(
@@ -142,12 +169,6 @@ pub(in crate::db::courseware_projects) fn referenced(
                         cue_ids.insert(cue["id"].clone()),
                         "COURSEWARE_INVALID: duplicate cue IDs"
                     );
-                    if cue["effect"]["type"] == "element_animation" {
-                        anyhow::ensure!(
-                            animated.insert(cue["effect"]["elementId"].clone()),
-                            "COURSEWARE_INVALID: duplicate page animation target"
-                        );
-                    }
                     for id in cue_targets(cue)? {
                         if unique.insert((page.page_id.clone(), id.clone())) {
                             targets.push((page.page_id.clone(), id));

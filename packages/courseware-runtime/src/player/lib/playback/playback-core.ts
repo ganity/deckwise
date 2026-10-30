@@ -638,6 +638,15 @@ export class PlaybackCore {
     }
 
     switch (action.type) {
+      case "delay": {
+        if (!Number.isInteger(action.durationMs) || action.durationMs < 0 || action.durationMs > 30000) {
+          this.pause();
+          this.callbacks.onPlaybackError?.(new Error("Invalid teaching delay"));
+          break;
+        }
+        this.scheduleSpeechTimer(action.durationMs, () => this.processNext());
+        break;
+      }
       case "video_clip": {
         this.currentInteractionCheckpointId = action.id;
         this.callbacks.onInteractionStart?.({ checkpointId: action.id, checkpointKind: "media_playback", elementId: action.id,

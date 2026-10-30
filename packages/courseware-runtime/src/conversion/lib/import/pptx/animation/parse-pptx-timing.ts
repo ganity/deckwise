@@ -319,7 +319,7 @@ function collectSteps(
         item: {
           target,
           ...(effectNode && /^\d+$/.test(effectNode.attrs.presetID ?? '') && effectNode.attrs.presetClass
-            ? { nativePreset: { version: 1 as const, class: effectNode.attrs.presetClass, id: Number(effectNode.attrs.presetID) } }
+            ? { nativePreset: { version: 1 as const, class: effectNode.attrs.presetClass, id: Number(effectNode.attrs.presetID), ...(effectNode.attrs.presetSubtype && /^\d+$/.test(effectNode.attrs.presetSubtype) ? { subtype: Number(effectNode.attrs.presetSubtype) } : {}) } }
             : {}),
           effect: rotationAnimation
             ? 'rotation'

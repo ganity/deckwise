@@ -11,6 +11,7 @@ for (const [name, entry, platform] of [
   ['node', 'src/node.ts', 'node'],
   ['authoring', 'src/authoring.ts', 'node'],
   ['player', 'src/player.ts', 'browser'],
+  ['teaching-preview', 'src/teaching-preview.ts', 'browser'],
   ['pptx-worker', 'src/conversion/scripts/pptx-byte-worker.ts', 'node'],
 ]) {
   const result = await build({
@@ -24,6 +25,7 @@ for (const [name, entry, platform] of [
   const inputs = Object.keys(result.metafile.inputs);
   assert(!inputs.some(file => /(?:^|\/)lib\/(store|server|api|ai|media|generation)\//.test(file)), 'Server or editor runtime entered the desktop module');
   const external = Object.values(result.metafile.outputs).flatMap(output => output.imports.filter(item => item.external).map(item => item.path));
+  if (name === 'teaching-preview') assert(external.length === 0, 'Native teaching preview must be standalone');
   if (platform === 'browser') assert(external.every(item => /^(react|react-dom)(\/|$)/.test(item)), 'Privileged import entered player');
   if (name === 'player' || name === 'node' || name === 'pptx-worker') {
     assert(!inputs.some(file => file.startsWith('src/authoring/') || file.startsWith('vendor/pptxgenjs/')), 'Authoring entered conversion or playback');

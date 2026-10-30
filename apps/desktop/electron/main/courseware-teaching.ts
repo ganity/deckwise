@@ -1,21 +1,22 @@
 import { randomUUID } from "node:crypto";
+import type { LocalSnapshotAsset } from "./courseware-portable-media";
 import { objectsForTeaching } from "./courseware-scene-object-view";
 import { isCoursewareTeachingDraft, isCoursewareTeachingHistory, isCoursewareAttentionCue, isCoursewareAttentionIntent, isCoursewareInteractionCheckpoint, sourceChangeForTeaching, chatChangesForTeaching, type CoursewareTeachingHistory } from "@pi-desktop/shared";
 import { setTimeout as delay } from "node:timers/promises";
 import { isCoursewareProject, isCoursewareSnapshot, isTeachingWrite, samePptEditorBinding, type CoursewareTeachingDraft, type CoursewareSnapshot, type CoursewareTeachingView, type CoursewareNarrationReview, type CoursewarePptxCandidateReview, type CoursewareSourceReview, type PptEditorBinding, type PptEditorContext } from "@pi-desktop/shared";
 
 type Host = { call<T>(method: string, params: unknown): Promise<T> };
-type Snapshot = PptEditorBinding & { path: string; revision: number; sha256: string };
+type Snapshot = PptEditorBinding & { path: string; sourcePath: string; revision: number; sha256: string };
 type Editor = {
   getContext(workspace: string | null): Promise<PptEditorContext>;
   teachingSnapshot(workspace: string | null): Snapshot;
   verifyTeachingSource(workspace: string | null): Promise<void>;
 };
 type Pin = { view: CoursewareTeachingView; snapshot: Snapshot; context: PptEditorContext; sessionId: string; host: Host };
-type SnapshotAsset = { asset: { id: string; sha256: string; mimeType: string } } &
+type SnapshotAsset = LocalSnapshotAsset | ({ asset: { id: string; sha256: string; mimeType: string } } &
   ({ path: string; tts?: never; music?: never } | { tts: { principalKey: string; intentId: string }; path?: never; music?: never } |
     { music: { principalKey: string; intentId: string }; path?: never; tts?: never } |
-    { video: { principalKey: string; intentId: string }; path?: never; tts?: never; music?: never });
+    { video: { principalKey: string; intentId: string }; path?: never; tts?: never; music?: never }));
 
 function sourceEffectTargets(review: Pick<CoursewareSourceReview, "project" | "pageCount" | "effectTargets" | "targetPages">, pageIds?: string[]): Set<string> {
   const expected = new Set<string>();
@@ -87,6 +88,7 @@ export class CoursewareTeachingCoordinator {
   private pin: Pin | null = null;
   private draftPins = new Map<string, Pin>();
   private opening = false;
+  private savedRead: { snapshot: Snapshot; sessionId: string; host: Host; workspace: string; projectId: string } | null = null;
   private narrationReview: { view: CoursewareNarrationReview; pin: Pin } | null = null;
   private review: { publicView: CoursewareSourceReview; hostReviewId: string; snapshot: Snapshot; context: PptEditorContext; sessionId: string; host: Host } | null = null;
   private pptxCandidateReview: { view: CoursewarePptxCandidateReview; snapshot: Snapshot; context: PptEditorContext; sessionId: string; host: Host } | null = null;
@@ -94,8 +96,43 @@ export class CoursewareTeachingCoordinator {
   constructor(private editor: Editor, private getHost: () => Host | null, private getWorkspace: () => Promise<string | null>, private getViewingSessionId: () => string | null, private assertCandidateOwner: (sessionId: string) => void,
     private assertMediaOwner: (sessionId: string) => void = assertCandidateOwner) {}
 
+  async duringNativeSave<T>(operation: () => Promise<T>): Promise<T> {
+    while (this.opening) await delay(25);
+    this.opening = true;
+    this.pin = null; this.savedRead = null; this.review = null; this.narrationReview = null;
+    try { return await operation(); }
+    finally { this.opening = false; }
+  }
+
   async open(sessionId: unknown): Promise<CoursewareTeachingView> {
-    return this.withSaved(sessionId, async (host, jobId, snapshot, context, sessionId) => {
+    if (typeof sessionId !== "string" || this.getViewingSessionId() !== sessionId) throw new Error("Invalid or inactive project session");
+    if (this.opening) throw new Error("Teaching is already opening");
+    const saved = this.savedRead;
+    if (saved) {
+      this.opening = true;
+      this.pin = null;
+      this.review = null;
+      this.narrationReview = null;
+      try {
+        const workspace = await this.getWorkspace(), host = this.getHost();
+        const snapshot = this.editor.teachingSnapshot(workspace);
+        if (workspace === saved.workspace && host === saved.host && sessionId === saved.sessionId &&
+            samePptEditorBinding(snapshot, saved.snapshot) && snapshot.path === saved.snapshot.path &&
+            snapshot.sourcePath === saved.snapshot.sourcePath && snapshot.revision === saved.snapshot.revision && snapshot.sha256 === saved.snapshot.sha256) {
+          await this.editor.verifyTeachingSource(workspace);
+          const context = await this.editor.getContext(workspace);
+          await this.assertCurrent(snapshot, context, sessionId, host);
+          const result = await host.call<{ project: unknown }>("courseware.project.get", { sessionId, projectId: saved.projectId });
+          if (!isCoursewareProject(result.project) || result.project.projectId !== saved.projectId) throw new Error("Saved teaching project is unavailable");
+          return await this.setView(result.project, snapshot, context, sessionId, host);
+        }
+      } catch (error) {
+        this.savedRead = null;
+        throw error;
+      } finally { this.opening = false; }
+      this.savedRead = null;
+    }
+    const opened = await this.withSaved(sessionId, async (host, jobId, snapshot, context, sessionId) => {
       const result = await host.call<{ project: unknown }>("courseware.project.openSaved", { sessionId, jobId });
       if (isCoursewareProject(result.project) && result.project.taskType === "plain" && result.project.pages.length <= 30 &&
           result.project.pages.every((page) => page.actions.length === 0 && !page.locked && page.reviewState === "review")) {
@@ -122,6 +159,11 @@ export class CoursewareTeachingCoordinator {
       }
       return this.setView(result.project, snapshot, context, sessionId, host);
     });
+    const pin = this.pin!;
+    const workspace = await this.getWorkspace();
+    if (workspace && pin?.view === opened && this.getHost() === pin.host && this.getViewingSessionId() === pin.sessionId)
+      this.savedRead = { snapshot: pin.snapshot, sessionId: pin.sessionId, host: pin.host, workspace, projectId: opened.project.projectId };
+    return opened;
   }
 
   async importCurrentPageNotes(sessionId: unknown): Promise<{ view: CoursewareTeachingView; text: string }> {
@@ -142,6 +184,51 @@ export class CoursewareTeachingCoordinator {
     return { view, text: saved.text };
   }
 
+  async copyProject(sessionId: unknown): Promise<{ path: string; mediaCount: number }> {
+    const previous = this.pin, review = this.review, narrationReview = this.narrationReview;
+    const baseline = previous ?? narrationReview?.pin ?? (review && { ...review, view: review.publicView });
+    let cleanupFailed = false;
+    try {
+      return await this.withSaved(sessionId, async (host, jobId, snapshot, context, currentSessionId) => {
+        this.assertCandidateOwner(currentSessionId);
+        const { project } = await host.call<{ project: unknown }>("courseware.project.openSaved", { sessionId: currentSessionId, jobId });
+        if (!isCoursewareProject(project) || project.source.sha256 !== snapshot.sha256) throw new Error("Invalid project copy baseline");
+        await this.assertCurrent(snapshot, context, currentSessionId, host);
+        this.assertCandidateOwner(currentSessionId);
+        const result = await host.call<{ path: string; mediaCount: number; sourceSha256: string; teachingRevision: string }>("courseware.project.copy", {
+          sessionId: currentSessionId, jobId, expectedSourceRevision: project.source.revision,
+          expectedTeachingRevision: project.teachingRevision,
+        });
+        await this.assertCurrent(snapshot, context, currentSessionId, host);
+        this.assertCandidateOwner(currentSessionId);
+        if (!result || typeof result.path !== "string" || !result.path || result.path.length > 4096 ||
+            !Number.isSafeInteger(result.mediaCount) || result.mediaCount < 0 || result.mediaCount > 1000 ||
+            result.sourceSha256 !== snapshot.sha256 || result.teachingRevision !== project.teachingRevision)
+          throw new Error("Invalid project copy result");
+        return { path: result.path, mediaCount: result.mediaCount };
+      });
+    } catch (error) {
+      cleanupFailed = error instanceof Error && error.message.startsWith("Teaching parser cleanup failed:");
+      throw error;
+    } finally {
+      // A read-only copy must not invalidate the sidebar's unchanged view, including on export failure.
+      if (!cleanupFailed && baseline && !this.pin && !this.review && !this.narrationReview && !this.opening) {
+        try {
+          await this.assertCurrent(baseline.snapshot, baseline.context, baseline.sessionId, baseline.host);
+          const { project } = await baseline.host.call<{ project: unknown }>("courseware.project.get", {
+            sessionId: baseline.sessionId, projectId: baseline.view.project.projectId,
+          });
+          await this.assertCurrent(baseline.snapshot, baseline.context, baseline.sessionId, baseline.host);
+          if (!this.pin && !this.review && !this.narrationReview && !this.opening && JSON.stringify(project) === JSON.stringify(baseline.view.project)) {
+            this.pin = previous;
+            this.review = review;
+            this.narrationReview = narrationReview;
+          }
+        } catch { /* A changed baseline stays invalid until the sidebar refreshes. */ }
+      }
+    }
+  }
+
   async captureSnapshot(payload: unknown, assets: SnapshotAsset[] = [], assertAccount?: () => void): Promise<CoursewareSnapshot> {
     const pin = this.pin;
     if (!pin || !payload || typeof payload !== "object" || Array.isArray(payload) ||
@@ -153,13 +240,14 @@ export class CoursewareTeachingCoordinator {
     if (this.pin !== pin || this.opening) throw new Error("Teaching view changed; reload current page");
     if (pin.view.project.pages.some((page) => page.reviewState !== "ready"))
       throw new Error("COURSEWARE_REVIEW_REQUIRED: confirm every page before building a preview");
-    const audioAssetIds = pin.view.project.pages.flatMap((page) => page.actions)
-      .filter((action) => action.type === "speech" || action.type === "audio_clip").map((action) => action.audioAssetId);
+    const mediaAssetIds = pin.view.project.pages.flatMap((page) => page.actions)
+      .filter((action) => action.type === "speech" || action.type === "audio_clip" || action.type === "video_clip")
+      .map((action) => action.type === "video_clip" ? action.videoAssetId : action.audioAssetId);
     const suppliedAssetIds = assets.map(({ asset }) => asset.id);
-    if (audioAssetIds.some((assetId) => typeof assetId !== "string") ||
-        JSON.stringify([...new Set(audioAssetIds)].sort()) !== JSON.stringify([...new Set(suppliedAssetIds)].sort()) ||
+    if (mediaAssetIds.some((assetId) => typeof assetId !== "string") ||
+        JSON.stringify([...new Set(mediaAssetIds)].sort()) !== JSON.stringify([...new Set(suppliedAssetIds)].sort()) ||
         suppliedAssetIds.length !== new Set(suppliedAssetIds).size)
-      throw new Error("COURSEWARE_AUDIO_REQUIRED: each current audio action needs one verified snapshot asset");
+      throw new Error("COURSEWARE_AUDIO_REQUIRED: each current media action needs one verified snapshot asset");
     return this.withSaved(pin.sessionId, async (host, jobId, snapshot, context, sessionId) => {
       if (host !== pin.host || !samePptEditorBinding(snapshot, pin.snapshot) || snapshot.sha256 !== pin.snapshot.sha256 ||
           snapshot.revision !== pin.snapshot.revision || context.page !== pin.context.page || context.editGeneration !== pin.context.editGeneration)
@@ -388,12 +476,16 @@ export class CoursewareTeachingCoordinator {
     const page = project.pages[(context.page ?? 0) - 1];
     if (!page) throw new Error("Current page is missing from saved PPTX");
     const raw = await host.call("courseware.project.context", { sessionId, projectId: project.projectId });
+    const warnings = raw && typeof raw === "object" ? Reflect.get(raw, "saveWarnings") : undefined;
+    if (warnings !== undefined && (!Array.isArray(warnings) || warnings.length > 200 || !warnings.every(value => typeof value === "string" && value.length <= 1000)))
+      throw new Error("Invalid saved teaching warnings");
     const teachingObjects = objectsForTeaching(raw, project, page.pageId);
     const sourceChange = sourceChangeForTeaching(raw, project);
     const chatChanges = chatChangesForTeaching(raw);
     await this.assertCurrent(snapshot, context, sessionId, host);
     if (expectedPin && (this.pin !== expectedPin || this.opening)) throw new Error("Teaching view changed; reload current page");
     const view = { viewId, project, pageId: page.pageId, pageNumber: context.page!,
+      ...(warnings?.length ? { saveWarnings: warnings as string[] } : {}),
       ...(teachingObjects ? { teachingObjects } : {}), ...(sourceChange ? { sourceChange } : {}), ...(chatChanges ? { chatChanges } : {}) };
     this.pin = { view, snapshot, context, sessionId, host };
     this.draftPins.set(view.viewId, this.pin);
@@ -405,6 +497,7 @@ export class CoursewareTeachingCoordinator {
     if (typeof sessionId !== "string" || !sessionId || sessionId.length > 128 || this.getViewingSessionId() !== sessionId) throw new Error("Invalid or inactive project session");
     if (this.opening) throw new Error("Teaching is already opening");
     this.opening = true;
+    this.savedRead = null;
     this.pin = null;
     this.review = null;
     this.narrationReview = null;
@@ -449,6 +542,13 @@ export class CoursewareTeachingCoordinator {
         return jobId;
       };
       const originalJob = await parse(snapshot.path, snapshot.sha256);
+      const attached = await host.call<{ attached: boolean }>("courseware.project.attach", {
+        sessionId, jobId: originalJob, sourcePath: snapshot.sourcePath,
+      });
+      signal?.throwIfAborted();
+      if (!attached || typeof attached.attached !== "boolean" || Object.keys(attached).length !== 1)
+        throw new Error("Invalid saved project attachment");
+      await this.assertCurrent(snapshot, context, sessionId, host);
       return await operation(host, originalJob, snapshot, context, sessionId, parse);
     } finally {
       try {
@@ -471,6 +571,22 @@ export class CoursewareTeachingCoordinator {
 
   async musicAdoptionContext(payload: { viewId: unknown; expectedTeachingRevision: unknown }) {
     return this.mediaContext(payload, this.assertMediaOwner);
+  }
+
+  async reuseVideo(input: { viewId: string; expectedTeachingRevision: string; principalKey: string; intentId: string; actionId: string; assetId: string }) {
+    const context = await this.ttsContext(input), pin = this.pin;
+    if (!pin || pin.view.viewId !== input.viewId) throw new Error("Teaching view changed; reload current page");
+    const result = await pin.host.call<{ project: unknown }>("courseware.video.reuse", {
+      sessionId: pin.sessionId, projectId: pin.view.project.projectId, principalKey: input.principalKey,
+      intentId: input.intentId, pageId: pin.view.pageId, actionId: input.actionId,
+      expectedSourceRevision: pin.view.project.source.revision, expectedTeachingRevision: pin.view.project.teachingRevision,
+    });
+    await context.assertCurrent();
+    if (!isCoursewareProject(result.project) || result.project.projectId !== pin.view.project.projectId ||
+        result.project.source.sha256 !== pin.snapshot.sha256 || !result.project.pages.find(p => p.pageId === pin.view.pageId)?.actions.some(a =>
+          a.type === "video_clip" && a.id === input.actionId && a.videoAssetId === input.assetId))
+      throw new Error("COURSEWARE_VIDEO_INVALID_ADOPTION");
+    return this.setView(result.project, pin.snapshot, pin.context, pin.sessionId, pin.host, pin.view.viewId, pin);
   }
 
   async ttsContext(payload: { viewId: unknown; expectedTeachingRevision: unknown }) {
@@ -676,7 +792,7 @@ export class CoursewareTeachingCoordinator {
     const next = await this.editor.getContext(workspace);
     const final = this.editor.teachingSnapshot(await this.getWorkspace());
     if (this.getViewingSessionId() !== sessionId || this.getHost() !== host || !samePptEditorBinding(snapshot, current) || !samePptEditorBinding(snapshot, next) || !samePptEditorBinding(snapshot, final) ||
-        current.sha256 !== snapshot.sha256 || final.sha256 !== snapshot.sha256 || current.revision !== snapshot.revision ||
+        current.sha256 !== snapshot.sha256 || final.sha256 !== snapshot.sha256 || current.sourcePath !== snapshot.sourcePath || final.sourcePath !== snapshot.sourcePath || current.revision !== snapshot.revision ||
         final.revision !== snapshot.revision || next.readOnly || (checkPage && next.page !== context.page) ||
         (checkPage === true && next.editGeneration !== context.editGeneration)) {
       throw new Error("PPTX or current page changed; reload teaching");

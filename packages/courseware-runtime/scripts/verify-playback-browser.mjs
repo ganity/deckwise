@@ -113,6 +113,123 @@ const finishNarration = (page) =>
     a.currentTime = a.duration - 0.15;
   });
 try {
+  if (process.argv.includes('--bound-native')) await test('fixed-bound-native-timeline', async page => {
+    await loaded(page);
+    const target = id => page.locator(`[data-slide-render-element-id="${id}"]`);
+    const opacity = id => target(id).evaluate(element => Number(getComputedStyle(element).opacity));
+    const first = 'pptx_text_1', second = 'pptx_shape_2';
+    const wait = () => page.getByRole('button', { name: 'Teacher continue', exact: true });
+    const pause = () => page.getByRole('button', { name: 'Pause', exact: true }).click();
+    const resume = () => page.getByRole('button', { name: 'Resume', exact: true }).click();
+    assert.equal(await opacity(first), 0);
+    assert.equal(await opacity(second), 0);
+    await page.getByRole('button', { name: 'Play', exact: true }).click();
+    await running(page);
+    assert.equal(await opacity(first), 0);
+    assert.equal(await opacity(second), 0);
+    assert.equal(await wait().count(), 0);
+    await finishNarration(page);
+    await page.waitForFunction(() => document.querySelector('[data-slide-render-element-id="pptx_text_1"]')
+      ?.getAnimations().some(animation => animation.playState === 'running'));
+    await pause();
+    const fadeTime = await target(first).evaluate(element => element.getAnimations()[0].currentTime);
+    await page.waitForTimeout(250);
+    assert.equal(await target(first).evaluate(element => element.getAnimations()[0].currentTime), fadeTime);
+    assert.equal(await opacity(second), 0);
+    await resume();
+    await page.waitForFunction(() => window.__audios.length >= 2 && !window.__audios.at(-1).paused);
+    await pause();
+    await page.getByRole('slider', { name: 'Seek narration' }).fill('1000');
+    const highlight = page.locator('[data-fixed-effect="highlight"]');
+    await highlight.waitFor();
+    assert.equal(await highlight.getAttribute('data-target-ids'), first);
+    assert.equal(await opacity(first), 1);
+    assert.equal(await opacity(second), 0);
+    await resume(); await finishNarration(page);
+    await wait().waitFor();
+    await page.waitForTimeout(600);
+    assert.equal(await opacity(second), 0);
+    assert.equal(await page.locator('[data-fixed-effect]').count(), 0);
+    await wait().click();
+    await page.waitForFunction(() => document.querySelector('[data-slide-render-element-id="pptx_shape_2"]')
+      ?.getAnimations().some(animation => animation.playState === 'running'));
+    await pause();
+    const secondTime = await target(second).evaluate(element => element.getAnimations()[0].currentTime);
+    await page.waitForTimeout(250);
+    assert.equal(await target(second).evaluate(element => element.getAnimations()[0].currentTime), secondTime);
+    await resume();
+    await page.waitForFunction(() => window.__audios.length >= 3 && !window.__audios.at(-1).paused);
+    await pause();
+    await page.getByRole('slider', { name: 'Seek narration' }).fill('1000');
+    await page.locator('[data-fixed-effect="spotlight"]').waitFor();
+    assert.equal(await opacity(second), 1);
+    await resume(); await finishNarration(page); await wait().waitFor();
+    await page.getByRole('button', { name: 'Replay page', exact: true }).click();
+    await running(page);
+    assert.equal(await opacity(first), 0);
+    assert.equal(await opacity(second), 0);
+    assert.equal(await page.locator('[data-fixed-effect]').count(), 0);
+    const previousAudioCount = (await mediaState(page)).length;
+    await page.getByRole('button', { name: 'Next page', exact: true }).click();
+    assert.equal((await mediaState(page)).slice(0, previousAudioCount).some(audio => !audio.paused), false);
+    return { verified: ['intro-before-native', 'two-ordered-native-steps', 'pause-resume',
+      'highlight-after-first', 'teacher-gate', 'spotlight-after-second', 'replay-reset', 'navigation-cleanup'] };
+  });
+  if (process.argv.includes('--native-attention')) await test('fixed-native-attention', async page => {
+    await loaded(page);
+    const target = page.locator('[data-slide-render-element-id="pptx_text_1"]');
+    const opacity = () => target.evaluate(element => Number(getComputedStyle(element).opacity));
+    assert.equal(await opacity(), 0);
+    await page.getByRole('button', { name: 'Play', exact: true }).click();
+    const next = page.getByRole('button', { name: 'Next native animation 1/1', exact: true });
+    await next.waitFor();
+    await page.waitForTimeout(600);
+    assert.equal((await mediaState(page)).some(audio => !audio.paused), false);
+    assert.equal(await page.locator('[data-fixed-effect]').count(), 0);
+    await next.click();
+    await page.waitForFunction(() => document.querySelector('[data-slide-render-element-id="pptx_text_1"]')
+      ?.getAnimations().some(animation => animation.playState === 'running'));
+    await page.getByRole('button', { name: 'Pause', exact: true }).click();
+    const fadeTime = await target.evaluate(element => element.getAnimations()[0].currentTime);
+    await page.waitForTimeout(250);
+    assert.equal(await target.evaluate(element => element.getAnimations()[0].currentTime), fadeTime);
+    assert.equal((await mediaState(page)).some(audio => !audio.paused), false);
+    await page.getByRole('button', { name: 'Resume', exact: true }).click();
+    await running(page);
+    await page.getByRole('button', { name: 'Pause', exact: true }).click();
+    const seek = async time => {
+      await page.getByRole('slider', { name: 'Seek narration' }).fill(String(time));
+    };
+    await seek(1000);
+    const highlight = page.locator('[data-fixed-effect="highlight"]');
+    await highlight.waitFor();
+    assert.equal(await opacity(), 1);
+    assert.equal(await highlight.getAttribute('data-target-ids'), 'pptx_text_1');
+    const box = await highlight.boundingBox();
+    await page.waitForTimeout(250);
+    assert.deepEqual(await highlight.boundingBox(), box);
+    await seek(2800);
+    await page.locator('[data-fixed-effect="spotlight"]').waitFor();
+    assert.equal(await opacity(), 1);
+    assert.equal(await page.locator('[data-fixed-effect="highlight"]').count(), 0);
+    await page.screenshot({ path: path.join(output, 'native-entrance-then-spotlight.png') });
+    await seek(1000);
+    await highlight.waitFor();
+    await page.getByRole('button', { name: 'Resume', exact: true }).click();
+    await running(page);
+    await finishNarration(page);
+    await page.getByRole('button', { name: 'Teacher continue', exact: true }).waitFor();
+    assert.equal(await page.locator('[data-fixed-effect]').count(), 0);
+    await page.getByRole('button', { name: 'Replay page', exact: true }).click();
+    await next.waitFor();
+    assert.equal(await opacity(), 0);
+    assert.equal(await page.locator('[data-fixed-effect]').count(), 0);
+    await page.getByRole('button', { name: 'Next page', exact: true }).click();
+    await page.waitForFunction(() => document.querySelector('[data-player-mode]')?.getAttribute('data-page-id') === 'fixture-page-2');
+    assert.equal(await page.locator('[data-fixed-effect]').count(), 0);
+    return { savedNativeClickGate: true, fadePauseResume: true, attentionOnRevealedTarget: true,
+      pausedSeekAndReplay: true, navigationCleanup: true };
+  });
   if (electron) await test('electron-renderer-isolation', async (page) => {
     await loaded(page);
     const access = await page.evaluate(() => ({
@@ -1655,6 +1772,11 @@ try {
           audioAssetId: speech.audioAssetId,
           visualCues: [{ ...entrance, atMs: 200, endMs: 1000 }],
         });
+        for (const id of ['repeat-pulse-1', 'repeat-pulse-2']) payload.pages[0].actions.push({
+          id, type: 'speech', text: 'Emphasize this same teaching object again.', audioAssetId: speech.audioAssetId,
+          visualCues: [{ ...entrance, id: `${id}-cue`, atMs: 0, endMs: 1000,
+            effect: { ...entrance.effect, effect: 'pulse' } }],
+        });
         const bytes = Buffer.from(JSON.stringify(payload));
         const derivedBuildId = createHash("sha256").update(bytes).digest("hex");
         await page.route("**/fixture.json", (route) =>
@@ -1694,6 +1816,18 @@ try {
         );
         await page.getByRole("button", { name: "Resume", exact: true }).click();
         await finishNarration(page);
+        const repeatedPulses = [];
+        for (const audioCount of [3, 4]) {
+          await page.waitForFunction(count => window.__audios.length === count && window.__audios.at(-1).currentTime > 0.05, audioCount);
+          await page.getByRole('button', { name: 'Pause', exact: true }).click();
+          await seek(page, 500);
+          const pulse = await style(title);
+          assert.ok(pulse.scale > 1.09 && pulse.scale < 1.11, 'Each later speech must pulse the same visible object');
+          assert.equal(pulse.visibility, 'visible');
+          repeatedPulses.push(pulse);
+          await page.getByRole('button', { name: 'Resume', exact: true }).click();
+          await finishNarration(page);
+        }
         await page.waitForFunction(
           () =>
             document.querySelector("[data-page-id]")?.dataset.pageId ===
@@ -1705,6 +1839,7 @@ try {
           futureEntranceHeld: true,
           earlierExitRetained: true,
           secondSpeech,
+          repeatedPulses,
         };
       });
     }

@@ -72,6 +72,15 @@ const lineage = () => ({
 });
 
 describe('saved-source identity boundary', () => {
+  it('preserves native object names as save proof without making them content identity', async () => {
+    const input = ir();
+    input.pages[0].elements[0].sourceObjectName = 'Title & narration';
+    const original = await exportSavedSourceIdentity(oldHash, input, read);
+    expect(original.pages[0].objects[0].sourceObjectName).toBe('Title & narration');
+    input.pages[0].elements[0].sourceObjectName = 'Renamed title';
+    const renamed = await exportSavedSourceIdentity(oldHash, input, read);
+    expect(renamed.pages[0].objects[0].contentFingerprint).toBe(original.pages[0].objects[0].contentFingerprint);
+  });
   it('requires review for ambiguous objects even within identical bytes', async () => {
     const input = ir();
     input.pages[0].elements.push({ ...input.pages[0].elements[0], id: 'duplicate' });

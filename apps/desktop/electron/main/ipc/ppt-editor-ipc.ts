@@ -1,3 +1,6 @@
+import { CoursewareNativeSave } from "../courseware-native-save";
+import { CoursewareNativeMedia } from "../courseware-native-media";
+import { createNativeTeachingHandler } from "../courseware-native-sidebar";
 import { CoursewareNativeFadeCoordinator } from "../courseware-native-fade";
 import type { BrowserWindow } from "electron";
 import { IPC } from "@pi-desktop/shared";
@@ -11,7 +14,8 @@ import { PptEditorChatBridge } from "../ppt-editor-chat";
 import { PptxCandidatePreview } from "../pptx-candidate-preview";
 import { CoursewareSourceAdoption } from "../courseware-source-adoption";
 import { CoursewareTtsCoordinator } from "../courseware-tts";
-import { decodeCoursewareAudio } from "../courseware-audio-decode";
+import { decodeCoursewareAudio, decodeCoursewarePortableMedia } from "../courseware-audio-decode";
+import { CoursewarePortableMedia } from "../courseware-portable-media";
 import type { DesktopAuthSession } from "../auth-session";
 import { CoursewareImageReview } from "../courseware-image-review";
 import { CoursewareVisualReview } from "../courseware-visual-review";
@@ -71,7 +75,16 @@ export function registerPptEditorIpc(input: {
   };
   const teaching = new CoursewareTeachingCoordinator(editor, getHost, getWorkspaceRoot, input.getViewingSessionId,
     sessionId => chat.assertActive(sessionId), sessionId => chat.assertOwned(sessionId));
-  registerCoursewareCanvasMusicIpc({ registrar, getHost, getViewingSessionId: input.getViewingSessionId,
+  const nativeSave = new CoursewareNativeSave(getHost, input.getViewingSessionId, getWorkspaceRoot,
+    sessionId => chat.assertOwned(sessionId), operation => teaching.duringNativeSave(operation));
+  editor.nativeSave = value => input.getViewingSessionId() ? nativeSave.prepare(value) : Promise.resolve(undefined);
+  registrar.handleWithEvent(IPC.invoke.pptEditorProjectCopy, async (event, payload: unknown, ...extra: unknown[]) => {
+    assertSender(event);
+    if (extra.length || !payload || typeof payload !== "object" || Array.isArray(payload) ||
+        Object.keys(payload).length !== 1 || !("sessionId" in payload)) throw new Error("Invalid project copy request");
+    return teaching.copyProject(payload.sessionId);
+  });
+  const music = registerCoursewareCanvasMusicIpc({ registrar, getHost, getViewingSessionId: input.getViewingSessionId,
     activeTurns: input.activeTurns, authSession: input.authSession, teaching });
   const assetLocks = new CoursewareAssetLockCoordinator(teaching);
   for (const [channel, method] of [[IPC.invoke.pptEditorAssetLocksRead, "read"], [IPC.invoke.pptEditorAssetLockSet, "set"]] as const) {
@@ -103,7 +116,11 @@ export function registerPptEditorIpc(input: {
   }
   const candidates = new CoursewareCandidateCoordinator(teaching, input.completeNarration, { visuals, style, completeScene: input.completeScene,
     render: request => renderCoursewareSourceVisuals({ ...request, ipcMain: registrar.ipcMain }) }, input.resolveModel);
-  const tts = new CoursewareTtsCoordinator(teaching, input.authSession, decodeCoursewareAudio);
+  const localMedia = new CoursewarePortableMedia(teaching, decodeCoursewarePortableMedia);
+  const tts = new CoursewareTtsCoordinator(teaching, input.authSession, decodeCoursewareAudio, localMedia);
+  editor.nativeTeaching = createNativeTeachingHandler({ teaching, tts, media: new CoursewareNativeMedia(teaching, input.authSession, music, localMedia), sessionId: input.getViewingSessionId,
+    context: async () => editor.getContext(await getWorkspaceRoot()),
+    ensureSaved: async () => editor.ensureSaved(await getWorkspaceRoot()) });
   for (const [channel, method] of [[IPC.invoke.pptEditorTtsModels, "models"], [IPC.invoke.pptEditorTtsQuote, "quote"],
     [IPC.invoke.pptEditorTtsSubmitConfirmed, "submitConfirmed"], [IPC.invoke.pptEditorTtsPrepare, "prepare"], [IPC.invoke.pptEditorTtsSubmit, "submit"],
     [IPC.invoke.pptEditorTtsStatus, "status"], [IPC.invoke.pptEditorTtsList, "list"], [IPC.invoke.pptEditorTtsArchive, "archive"],
@@ -232,6 +249,7 @@ export function registerPptEditorIpc(input: {
       style.clear();
       candidatePreview.close();
       const owner = input.getViewingSessionId();
+      await nativeSave.recover(workspaceRoot, path, owner);
       await adoption.beforeOpen(workspaceRoot, path, owner, payload.mimeType);
       if (await getWorkspaceRoot() !== workspaceRoot || input.getViewingSessionId() !== owner) throw new Error("Source adoption owner changed before opening");
       const state = await editor.open(window, workspaceRoot, path, payload.mimeType, await getExtraRoots(workspaceRoot));

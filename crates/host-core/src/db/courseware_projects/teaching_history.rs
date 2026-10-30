@@ -14,6 +14,9 @@ fn projection(page: &CoursewarePage) -> Option<(Vec<Value>, usize, usize)> {
     for action in &page.actions {
         match action["type"].as_str()? {
             "audio_clip" => audio += 1,
+            "delay" if valid_teaching_delay(action) => {
+                actions.push(json!({"id":uuid::Uuid::new_v4().to_string(), "type":"delay", "durationMs":action["durationMs"]}));
+            }
             "video_slot" if video::valid_slot(action) => {
                 actions.push(json!({"id":uuid::Uuid::new_v4().to_string(), "type":"video_slot", "prompt":action["prompt"]}));
             }

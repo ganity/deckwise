@@ -11,6 +11,8 @@ struct Request {
     principal_key: String,
     intent_id: Option<String>,
     page_id: Option<String>,
+    action_id: Option<String>,
+    expected_source_revision: Option<String>,
     slot_id: Option<String>,
     model: Option<String>,
     task_ref: Option<TaskRef>,
@@ -27,9 +29,18 @@ pub(super) async fn handle(
     let extra: &[&str] = match method {
         "courseware.video.list" => &[],
         "courseware.video.prepare" => &["pageId", "slotId", "model"],
-        "courseware.video.get" | "courseware.video.begin" => &["intentId"],
+        "courseware.video.get" | "courseware.video.asset.get" | "courseware.video.begin" => {
+            &["intentId"]
+        }
         "courseware.video.bind" => &["intentId", "taskRef"],
         "courseware.video.stage" => &["intentId", "taskRef", "asset", "bytesBase64"],
+        "courseware.video.reuse" => &[
+            "intentId",
+            "pageId",
+            "actionId",
+            "expectedSourceRevision",
+            "expectedTeachingRevision",
+        ],
         "courseware.video.adopt" => &["intentId", "expectedTeachingRevision"],
         _ => return Err(rpc_err(-32601, "Method not found", "METHOD_NOT_FOUND")),
     };
@@ -69,6 +80,78 @@ pub(super) async fn handle(
         _ => {
             let intent_id = required(p.intent_id)?;
             match method {
+                "courseware.video.reuse" => {
+                    let project = state
+                        .db
+                        .get_courseware_project(&root, &p.project_id)
+                        .map_err(error)?
+                        .ok_or_else(|| rpc_err(1002, "Missing project", "COURSEWARE_NOT_FOUND"))?;
+                    let asset = state
+                        .db
+                        .current_courseware_video_asset(
+                            &root,
+                            &project,
+                            &p.principal_key,
+                            &intent_id,
+                            &p.session_id,
+                        )
+                        .map_err(error)?;
+                    let (_, length) =
+                        snapshot_assets::verify(&state.data_dir, &asset.sha256).map_err(error)?;
+                    if length != asset.byte_length {
+                        return Err(rpc_err(
+                            1002,
+                            "Wrong video archive length",
+                            "COURSEWARE_CONFLICT",
+                        ));
+                    }
+                    let write = TeachingWrite {
+                        project_id: p.project_id,
+                        page_id: required(p.page_id)?,
+                        expected_source_revision: required(p.expected_source_revision)?,
+                        expected_teaching_revision: required(p.expected_teaching_revision)?,
+                        actions: Vec::new(),
+                    };
+                    return state
+                        .db
+                        .reuse_courseware_video(
+                            &root,
+                            &write,
+                            &p.principal_key,
+                            &intent_id,
+                            &p.session_id,
+                            &required(p.action_id)?,
+                        )
+                        .map(|project| json!({"project":project}))
+                        .map_err(error);
+                }
+                "courseware.video.asset.get" => {
+                    let project = state
+                        .db
+                        .get_courseware_project(&root, &p.project_id)
+                        .map_err(error)?
+                        .ok_or_else(|| rpc_err(1002, "Missing project", "COURSEWARE_NOT_FOUND"))?;
+                    let asset = state
+                        .db
+                        .current_courseware_video_asset(
+                            &root,
+                            &project,
+                            &p.principal_key,
+                            &intent_id,
+                            &p.session_id,
+                        )
+                        .map_err(error)?;
+                    let (path, length) =
+                        snapshot_assets::verify(&state.data_dir, &asset.sha256).map_err(error)?;
+                    if length != asset.byte_length {
+                        return Err(rpc_err(
+                            1002,
+                            "Wrong video archive length",
+                            "COURSEWARE_CONFLICT",
+                        ));
+                    }
+                    return Ok(json!({"asset":asset,"path":path}));
+                }
                 "courseware.video.get" => state.db.get_courseware_video(
                     &root,
                     &p.project_id,
@@ -165,4 +248,156 @@ pub(super) async fn handle(
     }
     .map_err(error)?;
     Ok(json!({"intent":result}))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sha2::{Digest, Sha256};
+
+    async fn read(state: Arc<Mutex<AppState>>, params: Value) -> Result<Value, JsonRpcError> {
+        let (tx, _) = mpsc::unbounded_channel();
+        handle_request(state, "courseware.video.asset.get", params, tx).await
+    }
+
+    #[tokio::test]
+    async fn adopted_video_local_read_checks_scope_attachment_and_archive() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut app = AppState::open(dir.path()).unwrap();
+        app.handshook = true;
+        let session = sessions::create_session(
+            &app.db,
+            None,
+            None,
+            None,
+            None,
+            Some(dir.path().to_string_lossy().into()),
+        )
+        .unwrap();
+        let root = dir.path().to_str().unwrap();
+        let raw: Value = serde_json::from_slice(include_bytes!(
+            "../../../../../packages/shared/src/courseware-contract.fixtures/accepted.json"
+        ))
+        .unwrap();
+        let mut project: crate::db::courseware_projects::CoursewareProject =
+            serde_json::from_value(raw["project"].clone()).unwrap();
+        project.pages[0]
+            .actions
+            .push(json!({"id":"clip","type":"video_slot","prompt":"A silent square."}));
+        app.db.create_courseware_project(root, &project).unwrap();
+        let principal = "a".repeat(64);
+        let intent = app
+            .db
+            .prepare_courseware_video(
+                root,
+                &project.project_id,
+                &principal,
+                &project.pages[0].page_id,
+                "clip",
+                "model",
+            )
+            .unwrap();
+        app.db
+            .begin_courseware_video(
+                root,
+                &project.project_id,
+                &principal,
+                &intent.intent_id,
+                &session.id,
+            )
+            .unwrap();
+        let task = TaskRef {
+            task_id: "task".into(),
+            idempotency_key: intent.idempotency_key,
+            request_hash: intent.request_hash,
+        };
+        app.db
+            .bind_courseware_video(
+                root,
+                &project.project_id,
+                &principal,
+                &intent.intent_id,
+                task.clone(),
+            )
+            .unwrap();
+        let bytes = b"\x00\x00\x00\x18ftypmp42-fake-local-video";
+        let asset = VideoAsset {
+            sha256: hex::encode(Sha256::digest(bytes)),
+            byte_length: bytes.len() as u64,
+            duration_ms: 1000,
+            width: 320,
+            height: 180,
+        };
+        snapshot_assets::archive_bytes(&app.data_dir, &asset.sha256, bytes).unwrap();
+        app.db
+            .stage_courseware_video(
+                root,
+                &project.project_id,
+                &principal,
+                &intent.intent_id,
+                &task,
+                asset.clone(),
+            )
+            .unwrap();
+        let state = Arc::new(Mutex::new(app));
+        let scope = json!({"sessionId":session.id,"projectId":project.project_id,"principalKey":principal,"intentId":intent.intent_id});
+        assert!(read(state.clone(), scope.clone()).await.is_err());
+        state
+            .lock()
+            .await
+            .db
+            .adopt_courseware_video(
+                root,
+                &project.project_id,
+                &principal,
+                &intent.intent_id,
+                &project.teaching_revision,
+            )
+            .unwrap();
+        let result = read(state.clone(), scope.clone()).await.unwrap();
+        assert_eq!(result["asset"]["sha256"], asset.sha256);
+        assert_eq!(
+            std::fs::read(result["path"].as_str().unwrap()).unwrap(),
+            bytes
+        );
+        let mut foreign = scope.clone();
+        foreign["principalKey"] = json!("b".repeat(64));
+        assert!(read(state.clone(), foreign).await.is_err());
+        let mut injected = scope.clone();
+        injected["path"] = json!("/tmp/file");
+        assert!(read(state.clone(), injected).await.is_err());
+        let current = state
+            .lock()
+            .await
+            .db
+            .get_courseware_project(root, &project.project_id)
+            .unwrap()
+            .unwrap();
+        let mut reuse = scope.clone();
+        reuse["pageId"] = json!(current.pages[0].page_id);
+        reuse["actionId"] = json!("repeat-video");
+        reuse["expectedSourceRevision"] = json!(current.source.revision);
+        reuse["expectedTeachingRevision"] = json!(current.teaching_revision);
+        let (tx, _) = mpsc::unbounded_channel();
+        let repeated = handle_request(state.clone(), "courseware.video.reuse", reuse.clone(), tx)
+            .await
+            .unwrap();
+        assert_eq!(
+            repeated["project"]["pages"][0]["actions"]
+                .as_array()
+                .unwrap()
+                .last()
+                .unwrap()["id"],
+            "repeat-video"
+        );
+        let (tx, _) = mpsc::unbounded_channel();
+        assert_eq!(
+            handle_request(state.clone(), "courseware.video.reuse", reuse, tx)
+                .await
+                .unwrap(),
+            repeated
+        );
+        std::fs::write(result["path"].as_str().unwrap(), b"corrupt").unwrap();
+        assert!(read(state, scope).await.is_err());
+    }
 }

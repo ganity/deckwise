@@ -43,6 +43,10 @@ fn read_verified(root: &Path, path: &Path, hash: &str) -> Result<Vec<u8>> {
     Ok(bytes)
 }
 
+pub fn read(data_dir: &Path, hash: &str) -> Result<Vec<u8>> {
+    read_verified(data_dir, &path(data_dir, hash)?, hash)
+}
+
 pub fn verify(data_dir: &Path, hash: &str) -> Result<(PathBuf, u64)> {
     let path = path(data_dir, hash)?;
     let bytes = read_verified(data_dir, &path, hash)?;

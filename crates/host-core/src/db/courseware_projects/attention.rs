@@ -13,7 +13,7 @@ pub(super) fn targets(value: &Value) -> Result<Vec<String>> {
             && matches!(value["type"].as_str(), Some("highlight" | "spotlight"))
             && value
                 .get("animation")
-                .is_none_or(|effect| matches!(effect.as_str(), Some("fadeIn" | "pulse")))
+                .is_none_or(|effect| matches!(effect.as_str(), Some("fadeIn" | "pulse" | "zoomIn" | "slideInLeft" | "slideInRight" | "gentleRotate")))
             && ids.is_some_and(|ids| (1..=8).contains(&ids.len())),
         "COURSEWARE_INVALID: invalid speech attention"
     );
@@ -57,7 +57,7 @@ pub(super) fn cues(value: &Value, action_id: &str, duration_ms: u64) -> Result<V
             );
         }
         // Reveal before focusing; a very short speech still gets a valid final focus interval.
-        if effect == "fadeIn" {
+        if matches!(effect.as_str(), Some("fadeIn" | "zoomIn" | "slideInLeft" | "slideInRight")) {
             focus["atMs"] = json!(end.min(duration_ms - 1));
         }
     }

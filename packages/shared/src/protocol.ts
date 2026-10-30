@@ -591,6 +591,7 @@ export const IPC = {
     pptEditorTtsList: "deckwise/ppt-editor/tts/list",
     pptEditorTtsArchive: "deckwise/ppt-editor/tts/archive",
     pptEditorTtsAdopt: "deckwise/ppt-editor/tts/adopt",
+    pptEditorProjectCopy: "deckwise/ppt-editor/project/copy",
     pptEditorSnapshotCapture: "deckwise/ppt-editor/snapshot/capture",
     coursewareFixedBuild: "deckwise/courseware/fixed/build",
     coursewareFixedApprove: "deckwise/courseware/fixed/approve",

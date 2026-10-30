@@ -106,10 +106,11 @@ async function coordinatorFixture(t) {
   const calls = [];
   const host = { async call(method, params) {
     calls.push([method, params]);
-    if (method === "courseware.sourceAdoption.get") {
-      if (!receipt) throw Object.assign(new Error("not found"), { errorCode: "COURSEWARE_NOT_FOUND" });
-      return { adoption: structuredClone(receipt), path: f.candidate };
+    if (method === "courseware.sourceAdoption.forPath") {
+      assert.deepEqual(params, { sessionId: "chat-1", sourcePath: f.source });
+      return { adoption: receipt?.status === "pending" ? structuredClone(receipt) : null };
     }
+    if (method === "courseware.project.attach") return { attached: project.projectId.startsWith("portable-") };
     if (method === "courseware.parseStart") return { jobId: params.path };
     if (method === "courseware.parseStatus") return { status: "SUCCEEDED", summary: { sourceSha256: sourceHash(await fs.readFile(params.jobId)) } };
     if (method === "courseware.parseRelease") return {};
@@ -146,6 +147,38 @@ test("adopt closes native editor, installs, commits and reopens the same documen
   assert.equal(f.receipt().status, "committed");
   assert.deepEqual(await fs.readFile(f.source), output);
   assert.equal(f.calls.filter(([method]) => method.endsWith(".commit")).length, 1);
+});
+
+test("portable source adoption recovers by persisted path and attaches each fresh parser before commit", async t => {
+  const f = await coordinatorFixture(t);
+  f.project.projectId = "portable-b219f446-0cbc-4d35-97cb-fb8bb1a3e365";
+  await f.prepare();
+  await installSourceCandidate(f.workspace, f.source, "adoption-1", f.candidate, sourceHash(bytes), sourceHash(output));
+  await f.make().beforeOpen(f.workspace, "lesson.pptx", "chat-1");
+  assert.equal(f.receipt().status, "committed");
+  assert.equal(f.receipt().project.projectId, f.project.projectId);
+  const methods = f.calls.map(([method]) => method);
+  assert(methods.indexOf("courseware.sourceAdoption.forPath") < methods.indexOf("courseware.parseStart"));
+  assert(methods.indexOf("courseware.project.attach") < methods.indexOf("courseware.sourceAdoption.commit"));
+  assert(!methods.includes("courseware.sourceAdoption.get"));
+});
+
+for (const change of ["owner", "binding", "foreign-path", "foreign-result", "lookup-error"]) test(`source adoption refuses ${change} without an unfenced commit`, async t => {
+  const f = await coordinatorFixture(t), call = f.host.call;
+  await f.prepare();
+  f.host.call = async (method, params) => {
+    if (method === "courseware.sourceAdoption.forPath" && change === "lookup-error") throw new Error("Host unavailable");
+    const result = await call(method, params);
+    if (method === "courseware.sourceAdoption.forPath" && change === "owner") f.switchChat();
+    if (method === "courseware.sourceAdoption.forPath" && change === "foreign-path") result.adoption.sourcePath = f.candidate;
+    if (method === "courseware.project.attach" && change === "binding") result.attached = true;
+    if (method.endsWith(".cancel") && change === "foreign-result") result.projectId = "another-project";
+    return result;
+  };
+  await assert.rejects(f.make().beforeOpen(f.workspace, "lesson.pptx", "chat-1"));
+  assert.deepEqual(await fs.readFile(f.source), bytes);
+  assert(!f.calls.some(([method]) => method === "courseware.sourceAdoption.commit"));
+  if (["binding", "foreign-result"].includes(change)) assert(f.calls.some(([method]) => method === "courseware.parseRelease"));
 });
 
 test("source adoption accepts the Host's preserved TTS actions, waits and locked peers after recovery", async t => {

@@ -500,3 +500,123 @@ fn corrupt_persisted_binding_or_audio_metadata_is_rejected_on_read() {
         );
     }
 }
+
+#[test]
+fn explicit_delay_survives_teaching_and_snapshot_and_rejects_invalid_values() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_str().unwrap();
+    let db = Database::open_in_dir(dir.path()).unwrap();
+    let p = ready(&db, root);
+    let mut write = TeachingWrite {
+        project_id: p.project_id.clone(),
+        page_id: p.pages[0].page_id.clone(),
+        expected_source_revision: p.source.revision.clone(),
+        expected_teaching_revision: p.teaching_revision.clone(),
+        actions: p.pages[0].actions.clone(),
+    };
+    for ms in [
+        json!(-1),
+        json!(0.5),
+        json!(30001),
+        json!("1000"),
+        Value::Null,
+    ] {
+        write
+            .actions
+            .push(json!({"id":"delay","type":"delay","durationMs":ms}));
+        assert!(db.write_courseware_teaching(root, &write).is_err());
+        write.actions.pop();
+    }
+    write
+        .actions
+        .push(json!({"id":"delay","type":"delay","durationMs":1200}));
+    let saved = db.write_courseware_teaching(root, &write).unwrap();
+    let reviewed = db
+        .review_courseware_page(
+            root,
+            &saved.project_id,
+            &saved.pages[0].page_id,
+            &saved.source.revision,
+            &saved.teaching_revision,
+        )
+        .unwrap();
+    let snapshot = capture(&db, root, &reviewed).unwrap();
+    assert_eq!(snapshot.project.pages[0].actions[1], write.actions[1]);
+}
+
+#[test]
+fn native_animation_nodes_survive_restart_and_snapshot_with_exact_source_and_order() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_str().unwrap();
+    let db = Database::open_in_dir(dir.path()).unwrap();
+    let p = ready(&db, root);
+    let node = |index| {
+        json!({"id":format!("native-{index}"),"type":"native_animation","version":1,
+        "sourceSha256":p.source.sha256,"stepIndex":index})
+    };
+    let mut write = TeachingWrite {
+        project_id: p.project_id.clone(),
+        page_id: p.pages[0].page_id.clone(),
+        expected_source_revision: p.source.revision.clone(),
+        expected_teaching_revision: p.teaching_revision.clone(),
+        actions: vec![node(0), p.pages[0].actions[0].clone(), node(1)],
+    };
+    for (key, value) in [
+        ("version", json!(2)),
+        ("stepIndex", json!(-1)),
+        ("stepIndex", json!(0.5)),
+        ("stepIndex", json!(200)),
+        ("sourceSha256", json!("f".repeat(64))),
+        ("sourceSha256", Value::Null),
+        ("extra", json!(true)),
+    ] {
+        let mut invalid = node(0);
+        invalid[key] = value;
+        write.actions = vec![invalid];
+        assert!(db.write_courseware_teaching(root, &write).is_err());
+        assert_eq!(
+            db.get_courseware_project(root, &p.project_id)
+                .unwrap()
+                .unwrap()
+                .teaching_revision,
+            p.teaching_revision
+        );
+    }
+    for invalid in [
+        vec![node(1)],
+        vec![node(0), node(2)],
+        vec![node(1), node(0)],
+    ] {
+        write.actions = invalid;
+        assert!(db.write_courseware_teaching(root, &write).is_err());
+    }
+    write.actions = vec![node(0), p.pages[0].actions[0].clone(), node(1)];
+    let saved = db.write_courseware_teaching(root, &write).unwrap();
+    let reviewed = db
+        .review_courseware_page(
+            root,
+            &saved.project_id,
+            &saved.pages[0].page_id,
+            &saved.source.revision,
+            &saved.teaching_revision,
+        )
+        .unwrap();
+    let frozen = capture(&db, root, &reviewed).unwrap();
+    assert_eq!(frozen.project.pages[0].actions, write.actions);
+    // Source review cannot silently carry source-specific ordinals into different bytes.
+    assert!(super::super::reviews::portable_narration(&reviewed, true).is_err());
+    drop(db);
+    let db = Database::open_in_dir(dir.path()).unwrap();
+    assert_eq!(
+        db.get_courseware_project(root, &p.project_id)
+            .unwrap()
+            .unwrap()
+            .pages[0]
+            .actions,
+        write.actions
+    );
+    assert_eq!(
+        capture(&db, root, &reviewed).unwrap().project.pages[0].actions,
+        write.actions
+    );
+}

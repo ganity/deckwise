@@ -1,3 +1,4 @@
+import type { QuestionResponse } from '../../../question-response';
 import type { Edition, EducationContext } from '../types/generation';
 
 export interface InteractionReferenceAnswer {
@@ -19,6 +20,7 @@ export interface ChapterSummaryInteractionCheckpointPayload {
   chapterId: string;
   chapterTitle: string;
   question: string;
+  response?: QuestionResponse;
   referenceAnswer: InteractionReferenceAnswer;
   context: InteractionContext;
 }

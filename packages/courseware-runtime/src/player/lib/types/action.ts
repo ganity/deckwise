@@ -1,3 +1,4 @@
+import type { QuestionResponse } from '../../../question-response';
 /**
  * Unified Action System
  *
@@ -131,6 +132,12 @@ export interface SpeechAction extends ActionBase {
   pauseAfterMs?: number; // wait after narration finishes before continuing
   pptxCue?: PptxNarrationCue;
   speechCuePlans?: SpeechCuePlan[];
+}
+
+/** A pausable silent interval, independent of speech or media. */
+export interface DelayAction extends ActionBase {
+  type: "delay";
+  durationMs: number;
 }
 
 /** Verified sequential audio, independent of narration and slide media. */
@@ -284,6 +291,7 @@ type ChapterSummaryInteractionCheckpointAction = ActionBase & {
   chapterId: string;
   chapterTitle: string;
   question: string;
+  response?: QuestionResponse;
   referenceAnswer: {
     summary: string;
     keyPoints: string[];
@@ -335,6 +343,7 @@ export type Action =
   | PlayVideoAction
   | PlayAudioAction
   | SpeechAction
+  | DelayAction
   | AudioClipAction
   | VideoClipAction
   | WbOpenAction
@@ -371,6 +380,7 @@ export const SLIDE_ONLY_ACTIONS: ActionType[] = [
 
 /** Action types that must complete before the next action runs */
 export const SYNC_ACTIONS: ActionType[] = [
+  "delay",
   "element_animation",
   "speech",
   "audio_clip",

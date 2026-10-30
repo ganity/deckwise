@@ -2,7 +2,6 @@ import { setTimeout as delay } from "node:timers/promises";
 import { getOfficeExtension, isCoursewareProject } from "@pi-desktop/shared";
 import { resolveRealPathForCreateWithinRoot } from "./fs-panel";
 import { relative } from "node:path";
-import { jobIdFor } from "./ppt-editor-files";
 import { adoptionRevision, installSourceCandidate, readLiveSource, restoreMissingSource, rollBackSourceCandidate, sourceHash } from "./courseware-source-files";
 import type { CoursewareTeachingCoordinator } from "./courseware-teaching";
 import type { PptEditorController } from "./ppt-editor";
@@ -18,25 +17,27 @@ export class CoursewareSourceAdoption {
 
   assertIdle(): void { if (this.busy) throw new Error("Finish source adoption before opening, saving or closing Office"); }
 
-  private async receipt(host: Host, sessionId: string, projectId: string): Promise<Receipt | null> {
-    let result: { adoption: Receipt };
-    try { result = await host.call("courseware.sourceAdoption.get", { sessionId, projectId }); }
-    catch (error) {
-      if ((error as { errorCode?: string }).errorCode === "COURSEWARE_NOT_FOUND") return null;
-      throw error;
-    }
-    const value = result?.adoption;
-    if (!value || value.projectId !== projectId || !/^[\w.-]{1,128}$/u.test(value.adoptionId) ||
-        !["pending", "committed", "cancelled"].includes(value.status) ||
+  private async receipt(host: Host, sessionId: string, path: string): Promise<Receipt | null> {
+    const result = await host.call<{ adoption: Receipt | null }>("courseware.sourceAdoption.forPath", { sessionId, sourcePath: path });
+    if (!result || Object.keys(result).length !== 1 || !("adoption" in result)) throw new Error("Invalid adoption recovery response");
+    const value = result.adoption;
+    if (value === null) return null;
+    if (!value || !/^[\w.-]{1,128}$/u.test(value.projectId) || value.sourcePath !== path || !/^[\w.-]{1,128}$/u.test(value.adoptionId) ||
+        value.status !== "pending" ||
         ![value.sourceSha256, value.outputSha256].every(hash => typeof hash === "string" && /^[a-f0-9]{64}$/u.test(hash))) throw new Error("Invalid adoption recovery receipt");
     return value;
   }
 
+  private async assertScope(host: Host, workspace: string, sessionId: string): Promise<void> {
+    if (await this.getWorkspace() !== workspace || this.getHost() !== host || this.getSessionId() !== sessionId)
+      throw new Error("Source adoption owner changed; recover in the original workspace");
+  }
+
   private async resolve(host: Host, workspace: string, path: string, sessionId: string): Promise<void> {
-    const projectId = `office-${jobIdFor(workspace, path)}`;
-    const receipt = await this.receipt(host, sessionId, projectId);
-    if (!receipt || receipt.status !== "pending") return;
-    if (receipt.sourcePath !== path) throw new Error("Pending adoption belongs to another live file; preserve both versions");
+    await this.assertScope(host, workspace, sessionId);
+    const receipt = await this.receipt(host, sessionId, path);
+    await this.assertScope(host, workspace, sessionId);
+    if (!receipt) return;
     await restoreMissingSource(workspace, path, receipt.adoptionId, receipt.sourceSha256);
     const bytes = await readLiveSource(workspace, path);
     const hash = sourceHash(bytes);
@@ -53,10 +54,15 @@ export class CoursewareSourceAdoption {
         if (result.status !== "SUCCEEDED" || result.summary?.sourceSha256 !== hash) throw new Error(result.message || "Adoption saved-source parsing failed");
         break;
       }
+      const attached = await host.call<{ attached: boolean }>("courseware.project.attach", { sessionId, jobId, sourcePath: path });
+      if (!attached || Object.keys(attached).length !== 1 || attached.attached !== receipt.projectId.startsWith("portable-"))
+        throw new Error("Source adoption project attachment changed");
+      await this.assertScope(host, workspace, sessionId);
       if (sourceHash(await readLiveSource(workspace, path)) !== hash) throw new Error("Live source changed during adoption recovery");
       const result = await host.call<Receipt>(hash === receipt.outputSha256 ? "courseware.sourceAdoption.commit" : "courseware.sourceAdoption.cancel", { sessionId, jobId, adoptionId: receipt.adoptionId });
-      if (result.adoptionId !== receipt.adoptionId || result.status !== (hash === receipt.outputSha256 ? "committed" : "cancelled") ||
-          (result.status === "committed" && (!isCoursewareProject(result.project) || result.project.source.sha256 !== hash))) throw new Error("Invalid adoption resolution receipt; recover before reopening");
+      await this.assertScope(host, workspace, sessionId);
+      if (result.adoptionId !== receipt.adoptionId || result.projectId !== receipt.projectId || result.status !== (hash === receipt.outputSha256 ? "committed" : "cancelled") ||
+          (result.status === "committed" && (!isCoursewareProject(result.project) || result.project.projectId !== receipt.projectId || result.project.source.sha256 !== hash))) throw new Error("Invalid adoption resolution receipt; recover before reopening");
       if (sourceHash(await readLiveSource(workspace, path)) !== hash) throw new Error("Live source changed after adoption; reopen only after review");
     } finally {
       if (jobId) {
@@ -103,7 +109,8 @@ export class CoursewareSourceAdoption {
         try { await this.resolve(host, workspace, snapshot.sourcePath, sessionId); resolved = true; }
         catch (recovery) {
           try {
-            const receipt = await this.receipt(host, sessionId, `office-${jobIdFor(workspace, snapshot.sourcePath)}`);
+            const receipt = await this.receipt(host, sessionId, snapshot.sourcePath);
+            await this.assertScope(host, workspace, sessionId);
             if (!receipt || receipt.status !== "pending" || receipt.sourcePath !== snapshot.sourcePath) throw recovery;
             await rollBackSourceCandidate(workspace, snapshot.sourcePath, receipt.adoptionId, receipt.sourceSha256, receipt.outputSha256);
             await this.resolve(host, workspace, snapshot.sourcePath, sessionId); resolved = true;

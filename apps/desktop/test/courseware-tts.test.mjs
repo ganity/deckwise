@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { readFile, open, mkdtemp, writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import ts from "typescript";
 
@@ -9,10 +11,35 @@ new Function("exports", ts.transpileModule(await readFile(new URL("../electron/m
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
 }).outputText)(scopeExports);
 const source = await readFile(new URL("../electron/main/courseware-tts.ts", import.meta.url), "utf8");
+const placementExports = {};
+new Function("exports", ts.transpileModule(await readFile(new URL("../electron/main/courseware-video-placement.ts", import.meta.url), "utf8"), {
+  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+}).outputText)(placementExports);
 const module = { exports: {} };
 new Function("require", "exports", ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText)(
-  (id) => { if (id === "./courseware-media-scope") return scopeExports; assert.equal(id, "node:crypto"); return { randomUUID }; }, module.exports);
+  (id) => { if (id === "./courseware-video-placement") return placementExports; if (id === "./courseware-media-scope") return scopeExports; if (id === "node:fs/promises") return { open }; assert.equal(id, "node:crypto"); return { randomUUID, createHash }; }, module.exports);
 export const { CoursewareTtsCoordinator } = module.exports;
+
+test("portable TTS preview and complete local snapshot do not require an account or provider receipt", async () => {
+  const input = { viewId: "view", expectedTeachingRevision: "rev" };
+  const assets = ["tts", "music", "video"].map(prefix => ({ asset: { id: `${prefix}-${"a".repeat(64)}`, sha256: "a".repeat(64), mimeType: prefix === "video" ? "video/mp4" : "audio/wav" }, local: true }));
+  const project = { pages: [{ pageId: "page", actions: assets.map((entry, i) => ({ id: `node-${i}`, type: ["speech", "audio_clip", "video_clip"][i],
+    [i === 2 ? "videoAssetId" : "audioAssetId"]: entry.asset.id })) }] };
+  const bytes = { bytes: new Uint8Array([1, 2]), mimeType: "audio/wav" };
+  const teaching = { async ttsContext() { return { project }; }, async captureSnapshot(value, actual) {
+    assert.deepEqual(value, input); assert.deepEqual(actual, assets); return "local-snapshot";
+  } };
+  const coordinator = new CoursewareTtsCoordinator(teaching, { getCoursewarePrincipal() { assert.fail("Local playback cannot require login"); } },
+    () => assert.fail("Generation decoder is not used"), { async preview() { return bytes; }, async snapshotAssets() { return assets; } });
+  assert.deepEqual(await coordinator.preview({ ...input, actionId: "node-0" }), bytes);
+  assert.equal(await coordinator.captureSnapshot(input), "local-snapshot");
+});
+
+test("portable media integrity failures never fall back to paid generation or account lookup", async () => {
+  const coordinator = new CoursewareTtsCoordinator({}, { getCoursewarePrincipal() { assert.fail("No provider fallback"); } }, undefined,
+    { async preview() { throw new Error("corrupt portable media"); } });
+  await assert.rejects(coordinator.preview({}), /corrupt portable media/);
+});
 const baseline = { viewId: "view-1", expectedTeachingRevision: "teaching-1" };
 const preparation = { ...baseline, actionId: "speech-1", model: "courseware-tts-v1", voice: "teacher_1" };
 const hashRequest = (request) => createHash("sha256").update("courseware-media-v1" +
@@ -501,4 +528,56 @@ test("confirmed team TTS refusal consumes the quote and a new attempt needs fres
   const offer = await f.coordinator.quote(operation(next));
   assert.notEqual(offer.quoteId, quote.quoteId);
   assert.equal((await f.coordinator.submitConfirmed({ ...operation(next), quoteId: offer.quoteId })).phase, "submitted");
+});
+
+
+test("native speech preview returns verified adopted local bytes and refuses changed source/text or corrupt files", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "native-speech-preview-"));
+  try {
+    const bytes = Buffer.from("RIFF0123WAVEfixture");
+    const sha256 = createHash("sha256").update(bytes).digest("hex");
+    const path = join(directory, "speech.wav"); await writeFile(path, bytes);
+    const source = { revision: "source-1", sha256: "f".repeat(64) };
+    const action = { id: "speech-1", type: "speech", text: "Hello", audioAssetId: `tts-${sha256}` };
+    const selection = { projectId: "project-1", pageId: "page-1", principalKey: "principal", actionId: action.id, intentId: "intent-1", expectedSourceRevision: source.revision };
+    let requestText = "Hello", active = true;
+    const coordinator = new CoursewareTtsCoordinator({ async ttsContext() {
+      return { sessionId: "chat", projectId: selection.projectId, pageId: selection.pageId,
+        project: { source, pages: [{ pageId: selection.pageId, actions: [action] }] },
+        async assertCurrent() { if (!active) throw new Error("changed editor"); },
+        host: { async call(method) {
+          if (method === "courseware.tts.list") return { intents: [{ selection, phase: "submitted" }] };
+          if (method === "courseware.tts.get") return { intent: { request: { input: requestText }, sourceSha256: "f".repeat(64) } };
+          if (method === "courseware.tts.audio.get") return { path, asset: { id: action.audioAssetId }, audio: { mimeType: "audio/wav", byteLength: bytes.length, sha256 } };
+          throw new Error("Unexpected RPC " + method);
+        } },
+      };
+    } }, { getCoursewarePrincipal: () => ({ key: "principal", assertCurrent() {} }),
+      coursewareMedia: new Proxy({}, { get() { throw new Error("Preview must never call a provider"); } }) }, async () => { throw new Error("Preview must never decode or regenerate"); });
+    const params = { ...baseline, actionId: action.id };
+    const result = await coordinator.preview(params);
+    assert.equal(result.mimeType, "audio/wav"); assert.deepEqual(Buffer.from(result.bytes), bytes);
+    assert.equal(Object.hasOwn(result, "path"), false);
+    requestText = "Old narration"; await assert.rejects(coordinator.preview(params), /AUDIO_REQUIRED/); requestText = "Hello";
+    source.revision = "changed"; await assert.rejects(coordinator.preview(params), /AUDIO_REQUIRED/); source.revision = "source-1";
+    await writeFile(path, Buffer.from("X".repeat(bytes.length)));
+    await assert.rejects(coordinator.preview(params), /INTEGRITY/);
+    await writeFile(path, bytes); active = false;
+    await assert.rejects(coordinator.preview(params), /changed editor/);
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+test("snapshot capture resolves reused video placement provenance without a provider lookup", async () => {
+  const source = { revision: "source", sha256: "f".repeat(64) }, assetId = `video-${"a".repeat(64)}`;
+  const project = { source, pages: [{ pageId: "new-page", actions: [{ id: "new-node", type: "video_clip", videoAssetId: assetId }] }] };
+  let snapshotAssets;
+  const coordinator = new CoursewareTtsCoordinator({ async ttsContext() { return { projectId: "project", pageId: "new-page", sessionId: "session", project,
+    async assertCurrent() {}, host: { async call(method) {
+      assert.equal(method, "courseware.video.list");
+      return { intents: [{ phase: "adopted", intentId: "original", pageId: "old-page", slotId: "old-node", source,
+        placements: [{ pageId: "new-page", actionId: "new-node" }], asset: { sha256: "a".repeat(64) } }] };
+    } } }; }, async captureSnapshot(_input, assets) { snapshotAssets = assets; return "snapshot"; } },
+    { getCoursewarePrincipal: () => ({ key: "b".repeat(64), assertCurrent() {} }) });
+  assert.equal(await coordinator.captureSnapshot({ viewId: "view", expectedTeachingRevision: "rev" }), "snapshot");
+  assert.deepEqual(snapshotAssets, [{ asset: { id: assetId, sha256: "a".repeat(64), mimeType: "video/mp4" }, video: { principalKey: "b".repeat(64), intentId: "original" } }]);
 });

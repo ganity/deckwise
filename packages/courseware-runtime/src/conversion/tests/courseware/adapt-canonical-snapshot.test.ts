@@ -240,3 +240,19 @@ it('preserves an archived teaching video in the canonical snapshot adapter', () 
   expect(result.teaching.pages[0].actions.at(-1)).toEqual({ id: 'clip', type: 'video_clip', videoAssetId: asset.id });
   expect(result.assets.at(-1)).toEqual(asset);
 });
+
+it('preserves source-bound native steps in canonical snapshot adaptation without mutating the source', () => {
+  const f = fixture();
+  const node = (stepIndex: number) => ({ id: `native-${stepIndex}`, type: 'native_animation', version: 1,
+    sourceSha256: f.project.source.sha256, stepIndex });
+  const project = { ...f.project, pages: f.project.pages.map((page, i) => i ? page : {
+    ...page, actions: [page.actions[0], node(0), page.actions[1], node(1)],
+  }) };
+  const before = JSON.stringify(project);
+  expect(isCoursewareProject(project)).toBe(true);
+  const adapted = adaptCanonicalSnapshot(project, f.snapshot, f.files);
+  expect(adapted.teaching.pages[0].actions).toEqual(project.pages[0].actions);
+  expect(JSON.stringify(project)).toBe(before);
+  project.pages[0].actions[1] = { ...node(0), sourceSha256: 'f'.repeat(64) };
+  expect(() => adaptCanonicalSnapshot(project, f.snapshot, f.files)).toThrow('CANONICAL_SNAPSHOT_INVALID');
+});

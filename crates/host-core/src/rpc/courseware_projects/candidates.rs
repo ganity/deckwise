@@ -7,6 +7,8 @@ struct Save {
     job_id: String,
     baseline: crate::db::courseware_projects::CoursewareProject,
     write: TeachingWrite,
+    #[serde(default)]
+    semantics: Vec<crate::db::courseware_projects::scene_objects::SceneSemanticEvidence>,
 }
 
 #[derive(Deserialize)]
@@ -72,7 +74,7 @@ pub(super) async fn handle(
             }
             let project = state
                 .db
-                .save_generated_narration(&root, &seed, &p.baseline, &p.write)
+                .save_generated_narration_with_semantics(&root, &seed, &p.baseline, &p.write, &p.semantics)
                 .map_err(error)?;
             Ok(json!({"project":project}))
         }

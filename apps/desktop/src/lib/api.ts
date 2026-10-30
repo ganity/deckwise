@@ -230,6 +230,8 @@ export type PptEditorState = {
   savedPath?: string;
   dirty?: boolean;
   canSave?: boolean;
+  nativeTeaching?: boolean;
+  teachingProgress?: import("@pi-desktop/shared").CoursewareTeachingProgress;
 };
 
 export type PptPreviewState = {
@@ -1351,6 +1353,7 @@ export const api = {
     invoke<CoursewareAssetLocksView>(IPC.invoke.pptEditorAssetLockSet, { viewId, expectedTeachingRevision, expectedLockRevision, objectId, locked }),
   pptEditorTeachingConfirm: (viewId: string, expectedTeachingRevision: string, resolution?: { changeGroupId: string; receiptSha256: string; note: string }) =>
     invoke<CoursewareTeachingView>(IPC.invoke.pptEditorTeachingConfirm, { viewId, expectedTeachingRevision, ...(resolution ? { resolution } : {}) }),
+  pptEditorProjectCopy: (sessionId: string) => invoke<{ path: string; mediaCount: number }>(IPC.invoke.pptEditorProjectCopy, { sessionId }),
   pptEditorSnapshotCapture: (viewId: string, expectedTeachingRevision: string) =>
     invoke<CoursewareSnapshot>(IPC.invoke.pptEditorSnapshotCapture, { viewId, expectedTeachingRevision }),
   coursewareFixedBuild: (sessionId: string, snapshot: CoursewareSnapshot) =>

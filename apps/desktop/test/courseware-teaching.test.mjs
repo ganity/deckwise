@@ -145,7 +145,7 @@ test("explicit Chat disposition requires exact saved view and receipt and retain
 function setup() {
   let project = structuredClone(fixture.project);
   project.pages[1].locked = false;
-  const snapshot = { projectId: "workspace-hash", documentId: "lesson-hash", sessionId: "native-1", path: "/workspace/saved.pptx", revision: 8, sha256: project.source.sha256 };
+  const snapshot = { projectId: "workspace-hash", documentId: "lesson-hash", sessionId: "native-1", path: "/workspace/saved.pptx", sourcePath: "/workspace/lesson.pptx", revision: 8, sha256: project.source.sha256 };
   const context = { ...snapshot, editGeneration: 1, page: 1, readOnly: false };
   let dirty = false;
   let owner = true;
@@ -156,6 +156,7 @@ function setup() {
     if (method === "courseware.parseStart") return { jobId: "job-1" };
     if (method === "courseware.parseStatus") return { status: "SUCCEEDED", summary: { sourceSha256: snapshot.sha256 } };
     if (method === "courseware.parseRelease" || method === "courseware.parseCancel") return {};
+    if (method === "courseware.project.attach") return { attached: false };
     if (method === "courseware.project.openSaved" || method === "courseware.project.get") return { project: structuredClone(project) };
     if (method === "courseware.project.context") return { project: structuredClone(project) };
     const write = method === "courseware.teaching.write" ? params.write : { ...params, actions: [] };
@@ -183,6 +184,50 @@ function setup() {
     loseOwner: () => { owner = false; }, switchChat: () => { viewingSession = "chat-2"; }, project: () => project,
     dirty: () => { dirty = true; }, switchWorkspace: () => { workspace = "/other"; } };
 }
+
+test("every saved parse attaches the authorized source before opening teaching", async () => {
+  const f = setup(), original = f.host.call;
+  f.host.call = async (method, params) => {
+    if (method === "courseware.project.attach") {
+      f.calls.push([method, params]);
+      assert.deepEqual(params, { sessionId: "chat-1", jobId: "job-1", sourcePath: f.snapshot.sourcePath });
+      return { attached: true };
+    }
+    return original(method, params);
+  };
+  await f.make().open("chat-1");
+  await f.make().open("chat-1");
+  const methods = f.calls.map(([method]) => method);
+  assert.equal(methods.filter(method => method === "courseware.project.attach").length, 2);
+  assert(methods.indexOf("courseware.project.attach") < methods.indexOf("courseware.project.openSaved"));
+});
+
+test("cancellation during portable attachment releases parsing without running a saved operation", async () => {
+  const f = setup(), original = f.host.call, abort = new AbortController();
+  f.host.call = async (method, params) => {
+    if (method !== "courseware.project.attach") return original(method, params);
+    abort.abort();
+    return { attached: true };
+  };
+  await assert.rejects(f.make().withSaved("chat-1", async () => assert.fail("Cancelled saved operation ran"), abort.signal));
+  assert(f.calls.some(([method]) => method === "courseware.parseRelease"));
+});
+
+for (const change of ["error", "invalid-result", "page", "source-path", "session"]) test(`portable attachment refuses ${change} and releases the parser`, async () => {
+  const f = setup(), original = f.host.call;
+  f.host.call = async (method, params) => {
+    if (method !== "courseware.project.attach") return original(method, params);
+    if (change === "error") throw new Error("COURSEWARE_CONFLICT: portable baseline changed");
+    if (change === "invalid-result") return { attached: true, path: "/private" };
+    if (change === "page") f.context.page = 2;
+    if (change === "source-path") f.snapshot.sourcePath = "/workspace/other.pptx";
+    if (change === "session") f.switchChat();
+    return { attached: true };
+  };
+  await assert.rejects(f.make().open("chat-1"));
+  assert(!f.calls.some(([method]) => method === "courseware.project.openSaved"));
+  assert(f.calls.some(([method]) => method === "courseware.parseRelease"));
+});
 
 test("scene teaching shows only this page's saved object roles and invalidation states", async () => {
   const f = setup();
@@ -239,6 +284,17 @@ test("scene source review exposes only canonical rebound UUIDs as generic eligib
   assert.equal(objects[1].savedKind, "shape");
   project.pages[0].actions[0].visualCues[0].effect.elementIds = ["line"];
   assert.deepEqual(semantics.exports.objectsForTeaching(raw, project, pageId).map(object => object.objectId), ["old-semantic"]);
+  project.pages[0].actions[0].visualCues[0].effect.elementIds = ["rebound"];
+  raw.sceneObjects.pages[0].objects.push({ objectId: "rebound", status: "mapped", element: {
+    elementId: "panda-layer", type: "image_layer", semanticRole: "Panda Pandy", spokenAliases: ["熊猫", "Panda Pandy"] } });
+  const retained = semantics.exports.objectsForTeaching(raw, project, pageId).find(object => object.objectId === "rebound");
+  assert.equal(retained.role, "Panda Pandy");
+  assert.deepEqual(retained.aliases, ["熊猫", "Panda Pandy"]);
+  raw.nativeSaved = true;
+  raw.savedObjects.pages[0].objects[1].sourceObjectName = "New native shape";
+  const native = semantics.exports.objectsForTeaching(raw, project, pageId);
+  assert.deepEqual(native.map(object => [object.objectId, object.effectTargetEligible]), [["rebound", true], ["unreviewed", true], ["line", false]]);
+  assert.equal(native[1].sourceObjectName, "New native shape");
   raw.savedObjects.mappingRevision = "stale";
   assert.throws(() => semantics.exports.objectsForTeaching(raw, project, pageId), /Invalid current saved object context/);
 });
@@ -501,7 +557,7 @@ test("ordinary saved Office revision imports its PPTX notes once without replaci
   const first = await teaching.open("chat-1");
   assert.equal(first.project.pages[0].actions[0].text, "讲解第 1 页");
   await teaching.open("chat-1");
-  assert.equal(f.calls.filter(([method]) => method === "courseware.parseStart").length, 2);
+  assert.equal(f.calls.filter(([method]) => method === "courseware.parseStart").length, 1);
   let noteCalls = 0;
   const wrapped = f.host.call;
   f.host.call = async (method, params) => { if (method === "courseware.pageNotes") noteCalls++; return wrapped(method, params); };
@@ -634,12 +690,15 @@ test("snapshot capture derives its source from a fresh saved parser and keeps ar
   await teaching.update({ ...input, actions: [] }, false);
 });
 
-test("snapshot capture requires every music and speech asset while retaining their independent proofs", async () => {
+test("snapshot capture requires speech, music and video while retaining provider and local proofs", async () => {
   const f = snapshotFixture(), hash = "c".repeat(64), speechHash = "d".repeat(64);
   f.project().pages[0].actions = [{ id: "music", type: "audio_clip", audioAssetId: `music-${hash}` }];
   f.project().pages[1].actions = [{ id: "speech", type: "speech", text: "Good", audioAssetId: `tts-${speechHash}` }];
+  const videoHash = "e".repeat(64);
+  f.project().pages[0].actions.push({ id: "video", type: "video_clip", videoAssetId: `video-${videoHash}` });
   const assets = [{ asset: { id: `music-${hash}`, sha256: hash, mimeType: "audio/mpeg" }, music: { principalKey: "account", intentId: "export" } },
-    { asset: { id: `tts-${speechHash}`, sha256: speechHash, mimeType: "audio/wav" }, tts: { principalKey: "account", intentId: "tts" } }];
+    { asset: { id: `tts-${speechHash}`, sha256: speechHash, mimeType: "audio/wav" }, tts: { principalKey: "account", intentId: "tts" } },
+    { asset: { id: `video-${videoHash}`, sha256: videoHash, mimeType: "video/mp4" }, local: true }];
   const call = f.host.call;
   f.host.call = async (method, params) => {
     const result = await call(method, params);
@@ -649,6 +708,7 @@ test("snapshot capture requires every music and speech asset while retaining the
   const teaching = f.make(), view = await teaching.open("chat-1");
   const input = { viewId: view.viewId, expectedTeachingRevision: view.project.teachingRevision };
   await assert.rejects(teaching.captureSnapshot(input, assets.slice(1)), /AUDIO_REQUIRED/);
+  await assert.rejects(teaching.captureSnapshot(input, assets.slice(0, -1)), /AUDIO_REQUIRED/);
   const snapshot = await teaching.captureSnapshot(input, assets);
   assert.deepEqual(snapshot.assetIds, assets.map(entry => entry.asset.id).sort());
   assert.deepEqual(f.calls.find(([method]) => method === "courseware.snapshot.capture")[1].assets, assets);
@@ -729,7 +789,7 @@ test("current-page saves, lock and reopen preserve two separate logical pages", 
   const reopened = await f.make().open("chat-1");
   assert.deepEqual(reopened.project.pages.map((page) => [page.actions[0].text, page.locked]), [["First edited", false], ["Second edited", true]]);
   assert(f.calls.filter(([method]) => method === "courseware.parseStart").every(([, params]) => params.sessionId === "chat-1" && params.path === f.snapshot.path));
-  assert.equal(f.calls.filter(([method]) => method === "courseware.parseRelease").length, 3);
+  assert.equal(f.calls.filter(([method]) => method === "courseware.parseRelease").length, 2);
 });
 
 test("PPTX candidate review is read-only, preview stays Main-private, and rejection is explicit", async () => {
@@ -881,6 +941,7 @@ test("cleanup failure invalidates the view; stale caller baselines stay stale", 
   await assert.rejects(teaching.update(input, false), /stale/);
   const call = f.host.call;
   f.host.call = async (method, params) => { if (method === "courseware.parseRelease") throw new Error("disk failure"); return call(method, params); };
+  f.snapshot.revision++; // A new saved revision must parse, even after a warm page read.
   await assert.rejects(teaching.open("chat-1"), /cleanup failed/);
   await assert.rejects(teaching.update(input, false), /Open current-page/);
 });
@@ -1102,7 +1163,7 @@ test("replacement parser releases the original first, keeps exclusive ownership 
     await parseOutput("/workspace/candidate.pptx", "c".repeat(64));
   }), /Parsed source differs/);
   assert.deepEqual(f.calls.filter(([method]) => !method.endsWith("Status")).map(([method]) => method), [
-    "courseware.parseStart", "courseware.parseRelease", "courseware.parseStart", "courseware.parseRelease",
+    "courseware.parseStart", "courseware.project.attach", "courseware.parseRelease", "courseware.parseStart", "courseware.parseRelease",
   ]);
   await teaching.open("chat-1");
 });
@@ -1146,4 +1207,191 @@ test("batch review lists every numbered target and refuses scope drift before ad
     candidate.targetPageIds = ids;
     await assert.rejects(teaching.reviewPptxCandidate({ sessionId: "chat-1", candidateId: "batch" }), /Invalid or outdated/);
   }
+});
+
+
+test("native preview exposes only current mapped shape proofs, never original or ordinal IDs", () => {
+  const project = structuredClone(fixture.project); project.taskType = "scene";
+  const pageId = project.pages[0].pageId;
+  const raw = { project, sceneObjects: { schemaVersion: "deckwise-scene-objects/1",
+    sourceSha256: project.source.sha256, requiresReview: true, pages: [{ pageId, objects:
+      ["mapped", "missing", "content_changed", "identity_mismatch"].map((status, index) => ({
+        objectId: `object-${index}`, status, currentSourceShapeId: "42",
+        element: { elementId: "layer", objectName: "compiler-layer", sourceShapeId: "old", type: "image_layer", spokenAliases: [] },
+      })),
+    }] } };
+  const result = semantics.exports.objectsForTeaching(raw, project, pageId);
+  assert.equal(result[0].sourceShapeId, "42");
+  assert.equal(result[0].sourceObjectName, "compiler-layer");
+  assert(result.slice(1).every(object => object.sourceObjectName === undefined));
+  assert(result.slice(1).every(object => object.sourceShapeId === undefined));
+  delete raw.sceneObjects.pages[0].objects[0].currentSourceShapeId;
+  assert.equal(semantics.exports.objectsForTeaching(raw, project, pageId)[0].sourceShapeId, undefined);
+});
+
+test("video reuse commits only to its pinned page and rejects a late page change", async () => {
+  for (const navigate of [false, true]) {
+    const f = setup(), teaching = f.make(), call = f.host.call;
+    const view = await teaching.open("chat-1"), assetId = `video-${"a".repeat(64)}`;
+    f.host.call = async (method, params) => {
+      if (method !== "courseware.video.reuse") return call(method, params);
+      assert.equal(params.pageId, view.pageId);
+      assert.equal(params.expectedSourceRevision, view.project.source.revision);
+      f.project().pages[0].actions.push({ id: params.actionId, type: "video_clip", videoAssetId: assetId });
+      f.project().teachingRevision = "reused-video";
+      if (navigate) f.context.page = 2;
+      return { project: structuredClone(f.project()) };
+    };
+    const pending = teaching.reuseVideo({ viewId: view.viewId, expectedTeachingRevision: view.project.teachingRevision,
+      principalKey: "a".repeat(64), intentId: "old-video", actionId: "new-video", assetId });
+    if (navigate) await assert.rejects(pending, /changed|Save|page/i);
+    else assert.equal((await pending).project.pages[0].actions.at(-1).id, "new-video");
+    assert.equal(f.project().pages[1].actions.some(a => a.id === "new-video"), false);
+  }
+});
+
+test("native timeline writes preserve exact-source steps through Desktop and reject malformed or stale bindings", async () => {
+  const f = setup(), coordinator = f.make();
+  let view = await coordinator.open("chat-1");
+  const original = structuredClone(view.project.pages[0].actions);
+  const node = { id: "native-step", type: "native_animation", version: 1,
+    sourceSha256: view.project.source.sha256, stepIndex: 0 };
+  const actions = [...original, node];
+  view = await coordinator.update({ viewId: view.viewId, expectedTeachingRevision: view.project.teachingRevision, actions }, false);
+  assert.deepEqual(view.project.pages[0].actions, actions);
+  const writes = () => f.calls.filter(([method]) => method === "courseware.teaching.write");
+  const count = writes().length;
+  for (const invalid of [{ ...node, version: 2 }, { ...node, stepIndex: 1 }, { ...node, target: "untrusted-runtime-id" }]) {
+    await assert.rejects(coordinator.update({ viewId: view.viewId, expectedTeachingRevision: view.project.teachingRevision,
+      actions: [...original, invalid] }, false), /Invalid teaching update/);
+    assert.equal(writes().length, count);
+  }
+  await assert.rejects(coordinator.update({ viewId: view.viewId, expectedTeachingRevision: view.project.teachingRevision,
+    actions: [...original, { ...node, sourceSha256: "f".repeat(64) }] }, false), /stale/);
+  assert.deepEqual(f.project().pages[0].actions, actions);
+});
+
+test("complete project copy uses saved source and retains the unchanged teaching sidebar", async () => {
+  const f = setup(); const teaching = f.make();
+  const original = f.host.call;
+  const before = structuredClone(f.project());
+  f.host.call = async (method, params) => {
+    if (method !== "courseware.project.copy") return original(method, params);
+    assert.deepEqual(params, { sessionId: "chat-1", jobId: "job-1",
+      expectedSourceRevision: before.source.revision, expectedTeachingRevision: before.teachingRevision });
+    return { path: "/workspace/courseware-copies/copy.deckwise", mediaCount: 2,
+      sourceSha256: before.source.sha256, teachingRevision: before.teachingRevision };
+  };
+  const view = await teaching.open("chat-1");
+  assert.deepEqual(await teaching.copyProject("chat-1"), { path: "/workspace/courseware-copies/copy.deckwise", mediaCount: 2 });
+  const context = await teaching.ttsContext({ viewId: view.viewId, expectedTeachingRevision: view.project.teachingRevision });
+  assert.equal(context.projectId, view.project.projectId);
+  assert.deepEqual(f.project(), before);
+  assert.equal(f.calls.filter(([method]) => method === "courseware.parseRelease").length, 2);
+});
+
+test("copy failure leaves an unchanged teaching view usable and never regenerates media", async () => {
+  const f = setup(); const teaching = f.make();
+  const original = f.host.call;
+  f.host.call = async (method, params) => {
+    if (method === "courseware.project.copy") throw new Error("portable media is missing");
+    return original(method, params);
+  };
+  const view = await teaching.open("chat-1");
+  await assert.rejects(teaching.copyProject("chat-1"), /media is missing/);
+  await teaching.ttsContext({ viewId: view.viewId, expectedTeachingRevision: view.project.teachingRevision });
+  assert(!f.calls.some(([method]) => /\.begin$|\.prepare$|\.stage$|\.submit$/.test(method)));
+});
+
+test("copy rejects dirty, inactive and forged sessions before creating a copy", async () => {
+  for (const mode of ["dirty", "inactive", "forged"]) {
+    const f = setup(); const teaching = f.make();
+    if (mode === "dirty") f.dirty();
+    if (mode === "inactive") f.switchChat();
+    await assert.rejects(teaching.copyProject(mode === "forged" ? { sessionId: "chat-1", path: "/outside" } : "chat-1"));
+    assert(!f.calls.some(([method]) => method === "courseware.project.copy"));
+  }
+});
+
+test("copy refuses stale native context and malformed Host receipts", async () => {
+  for (const mode of ["switch-chat", "source", "revision", "count", "path"]) {
+    const f = setup(); const teaching = f.make();
+    const original = f.host.call;
+    f.host.call = async (method, params) => {
+      if (method !== "courseware.project.copy") return original(method, params);
+      if (mode === "switch-chat") f.switchChat();
+      return { path: mode === "path" ? null : "/workspace/copy.deckwise", mediaCount: mode === "count" ? -1 : 0,
+        sourceSha256: mode === "source" ? "f".repeat(64) : f.project().source.sha256,
+        teachingRevision: mode === "revision" ? "stale" : f.project().teachingRevision };
+    };
+    await assert.rejects(teaching.copyProject("chat-1"));
+    assert(f.calls.some(([method]) => method === "courseware.parseRelease"));
+  }
+});
+
+test("copy retains an unchanged prepared review, but parser cleanup failure invalidates views", async () => {
+  const f = setup(), teaching = f.make();
+  const original = f.host.call;
+  let cleanupFails = false;
+  f.host.call = async (method, params) => {
+    if (method === "courseware.review.prepare") return { reviewId: "host-review", project: structuredClone(f.project()), pageCount: 2, targetSha256: f.snapshot.sha256 };
+    if (method === "courseware.review.adopt") return { project: structuredClone(f.project()) };
+    if (method === "courseware.project.copy") return { path: "/workspace/copy.deckwise", mediaCount: 0,
+      sourceSha256: f.snapshot.sha256, teachingRevision: f.project().teachingRevision };
+    if (method === "courseware.parseRelease" && cleanupFails) throw new Error("disk failure");
+    return original(method, params);
+  };
+  const review = await teaching.prepareReview("chat-1");
+  await teaching.copyProject("chat-1");
+  const view = await teaching.adoptReview({ reviewId: review.reviewId, bindings: [0, 1] });
+  cleanupFails = true;
+  await assert.rejects(teaching.copyProject("chat-1"), /cleanup failed/);
+  await assert.rejects(teaching.ttsContext({ viewId: view.viewId, expectedTeachingRevision: view.project.teachingRevision }));
+});
+
+test("switching teaching pages reuses parsed saved source while reading fresh canonical teaching", async () => {
+  const f = setup(), coordinator = f.make();
+  const first = await coordinator.open("chat-1");
+  f.project().pages[1].actions[0].text = "Updated by Chat";
+  f.project().teachingRevision = "chat-updated-revision";
+  f.context.page = 2;
+  const second = await coordinator.open("chat-1");
+  assert.equal(first.pageNumber, 1);
+  assert.equal(second.pageNumber, 2);
+  assert.equal(second.project.pages[1].actions[0].text, "Updated by Chat");
+  assert.equal(second.project.teachingRevision, "chat-updated-revision");
+  assert.equal(f.calls.filter(([method]) => method === "courseware.parseStart").length, 1);
+});
+
+for (const change of ["revision", "path", "documentId", "sourcePath"]) test(`saved teaching read reparses after ${change} changes`, async () => {
+  const f = setup(), teaching = f.make();
+  await teaching.open("chat-1");
+  if (change === "revision") f.snapshot.revision++;
+  else f.snapshot[change] += "-changed";
+  if (change === "documentId") f.context.documentId = f.snapshot.documentId;
+  await teaching.open("chat-1");
+  assert.equal(f.calls.filter(([method]) => method === "courseware.parseStart").length, 2);
+});
+
+test("warm teaching reads reject dirty source and never bypass saved-source checks", async () => {
+  const f = setup(), teaching = f.make();
+  await teaching.open("chat-1"); f.dirty();
+  await assert.rejects(teaching.open("chat-1"), /Save or reopen/);
+  assert.equal(f.calls.filter(([method]) => method === "courseware.parseStart").length, 1);
+});
+
+for (const change of ["readonly", "external-source", "project-source"]) test(`warm teaching reads reject ${change} and invalidate the saved read`, async () => {
+  const f = setup(), teaching = f.make();
+  await teaching.open("chat-1");
+  const verify = f.editor.verifyTeachingSource;
+  const originalSource = f.project().source.sha256;
+  if (change === "readonly") f.context.readOnly = true;
+  if (change === "external-source") f.editor.verifyTeachingSource = async () => { throw new Error("external source changed"); };
+  if (change === "project-source") f.project().source.sha256 = "f".repeat(64);
+  await assert.rejects(teaching.open("chat-1"));
+  f.context.readOnly = false;
+  f.editor.verifyTeachingSource = verify;
+  f.project().source.sha256 = originalSource;
+  await teaching.open("chat-1");
+  assert.equal(f.calls.filter(([method]) => method === "courseware.parseStart").length, 2);
 });

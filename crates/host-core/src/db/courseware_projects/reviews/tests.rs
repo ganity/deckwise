@@ -30,7 +30,7 @@ fn generated_attention_uses_decoded_audio_and_auto_readies_only_generated_scenes
         }
         write.actions[0]["attention"]["animation"] = json!("fadeIn");
         if generated && task_type == "scene" {
-            write.actions.push(json!({"id":"second-speech","type":"speech","text":"Now compare.","source":"generated"}));
+            write.actions.push(json!({"id":"second-speech","type":"speech","text":"Now compare.","source":"generated","attention":{"type":"spotlight","objectIds":[target],"animation":"pulse"}}));
         }
         let valid = write.actions[0]["attention"].clone();
         write.actions[0]["attention"]["objectIds"] = json!(["invented"]);
@@ -892,4 +892,24 @@ fn source_review_rejects_unsafe_pauses_and_bound_media_without_mutation() {
         )
         .unwrap();
     assert_eq!(count, 0);
+}
+
+#[test]
+fn speech_animation_sequence_allows_serial_emphasis_without_duplicate_owners() {
+    let speech = |effects: &[&str]| {
+        json!({"type":"speech","visualCues":effects.iter().map(|effect| json!({
+        "effect":{"type":"element_animation","elementId":"monkey","effect":effect}
+    })).collect::<Vec<_>>()})
+    };
+    for motions in [vec!["fadeIn", "pulse", "pulse"], vec!["pulse", "pulse"]] {
+        let actions: Vec<_> = motions.iter().map(|motion| speech(&[motion])).collect();
+        effects::validate_animation_sequence(&actions).unwrap();
+    }
+    for actions in [
+        vec![speech(&["pulse", "pulse"])],
+        vec![speech(&["fadeIn"]), speech(&["fadeIn"])],
+        vec![speech(&["fadeOut"]), speech(&["pulse"])],
+    ] {
+        assert!(effects::validate_animation_sequence(&actions).is_err());
+    }
 }

@@ -11,7 +11,7 @@ import { BaseChartElement } from "../slide-renderer/components/element/ChartElem
 import { BaseLatexElement } from "../slide-renderer/components/element/LatexElement/BaseLatexElement";
 import { ImageElementVisual } from "../slide-renderer/components/element/ImageElement/ImageElementVisual";
 import type { FixedVisualCue } from "../../lib/courseware/load-fixed-build";
-import { fixedAnimationStyle } from "../../lib/courseware/fixed-animation-style";
+import { fixedAnimationStyles } from "../../lib/courseware/fixed-animation-style";
 import { FixedVisualEffects } from "./FixedVisualEffects";
 import { FixedMediaElement } from "./FixedMediaElement";
 
@@ -87,18 +87,7 @@ export function FixedSlide({
   nativeTargets?: ReadonlySet<string>;
   nativeVisible?: ReadonlySet<string>;
 }) {
-  const styles = new Map(
-    animations.flatMap(({ cue, timeMs }) =>
-      cue.effect.kind === "element_animation"
-        ? [
-            [
-              cue.effect.action.elementId,
-              fixedAnimationStyle(cue, timeMs),
-            ] as const,
-          ]
-        : [],
-    ),
-  );
+  const styles = fixedAnimationStyles(animations);
   const effectSlide = {
     ...slide,
     elements: slide.elements
@@ -147,6 +136,8 @@ export function FixedSlide({
               opacity: nativeTargets?.has(element.id) && !nativeVisible?.has(element.id) ? 0 : styles.get(element.id)?.opacity,
               visibility: styles.get(element.id)?.hidden ? "hidden" : undefined,
               scale: styles.get(element.id)?.scale,
+              translate: styles.get(element.id)?.translateX ? `${styles.get(element.id)!.translateX}% 0` : undefined,
+              rotate: styles.get(element.id)?.rotate ? `${styles.get(element.id)!.rotate}deg` : undefined,
               transformOrigin:
                 element.type === "line"
                   ? undefined

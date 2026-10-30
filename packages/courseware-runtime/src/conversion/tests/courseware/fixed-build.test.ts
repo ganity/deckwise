@@ -37,6 +37,51 @@ it('rejects an unknown schema before executing conversion', async () => {
     ),
   ).rejects.toMatchObject({ code: 'SNAPSHOT_SCHEMA_INVALID' });
 });
+it('builds and loads attention after saved native entrance clicks but rejects a second animation owner', async () => {
+  const temporary = await mkdtemp(path.join(os.tmpdir(), 'fixed-native-attention-'));
+  try {
+    const zip = await JSZip.loadAsync(await readFile(input.source.path));
+    const xml = await zip.file('ppt/slides/slide1.xml')!.async('string');
+    const timing = await readFile(path.join(fixture, 'native-fade-timing.xml'), 'utf8');
+    zip.file('ppt/slides/slide1.xml', xml.replace('</p:sld>', `${timing}</p:sld>`));
+    const bytes = await zip.generateAsync({ type: 'nodebuffer' });
+    const candidate = structuredClone(input);
+    candidate.source.path = path.join(temporary, 'native.pptx');
+    await writeFile(candidate.source.path, bytes);
+    candidate.source.sha256 = candidate.mapping.sourceSha256 = candidate.teaching.sourceSha256 = sha256(bytes);
+    const target = candidate.mapping.pages[0].objects.find(object => object.importElementId === 'pptx_text_1')!;
+    expect(target).toBeDefined();
+    const speech = candidate.teaching.pages[0].actions[0];
+    if (speech.type !== 'speech') throw new Error('Expected fixed speech');
+    speech.visualCues = [
+      { id: 'highlight-native', atMs: 0, endMs: 200, effect: { type: 'highlight', elementIds: [target.objectId] } },
+      { id: 'spotlight-native', atMs: 200, endMs: 400, effect: { type: 'spotlight', elementId: target.objectId } },
+    ];
+    const options = { workerDirectory, outputDirectory: path.join(temporary, 'builds') };
+    const built = await buildFixedCourseware(candidate, options);
+    const packageBytes = await readFile(path.join(built.directory, 'package.json'));
+    const loaded = await loadFixedBuild(packageBytes, built.buildId, async asset => readFile(path.join(built.directory, asset.path)));
+    try {
+      expect(loaded.nativeAnimations?.get(candidate.mapping.pages[0].pageId)?.steps).toEqual([
+        expect.objectContaining({ effect: 'fade', elementId: target.importElementId, durationMs: 500 }),
+      ]);
+      expect(loaded.scenes[0].actions?.slice(0, 3).map(action => action.type)).toEqual([
+        'interaction_checkpoint', 'element_animation', 'speech',
+      ]);
+      expect(loaded.speechVisualCues.get(speech.id)?.map(cue => cue.effect)).toEqual([
+        expect.objectContaining({ kind: 'highlight', targetIds: [target.importElementId] }),
+        expect.objectContaining({ kind: 'spotlight', targetId: target.importElementId }),
+      ]);
+    } finally { loaded.dispose(); }
+    for (const effect of ['fadeIn', 'fadeOut', 'pulse'] as const) {
+      speech.visualCues = [{ id: 'competing-owner', atMs: 0, endMs: 200,
+        effect: { type: 'element_animation', elementId: target.objectId, effect } }];
+      await expect(buildFixedCourseware(candidate, options)).rejects.toMatchObject({ code: 'NATIVE_ANIMATION_CUE_CONFLICT' });
+      expect(await readFile(path.join(built.directory, 'package.json'))).toEqual(packageBytes);
+    }
+    expect(await readdir(options.outputDirectory)).toEqual([built.buildId]);
+  } finally { await rm(temporary, { recursive: true, force: true }); }
+}, 30_000);
 it('rejects a bad source hash and leaves the previous package intact', async () => {
   const bad = structuredClone(input);
   bad.source.sha256 = '0'.repeat(64);
@@ -379,6 +424,13 @@ it('rejects unsupported player effects, duplicate animated targets and media ani
   action.visualCues.push({ ...cue, id: 'conflicting-target' });
   expect(() => validateFixedMapping(animated, ir)).toThrow('ANIMATION_TARGET_CONFLICT');
   action.visualCues.pop();
+  const repeat = { ...action, id: 'repeat-speech', visualCues: [{ ...cue, id: 'repeat-pulse',
+    effect: { type: 'element_animation' as const, elementId: cue.effect.type === 'element_animation' ? cue.effect.elementId : '', effect: 'pulse' as const } }] };
+  animated.teaching.pages[0].actions.push(repeat);
+  expect(() => validateFixedMapping(animated, ir)).not.toThrow();
+  animated.teaching.pages[0].actions[animated.teaching.pages[0].actions.length - 1] = { ...action, id: 'repeat-entrance', visualCues: [{ ...cue, id: 'repeat-entrance-cue' }] };
+  expect(() => validateFixedMapping(animated, ir)).toThrow('ANIMATION_TARGET_CONFLICT');
+  animated.teaching.pages[0].actions.pop();
   ir.pages[0].elements[0].type = 'video';
   expect(() => validateFixedMapping(animated, ir)).toThrow('ANIMATION_TARGET_UNSUPPORTED');
   cue.endMs = cue.atMs + 5001;
@@ -415,3 +467,72 @@ it('builds actual A8 speech actions with explicit fixture audio and stable fixed
   expect(built.report.capabilities.objectAnimations).toBe(false);
   await rm(built.directory, { recursive: true });
 });
+
+it('preserves an explicit delay through conversion and verified player loading', async () => {
+  const candidate = structuredClone(input);
+  candidate.teaching.pages[0].actions.push({ id: 'explicit-delay', type: 'delay', durationMs: 1200 });
+  const result = await buildFixedCourseware(candidate, { workerDirectory, outputDirectory });
+  const bytes = await readFile(path.join(result.directory, 'package.json'));
+  const manifest = JSON.parse(bytes.toString('utf8'));
+  expect(manifest.pages[0].actions.at(-1)).toEqual({ id: 'explicit-delay', type: 'delay', durationMs: 1200 });
+  const loaded = await loadFixedBuild(new Uint8Array(bytes), sha256(bytes), async asset =>
+    new Uint8Array(await readFile(path.join(result.directory, asset.path))));
+  expect(loaded.scenes[0].actions!.at(-1)).toEqual({ id: 'explicit-delay', type: 'delay', durationMs: 1200 });
+  loaded.dispose();
+});
+
+it('exports source-bound native nodes between speech and teacher waits, rejecting stale or incomplete bindings', async () => {
+  const temporary = await mkdtemp(path.join(os.tmpdir(), 'fixed-native-timeline-'));
+  try {
+    const zip = await JSZip.loadAsync(await readFile(input.source.path));
+    const xml = await zip.file('ppt/slides/slide1.xml')!.async('string');
+    const timing = await readFile(path.join(fixture, 'native-fade-timing.xml'), 'utf8');
+    const block = timing.slice(timing.indexOf('                <p:par>'), timing.lastIndexOf('\n              </p:childTnLst>'));
+    const second = block.replace(/id="([345])"/g, (_, id) => `id="${Number(id) + 3}"`).replace('spid="2"', 'spid="3"');
+    zip.file('ppt/slides/slide1.xml', xml.replace('</p:sld>', `${timing.replace(block, block + second)}</p:sld>`));
+    const bytes = await zip.generateAsync({ type: 'nodebuffer' });
+    const candidate = structuredClone(input);
+    candidate.source.path = path.join(temporary, 'native.pptx'); await writeFile(candidate.source.path, bytes);
+    candidate.source.sha256 = candidate.mapping.sourceSha256 = candidate.teaching.sourceSha256 = sha256(bytes);
+    const node = (stepIndex: number) => ({ id: `native-${stepIndex}`, type: 'native_animation' as const, version: 1 as const,
+      sourceSha256: candidate.source.sha256, stepIndex });
+    const speech = candidate.teaching.pages[0].actions[0];
+    if (speech.type !== 'speech') throw new Error('Expected speech');
+    const mapping = candidate.mapping.pages[0].objects;
+    const first = mapping.find(object => object.importElementId === 'pptx_text_1')!;
+    const secondTarget = mapping.find(object => object.importElementId === 'pptx_shape_2')!;
+    const middle = { ...speech, id: 'middle', visualCues: [{ id: 'h', atMs: 0, endMs: 200,
+      effect: { type: 'highlight' as const, elementIds: [first.objectId] } }] };
+    const end = { ...speech, id: 'last', visualCues: [{ id: 's', atMs: 0, endMs: 200,
+      effect: { type: 'spotlight' as const, elementId: secondTarget.objectId } }] };
+    candidate.teaching.pages[0].actions = [speech, node(0), middle,
+      { id: 'wait', type: 'interaction_checkpoint', checkpointId: 'wait', checkpointKind: 'teacher_continue' },
+      { id: 'delay', type: 'delay', durationMs: 300 }, node(1), end];
+    const options = { workerDirectory, outputDirectory: path.join(temporary, 'builds') };
+    const built = await buildFixedCourseware(candidate, options);
+    const packageBytes = await readFile(path.join(built.directory, 'package.json'));
+    const loaded = await loadFixedBuild(packageBytes, built.buildId, async asset => readFile(path.join(built.directory, asset.path)));
+    try {
+      expect(built.report.capabilities.nativeObjectAnimations).toBe('click-appear-fade/2');
+      expect(loaded.nativeAnimations?.get(candidate.mapping.pages[0].pageId)).toMatchObject({ version: 2, sequence: 'teaching-timeline',
+        steps: [{ elementId: first.importElementId }, { elementId: secondTarget.importElementId }] });
+      expect(loaded.scenes[0].actions?.map(action => action.type)).toEqual([
+        'speech', 'element_animation', 'speech', 'interaction_checkpoint', 'delay', 'element_animation', 'speech',
+      ]);
+      expect(loaded.scenes[0].actions?.[1]).toMatchObject({ id: 'native-0', elementId: first.importElementId, duration: 500 });
+      expect(loaded.scenes[0].actions?.[5]).toMatchObject({ id: 'native-1', elementId: secondTarget.importElementId, duration: 500 });
+    } finally { loaded.dispose(); }
+    const original = structuredClone(candidate.teaching.pages[0].actions);
+    for (const kind of ['stale', 'missing', 'reordered', 'hidden'] as const) {
+      const actions = candidate.teaching.pages[0].actions = structuredClone(original);
+      if (kind === 'stale') Object.assign(actions[1], { sourceSha256: 'f'.repeat(64) });
+      if (kind === 'missing') actions.splice(5, 1);
+      if (kind === 'reordered') [actions[1], actions[5]] = [actions[5], actions[1]];
+      if (kind === 'hidden') [actions[0], actions[6]] = [actions[6], actions[0]];
+      await expect(buildFixedCourseware(candidate, options)).rejects.toMatchObject({ code:
+        kind === 'hidden' ? 'NATIVE_ANIMATION_TARGET_NOT_REVEALED' : 'NATIVE_ANIMATION_BINDING_MISMATCH' });
+      expect(await readFile(path.join(built.directory, 'package.json'))).toEqual(packageBytes);
+    }
+    expect(await readdir(options.outputDirectory)).toEqual([built.buildId]);
+  } finally { await rm(temporary, { recursive: true, force: true }); }
+}, 30_000);

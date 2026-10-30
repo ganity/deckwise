@@ -17,6 +17,8 @@ pub struct Selection {
     pub expected_source_revision: String,
     pub expected_teaching_revision: String,
     pub duration_ms: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub slot_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -40,6 +42,13 @@ fn hash(value: &str) -> bool {
             .all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c))
 }
 
+pub fn valid_slot(action: &Value) -> bool {
+    action["type"] == "music_slot" && action.as_object().is_some_and(|a| a.len() == 4)
+        && action["id"].as_str().is_some_and(valid_id)
+        && action["prompt"].as_str().is_some_and(|s| !s.trim().is_empty() && s.encode_utf16().count() <= 4000)
+        && action["title"].as_str().is_some_and(|s| !s.trim().is_empty() && s.encode_utf16().count() <= 100)
+}
+
 pub fn valid_clip(action: &Value) -> bool {
     action.as_object().is_some_and(|object| object.len() == 3)
         && action["type"] == "audio_clip"
@@ -56,7 +65,7 @@ impl Adoption {
             "actionId":self.action_id,"assetId":self.asset.id,"durationMs":self.selection.duration_ms})
     }
 
-    fn attached(&self, project: &CoursewareProject) -> bool {
+    pub(super) fn attached(&self, project: &CoursewareProject) -> bool {
         project.project_id == self.selection.project_id
             && self.bound_source.revision == project.source.revision
             && self.bound_source.sha256 == project.source.sha256
@@ -103,6 +112,7 @@ impl Database {
                     && hash(&s.principal_key)
                     && valid_id(&s.intent_id)
                     && valid_id(&s.page_id)
+                    && s.slot_id.as_ref().is_none_or(|id| valid_id(id))
                     && valid_id(&s.expected_source_revision)
                     && valid_id(&s.expected_teaching_revision)
                     && (1..=86_400_000).contains(&s.duration_ms)
@@ -189,6 +199,7 @@ impl Database {
         }) {
             anyhow::ensure!(
                 old.selection.duration_ms == selection.duration_ms
+                    && old.selection.slot_id == selection.slot_id
                     && (old.selection.expected_teaching_revision
                         == selection.expected_teaching_revision
                         || project.teaching_revision == selection.expected_teaching_revision)
@@ -208,9 +219,13 @@ impl Database {
             .find(|page| page.page_id == selection.page_id)
             .ok_or_else(|| anyhow!("COURSEWARE_PAGE_NOT_FOUND: music target page not found"))?;
         let mut actions = page.actions.clone();
-        let action_id = uuid::Uuid::new_v4().to_string();
-        actions
-            .push(serde_json::json!({"id":action_id,"type":"audio_clip","audioAssetId":asset.id}));
+        let action_id = selection.slot_id.clone().unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+        let clip = serde_json::json!({"id":action_id,"type":"audio_clip","audioAssetId":asset.id});
+        if let Some(slot_id) = &selection.slot_id {
+            let index = actions.iter().position(|a| a["id"] == *slot_id && valid_slot(a))
+                .ok_or_else(|| anyhow!("COURSEWARE_CONFLICT: music slot changed or was removed"))?;
+            actions[index] = clip;
+        } else { actions.push(clip); }
         let saved = self.write_courseware_teaching(
             workspace,
             &TeachingWrite {

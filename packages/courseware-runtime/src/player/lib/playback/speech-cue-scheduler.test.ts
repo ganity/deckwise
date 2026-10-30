@@ -181,3 +181,25 @@ it("samples native time on the existing frame, paused seek and resume without an
   scheduler.stop();
   vi.unstubAllGlobals();
 });
+
+
+it("plays a segment-start pulse on every speech instead of consuming it during reconciliation", () => {
+  let frame: FrameRequestCallback | undefined;
+  vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => { frame = callback; return 1; });
+  vi.stubGlobal("cancelAnimationFrame", vi.fn());
+  let time = 0;
+  const onCue = vi.fn();
+  for (const speechActionId of ["first", "again"]) {
+    const cue: ElementAnimationAction = { id: speechActionId + "-pulse", type: "element_animation", elementId: "monkey", effect: "pulse", animationType: "attention", duration: 600,
+      speechCue: { version: 1, speechActionId, timingTrackId: "audio", anchorText: "小猴", occurrence: 1, targetElementId: "monkey", motionIntent: "pulse", atMs: 0 } };
+    time = 0;
+    const scheduler = new SpeechCueScheduler([cue], () => time, onCue);
+    scheduler.start();
+    frame?.(0);
+    time = 100;
+    frame?.(100);
+    scheduler.stop();
+  }
+  expect(onCue.mock.calls.map(call => call[0].id)).toEqual(["first-pulse", "again-pulse"]);
+  vi.unstubAllGlobals();
+});

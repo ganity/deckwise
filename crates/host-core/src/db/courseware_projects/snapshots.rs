@@ -102,7 +102,7 @@ impl SnapshotRecord {
         for action in self.project.pages.iter().flat_map(|page| &page.actions) {
             anyhow::ensure!(action.get("attention").is_none(), "COURSEWARE_CONFLICT: adopt decoded speech audio to resolve automatic attention before snapshot capture");
             anyhow::ensure!(
-                action["type"] != "video_slot",
+                action["type"] != "video_slot" && action["type"] != "music_slot",
                 "COURSEWARE_CONFLICT: generate and adopt planned video before publishing"
             );
             if action["type"] == "video_clip" {

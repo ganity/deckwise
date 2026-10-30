@@ -36,18 +36,30 @@ export function objectsForTeaching(raw: unknown, project: CoursewareProject, pag
         throw new Error("Invalid saved teaching object");
       ids.add(object.objectId);
       return { objectId: object.objectId, name: String(position + 1), aliases: [], status: "mapped" as const,
+        ...(text(object.sourceShapeId, 200) ? { sourceShapeId: object.sourceShapeId } : {}),
+        ...(text(object.sourceObjectName, 200) ? { sourceObjectName: object.sourceObjectName } : {}),
         savedKind: object.kind, savedIndex: position + 1, effectTargetEligible: ["text", "shape", "image"].includes(object.kind) };
     });
     if (page.pageId === pageId) current = objects;
   });
   if (!current) throw new Error("Saved object page is missing");
+  if (project.taskType === "scene" && raw.nativeSaved === true) {
+    return current.map(object => {
+      const meaning = semantic?.find(previous => previous.objectId === object.objectId && previous.status === "mapped");
+      return { ...object, ...(meaning ? { name: meaning.name, aliases: meaning.aliases, role: meaning.role } : {}) };
+    });
+  }
   if (project.taskType === "scene") {
     // A canonical cue can reference a new UUID only after explicit source-effect review.
     // Preserve all other scene semantic guards and expose no inferred re-associations.
     const referenced = new Set(project.pages.find(page => page.pageId === pageId)?.actions.flatMap(action =>
       Array.isArray(action.visualCues) ? action.visualCues.flatMap(cue => isCoursewareAttentionCue(cue) ?
         cue.effect.type === "highlight" ? cue.effect.elementIds : [cue.effect.elementId, ...(cue.effect.elementIds ?? [])] : []) : []));
-    const reviewed = current.filter(object => referenced.has(object.objectId) && object.effectTargetEligible);
+    const reviewed = current.filter(object => referenced.has(object.objectId) && object.effectTargetEligible).map(object => {
+      const proof = semantic?.find(candidate => candidate.objectId === object.objectId && candidate.status === "mapped");
+      return { ...object, ...(proof ? { name: proof.name, role: proof.role, aliases: proof.aliases } : {}), ...(proof?.sourceShapeId ? { sourceShapeId: proof.sourceShapeId } : {}),
+        ...(proof?.sourceObjectName ? { sourceObjectName: proof.sourceObjectName } : {}) };
+    });
     return [...(semantic ?? []).filter(object => !reviewed.some(target => target.objectId === object.objectId)), ...reviewed];
   }
   return current;
@@ -80,6 +92,8 @@ export function sceneObjectsForTeaching(raw: unknown, project: CoursewareProject
     return { objectId: object.objectId, name: object.element.elementId,
       ...(object.element.semanticRole ? { role: object.element.semanticRole } : {}),
       aliases: [...object.element.spokenAliases], status: object.status,
+      ...(object.status === "mapped" && text(object.element.objectName, 200) ? { sourceObjectName: object.element.objectName } : {}),
+      ...(object.status === "mapped" && text(object.currentSourceShapeId, 200) ? { sourceShapeId: object.currentSourceShapeId } : {}),
       effectTargetEligible: object.status === "mapped" && ["native_text", "native_shape", "image_layer"].includes(String(object.element.type)) };
   });
 }

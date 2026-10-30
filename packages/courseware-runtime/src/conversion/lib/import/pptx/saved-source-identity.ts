@@ -24,6 +24,7 @@ const objectSchema = z
     contentFingerprint: hash,
     geometryFingerprint: hash,
     sourceShapeId: id.optional(),
+    sourceObjectName: id.optional(),
   })
   .strict();
 const identitySchema = z
@@ -132,6 +133,7 @@ export async function exportSavedSourceIdentity(
       const {
         id: importElementId,
         sourceShapeId,
+        sourceObjectName,
         sourceGroupShapeIds: _groups,
         sourceOrder: _order,
         left,
@@ -146,6 +148,7 @@ export async function exportSavedSourceIdentity(
         importElementId,
         type: element.type,
         sourceShapeId,
+        ...(sourceObjectName ? { sourceObjectName } : {}),
         contentFingerprint: fingerprint(await normalize(content)),
         geometryFingerprint: geometryFingerprint({ left, top, width, height, rotate }),
       });

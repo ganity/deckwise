@@ -105,6 +105,7 @@ impl SavedSourceIdentity {
                             "contentFingerprint",
                             "geometryFingerprint",
                             "sourceShapeId",
+                            "sourceObjectName",
                         ],
                     )?;
                     ensure!(
@@ -113,7 +114,8 @@ impl SavedSourceIdentity {
                             .all(|key| id(&object[key]))
                             && hash(&object["contentFingerprint"])
                             && hash(&object["geometryFingerprint"])
-                            && object.get("sourceShapeId").is_none_or(id),
+                            && object.get("sourceShapeId").is_none_or(id)
+                            && object.get("sourceObjectName").is_none_or(id),
                         "invalid object identity"
                     );
                     ensure!(
@@ -280,6 +282,7 @@ impl SavedSourceIdentity {
                 page["logicalId"] = Value::Null;
                 for object in page["objects"].as_array_mut().into_iter().flatten() {
                     object["logicalId"] = Value::Null;
+                    object.as_object_mut().unwrap().remove("sourceObjectName");
                 }
             }
             value

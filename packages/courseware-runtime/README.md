@@ -14,6 +14,14 @@ only Agent; B supplies its finite tools and A owns registration/persistence.
 - `@pi-desktop/courseware-runtime/player`: fixed loader, player, labels,
   authenticated ready-media resolver and `mountFixedBuild`.
 - `@pi-desktop/courseware-runtime/player.css`: scoped preview styles.
+- `dist/teaching-preview.mjs`: browser-only speech cue scheduler and spotlight
+  geometry shared with the native WiseOffice teaching pane. Its finite sequential
+  teaching adapter delegates to `PlaybackCore`/`AudioPlayer`, including local speech,
+  music, legacy post-speech pauses and teacher waits. An optional native HTML video
+  surface completes media checkpoints on actual video end; failed sources pause
+  for explicit retry. Unsupported nodes reject before playback. Staging bundles this
+  entry into `.deckwise/teaching-preview.mjs` and includes it in the resource hash
+  inventory. It does not expose Node, start generation or implement another clock.
 - `dist/pptx-worker.mjs`: offline worker. Run only through Host's validated job.
 
 Build with `node scripts/build.mjs` and emit declarations using the package build
@@ -139,6 +147,10 @@ are not automatically aligned with speech. Targets start hidden; explicit clicks
 reveal them, and fade pause/resume uses the engine timer with the native animation
 handle. Replay resets that page's native effects. Old static packages need no new
 field. This does not add automatic speech alignment or general PPTX animation fidelity.
+Speech highlight/spotlight may target those revealed objects: these overlays do
+not compete with the completed entrance. A speech `element_animation` cue on the
+same object still rejects with `NATIVE_ANIMATION_CUE_CONFLICT` in both builder
+and loader. Source/object binding and unsupported-native-timing checks still apply.
 Unsupported charts/masters/linked text/formula diagnostics continue to block a
 ready build. Changed saved-source identity is a review proposal; Host CAS and B's
 trusted lineage are still required before adopting teaching bindings.
@@ -378,3 +390,33 @@ recheck current document/session/edit-generation/save state and native page, the
 use the finite Office command only after its separate mounting and acceptance.
 Renderer-provided descriptors cannot grant authority. Existing copy candidates
 retain their original supported scope; object animations are not edited.
+
+### Source-bound native animation nodes
+
+Teaching actions may include `{ id, type: 'native_animation', version: 1,
+sourceSha256, stepIndex }`. Hash and ordered indices must match all actual
+supported steps in the saved PPTX page. Speech, media, delays and teacher waits
+may intervene. Target, preset and duration come from the PPTX. Partial, stale or
+reordered bindings fail closed. Bound pages use native metadata version 2
+(`teaching-timeline`) and capability `click-appear-fade/2`; legacy unbound pages
+retain version 1 and before-narration teacher clicks. The loader projects each
+node in place into the existing playback core. Attention must follow entrance;
+speech animations cannot duplicate native ownership.
+
+Serve an actual two-step bound package with the existing playback Vite config,
+then run `node scripts/verify-playback-browser.mjs <new-absolute-evidence-directory>
+--bound-native --only=fixed-bound-native-timeline`. The worker test in
+`fixed-build.test.ts` authors both steps from `native-fade-timing.xml` and verifies
+conversion, package loading and rejected-build preservation. This is fixed-player
+support; native-sidebar authoring/execution and arbitrary native effects remain
+separate requirements.
+
+
+Native teaching preview also accepts these canonical nodes with an injected
+`native` adapter (`sourceSha256`, `stepCount`, finite `next(index)`, `pause`,
+`resume`). Bindings are checked before playing. The existing playback core
+suspends at private completion checkpoints until the native driver's promise
+resolves. Teacher continuation cannot release them; paused or disposed previews
+cannot advance from late completion. A native failure remains stopped until a
+fresh presentation. The native SDK, target identities and resource ownership
+remain the editor's responsibility; the runtime never imports the Office SDK.

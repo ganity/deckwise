@@ -295,3 +295,18 @@ An uncertain save freezes its exact body and permits explicit replay through
 Main, not a blind new write; this pending state is not durable across restart.
 This source decision does not certify actual Electron/Platform teaching closure,
 live native mapping, remote media synchronization or consistent publication.
+
+
+The Linux project-copy operation reads this SQLite authority and exports a strict
+portable PPTX/teaching/media backup through the Host transaction writer. It does
+not redirect existing reads/writes, migrate authority or delete private/legacy
+records. See [portable project commits](courseware-portable-project-commits.md)
+for the mounted copy boundary and the still-pending normal-save authority migration.
+Opening a Linux portable `lesson.pptx` now attaches its verified baseline before
+ordinary saved teaching operations. An unrelated profile imports canonical
+teaching into this same SQLite authority; an existing import keeps local edits.
+Changed PPTX bytes require the existing explicit source review. Preserved local
+media follows reviewed logical page/action IDs and unchanged speech text, without
+fabricating provider receipts. Main validates bytes with its sandboxed decoder
+before local preview or fixed snapshot capture. Normal saves still do not update
+the exported backup sidecar, and no editing-authority switch is implied.

@@ -60,6 +60,7 @@ fn narration(actions: &[Value]) -> Result<()> {
     anyhow::ensure!(
         actions.iter().all(|action| {
             valid_teaching_checkpoint(action)
+                || music::valid_slot(action)
                 || super::video::valid_slot(action)
                 || (action["type"] == "speech"
                     && action["text"].as_str().is_some_and(|text| text.encode_utf16().count() <= 32000)
@@ -75,7 +76,7 @@ fn narration(actions: &[Value]) -> Result<()> {
 fn replaceable_narration(actions: &[Value]) -> Result<Vec<Value>> {
     actions
         .iter()
-        .filter(|a| a["type"] != "audio_clip" && a["type"] != "video_clip")
+        .filter(|a| a["type"] != "audio_clip" && a["type"] != "video_clip" && a["type"] != "music_slot")
         .map(|action| {
             let mut clean = action.clone();
             if action["type"] == "speech" {
@@ -138,6 +139,13 @@ impl Database {
         baseline: &CoursewareProject,
         write: &TeachingWrite,
     ) -> Result<CoursewareProject> {
+        self.save_generated_narration_with_semantics(workspace, seed, baseline, write, &[])
+    }
+
+    pub fn save_generated_narration_with_semantics(
+        &self, workspace: &str, seed: &SavedProjectSeed, baseline: &CoursewareProject, write: &TeachingWrite,
+        semantics: &[scene_objects::SceneSemanticEvidence],
+    ) -> Result<CoursewareProject> {
         baseline.validate()?;
         matches_seed(baseline, seed)?;
         anyhow::ensure!(
@@ -165,18 +173,22 @@ impl Database {
         let mut write = write.clone();
         for (index, clip) in page.actions.iter().enumerate().filter(|(_, action)| {
             action["type"] == "audio_clip"
+                || action["type"] == "music_slot"
                 || action["type"] == "video_slot"
                 || action["type"] == "video_clip"
         }) {
             anyhow::ensure!(
                 music::valid_clip(clip)
+                    || music::valid_slot(clip)
                     || super::video::valid_slot(clip)
                     || super::video::valid_clip(clip),
                 "COURSEWARE_INVALID: invalid retained media action"
             );
-            write
-                .actions
-                .insert(index.min(write.actions.len()), clip.clone());
+            if let Some(position) = write.actions.iter().position(|a| a["type"] == "music_slot" && a["id"] == clip["id"]) {
+                write.actions[position] = clip.clone();
+            } else {
+                write.actions.insert(index.min(write.actions.len()), clip.clone());
+            }
         }
         let history_key = serde_json::to_string(&(
             storage_key(workspace, &seed.project_id)?,
@@ -196,6 +208,7 @@ impl Database {
             "COURSEWARE_CONFLICT: previous teaching was not archived"
         );
         let project = self.write_courseware_teaching(workspace, &write)?;
+        self.save_scene_semantic_evidence(workspace, &project, &write.page_id, semantics)?;
         tx.commit()?;
         Ok(project)
     }
@@ -421,6 +434,7 @@ impl Database {
             .unwrap();
         for (index, clip) in page.actions.iter().enumerate().filter(|(_, action)| {
             action["type"] == "audio_clip"
+                || action["type"] == "music_slot"
                 || action["type"] == "video_slot"
                 || action["type"] == "video_clip"
         }) {

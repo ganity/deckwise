@@ -47,21 +47,13 @@ fn hash(value: &str) -> bool {
             .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
 
-impl Database {
-    pub(super) fn courseware_asset_locks(
-        &self,
-        workspace: &str,
-        project_id: &str,
-    ) -> Result<Option<AssetLocks>> {
-        let Some(value) = self.kv_get(NS, &storage_key(workspace, project_id)?)? else {
-            return Ok(None);
-        };
-        let record: AssetLocks = serde_json::from_value(value)?;
+impl AssetLocks {
+    pub(crate) fn validate(&self) -> Result<()> {
         let mut ids = HashSet::new();
         anyhow::ensure!(
-            valid_id(&record.revision)
-                && record.images.len() <= 1000
-                && record.images.iter().all(|lock| valid_id(&lock.page_id)
+            valid_id(&self.revision)
+                && self.images.len() <= 1000
+                && self.images.iter().all(|lock| valid_id(&lock.page_id)
                     && valid_id(&lock.object_id)
                     && valid_id(&lock.mapping_revision)
                     && hash(&lock.source_sha256)
@@ -79,6 +71,35 @@ impl Database {
                     && ids.insert(lock.object_id.clone())),
             "COURSEWARE_INVALID: invalid saved image locks"
         );
+        Ok(())
+    }
+}
+
+impl Database {
+    pub(super) fn restore_portable_asset_locks(
+        &self,
+        workspace: &str,
+        project_id: &str,
+        locks: &AssetLocks,
+    ) -> Result<()> {
+        locks.validate()?;
+        self.kv_set(
+            NS,
+            &storage_key(workspace, project_id)?,
+            &serde_json::to_value(locks)?,
+        )
+    }
+
+    pub(super) fn courseware_asset_locks(
+        &self,
+        workspace: &str,
+        project_id: &str,
+    ) -> Result<Option<AssetLocks>> {
+        let Some(value) = self.kv_get(NS, &storage_key(workspace, project_id)?)? else {
+            return Ok(None);
+        };
+        let record: AssetLocks = serde_json::from_value(value)?;
+        record.validate()?;
         Ok(Some(record))
     }
 

@@ -107,7 +107,19 @@ const withinBudget = (value: unknown): boolean => {
 };
 const actions = (value: unknown): value is Array<Record<string, unknown>> =>
   Array.isArray(value) && value.length <= 1000 && value.every((action) => record(action) && id(action.id) && id(action.type)) &&
-  new Set(value.map((action) => action.id)).size === value.length && withinBudget(value);
+  new Set(value.map((action) => action.id)).size === value.length && withinBudget(value) &&
+  value.filter(action => action.type === "native_animation").every((action, index) =>
+    isCoursewareNativeAnimation(action) && action.stepIndex === index);
+
+export type CoursewareNativeAnimation = {
+  id: string; type: "native_animation"; version: 1; sourceSha256: string; stepIndex: number;
+};
+export function isCoursewareNativeAnimation(value: unknown): value is CoursewareNativeAnimation {
+  return fields(value, ["id", "type", "version", "sourceSha256", "stepIndex"]) && id(value.id) &&
+    value.type === "native_animation" && value.version === 1 && typeof value.sourceSha256 === "string" &&
+    /^[a-f0-9]{64}$/u.test(value.sourceSha256) && Number.isInteger(value.stepIndex) &&
+    Number(value.stepIndex) >= 0 && Number(value.stepIndex) < 200;
+}
 
 function educationContext(value: unknown): value is CoursewareEducationContext {
   const texts = ["schoolStage", "grade", "subject", "customSubjectName", "textbookVersion", "chapter", "lessonType", "visualStyle"];
@@ -124,9 +136,11 @@ export function isCoursewareProject(value: unknown): value is CoursewareProject 
       !revision(value.teachingRevision) || !Array.isArray(value.pages) || value.pages.length < 1 || value.pages.length > 100 ||
       (Object.hasOwn(value, "educationContext") && !educationContext(value.educationContext))) return false;
   const pageIds = new Set<string>();
+  const sourceSha256 = value.source.sha256;
   return value.pages.every((page) => {
     if (!fields(page, ["pageId", "actions", "locked", "reviewState"]) || !id(page.pageId) || pageIds.has(page.pageId) || !actions(page.actions) ||
         typeof page.locked !== "boolean" || typeof page.reviewState !== "string" || !["ready", "review"].includes(page.reviewState)) return false;
+    if (page.actions.some(action => action.type === "native_animation" && action.sourceSha256 !== sourceSha256)) return false;
     pageIds.add(page.pageId);
     return true;
   });
@@ -204,7 +218,8 @@ export function checkCoursewareCandidate(
 
 export function checkTeachingWrite(project: CoursewareProject, write: TeachingWrite): "accepted" | "stale" | "locked" | "missing-page" {
   if (project.projectId !== write.projectId || project.source.revision !== write.expectedSourceRevision ||
-      project.teachingRevision !== write.expectedTeachingRevision) return "stale";
+      project.teachingRevision !== write.expectedTeachingRevision ||
+      write.actions.some(action => action.type === "native_animation" && action.sourceSha256 !== project.source.sha256)) return "stale";
   const page = project.pages.find(({ pageId }) => pageId === write.pageId);
   return !page ? "missing-page" : page.locked ? "locked" : "accepted";
 }

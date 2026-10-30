@@ -40,6 +40,10 @@ fn archive_directory(data_dir: &Path) -> Result<PathBuf> {
 }
 
 pub fn verify_archive(data_dir: &Path, hash: &str) -> Result<()> {
+    read_archive(data_dir, hash).map(|_| ())
+}
+
+pub fn read_archive(data_dir: &Path, hash: &str) -> Result<Vec<u8>> {
     anyhow::ensure!(
         hash.len() == 64
             && hash
@@ -55,7 +59,7 @@ pub fn verify_archive(data_dir: &Path, hash: &str) -> Result<()> {
         bytes.len() as u64 <= MAX_INPUT_BYTES && hex::encode(Sha256::digest(&bytes)) == hash,
         "COURSEWARE_CONFLICT: candidate archive bytes changed"
     );
-    Ok(())
+    Ok(bytes)
 }
 
 pub fn verify_live_source(workspace: &Path, path: &Path, hash: &str) -> Result<()> {

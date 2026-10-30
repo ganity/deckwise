@@ -7,10 +7,14 @@ const HISTORY_NAMESPACE: &str = "coursewareHistory.v1";
 
 pub mod asset_locks;
 mod candidates;
+pub mod question;
+pub mod scene_teaching;
 pub mod chat_changes;
 mod identities;
+pub mod native_save;
 pub mod media_scope;
 pub mod music;
+pub mod portable;
 pub mod reviews;
 pub mod scene_objects;
 pub mod snapshots;
@@ -149,6 +153,29 @@ pub(super) fn valid_online_clip(action: &Value) -> bool {
 
 mod attention;
 
+pub(crate) fn valid_teaching_delay(action: &Value) -> bool {
+    action.as_object().is_some_and(|fields| fields.len() == 3)
+        && action["type"] == "delay"
+        && action["id"].as_str().is_some_and(valid_id)
+        && action["durationMs"].as_u64().is_some_and(|ms| ms <= 30000)
+}
+
+pub(crate) fn valid_native_animation(action: &Value) -> bool {
+    action.as_object().is_some_and(|fields| fields.len() == 5)
+        && action["id"].as_str().is_some_and(valid_id)
+        && action["type"] == "native_animation"
+        && action["version"].as_u64() == Some(1)
+        && action["sourceSha256"].as_str().is_some_and(|hash| {
+            hash.len() == 64
+                && hash
+                    .bytes()
+                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        })
+        && action["stepIndex"]
+            .as_u64()
+            .is_some_and(|index| index < 200)
+}
+
 pub(crate) fn valid_teaching_checkpoint(action: &Value) -> bool {
     let id = |value: &Value| {
         value
@@ -177,8 +204,9 @@ pub(crate) fn valid_teaching_checkpoint(action: &Value) -> bool {
     let answer = &action["referenceAnswer"];
     let context = &action["context"];
     action["checkpointKind"] == "chapter_summary"
+        && action.get("response").is_none_or(question::valid)
         && fields(
-            action,
+            &{ let mut clean = action.clone(); clean.as_object_mut().unwrap().remove("response"); clean },
             &[
                 "id",
                 "type",
@@ -219,6 +247,7 @@ fn validate_actions(actions: &[Value]) -> Result<()> {
 
 fn validate_actions_mode(actions: &[Value], online: bool) -> Result<()> {
     let mut ids = std::collections::HashSet::new();
+    let mut native_index = 0;
     if actions.len() > 1000
         || actions.iter().any(|action| {
             let id = action.get("id").and_then(Value::as_str).unwrap_or("");
@@ -233,6 +262,14 @@ fn validate_actions_mode(actions: &[Value], online: bool) -> Result<()> {
                 })
                 || kind == "audio_clip"
                     && !(music::valid_clip(action) || online && valid_online_clip(action))
+                || kind == "delay" && !valid_teaching_delay(action)
+                || kind == "native_animation" && {
+                    let valid = valid_native_animation(action)
+                        && action["stepIndex"].as_u64() == Some(native_index);
+                    native_index += 1;
+                    !valid
+                }
+                || kind == "music_slot" && !music::valid_slot(action)
                 || kind == "video_slot" && !video::valid_slot(action)
                 || kind == "video_clip" && !video::valid_clip(action)
         })
@@ -294,6 +331,9 @@ impl CoursewareProject {
                 return Err(anyhow!("COURSEWARE_INVALID: invalid logical page"));
             }
             validate_actions_mode(&page.actions, online)?;
+            anyhow::ensure!(page.actions.iter().all(|action| action["type"] != "native_animation" ||
+                action["sourceSha256"] == self.source.sha256),
+                "COURSEWARE_CONFLICT: native animation bindings require the exact saved PPTX; remove or rebind them");
         }
         Ok(())
     }

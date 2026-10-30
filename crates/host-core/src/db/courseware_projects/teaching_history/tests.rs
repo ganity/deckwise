@@ -87,6 +87,7 @@ fn deleted_teaching_history_restart_is_read_only_and_never_reuses_audio_cues_or_
                 json!({"id":"old-wait", "type":"interaction_checkpoint", "checkpointId":"old-checkpoint", "checkpointKind":"teacher_continue"}),
                 json!({"id":"old-music", "type":"audio_clip", "audioAssetId":format!("music-{}", "a".repeat(64))}),
                 json!({"id":"old-pending","type":"speech","text":"Look again.","attention":{"type":"spotlight","objectIds":["old-object"]}}),
+                json!({"id":"old-delay","type":"delay","durationMs":1200}),
             ],
         );
         archive(&db, root, &old, 1);
@@ -103,7 +104,10 @@ fn deleted_teaching_history_restart_is_read_only_and_never_reuses_audio_cues_or_
     assert_eq!(entry["omittedAudioCount"], 2);
     assert_eq!(entry["omittedCueCount"], 3);
     let actions = entry["actions"].as_array().unwrap();
-    assert_eq!(actions.len(), 3);
+    assert_eq!(actions.len(), 4);
+    assert_eq!(actions[3]["type"], "delay");
+    assert_eq!(actions[3]["durationMs"], 1200);
+    assert_ne!(actions[3]["id"], "old-delay");
     assert!(actions[2].get("attention").is_none());
     assert_eq!(actions[0]["text"], "Good! Well done.");
     assert_eq!(actions[0]["source"], "external");
@@ -114,6 +118,7 @@ fn deleted_teaching_history_restart_is_read_only_and_never_reuses_audio_cues_or_
         &actions[0]["id"],
         &actions[1]["id"],
         &actions[1]["checkpointId"],
+        &actions[3]["id"],
     ] {
         uuid::Uuid::parse_str(id.as_str().unwrap()).unwrap();
     }

@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { createReadStream, promises as fs } from "node:fs";
 import { basename, dirname, extname, join, relative } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import { getOfficeExtension, assertPptEditorCommand, assertPptEditorContext, assertPptEditorCommandResult, samePptEditorBinding, type PptEditorBinding, type OfficeExtension } from "@pi-desktop/shared";
+import { coursewareTeachingProgress, isCoursewareProject, type CoursewareTeachingProgress, getOfficeExtension, assertPptEditorCommand, assertPptEditorContext, assertPptEditorCommandResult, samePptEditorBinding, type PptEditorBinding, type OfficeExtension } from "@pi-desktop/shared";
 import { jobIdFor, listRevisions, publishRevision, replaceSourceFile, type Revision } from "./ppt-editor-files";
 import { requestPptEditor } from "./ppt-editor-request";
 import { MAX_OFFICE_BYTES, validateOfficeBytes, officeSaveExtension } from "./office-file";
@@ -20,6 +20,12 @@ import { captureSourcePagePreview, sourcePreviewTarget } from "./courseware-page
 const HOST_PAGE = "deckwise-editor://host/index.html";
 const REVISION_DIR = ".deckwise-ppt/revisions";
 
+export type NativeSaveInput = {
+  workspace: string; sourcePath: string; sourceRevisionPath: string; sourceSha256: string;
+  outputPath: string; outputSha256: string; saveRequestId: string; binding: PptEditorBinding; lineage: unknown;
+};
+export type NativeSaveCommit = { commit(): Promise<void>; cancel(): Promise<void> };
+
 export type FadeAuthorization = { editGeneration: number; page: number; sourceHash: string; slideHash: string };
 
 export type PptEditorState = {
@@ -34,6 +40,8 @@ export type PptEditorState = {
   savedPath?: string;
   dirty?: boolean;
   canSave?: boolean;
+  nativeTeaching?: boolean;
+  teachingProgress?: CoursewareTeachingProgress;
 };
 
 function transferableBuffer(bytes: Buffer): ArrayBuffer {
@@ -45,6 +53,13 @@ function transferableBuffer(bytes: Buffer): ArrayBuffer {
 
 export class PptEditorController {
   invalidateFade?: () => void;
+  nativeSave?: (input: NativeSaveInput) => Promise<NativeSaveCommit | undefined>;
+  private saveWaiters = new Set<{ resolve(): void; reject(error: Error): void }>();
+  nativeTeaching?: (payload: unknown) => Promise<unknown>;
+  private nativeTeachingReady = false;
+  private teachingProgress?: { sourceSha256: string; value: CoursewareTeachingProgress };
+  private teachingProgressSequence = 0;
+  private readonly teachingRequests = new Set<string>();
   imageAssets?: { metadata(workspace: string | null): Promise<ReviewedImage | null>; load(assetId: string, workspace: string | null, command?: import("@pi-desktop/shared").PptEditorCommand): Promise<{ asset: ReviewedImage; bytes: Buffer; assertCurrent(): void }> };
   private imageMetadata = "null";
   readonly inspector = new PptxInspector();
@@ -102,6 +117,7 @@ export class PptEditorController {
       this.current.readOnly === readOnly &&
       this.view &&
       this.ready &&
+      !this.saveOutcomeUncertain &&
       !this.view.webContents.isDestroyed()
     ) {
       this.window = window;
@@ -201,6 +217,8 @@ export class PptEditorController {
       }
       this.opening = false;
       this.ready = true;
+      if (this.nativeTeaching && this.editorUrl.protocol === "deckwise-editor:")
+        this.sendCommand("document:teaching-enable", { binding: this.bridgeBinding });
       if (this.visible) this.attach();
       const state = this.state("ready");
       this.emit(state);
@@ -365,6 +383,22 @@ export class PptEditorController {
     }
   }
 
+  async ensureSaved(workspace: string | null): Promise<void> {
+    if (!this.current || this.current.workspaceRoot !== workspace || !this.ready || this.current.readOnly)
+      throw new Error("No writable current PPTX");
+    while (this.dirty || this.pendingSave) {
+      const waiting = new Promise<void>((resolve, reject) => this.saveWaiters.add({ resolve, reject }));
+      try { if (!this.pendingSave) this.save(); }
+      catch (error) { this.finishSaveWaiters(error instanceof Error ? error : new Error(String(error))); }
+      await waiting;
+    }
+  }
+
+  private finishSaveWaiters(error?: Error) {
+    for (const waiter of this.saveWaiters) error ? waiter.reject(error) : waiter.resolve();
+    this.saveWaiters.clear();
+  }
+
   save(): void {
     if (!this.view || !this.current || !this.ready) throw new Error("No ready document editor session");
     if (this.current.readOnly) throw new Error("Document is read-only");
@@ -394,7 +428,7 @@ export class PptEditorController {
     if (this.dirty || this.opening || this.saveOutcomeUncertain) {
       throw new Error("Save or reopen the PPTX before editing teaching");
     }
-    return { ...this.savedPptxSnapshot(), ...binding };
+    return { ...this.savedPptxSnapshot(), ...binding, sourcePath: this.current!.sourcePath };
   }
 
   sourceAdoptionSnapshot(workspaceRoot: string | null) {
@@ -458,13 +492,39 @@ export class PptEditorController {
 
   private readonly onEditorEvent = (
     event: Electron.IpcMainEvent,
-    message: { type?: string; id?: string; bytes?: ArrayBuffer; message?: string | { id?: string; type?: string; payload?: { message?: string; dirty?: boolean; success?: boolean } } },
+    message: { type?: string; id?: string; bytes?: ArrayBuffer; pageLineage?: unknown; message?: string | { id?: string; type?: string; payload?: { message?: string; dirty?: boolean; success?: boolean } } },
   ) => {
     const senderId = event?.sender?.id;
     const viewContents = this.view?.webContents;
     if (senderId === undefined || !viewContents || senderId !== viewContents.id || !message) return;
     const reply = typeof message.message === "object" ? message.message : undefined;
     if (message.type === "message" && reply?.id && this.activeBridgeRequests.has(reply.id)) return;
+    if (reply?.type === "document:teaching-ready" && this.editorUrl.protocol === "deckwise-editor:" && this.nativeTeaching && this.ready) {
+      this.nativeTeachingReady = true;
+      this.emit(this.state("ready"));
+      return;
+    }
+    if (reply?.type === "document:teaching-request" && typeof reply.id === "string" && reply.id && this.nativeTeaching && this.nativeTeachingReady) {
+      const id = reply.id;
+      if (id.length > 200 || this.teachingRequests.has(id) || this.teachingRequests.size >= 32) return;
+      const binding = this.bridgeBinding, sequence = ++this.teachingProgressSequence;
+      this.teachingRequests.add(id);
+      void this.nativeTeaching(reply.payload).then(
+        result => ({ result }), error => ({ error: error instanceof Error ? error.message : String(error) }),
+      ).then(payload => {
+        if (this.view?.webContents !== viewContents || this.bridgeBinding !== binding) return;
+        this.sendCommand("document:teaching-response", payload, id);
+        const result = "result" in payload ? payload.result : undefined;
+        const project = result && typeof result === "object" ? Reflect.get(result, "project") : undefined;
+        if (sequence === this.teachingProgressSequence && isCoursewareProject(project) &&
+            project.source.sha256 === this.current?.savedRevision.sha256) {
+          // Reuse the native response; a second teaching.open would invalidate its editing pin.
+          this.teachingProgress = { sourceSha256: project.source.sha256, value: coursewareTeachingProgress(project) };
+          if (this.ready && !this.dirty && !this.pendingSave && !this.saveOutcomeUncertain) this.emit(this.state("ready"));
+        }
+      }).finally(() => this.teachingRequests.delete(id));
+      return;
+    }
     if (reply?.type === "document:dirty-changed" && typeof reply.payload?.dirty === "boolean") {
       this.dirty = reply.payload.dirty;
       if (this.dirty) this.invalidateFade?.();
@@ -477,6 +537,7 @@ export class PptEditorController {
           typeof reply.payload?.dirty !== "boolean" || reply.payload.success !== !pending.error) return;
       this.dirty = reply.payload.dirty;
       this.clearPendingSave();
+      this.finishSaveWaiters(pending.error ? new Error(pending.error) : undefined);
       this.emit(pending.error
         ? { ...this.state("error"), message: pending.error }
         : this.state(this.dirty ? "ready" : "saved"));
@@ -487,6 +548,7 @@ export class PptEditorController {
         if ((reply && reply.id !== this.pendingSave.id) || this.pendingSave.phase === "writing") return;
         this.saveOutcomeUncertain = true;
         this.clearPendingSave();
+        this.finishSaveWaiters(new Error(reply?.payload?.message || "PPT save failed"));
       } else if (reply?.id && !this.opening) return;
       this.emit({
         ...this.state("error"),
@@ -517,6 +579,15 @@ export class PptEditorController {
         expectedRevision: current.revision.revision,
       });
       current.revision = revision;
+      let synchronized: NativeSaveCommit | undefined;
+      let installed = false;
+      try {
+        if (this.nativeSave && current.extension === "pptx") synchronized = await this.nativeSave({
+          workspace: current.workspaceRoot, sourcePath: current.sourcePath,
+          sourceRevisionPath: current.savedRevision.documentPath, sourceSha256: current.sourceHash,
+          outputPath: revision.documentPath, outputSha256: revision.sha256,
+          saveRequestId: pending.id, binding: this.bridgeBinding!, lineage: message.pageLineage,
+        });
       const extension = officeSaveExtension(current.extension);
       const target = extension === current.extension
         ? current.sourcePath
@@ -529,6 +600,13 @@ export class PptEditorController {
       } else await fs.writeFile(target, bytes, { flag: "wx" });
       current.savedPath = relative(current.workspaceRoot, target);
       current.savedRevision = revision;
+      installed = true;
+      await synchronized?.commit();
+      } catch (error) {
+        if (installed) this.saveOutcomeUncertain = true;
+        else await synchronized?.cancel();
+        throw error;
+      }
     })().catch((error) => {
       pending.error = error instanceof Error ? error.message : String(error);
     }).then(() => {
@@ -550,6 +628,7 @@ export class PptEditorController {
     this.saveTimer = setTimeout(() => {
       this.saveOutcomeUncertain = true;
       this.clearPendingSave();
+      this.finishSaveWaiters(new Error("Save confirmation timed out"));
       this.emit({ ...this.state("error"), message: "Save confirmation timed out; inspect the file before reopening. Do not retry blindly." });
     }, timeout);
     this.saveTimer.unref();
@@ -560,6 +639,10 @@ export class PptEditorController {
     return {
       status,
       dirty: this.dirty,
+      nativeTeaching: this.nativeTeachingReady,
+      ...(!this.dirty && !this.pendingSave && !this.saveOutcomeUncertain &&
+        this.teachingProgress?.sourceSha256 === this.current?.savedRevision.sha256 && this.teachingProgress
+        ? { teachingProgress: this.teachingProgress.value } : {}),
       canSave: this.ready && !this.saveOutcomeUncertain && !this.current?.readOnly,
       ...(this.current ? { path: relative(this.current.workspaceRoot, this.current.sourcePath), readOnly: this.current.readOnly, savedPath: this.current.savedPath } : {}),
       ...(revision
@@ -640,6 +723,11 @@ export class PptEditorController {
   }
 
   private closeView(): void {
+    this.finishSaveWaiters(new Error("Editor closed"));
+    this.nativeTeachingReady = false;
+    this.teachingProgress = undefined;
+    this.teachingProgressSequence++;
+    this.teachingRequests.clear();
     this.invalidateFade?.();
     this.imageMetadata = "null";
     this.inspector.stop();

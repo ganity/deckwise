@@ -68,6 +68,7 @@ impl Database {
         Ok(())
     }
     pub fn ensure_no_source_adoption(&self, workspace: &str) -> Result<()> {
+        self.ensure_no_native_save(workspace)?;
         anyhow::ensure!(
             self.kv_get(LOCKS, &storage_key(workspace, "source-adoption")?)?
                 .is_none(),
@@ -103,6 +104,27 @@ impl Database {
 
     pub fn get_source_adoption(&self, workspace: &str, project_id: &str) -> Result<Value> {
         Ok(self.source_adoption(workspace, project_id)?.view())
+    }
+
+    /// Resolve the existing workspace lock, never infer a durable project ID from a file name.
+    pub fn source_adoption_for_path(&self, workspace: &str, path: &str) -> Result<Option<Value>> {
+        let Some(lock) = self.kv_get(LOCKS, &storage_key(workspace, "source-adoption")?)? else {
+            return Ok(None);
+        };
+        let key = lock
+            .as_str()
+            .ok_or_else(|| anyhow!("COURSEWARE_INVALID: invalid source adoption lock"))?;
+        let (_, project_id): (String, String) = serde_json::from_str(key)?;
+        anyhow::ensure!(
+            storage_key(workspace, &project_id)? == key,
+            "COURSEWARE_CONFLICT: adoption lock belongs to another workspace"
+        );
+        let journal = self.source_adoption(workspace, &project_id)?;
+        anyhow::ensure!(
+            journal.phase == Phase::Pending,
+            "COURSEWARE_CONFLICT: adoption lock has no pending journal"
+        );
+        Ok((journal.source_path.as_deref() == Some(path)).then(|| journal.view()))
     }
 
     #[cfg(test)]
