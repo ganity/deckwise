@@ -114,6 +114,67 @@ function fixture(target: "visualMaster" | "cleanPlate" = "cleanPlate", startTool
   return { runtime, agent, calls, events, saved, contexts, toolCounts, requests: () => requests, checkpoint: () => checkpoint };
 }
 
+it('keeps planning tools available after shell reads and repairs the first invalid draft before human review', async () => {
+  const f = fixture();
+  let valid = false;
+  const executed: string[] = [];
+  const execute = f.runtime['host'].call.bind(f.runtime['host']);
+  f.runtime['host'].call = async <T>(method: string, params: unknown): Promise<T> => {
+    if (method === 'project.instructions.resolve') return undefined as T;
+    if (method !== 'tools.execute') return execute<T>(method, params);
+    const { toolName, args } = params as { toolName: string; args: Record<string, unknown> };
+    executed.push(toolName);
+    if (toolName === 'Bash') return { ok: true, content: 'Reference plan' } as T;
+    if (toolName === 'Write') { valid = args.content === 'corrected'; return { ok: true, content: 'Written' } as T; }
+    if (toolName === 'courseware_scene_plan_submit') return (valid
+      ? { ok: true, content: { validated: true, awaitingPlanApproval: true, sha256 } }
+      : { ok: false, content: { error: 'Question and choices must be visible on scene page 1' } }) as T;
+    return execute<T>(method, params);
+  };
+  const script: Array<{ name: string; arguments: Record<string, string> }> = [
+    { name: 'ToolSearch', arguments: { query: 'courseware_scene_plan_submit' } },
+    { name: 'Bash', arguments: { command: 'cat .deckwise-ppt/scenes/chat/plan.json 2>/dev/null | head -50' } },
+    { name: 'Bash', arguments: { command: 'cat .deckwise-ppt/scenes/reference/plan.json | head -60' } },
+    { name: 'Write', arguments: { path: '.deckwise-ppt/scenes/chat/plan.json', content: 'invalid' } },
+    { name: 'Bash', arguments: { command: 'cat .deckwise-ppt/scenes/chat/plan.json' } },
+    { name: 'Write', arguments: { path: '.deckwise-ppt/scenes/chat/plan.json', content: 'corrected' } },
+    { name: 'courseware_scene_plan_submit', arguments: {} },
+  ];
+  let requests = 0;
+  const declarations: string[][] = [];
+  const contexts: string[] = [];
+  f.agent.streamFunction = (_model, context) => {
+    const call = script[requests++];
+    if (requests > script.length + 1) void f.runtime.abort();
+    declarations.push(getCurrentTools(context.messages).map(tool => tool.name));
+    contexts.push(JSON.stringify(context.messages));
+    const message: AssistantMessage = { role: 'assistant', api: 'openai-completions', provider: 'local', model: 'fixture',
+      timestamp: Date.now(), stopReason: call ? 'toolUse' : 'stop',
+      content: call ? [{ type: 'toolCall', id: `call-${requests}`, ...call }] : [{ type: 'text', text: 'Please review the draft.' }],
+      usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, totalTokens: 2,
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } };
+    const stream = createAssistantMessageEventStream();
+    queueMicrotask(() => {
+      stream.push({ type: 'start', partial: message });
+      stream.push({ type: 'done', reason: call ? 'toolUse' : 'stop', message });
+      stream.end(message);
+    });
+    return stream;
+  };
+  try {
+    await f.runtime.prompt('Create the Greetings scene draft.', 'user', 'turn');
+    expect(executed.filter(name => name === 'Write'), JSON.stringify(executed)).toHaveLength(2);
+    expect(contexts[4]).toContain('Question and choices must be visible on scene page 1');
+    expect(contexts.at(-1)).toContain('awaiting the existing human plan review');
+    expect(declarations.at(-1)).toEqual([]);
+    expect(requests).toBe(script.length + 1);
+    for (const [index, call] of script.entries()) expect(declarations[index]).toContain(call.name);
+    expect(executed.every(name => ['Write', 'Bash', 'courseware_scene_plan_submit'].includes(name))).toBe(true);
+    expect(f.events.filter(event => event.event.type === 'agent_end')).toHaveLength(1);
+    expect(f.events.filter(event => event.event.type === 'error')).toEqual([]);
+  } finally { await f.runtime.dispose(); }
+});
+
 it.each(["stop", "steer"] as const)("fences an old batch's remaining generation calls after %s", async action => {
   const f = fixture();
   const stream = f.agent.streamFunction!;

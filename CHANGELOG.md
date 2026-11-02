@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Keep scene-planning corrections available after reading draft/reference files.
+  Detect plan mutations from Write/Edit target paths instead of shell commands
+  or file contents; retain validation and human plan/style approval.
+
 - Validate scene drafts before closing planning, stop completed courses at the
   tool-result boundary, and summarize final media status. Repair missing character
   focus without replacing saved speech/audio or purchasing new TTS.

@@ -546,6 +546,12 @@ validation failure. Revalidating an unchanged draft or a failed edit does not
 consume it. Failed partial edits direct the model to reread and rewrite the draft
 while retaining required fields and explicit requirements. Both plan approval
 and first-page visual-master approval remain required human decisions.
+Only Write/Edit target paths identify a draft mutation, including the legacy
+`file_path` alias. Shell reads of current or reference drafts, unrelated file
+contents mentioning a draft path, and backup files neither start planning recovery
+nor consume corrections. Shell-authored drafts still require the explicit submit
+tool; command text alone is not evidence of a draft mutation. While recovery is
+active, shell reads do not trigger another automatic validation.
 
 For an authorized complete-course run, a successful media-context tool result
 with no original pending jobs and Host `completion.ready:true` enters saved

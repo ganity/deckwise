@@ -149,6 +149,36 @@ it('does not exhaust planning corrections on unchanged submissions or a failed e
   expect(final).toContain('awaiting the existing human plan review');
 });
 
+it.each(['path', 'file_path'])('preserves both corrections when shell reads precede the first invalid scene draft using %s', async pathKey => {
+  const continuation = new CoursewareTurnContinuation();
+  const makeTurn = (name: string, args: Record<string, string>): AgentTurnContext => ({
+    context: { messages: [] }, newMessages: [],
+    message: { role: 'assistant', api: 'openai-completions', provider: 'fixture', model: 'fixture', timestamp: 0,
+      stopReason: 'toolUse', content: [{ type: 'toolCall', id: 'call', name, arguments: args }],
+      usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0,
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } },
+    toolResults: [{ role: 'toolResult', toolCallId: 'call', toolName: name, content: [], isError: false, timestamp: 0 }],
+  });
+  const execute = vi.fn(async () => { throw new Error('Question and choices must be visible on scene page 1'); });
+  const controls = { execute, canWait: () => true };
+  await continuation.finish(makeTurn('Write', { path: 'notes.md', content: '.deckwise-ppt/scenes/chat/plan.json' }), controls);
+  await continuation.finish(makeTurn('Write', { path: '.deckwise-ppt/scenes/chat/plan.json.backup', content: '{}' }), controls);
+  await continuation.finish(makeTurn('Bash', { command: 'cat .deckwise-ppt/scenes/chat/plan.json 2>/dev/null | head -50' }), controls);
+  await continuation.finish(makeTurn('Bash', { command: 'cat .deckwise-ppt/scenes/reference/plan.json | head -60' }), controls);
+  const write = makeTurn('Write', { [pathKey]: '.deckwise-ppt/scenes/chat/plan.json', content: '{}' });
+  expect(await continuation.finish(write, controls)).toContain('not ready for review');
+  expect(continuation.reportOnly).toBe(false);
+  expect(execute).toHaveBeenCalledTimes(1);
+  await continuation.finish(makeTurn('Bash', { command: 'cat .deckwise-ppt/scenes/chat/plan.json' }), controls);
+  expect(execute).toHaveBeenCalledTimes(1);
+  expect(await continuation.finish(write, controls)).toContain('not ready for review');
+  expect(continuation.reportOnly).toBe(false);
+  const valid = { canWait: () => true, execute: async () => ({ content: [], details: { validated: true, awaitingPlanApproval: true } }) };
+  await continuation.finish(write, valid);
+  const closing = { ...write, message: { ...write.message, stopReason: 'stop' as const, content: [{ type: 'text' as const, text: 'Draft ready' }] }, toolResults: [] };
+  expect(await continuation.finish(closing, valid)).toContain('awaiting the existing human plan review');
+});
+
 it('keeps validation failure active even when a plan write was not observed', async () => {
   const continuation = new CoursewareTurnContinuation();
   const turn: AgentTurnContext = { context: { messages: [] }, newMessages: [], message: { role: 'assistant',

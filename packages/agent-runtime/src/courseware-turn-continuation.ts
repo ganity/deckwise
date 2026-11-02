@@ -71,8 +71,10 @@ export class CoursewareTurnContinuation {
   private observe(turn: AgentTurnContext): void {
     for (const result of turn.toolResults) {
       const write = turn.message.content.find(block => block.type === "toolCall" && block.id === result.toolCallId);
-      if (["Write", "Edit", "Bash"].includes(result.toolName) && write?.type === "toolCall" &&
-          /\.deckwise-ppt[\\/]scenes[\\/][A-Za-z0-9_-]+[\\/]plan\.json/u.test(JSON.stringify(write.arguments))) {
+      const path = write?.type === "toolCall" ? write.arguments.path ?? write.arguments.file_path : undefined;
+      // Shell arguments can merely read a reference plan; explicit submission covers shell-authored drafts.
+      if (["Write", "Edit"].includes(result.toolName) && typeof path === "string" &&
+          /(?:^|[\\/])\.deckwise-ppt[\\/]scenes[\\/][A-Za-z0-9_-]+[\\/]plan\.json$/u.test(path)) {
         this.planning = true;
         if (!result.isError && this.planRepairPending) { this.planRepairs++; this.planRepairPending = false; }
       }
@@ -129,7 +131,7 @@ export class CoursewareTurnContinuation {
     this.observe(turn);
     if (this.planning && controls.canWait() && turn.message.stopReason !== "error" && turn.message.stopReason !== "aborted" &&
         (!turn.message.content.some(block => block.type === "toolCall") || turn.toolResults.some(result =>
-          ["Write", "Edit", "Bash", "courseware_scene_plan_submit"].includes(result.toolName)))) {
+          ["Write", "Edit", "courseware_scene_plan_submit"].includes(result.toolName)))) {
       try {
         const result = await controls.execute("courseware_scene_plan_submit", {}, signal);
         if (result.isError || !record(result.details) || result.details.validated !== true)

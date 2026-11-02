@@ -44,6 +44,12 @@ below predate automatic continuation and do not describe this workspace UI.
 
 ## E2E-COURSEWARE-correction-stop-and-idle
 
+- Read missing/current and reference `plan.json` files through Bash before the
+  first Write. Fail validation on that first draft: retain tool declarations and
+  both corrections. Read the draft again, correct it with Write and explicitly
+  submit. End at human plan review without approving or generating any assets.
+  Writing notes that mention a plan path or writing a backup must not activate
+  recovery. Cover both `path` and the legacy `file_path` alias.
 - Fail draft validation, repeat submit without writing, then fail a partial edit.
   The repair budget must remain available. Correct the draft with a successful
   write and require human plan approval; do not automatically approve either the
