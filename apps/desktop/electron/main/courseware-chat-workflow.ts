@@ -79,7 +79,7 @@ export class CoursewareChatWorkflow {
       return this.read(sessionId, canDispatch);
     }
     const images = new CoursewareSceneImages(() => this.getHost(),
-      () => { check(); return sessionId; }, () => !canDispatch(), this.auth);
+      () => { check(); return sessionId; }, () => !canDispatch(), this.auth, this.generation?.planVisualMaster);
     if (name === "courseware_workflow_get") {
       if (Object.keys(input).length) throw new Error("Unexpected workflow read arguments");
       if (!view.plan || view.plan.approvedSha256 !== view.plan.sha256) return { ...view, images: [], models: [], blockers: [] };

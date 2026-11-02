@@ -85,7 +85,7 @@ export function mediaTask<K extends MediaKind>(value: unknown, expected: MediaTa
 }
 
 export function imageRequest(input: unknown): CoursewareImageRequest {
-  if (!exact(input, ["kind", "model", "input"], ["referenceImage"]) || !["image", "image-layers"].includes(String(input.kind)) || !id(input.model) ||
+  if (!exact(input, ["kind", "model", "input"], ["referenceImage", "parameters"]) || !["image", "image-layers"].includes(String(input.kind)) || !id(input.model) ||
       typeof input.input !== "string" || !input.input.trim() || input.input.length > 4000 ||
       Buffer.from(input.input, "utf8").toString("utf8") !== input.input) throw new Error("COURSEWARE_MEDIA_INVALID_REQUEST");
   const ref = input.referenceImage;
@@ -102,5 +102,13 @@ export function imageRequest(input: unknown): CoursewareImageRequest {
       throw new Error("COURSEWARE_MEDIA_INVALID_REQUEST");
   }
   if (input.kind === "image-layers" && ref === undefined) throw new Error("COURSEWARE_MEDIA_REFERENCE_REQUIRED");
-  return { kind: input.kind as CoursewareImageRequest["kind"], model: input.model, input: input.input, ...(ref === undefined ? {} : { referenceImage: { ...ref } as CoursewareImageReference }) };
+  const parameters = input.parameters;
+  if (parameters !== undefined && (!record(parameters) || Object.keys(parameters).length < 1 ||
+      Object.entries(parameters).some(([key, value]) => key === "watermark" ? typeof value !== "boolean" :
+        !["quality", "image_size", "aspect_ratio", "resolution", "size", "output_format", "response_format"].includes(key) ||
+        typeof value !== "string" || !value.length || value.length > 128 || /\p{Cc}/u.test(value))))
+    throw new Error("COURSEWARE_MEDIA_INVALID_REQUEST");
+  return { kind: input.kind as CoursewareImageRequest["kind"], model: input.model, input: input.input,
+    ...(ref === undefined ? {} : { referenceImage: { ...ref } as CoursewareImageReference }),
+    ...(parameters === undefined ? {} : { parameters: { ...parameters } }) };
 }

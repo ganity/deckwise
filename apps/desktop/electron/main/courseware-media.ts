@@ -10,7 +10,8 @@ export type CoursewareTtsRequest = { kind: "tts"; model: string; input: string; 
 export type CoursewareTtsQuote = MediaQuote<"tts">;
 export type CoursewareImageQuote = MediaQuote<"image" | "image-layers">;
 export type CoursewareImageReference = { sha256: string; mimeType: "image/png" | "image/jpeg"; byteLength: number; bytesBase64: string };
-export type CoursewareImageRequest = { kind: "image" | "image-layers"; model: string; input: string; referenceImage?: CoursewareImageReference };
+export type CoursewareImageParameters = Partial<Record<"quality" | "image_size" | "aspect_ratio" | "resolution" | "size" | "output_format" | "response_format", string>> & { watermark?: boolean };
+export type CoursewareImageRequest = { kind: "image" | "image-layers"; model: string; input: string; referenceImage?: CoursewareImageReference; parameters?: CoursewareImageParameters };
 export type CoursewareTeamFixedFile = { path: string; sha256: string; mimeType: string; byteLength: number };
 export type CoursewareTeamFixedPlayback = {
   pointer: { projectId: string; channel: string; buildId: string; snapshotId: string; packageSha256: string; version: number };
@@ -88,6 +89,7 @@ function request(input: unknown): CoursewareTtsRequest {
 function requestHash(input: CoursewareTtsRequest | CoursewareImageRequest): string {
   const fields = [input.kind, input.model, input.input, input.kind === "tts" ? input.voice ?? null : null];
   if ((input.kind === "image" || input.kind === "image-layers") && input.referenceImage) fields.push(input.referenceImage.sha256, input.referenceImage.mimeType, String(input.referenceImage.byteLength));
+  if (input.kind !== "tts" && input.parameters) fields.push(JSON.stringify(input.parameters, Object.keys(input.parameters).sort()));
   const canonical = fields.reduce<string>((text, field) => `${text}:${field === null ? -1 : field.length}:${field ?? ""}`, "courseware-media-v1");
   return createHash("sha256").update(canonical, "utf8").digest("hex");
 }

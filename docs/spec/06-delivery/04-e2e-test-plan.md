@@ -17333,3 +17333,38 @@ remain separate checks. See [repair evidence](2026-11-01-scene-workflow-repairs.
   Main workflow tests and Host `missing_focus_repair_*` pass. Run the provider-free
   workflow contract gate on the current checkout; do not substitute paid reruns.
 - Milestone: none (maintenance). Status: automated regression coverage.
+
+### CW-IMAGE-MAIC-01: 1280x800 visual-master planning
+
+- Approve a scene plan with exact visible text and required characters. Verify
+  the actual image request uses high quality and `image_size: 1280x800`, without
+  2K resolution or a 16:9 ratio override.
+- Correct the cover in Chat. Preserve the approved plan; include the correction
+  in art planning, and retain human cover selection before later pages.
+- Generate a later page from the accepted cover. Reference only its style and
+  recurring character identities; preserve the target page's text and subjects.
+- Interrupt before planning completes, restart, and resume prepared generation.
+  Preserve the correction and intent, complete planning before a paid POST, and
+  reuse the completed prompt on subsequent prepare/status calls.
+- Return invalid planner JSON or oversized output twice. Retain a deterministic
+  page prompt; never drop required text, loop indefinitely or create extra image
+  purchases. Changing approval/account/reference during planning prevents dispatch.
+- Verify the 1280x800 master and decomposed layers in preview and PPTX export.
+  Keep existing historical image receipts unchanged. Offline contract coverage
+  and live supplier acceptance are distinct; see the MAIC alignment record.
+
+### E2E-COURSEWARE-caller-owned-image-parameters
+
+- On `feat/courseware-par-A`, generate a new scene master and a canvas image;
+  assert Desktop supplies high quality and 1280x800 parameters explicitly.
+- Prepare decomposition from a reviewed master; assert the private JPEG input
+  is encoded at quality 95 with original dimensions before durable begin.
+  Restart Desktop and retry a definitively failed task; assert the same wire
+  bytes, parameters and selected source are retained.
+- Capture local fake-provider requests: caller-supplied alternate sizes pass
+  through the gateway, omitted options are not populated, and generation count
+  or routing overrides are rejected. Changing options changes the request hash;
+  an existing idempotency key never dispatches another paid request.
+- Run the Desktop and gateway updates together; legacy receipts remain readable
+  without regeneration. No paid provider or installed-app acceptance is implied
+  by local fake-provider tests.

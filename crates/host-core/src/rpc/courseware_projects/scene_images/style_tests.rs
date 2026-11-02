@@ -1,6 +1,40 @@
 use super::*;
 
 #[tokio::test]
+async fn desktop_pins_provider_parameters_and_normalized_reference_without_changing_reviewed_source() {
+    let mut f = Fixture::new().await;
+    let master = f.submitted("image-model", "scene-001").await;
+    assert_eq!(master["intent"]["request"]["parameters"], json!({"image_size":"1280x800","quality":"high"}));
+    let stage = f.stage(&master);
+    let source = stage["asset"]["sha256"].clone();
+    f.call("courseware.sceneImage.asset.stage", stage).await.unwrap();
+    let mut adopt = f.operation(&master);
+    adopt["expectedSelectedIntentId"] = Value::Null;
+    f.call("courseware.sceneImage.asset.adopt", adopt).await.unwrap();
+    let mut prepare = f.prepare();
+    prepare["model"] = json!("seedream-layers");
+    prepare["target"] = json!({"kind":"cleanPlate"});
+    prepare["decomposition"] = json!(true);
+    prepare["referenceIntentId"] = master["intent"]["intentId"].clone();
+    // Main owns full native decoding/encoding; Host checks and archives the exact wire bytes.
+    let jpeg = b"\xff\xd8\xffdesktop-encoded-reference\xff\xd9";
+    prepare["referenceInput"] = json!({"sourceSha256":source,"bytesBase64":STANDARD.encode(jpeg)});
+    let mut forged = prepare.clone();
+    forged["referenceInput"]["sourceSha256"] = json!("a".repeat(64));
+    assert!(f.call("courseware.sceneImage.prepare", forged).await.is_err());
+    let layer = f.call("courseware.sceneImage.prepare", prepare.clone()).await.unwrap();
+    assert_eq!(layer["intent"]["sourceReferenceImage"]["sha256"], source);
+    assert_eq!(layer["intent"]["request"]["referenceImage"]["sha256"], hex::encode(Sha256::digest(jpeg)));
+    assert_eq!(layer["intent"]["request"]["parameters"], json!({"size":"2K","output_format":"png","response_format":"url","watermark":false}));
+    f.restart().await;
+    let saved = f.call("courseware.sceneImage.reference.get", f.operation(&layer)).await.unwrap();
+    assert_eq!(std::fs::read(saved["path"].as_str().unwrap()).unwrap(), jpeg);
+    assert_eq!(f.call("courseware.sceneImage.prepare", prepare).await.unwrap(), layer);
+    let original = f.call("courseware.sceneImage.asset.get", f.operation(&master)).await.unwrap();
+    assert_eq!(original["intent"]["asset"]["sha256"], source);
+}
+
+#[tokio::test]
 async fn explicit_decomposition_retry_uses_maic_prompt_and_keeps_legacy_receipt_and_reference() {
     let mut f = Fixture::new().await;
     let master = f.submitted("image-model", "scene-001").await;
@@ -341,6 +375,7 @@ async fn course_visual_bible_is_reviewed_persisted_and_included_in_master_prompt
 #[test]
 fn reference_request_hash_matches_desktop_and_java_fixture_without_changing_legacy_hash() {
     let mut request = ImageRequest {
+        parameters: None,
         kind: "image".into(),
         model: "scene-image".into(),
         input: "A bright classroom. 小朋友😀".into(),
@@ -350,6 +385,9 @@ fn reference_request_hash_matches_desktop_and_java_fixture_without_changing_lega
         request.hash(),
         "44ecfadd1f67a10194854070a668f25f21da00c98905a78465c6f68bc4523da5"
     );
+    request.parameters = Some(json!({"quality":"high","image_size":"1280x800"}));
+    assert_eq!(request.hash(), "4e7b648731d7c0830a04c077e45abe21f364705992c136b2a86d4808dac14240");
+    request.parameters = None;
     request.reference_image = Some(ReferenceImage {
         sha256: "d8aeb7b31114535bbf9035568464d5eb3dadfabaa70525a487d2c04571203426".into(),
         mime_type: "image/png".into(),
@@ -524,4 +562,92 @@ async fn visual_master_preserves_required_group_and_names_without_unrelated_cont
     assert!(prompt.contains("identity guide, not a cast list for every page"));
     assert!(prompt.contains("Bright clay 3D"));
     assert!(prompt.encode_utf16().count() <= 4000);
+}
+
+#[tokio::test]
+async fn planned_master_prompt_is_checked_pinned_and_reused_after_restart() {
+    let mut f = Fixture::new().await;
+    let mut request = f.prepare();
+    request["planningRequired"] = json!(true);
+    let prepared = f
+        .call("courseware.sceneImage.prepare", request.clone())
+        .await
+        .unwrap();
+    assert!(f
+        .call("courseware.sceneImage.begin", f.operation(&prepared))
+        .await
+        .is_err());
+    request["plannedPrompt"] = json!({"sourceRequestHash":prepared["intent"]["requestHash"],"input":"1280x800 16:10: 圆 Circle"});
+    let mut invalid = request.clone();
+    invalid["plannedPrompt"]["input"] = json!("Omitted teaching text");
+    assert!(f
+        .call("courseware.sceneImage.prepare", invalid)
+        .await
+        .is_err());
+    let mut stale = request.clone();
+    stale["plannedPrompt"]["sourceRequestHash"] = json!("b".repeat(64));
+    assert!(f
+        .call("courseware.sceneImage.prepare", stale)
+        .await
+        .is_err());
+    let planned = f
+        .call("courseware.sceneImage.prepare", request.clone())
+        .await
+        .unwrap();
+    assert_eq!(
+        planned["intent"]["intentId"],
+        prepared["intent"]["intentId"]
+    );
+    assert_ne!(
+        planned["intent"]["requestHash"],
+        prepared["intent"]["requestHash"]
+    );
+    assert_ne!(
+        planned["intent"]["idempotencyKey"],
+        prepared["intent"]["idempotencyKey"]
+    );
+    assert_eq!(
+        planned["intent"]["sourcePrompt"],
+        prepared["intent"]["request"]["input"]
+    );
+    f.restart().await;
+    assert_eq!(
+        f.call("courseware.sceneImage.prepare", f.prepare())
+            .await
+            .unwrap(),
+        planned
+    );
+    request["plannedPrompt"]["input"] = json!("A different nondeterministic direction: 圆 Circle");
+    assert_eq!(
+        f.call("courseware.sceneImage.prepare", request)
+            .await
+            .unwrap(),
+        planned
+    );
+    f.call("courseware.sceneImage.begin", f.operation(&planned))
+        .await
+        .unwrap();
+    let latest = f
+        .call("courseware.sceneImage.prepare", f.prepare())
+        .await
+        .unwrap();
+    assert_eq!(latest["intent"]["request"], planned["intent"]["request"]);
+}
+
+#[tokio::test]
+async fn an_existing_submitted_master_cannot_be_replanned() {
+    let f = Fixture::new().await;
+    let submitted = f.submit(f.prepare()).await;
+    let mut request = f.prepare();
+    request["plannedPrompt"] = json!({"sourceRequestHash":submitted["intent"]["requestHash"],"input":"1280x800: 圆 Circle"});
+    assert!(f
+        .call("courseware.sceneImage.prepare", request)
+        .await
+        .is_err());
+    assert_eq!(
+        f.call("courseware.sceneImage.get", f.operation(&submitted))
+            .await
+            .unwrap(),
+        submitted
+    );
 }

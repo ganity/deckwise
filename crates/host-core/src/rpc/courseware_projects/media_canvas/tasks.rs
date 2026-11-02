@@ -310,6 +310,7 @@ pub(super) async fn handle(
             .filter(|model| id(model))
             .ok_or_else(|| invalid("Invalid image model"))?;
         let request = ImageRequest {
+            parameters: Some(ImageRequest::default_parameters(false)),
             kind: "image".into(),
             model,
             input: draft.prompt.clone(),

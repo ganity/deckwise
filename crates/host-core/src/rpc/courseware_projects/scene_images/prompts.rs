@@ -17,12 +17,22 @@ pub(super) fn build(
     referenced: bool,
     instructions: &str,
 ) -> String {
+    let objects = page
+        .teaching
+        .as_ref()
+        .map(|teaching| &teaching.required_objects);
     let mut prompt = if decomposition {
         LAYER_PROMPT.to_owned()
     } else {
         format!("Lesson context (not extra display text): {}. Page context: {}.\nPage visual storytelling: {}\n{}", plan.title, page.title, page.visual_intent, target.prompt())
     };
     if matches!(target, Target::VisualMaster {}) {
+        if let Some(objects) = objects.filter(|objects| !objects.is_empty()) {
+            prompt.push_str(&format!("\nRequired visual subjects (EXACTLY {} items, no more, no less): {}. Show each exactly once; do not omit, merge, duplicate or substitute any subject.", objects.len(), objects.join("; ")));
+            if objects.len() >= 3 {
+                prompt.push_str(" Keep each as a separate non-touching full-body silhouette with background gutters, at most 45% of canvas height. No detached shadows, motion lines, glow or accents around movable subjects.");
+            }
+        }
         prompt.push_str(&format!(
             "\n{COMPOSITION}\n{BACKGROUND}\n{SEPARATION}\n{CONTENT}"
         ));
@@ -34,7 +44,7 @@ pub(super) fn build(
                 bible.art_direction, bible.characters, bible.setting
             ));
         } else if matches!(target, Target::VisualMaster {}) {
-            prompt.push_str("\nArt direction: follow the user-requested medium, materials, palette and lighting in the page brief. Do not impose watercolor, crayon or hand-painted textures. Keep expressive subjects and large readable teaching objects.");
+            prompt.push_str("\nArt direction: follow the user-requested medium, materials, palette and lighting in the page brief. When no medium is specified, use premium hand-painted kindergarten picture-book illustration with rounded silhouettes, expressive faces, warm depth and large readable teaching objects. Keep expressive subjects and large readable teaching objects.");
         }
         if matches!(target, Target::VisualMaster {}) && referenced {
             prompt.push_str("\nUse the reference image ONLY for art style and recurring character identity, including materials, lighting, proportions and outfits. Follow this page's subjects and action; do not copy reference text, character count or composition.");
@@ -114,6 +124,6 @@ mod tests {
         legacy.visual_bible = None;
         let prompt = build(&legacy, &page, &Target::VisualMaster {}, false, false, "");
         assert!(prompt.contains("follow the user-requested medium"));
-        assert!(!prompt.contains("premium hand-painted educational picture-book"));
+        assert!(prompt.contains("premium hand-painted kindergarten picture-book"));
     }
 }

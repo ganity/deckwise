@@ -1,6 +1,7 @@
 use super::*;
 use crate::db::courseware_projects::tts::{request_hash, Phase, RejectedRequest, Request, TaskRef};
 use sha2::{Digest, Sha256};
+use base64::Engine as _;
 
 pub(super) mod assets;
 mod prompts;
@@ -30,6 +31,24 @@ struct Prepare {
     reference_intent_id: Option<String>,
     #[serde(default)]
     decomposition: bool,
+    #[serde(default)]
+    planning_required: bool,
+    planned_prompt: Option<PlannedPrompt>,
+    reference_input: Option<ReferenceInput>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ReferenceInput {
+    source_sha256: String,
+    bytes_base64: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct PlannedPrompt {
+    source_request_hash: String,
+    input: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -61,7 +80,7 @@ impl Target {
 
     fn prompt(&self) -> String {
         match self {
-            Self::VisualMaster {} => "Create one polished full-bleed teaching-slide visual master including the final composition, exact display text and main visual. Follow the course art direction. Preserve recurring character anatomy, proportions, markings, clothes, materials, palette and lighting. Show only page-required subjects, each exactly once; no duplicate mascots, character badges, decorative animals, logos or watermarks. Keep the default setting unless this page requires a teaching-related location change.".into(),
+            Self::VisualMaster {} => "Use case: scientific-educational. Create one polished full-bleed 16:10 kindergarten storybook teaching-slide illustration, 1280x800, including the final composition, exact display text and main visual. Follow the course art direction. Preserve recurring character anatomy, proportions, markings, clothes, materials, palette and lighting. Show only page-required subjects, each exactly once; no duplicate mascots, character badges, decorative animals, logos or watermarks. Keep the default setting unless this page requires a teaching-related location change.".into(),
             Self::CleanPlate {} => "Create ONLY a clean, empty environment background for this page. Match the scene's art direction. Remove all teaching objects, characters, foreground props, text, labels, letters and watermarks; these will be added as separate editable objects. Do not render a complete slide.".into(),
             Self::Layer { name } => format!("Create ONLY the isolated foreground asset named {name:?}, in the scene's art direction. Transparent PNG background, visible isolated subject, no surrounding scene, floor, text, labels, letters or watermark. Do not render a complete slide; this asset will be placed as an independent editable object."),
         }
@@ -112,6 +131,8 @@ pub(super) struct ImageRequest {
     pub(super) input: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(super) reference_image: Option<ReferenceImage>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) parameters: Option<Value>,
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq)]
@@ -141,7 +162,13 @@ struct Intent {
     request: ImageRequest,
     idempotency_key: String,
     request_hash: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    source_prompt: Option<String>,
+    #[serde(default)]
+    planning_required: bool,
     phase: Phase,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    planning_instructions: String,
     task_ref: Option<TaskRef>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     submission_scope: Option<crate::db::courseware_projects::media_scope::SubmissionScope>,
@@ -151,6 +178,8 @@ struct Intent {
     selected: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     reference_intent_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    source_reference_image: Option<ReferenceImage>,
 }
 
 fn invalid(message: &str) -> JsonRpcError {
@@ -179,6 +208,14 @@ fn valid_id(value: &str) -> bool {
 }
 
 impl ImageRequest {
+    pub(super) fn default_parameters(decomposition: bool) -> Value {
+        if decomposition {
+            json!({"size":"2K", "output_format":"png", "response_format":"url", "watermark":false})
+        } else {
+            json!({"quality":"high", "image_size":"1280x800"})
+        }
+    }
+
     pub(super) fn hash(&self) -> String {
         let plain = Request {
             kind: self.kind.clone(),
@@ -186,19 +223,23 @@ impl ImageRequest {
             input: self.input.clone(),
             voice: None,
         };
-        let Some(reference) = &self.reference_image else {
+        if self.reference_image.is_none() && self.parameters.is_none() {
             return request_hash(&plain);
-        };
+        }
         let mut canonical = "courseware-media-v1".to_owned();
-        for field in [
+        let mut fields = vec![
             Some(self.kind.as_str()),
             Some(self.model.as_str()),
             Some(self.input.as_str()),
             None,
-            Some(reference.sha256.as_str()),
-            Some(reference.mime_type.as_str()),
-            Some(&reference.byte_length.to_string()),
-        ] {
+        ];
+        let length = self.reference_image.as_ref().map(|r| r.byte_length.to_string());
+        if let Some(reference) = &self.reference_image {
+            fields.extend([Some(reference.sha256.as_str()), Some(reference.mime_type.as_str()), length.as_deref()]);
+        }
+        let parameters = self.parameters.as_ref().map(Value::to_string);
+        if let Some(parameters) = &parameters { fields.push(Some(parameters.as_str())); }
+        for field in fields {
             match field {
                 Some(value) => {
                     canonical.push_str(&format!(":{}:{}", value.encode_utf16().count(), value))
@@ -231,12 +272,25 @@ impl Intent {
             || !valid_id(&self.request.model)
             || self.request.input.trim().is_empty()
             || self.request.input.encode_utf16().count() > 4000
+            || (self.planning_required && !matches!(self.target, Target::VisualMaster {}))
+            || self.planning_instructions.encode_utf16().count() > 1200
+            || self
+                .planning_instructions
+                .chars()
+                .any(|c| c.is_control() && c != '\n' && c != '\r' && c != '\t')
+            || self.source_prompt.as_ref().is_some_and(|s| {
+                s.trim().is_empty()
+                    || s.encode_utf16().count() > 4000
+                    || !matches!(self.target, Target::VisualMaster {})
+            })
             || self
                 .request
                 .reference_image
                 .as_ref()
                 .is_some_and(|r| !r.valid())
             || self.request.reference_image.is_some() != self.reference_intent_id.is_some()
+            || self.source_reference_image.as_ref().is_some_and(|r| !r.valid()
+                || self.request.kind != "image-layers" || self.request.reference_image.as_ref().is_none_or(|wire| wire.mime_type != "image/jpeg"))
             || self
                 .reference_intent_id
                 .as_ref()
@@ -331,7 +385,7 @@ pub(super) fn canvas_reference(
 
 fn verify_reference(intents: &[Intent], intent: &Intent) -> Result<(), JsonRpcError> {
     if let (Some(id), Some(reference)) =
-        (&intent.reference_intent_id, &intent.request.reference_image)
+        (&intent.reference_intent_id, intent.source_reference_image.as_ref().or(intent.request.reference_image.as_ref()))
     {
         let page = if matches!(intent.target, Target::VisualMaster {}) {
             if intent.page_id == "scene-001" {
@@ -536,6 +590,7 @@ pub(super) async fn handle(
         "courseware.sceneImage.asset.stage"
             | "courseware.sceneImage.bundle.stage"
             | "courseware.sceneImage.asset.get"
+            | "courseware.sceneImage.reference.get"
             | "courseware.sceneImage.asset.adopt"
     ) {
         return assets::handle(state, method, params).await;
@@ -644,6 +699,7 @@ pub(super) async fn handle(
             .and_then(|n| plan.pages.get(n - 1))
             .ok_or_else(|| invalid("Invalid scene image page"))?;
         if !p.target.valid()
+            || (p.planning_required && !matches!(p.target, Target::VisualMaster {}))
             || (p.decomposition
                 && (!matches!(p.target, Target::CleanPlate {}) || p.reference_intent_id.is_none()))
             || p.instructions.encode_utf16().count() > 1200
@@ -689,7 +745,7 @@ pub(super) async fn handle(
         if prompt.encode_utf16().count() > 4000 {
             return Err(invalid("Scene image prompt exceeds 4000 UTF-16 units; shorten the visual intent, visual bible or additional instructions"));
         }
-        let request = ImageRequest {
+        let mut request = ImageRequest {
             kind: if p.decomposition {
                 "image-layers"
             } else {
@@ -698,6 +754,7 @@ pub(super) async fn handle(
             .into(),
             model: p.model,
             input: prompt,
+            parameters: Some(ImageRequest::default_parameters(p.decomposition)),
             reference_image: if let Some(id) = &p.reference_intent_id {
                 let reference_page = if matches!(p.target, Target::VisualMaster {}) {
                     "scene-001"
@@ -714,15 +771,88 @@ pub(super) async fn handle(
                 None
             },
         };
-        if let Some(existing) = intents.iter().rev().find(|i| {
+        let source_reference_image = if let Some(encoded) = &p.reference_input {
+            let source = request.reference_image.as_ref().ok_or_else(|| invalid("Reference required"))?;
+            if !p.decomposition || source.sha256 != encoded.source_sha256
+                || encoded.bytes_base64.len() > (8usize * 1024 * 1024).div_ceil(3) * 4 {
+                return Err(invalid("Invalid normalized reference source"));
+            }
+            let codec = base64::engine::general_purpose::STANDARD;
+            let bytes = codec.decode(&encoded.bytes_base64).map_err(|_| invalid("Invalid normalized reference"))?;
+            if bytes.len() < 5 || bytes.len() > 8 * 1024 * 1024
+                || !bytes.starts_with(b"\xff\xd8\xff") || !bytes.ends_with(b"\xff\xd9")
+                || codec.encode(&bytes) != encoded.bytes_base64 {
+                return Err(invalid("Invalid normalized reference JPEG"));
+            }
+            let source = source.clone();
+            let wire = ReferenceImage { sha256: hex::encode(Sha256::digest(&bytes)), mime_type: "image/jpeg".into(), byte_length: bytes.len() };
+            crate::courseware::snapshot_assets::archive_bytes(&state.data_dir, &wire.sha256, &bytes).map_err(error)?;
+            request.reference_image = Some(wire);
+            Some(source)
+        } else { None };
+        let request_hash = request.hash();
+        if let Some(index) = intents.iter().rposition(|i| {
             i.phase != Phase::Rejected
                 && i.plan_sha256 == p.plan_sha256
                 && i.page_id == p.page_id
                 && i.target == p.target
-                && i.request_hash == request.hash()
+                && {
+                    let mut source = i.request.clone();
+                    if let Some(prompt) = &i.source_prompt {
+                        source.input = prompt.clone();
+                    }
+                    source.hash() == request_hash
+                }
                 && i.reference_intent_id == p.reference_intent_id
         }) {
-            return Ok(existing.view(current.as_deref()));
+            if p.planning_required
+                && !intents[index].planning_required
+                && intents[index].phase == Phase::Prepared
+            {
+                intents[index].planning_required = true;
+                intents[index].planning_instructions = p.instructions.clone();
+                save(&state, &key, &intents)?;
+            }
+            if let Some(planned) = p.planned_prompt {
+                if !matches!(p.target, Target::VisualMaster {})
+                    || planned.source_request_hash != request_hash
+                {
+                    return Err(invalid("Visual-master plan source changed"));
+                }
+                let existing = &mut intents[index];
+                if existing.source_prompt.is_none() {
+                    if existing.phase != Phase::Prepared || existing.submission_scope.is_some() {
+                        return Err(conflict("Submitted image prompts are immutable"));
+                    }
+                    if planned.input.trim().is_empty()
+                        || planned.input.encode_utf16().count() > 4000
+                        || planned
+                            .input
+                            .chars()
+                            .any(|c| c.is_control() && c != '\n' && c != '\r' && c != '\t')
+                        || page
+                            .visible_text
+                            .iter()
+                            .any(|text| !planned.input.contains(text))
+                    {
+                        return Err(invalid(
+                            "Invalid planned visual-master prompt or display text",
+                        ));
+                    }
+                    existing.source_prompt = Some(existing.request.input.clone());
+                    existing.request.input = planned.input;
+                    existing.request_hash = existing.request.hash();
+                    existing.idempotency_key = uuid::Uuid::new_v4().to_string();
+                    existing.validate()?;
+                    save(&state, &key, &intents)?;
+                }
+            }
+            return Ok(intents[index].view(current.as_deref()));
+        }
+        if p.planned_prompt.is_some() {
+            return Err(conflict(
+                "Prepare the visual-master source before planning it",
+            ));
         }
         if intents.len() >= MAX_INTENTS {
             return Err(conflict("Scene image journal is full"));
@@ -733,6 +863,13 @@ pub(super) async fn handle(
             page_id: p.page_id,
             target: p.target,
             request_hash: request.hash(),
+            source_prompt: None,
+            planning_required: p.planning_required,
+            planning_instructions: if p.planning_required {
+                p.instructions
+            } else {
+                String::new()
+            },
             request,
             idempotency_key: uuid::Uuid::new_v4().to_string(),
             phase: Phase::Prepared,
@@ -741,6 +878,7 @@ pub(super) async fn handle(
             asset: None,
             selected: false,
             reference_intent_id: p.reference_intent_id,
+            source_reference_image,
         };
         intent.validate()?;
         let result = intent.view(current.as_deref());
@@ -792,6 +930,14 @@ pub(super) async fn handle(
         verify_reference(&intents, &intents[index])?;
     }
     let intent = &mut intents[index];
+    if method == "courseware.sceneImage.begin"
+        && intent.planning_required
+        && intent.source_prompt.is_none()
+    {
+        return Err(conflict(
+            "Finish visual-master planning before image submission",
+        ));
+    }
     if let Some(p) = rebind {
         if !valid_id(&p.model)
             || !valid_hash(&p.expected_request_hash)

@@ -45,6 +45,7 @@ impl Fixture {
         let reference =
             json!({ "assetId": "archived-image", "revision": sha256, "label": "Owned reference" });
         let request = ImageRequest {
+            parameters: None,
             kind: "image".into(),
             model: "image-model".into(),
             input: "A bright geometric shape".into(),

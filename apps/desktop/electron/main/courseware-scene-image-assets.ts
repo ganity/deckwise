@@ -13,6 +13,13 @@ const MAX_LAYER_JSON_BYTES = 60 * 1024 * 1024;
 
 const invalid = () => new Error("COURSEWARE_SCENE_IMAGE_INVALID_ASSET");
 
+export function sceneDecompositionReference(bytes: Buffer, asset: CoursewareSceneImageAsset): Buffer {
+  verifySceneImageAsset(bytes, asset, { kind: "visualMaster" });
+  const jpeg = nativeImage.createFromBuffer(bytes).toJPEG(95);
+  if (!jpeg.length || jpeg.length > 8 * 1024 * 1024) throw invalid();
+  return jpeg;
+}
+
 function jpegSize(bytes: Buffer): [number, number] {
   let offset = 2;
   while (offset + 4 <= bytes.length) {

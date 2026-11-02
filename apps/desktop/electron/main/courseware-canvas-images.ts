@@ -28,6 +28,7 @@ function input(value: unknown, fields: string[] = []): Record<string, string> {
 function requestHash(request: Journal["intent"]["request"]): string {
   const fields: Array<string | null> = [request.kind, request.model, request.input, null];
   if (request.referenceImage) fields.push(request.referenceImage.sha256, request.referenceImage.mimeType, String(request.referenceImage.byteLength));
+  if (request.parameters) fields.push(JSON.stringify(request.parameters, Object.keys(request.parameters).sort()));
   return createHash("sha256").update(fields.reduce<string>((text, value) => `${text}:${value === null ? -1 : value.length}:${value ?? ""}`, "courseware-media-v1")).digest("hex");
 }
 function checked(value: Journal, expectedId?: string): Journal {
@@ -190,7 +191,9 @@ export class CoursewareCanvasImages {
       let task: CoursewareImageTask;
       try {
         task = await this.auth.coursewareMedia.submitConfirmedImage(journal.intent.idempotencyKey,
-          { kind: "image", model: journal.intent.request.model, input: journal.intent.request.input, ...(referenceImage ? { referenceImage } : {}) }, offer.quote, undefined, undefined, async () => { c.assertCurrent(); await this.reference(c, journal); c.assertCurrent(); }, admit);
+          { kind: "image", model: journal.intent.request.model, input: journal.intent.request.input,
+            ...(journal.intent.request.parameters ? { parameters: journal.intent.request.parameters } : {}),
+            ...(referenceImage ? { referenceImage } : {}) }, offer.quote, undefined, undefined, async () => { c.assertCurrent(); await this.reference(c, journal); c.assertCurrent(); }, admit);
       } catch (failure) {
         if (begun.intent.phase !== "submission-unknown" || !isCoursewareMediaPermissionRefusal(failure, teamProjectId)) throw failure;
         const rejected = checked(await c.host.call<Journal>("courseware.mediaCanvas.image.reject", { ...c.scope,

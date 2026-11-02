@@ -16,6 +16,7 @@ const shared = await import("@pi-desktop/shared");
 const draftReader = await import("../electron/main/courseware-scene-draft.ts");
 const sharp = createRequire(new URL("../../../packages/courseware-runtime/package.json", import.meta.url))("sharp");
 const png = await sharp({ create: { width: 2, height: 2, channels: 4, background: "red" } }).png().toBuffer();
+const jpeg = await sharp(png).jpeg({ quality: 95 }).toBuffer();
 async function load(name, dependencies) {
   const exports = {};
   new Function("require", "exports", ts.transpileModule(await readFile(new URL(`../electron/main/${name}.ts`, import.meta.url), "utf8"), {
@@ -26,7 +27,7 @@ async function load(name, dependencies) {
 // Native codec is an external edge here; actual Electron decoding is covered by the UI gate.
 let nativePixels = Buffer.alloc(16);
 const electron = { nativeImage: { createFromBuffer: () => ({ isEmpty: () => false,
-  getSize: () => ({ width: 2, height: 2 }), toPNG: () => png, toBitmap: () => Buffer.from(nativePixels) }) } };
+  getSize: () => ({ width: 2, height: 2 }), toPNG: () => png, toJPEG: quality => { assert.equal(quality, 95); return jpeg; }, toBitmap: () => Buffer.from(nativePixels) }) } };
 const context = await load("courseware-scene-context", { electron, "node:crypto": { createHash }, "node:zlib": { crc32 } });
 const assetHelpers = await load("courseware-scene-image-assets", { electron, "node:crypto": { createHash },
   "node:fs": fsConstants, "node:fs/promises": files, "node:path": paths, "./courseware-scene-context": context,
@@ -52,7 +53,7 @@ const plan = { title: "Shapes", pages: [{ title: "Circle", visibleText: ["圆"],
 const digest = (v) => createHash("sha256").update(v).digest("hex");
 const pause = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 
-async function fixture(t, coursePlan = plan) {
+async function fixture(t, coursePlan = plan, planner) {
   const root = await mkdtemp(join(tmpdir(), "deckwise-scene-images-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const path = join(root, sceneCoursePlanRelativePath("chat-a"));
@@ -78,15 +79,30 @@ async function fixture(t, coursePlan = plan) {
         row.selected && row.asset && row.planSha256 === p.planSha256 && row.pageId === (target.kind === "visualMaster" ? "scene-001" : p.pageId) && row.target.kind === "visualMaster");
       if (p.referenceIntentId !== undefined && !reference) throw new Error("REFERENCE_CHANGED");
       let j = records(p).findLast(j => j.phase !== "rejected" && j.pageId === p.pageId && j.planSha256 === p.planSha256 && j.request.model === p.model &&
-        JSON.stringify(j.target) === JSON.stringify(target) && j.request.input === input && j.referenceIntentId === p.referenceIntentId);
+        JSON.stringify(j.target) === JSON.stringify(target) && (j.sourcePrompt ?? j.request.input) === input && j.referenceIntentId === p.referenceIntentId);
       if (!j) {
         j = { intentId: randomUUID(), planSha256: p.planSha256, pageId: p.pageId, target, request: { kind: p.decomposition ? "image-layers" : "image", model: p.model, input },
           phase: "prepared", taskRef: null, asset: null, selected: false, idempotencyKey: randomUUID(), requestHash: digest("pinned") };
+        j.request.parameters = p.decomposition ? { size: "2K", output_format: "png", response_format: "url", watermark: false } : { quality: "high", image_size: "1280x800" };
         if (reference) {
           j.referenceIntentId = reference.intentId;
           j.request.referenceImage = { sha256: reference.asset.sha256, mimeType: reference.asset.mimeType, byteLength: reference.asset.byteLength };
         }
+        if (p.referenceInput) {
+          assert.equal(p.referenceInput.sourceSha256, j.request.referenceImage.sha256);
+          j.sourceReferenceImage = j.request.referenceImage;
+          const bytes = Buffer.from(p.referenceInput.bytesBase64, "base64");
+          j.request.referenceImage = { sha256: digest(bytes), mimeType: "image/jpeg", byteLength: bytes.length };
+          await writeFile(join(root, `${j.request.referenceImage.sha256}.bin`), bytes);
+        }
         journals.set(partition(p), [...records(p), j]);
+      }
+      if (p.planningRequired) { j.planningRequired = true; j.planningInstructions = p.instructions; }
+      if (p.plannedPrompt && !j.sourcePrompt) {
+        assert.equal(p.plannedPrompt.sourceRequestHash, j.requestHash);
+        j.sourcePrompt = j.request.input;
+        j.request.input = p.plannedPrompt.input;
+        j.requestHash = digest(JSON.stringify(j.request)); j.idempotencyKey = randomUUID();
       }
       return current(j);
     }
@@ -145,6 +161,8 @@ async function fixture(t, coursePlan = plan) {
       const selected = records(p).find(other => matching(other) && other.selected);
       if ((selected?.intentId ?? null) !== p.expectedSelectedIntentId) throw new Error("selected image changed");
       for (const other of records(p)) if (matching(other)) other.selected = other === j;
+    } else if (method === "courseware.sceneImage.reference.get") {
+      return { ...await current(j), path: join(root, `${j.request.referenceImage.sha256}.bin`) };
     } else if (method !== "courseware.sceneImage.asset.get") assert.equal(method, "courseware.sceneImage.get");
     return { ...await current(j), ...(method.includes(".asset.") ? { path: join(root, `${j.asset.sha256}.bin`) } : {}) };
   } };
@@ -183,7 +201,7 @@ async function fixture(t, coursePlan = plan) {
     const captured = account;
     return { key: captured, assertCurrent() { if (captured !== account) throw new Error("account changed"); } };
   } };
-  const create = () => new CoursewareSceneImages(() => host, () => active, () => running, auth);
+  const create = () => new CoursewareSceneImages(() => host, () => active, () => running, auth, planner);
   const base = { sessionId: "chat-a" }, coordinator = create();
   const prepare = (extra = {}) => coordinator.prepare({ ...base, planSha256: sha256, pageId: "scene-001", model: "image-model", ...extra });
   const operation = v => ({ ...base, intentId: v.intentId });
@@ -203,6 +221,55 @@ async function fixture(t, coursePlan = plan) {
         downloadPath: `/courseware/media/tasks/${task.taskId}/asset` } }); },
   };
 }
+
+test("visual planning is durable across coordinator recreation and does not purchase an image", async t => {
+  const planned = [];
+  const f = await fixture(t, plan, async input => { planned.push(input); return "1280x800, 16:10. Bright circle: 圆"; });
+  const first = await f.prepare();
+  assert.equal(first.prompt, "1280x800, 16:10. Bright circle: 圆");
+  assert.equal(planned.length, 1);
+  const resumed = await f.create().prepare({ ...f.base, planSha256: f.sha256, pageId: "scene-001", model: "image-model" });
+  assert.equal(resumed.intentId, first.intentId);
+  assert.equal(resumed.prompt, first.prompt);
+  assert.equal(planned.length, 1);
+  assert.equal(first.task, null);
+});
+
+test("a planning failure keeps one deterministic fallback, while a changed approval prevents saving a result", async t => {
+  let calls = 0;
+  const f = await fixture(t, plan, async () => { calls++; throw new Error("provider unavailable"); });
+  const first = await f.prepare();
+  assert.equal(first.prompt, "Bright circle");
+  assert.equal((await f.prepare()).intentId, first.intentId);
+  assert.equal(calls, 1);
+  const changed = await fixture(t, plan, async () => { changed.approval("b".repeat(64)); return "Circle 圆"; });
+  await assert.rejects(changed.prepare(), /PLAN_CHANGED/u);
+});
+
+test("interrupted planning resumes with its saved correction before generating a prepared image", async t => {
+  const entered = pause();
+  let calls = 0;
+  const f = await fixture(t, plan, async input => {
+    if (++calls === 1) {
+      entered.resolve();
+      return new Promise((resolve, reject) => input.signal.addEventListener("abort", () => reject(input.signal.reason), { once: true }));
+    }
+    assert.equal(input.instructions, "Only animals");
+    return "1280x800 Circle: 圆";
+  });
+  const preparing = f.prepare({ instructions: "Only animals" });
+  await entered.promise;
+  const [pending] = await f.coordinator.list(f.base);
+  await assert.rejects(f.coordinator.quote(f.operation(pending)), /PLANNING_REQUIRED/u);
+  f.active("other-chat");
+  await assert.rejects(preparing, /CONTEXT_CHANGED/u);
+  f.active("chat-a");
+  const resumed = await f.create().generate(f.operation(pending));
+  assert.equal(resumed.intentId, pending.intentId);
+  assert.equal(resumed.prompt, "1280x800 Circle: 圆");
+  assert.equal(resumed.phase, "submitted");
+  assert.equal(calls, 2);
+});
 
 test("an explicitly requested retry creates one fresh attempt for a refunded failed image without changing its prompt", async t => {
   const f = await fixture(t);
@@ -293,6 +360,11 @@ test("explicit failed decomposition retry retains the selected master and submit
   assert.equal(retry.model, original.model);
   await restarted.generate(f.operation(retry));
   const posts = f.calls.filter(call => call.postedRequest).map(call => call.postedRequest);
+  assert.deepEqual(posts[0].parameters, { quality: "high", image_size: "1280x800" });
+  assert.deepEqual(posts[1].parameters, { size: "2K", output_format: "png", response_format: "url", watermark: false });
+  assert.equal(posts[1].referenceImage.mimeType, "image/jpeg");
+  assert.deepEqual(Buffer.from(posts[1].referenceImage.bytesBase64, "base64"), jpeg);
+  assert.equal(posts[1].referenceImage.sha256, digest(jpeg));
   assert.deepEqual(posts[2], posts[1]);
   assert.equal((await restarted.retry(f.operation(original))).intentId, retry.intentId);
   assert.equal(posts.length, 3, "one master and two decomposition attempts");

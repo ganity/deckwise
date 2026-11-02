@@ -9,7 +9,7 @@ import { stagePageStyleBatchCandidate } from "./courseware-style-batch-candidate
 import { coursewareAuthoringUrl } from "./courseware-runtime";
 import type { CoursewareStyleReviewCoordinator } from "./courseware-style-review";
 
-export type NarrationComplete = (input: PluginCompleteInput & { sessionId?: string; signal?: AbortSignal }) => Promise<PluginCompleteResult>;
+export type NarrationComplete = (input: PluginCompleteInput & { sessionId?: string; signal?: AbortSignal; maxOutputTokens?: number }) => Promise<PluginCompleteResult>;
 export type SceneComplete = Parameters<typeof stagePageRedoCandidate>[0]["complete"];
 export type CandidateModelResolver = (sessionId: string) => Promise<{ modelKey: string; thinkingLevel?: string }>;
 

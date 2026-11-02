@@ -5,15 +5,20 @@ import { isCoursewareTaskRef, isCoursewareSceneImageTarget, type CoursewareScene
 import type { DesktopAuthSession } from "./auth-session";
 import type { CoursewareImageQuote, CoursewareImageRequest, CoursewareImageTask } from "./courseware-media";
 import { readSceneCourseDraft } from "./courseware-scene-draft";
-import { downloadSceneImageBundle, isSceneImageAsset, readSceneImageAsset, verifySceneImageAsset } from "./courseware-scene-image-assets";
+import { downloadSceneImageBundle, isSceneImageAsset, readSceneImageAsset, verifySceneImageAsset, sceneDecompositionReference } from "./courseware-scene-image-assets";
+import type { VisualMasterPlanner } from "./courseware-visual-master";
 
 type Host = { call<T>(method: string, params: unknown): Promise<T> };
 type Reference = NonNullable<CoursewareSceneImageView["referenceImage"]>;
 type Journal = { current: boolean; intent: {
   intentId: string; planSha256: string; pageId: string; request: Omit<CoursewareImageRequest, "referenceImage"> & { referenceImage?: Omit<Reference, "intentId"> };
   referenceIntentId?: string;
+  sourceReferenceImage?: Omit<Reference, "intentId">;
   target?: CoursewareSceneImageTarget;
   idempotencyKey: string; requestHash: string; phase: CoursewareSceneImageView["phase"]; taskRef: CoursewareTaskRef | null;
+  sourcePrompt?: string;
+  planningRequired?: boolean;
+  planningInstructions?: string;
   submissionScope?: unknown;
   asset?: (CoursewareSceneImageAsset & { taskRef: CoursewareTaskRef }) | null; selected?: boolean;
 } };
@@ -28,6 +33,13 @@ function input(value: unknown, extra: string[] = []): Record<string, string> {
 function checked(value: Journal, intentId?: string): Journal {
   const i = value?.intent;
   if (!i || !id(i.intentId) || (intentId !== undefined && i.intentId !== intentId) || !hash(i.planSha256) ||
+      (i.planningRequired !== undefined && typeof i.planningRequired !== "boolean") ||
+      (i.sourcePrompt !== undefined && (typeof i.sourcePrompt !== "string" || !i.sourcePrompt.trim() || i.sourcePrompt.length > 4000)) ||
+      (i.planningInstructions !== undefined && (typeof i.planningInstructions !== "string" || i.planningInstructions.length > 1200)) ||
+      (i.sourceReferenceImage !== undefined && (i.request?.kind !== "image-layers" || i.request.referenceImage?.mimeType !== "image/jpeg" ||
+        Object.keys(i.sourceReferenceImage).sort().join(",") !== "byteLength,mimeType,sha256" || !hash(i.sourceReferenceImage.sha256) ||
+        !["image/png", "image/jpeg"].includes(i.sourceReferenceImage.mimeType) || !Number.isSafeInteger(i.sourceReferenceImage.byteLength) ||
+        i.sourceReferenceImage.byteLength < 1 || i.sourceReferenceImage.byteLength > 8 * 1024 * 1024)) ||
       !/^scene-[0-9]{3}$/u.test(i.pageId) || !["image", "image-layers"].includes(i.request?.kind) || !id(i.request.model) ||
       (i.request.kind === "image-layers" && (!i.request.referenceImage || (i.target?.kind ?? "visualMaster") === "visualMaster")) ||
       (i.request.referenceImage !== undefined && (!id(i.referenceIntentId) || !hash(i.request.referenceImage.sha256) ||
@@ -51,7 +63,7 @@ function view(j: Journal, task: CoursewareImageTask | null = null): CoursewareSc
   return { intentId: j.intent.intentId, planSha256: j.intent.planSha256, pageId: j.intent.pageId,
     ...(j.intent.request.kind === "image-layers" ? { decomposition: true } : {}),
     target: j.intent.target ?? { kind: "visualMaster" },
-    ...(j.intent.request.referenceImage ? { referenceImage: { ...j.intent.request.referenceImage, intentId: j.intent.referenceIntentId! } } : {}),
+    ...(j.intent.request.referenceImage ? { referenceImage: { ...(j.intent.sourceReferenceImage ?? j.intent.request.referenceImage), intentId: j.intent.referenceIntentId! } } : {}),
     model: j.intent.request.model, prompt: j.intent.request.input, phase: j.intent.phase, current: j.current,
     asset: j.intent.asset ? { sha256: j.intent.asset.sha256, mimeType: j.intent.asset.mimeType,
       byteLength: j.intent.asset.byteLength, width: j.intent.asset.width, height: j.intent.asset.height,
@@ -69,7 +81,8 @@ export class CoursewareSceneImages {
   private archiving = new Set<string>();
   constructor(private getHost: () => Host | null, private getSession: () => string | null,
     private isRunning: (sessionId: string) => boolean,
-    private auth: Pick<DesktopAuthSession, "getCoursewarePrincipal" | "coursewareMedia">) {}
+    private auth: Pick<DesktopAuthSession, "getCoursewarePrincipal" | "coursewareMedia">,
+    private planVisualMaster?: VisualMasterPlanner) {}
 
   private context(p: Record<string, string>, allowDuringTurn = false) {
     const host = this.getHost();
@@ -101,7 +114,7 @@ export class CoursewareSceneImages {
   }
 
   private async reference(c: ReturnType<CoursewareSceneImages["context"]>, j: Journal): Promise<Journal | null> {
-    const ref = j.intent.request.referenceImage;
+    const ref = j.intent.sourceReferenceImage ?? j.intent.request.referenceImage;
     if (!ref) return null;
     const models = await (j.intent.request.kind === "image-layers" ? this.auth.coursewareMedia.getLayerModels() : this.auth.coursewareMedia.getImageModels());
     c.assertCurrent();
@@ -230,9 +243,43 @@ export class CoursewareSceneImages {
       }
     }
     c.assertCurrent();
-    const j = checked(await c.host.call<Journal>("courseware.sceneImage.prepare", { ...c.scope,
+    let referenceInput: { sourceSha256: string; bytesBase64: string } | undefined;
+    if (chosen.layerDecomposition && referenceIntentId) {
+      const archived = await c.host.call<Journal & { path: string }>("courseware.sceneImage.asset.get", { ...c.scope, intentId: referenceIntentId });
+      const reference = checked(archived, referenceIntentId);
+      if (!reference.current || !reference.intent.selected || !reference.intent.asset) throw new Error("COURSEWARE_SCENE_IMAGE_REFERENCE_CHANGED");
+      const bytes = await readSceneImageAsset(archived.path, reference.intent.asset, { kind: "visualMaster" });
+      referenceInput = { sourceSha256: reference.intent.asset.sha256, bytesBase64: sceneDecompositionReference(bytes, reference.intent.asset).toString("base64") };
+      c.assertCurrent();
+    }
+    const request = { ...c.scope,
       planSha256: p.planSha256, pageId: p.pageId, model: p.model, target, instructions,
-      ...(referenceIntentId === undefined ? {} : { referenceIntentId }), ...(chosen.layerDecomposition ? { decomposition: true } : {}) }));
+      ...(referenceInput ? { referenceInput } : {}),
+      ...(target.kind === "visualMaster" && this.planVisualMaster ? { planningRequired: true } : {}),
+      ...(referenceIntentId === undefined ? {} : { referenceIntentId }), ...(chosen.layerDecomposition ? { decomposition: true } : {}) };
+    let j = checked(await c.host.call<Journal>("courseware.sceneImage.prepare", request));
+    c.assertCurrent();
+    if (target.kind === "visualMaster" && j.intent.phase === "prepared" && j.intent.sourcePrompt === undefined && this.planVisualMaster) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(new Error("COURSEWARE_VISUAL_PLANNING_TIMEOUT")), 120_000);
+      const guard = setInterval(() => { try { c.assertCurrent(); } catch (error) { controller.abort(error); } }, 100);
+      let prompt = j.intent.request.input;
+      try {
+        prompt = await this.planVisualMaster({ sessionId: p.sessionId, plan,
+          page: plan.pages.find(page => page.pageId === p.pageId)!, instructions,
+          courseStyleReferenceSupplied: referenceIntentId !== undefined, signal: controller.signal });
+      } catch {
+        c.assertCurrent();
+        console.warn("Visual-master planning failed; using the deterministic page prompt");
+      } finally { clearTimeout(timeout); clearInterval(guard); }
+      c.assertCurrent();
+      await this.approved(c.host, p.sessionId, p.planSha256);
+      await this.reference(c, j);
+      c.assertCurrent();
+      j = checked(await c.host.call<Journal>("courseware.sceneImage.prepare", { ...request,
+        plannedPrompt: { sourceRequestHash: j.intent.requestHash, input: prompt } }));
+      c.assertCurrent();
+    }
     const actualTarget = view(j).target;
     if (j.intent.planSha256 !== p.planSha256 || j.intent.pageId !== p.pageId || j.intent.request.model !== p.model ||
         actualTarget.kind !== target.kind || (target.kind === "layer" &&
@@ -248,6 +295,7 @@ export class CoursewareSceneImages {
     const p = input(value, ["intentId"]), c = this.context(p);
     let j = checked(await c.host.call<Journal>("courseware.sceneImage.get", c.scope), p.intentId);
     if (!j.current || j.intent.phase !== "prepared") throw new Error("COURSEWARE_SCENE_IMAGE_PLAN_CHANGED");
+    if (j.intent.planningRequired && j.intent.sourcePrompt === undefined) throw new Error("COURSEWARE_VISUAL_PLANNING_REQUIRED");
     await this.approved(c.host, p.sessionId, j.intent.planSha256);
     const available = await this.models({ sessionId: p.sessionId });
     c.assertCurrent();
@@ -287,9 +335,16 @@ export class CoursewareSceneImages {
 
   async generate(value: unknown): Promise<CoursewareSceneImageView> {
     const p = input(value, ["intentId"]), c = this.context(p);
-    const j = checked(await c.host.call<Journal>("courseware.sceneImage.get", c.scope), p.intentId);
+    let j = checked(await c.host.call<Journal>("courseware.sceneImage.get", c.scope), p.intentId);
     c.assertCurrent();
     if (j.intent.phase !== "prepared") return this.read(c, j);
+    if (j.intent.planningRequired && j.intent.sourcePrompt === undefined) {
+      await this.prepare({ sessionId: p.sessionId, planSha256: j.intent.planSha256, pageId: j.intent.pageId,
+        model: j.intent.request.model, instructions: j.intent.planningInstructions ?? "" });
+      c.assertCurrent();
+      j = checked(await c.host.call<Journal>("courseware.sceneImage.get", c.scope), p.intentId);
+      if (j.intent.sourcePrompt === undefined) throw new Error("COURSEWARE_VISUAL_PLANNING_REQUIRED");
+    }
     const quote = await this.quote(value);
     c.assertCurrent();
     return this.submitConfirmed({ ...p, quoteId: quote.quoteId });
@@ -310,17 +365,20 @@ export class CoursewareSceneImages {
       const reference = await this.reference(c, j);
       let referenceImage: CoursewareImageRequest["referenceImage"];
       if (reference) {
-        const archived = await c.host.call<Journal & { path: string }>("courseware.sceneImage.asset.get", {
-          ...c.scope, intentId: reference.intent.intentId });
-        checked(archived, reference.intent.intentId);
-        if (JSON.stringify(archived.intent) !== JSON.stringify(reference.intent) || !archived.intent.asset)
+        const normalized = j.intent.sourceReferenceImage !== undefined;
+        const archived = await c.host.call<Journal & { path: string }>(normalized ? "courseware.sceneImage.reference.get" : "courseware.sceneImage.asset.get", {
+          ...c.scope, intentId: normalized ? j.intent.intentId : reference.intent.intentId });
+        checked(archived, normalized ? j.intent.intentId : reference.intent.intentId);
+        if (JSON.stringify(archived.intent) !== JSON.stringify(normalized ? j.intent : reference.intent))
           throw new Error("COURSEWARE_SCENE_IMAGE_REFERENCE_CHANGED");
-        const bytes = await readSceneImageAsset(archived.path, archived.intent.asset, { kind: "visualMaster" });
+        const metadata = normalized ? j.intent.request.referenceImage! : archived.intent.asset!;
+        const bytes = await readSceneImageAsset(archived.path, { ...metadata, width: reference.intent.asset!.width, height: reference.intent.asset!.height }, { kind: "visualMaster" });
         referenceImage = { ...j.intent.request.referenceImage!, bytesBase64: bytes.toString("base64") };
       }
       c.assertCurrent();
       this.quotes.delete(p.quoteId);
       const request: CoursewareImageRequest = { kind: j.intent.request.kind, model: j.intent.request.model, input: j.intent.request.input,
+        ...(j.intent.request.parameters ? { parameters: j.intent.request.parameters } : {}),
         ...(referenceImage ? { referenceImage } : {}) };
       let begun = j, teamProjectId: string | undefined;
       const admit = async () => {

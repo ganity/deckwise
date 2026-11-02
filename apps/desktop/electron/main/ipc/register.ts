@@ -1,3 +1,4 @@
+import { planSceneVisualMaster, type VisualMasterPlanningInput } from "../courseware-visual-master";
 import { join } from "node:path";
 import type { BrowserWindow, IpcMain, IpcMainInvokeEvent } from "electron";
 import { err, ErrorCodes, IPC, ok, type Result, type HostStatusEvent } from "@pi-desktop/shared";
@@ -243,9 +244,12 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     setViewingSessionId: setNotificationViewingSessionId,
     sendToRenderer,
   });
+  const sceneGeneration = { ...dependencies.sceneGeneration,
+    planVisualMaster: async (input: VisualMasterPlanningInput) => planSceneVisualMaster(input,
+      await dependencies.sceneGeneration.resolveModel(input.sessionId), dependencies.completeNarration) };
   registerCoursewareSceneImageIpc({ registrar, getHost, getViewingSessionId: getNotificationViewingSessionId,
-    activeTurns, authSession, generation: dependencies.sceneGeneration });
-  const coursewareWorkflow = new CoursewareChatWorkflow(getHost, getNotificationViewingSessionId, authSession, dependencies.sceneGeneration);
+    activeTurns, authSession, generation: sceneGeneration });
+  const coursewareWorkflow = new CoursewareChatWorkflow(getHost, getNotificationViewingSessionId, authSession, sceneGeneration);
   const savedNarration = new CoursewareSavedNarration(getHost, getNotificationViewingSessionId,
     dependencies.completeNarration, dependencies.sceneGeneration?.resolveModel, dependencies.completeScene);
   coursewareWorkflow.narration = savedNarration;

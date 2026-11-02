@@ -132,7 +132,7 @@ pub(super) async fn handle(
                 Some(p),
             )
         }
-        "courseware.sceneImage.asset.get" => {
+        "courseware.sceneImage.asset.get" | "courseware.sceneImage.reference.get" => {
             let p: Operation = serde_json::from_value(params).map_err(decode)?;
             (
                 Scope {
@@ -155,6 +155,15 @@ pub(super) async fn handle(
         .iter()
         .position(|i| i.intent_id == intent_id)
         .ok_or_else(|| rpc_err(1007, "Scene image intent not found", "COURSEWARE_NOT_FOUND"))?;
+    if method == "courseware.sceneImage.reference.get" {
+        verify_reference(&intents, &intents[index])?;
+        let reference = intents[index].request.reference_image.as_ref().ok_or_else(|| invalid("Reference required"))?;
+        let (path, length) = snapshot_assets::verify(&state.data_dir, &reference.sha256).map_err(error)?;
+        if length != reference.byte_length as u64 { return Err(conflict("Archived reference length differs")); }
+        let mut result = intents[index].view(current.as_deref());
+        result["path"] = json!(path);
+        return Ok(result);
+    }
     if let Some(p) = stage {
         if !p.asset.valid()
             || (matches!(intents[index].target, Target::Layer { .. })

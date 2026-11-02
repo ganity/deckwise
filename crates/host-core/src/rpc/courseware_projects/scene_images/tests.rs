@@ -389,7 +389,7 @@ async fn scene_image_targets_and_prompt_revisions_have_independent_reviewed_choi
     assert!(choices[0]["intent"]["request"]["input"]
         .as_str()
         .unwrap()
-        .contains("teaching-slide visual master"));
+        .contains("16:10 kindergarten storybook teaching-slide illustration, 1280x800"));
     assert!(choices[1]["intent"]["request"]["input"]
         .as_str()
         .unwrap()

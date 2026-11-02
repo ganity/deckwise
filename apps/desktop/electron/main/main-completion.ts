@@ -30,6 +30,7 @@ type MainCompleteInput = PluginCompleteInput & {
   sessionId?: string;
   signal?: AbortSignal;
   stripToolName?: string;
+  maxOutputTokens?: number;
 };
 type Dependencies = Pick<
   PluginServicesDependencies,
@@ -138,6 +139,7 @@ export function createMainCompletion({
       });
     const result = await completeOneShot(runtimeProvider, context, launch.sidecarParams.thinkingLevel, {
       signal: input.signal,
+      ...(input.maxOutputTokens === undefined ? {} : { maxOutputTokens: input.maxOutputTokens }),
       sessionId: launchSessionId,
       // Spec 07-plugins/03-plugin-api.md: empty model output answers the
       // plugin with INVALID_ARGUMENT, not the runtime's internal code.

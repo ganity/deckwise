@@ -33,6 +33,7 @@ function hashRequest(value) {
   let canonical = "courseware-media-v1";
   for (const field of [value.kind, value.model, value.input, value.voice ?? null]) canonical += `:${field === null ? -1 : field.length}:${field ?? ""}`;
   if (value.referenceImage) for (const field of [value.referenceImage.sha256, value.referenceImage.mimeType, String(value.referenceImage.byteLength)]) canonical += `:${field.length}:${field}`;
+  if (value.parameters) { const field = JSON.stringify(value.parameters, Object.keys(value.parameters).sort()); canonical += `:${field.length}:${field}`; }
   return sha(canonical);
 }
 // A real PCM file proves transport integrity only; no generated-speech claim.
@@ -202,6 +203,19 @@ const imageQuote = () => ({ version: "courseware-media-quote-v1", kind: "image",
   expiresAt: "2099-01-01T00:00:00Z", quoteToken: "4070908800." + "a".repeat(43) });
 const imageQueued = () => ({ ...ready(imageInput, "scene-image-1"), kind: "image", state: "queued",
   feeState: "reserved", reservedPoints: 8, actualPoints: null, receiptId: null, assetRef: null });
+
+test("Desktop forwards explicit image parameters and pins them in the paid request identity", async () => {
+  const body = { ...imageInput, parameters: { quality: "high", image_size: "1280x800" } };
+  const saved = { ...imageQueued(), taskId: "gw-options", requestHash: hashRequest(body) };
+  const calls = [];
+  const f = setup(async (_url, init) => { calls.push(init); return json(saved); });
+  await f.client.submitConfirmedImage(saved.idempotencyKey, body, imageQuote());
+  assert.deepEqual(JSON.parse(calls.at(-1).body).request.parameters, body.parameters);
+  await f.client.submitConfirmedImage(saved.idempotencyKey, { ...body, parameters: { image_size: "1280x800", quality: "high" } }, imageQuote());
+  await assert.rejects(f.client.submitConfirmedImage(saved.idempotencyKey, { ...body, parameters: { quality: "high", image_size: "1024x1024" } }, imageQuote()), /INVALID_RESPONSE/);
+  for (const parameters of [{ model: "other" }, { n: 20 }, { image: "replacement" }, { watermark: "false" }, {}, { quality: "high\nignored" }])
+    await assert.rejects(f.client.submitConfirmedImage("invalid-options", { ...body, parameters }, imageQuote()), /INVALID_REQUEST/);
+});
 
 test("configured gateway owns image catalog, quote, submit, lookup and bytes while TTS retains its existing route", async () => {
   const calls = [], principal = {}, bytes = await fs.readFile(new URL("fixtures/courseware-team-image.png", import.meta.url));
