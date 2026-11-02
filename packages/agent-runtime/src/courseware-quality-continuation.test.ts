@@ -123,7 +123,8 @@ it('validates a scene plan write before allowing the model to finish and bounds 
   expect(execute.mock.calls).toHaveLength(3);
   continuation.reset();
   await continuation.finish(turn, { canWait: () => true, execute: async () => ({ content: [], details: { validated: true } }) });
-  expect(await continuation.finish({ ...turn, message: { ...turn.message, content: [{ type: 'text', text: 'The draft is ready' }], stopReason: 'stop' }, toolResults: [] }, { canWait: () => true, execute: async () => ({ content: [], details: { validated: true, awaitingPlanApproval: true } }) })).toContain('awaiting the existing human plan review');
+  expect(await continuation.finish({ ...turn, message: { ...turn.message, content: [{ type: 'text', text: 'The draft is ready' }], stopReason: 'stop' }, toolResults: [] }, { canWait: () => true, execute: async () => ({ content: [], details: { validated: true, awaitingPlanApproval: true } }) })).toBeUndefined();
+  expect(continuation.reportOnly).toBe(true);
 });
 
 it('does not exhaust planning corrections on unchanged submissions or a failed edit', async () => {
@@ -146,7 +147,8 @@ it('does not exhaust planning corrections on unchanged submissions or a failed e
   await continuation.finish(write, { canWait: () => true, execute: async () => ({ content: [], details: { validated: true, awaitingPlanApproval: true } }) });
   const final = await continuation.finish({ ...write, message: { ...write.message, stopReason: 'stop', content: [{ type: 'text', text: 'Draft ready' }] }, toolResults: [] },
     { canWait: () => true, execute: async () => ({ content: [], details: { validated: true, awaitingPlanApproval: true } }) });
-  expect(final).toContain('awaiting the existing human plan review');
+  expect(final).toBeUndefined();
+  expect(continuation.reportOnly).toBe(true);
 });
 
 it.each(['path', 'file_path'])('preserves both corrections when shell reads precede the first invalid scene draft using %s', async pathKey => {
@@ -176,7 +178,25 @@ it.each(['path', 'file_path'])('preserves both corrections when shell reads prec
   const valid = { canWait: () => true, execute: async () => ({ content: [], details: { validated: true, awaitingPlanApproval: true } }) };
   await continuation.finish(write, valid);
   const closing = { ...write, message: { ...write.message, stopReason: 'stop' as const, content: [{ type: 'text' as const, text: 'Draft ready' }] }, toolResults: [] };
-  expect(await continuation.finish(closing, valid)).toContain('awaiting the existing human plan review');
+  expect(await continuation.finish(closing, valid)).toBeUndefined();
+  expect(continuation.reportOnly).toBe(true);
+});
+
+it('keeps an unchanged approved plan available for image work after validation', async () => {
+  const continuation = new CoursewareTurnContinuation();
+  const turn: AgentTurnContext = { context: { messages: [] }, newMessages: [], message: { role: 'assistant',
+    api: 'openai-completions', provider: 'fixture', model: 'fixture', timestamp: 0, stopReason: 'toolUse',
+    content: [{ type: 'toolCall', id: 'write', name: 'Write', arguments: { path: '.deckwise-ppt/scenes/chat/plan.json' } }],
+    usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0,
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } },
+    toolResults: [{ role: 'toolResult', toolCallId: 'write', toolName: 'Write', content: [], isError: false, timestamp: 0 }] };
+  const execute = vi.fn(async () => ({ content: [], details: { validated: true, awaitingPlanApproval: false } }));
+  const controls = { execute, canWait: () => true };
+  expect(await continuation.finish(turn, controls)).toBeUndefined();
+  expect(await continuation.finish({ ...turn, toolResults: [], message: { ...turn.message,
+    stopReason: 'stop', content: [{ type: 'text', text: 'The approved plan is unchanged.' }] } }, controls)).toBeUndefined();
+  expect(continuation.reportOnly).toBe(false);
+  expect(execute).toHaveBeenCalledTimes(1);
 });
 
 it('keeps validation failure active even when a plan write was not observed', async () => {

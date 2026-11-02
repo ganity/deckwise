@@ -103,6 +103,13 @@ tool declarations as well as denying execution. Scene planning gets a validated
 submit tool and bounded closing-response repair; human plan approval remains the
 fidelity decision for natural-language requirements.
 
+Successful scene-draft submission is not a terminal media result. Keep tools for
+post-submit status reads and close on the model's existing final explanation,
+without an additional tool-less response. The latter could cause DeepSeek to
+render an intended tool call as ordinary DSML text. Cover-only rendering
+corrections use image instructions against the approved hash; editing the actual
+plan still requires renewed human review.
+
 Character/name-label overlap must not erase a valid focus. Prefer one pictured
 character or the explicit supplied target, preserving ambiguity between duplicate
 pictures. Extend the existing preserving teaching delta path to missing focus;

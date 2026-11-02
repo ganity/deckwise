@@ -127,18 +127,21 @@ it('keeps planning tools available after shell reads and repairs the first inval
     if (toolName === 'Bash') return { ok: true, content: 'Reference plan' } as T;
     if (toolName === 'Write') { valid = args.content === 'corrected'; return { ok: true, content: 'Written' } as T; }
     if (toolName === 'courseware_scene_plan_submit') return (valid
-      ? { ok: true, content: { validated: true, awaitingPlanApproval: true, sha256 } }
+      ? { ok: true, content: { validated: true, awaitingPlanApproval: true, plan: { sha256, approvedSha256: 'b'.repeat(64) } } }
       : { ok: false, content: { error: 'Question and choices must be visible on scene page 1' } }) as T;
+    if (toolName === 'courseware_workflow_get') return { ok: true,
+      content: { task: { taskType: 'scene', generated: false }, plan: { sha256, approvedSha256: 'b'.repeat(64) } } } as T;
     return execute<T>(method, params);
   };
   const script: Array<{ name: string; arguments: Record<string, string> }> = [
-    { name: 'ToolSearch', arguments: { query: 'courseware_scene_plan_submit' } },
+    { name: 'ToolSearch', arguments: { query: 'courseware_workflow_get' } },
     { name: 'Bash', arguments: { command: 'cat .deckwise-ppt/scenes/chat/plan.json 2>/dev/null | head -50' } },
     { name: 'Bash', arguments: { command: 'cat .deckwise-ppt/scenes/reference/plan.json | head -60' } },
     { name: 'Write', arguments: { path: '.deckwise-ppt/scenes/chat/plan.json', content: 'invalid' } },
     { name: 'Bash', arguments: { command: 'cat .deckwise-ppt/scenes/chat/plan.json' } },
     { name: 'Write', arguments: { path: '.deckwise-ppt/scenes/chat/plan.json', content: 'corrected' } },
     { name: 'courseware_scene_plan_submit', arguments: {} },
+    { name: 'courseware_workflow_get', arguments: {} },
   ];
   let requests = 0;
   const declarations: string[][] = [];
@@ -165,11 +168,11 @@ it('keeps planning tools available after shell reads and repairs the first inval
     await f.runtime.prompt('Create the Greetings scene draft.', 'user', 'turn');
     expect(executed.filter(name => name === 'Write'), JSON.stringify(executed)).toHaveLength(2);
     expect(contexts[4]).toContain('Question and choices must be visible on scene page 1');
-    expect(contexts.at(-1)).toContain('awaiting the existing human plan review');
-    expect(declarations.at(-1)).toEqual([]);
+    expect(executed).toContain('courseware_workflow_get');
+    expect(contexts.at(-1)).toContain('approvedSha256');
     expect(requests).toBe(script.length + 1);
     for (const [index, call] of script.entries()) expect(declarations[index]).toContain(call.name);
-    expect(executed.every(name => ['Write', 'Bash', 'courseware_scene_plan_submit'].includes(name))).toBe(true);
+    expect(executed.every(name => ['Write', 'Bash', 'courseware_scene_plan_submit', 'courseware_workflow_get'].includes(name))).toBe(true);
     expect(f.events.filter(event => event.event.type === 'agent_end')).toHaveLength(1);
     expect(f.events.filter(event => event.event.type === 'error')).toEqual([]);
   } finally { await f.runtime.dispose(); }

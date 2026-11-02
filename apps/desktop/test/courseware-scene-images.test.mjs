@@ -494,6 +494,27 @@ test("scene image preparation and quote are nonpaid and hide server proofs; conf
   assert.equal(f.calls.filter(c => c === "POST confirmed").length, 1);
 });
 
+test("a requested cover-only correction preserves plan approval and the original archived image", async t => {
+  const f = await fixture(t), original = await f.prepare();
+  const bytes = await readFile(f.path);
+  await f.coordinator.generate(f.operation(original));
+  f.ready();
+  await f.coordinator.archive(f.operation(original));
+  const before = await f.coordinator.status(f.operation(original));
+  assert(before.asset);
+  const revised = await f.prepare({ target: { kind: "visualMaster" }, instructions: "Only the five animal subjects; exclude human figures." });
+  assert.notEqual(revised.intentId, original.intentId);
+  assert.equal(revised.planSha256, original.planSha256);
+  assert.equal(revised.selected, false);
+  assert.match(revised.prompt, /Only the five animal subjects/);
+  assert.deepEqual(await readFile(f.path), bytes);
+  const { plan: saved } = await draftReader.readSceneCourseDraft(f.host, f.base);
+  assert.equal(saved.approvedSha256, saved.sha256);
+  const retained = await f.coordinator.status(f.operation(original));
+  assert.deepEqual(retained.asset, before.asset);
+  assert.equal(f.calls.filter(c => c === "POST confirmed").length, 1, "Preparing the requested variant does not resubmit the old image");
+});
+
 test("asset roles and edited requirements reach Host; invalid role data is refused before Host access", async t => {
   const f = await fixture(t);
   for (const target of [{ kind: "visualMaster" }, { kind: "cleanPlate" }, { kind: "layer", name: "小兔" }]) {

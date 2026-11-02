@@ -20,6 +20,21 @@ Before approval, create/revise the planning draft below and ask the user to revi
 7. Where the lesson requires music, use the music catalog and real lyrics/instrumental options. Music preparation continues through candidate generation, export, byte verification and saved-page audio-clip adoption. Refresh its original generation job; the service also recovers the original export. Do not purchase replacement exports for uncertain submissions. A receipt or preview is not saved playable music.
 8. Retain required video in `teaching.video` with purpose and prompt. Detailed narration includes a video block that saves a `video_slot`. Read `courseware_media_context` with `kind:video`, then prepare that slot using `courseware_media_prepare` with its saved action ID and a configured model. Refresh the original job through verified MP4 download, actual decode, Host archive and automatic `video_clip` adoption. Each task creates one five-second clip. A missing model or failed task is an error to report; an unknown submission remains query-only.
 
+### Cover corrections before style confirmation
+
+For a user-requested cover-only rendering or composition correction, keep the
+approved `plan.json` bytes unchanged. After the original cover is ready, call
+`courseware_scene_image_prepare` with the same approved `planSha256`, first-page
+`pageId`, target `visualMaster`, and the correction in `instructions`. For example,
+exclude unrequested human figures while keeping the page's required animals,
+display text, teaching and art direction. Refresh the new original job until ready,
+then ask the user to confirm that cover's style. Keep previous image receipts.
+
+An actual lesson-plan revision, including changed teaching, visible text or
+course-wide required subjects, changes the approved file hash. Explain that the
+revised plan needs human approval again before generating from it. A successful
+submit only validates the draft; read `awaitingPlanApproval` for its actual state.
+
 For `QUESTION_MISSING`, `QUESTION_TYPE_MISMATCH`, `MUSIC_MISSING` or `VIDEO_MISSING` on an already narrated page, call `courseware_narration_propose` with `repairRequiredTeaching:true`. The tool inserts missing approved actions at existing speech IDs; it retains speech, audio and effects. Do not ask the model to echo or rewrite saved speech to fill these gaps. The required question text, ordered options and answer indices must match the approved contract.
 
 Check saved actions, `teachingReady`, `audioReady` and `videoReady` before declaring the baseline teaching chain complete. Preserve plan approval and first-page style confirmation; do not ask for per-page teaching approval. Deliver the editable PPTX with saved teaching data. Build PPTist only when publishing a fixed version; never publish automatically after generation.

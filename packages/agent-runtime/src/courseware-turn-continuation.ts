@@ -137,11 +137,12 @@ export class CoursewareTurnContinuation {
         if (result.isError || !record(result.details) || result.details.validated !== true)
           throw new Error(JSON.stringify(result.content));
         this.planRepairPending = false;
-        const submitting = turn.toolResults.some(result => result.toolName === "courseware_scene_plan_submit" && !result.isError);
-        if (turn.message.content.some(block => block.type === "toolCall") && !submitting) return;
+        if (result.details.awaitingPlanApproval === false) { this.planning = false; return; }
+        // Keep tools through post-submit status reads; close on the model's final response without another tool-less pass.
+        if (turn.message.content.some(block => block.type === "toolCall")) return;
         this.planning = false;
         this.stop();
-        return "The scene draft passed product validation and is awaiting the existing human plan review. Report it as a draft, not a completed lesson. Do not prepare images or media before approval.\n" + JSON.stringify(result.details);
+        return;
       } catch (error) {
         signal?.throwIfAborted();
         if (!controls.canWait()) return;

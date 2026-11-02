@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Keep tools available for post-submit scene-plan status reads and finish on the
+  existing final response instead of requesting a tool-less extra response.
+  Route cover-only rendering corrections through image instructions, retaining
+  plan approval; actual plan revisions still require human review.
+
 - Keep scene-planning corrections available after reading draft/reference files.
   Detect plan mutations from Write/Edit target paths instead of shell commands
   or file contents; retain validation and human plan/style approval.

@@ -552,6 +552,15 @@ contents mentioning a draft path, and backup files neither start planning recove
 nor consume corrections. Shell-authored drafts still require the explicit submit
 tool; command text alone is not evidence of a draft mutation. While recovery is
 active, shell reads do not trigger another automatic validation.
+Successful draft validation keeps tool declarations available for post-submit
+status reads. An unapproved valid draft ends on the model's existing closing
+response, without a second tool-less model pass. Validation of an unchanged
+approved draft does not re-enter human review or stop authorized image work.
+Cover-only rendering/composition corrections before style confirmation use the
+existing image-prepare `instructions` with the same approved plan hash. The model
+keeps plan bytes and original image receipts; only the new cover needs style
+review. Actual edits to the plan, including course-wide required subjects,
+invalidate the old hash approval and require renewed human plan review.
 
 For an authorized complete-course run, a successful media-context tool result
 with no original pending jobs and Host `completion.ready:true` enters saved

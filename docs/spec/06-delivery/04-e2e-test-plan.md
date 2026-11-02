@@ -50,6 +50,14 @@ below predate automatic continuation and do not describe this workspace UI.
   submit. End at human plan review without approving or generating any assets.
   Writing notes that mention a plan path or writing a backup must not activate
   recovery. Cover both `path` and the legacy `file_path` alias.
+- After a successful submit, query workflow status before the final explanation.
+  The read must execute with tools still declared; finish on the existing closing
+  response without an extra tool-less response. Revalidating unchanged approved
+  bytes must preserve approval and leave image work available.
+- Request a cover-only rendering correction after archiving an unselected cover.
+  Prepare with image instructions and the same plan hash; preserve the plan's
+  exact bytes, human approval and original archived image. The variant remains
+  unselected for human style review. Actual plan edits still require reapproval.
 - Fail draft validation, repeat submit without writing, then fail a partial edit.
   The repair budget must remain available. Correct the draft with a successful
   write and require human plan approval; do not automatically approve either the
