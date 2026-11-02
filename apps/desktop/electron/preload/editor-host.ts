@@ -1,5 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 
+if (!process.isMainFrame) throw new Error("The editor host capability is available only to its main frame");
+
 const commandListeners = new Set<(command: unknown) => void>();
 
 ipcRenderer.on("deckwise-editor:command", (_event, command) => {

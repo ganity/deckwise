@@ -1863,6 +1863,12 @@ sklm: {
       approvalStale: "Le plan a changé. Vérifiez-le et confirmez-le à nouveau.", approvalHint: "La confirmation enregistre uniquement ce plan, sans générer de médias ni entraîner de frais multimédias.",
     },
     pptEditor: {
+      focus: "Mode concentration",
+      returnToChat: "Retour au chat",
+      teachingFlow: "Déroulé pédagogique",
+      inspection: "Vérifier",
+      savedToFile: "Enregistré dans le fichier original",
+      opened: "Ouvert",
       effectsTitle: "Surlignage et projecteur",
       effectsObject: "Objet {{number}}",
       effectsObjectText: "Texte · objet {{number}}",

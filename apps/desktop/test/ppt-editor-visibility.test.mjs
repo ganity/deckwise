@@ -18,6 +18,7 @@ before(async () => {
       },
       async pptEditorSetVisible(visible) { window.fixture.calls.push(["visible", visible]); },
       async pptEditorSetBounds() {},
+      async pptEditorConfigureUi(ui) { window.fixture.calls.push(["ui", ui]); },
       async pptEditorClose() { window.fixture.calls.push(["close"]); },
       onPptEditorState(listener) { window.fixture.listeners.add(listener); return () => window.fixture.listeners.delete(listener); }
     };`,
@@ -37,7 +38,7 @@ before(async () => {
         const f = window.fixture = {
           calls: [], listeners: new Set(), pending: null,
           store: { activeSessionId: "chat", workPanelTabs: [{ id: "ppt" }], closeWorkPanelTab() {}, showToast() {} },
-          render() { flushSync(() => root.render(<StrictMode><PptEditorTab path="uploaded.pptx" tabId="ppt" /></StrictMode>)); },
+          render() { flushSync(() => root.render(<StrictMode><PptEditorTab path="uploaded.pptx" tabId="ppt" onToggleMaximize={() => this.calls.push(["focus"])} /></StrictMode>)); },
           mount() { root = createRoot(document.getElementById("root")); this.render(); },
           unmount() { this.store.workPanelTabs = []; flushSync(() => root.unmount()); },
           finish(error) {
@@ -85,7 +86,7 @@ test("StrictMode opens the uploaded PPT once and displays it after native readin
   await page.evaluate(() => window.fixture.finish());
   assert.equal(await page.evaluate(() => window.fixture.calls.some(([name, visible]) => name === "visible" && visible)), true, "a ready uploaded PPT must be displayed");
   assert.deepEqual(await page.evaluate(() => window.fixture.calls.filter(([name]) => name === "open")), [["open", "uploaded.pptx"]]);
-  assert.equal(await page.locator('[role="status"]').textContent(), "panel.pptEditor.revision");
+  assert.equal(await page.locator('[role="status"]').textContent(), "panel.pptEditor.opened");
   await page.evaluate(() => window.fixture.unmount());
   await page.waitForFunction(() => window.fixture.calls.some(([name]) => name === "close"));
   assert.deepEqual((await page.evaluate(() => window.fixture.calls.filter(([name]) => name === "visible"))).at(-1), ["visible", false]);
@@ -146,4 +147,21 @@ test("native teaching progress appears in the toolbar without another teaching v
   assert.equal(await page.locator(".courseware-teaching-progress").textContent(), "coursewareWorkflow.teachingProgress");
   assert.equal(await page.locator(".courseware-teaching").count(), 0);
   assert.equal(await page.evaluate(() => window.fixture.calls.filter(([name]) => name === "open").length), 1);
+});
+
+test("module controls keep focus and inspection local and send teaching visibility to the isolated view", async t => {
+  const page = await fixture(t);
+  await page.evaluate(() => window.fixture.finish());
+  await page.evaluate(() => {
+    for (const listener of window.fixture.listeners) listener({ status: "ready", path: "uploaded.pptx", module: true,
+      nativeTeaching: true, teachingOpen: true, canSave: true });
+  });
+  const focus = page.getByRole("button", { name: "panel.pptEditor.focus", exact: true });
+  await focus.click();
+  assert.equal(await page.evaluate(() => window.fixture.calls.some(([name]) => name === "focus")), true);
+  await page.getByRole("button", { name: "panel.pptEditor.inspection", exact: true }).click();
+  assert.equal(await page.locator(".ppt-editor-review").count(), 1);
+  await page.getByRole("button", { name: "panel.pptEditor.teachingFlow", exact: true }).click();
+  assert.deepEqual((await page.evaluate(() => window.fixture.calls.filter(([name]) => name === "ui"))).at(-1),
+    ["ui", { teachingOpen: false }]);
 });

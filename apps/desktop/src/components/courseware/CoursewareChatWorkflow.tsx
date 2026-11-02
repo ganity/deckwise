@@ -92,13 +92,13 @@ function Workflow({ sessionId, maximized, onToggleMaximize }: { sessionId: strin
     .find(attachment => attachment.kind === "file" && /\.(pdf|docx?)$/i.test(attachment.name));
 
   return <section className={`courseware-chat-workflow courseware-workspace${path ? " has-editor" : ""}`} aria-label={t("coursewareWorkflow.workspace")}>
-    <header className="courseware-workspace-heading">
+    {!path && <header className="courseware-workspace-heading">
       <strong>{t("coursewareWorkflow.workspace")}</strong>
       <div className="courseware-workflow-actions">
         {path && <button type="button" disabled={blocked} onClick={() => setImportOpen(true)}>{t("coursewareWorkflow.publish")}</button>}
         <button type="button" disabled={busy} onClick={() => setRefresh(value => value + 1)}>{t("coursewareWorkflow.refresh")}</button>
       </div>
-    </header>
+    </header>}
     {(error || readError) && <p role="alert" className="courseware-workflow-error">{error || readError}</p>}
     {!view && !readError && <p role="status">{t("coursewareWorkflow.loadingWorkspace")}</p>}
     {view && !view.task && <p>{t("coursewareWorkflow.briefHint")}</p>}
@@ -150,12 +150,16 @@ function Workflow({ sessionId, maximized, onToggleMaximize }: { sessionId: strin
       })}>{t("coursewareWorkflow.selectPpt")}</button>}
       {ordinary && <CoursewareChatPresentation sessionId={sessionId} disabled={blocked} refreshKey={refresh}
         sourceVisuals={sourceVisuals} onReady={setPlainPath} />}
-      {path && <details className="courseware-workspace-reviews"><summary>{t("coursewareWorkflow.reviews")}</summary>
-        {!ordinary && sourceVisuals}
-        <CoursewareChatNarration sessionId={sessionId} disabled={blocked} />
-        <CoursewareChatPptxCandidates sessionId={sessionId} disabled={blocked} />
-      </details>}
-      {path && <PptEditorTab key={path} path={path} tabId="ppt" maximized={maximized} onToggleMaximize={onToggleMaximize} />}
+      {path && <PptEditorTab key={path} path={path} tabId="ppt" maximized={maximized} onToggleMaximize={onToggleMaximize}
+        actions={<>
+          <button type="button" disabled={blocked} onClick={() => setImportOpen(true)}>{t("coursewareWorkflow.publish")}</button>
+          <button type="button" disabled={busy} onClick={() => setRefresh(value => value + 1)}>{t("coursewareWorkflow.refresh")}</button>
+        </>}
+        reviewPanel={<>
+          {!ordinary && sourceVisuals}
+          <CoursewareChatNarration sessionId={sessionId} disabled={blocked} />
+          <CoursewareChatPptxCandidates sessionId={sessionId} disabled={blocked} />
+        </>} />}
       {path && <CoursewareImportDialog open={importOpen} sessionId={sessionId} initialTitle={session?.title ?? t("coursewareWorkflow.workspace")}
         pptxPath={path} firstLessonPlan={firstLessonPlan ? { name: firstLessonPlan.name, path: firstLessonPlan.ref } : null} onClose={() => setImportOpen(false)} />}
     </>}

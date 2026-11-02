@@ -321,3 +321,4 @@ Each ADR includes:
 | 0301 | [ADR 0301: Explicit append-only WebDAV compatibility mode](0301-explicit-append-only-webdav-compatibility-mode.md) | Historical upstream context |
 | playback-presentation-events | [Fixed playback presentation observers](playback-presentation-events.md) | Accepted for the independent player module |
 | 0305 | [Saved-page narration independent of Office preview](0305-saved-page-narration.md) | Accepted for courseware narration |
+| 0288 | [Load the Office Module in the Isolated Editor View](0288-isolated-office-module-entry.md) | Accepted |

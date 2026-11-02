@@ -300,6 +300,11 @@ export function registerPptEditorIpc(input: {
       return { ok: true };
     },
   );
+  registrar.handleWithEvent(IPC.invoke.pptEditorConfigureUi, async (event, payload: unknown) => {
+    assertSender(event);
+    editor.configureUi(payload);
+    return { ok: true };
+  });
   registrar.handleWithEvent(
     IPC.invoke.pptEditorSetVisible,
     async (event, payload: { visible?: boolean } = {}) => {

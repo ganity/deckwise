@@ -13,6 +13,8 @@ const [controller, host, component, protocol, vite, packageJson, hostProtocol] =
   read("../package.json").then(JSON.parse),
   read("../electron/main/editor-host-protocol.ts"),
 ]);
+const editorPreload = await read("../electron/preload/editor-host.ts");
+const stageScript = await read("../../../scripts/stage-wiseoffice.mjs");
 
 test("PPTX editor is embedded and all normal escape routes are denied", () => {
   assert.match(controller, /setWindowOpenHandler\(\(\) => \(\{ action: "deny" \}\)\)/);
@@ -73,4 +75,17 @@ test("editor preload and host page are both shipped", () => {
       (entry) => entry.from === "resources/editor-host" && entry.to === "editor-host",
     ),
   );
+});
+
+test("bundled Office boots the isolated React module directly and retains its narrow preload", () => {
+  assert.match(controller, /deckwise-editor:\/\/wiseoffice\/module\.html/);
+  assert.match(controller, /nodeIntegrationInSubFrames: false/);
+  assert.match(controller, /senderFrame !== viewContents\.mainFrame/);
+  assert.match(editorPreload, /if \(!process\.isMainFrame\)/);
+  assert.match(stageScript, /module\.html/);
+  assert.match(protocol, /pptEditorConfigureUi/);
+  assert.match(component, /pptEditorConfigureUi/);
+  assert.match(component, /panel\.pptEditor\.focus/);
+  assert.match(component, /panel\.pptEditor\.inspection/);
+  assert.match(component, /state\.teachingOpen/);
 });

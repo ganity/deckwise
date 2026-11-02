@@ -1864,6 +1864,12 @@ sklm: {
       approvalStale: "規劃已修改，請重新審核並確認。", approvalHint: "確認只儲存目前規劃，不生成素材或產生媒體費用。",
     },
     pptEditor: {
+      focus: "專注編輯",
+      returnToChat: "返回對話",
+      teachingFlow: "教學流程",
+      inspection: "檢查與審核",
+      savedToFile: "已儲存至原始檔案",
+      opened: "已開啟",
       effectsTitle: "高亮與聚光",
       effectsObject: "物件 {{number}}",
       effectsObjectText: "文字 · 物件 {{number}}",

@@ -568,6 +568,7 @@ export const IPC = {
     pptEditorSave: "deckwise/ppt-editor/save",
     pptEditorClose: "deckwise/ppt-editor/close",
     pptEditorSetBounds: "deckwise/ppt-editor/setBounds",
+    pptEditorConfigureUi: "deckwise/ppt-editor/configure-ui",
     pptEditorSetVisible: "deckwise/ppt-editor/setVisible",
     pptEditorInspectStart: "deckwise/ppt-editor/inspect/start",
     pptEditorInspectStatus: "deckwise/ppt-editor/inspect/status",

@@ -1881,6 +1881,12 @@ sklm: {
       approvalStale: "Plan değişti. Yeniden inceleyip onaylayın.", approvalHint: "Onay yalnızca bu planı kaydeder. Medya oluşturmaz veya medya maliyetine yol açmaz.",
     },
     pptEditor: {
+      focus: "Odaklan",
+      returnToChat: "Sohbete dön",
+      teachingFlow: "Ders akışı",
+      inspection: "İncele",
+      savedToFile: "Özgün dosyaya kaydedildi",
+      opened: "Açıldı",
       effectsTitle: "Vurgulama ve spot ışığı",
       effectsObject: "Nesne {{number}}",
       effectsObjectText: "Metin · nesne {{number}}",

@@ -41,6 +41,8 @@ export type PptEditorState = {
   dirty?: boolean;
   canSave?: boolean;
   nativeTeaching?: boolean;
+  module?: boolean;
+  teachingOpen?: boolean;
   teachingProgress?: CoursewareTeachingProgress;
 };
 
@@ -76,6 +78,8 @@ export class PptEditorController {
   private saveOutcomeUncertain = false;
   private commandSequence = 0;
   private ready = false;
+  private module = false;
+  private ui = { theme: "light" as "light" | "dark", teachingOpen: true };
   private opening = false;
   private openAbort: AbortController | null = null;
   private bridgeAbort = new AbortController();
@@ -101,9 +105,11 @@ export class PptEditorController {
 
   async open(window: BrowserWindow, workspaceRoot: string, requestedPath: string, mimeType?: string, extraRoots: string[] = [], forceReadOnly = false) {
     if (this.pendingSave) throw new Error("Finish the current save before opening another document");
+    this.module = false;
     if (this.editorUrl.protocol === "deckwise-editor:") {
       const resources = app.isPackaged ? process.resourcesPath : join(app.getAppPath(), "resources");
-      await fs.access(join(resources, "wiseoffice", "editor.html")).catch(() => {
+      this.module = await fs.access(join(resources, "wiseoffice", "module.html")).then(() => true, () => false);
+      await fs.access(join(resources, "wiseoffice", this.module ? "module.html" : "editor.html")).catch(() => {
         throw new Error("Bundled WiseOffice is missing. Stage the WiseOffice production build before opening documents.");
       });
     }
@@ -161,9 +167,11 @@ export class PptEditorController {
     this.emit({ status: "opening", path: requestedPath, revision: revision.revision });
     const view = this.createView();
     this.view = view;
-    const hostUrl = new URL(HOST_PAGE);
-    hostUrl.searchParams.set("editor", this.editorUrl.href.replace(/\/$/, ""));
-    hostUrl.searchParams.set("editorOrigin", this.editorOrigin);
+    const hostUrl = new URL(this.module ? "deckwise-editor://wiseoffice/module.html" : HOST_PAGE);
+    if (!this.module) {
+      hostUrl.searchParams.set("editor", this.editorUrl.href.replace(/\/$/, ""));
+      hostUrl.searchParams.set("editorOrigin", this.editorOrigin);
+    }
     if (extension === "pptx") hostUrl.searchParams.set("deckwise", "1");
     view.setBounds(this.bounds);
     const abort = new AbortController();
@@ -180,6 +188,7 @@ export class PptEditorController {
       );
       await Promise.all([ready, view.webContents.loadURL(hostUrl.href)]);
       if (this.view !== view || abort.signal.aborted) throw new Error("Editor opening was cancelled");
+      if (this.module) this.sendCommand("document:configure-ui", this.ui);
       const commandId = this.sendCommand("document:open-buffer", {
         fileName: `${basename(sourcePath, extname(sourcePath))}.${getOfficeExtension(revision.file) ?? extension}`,
         buffer: transferableBuffer(sourceBytes),
@@ -470,6 +479,17 @@ export class PptEditorController {
     if (this.view) this.view.setBounds(this.bounds);
   }
 
+  configureUi(payload: unknown): void {
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error("Invalid editor UI configuration");
+    const theme: unknown = Reflect.get(payload, "theme"), teachingOpen: unknown = Reflect.get(payload, "teachingOpen");
+    if (Object.keys(payload).some(key => !["theme", "teachingOpen"].includes(key)) ||
+        (theme !== undefined && theme !== "light" && theme !== "dark") ||
+        (teachingOpen !== undefined && typeof teachingOpen !== "boolean")) throw new Error("Invalid editor UI configuration");
+    if (theme === "light" || theme === "dark") this.ui.theme = theme;
+    if (typeof teachingOpen === "boolean") this.ui.teachingOpen = teachingOpen;
+    if (this.module && this.ready) this.sendCommand("document:configure-ui", this.ui);
+  }
+
   setVisible(visible: boolean): void {
     this.visible = visible;
     if (visible && this.ready) this.attach();
@@ -492,13 +512,19 @@ export class PptEditorController {
 
   private readonly onEditorEvent = (
     event: Electron.IpcMainEvent,
-    message: { type?: string; id?: string; bytes?: ArrayBuffer; pageLineage?: unknown; message?: string | { id?: string; type?: string; payload?: { message?: string; dirty?: boolean; success?: boolean } } },
+    message: { type?: string; id?: string; bytes?: ArrayBuffer; pageLineage?: unknown; message?: string | { id?: string; type?: string; payload?: { message?: string; dirty?: boolean; success?: boolean; teachingOpen?: boolean } } },
   ) => {
     const senderId = event?.sender?.id;
     const viewContents = this.view?.webContents;
     if (senderId === undefined || !viewContents || senderId !== viewContents.id || !message) return;
+    if (event.senderFrame && event.senderFrame !== viewContents.mainFrame) return;
     const reply = typeof message.message === "object" ? message.message : undefined;
     if (message.type === "message" && reply?.id && this.activeBridgeRequests.has(reply.id)) return;
+    if (this.module && ["document:ui-changed", "document:ui-configured"].includes(reply?.type ?? "") && typeof reply?.payload?.teachingOpen === "boolean") {
+      this.ui.teachingOpen = reply.payload.teachingOpen;
+      if (this.ready) this.emit(this.state(this.pendingSave ? "saving" : "ready"));
+      return;
+    }
     if (reply?.type === "document:teaching-ready" && this.editorUrl.protocol === "deckwise-editor:" && this.nativeTeaching && this.ready) {
       this.nativeTeachingReady = true;
       this.emit(this.state("ready"));
@@ -640,6 +666,8 @@ export class PptEditorController {
       status,
       dirty: this.dirty,
       nativeTeaching: this.nativeTeachingReady,
+      module: this.module,
+      teachingOpen: this.ui.teachingOpen,
       ...(!this.dirty && !this.pendingSave && !this.saveOutcomeUncertain &&
         this.teachingProgress?.sourceSha256 === this.current?.savedRevision.sha256 && this.teachingProgress
         ? { teachingProgress: this.teachingProgress.value } : {}),
@@ -673,6 +701,7 @@ export class PptEditorController {
         preload: join(__dirname, "../preload/editor-host.js"),
         contextIsolation: true,
         nodeIntegration: false,
+        nodeIntegrationInSubFrames: false,
         sandbox: true,
         webviewTag: false,
       },

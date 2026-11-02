@@ -1863,6 +1863,12 @@ sklm: {
       approvalStale: "El plan cambió. Revísalo y confírmalo de nuevo.", approvalHint: "La confirmación solo guarda este plan. No genera recursos ni implica costes multimedia.",
     },
     pptEditor: {
+      focus: "Concentración",
+      returnToChat: "Volver al chat",
+      teachingFlow: "Secuencia didáctica",
+      inspection: "Revisar",
+      savedToFile: "Guardado en el archivo original",
+      opened: "Abierto",
       effectsTitle: "Resaltado y foco",
       effectsObject: "Objeto {{number}}",
       effectsObjectText: "Texto · objeto {{number}}",
