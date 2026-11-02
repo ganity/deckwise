@@ -1,6 +1,6 @@
 # Main Chat courseware generation
 
-Scene compilation accepts up to 256 MiB of verified original selected assets. Compiler copies of native cropped foregrounds fit their mapped display bounds without enlargement; private originals and separate image objects remain intact. Normalized compiler input remains bounded at 32 MiB.
+Scene compilation accepts all verified selected assets in the approved plan without an aggregate byte ceiling. Individual image validation and compiler canvas fitting remain in force; compiler copies of native cropped foregrounds fit their mapped display bounds without enlargement. The final playable package retains its existing output-size validation.
 When every foreground has a native placement, compilation uses those coordinates and supplier labels directly. It does not ask a model to reconstruct the image lettering or invent replacement layout metadata.
 Saved teaching continuation remains available after compilation without an active Office editor binding. Native canvas edits still use the existing editor binding checks.
 
@@ -16,8 +16,19 @@ panel remains an inspection/editing entrance. Task types remain `plain`, `scene`
 and `import`; school stage is guidance, not routing. No second assistant, model
 loop in the renderer, database owner or generation engine is introduced.
 
+Agent workflow, image generation/decomposition, compilation and saved narration/
+media operations retain the session supplied by Main's live turn. Main's turn
+guard validates session/turn ownership and cancellation; navigation to another
+Chat or settings neither redirects that work nor cancels it. Saved operations
+still recheck Host, workspace, source, project/page identity, revisions, locks
+and media account ownership before writes. Explicit Stop or a replaced/ended
+turn prevents further dispatch. No foreground session is assigned by a background
+tool. Panel reads, narration candidate reviews/decisions and native current-canvas
+edits retain their existing foreground ownership checks. Only Main's trusted
+Agent calls supply the internal turn guard; renderer IPC cannot provide one.
+
 Successful same-session `ppt_propose_page_narration` tool receipts also expose
-review buttons inside the main Chat stage card. The existing structured-result
+review buttons inside the courseware workspace, sourced from the main Chat. The existing structured-result
 decoder reads only the current Chat transcript; assistant prose, failed calls
 and delegate calls cannot create entrances. A receipt's baseline session ID is
 the native Office mount ID, not the Chat ID. Main validates Chat ownership when
@@ -106,17 +117,79 @@ it is not supplied by updating Desktop alone.
 
 The main-window-only `deckwise/courseware/workflow/get` IPC accepts exactly
 `{sessionId}`. Main validates the active viewing Chat, stable Host and workspace.
-Generic Chats without a saved task show no card. Failed reads remain actionable.
+Chats without a saved task show no automatic courseware entrance. Failed reads remain actionable.
 The shell publishes the viewing session in its layout effect before child
 passive effects read scoped workflow state. Reloading or reopening a saved Chat
 must not depend on a new Agent turn to establish its owner.
 
-Sending a Chat request does not open or switch the work panel. A panel the user
-opened deliberately, including its active Office/canvas tab and collapsed state,
-is preserved. Preview and editor controls remain explicit artifact entrances.
-The current-stage card lives inside the existing measured composer dock. Its
-height contributes to the transcript reserve, keeping plan/quote controls above
-the input rather than underneath the floating composer, also in smaller windows.
+## Single courseware workspace
+
+Chat keeps the conversation and a compact Open courseware / edit entrance above
+its transcript. There is no workflow card in either composer. A newly created
+courseware task opens the right workspace only when it has no retained panel
+resources. Later messages and session restoration preserve existing panel tabs,
+collapsed state and native editor state. The old `scene-images` entrance maps to
+`ppt`; opening the same attached PPT reuses that workspace.
+
+The workspace replaces the disabled task-settings form and manual image console.
+Task creation still owns the three routes and education settings. Scene planning
+uses the approved version's actual title, pages and visual guide. Confirm plan
+pins that hash and sends a specific cover-generation continuation. Confirm style
+adopts the verified cover with the existing selection CAS, then sends a specific
+remaining-pages continuation. Cover revisions accept an explicit instruction.
+Plan changes still invalidate their affected approval and assets. Failed sends
+remain visible and can be resumed without repeating approval.
+
+Cover confirmation continues the original requested deliverables, including
+previously requested narration, speech audio and music. Its localized message
+does not introduce a new full-course decision or expand a PPTX-only request.
+Already supplied requirements are not asked again.
+
+ToolSearch activation of compilation or any saved narration/media workflow tool
+also activates the finite saved-teaching tool group (narration context/propose,
+media context/prepare/refresh). Activation receipts record every added name for
+normal replay and restart recovery. Mode and Host authorization checks still
+apply independently; discovery never executes generation. Saved narration
+context uses the same bounded tool budget as saved media context so parser
+admission and source verification can finish without a premature outer timeout.
+
+The same body shows these states, without introducing additional stage tabs:
+
+| Evidence | Workspace content |
+| --- | --- |
+| Unapproved saved plan | Review plan and confirm plan / generate cover |
+| Archived cover without selection | Cover preview, style revision and style confirmation |
+| Incomplete page masters | Read-only previews, placeholders and actual completed-page count |
+| Masters complete, required assets incomplete | All page previews; actual asset-complete page count |
+| All selected assets valid, no active compiler | Waiting for PPT conversion |
+| Main reports matching active compiler | Converting PPT; retain image previews and selected page |
+| Saved generated/imported source, or validated ordinary export | Mount the existing PPT editor in place, including during an active Agent turn |
+
+Chat activity alone never implies compilation, teaching completion or a fixed
+percentage. Compiler state is ephemeral, scoped to session and approved plan,
+and errors are retained until another compile or plan change. After restart,
+only durable assets/source determine readiness; no job is recreated by reading.
+Image-service waiting, unknown submission, failure and inactive work are shown
+separately from the stage. Resume rereads the original task under the existing
+Agent/Host authorization; it never directly submits a new image from the renderer.
+The existing Stop action and account/session/source fences remain authoritative.
+
+The editor keeps its native save, inspection, narration, media and publication
+controls. Audio and reviewed-page counts appear in the editor toolbar, derived from validated
+native teaching responses pinned to the saved source. Reading progress never opens
+a second teaching view or reintroduces the retired React sidebar;
+a saved PPT is not a claim of complete teaching readiness. Candidate reviews and
+source-visual approval move into the workspace's collapsible review area, retaining
+their existing draft, revision and permission checks. Ordinary projects retain
+SVG preview, quality repair and explicit export; imports open their saved source.
+Images remain images: embedded lettering is not promised as editable text.
+
+Renderer validation: `scripts/e2e-courseware-workspace.mjs` exercises the actual
+components with isolated IPC/media fixtures, including 520px width, the two
+confirmations, intermediate previews and editor mount stability. It does not run
+the native Office engine, paid services or the entire Agent/Host generation loop.
+The older full-generation evidence below predates this layout and is not proof
+of this workspace's native integration.
 
 ## Task creation and handoff
 
@@ -161,8 +234,9 @@ admission, audit and cancellation. Only reading is low risk; the rest are high.
 | `courseware_scene_image_refresh` | Query the original task and archive verified ready/settled bytes for human review. |
 | `courseware_scene_compile` | Revalidate approved plan and selected assets, then use existing compilation/staging. |
 
-Session and turn are Host-bound, not model-controlled. Stop, conversation switch
-and Host replacement fence late work. Compiler dispatch requests 16 minutes to
+Session and turn are Host-bound, not model-controlled. Stop, turn replacement
+and Host replacement fence late work; foreground navigation alone does not.
+Compiler dispatch requests 16 minutes to
 outlast its existing 15-minute internal timeout; global timeouts are unchanged.
 The existing generation service checks captured scope and aborts when it expires.
 Uncertain outcomes require reading saved state, never automatic replay.
@@ -319,7 +393,7 @@ issue fixed above. The installed PPTX preserved 22 non-target parts plus native
 slide content/timing and narration. Evidence:
 `../../validation/courseware/chat-pptx-review-20261025/README.md`.
 
-The right generation form stayed unmounted; only artifact editing opened there.
+Historical layout evidence (before the single workspace): the right generation form stayed unmounted; only artifact editing opened there.
 At 1080x760, the workflow stayed above the composer. Identity, model JSON and
 media used loopback fixtures; no real cost, production-model quality, audio,
 publication or packaged-release acceptance is claimed. Evidence is recorded in
@@ -343,3 +417,174 @@ calls. Neither operation sends generation requests.
 Layer delivery: llm-ha preserves the supplier URL result and metadata without downloading layer images. Desktop downloads public HTTPS layers without credentials or redirects, bounds response sizes, validates the images, and archives them locally. Legacy inline Base64 bundles remain readable. A failed download retries delivery from the existing receipt, never generation.
 
 Native layer delivery uses the Electron default session for both DNS safety checks and image fetching. A group is bounded to 44 MiB raw and 60 MiB JSON, preserving the existing 64 MiB Host frame; the per-image 8 MiB and 4096×4096 validation still applies. Oversized groups report COURSEWARE_SCENE_IMAGE_LAYER_BUNDLE_TOO_LARGE rather than a generic asset failure.
+
+### Planning review presentation
+
+The planning review uses a numbered page outline, with the first page expanded by default. Each page separates student text, visual intent and narration. The course visual guide remains available in a disclosure. The review body scrolls independently of the approval footer, keeping the existing approval action reachable at narrow panel widths. Disclosure state is local presentation only; approval hashes, generation prompts and workflow transitions are unchanged.
+
+
+## Host completion acceptance and resumable repair
+
+A complete saved-course request uses Host-derived `completion.ready`, in addition
+to narration/audio/teaching/video readiness. `completion.issues` checks detailed
+speech on every page, missing speech audio, pending media/focus, and the retained
+scene mapping's logical-page requirements. A missing required page, exact question text and full response contract, song or structured video cannot disappear from acceptance when
+its action is omitted. Quality diagnostics remain advisory; subjective teaching
+quality is not certified by this gate. Legacy plans without structured teaching
+metadata retain their existing baseline checks. Optional `teaching.video` retains one required five-second silent clip; absent slots emit `VIDEO_MISSING`, and unresolved slots emit `VIDEO_PENDING`. A required adopted clip must have a matching original Host target/receipt. Free-text video intentions are not inferred for legacy plans.
+
+`courseware.workflow.get(sessionId, projectId)` reads acceptance and the durable
+checkpoint without starting work or changing it. The internal
+`courseware.workflow.checkpoint` RPC uses the session's owned running Agent turn,
+project/source binding and an expected revision. The Host stores status
+(`running`, `blocked`, `completed`), diagnostic hashes and bounded repair counts
+in `coursewareWorkflow.v1`. Counters are monotonic. No historical prompt, status
+read, interrupted checkpoint or application startup authorizes generation. An
+explicit complete-course continuation restores budgets against current saved
+state; Stop/cancellation still ends execution. The runtime resets only ephemeral
+turn instructions. Original media journals retain submission identities and results.
+
+The Main sidecar proxy explicitly allows these two workflow RPCs and forwards
+their original session, project, turn and revision fields to Host validation.
+Other courseware methods and secret/configuration access remain denied unless
+independently allowlisted. A continuation-hook failure is a local request failure,
+not a provider failure: preserve cancellation and existing local diagnostics,
+surface a terminal error, and never retry a successful model response to repair
+checkpoint access or persistence. Host-verified completion persists its checkpoint,
+permits one final report without tools, and then ends the active run.
+
+Only verified native-save commit may rebind an existing checkpoint to changed
+PPTX bytes. It increments the checkpoint revision atomically, retains repair
+budgets, invalidates the previous no-progress fingerprint and requires a formerly
+completed course to be checked again. Arbitrary source changes cannot rebind it.
+This transition preserves source/account/turn fences and does not resume a stopped turn.
+
+`completed` is refused unless Host acceptance passes and adopted audio provenance
+validates. Model prose and booleans from the caller cannot certify completion.
+This does not publish, freeze a snapshot, or prove visual/pedagogical quality.
+
+Missing approved question/music actions on pages with detailed narration use
+`courseware_narration_propose(repairRequiredTeaching:true)`. The runtime dispatches
+this operation directly when those are the only remaining acceptance issues. The
+model must retain the exact saved speech texts in order and place the new required
+actions between those anchors. Host retains every original action, including audio,
+effects and media, and accepts only the missing question/response or music slot.
+Rephrased, omitted or reordered speech and incomplete repairs fail without replacing
+teaching. Ordinary explicit narration revisions keep their existing replacement
+behavior. New music still uses the existing quote/submit/archive/adopt chain.
+
+Required repairs are bounded to two attempts for the same logical-page diagnostics,
+including after runtime replacement. Locked/missing pages and exhausted or failed
+repairs produce an unfinished/blocked outcome with actual errors. They never
+silently remove requirements or regenerate successful media to claim completion.
+
+Runtime original-job reads reconcile explicit transient status/transport codes
+with two bounded waits (1s, 2s). Paid prepare, compilation and narration mutations
+are not automatically replayed by this retry policy. Unknown submissions remain
+query-only; invalid input, cancellation and unclassified errors do not enter a
+blind retry loop. A tool failure retains the authorized goal for the next saved-state
+check rather than discarding all continuation state.
+
+
+## Action-bound recovery and reporting (2026-10-31)
+
+Saved media context jobs include optional `actionId` metadata for TTS, music and
+video. It identifies the original saved action; it is not an additional refresh
+argument. The runtime sends only the existing refresh request fields and retains
+that original action identity across single results, unknown submissions and
+per-intent batch failures. Host completion issues likewise include `actionId` for
+specific missing/pending actions. A failed original speech is blocked work, not
+an unsubmitted independent speech; other missing actions on the same page remain
+eligible for completion.
+
+When an unchanged continuation produces no saved progress, transition to blocked
+and allow one report-only pass instead of throwing a retryable provider-shaped
+failure or repeatedly asking the model to complete the same work. Preserve repair
+counters and the resume fingerprint until the blocked checkpoint is persisted;
+only a new authorized run resets ephemeral execution state. No-progress and
+blocked-original paths preserve original jobs and do not claim completion.
+
+Host completion now includes `counts` for pages, speeches, ready/missing speech
+audio, adopted music clips, pending music slots and questions. These are counts
+of saved actions, not estimates of supplier orders or a new audio-verification
+certificate. Quality diagnostics expose per-code `counts`. Reports consume those
+revision-bound fields and `completion.ready`; free-form model prose is not an
+acceptance receipt and cannot override Host readiness.
+
+## Verified bindings and recovery closure (2026-11-01)
+
+Native-save transactions rebind music targets and video boundSource only after
+logical page/action content survives verification. Original request, key, hash and
+account scope remain immutable. Ambiguous legacy music keeps its original and is
+reported through unresolvedOriginals; further generation requires explicit
+resolution. Source changes alone never authorize replacement purchases.
+
+One normalizer distinguishes prepared, pending, unknown, failed, archived, adopted
+and human selection. Known tasks continue to reconcile; unknown outcomes without
+a task are queried once per run, not polled forever. A failed original does not
+suppress independent healthy jobs. Ten minutes without semantic progress closes
+the run with a report. Completion, including advisory diagnostics, enters one
+terminal reporting phase; another user request starts a new authorized run.
+
+Main acquires the independent per-type queue slot and rechecks quote, owner and
+source before Host begin. Same-original local status refreshes coalesce and CAS
+conflicts reread the committed journal; they never cause another POST.
+
+
+## Validated drafts and bounded final status (2026-11-01)
+
+`courseware_scene_plan_submit({})` validates the owning Chat's current plan file
+with the same parser used for review and returns its hash plus draft/review state.
+It does not approve or generate assets. Workflow discovery activates this tool.
+Runtime validates detected scene-plan writes before accepting a closing response,
+returns exact business-validation feedback for at most two corrections, and
+reports an unfinished draft if validation still fails. Generic JSON parsing and
+file-write success are not plan acceptance. Explicit requirements such as song
+names and placement still need fidelity review in the normal plan approval.
+The correction budget advances only after a successful draft write/edit following
+validation failure. Revalidating an unchanged draft or a failed edit does not
+consume it. Failed partial edits direct the model to reread and rewrite the draft
+while retaining required fields and explicit requirements. Both plan approval
+and first-page visual-master approval remain required human decisions.
+
+For an authorized complete-course run, a successful media-context tool result
+with no original pending jobs and Host `completion.ready:true` enters saved
+acceptance handling at that tool-result boundary, including tool-use turns.
+Checkpoint/source/revision checks and advisory repair budgets still apply.
+Final reporting removes tool declarations and retains the execution fence;
+compaction cannot rearm the continuation. Status-only reads never authorize work.
+
+Model-facing media context and continuation reports omit full page actions,
+speech text and the original approved plan. Internal result details retain that
+evidence for reconciliation; `courseware_narration_context({pageNumbers:[...]})`
+continues to supply exact page details when needed.
+
+Focus normalization distinguishes one pictured character from its matching name
+label while retaining an explicit valid target. Multiple matching pictures remain
+ambiguous. `repairRequiredTeaching:true` also adds missing unambiguous focus to
+existing speech. Host preserves original speech IDs, text, audio, pauses and
+existing effects; verified archived/portable audio supplies timing. Existing cues
+cannot be overwritten and missing audio evidence rejects the write atomically.
+No TTS order is generated for focus repair.
+
+## Stop, immediate input and idle receipts (2026-11-01)
+
+Send now promotes and steers queued input through Agent Host. It does not also
+stop the receiving turn. Pending steering fences the remaining tools in an old
+assistant batch until the new input reaches the model; delegates already running
+continue under the existing TaskWait interruption rules. Undeliverable promoted
+input stays queued for the next turn boundary.
+
+Explicit Stop fences Main dispatch synchronously before awaiting the sidecar,
+and Runtime blocks subsequent tool calls. The turn retains normal graceful
+settlement; it is not recorded as an abort. Already submitted supplier jobs keep
+their original identities and results. This does not cancel a request already
+dispatched to the supplier.
+
+An idle workflow does not periodically reread the aggregate workflow. Message,
+activity and explicit refresh changes still reread it. The image panel continues
+discovering and refreshing pending jobs, but retains terminal task receipts across
+list refreshes and does not query those jobs again. Authentication changes clear
+those receipts and fence late responses. Explicit image-panel refresh rereads the
+original jobs once; subsequent timer ticks retain the refreshed terminal receipts.
+No renderer refresh submits generation.

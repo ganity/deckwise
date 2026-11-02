@@ -1,5 +1,5 @@
 use super::*;
-use crate::db::courseware_projects::music::JOURNAL;
+use crate::db::courseware_projects::music::{Target, JOURNAL};
 use crate::db::courseware_projects::{
     media_scope::SubmissionScope,
     tts::{Phase, RejectedRequest, TaskRef},
@@ -99,6 +99,10 @@ struct Candidate {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Intent {
     intent_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    target: Option<Target>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    unresolved_project_id: Option<String>,
     draft: Draft,
     request: Request,
     idempotency_key: String,
@@ -188,7 +192,12 @@ impl Intent {
                     && !self.ready
             }
         };
-        if !id(&self.intent_id)
+        if self
+            .unresolved_project_id
+            .as_ref()
+            .is_some_and(|project| !id(project))
+            || self.target.as_ref().is_some_and(|t| !t.valid())
+            || !id(&self.intent_id)
             || self.draft.kind != "music"
             || !self.draft.references.is_empty()
             || !self.request.valid()
@@ -269,6 +278,7 @@ struct Params {
     expected_draft_revision: Option<u64>,
     model: Option<String>,
     music: Option<MusicOptions>,
+    target: Option<Target>,
     source_intent_id: Option<String>,
     candidate_id: Option<String>,
     task_ref: Option<TaskRef>,
@@ -362,6 +372,9 @@ pub(super) async fn handle(
         "asset.stage" | "asset.restore" => fields.extend(["intentId", "asset", "bytesBase64"]),
         "asset.get" => fields.push("intentId"),
         _ => return Err(invalid("Unsupported music operation")),
+    }
+    if operation == "prepare" && params.get("target").is_some() {
+        fields.push("target");
     }
     if operation.starts_with("asset.") && params.get("candidateId").is_some() {
         fields.push("candidateId");
@@ -487,8 +500,30 @@ pub(super) async fn handle(
                 Some(source_id.clone()),
             )
         };
+        let target = if operation == "prepare" {
+            if let Some(target) = &p.target {
+                let project = state
+                    .db
+                    .get_courseware_project(
+                        root.to_str().ok_or_else(|| invalid("Invalid workspace"))?,
+                        &target.project_id,
+                    )
+                    .map_err(error)?
+                    .ok_or_else(|| invalid("Music target project is missing"))?;
+                if !target.valid() || !target.matches(&project) {
+                    return Err(conflict());
+                }
+            }
+            p.target.clone()
+        } else {
+            source_intent_id
+                .as_ref()
+                .and_then(|id| intents.iter().find(|i| &i.intent_id == id))
+                .and_then(|i| i.target.clone())
+        };
         if let Some(existing) = intents.iter().find(|i| i.intent_id == intent_id) {
-            if existing.request != request
+            if existing.target != target
+                || existing.request != request
                 || existing.source_intent_id != source_intent_id
                 || serde_json::to_value(&existing.draft).ok() != serde_json::to_value(&draft).ok()
             {
@@ -501,6 +536,8 @@ pub(super) async fn handle(
         }
         let intent = Intent {
             intent_id: intent_id.into(),
+            target,
+            unresolved_project_id: None,
             draft,
             request_hash: request.hash(),
             request,
@@ -563,6 +600,22 @@ pub(super) async fn handle(
                 || intent.source_intent_id.is_none() && !intent.current(canvas.as_ref())
             {
                 return Err(conflict());
+            }
+            if intent.unresolved_project_id.is_some() {
+                return Err(conflict());
+            }
+            if let Some(target) = &intent.target {
+                let project = state
+                    .db
+                    .get_courseware_project(
+                        root.to_str().ok_or_else(|| invalid("Invalid workspace"))?,
+                        &target.project_id,
+                    )
+                    .map_err(error)?
+                    .ok_or_else(|| invalid("Music target project is missing"))?;
+                if !target.matches(&project) {
+                    return Err(conflict());
+                }
             }
             intent.submission_scope = Some(if intent.source_intent_id.is_some() {
                 inherited_scope.ok_or_else(|| invalid("Music source scope is missing"))?

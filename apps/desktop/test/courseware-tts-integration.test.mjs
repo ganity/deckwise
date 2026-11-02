@@ -216,14 +216,14 @@ test("legacy receipt compatibility through Electron Main/auth + durable Host res
       const previousWindows = new Set(electron.BrowserWindow.getAllWindows().map((window) => window.id));
       const windows = previousWindows.size;
       const decoding = decodeCoursewareAudio(audioBytes, "audio/wav");
-      await assert.rejects(decodeCoursewareAudio(audioBytes, "audio/wav"), /DECODE_BUSY/);
+      const overlapping = decodeCoursewareAudio(audioBytes, "audio/wav");
       const isolated = electron.BrowserWindow.getAllWindows().find((window) => !previousWindows.has(window.id));
       assert(isolated); assert.equal(isolated.isVisible(), false);
       const preferences = isolated.webContents.getLastWebPreferences();
       assert.equal(preferences.sandbox, true); assert.equal(preferences.nodeIntegration, false);
       assert.equal(preferences.contextIsolation, true); assert(!preferences.preload);
       assert.notEqual(isolated.webContents.session, electron.session.defaultSession);
-      assert.equal(await decoding, 100);
+      assert.deepEqual(await Promise.all([decoding, overlapping]), [100, 100]);
       const mp3 = await fs.readFile(new URL("./fixtures/courseware-tts-tone.mp3", import.meta.url));
       const duration = await decodeCoursewareAudio(mp3, "audio/mpeg");
       assert(duration >= 100 && duration <= 400, `Unexpected decoded MP3 duration ${duration}`);

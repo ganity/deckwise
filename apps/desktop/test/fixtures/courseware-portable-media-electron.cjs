@@ -47,6 +47,14 @@ app.whenReady().then(async () => {
     const wav = await add(path.join(root, 'packages/courseware-runtime/tests/fixtures/fixed-courseware/page-1.wav'), 'audio/wav', 'speech');
     assert.equal(wav.durationMs, 5955);
     await add(path.join(root, 'apps/desktop/test/fixtures/courseware-tts-tone.mp3'), 'audio/mpeg', 'audio_clip');
+    const concurrentBytes = fs.readFileSync(path.join(root, 'apps/desktop/test/fixtures/courseware-tts-tone.mp3'));
+    const parallel = Promise.allSettled(Array.from({ length: 11 }, () => decode(concurrentBytes, 'audio/mpeg')));
+    report.parallelDecodeWindows = BrowserWindow.getAllWindows().length;
+    const decoded = await parallel;
+    assert.equal(report.parallelDecodeWindows, 10);
+    assert(decoded.every(result => result.status === 'fulfilled' && result.value.durationMs > 0));
+    assert.equal(BrowserWindow.getAllWindows().length, 0);
+    report.parallelDecodes = decoded.length;
     const context = { project, projectId: project.projectId, sessionId: 'isolated', pageId: 'page', expectedSourceRevision: 'r1', expectedTeachingRevision: 't1', async assertCurrent() {},
       host: { async call(method, args) { assert.equal(method, 'courseware.project.localMedia'); report.hostCalls.push(method); return { media: stored.get(args.actionId) ?? null }; } } };
     const teaching = { async ttsContext() { return context; }, async captureSnapshot(_value, assets) { assert.equal(assets.length, stored.size); assert(assets.every(a => a.local === true && !a.path && !a.tts)); return 'local-snapshot'; } };
@@ -86,6 +94,8 @@ app.whenReady().then(async () => {
       const fixture = path.join(profile, 'generated.mp4'); fs.writeFileSync(fixture, Buffer.from(encoded, 'base64'));
       const meta = await add(fixture, 'video/mp4', 'video_clip');
       assert(meta.width === 64 && meta.height === 64);
+      const [audioMeta, videoMeta] = await Promise.all([decode(concurrentBytes, 'audio/mpeg'), decode(Buffer.from(encoded, 'base64'), 'video/mp4')]);
+      assert(audioMeta.durationMs > 0 && videoMeta.width === 64 && videoMeta.height === 64);
       assert.equal((await media.preview({ ...view, actionId: 'node-2' })).mimeType, 'video/mp4');
       report.mainRoutes.push('video-local-preview');
       assert.equal(await tts.captureSnapshot(view), 'local-snapshot');

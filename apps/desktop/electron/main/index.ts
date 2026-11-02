@@ -1020,6 +1020,7 @@ const {
   shouldCreateTaskNotification,
   lockAbortReason,
   isTurnDispatchable,
+  stopTurnDispatch,
   isSessionBusy,
   isStaleTerminalEvent,
 } = sessionCoordination;
@@ -1253,6 +1254,7 @@ function registerIpc() {
     dataDir,
     activeTurns,
     isTurnDispatchable,
+    stopTurnDispatch,
     sessionProjects,
     persistenceOutbox,
     logger,

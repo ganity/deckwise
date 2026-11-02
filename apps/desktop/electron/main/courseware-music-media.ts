@@ -32,13 +32,27 @@ export class CoursewareMusicMediaClient extends CoursewareMediaTransport {
   }
 
   async submitConfirmed(key: string, input: MusicRequest | MusicExportRequest, quote: MediaQuote<MusicOperation>,
-    signal?: AbortSignal, projectId?: string, check?: () => void | Promise<void>): Promise<MediaTasks[MusicOperation]> {
+    signal?: AbortSignal, projectId?: string, check?: () => void | Promise<void>, admit?: () => Promise<string | undefined>): Promise<MediaTasks[MusicOperation]> {
     if (typeof key !== "string" || !/^[A-Za-z0-9._-]{1,96}$/u.test(key)) throw new Error("COURSEWARE_MEDIA_INVALID_KEY");
     const body = musicRequest(input), confirmed = mediaQuote(quote, body.model, body.kind);
     if (body.input.length > confirmed.maxChars) throw new Error("COURSEWARE_MEDIA_INVALID_REQUEST");
     const principal = this.principal(), ref = { idempotencyKey: key, requestHash: musicRequestHash(body) };
-    const path = mediaSubmissionPath(projectId, true);
-    return this.generate(principal, async () => {
+    mediaSubmissionPath(projectId, true);
+    if (this.local) {
+      const previous = await this.local.find(ref, body.kind, { projectId });
+      this.assertPrincipal(principal);
+      signal?.throwIfAborted();
+      if (previous) {
+        await check?.();
+        this.assertPrincipal(principal);
+        signal?.throwIfAborted();
+        return previous;
+      }
+    }
+    return this.generate(body.kind, principal, async () => {
+      if (admit) projectId = await admit();
+      this.assertPrincipal(principal);
+      const path = mediaSubmissionPath(projectId, true);
       if (this.local) return this.local.submit(key, body, ref.requestHash, confirmed, signal, projectId);
       const result = await this.json(path, principal, signal, {
         method: "POST", headers: { "Idempotency-Key": key }, body: JSON.stringify({ request: body,

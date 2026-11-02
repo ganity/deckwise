@@ -81,6 +81,23 @@ function runtimeFixture(history: UiMessage[] = [], tools = pluginTools, provider
 }
 afterEach(() => vi.unstubAllGlobals());
 describe("fixed Flash declarations through runtime and HTTP/SSE", () => {
+  it("activates saved teaching tools together before narration fallback", async () => {
+    const wire = await wireFixture([
+      { name: "ToolSearch", args: { query: "courseware_media_context" } },
+      { name: "courseware_narration_context" },
+      { name: "courseware_narration_propose", args: { pageNumbers: [1], sourceSha256: "a".repeat(64), instruction: "Explain page one" } },
+    ]);
+    const f = runtimeFixture();
+    try {
+      await f.prompt();
+      expect(f.errors).toEqual([]);
+      expect(f.executed).toEqual(["courseware_narration_context", "courseware_narration_propose"]);
+      const activation = f.rows.find(row => row.toolName === "ToolSearch");
+      expect(activation?.isError).toBe(false);
+      expect(JSON.stringify(activation?.toolResult)).toContain("courseware_narration_propose");
+    } finally { await f.runtime.dispose(); await wire.close(); }
+  });
+
   it("rejects a declared but inactive tool without invoking Host", async () => {
     const wire = await wireFixture([{ name: "plugin_beta" }]);
     const f = runtimeFixture();

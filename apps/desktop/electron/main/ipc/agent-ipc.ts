@@ -40,6 +40,7 @@ export type AgentIpcDependencies = {
   activeTurns: Map<string, string>;
   /** Whether the named turn can still start or steer host work. */
   isTurnDispatchable: (sessionId: string, turnId: string | null | undefined) => boolean;
+  stopTurnDispatch: (sessionId: string, turnId: string | null | undefined) => void;
   activeTurnUsages: Map<string, MessageUsage>;
   approvedExecutionIdsBySession: Map<string, string>;
   claimedExecutionSessions: Map<string, string>;
@@ -87,10 +88,10 @@ function deckWiseModelPrompt(content: string, nativeEditing = false, taskType: "
     : `- For a supported request, first call the \`Skill\` tool with id ${JSON.stringify(route.skill)} and follow the loaded instructions.`,
     `- Task authority: ${route.authority}. ${route.instruction}`,
     "- Drive the complete requested workflow in this main Chat. Read courseware_workflow_get for saved requirements and real stage state before continuation. Ask essential missing information with asktool, reuse supplied answers, and save confirmed teaching settings through courseware_requirements_update before plan approval/source attachment. Its latest saved settings override the initial prompt snapshot; revise an unapproved plan to match changed settings before requesting review. Never silently guess the audience. Preserve optional requirements and task type.",
-    "- For saved PPTX page reading and narration use courseware_narration_context and courseware_narration_propose. These work with the editor closed and accept explicit page numbers. Complete the requested page range without asking the user to navigate or continue page by page. Preview is for human inspection. Native selection editing still requires its own Office binding.",
+    "- For saved PPTX page reading and narration use courseware_narration_context and courseware_narration_propose. These work with the editor closed and accept explicit page numbers. Complete the requested page range without asking the user to navigate or continue page by page. Preview is for human inspection. For TTS, pass the current page's missing speech IDs as actionIds to courseware_media_prepare(kind:tts) for bounded parallel synthesis and archive, rather than one tool call per speech. Native selection editing still requires its own Office binding.",
     "- Continue authorized non-blocking steps using tools; do not send the user to a right-side control form or stop after saying you will continue. Plan approval and first-page style selection require the user. Image generation handles billing internally; do not request payment confirmation. Show the first image in the right image preview. After style confirmation, continue remaining masters, decomposition and compilation without per-image approval.",
     "- For scene continuation, inspect existing requests and selected assets before preparing missing ones. Ask for a model choice only when needed. Generate only the first visualMaster before human style approval. Then generate remaining masters and decompose each selected master with the cleanPlate target and the configured decomposition role; its bundle includes foreground layers, which must not be generated again. Do not prepare duplicates, fabricate assets or retry unknown paid outcomes. Current service requires a distinct cleanPlate and at least one foreground layer per page. Compile with courseware_scene_compile only after approval and no asset blockers. Image preparation returns the current job state. Continue independent missing assets after style confirmation, even when another submission is unknown. When only pending work remains, refresh original jobs with waitForUpdate:true until ready or failed, keeping this turn active without asking the user to continue. Unknown submission means service uncertainty, not missing human approval; it never revokes saved styleConfirmed. Refresh the same pending job; never resubmit it. Pause only for the existing plan/style decision, an actual error, user stop or completion of the authorized scope. PPTX compilation is intermediate for a complete teaching course: pass continueTeaching:true, generate missing detailed narration and use courseware_media_context/prepare/refresh to finish missing speech audio and required music without Office navigation. For an authorized complete saved course, resume with courseware_media_context continueTeaching:true and check teachingReady plus actual actions. Omit continueTeaching for an explicit PPTX-only request or status question. Deliver editable PPTX plus teaching data; build PPTist only on explicit publication, never as a generation-completion step. Do not substitute generic GenerateImages for scene tools.",
-    "- Desktop entry modes are ordinary generation, scene generation and PPT import; all share one PPTX editor and baseline teaching features. Scene mode supports kindergarten and primary with audience-specific teaching strategies. Both require teaching actions, animation, interaction, highlight and spotlight according to the lesson. Video and music follow the actual lesson requirements. Preserve mapped targets and real audio timing through the PPTX intermediate. Saved-media tools support TTS/music, planned five-second video slots, finite mapped fadeIn/pulse motion and teacher-led questions with reference answers. For planned video, read courseware_media_context(kind:video), then prepare the saved video_slot with a configured model and refresh its original task through verified archive/adoption. Check teachingReady, audioReady and videoReady plus actual saved actions before completion. Full MAIC motion parity and automatic answer grading remain unsupported; report those limits accurately.",
+    "- Desktop entry modes are ordinary generation, scene generation and PPT import; all share one PPTX editor and baseline teaching features. Scene mode supports kindergarten and primary with audience-specific teaching strategies. Both require teaching actions, animation, interaction, highlight and spotlight according to the lesson. Video and music follow the actual lesson requirements. Preserve mapped targets and real audio timing through the PPTX intermediate. Saved-media tools support TTS/music, planned five-second video slots, finite mapped fadeIn/pulse motion and teacher-led questions with reference answers. For planned video, read courseware_media_context(kind:video), then prepare the saved video_slot with a configured model and refresh its original task through verified archive/adoption. Check Host completion.ready as well as teachingReady, audioReady and videoReady before completion. Required completion.issues are blocking; quality.issues remain advisory. For missing approved questions/music/video with detailed narration already saved, use repairRequiredTeaching:true to retain exact speech/audio/effects. Full MAIC motion parity and automatic answer grading remain unsupported; report those limits accurately.",
     "- If the user asks to revise an existing media draft on the current canvas, use courseware_canvas_get to read it and courseware_canvas_edit to update only the requested draft fields. This saves draft metadata only; it never generates media or edits slides.",
     ...(scenePlanning ? [`- The Host-selected scene planning file is ${JSON.stringify(sceneCoursePlanRelativePath(sessionId ?? ""))}. Read it before revising an existing draft; save only the raw {title,pages} JSON required by the loaded skill. Treat it as a generation draft, not live PPTX teaching. Never rewrite it merely because the user says continue: inspect approval and execute the next available workflow tool. Only report an artifact after its tool succeeds. Plan edits invalidate the whole-plan approval and asset bindings; explain that before revising after paid work.`] : []),
     ...(educationContext ? [`- Teaching settings: ${JSON.stringify(educationContext)}. Treat age/grade/subject as content guidance, not as task routing.`] : []),
@@ -135,6 +136,7 @@ export function registerAgentIpc({
   dataDir,
   activeTurns,
   isTurnDispatchable,
+  stopTurnDispatch,
   activeTurnUsages,
   approvedExecutionIdsBySession,
   claimedExecutionSessions,
@@ -326,7 +328,7 @@ export function registerAgentIpc({
           errorCode: ErrorCodes.INVALID_ARGUMENT,
         });
       }
-      setNotificationViewingSessionId(req.sessionId);
+      if (req.viewingSessionId === req.sessionId) setNotificationViewingSessionId(req.sessionId);
       return sidecar.call("agent.prompt", {
         sessionId: req.sessionId,
         content: deckWiseModelPrompt(req.content),
@@ -338,16 +340,12 @@ export function registerAgentIpc({
     try {
     const sessionMessage = await resolveSessionMessageInput(host, req);
     // Install the renderer's prompt-time snapshot before any asynchronous
-    // setup. This closes the gap where a fast completion could beat the
-    // effect that reports the active chat session. Missing or mismatched
-    // context is deliberately fail-safe.
+    // setup. Background dispatch has no viewing hint and must not clear the
+    // foreground owner used by native teaching and source saves.
     const requestedViewingSessionId =
       typeof req.viewingSessionId === "string" ? req.viewingSessionId.trim() : "";
-    setNotificationViewingSessionId(
-      requestedViewingSessionId && requestedViewingSessionId === req.sessionId
-        ? requestedViewingSessionId
-        : null,
-    );
+    if (requestedViewingSessionId && requestedViewingSessionId === req.sessionId)
+      setNotificationViewingSessionId(requestedViewingSessionId);
     const settings = await host.call<any>("settings.get");
     const sessionResult = await host.call<{ session?: any }>("session.get", {
       id: req.sessionId,
@@ -752,12 +750,11 @@ export function registerAgentIpc({
 
   handle(IPC.invoke.agentStop, async (req: AgentStopRequest) => {
     if (!sidecar) throw new Error("sidecar unavailable");
+    stopTurnDispatch(req.sessionId, req.turnId ?? activeTurns.get(req.sessionId));
     logger.app("session", "info", "prompt graceful stop requested", {
       sessionId: req.sessionId,
     });
-    // The runtime owns the boundary decision. Do not close the durable turn
-    // here: agent_end must arrive after the current reply/tool batch completes
-    // and finish it as a normal completed turn.
+    // Fence dispatch before awaiting the sidecar; the durable turn still ends normally.
     return sidecar.call("agent.stop", req);
   });
 

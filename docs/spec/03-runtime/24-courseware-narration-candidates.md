@@ -2,6 +2,20 @@
 
 ## Direct save (2026-10-26)
 
+Scene visual observations permit one validation repair within the original
+request, with the exact validation error and bounded previous output treated as
+untrusted data. The repaired output passes the same UUID, shape and bounds
+checks; provider/transport errors do not trigger this format repair. Successful
+page evidence is cached even when peer observations fail. Subsequent calls
+observe only missing pages under the same session, source, mapping and model
+identity, while whole-deck planning still includes all available evidence.
+
+Saved context distinguishes initial outline text from detailed narration. Host
+may split the outline into multiple `narration-N` speech actions; none counts as
+detailed narration unless it carries `source:"generated"`. Existing custom
+speech IDs retain their readiness behavior. `hasNarration` still reports that
+outline text exists, independently of `narrationReady`.
+
 Narration generation directly saves authoritative teaching. There is no candidate
 review or adoption step in Chat or the teaching sidebar. The existing tool names
 are retained for compatibility. Source-edit candidates keep their separate review.
@@ -374,6 +388,19 @@ It directly saves each completed page and returns savedPages plus per-page error
 No PPTX or audio is generated or applied. Model calls reuse the current Chat's authorized
 model, including its vision input path when available.
 
+During media completion, read the full media context for catalogs and recovery,
+then use `courseware_narration_context` with explicit page numbers for subsequent
+TTS work. Prefer `courseware_media_prepare(kind:"tts", actionIds:[...])` for
+missing speech on the same page; synthesis and verified archives run in waves of
+at most ten, followed by sequential revision-checked adoption. Refresh pending
+same-page `intentIds` in batches to preserve parallel download/decode/archive.
+Full-deck context includes all teaching actions and can be large.
+Preserve pages already marked `narrationReady` unless a new revision was requested;
+an earlier completed generation instruction must not be replayed after context
+recovery. Pending `attention` annotations are valid before TTS adoption resolves
+them into timed visual cues. These tool instructions guide the model; they are
+not a prohibition against explicitly requested narration revision.
+
 Host extracts bounded plain text, tables, speaker notes and saved-page objects.
 Main renders a sanitized disposable copy of the saved PPTX with local
 `libreoffice` and `pdftoppm`, without opening an editor. The copy removes external
@@ -382,11 +409,28 @@ If rasterization is unavailable, bounded embedded images are used and a diagnost
 is returned. Image-only pages are supported when the authorized model can read
 their visual evidence; pages without readable evidence fail individually.
 
+The whole-deck plan always includes all available pages, including on subset
+retries. Per-page model requests include the canonical JSON output schema, and
+outputs still pass strict validation before saving.
+
+The outline format takes precedence over narration-format instructions: it uses
+string-valued goal, purpose, bridge and focus, never speech actions or object
+arrays. JSON/shape validation reports the exact field or ordered-page mismatch.
+Only an invalid model output gets one in-call correction with the same source,
+outline and teaching instruction; transport errors, cancellation and source/model
+changes are not retried as format errors. No page is saved before the corrected
+outline passes validation. A second invalid output fails with its specific
+diagnostic rather than prompting the user for approval or silently narrowing the
+requested page range. The existing per-call and overall deadlines still apply.
+
 Visual observations for the ordered deck feed one whole-deck plan, then each
 requested page receives its own evidence, purpose and adjacent-page bridges.
 Successful page evidence is cached for the same session, source, mapping and
 model. A batch has at most three concurrent calls, a 180-second per-call timeout
 and a 14-minute overall deadline. This does not establish real-model quality.
+
+Focused speech splitting keeps trailing punctuation with the preceding speech;
+it must not create punctuation-only TTS requests after a quoted phrase.
 
 Speech may carry bounded `attention` intent (`highlight` or `spotlight`, with
 1–8 unique saved logical object IDs). Runtime and Host reject invented,
@@ -401,6 +445,10 @@ saved bytes, reuses the Office revision archive and Host parser, and releases th
 parser on success, failure and cancellation. Saved-source, teaching, model and
 turn changes prevent saving. Preview visibility, selection and page navigation
 are absent from this path. Interactive native edits keep their existing binding.
+
+Session identity, model and authorization checks read at most one recent message
+instead of loading the full transcript. Explicit text completions requesting
+session context retain the existing full-history behavior.
 
 Main serializes current-state checks and direct saves so parallel model calls do
 not mistake peer saves from this batch for user edits. Each successful save
@@ -418,3 +466,47 @@ Narration is selected initially. Inputs remain mounted across tab changes, while
 only selected-tab content is visible. Source-edit review forms and recovery records
 are in Review; detailed usage copy is collapsed. Keyboard arrows, Home and End
 navigate the tabs. This human UI is not an Agent execution dependency.
+
+### Logical-page scene requirements (2026-10-30)
+
+The scene batch supplies saved `coursePlan.teaching` by logical page identity,
+including after native slide reorder. It takes precedence over the ordinal of a
+page in the original approved plan. Vision evidence receives the same metadata.
+Detailed generation honors typed questions and music positions and uses short
+focus-specific speech with observed aliases. Native animation projection and
+advisory quality repair are specified in the
+[scene implementation record](../../design/2026-10-30-scene-teaching-parity.md).
+The canonical human editing surface is the native WiseOffice right sidebar.
+
+
+## Approved music and legacy cleanup (2026-10-31)
+
+Retained logical-page teaching is authoritative for scene narration. When it
+contains no music requirement, a generated music block fails canonical validation
+with `INVALID_OUTPUT` and actionable feedback. The existing two-correction page
+loop can remove it before any Host save. Host independently rejects new unapproved
+music slots at direct-save and legacy-candidate adoption boundaries.
+
+A narration save or `repairRequiredTeaching:true` repair may remove an existing
+unapproved slot only if no matching original music order has entered submission.
+Host checks all workspace music journals using the saved slot hash in automatic
+draft IDs, across source-hash transitions; prepared/rejected intents remain in
+history. Submitted/unknown orders and adopted clips remain anchored. Paid speech,
+effects, questions, other pages, revisions and transactional history retain their
+existing checks. Missing retained requirements preserve legacy behavior; omission
+of a slot on an approved music page never deletes it. This is targeted repair,
+not a generic ability for narration to delete media or reset accounting.
+
+## Required-action delta repair (2026-11-01)
+
+For an already narrated scene page, repairRequiredTeaching uses a separate bounded
+model response: insertions[{afterSpeechId, block}]. Only missing approved question,
+music and video blocks are accepted, once each, at existing saved speech anchors.
+Speech text never passes through model echo, trimming, segmentation or attention
+generation. Main assembles the saved actions and insertions; Host independently
+copies original speech/audio/effects and checks exact question text (boundary
+whitespace only), response kind, ordered choices and answer indices. Normal
+generation diagnoses substitute questions before saving. Missing actions remain
+Host completion blockers. Re-reading saved requirements after a lost save reply
+makes repeated delta repair idempotent. Format correction remains bounded to two
+attempts; source conflicts or uncertain saves never cause a blind replay.

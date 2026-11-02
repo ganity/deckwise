@@ -259,9 +259,7 @@ export function CoursewareTeachingPanel({ sessionId, enabled }: { sessionId?: st
           editActions([...restored.map(action => action.checkpointKind === "chapter_summary" ? { ...action,
             chapterId: page.pageId, context: { ...action.context as Record<string, unknown>, sourceSceneIds: [page.pageId] } } : action), ...actions]);
         }} />
-      <CoursewareChatChanges key={`chat:${view.viewId}`} view={view} disabled={!enabled || busy || changed || draftLoading || draftSaving ||
-        !!staleDraft || !!draftError || instructionPending}
-        resolve={resolution => void run(() => api.pptEditorTeachingConfirm(view.viewId, view.project.teachingRevision, resolution))} />
+      <CoursewareChatChanges key={`chat:${view.viewId}`} view={view} />
       {view.sourceChange && <div role="status">
         <strong>{t("panel.pptEditor.sourceChangeTitle")}</strong> <code>{view.sourceChange.changeGroupId.slice(0, 8)}</code>
         <p>{t(`panel.pptEditor.sourceChange${view.sourceChange.phase === "complete" ? "Complete" : view.sourceChange.phase === "superseded" ? "Superseded" : view.sourceChange.phase === "source-review" ? "SourceReview" : "Pending"}`, {
@@ -410,10 +408,6 @@ export function CoursewareTeachingPanel({ sessionId, enabled }: { sessionId?: st
         {t("panel.pptEditor.teachingLock")}
       </label>
       <div className="courseware-teaching-actions">
-        <button type="button" disabled={!enabled || busy || changed || page.reviewState === "ready"}
-          onClick={() => void run(() => api.pptEditorTeachingConfirm(view.viewId, view.project.teachingRevision))}>
-          {t(page.reviewState === "ready" ? "panel.pptEditor.teachingConfirmed" : "panel.pptEditor.teachingConfirm")}
-        </button>
         <button type="button" disabled={!canEdit || !changed || !sessionId || actions.some((action) => action.type === "speech" && (typeof action.text !== "string" || !action.text.trim()))} onClick={() => sessionId && void run(async () => {
           const id = request.current;
           const current = await api.pptEditorTeachingOpen(sessionId);

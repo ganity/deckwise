@@ -246,7 +246,7 @@ export interface PptAnimationTargetIR {
 export interface PptAnimationItemIR {
   id: string;
   /** Additive provenance; old worker IR without it cannot authorize fixed native playback. */
-  nativePreset?: { version: 1; class: string; id: number; subtype?: number };
+  nativePreset?: { version: 1; class: string; id: number; subtype?: number; verifiedSpeechMotion?: true };
   target?: PptAnimationTargetIR;
   effect?: string;
   animationType: 'in' | 'out' | 'attention' | 'media';

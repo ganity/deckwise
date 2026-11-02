@@ -235,3 +235,61 @@ it('preserves teacher-led questions and waits for explicit continuation', async 
   current.continueTeacher(); await vi.advanceTimersByTimeAsync(0);
   expect(media.plays).toEqual(['blob:after']);
 });
+it('starts native motion on the audio clock and waits for both audio and native completion', async () => {
+  let finish!: () => void;
+  const native = { sourceSha256: 'a'.repeat(64), stepCount: 1, next: vi.fn(() => new Promise<void>(resolve => { finish = resolve; })), pause: vi.fn(), resume: vi.fn() };
+  const callbacks = { onMode: vi.fn(), onProgress: vi.fn(), onNode: vi.fn(), onError: vi.fn(), onComplete: vi.fn() };
+  current = createTeachingTimelinePreview({ pageId: 'page', nodes: [speech('first'), speech('last')], native,
+    speechMotions: [{ actionId: 'first', stepIndex: 0 }], ...callbacks });
+  current.start(); await vi.advanceTimersByTimeAsync(20);
+  expect(media.plays).toEqual(['blob:first']);
+  expect(native.next).toHaveBeenCalledExactlyOnceWith(0);
+  current.pause(); expect(native.pause).toHaveBeenCalled();
+  current.resume(); expect(native.resume).toHaveBeenCalled();
+  media.ended(); await vi.advanceTimersByTimeAsync(1000);
+  current.continueTeacher(); expect(media.plays).toEqual(['blob:first']);
+  finish(); await vi.advanceTimersByTimeAsync(0);
+  expect(media.plays).toEqual(['blob:first', 'blob:last']);
+  media.ended(); await vi.advanceTimersByTimeAsync(0);
+  expect(callbacks.onComplete).toHaveBeenCalledOnce();
+});
+it('plays additional edited PPT click steps for one speech once, in native order, and waits before the next speech', async () => {
+  const finish: Array<() => void> = [];
+  const native = { sourceSha256: 'a'.repeat(64), stepCount: 2,
+    next: vi.fn(() => new Promise<void>(resolve => finish.push(resolve))), pause: vi.fn(), resume: vi.fn() };
+  const callbacks = { onMode: vi.fn(), onProgress: vi.fn(), onNode: vi.fn(), onError: vi.fn(), onComplete: vi.fn() };
+  current = createTeachingTimelinePreview({ pageId: 'page', nodes: [speech('first'), speech('last')], native,
+    speechMotions: [{ actionId: 'first', stepIndex: 0 }, { actionId: 'first', stepIndex: 1 }], ...callbacks });
+  current.start(); await vi.advanceTimersByTimeAsync(20);
+  expect(native.next.mock.calls).toEqual([[0]]);
+  media.ended(); await vi.advanceTimersByTimeAsync(1000);
+  expect(media.plays).toEqual(['blob:first']);
+  finish[0](); await vi.advanceTimersByTimeAsync(0);
+  expect(native.next.mock.calls).toEqual([[0], [1]]);
+  current.pause(); finish[1](); await vi.advanceTimersByTimeAsync(0);
+  expect(media.plays).toEqual(['blob:first']);
+  current.resume(); await vi.advanceTimersByTimeAsync(0);
+  expect(media.plays).toEqual(['blob:first', 'blob:last']);
+  media.ended(); await vi.advanceTimersByTimeAsync(0);
+  expect(callbacks.onComplete).toHaveBeenCalledOnce();
+  expect(callbacks.onError).not.toHaveBeenCalled();
+});
+it('holds queued native steps while paused and cancels them when playback stops', async () => {
+  let finish!: () => void;
+  const native = { sourceSha256: 'a'.repeat(64), stepCount: 2,
+    next: vi.fn(() => new Promise<void>(resolve => { finish = resolve; })), pause: vi.fn(), resume: vi.fn() };
+  current = createTeachingTimelinePreview({ pageId: 'page', nodes: [speech('first')], native,
+    speechMotions: [{ actionId: 'first', stepIndex: 0 }, { actionId: 'first', stepIndex: 1 }],
+    onMode: vi.fn(), onProgress: vi.fn(), onNode: vi.fn(), onError: vi.fn(), onComplete: vi.fn() });
+  current.start(); await vi.advanceTimersByTimeAsync(20);
+  current.pause(); finish(); await vi.advanceTimersByTimeAsync(20);
+  expect(native.next.mock.calls).toEqual([[0]]);
+  current.dispose(); await vi.advanceTimersByTimeAsync(20);
+  expect(native.next.mock.calls).toEqual([[0]]);
+});
+it('rejects interleaved speech bindings that would reorder native click steps', () => {
+  const native = { sourceSha256: 'a'.repeat(64), stepCount: 3, next: vi.fn(), pause: vi.fn(), resume: vi.fn() };
+  expect(() => createTeachingTimelinePreview({ pageId: 'page', nodes: [speech('first'), speech('last')], native,
+    speechMotions: [{ actionId: 'first', stepIndex: 0 }, { actionId: 'last', stepIndex: 1 }, { actionId: 'first', stepIndex: 2 }],
+    onMode: vi.fn(), onProgress: vi.fn(), onNode: vi.fn(), onError: vi.fn(), onComplete: vi.fn() })).toThrow('Invalid speech-native');
+});

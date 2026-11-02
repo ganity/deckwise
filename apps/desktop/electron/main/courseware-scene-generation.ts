@@ -58,8 +58,6 @@ export class CoursewareSceneGeneration {
         return { pageId: page.pageId, visualMasterAssetId: assetId("visualMaster"), cleanPlateAssetId: assetId("cleanPlate"), images,
           ...(foregroundPlacements.length ? { foregroundPlacements } : {}) };
       });
-      if (visuals.flatMap(visual => visual.images).reduce((sum, image) => sum + image.bytes.length, 0) > 32 * 1024 * 1024)
-        throw new Error("COURSEWARE_SCENE_GENERATION_ASSET_BUDGET");
       await assertCurrent();
       const deck = await this.services.build({ sessionId, modelKey: selected.modelKey,
         thinkingLevel: selected.thinkingLevel, pages: selected.plan.pages, visuals, canvas, signal });

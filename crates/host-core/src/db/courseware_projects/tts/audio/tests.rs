@@ -169,7 +169,7 @@ fn adoption_changes_only_selected_audio_and_replays_after_restart() {
 }
 
 #[test]
-fn revoice_preserves_cues_but_requires_fresh_page_review_before_snapshot() {
+fn revoice_preserves_cues_and_verified_audio_needs_no_page_confirmation() {
     use crate::courseware::{identity::SavedSourceIdentity, SavedProjectSeed};
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().to_str().unwrap();
@@ -308,7 +308,7 @@ fn revoice_preserves_cues_but_requires_fresh_page_review_before_snapshot() {
         new_audio.asset().id
     );
     assert_eq!(adopted.pages[0].review_state, "review");
-    let denied = db
+    let frozen = db
         .capture_courseware_snapshot(
             root,
             &seed,
@@ -317,8 +317,8 @@ fn revoice_preserves_cues_but_requires_fresh_page_review_before_snapshot() {
             &adopted.teaching_revision,
             vec![new_audio.asset()],
         )
-        .unwrap_err();
-    assert!(denied.to_string().contains("confirm every teaching page"));
+        .unwrap();
+    assert_eq!(frozen.project.pages[0].actions, adopted.pages[0].actions);
     assert!(db
         .review_courseware_page(
             root,
@@ -650,5 +650,128 @@ fn replacing_previous_audio_requires_exact_id_and_old_receipts_cannot_restore_it
             .unwrap()
             .teaching_revision,
         replaced.teaching_revision
+    );
+}
+
+#[test]
+fn missing_focus_repair_reuses_verified_audio_and_preserves_all_existing_actions() {
+    use crate::courseware::{identity::SavedSourceIdentity, SavedProjectSeed};
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_str().unwrap();
+    let db = Database::open_in_dir(dir.path()).unwrap();
+    let identity = SavedSourceIdentity::parse(include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/courseware/identity/fixtures/identity.json"
+    )))
+    .unwrap();
+    let seed = SavedProjectSeed {
+        project_id: "focus-repair".into(),
+        sha256: identity.value()["sourceSha256"].as_str().unwrap().into(),
+        pages: 1,
+        identity: Some(identity),
+    };
+    let initial = db
+        .open_identified_courseware_project_with_metadata(root, &seed, "scene", None)
+        .unwrap();
+    let mapping = serde_json::from_value(json!({"pages":[{"slideId":"scene-001","sourceHash":format!("sha256:{}", "a".repeat(64)), "slidePart":"ppt/slides/slide1.xml",
+        "teaching":{"pageType":"slide","phase":"explore","objective":"Greet","durationSeconds":30,"requiredObjects":[]},
+        "elements":seed.identity.as_ref().unwrap().value()["pages"][0]["objects"].as_array().unwrap().iter().enumerate().map(|(i,o)|
+            json!({"elementId":format!("object-{i}"),"objectName":format!("object-{i}"),"sourceShapeId":o["sourceShapeId"],"type":if o["type"]=="image" {"image_layer"} else {"native_shape"}})).collect::<Vec<_>>()}]})).unwrap();
+    db.initialize_generated_scene_objects(root, &initial, &mapping)
+        .unwrap();
+    let target = db
+        .courseware_project_context(root, &initial.project_id)
+        .unwrap()["mapping"]["pages"][0]["objects"][0]["objectId"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let project = write(
+        &db,
+        root,
+        &initial,
+        vec![
+            json!({"id":"narration-0","type":"speech","text":"Hello.","source":"generated","pauseAfterMs":1000}),
+        ],
+    );
+    let selection = Selection {
+        intent_id: "original".into(),
+        principal_key: "a".repeat(64),
+        project_id: project.project_id.clone(),
+        page_id: project.pages[0].page_id.clone(),
+        action_id: "narration-0".into(),
+        expected_source_revision: project.source.revision.clone(),
+        expected_teaching_revision: project.teaching_revision.clone(),
+        model: "courseware-tts-v1".into(),
+        voice: None,
+    };
+    let prepared = db.prepare_courseware_tts(root, selection.clone()).unwrap();
+    db.begin_courseware_tts(
+        root,
+        &project.project_id,
+        &selection.principal_key,
+        "original",
+        "test-session",
+    )
+    .unwrap();
+    let task = TaskRef {
+        task_id: "original-task".into(),
+        idempotency_key: prepared["intent"]["idempotencyKey"]
+            .as_str()
+            .unwrap()
+            .into(),
+        request_hash: prepared["intent"]["requestHash"].as_str().unwrap().into(),
+    };
+    db.bind_courseware_tts(
+        root,
+        &project.project_id,
+        &selection.principal_key,
+        "original",
+        task.clone(),
+    )
+    .unwrap();
+    let audio = Audio {
+        task_ref: task,
+        sha256: "b".repeat(64),
+        mime_type: "audio/wav".into(),
+        byte_length: 1644,
+        duration_ms: 1234,
+    };
+    stage(&db, root, &selection, audio).unwrap();
+    let project = adopt(&db, root, &selection, &project.teaching_revision, None).unwrap();
+    let original = project.pages[0].actions[0].clone();
+    let mut proposed = original.clone();
+    proposed["attention"] = json!({"type":"highlight","objectIds":[target]});
+    let request = TeachingWrite {
+        project_id: project.project_id.clone(),
+        page_id: project.pages[0].page_id.clone(),
+        expected_source_revision: project.source.revision.clone(),
+        expected_teaching_revision: project.teaching_revision.clone(),
+        actions: vec![proposed],
+    };
+    let repaired = db
+        .repair_required_teaching(root, &seed, &project, &request)
+        .unwrap();
+    let mut speech = repaired.pages[0].actions[0].clone();
+    assert_eq!(speech["visualCues"][0]["endMs"], 1234);
+    assert_eq!(
+        speech["visualCues"][0]["effect"]["elementIds"],
+        json!([target])
+    );
+    speech.as_object_mut().unwrap().remove("visualCues");
+    assert_eq!(speech, original);
+    assert!(db
+        .repair_required_teaching(root, &seed, &project, &request)
+        .is_err());
+    let mut overwrite = request.clone();
+    overwrite.expected_teaching_revision = repaired.teaching_revision.clone();
+    assert!(db
+        .repair_required_teaching(root, &seed, &repaired, &overwrite)
+        .is_err());
+    assert_eq!(
+        db.get_courseware_project(root, &project.project_id)
+            .unwrap()
+            .unwrap()
+            .teaching_revision,
+        repaired.teaching_revision
     );
 }

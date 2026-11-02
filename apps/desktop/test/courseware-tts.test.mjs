@@ -95,13 +95,17 @@ function setup() {
     const assertCurrent = async () => { if (!active) throw new Error("editor or Chat changed"); };
     await assertCurrent();
     return { host, sessionId: "chat-1", projectId: "project-1", pageId: "page-1", expectedSourceRevision: "source-1",
-      expectedTeachingRevision: "teaching-1", assertCurrent };
+      expectedTeachingRevision: "teaching-1", assertCurrent,
+      project: { source: { revision: "source-1", sha256: "f".repeat(64) },
+        pages: [{ pageId: "page-1", actions: [{ id: "speech-1", type: "speech", text: "Good! 小朋友😀" }] }] } };
   } };
   const auth = { getCoursewarePrincipal() {
     if (!account) throw new Error("AUTH_REQUIRED");
     return { key: "a".repeat(64), assertCurrent() { if (!account) throw new Error("AUTH_CHANGED"); } };
   }, coursewareMedia: {
-    async submitTts(key, request, signal, projectId) {
+    async resumeUnstartedTts() { return null; },
+    async submitTts(key, request, signal, projectId, check, admit) {
+      await check?.(); if (admit) projectId = await admit();
       network.push(["POST", key, structuredClone(request)]);
       const intent = [...intents.values()].find((intent) => intent.idempotencyKey === key);
       assert.equal(projectId, intent.submissionScope.teamProjectId ?? undefined);
@@ -424,9 +428,9 @@ function quotedFixture() {
     priceVersion: "price-1", maxPoints: 5, maxChars: 4000, expiresAt: "2099-01-01T00:00:00Z", quoteToken: "private-token" };
   f.auth.coursewareMedia.getTtsModels = async () => [{ model: preparation.model, voices: [preparation.voice], providerDefaultVoice: true }];
   f.auth.coursewareMedia.getTtsQuote = async () => structuredClone(quote);
-  f.auth.coursewareMedia.submitConfirmedTts = async (key, request, confirmed, signal, projectId) => {
+  f.auth.coursewareMedia.submitConfirmedTts = async (key, request, confirmed, signal, projectId, check, admit) => {
     assert.deepEqual(confirmed, quote);
-    return f.auth.coursewareMedia.submitTts(key, request, signal, projectId);
+    return f.auth.coursewareMedia.submitTts(key, request, signal, projectId, check, admit);
   };
   return { ...f, quote };
 }

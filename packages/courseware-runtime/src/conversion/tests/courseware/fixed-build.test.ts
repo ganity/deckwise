@@ -536,3 +536,32 @@ it('exports source-bound native nodes between speech and teacher waits, rejectin
     expect(await readdir(options.outputDirectory)).toEqual([built.buildId]);
   } finally { await rm(temporary, { recursive: true, force: true }); }
 }, 30_000);
+
+it('builds saved WiseOffice motion groups with exactly one speech animation owner', async () => {
+  const temporary = await mkdtemp(path.join(os.tmpdir(), 'fixed-generated-native-'));
+  try {
+    let timing = await readFile(path.resolve('src/conversion/tests/fixtures/wise-generated-motion-sequence.xml'), 'utf8');
+    const nativeTargets = [...new Set([...timing.matchAll(/spid="([^"]+)"/g)].map(m => m[1]))];
+    nativeTargets.forEach((id, i) => { timing = timing.replaceAll(`spid="${id}"`, `spid="${i + 2}"`); });
+    const zip = await JSZip.loadAsync(await readFile(input.source.path));
+    zip.file('ppt/slides/slide1.xml', (await zip.file('ppt/slides/slide1.xml')!.async('string')).replace('</p:sld>', `${timing}</p:sld>`));
+    const bytes = await zip.generateAsync({ type: 'nodebuffer' });
+    const candidate = structuredClone(input);
+    candidate.source.path = path.join(temporary, 'generated.pptx');
+    await writeFile(candidate.source.path, bytes);
+    candidate.source.sha256 = candidate.mapping.sourceSha256 = candidate.teaching.sourceSha256 = sha256(bytes);
+    const objects = candidate.mapping.pages[0].objects.slice(0, 2);
+    candidate.teaching.pages[0].actions = (['fadeIn', 'pulse', 'gentleRotate', 'fadeOut'] as const).map((effect, i) => ({
+      id: `motion-speech-${i}`, type: 'speech', text: 'Look here.', audioAssetId: 'voice-1', visualCues: objects.map((object, j) => ({
+        id: `motion-${i}-${j}`, atMs: 0, endMs: 600, effect: { type: 'element_animation', elementId: object.objectId,
+          effect } })) }));
+    const built = await buildFixedCourseware(candidate, { workerDirectory, outputDirectory: path.join(temporary, 'builds') });
+    const loaded = await loadFixedBuild(await readFile(path.join(built.directory, 'package.json')), built.buildId, async asset => readFile(path.join(built.directory, asset.path)));
+    try {
+      expect(loaded.nativeAnimations?.get(candidate.mapping.pages[0].pageId)).toBeUndefined();
+      expect(loaded.scenes[0].actions?.filter(a => a.type === 'speech')).toHaveLength(4);
+      expect(loaded.scenes[0].actions?.filter(a => a.type === 'element_animation')).toHaveLength(0);
+      for (const speech of candidate.teaching.pages[0].actions) expect(loaded.speechVisualCues.get(speech.id)).toHaveLength(2);
+    } finally { loaded.dispose(); }
+  } finally { await rm(temporary, { recursive: true, force: true }); }
+}, 30_000);

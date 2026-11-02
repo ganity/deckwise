@@ -12,6 +12,29 @@ struct Fixture {
 }
 
 #[tokio::test]
+async fn explicit_retry_keeps_original_receipt_and_reuses_one_successor_after_restart() {
+    let mut f = Fixture::new().await;
+    let prepared = f.call("courseware.sceneImage.prepare", f.prepare()).await.unwrap();
+    assert!(f.call("courseware.sceneImage.retry", f.operation(&prepared)).await.is_err());
+    let original = f.submit(f.prepare()).await;
+    let operation = f.operation(&original);
+    let mut foreign = operation.clone();
+    foreign["principalKey"] = json!("b".repeat(64));
+    assert!(f.call("courseware.sceneImage.retry", foreign).await.is_err());
+    let retry = f.call("courseware.sceneImage.retry", operation.clone()).await.unwrap();
+    assert_ne!(retry["intent"]["intentId"], original["intent"]["intentId"]);
+    assert_ne!(retry["intent"]["idempotencyKey"], original["intent"]["idempotencyKey"]);
+    assert_eq!(retry["intent"]["request"], original["intent"]["request"]);
+    assert_eq!(retry["intent"]["phase"], "prepared");
+    assert!(retry["intent"]["taskRef"].is_null());
+    assert!(retry["intent"].get("submissionScope").is_none());
+    f.restart().await;
+    assert_eq!(f.call("courseware.sceneImage.retry", operation.clone()).await.unwrap(), retry);
+    assert_eq!(f.call("courseware.sceneImage.get", operation).await.unwrap(), original);
+    assert_eq!(f.call("courseware.sceneImage.prepare", f.prepare()).await.unwrap(), retry);
+}
+
+#[tokio::test]
 async fn only_current_unsubmitted_images_can_rebind_model_with_a_fresh_request_key() {
     let mut f = Fixture::new().await;
     let old = f

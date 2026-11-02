@@ -5,7 +5,9 @@ import type { PortableMediaMime } from "./courseware-portable-media";
 
 const partition = `courseware-audio-${randomUUID()}`;
 const document = "data:text/html;charset=utf-8," + encodeURIComponent('<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; media-src blob:">');
-let decoding = false;
+const MAX_CONCURRENT_DECODES = 10;
+let decoding = 0;
+const waiting: Array<() => void> = [];
 
 /** Decode untrusted bytes without Node, preload, credentials, network or audio output. */
 export async function decodeCoursewareAudio(bytes: Buffer, mime: "audio/wav" | "audio/mpeg"): Promise<number> {
@@ -28,12 +30,12 @@ async function decodeMedia(bytes: Buffer, mime: PortableMediaMime, maxBytes = MA
     : mime === "audio/ogg" ? bytes.length >= 4 && bytes.toString("ascii", 0, 4) === "OggS"
     : mime === "audio/mpeg" && bytes.length >= 4 && (bytes.toString("ascii", 0, 3) === "ID3" || (bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0));
   if (!matches || bytes.length > maxBytes) throw new Error("COURSEWARE_AUDIO_INVALID_FORMAT");
-  if (decoding) throw new Error("COURSEWARE_AUDIO_DECODE_BUSY");
-  decoding = true;
+  if (decoding >= MAX_CONCURRENT_DECODES) await new Promise<void>(resolve => waiting.push(resolve));
+  else decoding++;
   let window: BrowserWindow | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    window = new BrowserWindow({ show: false, webPreferences: { partition, sandbox: true, contextIsolation: true,
+    window = new BrowserWindow({ show: false, webPreferences: { partition: `${partition}-${video ? "video" : "audio"}`, sandbox: true, contextIsolation: true,
       nodeIntegration: false, webSecurity: true, backgroundThrottling: false } });
     const contents = window.webContents;
     contents.setAudioMuted(true);
@@ -80,6 +82,8 @@ async function decodeMedia(bytes: Buffer, mime: PortableMediaMime, maxBytes = MA
   } finally {
     clearTimeout(timer);
     if (window && !window.isDestroyed()) window.destroy();
-    decoding = false;
+    const next = waiting.shift();
+    if (next) next();
+    else decoding--;
   }
 }

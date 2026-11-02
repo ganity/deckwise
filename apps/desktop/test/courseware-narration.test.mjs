@@ -64,7 +64,7 @@ test("real B policy and structured blocks produce a saved teaching without a can
   assert.equal(staged.write.pageId, before.pages[0].pageId);
   assert(staged.write.actions.every((action) => Object.keys(action).every((key) => ["id", "type", "text", "pauseAfterMs"].includes(key))));
   assert.deepEqual(staged.write.actions.map(({ type, text, pauseAfterMs }) => ({ type, text, ...(pauseAfterMs ? { pauseAfterMs } : {}) })), [
-    { type: "speech", text: "Look! A red apple.", pauseAfterMs: 4000 }, { type: "speech", text: "Thank you for trying." }]);
+    { type: "speech", text: "Look! " }, { type: "speech", text: "A red apple.", pauseAfterMs: 4000 }, { type: "speech", text: "Thank you for trying." }]);
   assert(f.requests[0].system.includes("KINDERGARTEN")); assert(f.requests[0].system.includes("Good job!"));
   assert.equal(f.requests[0].includeSessionContext, false); assert.equal(f.requests[0].modelKey, "provider/model");
   const data = JSON.parse(f.requests[0].messages[0].content);
@@ -202,7 +202,9 @@ for (const kind of ["original-notes", "external"]) test(`trusted ${kind} selecti
   assert.equal(f.requests.length, 0); assert(!f.calls.some(([method]) => method === "session.get"));
   const staged = f.calls.find(([method]) => method === "courseware.narration.save")[1];
   assert.equal(staged.baseline.teachingRevision, before.teachingRevision);
-  assert.deepEqual(staged.write.actions.map(({ type, text }) => ({ type, text })), [{ type: "speech", text: "观察苹果。\n说说你的发现。" }]);
+  assert.deepEqual(staged.write.actions.map(({ type, text }) => ({ type, text })), [
+    { type: "speech", text: "观察苹果。\n" }, { type: "speech", text: "说说你的发现。" }]);
+  assert.equal(staged.write.actions.map(action => action.text).join(""), "观察苹果。\n说说你的发现。");
   assert.notEqual(f.project.teachingRevision, before.teachingRevision);
   assert.deepEqual(f.project.pages.slice(1), before.pages.slice(1));
 });

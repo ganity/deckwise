@@ -177,18 +177,22 @@ export class CoursewareCanvasImages {
         referenceImage = { ...ref, bytesBase64: bytes.toString("base64") };
       }
       this.quotes.delete(p.quoteId);
-      const begun = checked(await c.host.call<Journal>("courseware.mediaCanvas.image.begin", c.scope), p.intentId); c.assertCurrent();
+      let begun = journal, teamProjectId: string | undefined;
+      const admit = async () => {
+        begun = checked(await c.host.call<Journal>("courseware.mediaCanvas.image.begin", c.scope), p.intentId); c.assertCurrent();
       if (begun.intent.phase !== "submission-unknown" || begun.intent.idempotencyKey !== journal.intent.idempotencyKey ||
           JSON.stringify(begun.intent.request) !== JSON.stringify(journal.intent.request) || begun.intent.requestHash !== journal.intent.requestHash)
         throw new Error("COURSEWARE_CANVAS_IMAGE_INVALID_JOURNAL");
-      const teamProjectId = coursewareMediaSubmissionProject(begun.intent.submissionScope, p.sessionId);
+        teamProjectId = coursewareMediaSubmissionProject(begun.intent.submissionScope, p.sessionId);
       c.assertCurrent();
+        return teamProjectId;
+      };
       let task: CoursewareImageTask;
       try {
-        task = await this.auth.coursewareMedia.submitConfirmedImage(begun.intent.idempotencyKey,
-          { kind: "image", model: begun.intent.request.model, input: begun.intent.request.input, ...(referenceImage ? { referenceImage } : {}) }, offer.quote, undefined, teamProjectId, async () => { c.assertCurrent(); await this.reference(c, begun); c.assertCurrent(); });
+        task = await this.auth.coursewareMedia.submitConfirmedImage(journal.intent.idempotencyKey,
+          { kind: "image", model: journal.intent.request.model, input: journal.intent.request.input, ...(referenceImage ? { referenceImage } : {}) }, offer.quote, undefined, undefined, async () => { c.assertCurrent(); await this.reference(c, journal); c.assertCurrent(); }, admit);
       } catch (failure) {
-        if (!isCoursewareMediaPermissionRefusal(failure, teamProjectId)) throw failure;
+        if (begun.intent.phase !== "submission-unknown" || !isCoursewareMediaPermissionRefusal(failure, teamProjectId)) throw failure;
         const rejected = checked(await c.host.call<Journal>("courseware.mediaCanvas.image.reject", { ...c.scope,
           rejectedRequest: { idempotencyKey: begun.intent.idempotencyKey, requestHash: begun.intent.requestHash } }), p.intentId);
         if (rejected.intent.phase !== "rejected" || rejected.intent.idempotencyKey !== begun.intent.idempotencyKey ||

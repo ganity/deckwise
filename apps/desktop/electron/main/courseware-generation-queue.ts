@@ -3,12 +3,23 @@ type Active = { submitting: boolean; accepted: boolean; refresh: () => Promise<S
 type Waiting = { start: () => void; reject: (error: unknown) => void };
 const terminal = (task: Status) => ["ready", "failed", "cancelled", "archive_failed"].includes(task.state);
 
+// Client protection defaults, not supplier-advertised quotas.
+export const COURSEWARE_GENERATION_LIMITS = {
+  tts: 10,
+  image: 5,
+  "image-layers": 5,
+  music: 2,
+  "music-export": 2,
+  video: 2,
+} as const;
+
 /** Submission responses with a task ID still occupy a generation slot. */
 export class CoursewareGenerationQueue {
   private readonly active = new Set<Active>();
   private readonly waiting: Waiting[] = [];
   private timer: ReturnType<typeof setTimeout> | undefined;
   private polling = false;
+  constructor(private readonly concurrency: number) {}
 
   run<T extends Status>(submit: () => Promise<T>, refresh: () => Promise<Status | null>, signal?: AbortSignal,
     check?: () => void | Promise<void>): Promise<T> {
@@ -57,7 +68,7 @@ export class CoursewareGenerationQueue {
   }
 
   private drain(): void {
-    while (this.waiting.length && this.active.size < 5) this.waiting.shift()!.start();
+    while (this.waiting.length && this.active.size < this.concurrency) this.waiting.shift()!.start();
     if (!this.waiting.length && this.timer !== undefined) {
       clearTimeout(this.timer);
       this.timer = undefined;
@@ -77,6 +88,7 @@ export class CoursewareGenerationQueue {
       if (status === null || terminal(status)) this.active.delete(job);
     }));
     const failure = results.find(result => result.status === "rejected");
+    this.drain();
     if (failure?.status === "rejected") {
       for (const waiting of this.waiting.splice(0)) waiting.reject(failure.reason);
     }

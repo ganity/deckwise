@@ -134,3 +134,16 @@ test("PPTX editing has one native teaching sidebar and no project-copy or advanc
     assert.equal(await page.getByRole("button", { name: "panel.pptEditor.save", exact: true }).count(), 1);
   }
 });
+
+test("native teaching progress appears in the toolbar without another teaching view or editor open", async t => {
+  const page = await fixture(t);
+  await page.evaluate(() => window.fixture.finish());
+  await page.evaluate(() => {
+    for (const listener of window.fixture.listeners) listener({ status: "ready", path: "uploaded.pptx", nativeTeaching: true,
+      canSave: true, teachingProgress: { total: 6, audio: 3, ready: 2 } });
+  });
+  await page.waitForSelector(".courseware-teaching-progress");
+  assert.equal(await page.locator(".courseware-teaching-progress").textContent(), "coursewareWorkflow.teachingProgress");
+  assert.equal(await page.locator(".courseware-teaching").count(), 0);
+  assert.equal(await page.evaluate(() => window.fixture.calls.filter(([name]) => name === "open").length), 1);
+});

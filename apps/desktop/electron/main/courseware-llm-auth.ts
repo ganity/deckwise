@@ -13,7 +13,7 @@ export async function resolveCoursewareLlmAuth(
   const apiKey = await resolveToken();
   if (getHost() !== host) throw new Error("COURSEWARE_LLM_HOST_CHANGED");
   if (!sessionId) return { apiKey };
-  const { session } = await host.call<{ session?: { projectPath?: string | null } }>("session.get", { id: sessionId });
+  const { session } = await host.call<{ session?: { projectPath?: string | null } }>("session.get", { id: sessionId, messageLimit: 1 });
   if (!session) throw new Error("COURSEWARE_LLM_SESSION_MISSING");
   let projectId: unknown;
   if (session.projectPath) {

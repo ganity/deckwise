@@ -83,7 +83,7 @@ for (const change of ["view", "extra", "dirty", "workspace", "chat", "page", "ow
     assert(!f.calls.some(([method]) => ["courseware.teaching.write", "courseware.teaching.setLock", "courseware.teaching.confirm"].includes(method)));
   });
 
-test("saved-page change receipts reach the sidebar and refresh after teaching confirmation", async () => {
+test("saved-page source associations complete without teaching confirmation", async () => {
   const f = setup();
   f.project().pages[0].reviewState = "review";
   f.project().pages[1].reviewState = "ready";
@@ -92,7 +92,7 @@ test("saved-page change receipts reach the sidebar and refresh after teaching co
     const result = await call(method, params);
     if (method !== "courseware.project.context") return result;
     const project = result.project;
-    const pendingPageIds = project.pages.filter(page => page.reviewState !== "ready").map(page => page.pageId);
+    const pendingPageIds = [];
     return { ...result, sourceChange: { changeGroupId: "review-1", phase: pendingPageIds.length ? "teaching-review" : "complete", stale: false,
       baselineSource: "b".repeat(64), baselineTeachingRevision: "old", targetSource: project.source.sha256,
       expected: ["source-associated", "teaching-review"], completed: ["source-saved", "source-associated", ...(!pendingPageIds.length ? ["teaching-review"] : [])],
@@ -100,10 +100,10 @@ test("saved-page change receipts reach the sidebar and refresh after teaching co
   };
   const teaching = f.make();
   const view = await teaching.open("chat-1");
-  assert.equal(view.sourceChange.phase, "teaching-review");
-  assert.deepEqual(view.sourceChange.pendingPageIds, [view.pageId]);
-  const ready = await teaching.update({ viewId: view.viewId, expectedTeachingRevision: view.project.teachingRevision }, "confirm");
-  assert.equal(ready.viewId, view.viewId);
+  assert.equal(view.sourceChange.phase, "complete");
+  assert.deepEqual(view.sourceChange.pendingPageIds, []);
+  const ready = await teaching.open("chat-1");
+  assert(!f.calls.some(([method]) => method === "courseware.teaching.confirm"));
   assert.equal(ready.sourceChange.phase, "complete");
   assert.deepEqual(ready.sourceChange.pendingPageIds, []);
   const reopened = await f.make().open("chat-1");
@@ -299,15 +299,15 @@ test("scene source review exposes only canonical rebound UUIDs as generic eligib
   assert.throws(() => semantics.exports.objectsForTeaching(raw, project, pageId), /Invalid current saved object context/);
 });
 
-test("attention authoring writes only reviewed current mapped targets and preserves audio, narration and checkpoints", async () => {
-  for (const failure of [null, "unconfirmed", "missing", "connector", "foreign", "audio", "interval", "locked", "stale", "changed-context", "plain", "import"]) {
+test("attention authoring writes only current mapped targets without per-page confirmation and preserves audio, narration and checkpoints", async () => {
+  for (const failure of [null, "missing", "connector", "foreign", "audio", "interval", "locked", "stale", "changed-context", "plain", "import"]) {
     const f = setup(), original = f.host.call;
     f.project().taskType = failure === "plain" || failure === "import" ? failure : "scene";
     const speech = { id: "speech-1", type: "speech", text: "Look at the apple.", audioAssetId: "voice-1", pauseAfterMs: 500,
       visualCues: [{ id: "existing-animation", atMs: 0, endMs: 200, effect: { type: "element_animation", elementId: "object-a", effect: "fadeIn" } }] };
     const checkpoint = { id: "wait", type: "interaction_checkpoint", checkpointId: "wait", checkpointKind: "teacher_continue" };
     f.project().pages[0].actions = [speech, checkpoint];
-    if (failure === "unconfirmed") f.project().pages[0].reviewState = "review";
+    f.project().pages[0].reviewState = "review";
     if (failure === "locked") f.project().pages[0].locked = true;
     f.host.call = async (method, params) => {
       if (method === "courseware.project.context") return { project: structuredClone(f.project()), sceneObjects: {
@@ -334,6 +334,10 @@ test("attention authoring writes only reviewed current mapped targets and preser
       assert.equal(result.project.pages[0].reviewState, "review");
       assert.deepEqual(result.project.pages[1], view.project.pages[1]);
       assert.equal(result.project.pages[0].actions[0].audioAssetId, "voice-1");
+      const again = structuredClone(actions); again[0].visualCues.at(-1).endMs = 950;
+      const savedAgain = await teaching.update({ viewId: result.viewId, expectedTeachingRevision: result.project.teachingRevision, actions: again }, false);
+      assert.deepEqual(savedAgain.project.pages[0].actions, again);
+      assert(!f.calls.some(([method]) => method === "courseware.teaching.confirm"));
     }
   }
 });
@@ -714,8 +718,8 @@ test("snapshot capture requires speech, music and video while retaining provider
   assert.deepEqual(f.calls.find(([method]) => method === "courseware.snapshot.capture")[1].assets, assets);
 });
 
-test("snapshot capture refuses unconfirmed pages, unarchived speech and stale or hidden views", async () => {
-  for (const change of ["review", "speech", "revision", "dirty", "chat", "hidden"]) {
+test("snapshot capture refuses unarchived speech and stale or hidden views", async () => {
+  for (const change of ["speech", "revision", "dirty", "chat", "hidden"]) {
     const f = snapshotFixture();
     if (change === "review") f.project().pages[1].reviewState = "review";
     if (change === "speech") f.project().pages[1].actions = [{ id: "speech-1", type: "speech", text: "Good!", audioAssetId: "forged-audio" }];
@@ -1394,4 +1398,14 @@ for (const change of ["readonly", "external-source", "project-source"]) test(`wa
   f.project().source.sha256 = originalSource;
   await teaching.open("chat-1");
   assert.equal(f.calls.filter(([method]) => method === "courseware.parseStart").length, 2);
+});
+
+
+test("snapshot capture accepts legacy unconfirmed pages without a confirmation operation", async () => {
+  const f = snapshotFixture();
+  for (const page of f.project().pages) page.reviewState = "review";
+  const teaching = f.make(), view = await teaching.open("chat-1");
+  const snapshot = await teaching.captureSnapshot({ viewId: view.viewId, expectedTeachingRevision: view.project.teachingRevision });
+  assert(snapshot.snapshotId);
+  assert(!f.calls.some(([method]) => method === "courseware.teaching.confirm"));
 });

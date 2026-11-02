@@ -61,7 +61,7 @@ fn office_undo_creates_new_teaching_revision_preserving_later_edits_and_history(
         )
         .unwrap_err()
         .to_string()
-        .contains("confirm every teaching page"));
+        .contains("requires a fixed audio asset"));
     assert_eq!(
         db.courseware_project_context(root, &initial.project_id)
             .unwrap()["mapping"],

@@ -57,28 +57,6 @@ impl Database {
         Ok(Some(serde_json::to_value(r)?))
     }
 
-    /// Scan every declaration, including those outside the sidebar's bounded history.
-    pub fn ensure_courseware_chat_resolved(&self, workspace: &str, project_id: &str) -> Result<()> {
-        let scope = storage_key(workspace, project_id)?;
-        let prefix = format!("[{},", serde_json::to_string(&scope)?);
-        let mut statement = self.conn.prepare("SELECT key,value_json FROM kv WHERE ns=?1 AND substr(key,1,length(?2))=?2 ORDER BY updated_at,key")?;
-        let rows = statement
-            .query_map(params![PLANNED_CHANGES, prefix], |row| {
-                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-            })?
-            .collect::<rusqlite::Result<Vec<_>>>()?;
-        for (key, raw) in rows {
-            let change = read(serde_json::from_str(&raw)?)?;
-            anyhow::ensure!(
-                change.baseline.project_id == project_id,
-                "COURSEWARE_INVALID: Chat declaration project differs"
-            );
-            anyhow::ensure!(self.chat_resolution(&key, &change)?.is_some(),
-                "COURSEWARE_CONFLICT: unresolved Chat change {}; review the saved PPTX and teaching, then explicitly close the request in its owning Chat", change.change_group_id);
-        }
-        Ok(())
-    }
-
     /// Confirm the current page and close one reviewed request atomically, preserving newer content.
     pub fn resolve_courseware_chat_change(
         &self,
@@ -130,8 +108,8 @@ impl Database {
             .ok_or_else(|| anyhow!("COURSEWARE_INVALID: missing declaration"))?
             .page_id;
         anyhow::ensure!(if original.pages.iter().any(|page| &page.page_id == target) { page_id == target }
-            else { original.pages.iter().all(|page| page.review_state == "ready") },
-            "COURSEWARE_CONFLICT: review the requested page; a removed target requires every retained page confirmed");
+            else { true },
+            "COURSEWARE_CONFLICT: review the requested page");
         let next = self.review_courseware_page(
             workspace,
             project_id,

@@ -42,8 +42,7 @@ import { CoursewareMediaCanvasTab } from "./CoursewareMediaCanvasTab";
 import { FilesTab } from "./FilesTab";
 import { PluginViewTab } from "./PluginViewTab";
 import { SubagentPanel } from "./SubagentPanel";
-import { CoursewareScenePreviewTab } from "./CoursewareScenePreviewTab";
-import { PptMasterTab } from "./PptMasterTab";
+import { CoursewareChatWorkflow } from "../courseware/CoursewareChatWorkflow";
 import { PptEditorTab } from "./PptEditorTab";
 import { SvgEditorTab } from "./SvgEditorTab";
 import type { SubagentPanelSelection } from "../../lib/subagent-panel";
@@ -92,7 +91,7 @@ function tabLabel(
   t: (key: string) => string,
   pluginViews: PluginViewMeta[],
 ) {
-  if (tab.kind === "scene-images") return t("coursewareWorkflow.imagePreview");
+  if (tab.kind === "scene-images") return t("coursewareWorkflow.workspace");
   if (tab.kind === "plugin") {
     if (tab.resource === `${BROWSER_PLUGIN_TAB.pluginId}/${BROWSER_PLUGIN_TAB.viewId}`) {
       return "预览编辑";
@@ -103,7 +102,7 @@ function tabLabel(
     return view?.title ?? tab.resource ?? t("panel.tabs.plugin");
   }
   if (tab.kind === "new") return t("panel.new.title");
-  if (tab.kind === "ppt") return "课件工作台";
+  if (tab.kind === "ppt") return t("coursewareWorkflow.workspace");
   if (tab.kind === "svg-editor") return tab.resource?.split("/").filter(Boolean).at(-1) || t("panel.tabs.svgEditor");
   if (tab.kind === "editor") return tab.resource?.replaceAll("\\", "/").split("/").at(-1) || t("panel.tabs.file");
   if (tab.kind !== "file") return t(`panel.tabs.${tab.kind}`);
@@ -121,9 +120,9 @@ function workPanelTools(
     {
       id: "ppt-master",
       tab: toolWorkPanelTab("ppt"),
-      label: "课件工作台",
+      label: t("coursewareWorkflow.workspace"),
       icon: IconFileText,
-      description: "课件生成、预览与编辑",
+      description: t("coursewareWorkflow.workspaceDescription"),
     },
     {
       id: "review",
@@ -664,13 +663,13 @@ export function WorkPanel({
               role="tabpanel"
               aria-labelledby={`work-panel-tab-${activeTab.id}`}
             >
-              <PptMasterTab />
+              <CoursewareChatWorkflow maximized={maximized} onToggleMaximize={onToggleMaximize} />
             </div>
           )}
           {!subagentPanel && activeTab?.kind === "scene-images" && (
             <div key={activeTab.id} id={`work-panel-surface-${activeTab.id}`} className="work-panel-tabpane"
               role="tabpanel" aria-labelledby={`work-panel-tab-${activeTab.id}`}>
-              <CoursewareScenePreviewTab />
+              <CoursewareChatWorkflow maximized={maximized} onToggleMaximize={onToggleMaximize} />
             </div>
           )}
           {!subagentPanel && activeTab?.kind === "editor" && activeTab.resource && (

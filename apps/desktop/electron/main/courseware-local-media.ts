@@ -14,6 +14,8 @@ const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v ===
 const receipt = (v: unknown): v is string => typeof v === "string" && v.length <= 2048 && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{43}$/u.test(v);
 const digest = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 
+const refreshes = new WeakMap<object, Map<string, Promise<LocalTask>>>();
+
 /** Host owns the journal and audio; every upstream request is finite and never schedules work on Platform. */
 export class CoursewareLocalMedia extends CoursewareMediaTransport {
   private async read(key: string, principal: object): Promise<Saved | null> {
@@ -77,38 +79,82 @@ export class CoursewareLocalMedia extends CoursewareMediaTransport {
       }
       throw error;
     }
-    if (!object(result) || result.kind !== body.kind || !Number.isSafeInteger(result.actualPoints) ||
-        Number(result.actualPoints) < 0 || Number(result.actualPoints) > quote.maxPoints ||
-        typeof result.billingReceipt !== "string" || !/^[a-f0-9-]{36}$/u.test(result.billingReceipt) || !Array.isArray(result.receipts) ||
-        result.receipts.length > 16 || result.receipts.some(v => !receipt(v)) || new Set(result.receipts).size !== result.receipts.length) throw invalid();
-    task.actualPoints = Number(result.actualPoints); task.feeState = "settled"; task.receiptId = `courseware-media:${taskId}`;
-    task.errorCode = null; saved.billingReceipt = result.billingReceipt;
-    saved.receipts = result.receipts as string[];
-    if (body.kind === "tts") {
-      if (saved.receipts.length !== 0 || typeof result.bytesBase64 !== "string" || result.mime !== "audio/mpeg") throw invalid();
-      this.audio(saved, Buffer.from(result.bytesBase64, "base64"));
-      if (saved.bytesBase64 !== result.bytesBase64) throw invalid();
-    } else {
-      if (saved.receipts.length < 1 || body.kind === "music-export" && saved.receipts.length !== 1 || result.bytesBase64 !== null || result.mime !== null) throw invalid();
-      task.state = "submitted";
-      if (body.kind === "music") saved.candidates = saved.receipts.map((token, order) => ({ receipt: token,
-        candidate: { candidateId: randomUUID(), order, state: "pending", exportable: false } }));
-    }
+    this.accept(saved, result);
     await this.write(journalKey, saved, 1, principal);
     return this.checked({ revision: 2, value: saved }, { idempotencyKey: key, requestHash: hash }, body.kind);
   }
 
-  async find<K extends Kind>(ref: Pick<CoursewareTaskRef, "idempotencyKey" | "requestHash">, kind: K): Promise<MediaTasks[K] | null> {
+  private accept(saved: RecordValue, result: unknown) {
+    const task = saved.task;
+    if (!object(result) || result.kind !== task.kind || !Number.isSafeInteger(result.actualPoints) ||
+        Number(result.actualPoints) < 0 || Number(result.actualPoints) > task.reservedPoints ||
+        typeof result.billingReceipt !== "string" || !/^[a-f0-9-]{36}$/u.test(result.billingReceipt) || !Array.isArray(result.receipts) ||
+        result.receipts.length > 16 || result.receipts.some(v => !receipt(v)) || new Set(result.receipts).size !== result.receipts.length) throw invalid();
+    task.actualPoints = Number(result.actualPoints); task.feeState = "settled"; task.receiptId = `courseware-media:${task.taskId}`;
+    task.errorCode = null; saved.billingReceipt = result.billingReceipt;
+    saved.receipts = result.receipts as string[];
+    if (task.kind === "tts") {
+      if (saved.receipts.length !== 0 || typeof result.bytesBase64 !== "string" || result.mime !== "audio/mpeg") throw invalid();
+      this.audio(saved, Buffer.from(result.bytesBase64, "base64"));
+      if (saved.bytesBase64 !== result.bytesBase64) throw invalid();
+    } else {
+      if (saved.receipts.length < 1 || task.kind === "music-export" && saved.receipts.length !== 1 || result.bytesBase64 !== null || result.mime !== null) throw invalid();
+      task.state = "submitted";
+      if (task.kind === "music") saved.candidates = saved.receipts.map((token, order) => ({ receipt: token,
+        candidate: { candidateId: randomUUID(), order, state: "pending", exportable: false } }));
+    }
+  }
+
+  async find<K extends Kind>(ref: Pick<CoursewareTaskRef, "idempotencyKey" | "requestHash">, kind: K,
+    scope?: { projectId?: string }): Promise<MediaTasks[K] | null> {
     if (!/^[A-Za-z0-9._-]{1,96}$/u.test(ref.idempotencyKey) || !/^[a-f0-9]{64}$/u.test(ref.requestHash)) throw invalid();
     const saved = await this.read(`task:${ref.idempotencyKey}`, this.principal());
-    return saved ? this.checked(saved, ref, kind) : null;
+    if (saved && scope && saved.value.projectId !== scope.projectId) throw new Error("COURSEWARE_MEDIA_IDEMPOTENCY_CONFLICT");
+    if (!saved) return null;
+    const task = this.checked(saved, ref, kind);
+    return task.state === "submission_unknown" && kind === "tts" ? this.get({ ...ref, taskId: task.taskId }, kind) : task;
   }
 
   async get<K extends Kind>(ref: CoursewareTaskRef, kind: K, signal?: AbortSignal): Promise<MediaTasks[K]> {
+    signal?.throwIfAborted();
+    const principal = this.principal();
+    let jobs = refreshes.get(principal);
+    if (!jobs) { jobs = new Map(); refreshes.set(principal, jobs); }
+    const key = `${kind}:${ref.idempotencyKey}`;
+    let job = jobs.get(key);
+    if (!job) {
+      job = this.refresh(ref, kind);
+      jobs.set(key, job);
+      const owned = job;
+      void job.finally(() => { if (jobs.get(key) === owned) jobs.delete(key); }).catch(() => {});
+    }
+    const task = await job;
+    this.assertPrincipal(principal); signal?.throwIfAborted();
+    return mediaTask(task, ref, kind);
+  }
+
+  private async refresh<K extends Kind>(ref: CoursewareTaskRef, kind: K): Promise<MediaTasks[K]> {
+    const signal = undefined;
+
     const principal = this.principal(), key = `task:${ref.idempotencyKey}`;
     const saved = await this.read(key, principal);
     if (!saved) throw new Error("COURSEWARE_MEDIA_LOCAL_RECEIPT_UNAVAILABLE");
     const task = this.checked(saved, ref, kind);
+    if (kind === "tts" && task.state === "submission_unknown") {
+      let result: unknown;
+      try {
+        const response = await this.receive(`/courseware/media/relay/recover?${new URLSearchParams({ key: ref.idempotencyKey })}`,
+          principal, signal, 24 * 1024 * 1024, {}, "application/json", 30_000);
+        if (response.mime !== "application/json") throw invalid();
+        result = mediaEnvelope(response.bytes);
+      } catch (error) {
+        // Old services and originals without a saved result remain unknown, never repurchased.
+        if (error instanceof Error && ["COURSEWARE_MEDIA_PLATFORM_46016", "COURSEWARE_MEDIA_HTTP_404"].includes(error.message)) return task;
+        throw error;
+      }
+      this.accept(saved.value, result);
+      return this.commitRefresh(key, saved, ref, kind, principal);
+    }
     if (task.state !== "submitted") return task;
     if (kind === "music") {
       for (const item of saved.value.candidates) {
@@ -129,7 +175,17 @@ export class CoursewareLocalMedia extends CoursewareMediaTransport {
       if (progress.status === "completed") this.audio(saved.value, await this.asset(saved.value.receipts[0], principal, signal));
       if (progress.status === "failed") { task.state = "failed"; task.errorCode = "SUPPLIER_EXPORT_FAILED"; }
     }
-    await this.write(key, saved.value, saved.revision, principal);
+    return this.commitRefresh(key, saved, ref, kind, principal);
+  }
+
+  private async commitRefresh<K extends Kind>(key: string, saved: Saved, ref: CoursewareTaskRef, kind: K, principal: object): Promise<MediaTasks[K]> {
+    try { await this.write(key, saved.value, saved.revision, principal); }
+    catch (error) {
+      if (!(error instanceof Error) || !(error.message.includes("COURSEWARE_MEDIA_JOURNAL_CONFLICT") || ("errorCode" in error && error.errorCode === "COURSEWARE_MEDIA_JOURNAL_CONFLICT"))) throw error;
+      const committed = await this.read(key, principal);
+      if (!committed || committed.value.projectId !== saved.value.projectId) throw error;
+      return this.checked(committed, ref, kind);
+    }
     return this.checked(saved, ref, kind);
   }
 
@@ -142,7 +198,15 @@ export class CoursewareLocalMedia extends CoursewareMediaTransport {
       if (!item.candidate.exportable) continue;
       const key = `candidate:${item.candidate.candidateId}`;
       const previous = await this.read(key, principal);
-      if (!previous) await this.write(key, { receipt: item.receipt, ...(saved.value.projectId ? { projectId: saved.value.projectId } : {}) }, 0, principal);
+      if (!previous) {
+        const value = { receipt: item.receipt, ...(saved.value.projectId ? { projectId: saved.value.projectId } : {}) };
+        try { await this.write(key, value, 0, principal); }
+        catch (error) {
+          if (!(error instanceof Error) || !(error.message.includes("COURSEWARE_MEDIA_JOURNAL_CONFLICT") || ("errorCode" in error && error.errorCode === "COURSEWARE_MEDIA_JOURNAL_CONFLICT"))) throw error;
+          const committed = await this.read(key, principal);
+          if (JSON.stringify(committed?.value) !== JSON.stringify(value)) throw error;
+        }
+      }
     }
     return { task, candidates };
   }

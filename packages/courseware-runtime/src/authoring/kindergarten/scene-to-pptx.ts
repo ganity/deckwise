@@ -37,13 +37,10 @@ export async function compileScenesToPptx(
       ),
     ]),
   );
-  let assetBytes = 0;
   const images = new Map(
     [...assetIds].map((id) => {
       const bytes = assets[id];
       if (!bytes) throw new Error(`Missing scene asset: ${id}`);
-      assetBytes += bytes.byteLength;
-      if (assetBytes > 32 * 1024 * 1024) throw new Error('Scene assets exceed 32 MiB');
       if (!Buffer.from(bytes.subarray(0, 8)).equals(Buffer.from('89504e470d0a1a0a', 'hex'))) {
         throw new Error(`Scene prototype requires PNG bytes: ${id}`);
       }

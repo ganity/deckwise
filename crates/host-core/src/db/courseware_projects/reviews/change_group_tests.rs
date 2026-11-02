@@ -44,7 +44,7 @@ fn saved_page_teaching_failure_survives_restart_without_rolling_back_later_work(
             &[Some(original.pages[0].page_id.clone())],
         )
         .unwrap();
-    assert_eq!(group(&db, root, &adopted)["phase"], "teaching-review");
+    assert_eq!(group(&db, root, &adopted)["phase"], "complete");
     let failed_write = TeachingWrite {
         project_id: adopted.project_id.clone(),
         page_id: adopted.pages[0].page_id.clone(),
@@ -55,10 +55,10 @@ fn saved_page_teaching_failure_survives_restart_without_rolling_back_later_work(
     db.conn.execute_batch("CREATE TRIGGER teaching_failure BEFORE UPDATE ON kv WHEN NEW.ns='coursewareProjects.v1' BEGIN SELECT RAISE(ABORT,'fixture teaching failure'); END;").unwrap();
     assert!(db.write_courseware_teaching(root, &failed_write).is_err());
     let failed = group(&db, root, &adopted);
-    assert_eq!(failed["pendingPageIds"], json!([adopted.pages[0].page_id]));
+    assert_eq!(failed["pendingPageIds"], json!([]));
     assert_eq!(
         failed["completed"],
-        json!(["source-saved", "source-associated"])
+        json!(["source-saved", "source-associated", "teaching-review"])
     );
     assert!(db
         .capture_courseware_snapshot(
@@ -71,7 +71,7 @@ fn saved_page_teaching_failure_survives_restart_without_rolling_back_later_work(
         )
         .unwrap_err()
         .to_string()
-        .contains("confirm every teaching page"));
+        .contains("requires a fixed audio asset"));
     db.conn
         .execute_batch("DROP TRIGGER teaching_failure;")
         .unwrap();
@@ -92,15 +92,7 @@ fn saved_page_teaching_failure_survives_restart_without_rolling_back_later_work(
     assert_eq!(current.source.sha256, target.sha256);
     assert_eq!(current.pages[0].actions, later.pages[0].actions);
     assert_eq!(group(&db, root, &later)["changeGroupId"], id);
-    let ready = db
-        .review_courseware_page(
-            root,
-            &later.project_id,
-            &later.pages[0].page_id,
-            &later.source.revision,
-            &later.teaching_revision,
-        )
-        .unwrap();
+    let ready = later;
     let completed = group(&db, root, &ready);
     assert_eq!(completed["phase"], "complete");
     assert_eq!(completed["pendingPageIds"], json!([]));
@@ -118,7 +110,7 @@ fn saved_page_teaching_failure_survives_restart_without_rolling_back_later_work(
         &ready,
         vec![json!({"id":"speech","type":"speech","text":"Changed after confirmation"})],
     );
-    assert_eq!(group(&db, root, &edited)["phase"], "teaching-review");
+    assert_eq!(group(&db, root, &edited)["phase"], "complete");
 }
 
 #[test]
@@ -159,7 +151,7 @@ fn source_association_and_its_receipt_are_atomic_and_legacy_reviews_upgrade() {
             &[Some(original.pages[0].page_id.clone())],
         )
         .unwrap();
-    assert_eq!(group(&db, root, &adopted)["phase"], "teaching-review");
+    assert_eq!(group(&db, root, &adopted)["phase"], "complete");
     assert_eq!(
         group(&db, root, &adopted)["baselineSource"],
         original.source.sha256

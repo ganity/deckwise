@@ -54,7 +54,7 @@ export function PptEditorTab({
       setTimeout(() => {
         const stillOpen = useAppStore
           .getState()
-          .workPanelTabs.some((tab) => tab.id === tabId);
+          .workPanelTabs.some((tab) => tab.id === tabId || tab.resource === path);
         if (!stillOpen) void api.pptEditorClose().catch((error) => useAppStore.getState().showToast(String(error)));
       }, 0);
     };
@@ -101,6 +101,9 @@ export function PptEditorTab({
           <strong>{path.split("/").at(-1) || path}</strong>
           <span role="status" title={state.savedPath}>{state.status === "error" ? state.message || t("panel.pptEditor.error") : state.status === "opening" ? t("panel.pptEditor.loading") : state.status === "saving" ? t("panel.pptEditor.saving") : state.dirty ? t("panel.pptEditor.unsaved") : state.status === "saved" ? t("panel.pptEditor.saved", { revision: state.revision ?? "—" }) : t("panel.pptEditor.revision", { revision: state.revision ?? "—" })}{state.status === "saved" && saveCopy && state.savedPath ? ` · ${state.savedPath}` : ""}</span>
         </div>
+        {state.teachingProgress && <span className="courseware-teaching-progress" role="status">
+          {t("coursewareWorkflow.teachingProgress", state.teachingProgress)}
+        </span>}
         <button type="button" onClick={() => onToggleMaximize?.()}>
           {maximized ? <IconPanelRestore size={13} /> : <IconPanelMaximize size={13} />}
           {maximized ? t("panel.pptEditor.restore") : t("panel.pptEditor.maximize")}
@@ -108,9 +111,9 @@ export function PptEditorTab({
         <button type="button" disabled={busy || !state.canSave || state.readOnly} onClick={() => void api.pptEditorSave().catch((error) => useAppStore.getState().showToast(String(error)))}>
           <IconCheck size={13} /> {t(saveCopy ? "panel.pptEditor.saveCopy" : "panel.pptEditor.save")}
         </button>
-        <button type="button" className="icon" disabled={busy} aria-label={t("panel.pptEditor.close")} onClick={close}>
+        {tabId !== "ppt" && <button type="button" className="icon" disabled={busy} aria-label={t("panel.pptEditor.close")} onClick={close}>
           <IconClose size={14} />
-        </button>
+        </button>}
       </div>
       {extension === "pptx" && <PptxInspectionPanel key={path} revision={state.revision} enabled={!busy && !state.readOnly && (state.status === "ready" || state.status === "saved")} />}
       <div className="ppt-editor-body">

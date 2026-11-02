@@ -67,6 +67,8 @@ const HOST_PROXY_ALLOWED = new Set([
   "provider.resolveAuth",
   "provider.resolveSubagentModel",
   "app.health",
+  "courseware.workflow.get",
+  "courseware.workflow.checkpoint",
   // Trusted extensions (D387): answered by main, plus the session methods
   // the ExtensionAPI reaches (spec 16 §10.1).
   "extensions.commands.publish",

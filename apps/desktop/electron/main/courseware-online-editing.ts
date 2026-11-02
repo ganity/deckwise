@@ -154,7 +154,7 @@ function reviewedMapping(project: CoursewareProject, mapping: unknown): mapping 
     mapping.pages.length === project.pages.length && mapping.pages.every((page, index) => {
       const teaching = project.pages[index]!;
       const objects = new Set(page.objects.map(object => object.objectId));
-      return page.pageId === teaching.pageId && teaching.reviewState === "ready" && teaching.actions.every(action => {
+      return page.pageId === teaching.pageId && teaching.actions.every(action => {
         if (Object.hasOwn(action, "audioId") || Object.hasOwn(action, "audioUrl") ||
             ["highlight", "spotlight"].includes(String(action.type)) ||
             action.type === "audio_clip" && !Object.hasOwn(action, "audioAssetId") ||
@@ -508,7 +508,7 @@ export class CoursewareOnlineEditingClient {
       { maxResponseBytes: teachingResponseBytes }), projectId);
     const page = value.project.pages.find(candidate => candidate.pageId === snapshot.write.pageId);
     if (value.project.source.revision !== snapshot.write.expectedSourceRevision ||
-        value.project.teachingRevision === snapshot.write.expectedTeachingRevision || !page || page.locked || page.reviewState !== "review" ||
+        value.project.teachingRevision === snapshot.write.expectedTeachingRevision || !page || page.locked ||
         !isDeepStrictEqual(page.actions, snapshot.write.actions)) throw invalid();
     return value;
   }

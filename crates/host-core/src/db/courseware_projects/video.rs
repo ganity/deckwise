@@ -14,6 +14,8 @@ pub struct Intent {
     pub page_id: String,
     pub slot_id: String,
     pub source: CoursewareSource,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bound_source: Option<CoursewareSource>,
     pub model: String,
     pub prompt: String,
     pub idempotency_key: String,
@@ -114,6 +116,9 @@ fn key(workspace: &str, project: &str, principal: &str, intent: &str) -> Result<
     ))
 }
 impl Intent {
+    fn current_source(&self) -> &CoursewareSource {
+        self.bound_source.as_ref().unwrap_or(&self.source)
+    }
     fn validate(&self) -> Result<()> {
         anyhow::ensure!(
             id(&self.intent_id)
@@ -124,6 +129,10 @@ impl Intent {
                 && hash(&self.principal_key)
                 && hash(&self.source.sha256)
                 && id(&self.source.revision)
+                && self
+                    .bound_source
+                    .as_ref()
+                    .is_none_or(|s| hash(&s.sha256) && id(&s.revision))
                 && !self.prompt.trim().is_empty()
                 && self.prompt.encode_utf16().count() <= 4000
                 && self.idempotency_key == format!("video-{}", self.intent_id)
@@ -169,8 +178,7 @@ impl Intent {
         Ok(())
     }
     pub fn attached(&self, project: &CoursewareProject) -> bool {
-        self.source.revision == project.source.revision
-            && self.source.sha256 == project.source.sha256
+        self.current_source() == &project.source
             && project.pages.iter().any(|page| {
                 !page.locked
                     && page.actions.iter().any(|action| {
@@ -187,8 +195,7 @@ impl Intent {
             })
     }
     pub fn matches(&self, project: &CoursewareProject) -> bool {
-        self.source.revision == project.source.revision
-            && self.source.sha256 == project.source.sha256
+        self.current_source() == &project.source
             && project.pages.iter().any(|page| {
                 page.page_id == self.page_id
                     && !page.locked
@@ -205,6 +212,55 @@ impl Intent {
     }
 }
 impl Database {
+    pub(super) fn rebind_native_save_video(
+        &self,
+        workspace: &str,
+        previous: &CoursewareProject,
+        next: &CoursewareProject,
+    ) -> Result<()> {
+        anyhow::ensure!(
+            !self.conn.is_autocommit(),
+            "COURSEWARE_INVALID: video binding requires native-save transaction"
+        );
+        let scope = storage_key(workspace, &previous.project_id)?;
+        let prefix = format!("[{},", serde_json::to_string(&scope)?);
+        let records = self
+            .conn
+            .prepare(
+                "SELECT value_json FROM kv WHERE ns=?1 AND substr(key,1,length(?2))=?2 LIMIT 1001",
+            )?
+            .query_map(params![NS, prefix], |r| r.get::<_, String>(0))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        anyhow::ensure!(
+            records.len() <= 1000,
+            "COURSEWARE_INVALID: too many video bindings"
+        );
+        for raw in records {
+            let mut intent: Intent = serde_json::from_str(&raw)?;
+            intent.validate()?;
+            let unchanged = previous.pages.iter().any(|p| {
+                next.pages
+                    .iter()
+                    .find(|n| n.page_id == p.page_id)
+                    .is_some_and(|n| {
+                        p.actions.iter().any(|a| {
+                            (valid_slot(a) || valid_clip(a))
+                                && (p.page_id == intent.page_id && a["id"] == intent.slot_id
+                                    || intent
+                                        .placements
+                                        .iter()
+                                        .any(|v| v.page_id == p.page_id && a["id"] == v.action_id))
+                                && n.actions.contains(a)
+                        })
+                    })
+            });
+            if intent.current_source() == &previous.source && unchanged {
+                intent.bound_source = Some(next.source.clone());
+                self.save_video(workspace, &intent)?;
+            }
+        }
+        Ok(())
+    }
     fn save_video(&self, workspace: &str, intent: &Intent) -> Result<()> {
         intent.validate()?;
         let key = key(
@@ -343,18 +399,18 @@ impl Database {
             .iter()
             .find(|page| page.page_id == page_id && !page.locked)
             .ok_or_else(|| anyhow!("COURSEWARE_CONFLICT: video page missing or locked"))?;
-        if let Some(saved) = self
-            .list_courseware_videos(workspace, project_id, principal)?
-            .into_iter()
+        let intents = self.list_courseware_videos(workspace, project_id, principal)?;
+        if let Some(saved) = intents.iter()
             .find(|intent| {
                 intent.page_id == page_id && intent.slot_id == slot_id && intent.matches(&project)
+                    && !intents.iter().any(|next| next.intent_id == format!("retry-{}", hex::encode(Sha256::digest(intent.intent_id.as_bytes()))))
             })
         {
             anyhow::ensure!(
                 saved.model == model,
                 "COURSEWARE_CONFLICT: recover the original video model before preparing another"
             );
-            return Ok(saved);
+            return Ok(saved.clone());
         }
         let slot = page
             .actions
@@ -372,6 +428,7 @@ impl Database {
             page_id: page_id.into(),
             slot_id: slot_id.into(),
             source: project.source,
+            bound_source: None,
             model: model.into(),
             request_hash: request_hash(model, &prompt),
             prompt,
@@ -385,6 +442,28 @@ impl Database {
         tx.commit()?;
         Ok(intent)
     }
+    pub fn retry_courseware_video(&self, workspace: &str, project_id: &str, principal: &str, intent_id: &str) -> Result<Intent> {
+        self.ensure_no_source_adoption(workspace)?;
+        let original = self.get_courseware_video(workspace, project_id, principal, intent_id)?;
+        let retry_id = format!("retry-{}", hex::encode(Sha256::digest(intent_id.as_bytes())));
+        let project = self.get_courseware_project(workspace, project_id)?.ok_or_else(|| anyhow!("COURSEWARE_NOT_FOUND: project not found"))?;
+        let intents = self.list_courseware_videos(workspace, project_id, principal)?;
+        if let Some(existing) = intents.iter().find(|i| i.intent_id == retry_id && i.matches(&project)) {
+            return Ok(existing.clone());
+        }
+        anyhow::ensure!(original.matches(&project) && original.phase == "submitted" && original.task_ref.is_some() && original.asset.is_none(),
+            "COURSEWARE_CONFLICT: video retry target changed or is already satisfied");
+        anyhow::ensure!(intents.len() < 1000 && !intents.iter().any(|i| i.intent_id == retry_id), "COURSEWARE_CONFLICT: video retry changed or journal is full");
+        let mut retried = original;
+        retried.intent_id = retry_id;
+        retried.idempotency_key = format!("video-{}", retried.intent_id);
+        retried.phase = "prepared".into();
+        retried.task_ref = None;
+        retried.submission_scope = None;
+        self.save_video(workspace, &retried)?;
+        Ok(retried)
+    }
+
     pub fn begin_courseware_video(
         &self,
         workspace: &str,

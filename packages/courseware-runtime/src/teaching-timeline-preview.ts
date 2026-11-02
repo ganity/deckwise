@@ -29,6 +29,7 @@ export function createTeachingTimelinePreview(input: {
   nodes: TeachingPreviewNode[];
   video?: HTMLVideoElement;
   native?: { sourceSha256: string; stepCount: number; next(index: number): Promise<void>; pause(): void; resume(): void };
+  speechMotions?: Array<{ actionId: string; stepIndex: number }>;
   onMediaProgress?(progress: SpeechProgress | null): void;
   onMode(mode: EngineMode): void;
   onProgress(progress: SpeechProgress | null): void;
@@ -43,6 +44,15 @@ export function createTeachingTimelinePreview(input: {
   if (nativeNodes.length && (!input.native ||
       !validateNativeAnimationBindings(input.nodes, input.native.sourceSha256, input.native.stepCount)))
     throw new Error('Native animation bindings do not match the saved page');
+  const speechMotions = input.speechMotions ?? [];
+  const motionActions = [...new Set(speechMotions.map(m => m.actionId))];
+  if (speechMotions.length && (!input.native || nativeNodes.length || input.native.stepCount !== speechMotions.length ||
+      speechMotions.some((m, i) => m.stepIndex !== i || !input.nodes.some(n => n.type === 'speech' && n.id === m.actionId)) ||
+      speechMotions.some((m, i) => i > 0 && motionActions.indexOf(m.actionId) < motionActions.indexOf(speechMotions[i - 1].actionId)) ||
+      motionActions.join('\0') !== input.nodes.filter(n => motionActions.includes(n.id)).map(n => n.id).join('\0')))
+    throw new Error('Invalid speech-native motion bindings');
+  const motionRuns = new Map<string, Promise<void>>();
+  const motionCheckpoints = new Map<string, string>();
   const nativeCheckpoints = new Map<string, number>();
   const reserved = new Set(input.nodes.flatMap(node => node.type === 'interaction_checkpoint' ? [node.checkpointId] : []));
   const ids = new Set<string>();
@@ -89,6 +99,14 @@ export function createTeachingTimelinePreview(input: {
     checkpoints.add(node.checkpointId);
     return { id: node.id, type: 'interaction_checkpoint', checkpointId: node.checkpointId, checkpointKind: 'teacher_continue' };
   });
+  for (const actionId of motionActions) {
+    let checkpointId = `motion:${actionId}`;
+    while (reserved.has(checkpointId) || ids.has(checkpointId)) checkpointId = `motion:${checkpointId}`;
+    reserved.add(checkpointId); ids.add(checkpointId);
+    motionCheckpoints.set(checkpointId, actionId);
+    const index = actions.findIndex(a => a.id === actionId);
+    actions.splice(index + 1, 0, { id: checkpointId, type: 'interaction_checkpoint', checkpointId, checkpointKind: 'teacher_continue' });
+  }
   const scene: Scene = {
     id: input.pageId, stageId: 'native-teaching-preview', type: 'slide', title: input.pageId, order: 0,
     content: { type: 'slide', canvas: { id: input.pageId, viewportSize: 1000, viewportRatio: .5625, elements: [],
@@ -100,6 +118,9 @@ export function createTeachingTimelinePreview(input: {
   let activeNative: { id: string; completed: boolean } | null = null;
   let nativePaused = false;
   let nativeFailed = false;
+  let motionPaused = false;
+  let motionResume: (() => void) | undefined;
+  const resumeMotionSteps = () => { motionPaused = false; motionResume?.(); motionResume = undefined; };
   const finishNative = () => {
     if (disposed || nativePaused || !activeNative?.completed) return;
     const id = activeNative.id;
@@ -152,10 +173,30 @@ export function createTeachingTimelinePreview(input: {
   }, audio, {
     onModeChange: mode => { if (!disposed) input.onMode(mode === 'waiting_interaction' && activeVideo ? (videoPaused ? 'paused' : 'playing') : mode); },
     onAudioClipProgress: progress => { if (!disposed) input.onMediaProgress?.(progress); },
-    onSpeechProgress: progress => { if (!disposed) input.onProgress(progress); },
-    onProgress: snapshot => { if (!disposed) input.onNode(actions[snapshot.actionIndex].id); },
+    onSpeechProgress: progress => {
+      if (disposed) return;
+      const binding = progress && speechMotions.find(m => m.actionId === progress.actionId);
+      if (binding && !motionRuns.has(binding.actionId)) {
+        const promise = (async () => {
+          for (const step of speechMotions.filter(m => m.actionId === binding.actionId)) {
+            await Promise.resolve();
+            if (motionPaused && !disposed) await new Promise<void>(resolve => { motionResume = resolve; });
+            if (disposed || nativeFailed) return;
+            await input.native!.next(step.stepIndex);
+          }
+        })();
+        motionRuns.set(binding.actionId, promise);
+        void promise.catch(error => {
+          if (disposed) return;
+          nativeFailed = true; core.pause(); input.native!.pause();
+          input.onError(error instanceof Error ? error : new Error('Native speech motion failed'));
+        });
+      }
+      input.onProgress(progress);
+    },
+    onProgress: snapshot => { if (!disposed && !motionCheckpoints.has(actions[snapshot.actionIndex].id)) input.onNode(actions[snapshot.actionIndex].id); },
     onInteractionStart: payload => {
-      if (nativeCheckpoints.has(payload.checkpointId)) {
+      if (nativeCheckpoints.has(payload.checkpointId) || motionCheckpoints.has(payload.checkpointId)) {
         const current: { id: string; completed: boolean } = { id: payload.checkpointId, completed: false };
         activeNative = current;
         nativePaused = false;
@@ -163,18 +204,24 @@ export function createTeachingTimelinePreview(input: {
         // The native driver owns completion; no elapsed-time estimate or user gate.
         void (async () => {
           if (disposed || activeNative !== current) return;
-          await input.native!.next(nativeCheckpoints.get(current.id)!);
+          const speechId = motionCheckpoints.get(current.id);
+          if (speechId) {
+            const completion = motionRuns.get(speechId);
+            if (!completion) throw new Error('Speech audio did not start its native motion');
+            await completion;
+          } else await input.native!.next(nativeCheckpoints.get(current.id)!);
         })().then(() => {
           if (disposed || activeNative !== current) return;
           current.completed = true;
           finishNative();
         }).catch(error => {
           if (disposed || activeNative !== current) return;
+          const alreadyReported = nativeFailed;
           nativeFailed = true;
           nativePaused = true;
           input.native!.pause();
           input.onMode('paused');
-          input.onError(error instanceof Error ? error : new Error('Native animation failed'));
+          if (!alreadyReported) input.onError(error instanceof Error ? error : new Error('Native animation failed'));
         });
       } else if (payload.checkpointKind === 'media_playback' && video) {
         activeVideo = payload.checkpointId;
@@ -198,13 +245,14 @@ export function createTeachingTimelinePreview(input: {
   video?.addEventListener('timeupdate', videoProgress);
   return {
     start() { if (!disposed && !started) { started = true; core.start(); } },
-    pause() { if (!disposed) { if (activeNative) { nativePaused = true; input.native!.pause(); input.onMode('paused'); } else if (activeVideo) { videoAttempt++; videoPaused = true; video?.pause(); input.onMode('paused'); } else if (core.getMode() === 'playing') core.pause(); } },
-    resume() { if (!disposed) { if (activeNative) { if (nativeFailed) { input.onError(new Error('Restart teaching playback after a native animation failure')); return; } nativePaused = false; input.native!.resume(); input.onMode('playing'); finishNative(); } else if (activeVideo && videoPaused) playVideo(); else if (core.getMode() === 'paused') core.resume(); } },
+    pause() { if (!disposed) { motionPaused = true; if (activeNative) { nativePaused = true; input.native!.pause(); input.onMode('paused'); } else if (activeVideo) { videoAttempt++; videoPaused = true; video?.pause(); input.onMode('paused'); } else if (core.getMode() === 'playing') { core.pause(); if (speechMotions.length) input.native!.pause(); } } },
+    resume() { if (!disposed) { if (!nativeFailed) resumeMotionSteps(); if (activeNative) { if (nativeFailed) { input.onError(new Error('Restart teaching playback after a native animation failure')); return; } nativePaused = false; input.native!.resume(); input.onMode('playing'); finishNative(); } else if (activeVideo && videoPaused) playVideo(); else if (core.getMode() === 'paused') { if (nativeFailed) { input.onError(new Error('Restart teaching playback after a native animation failure')); return; } if (speechMotions.length) input.native!.resume(); core.resume(); } } },
     continueTeacher() { if (!disposed && waiting && !activeVideo && !activeNative) core.resumeInteraction(waiting); },
-    seek(timeMs: number) { if (!disposed && Number.isFinite(timeMs) && timeMs >= 0) { if (activeVideo && video && Number.isFinite(video.duration)) video.currentTime = Math.min(timeMs / 1000, video.duration); else core.seekCurrentSpeech(timeMs); } },
+    seek(timeMs: number) { if (!disposed && Number.isFinite(timeMs) && timeMs >= 0) { if (speechMotions.length) { input.onError(new Error('Restart native teaching playback instead of seeking')); return; } if (activeVideo && video && Number.isFinite(video.duration)) video.currentTime = Math.min(timeMs / 1000, video.duration); else core.seekCurrentSpeech(timeMs); } },
     dispose() {
       if (disposed) return;
-      disposed = true; waiting = null; activeNative = null; core.stop();
+      input.onInteraction?.(null);
+      disposed = true; resumeMotionSteps(); waiting = null; activeNative = null; core.stop();
       video?.removeEventListener('ended', ended);
       video?.removeEventListener('error', failed);
       video?.removeEventListener('play', videoPlay);

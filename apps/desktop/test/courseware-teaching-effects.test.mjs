@@ -58,17 +58,15 @@ function controls(options = {}) {
   const inputFor = key => nodes().find(node => node.type === "label" && Array.isArray(node.props.children) && node.props.children[0] === "panel.pptEditor." + key).props.children[1];
   const selectObject = name => { const label = nodes().find(node => node.type === "label" && node.props.children?.includes(name));
     label.props.children[0].props.onChange({ target: { checked: true } }); render(); };
-  const review = () => { nodes().filter(node => node.type === "input" && node.props.type === "checkbox").at(-1).props.onChange({ target: { checked: true } }); render(); };
   const submit = () => { nodes().find(node => node.type === "form").props.onSubmit({ preventDefault() {} }); render(); };
   render();
-  return { props, speech, checkpoint, changes, nodes, render, named, inputFor, selectObject, review, submit };
+  return { props, speech, checkpoint, changes, nodes, render, named, inputFor, selectObject, submit };
 }
 
 test("user adds, edits and removes multi-object attention cues without altering audio, waits or unrelated cues", () => {
   const f = controls();
   f.selectObject("Apple"); f.selectObject("Banana");
-  assert.equal(f.named("button", "effectsAdd").props.disabled, true);
-  f.review(); assert.equal(f.named("button", "effectsAdd").props.disabled, false);
+  assert.equal(f.named("button", "effectsAdd").props.disabled, false);
   f.submit();
   let actions = f.changes.at(-1), cue = actions[0].visualCues.at(-1);
   assert.equal(cue.effect.type, "highlight"); assert.deepEqual(cue.effect.elementIds, ["apple", "banana"]);
@@ -80,8 +78,8 @@ test("user adds, edits and removes multi-object attention cues without altering 
   effect.props.onChange({ target: { value: "spotlight" } }); f.render();
   f.inputFor("effectsStart").props.onChange({ target: { value: "200" } }); f.render();
   f.inputFor("effectsEnd").props.onChange({ target: { value: "900" } }); f.render();
-  assert.equal(f.named("button", "effectsApply").props.disabled, true, "every edit requires review");
-  f.review(); f.submit();
+  assert.equal(f.named("button", "effectsApply").props.disabled, false, "editing needs no approval checkbox");
+  f.submit();
   const edited = f.changes.at(-1)[0].visualCues.at(-1);
   assert.equal(edited.id, cue.id); assert.equal(edited.atMs, 200); assert.equal(edited.endMs, 900);
   assert.deepEqual(edited.effect, { type: "spotlight", elementId: "apple", elementIds: ["banana"] });
@@ -89,9 +87,9 @@ test("user adds, edits and removes multi-object attention cues without altering 
   assert.deepEqual(f.changes.at(-1), [f.speech, f.checkpoint]);
 });
 
-test("locked, readonly, unconfirmed, stale/unsupported targets, missing audio and invalid intervals cannot author a cue", () => {
-  for (const options of [{ locked: true }, { disabled: true }, { unconfirmed: true }, { noAudio: true }]) {
-    const f = controls(options); f.selectObject("Apple"); f.review(); f.submit();
+test("locked, readonly, stale/unsupported targets, missing audio and invalid intervals cannot author a cue", () => {
+  for (const options of [{ locked: true }, { disabled: true }, { noAudio: true }]) {
+    const f = controls(options); f.selectObject("Apple"); f.submit();
     assert.equal(f.changes.length, 0);
     assert.equal(f.named("button", "effectsAdd").props.disabled, true);
   }
@@ -100,12 +98,12 @@ test("locked, readonly, unconfirmed, stale/unsupported targets, missing audio an
     assert(!f.nodes().some(node => node.type === "label" && node.props.children?.includes("Apple")));
   }
   const f = controls(); f.selectObject("Apple");
-  f.inputFor("effectsEnd").props.onChange({ target: { value: "0" } }); f.render(); f.review(); f.submit();
+  f.inputFor("effectsEnd").props.onChange({ target: { value: "0" } }); f.render(); f.submit();
   assert.equal(f.changes.length, 0);
   assert.equal(f.named("button", "effectsAdd").props.disabled, true);
 });
 
-test("ordinary and imported projects use the same reviewed form with saved-page object labels", () => {
+test("ordinary and imported projects use the same form with saved-page object labels", () => {
   for (const taskType of ["plain", "import"]) {
     const f = controls({ taskType });
     f.props.view.teachingObjects[0].savedKind = "text";
@@ -113,7 +111,7 @@ test("ordinary and imported projects use the same reviewed form with saved-page 
     f.render();
     assert(f.nodes().some(node => node.type === "label" && node.props.children?.includes("panel.pptEditor.effectsObjectText")));
     assert(f.nodes().some(node => node.type === "p" && node.props.children === "panel.pptEditor.effectsSavedObjectsScope"));
-    f.selectObject("panel.pptEditor.effectsObjectText"); f.review(); f.submit();
+    f.selectObject("panel.pptEditor.effectsObjectText"); f.submit();
     const cue = f.changes.at(-1)[0].visualCues.at(-1);
     assert.deepEqual(cue.effect, { type: "highlight", elementIds: ["apple"] });
     assert.equal(f.changes.at(-1)[0].audioAssetId, "voice");
@@ -126,12 +124,22 @@ test("object animations can be edited but cannot exceed five seconds or duplicat
   f.named("button", "effectsEdit").props.onClick(); f.render();
   const kind = f.nodes().find(n => n.type === "select" && n.props.value === "fadeIn");
   assert(kind, "motion must not be mislabeled as spotlight");
-  kind.props.onChange({ target: { value: "pulse" } }); f.render(); f.review(); f.submit();
+  kind.props.onChange({ target: { value: "pulse" } }); f.render(); f.submit();
   assert.equal(f.changes.at(-1)[0].visualCues[0].effect.effect, "pulse");
   f.named("button", "effectsEdit").props.onClick(); f.render();
-  f.inputFor("effectsEnd").props.onChange({ target: { value: "5001" } }); f.render(); f.review(); f.submit();
+  f.inputFor("effectsEnd").props.onChange({ target: { value: "5001" } }); f.render(); f.submit();
   assert.equal(f.changes.length, 1);
   f.named("button", "effectsCancel").props.onClick(); f.render();
-  f.selectObject("Apple"); f.review(); f.submit();
+  f.selectObject("Apple"); f.submit();
   assert.equal(f.changes.length, 1, "cannot animate one object twice");
+});
+
+
+test("legacy unconfirmed pages can edit cues without page or effect approval", () => {
+  const f = controls({ unconfirmed: true });
+  assert(!f.nodes().some(node => node.type === "input" && node.props.type === "checkbox" && node.props.checked === undefined));
+  f.selectObject("Apple");
+  assert.equal(f.named("button", "effectsAdd").props.disabled, false);
+  f.submit();
+  assert.equal(f.changes.length, 1);
 });

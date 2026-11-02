@@ -6,5 +6,5 @@
     "rootDir": "src",
     "composite": true
   },
-  "include": ["src/**/*", "src/courseware-contract.fixtures/*.json"]
+  "include": ["src/**/*", "src/courseware-contract.fixtures/*.json", "src/courseware-scene-teaching.fixtures/*.json"]
 }

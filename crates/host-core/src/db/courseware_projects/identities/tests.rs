@@ -26,6 +26,319 @@ fn identity(db: &Database) -> Value {
 }
 
 #[test]
+fn draft_recovery_retains_conflicting_edits_and_rebases_only_unchanged_pages() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = Database::open(&dir.path().join("pi.sqlite")).unwrap();
+    let workspace = dir.path().to_str().unwrap();
+    let seed = fixture_seed();
+    let project = db
+        .open_identified_courseware_project(workspace, &seed)
+        .unwrap();
+    let key = serde_json::to_string(&(
+        workspace,
+        "session",
+        &project.project_id,
+        &project.pages[0].page_id,
+    ))
+    .unwrap();
+    let draft = json!({"revision":"draft-1", "baseline":project,
+        "actions":[{"id":"speech", "type":"speech", "text":"Unsaved"}], "instruction":""});
+    db.kv_set("coursewareTeachingDrafts.v1", &key, &draft)
+        .unwrap();
+    let mut next = project.clone();
+    next.teaching_revision = "another-page-revision".into();
+    let rebased = db
+        .reconcile_courseware_draft(workspace, &next, &project.pages[0].page_id, &key, &draft)
+        .unwrap()
+        .unwrap();
+    assert_eq!(rebased["baseline"], serde_json::to_value(&next).unwrap());
+    assert_eq!(rebased["actions"], draft["actions"]);
+    assert_ne!(rebased["revision"], draft["revision"]);
+    for failure in [
+        "changed-page",
+        "locked",
+        "unknown-source",
+        "source-animations",
+    ] {
+        let mut changed = next.clone();
+        let mut retained = draft.clone();
+        match failure {
+            "changed-page" => {
+                changed.pages[0].actions =
+                    vec![json!({"id":"other", "type":"speech", "text":"Saved elsewhere"})]
+            }
+            "locked" => changed.pages[0].locked = true,
+            "unknown-source" | "source-animations" => {
+                changed.source.sha256 = "b".repeat(64);
+                if failure == "source-animations" {
+                    retained["actions"] = json!([{"id":"native", "type":"native_animation"}]);
+                }
+            }
+            _ => unreachable!(),
+        }
+        db.kv_set("coursewareTeachingDrafts.v1", &key, &retained)
+            .unwrap();
+        assert_eq!(
+            db.reconcile_courseware_draft(
+                workspace,
+                &changed,
+                &project.pages[0].page_id,
+                &key,
+                &retained
+            )
+            .unwrap()
+            .unwrap(),
+            retained,
+            "{failure}"
+        );
+        assert_eq!(
+            db.kv_get("coursewareTeachingDrafts.v1", &key)
+                .unwrap()
+                .unwrap(),
+            retained
+        );
+    }
+    let mut instruction = draft.clone();
+    instruction["actions"] = json!([]);
+    instruction["instruction"] = json!("Keep this rewrite instruction");
+    db.kv_set("coursewareTeachingDrafts.v1", &key, &instruction)
+        .unwrap();
+    assert!(db
+        .reconcile_courseware_draft(
+            workspace,
+            &project,
+            &project.pages[0].page_id,
+            &key,
+            &instruction
+        )
+        .unwrap()
+        .is_some());
+}
+
+#[test]
+fn animation_only_saved_source_reopens_without_losing_teaching_or_object_ids() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = Database::open(&dir.path().join("pi.sqlite")).unwrap();
+    let workspace = dir.path().to_str().unwrap();
+    let mut seed = fixture_seed();
+    let mut raw = seed.identity.as_ref().unwrap().value().clone();
+    for (i, object) in raw["pages"][0]["objects"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .enumerate()
+    {
+        object["sourceObjectName"] = json!(format!("lesson-picture-{i}"));
+    }
+    seed.identity = Some(SavedSourceIdentity::parse(&serde_json::to_vec(&raw).unwrap()).unwrap());
+    let project = db
+        .open_identified_courseware_project_with_metadata(workspace, &seed, "scene", None)
+        .unwrap();
+    let narrated = db
+        .initialize_generated_narration(
+            workspace,
+            &project.project_id,
+            &seed.sha256,
+            "Lesson",
+            &["Keep this narration.".into()],
+        )
+        .unwrap();
+    let previous_identity = identity(&db);
+    let mut actions = narrated.pages[0].actions.clone();
+    actions[0]["visualCues"] = json!([{"id":"cue", "atMs":0, "endMs":1000,
+        "effect":{"type":"spotlight", "elementIds":[previous_identity["pages"][0]["objects"][0]["logicalId"]], "dimOpacity":0.8}}]);
+    let narrated = db
+        .write_courseware_teaching(
+            workspace,
+            &TeachingWrite {
+                project_id: narrated.project_id.clone(),
+                page_id: narrated.pages[0].page_id.clone(),
+                expected_source_revision: narrated.source.revision.clone(),
+                expected_teaching_revision: narrated.teaching_revision.clone(),
+                actions,
+            },
+        )
+        .unwrap();
+    let narrated = db
+        .set_courseware_page_lock(
+            workspace,
+            &narrated.project_id,
+            &narrated.pages[0].page_id,
+            &narrated.source.revision,
+            &narrated.teaching_revision,
+            true,
+        )
+        .unwrap();
+    seed.sha256 = "b".repeat(64);
+    raw["sourceSha256"] = json!(seed.sha256);
+    raw["pages"][0]["objects"][0]["sourceShapeId"] = json!("984567");
+    raw["pages"][0]["objects"][0]["geometryFingerprint"] = json!("c".repeat(64));
+    seed.identity = Some(SavedSourceIdentity::parse(&serde_json::to_vec(&raw).unwrap()).unwrap());
+    let reopened = db
+        .open_identified_courseware_project(workspace, &seed)
+        .unwrap();
+    assert_eq!(reopened.source.sha256, seed.sha256);
+    assert_eq!(
+        serde_json::to_value(&reopened.pages).unwrap(),
+        serde_json::to_value(&narrated.pages).unwrap()
+    );
+    assert_ne!(reopened.teaching_revision, narrated.teaching_revision);
+    let mapping = db.courseware_mapping(workspace, &reopened).unwrap();
+    assert_eq!(
+        mapping["pages"][0]["objects"][0]["objectId"],
+        previous_identity["pages"][0]["objects"][0]["logicalId"]
+    );
+    assert_eq!(
+        db.open_identified_courseware_project(workspace, &seed)
+            .unwrap()
+            .teaching_revision,
+        reopened.teaching_revision
+    );
+    assert_eq!(
+        db.kv_get(
+            IDENTITY_NAMESPACE,
+            &identity_key(workspace, &project.project_id, &project.source.sha256).unwrap()
+        )
+        .unwrap()
+        .unwrap(),
+        previous_identity
+    );
+    assert_eq!(
+        db.kv_get(
+            HISTORY_NAMESPACE,
+            &serde_json::to_string(&(
+                &storage_key(workspace, &project.project_id).unwrap(),
+                &narrated.teaching_revision
+            ))
+            .unwrap()
+        )
+        .unwrap()
+        .unwrap(),
+        serde_json::to_value(&narrated).unwrap()
+    );
+}
+
+#[test]
+fn saved_source_recovery_refuses_changed_or_ambiguous_inventories_without_writes() {
+    for failure in [
+        "content",
+        "page",
+        "count",
+        "name",
+        "duplicate",
+        "missing",
+        "order",
+        "animation",
+        "pending",
+        "diagnostic",
+    ] {
+        let dir = tempfile::tempdir().unwrap();
+        let db = Database::open(&dir.path().join("pi.sqlite")).unwrap();
+        let workspace = dir.path().to_str().unwrap();
+        let mut seed = fixture_seed();
+        let mut raw = seed.identity.as_ref().unwrap().value().clone();
+        for (i, object) in raw["pages"][0]["objects"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .enumerate()
+        {
+            object["sourceObjectName"] = json!(format!("lesson-picture-{i}"));
+        }
+        seed.identity =
+            Some(SavedSourceIdentity::parse(&serde_json::to_vec(&raw).unwrap()).unwrap());
+        let mut previous = db
+            .open_identified_courseware_project(workspace, &seed)
+            .unwrap();
+        if failure == "animation" {
+            previous.pages[0].actions = vec![
+                json!({"id":"animation", "type":"native_animation", "version":1,
+                "sourceSha256":previous.source.sha256, "stepIndex":0}),
+            ];
+            db.kv_set(
+                NAMESPACE,
+                &storage_key(workspace, &seed.project_id).unwrap(),
+                &serde_json::to_value(&previous).unwrap(),
+            )
+            .unwrap();
+        }
+        if failure == "pending" {
+            db.kv_set(
+                "coursewareNativeSavePending.v1",
+                &storage_key(workspace, "native-save").unwrap(),
+                &json!("pending-save"),
+            )
+            .unwrap();
+        }
+        let old_identity = identity(&db);
+        raw["sourceSha256"] = json!("b".repeat(64));
+        match failure {
+            "content" => {
+                raw["pages"][0]["objects"][0]["contentFingerprint"] = json!("c".repeat(64))
+            }
+            "page" => raw["pages"][0]["contentFingerprint"] = json!("c".repeat(64)),
+            "count" => {
+                raw["pages"][0]["objects"].as_array_mut().unwrap().pop();
+            }
+            "name" => raw["pages"][0]["objects"][0]["sourceObjectName"] = json!("replaced-picture"),
+            "duplicate" => {
+                raw["pages"][0]["objects"][1]["sourceObjectName"] = json!("lesson-picture-0")
+            }
+            "missing" => {
+                raw["pages"][0]["objects"][0]
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("sourceObjectName");
+            }
+            "order" => raw["pages"][0]["objects"]
+                .as_array_mut()
+                .unwrap()
+                .swap(0, 1),
+            "diagnostic" => raw["diagnostics"][0]["severity"] = json!("error"),
+            "animation" | "pending" => {}
+            _ => unreachable!(),
+        }
+        seed.sha256 = "b".repeat(64);
+        seed.identity =
+            Some(SavedSourceIdentity::parse(&serde_json::to_vec(&raw).unwrap()).unwrap());
+        assert!(
+            db.open_identified_courseware_project(workspace, &seed)
+                .unwrap_err()
+                .to_string()
+                .starts_with("COURSEWARE_CONFLICT"),
+            "{failure}"
+        );
+        assert_eq!(
+            serde_json::to_value(
+                db.get_courseware_project(workspace, &seed.project_id)
+                    .unwrap()
+                    .unwrap()
+            )
+            .unwrap(),
+            serde_json::to_value(previous).unwrap()
+        );
+        assert_eq!(identity(&db), old_identity);
+        assert!(db
+            .kv_get(
+                IDENTITY_NAMESPACE,
+                &identity_key(workspace, &seed.project_id, &seed.sha256).unwrap()
+            )
+            .unwrap()
+            .is_none());
+        assert_eq!(
+            db.conn
+                .query_row(
+                    "SELECT count(*) FROM kv WHERE ns=?1",
+                    [HISTORY_NAMESPACE],
+                    |row| row.get::<_, i64>(0)
+                )
+                .unwrap(),
+            0
+        );
+    }
+}
+
+#[test]
 fn first_open_uses_selected_task_and_teaching_settings_without_rewriting_existing_project() {
     let dir = tempfile::tempdir().unwrap();
     let db = Database::open(&dir.path().join("pi.sqlite")).unwrap();
@@ -96,6 +409,90 @@ fn first_open_uses_selected_task_and_teaching_settings_without_rewriting_existin
         "和朋友挥手，说 Hello。"
     );
     assert_eq!(reopened.title, "问候课");
+}
+
+#[test]
+fn generated_narration_starts_as_sentences_and_retains_legacy_teaching() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = Database::open(&dir.path().join("pi.sqlite")).unwrap();
+    let workspace = dir.path().to_str().unwrap();
+    let seed = fixture_seed();
+    let project = db
+        .open_identified_courseware_project_with_metadata(workspace, &seed, "scene", None)
+        .unwrap();
+    let sentences = [
+        "欢迎小朋友！",
+        "小猫说：‘Hello!’ ",
+        "它有 1.5 米高。",
+        "Let's say hello. ",
+        "Are you ready?",
+    ];
+    let text = sentences.concat();
+    let narrated = db
+        .initialize_generated_narration(
+            workspace,
+            &project.project_id,
+            &seed.sha256,
+            "Greetings",
+            std::slice::from_ref(&text),
+        )
+        .unwrap();
+    assert_eq!(
+        narrated.pages[0]
+            .actions
+            .iter()
+            .map(|a| a["text"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+        sentences
+    );
+    assert_eq!(narrated.pages[0].actions[1]["id"], "narration-1");
+    let repeated = db
+        .initialize_generated_narration(
+            workspace,
+            &project.project_id,
+            &seed.sha256,
+            "Greetings",
+            std::slice::from_ref(&text),
+        )
+        .unwrap();
+    assert_eq!(repeated.teaching_revision, narrated.teaching_revision);
+    let mut legacy = narrated.clone();
+    legacy.pages[0].actions = vec![json!({"id":"narration-0","type":"speech","text":text})];
+    db.kv_set(
+        NAMESPACE,
+        &storage_key(workspace, &project.project_id).unwrap(),
+        &serde_json::to_value(&legacy).unwrap(),
+    )
+    .unwrap();
+    let retained = db
+        .initialize_generated_narration(
+            workspace,
+            &project.project_id,
+            &seed.sha256,
+            "Greetings",
+            std::slice::from_ref(&text),
+        )
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(retained).unwrap(),
+        serde_json::to_value(&legacy).unwrap()
+    );
+    legacy.pages[0].actions[0]["text"] = json!("Manually revised narration.");
+    db.kv_set(
+        NAMESPACE,
+        &storage_key(workspace, &project.project_id).unwrap(),
+        &serde_json::to_value(&legacy).unwrap(),
+    )
+    .unwrap();
+    assert!(db
+        .initialize_generated_narration(
+            workspace,
+            &project.project_id,
+            &seed.sha256,
+            "Greetings",
+            &[text]
+        )
+        .is_err());
 }
 
 #[test]

@@ -11,10 +11,9 @@ import { ConversationWidthHandles } from "./ConversationWidthHandles";
 import { useAppStore } from "../stores/app-store";
 import { headPermission } from "../lib/pending-permissions";
 import { headAsk } from "../lib/pending-asks";
-import { CoursewareChatWorkflow } from "./courseware/CoursewareChatWorkflow";
+import { CoursewareWorkspaceEntry } from "./courseware/CoursewareWorkspaceEntry";
 
 const StableComposer = memo(Composer);
-const coursewareWorkflow = <CoursewareChatWorkflow />;
 
 function i18nHasError(t: (key: string) => string, code: string) {
   const key = `errors.${code}`;
@@ -135,6 +134,7 @@ export const ChatSurface = memo(function ChatSurface() {
         </div>
       ) : null}
       <ConversationWidthHandles />
+      <CoursewareWorkspaceEntry />
       {showEmptyState ? (
         <div
           className="home-main-content"
@@ -213,7 +213,7 @@ export const ChatSurface = memo(function ChatSurface() {
             </div>
           </div>
           <div className="home-composer-wrap">
-            <StableComposer variant="home" prefill={quickstartPrefill}>{coursewareWorkflow}</StableComposer>
+            <StableComposer variant="home" prefill={quickstartPrefill} />
           </div>
         </div>
       ) : (
@@ -227,7 +227,7 @@ export const ChatSurface = memo(function ChatSurface() {
               />
             ))}
           </div>
-          <StableComposer variant="docked">{coursewareWorkflow}</StableComposer>
+          <StableComposer variant="docked" />
         </>
       )}
 

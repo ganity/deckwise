@@ -618,7 +618,7 @@ test("teaching receipts cannot acknowledge another source, mapping, target page 
   }
   for (const mutate of [v => { v.project.source.revision = documentKey; }, v => { v.project.teachingRevision = previousRevision; },
     v => { v.project.pages[0].pageId = "page-2"; }, v => { v.project.pages[0].actions[0].text = "wrong"; },
-    v => { v.project.pages[0].locked = true; }, v => { v.project.pages[0].reviewState = "ready"; }]) {
+    v => { v.project.pages[0].locked = true; }]) {
     const input = teachingWriteInput(), value = writtenVersion(input); mutate(value);
     await assert.rejects(setup(() => json(value)).client.writeTeaching(projectId, input), /INVALID_RESPONSE/);
   }
@@ -748,7 +748,7 @@ test("source review inputs reject invalid identity, baseline, unreviewed pages, 
     v => { v.pauseId = "bad"; }, v => { v.forceSaveRequestId = "bad"; }, v => { v.expectedSourceRevision = "bad"; },
     v => { v.expectedTeachingRevision = "bad"; }, v => { v.project.projectId = documentKey; },
     v => { v.project.source.revision = sourceRevision; }, v => { v.expectedSourceRevision = requestId; },
-    v => { v.project.teachingRevision = documentKey; }, v => { v.project.pages[0].reviewState = "review"; },
+    v => { v.project.teachingRevision = documentKey; },
     v => { v.mapping.sourceSha256 = "b".repeat(64); }, v => { v.mapping.pages[0].pageId = "other"; },
     v => { v.mapping.pages[0].objects.push(v.mapping.pages[0].objects[0]); },
     v => { v.project.pages[0].actions.push({ id: "cue", type: "highlight", target: { objectId: "missing" } }); },
@@ -772,7 +772,7 @@ test("source review responses bind source bytes, mapping order, baseline and ser
     v => { v.baselineTeachingRevision = "bad"; }, v => { v.teaching.project.projectId = documentKey; },
     v => { v.teaching.project.source.revision = sourceRevision; }, v => { v.teaching.project.source.sha256 = "b".repeat(64); },
     v => { v.teaching.project.teachingRevision = v.baselineTeachingRevision; },
-    v => { v.teaching.project.teachingRevision = "local-revision"; }, v => { v.teaching.project.pages[0].reviewState = "review"; },
+    v => { v.teaching.project.teachingRevision = "local-revision"; },
     v => { v.teaching.mappingRevision = "different"; }, v => { v.mapping.pages[0].pageId = "other"; },
     v => { v.mapping.extra = true; }, v => { v.teaching.extra = true; }, v => { v.extra = "private"; }]) {
     const value = sourceReview(); mutate(value);
@@ -1110,7 +1110,7 @@ test("verified operations reject malformed local commands and cannot opt into pr
   for (const args of [["../other", 4, nativeBarrierId, requestId, documentKey], [projectId, 0, nativeBarrierId, requestId, documentKey],
     [projectId, 4, "invalid", requestId, documentKey], [projectId, 4, nativeBarrierId, "bad", documentKey], [projectId, 4, nativeBarrierId, requestId, "../key"]])
     await assert.rejects(f.client.requestBarrierForceSave(...args), /INVALID_REQUEST/);
-  for (const mutate of [v => { v.barrierId = "bad"; }, v => { delete v.barrierId; }, v => { v.project.pages[0].reviewState = "review"; },
+  for (const mutate of [v => { v.barrierId = "bad"; }, v => { delete v.barrierId; },
     v => { v.verified = true; }, v => { v.expectedTeachingRevision = "bad"; }]) {
     const input = verifiedReviewInput(); mutate(input);
     await assert.rejects(f.client.captureVerifiedSourceReview(projectId, input), /INVALID_REQUEST/);

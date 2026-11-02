@@ -1,10 +1,10 @@
 # Fixed courseware snapshots
 
-Status: A16 implements explicit per-page confirmation and private Host snapshot
+Status: A16 implements private Host snapshot
 capture/export. A17 adds Main-owned fixed build IPC and a separate sandboxed
 Desktop player for an already persisted snapshot. A18 adds visible snapshot,
-warning-review, build and play controls for confirmed drafts without speech.
-A25 captures adopted TTS audio; A26 permits confirmed drafts with that audio
+warning-review, build and play controls for saved drafts without speech.
+A25 captures adopted TTS audio; A26 permits saved drafts with that audio
 through the same controls and validates fixed building/native playback.
 Visible paid generation, live-provider acceptance and platform publication
 remain separate gates.
@@ -38,25 +38,22 @@ receipt and exact frozen build, even if the channel has since advanced. Missing
 receipts never authorize a second POST. Cancellation cannot undo a request
 already accepted upstream. No automatic retry or remote rollback is attempted.
 
-## Confirmation
+## Teaching approval compatibility
 
-`courseware.teaching.confirm` accepts strict `{sessionId,projectId,pageId,
-expectedSourceRevision,expectedTeachingRevision}`. Workspace comes from the
-persisted session. Host applies the existing full-record revision CAS, sets only
-that page's `reviewState` to `ready` and advances `teachingRevision`. Actions,
-source, logical identities and locks stay intact. A locked page may be confirmed:
-confirmation does not edit its content. Subsequent teaching writes invalidate
-that page's review through the existing `review` transition. Confirmation does
-not synthesize audio, approve conversion warnings or certify playback readiness.
+Teaching workflow approvals are the teaching plan and first-page style
+confirmation. Saved pages and individual effects need no human approval before
+editing, generation progress, capture, export or playback. Readiness comes from
+validated saved actions, resolved targets and verified media.
 
-The main-window-only `pptEditorTeachingConfirm({viewId,
-expectedTeachingRevision})` uses the existing generated preload whitelist.
-Main derives source/project/page from its retained clean saved-source view,
-checks the foreground owning Chat, native editor session/page/generation,
-workspace, source hash, teaching revision and Host, then calls the finite Host
-method. Extra arguments/keys and forged targets reject. There is no Chat tool
-that can confirm teaching. The panel disables confirmation while busy, dirty,
-unsaved or already confirmed; page locks do not disable confirmation.
+The v1 `reviewState` field and strict `courseware.teaching.confirm` /
+`pptEditorTeachingConfirm` operations remain compatible with older clients. They
+retain ownership, clean-source and full-record CAS validation, but neither flag
+value is an eligibility check. The current native sidebar exposes no confirm
+operation; current teaching panels expose no page/effect confirmation controls.
+Chat change receipts preserve failure/omission history without a manual
+request-closing prerequisite for snapshots, portable exports or fixed shares.
+Source replacement, destructive removals, conversion warnings and external
+publication retain their existing explicit user choices.
 
 ## Private Host API
 
@@ -377,11 +374,11 @@ and spotlight cues on a selected speech action. These use the existing
 `speech.visualCues` shape and the parent speech's audio time in integer
 milliseconds; they do not provide word alignment or native PowerPoint animation.
 Highlight and spotlight may target multiple current saved-page logical objects.
-Timing and object selection require explicit review before adding or applying a
-cue. Changes use the existing serial teaching draft and explicit page save.
-Saving invalidates page confirmation; fixed capture still requires confirmation.
+Users choose timing and targets directly. Changes use the existing serial
+teaching draft and page save; no additional review checkbox or page confirmation
+is required. Fixed capture validates source, targets and media.
 
-All three task types use the same authoring form, draft, save, confirmation and
+All three task types use the same authoring form, draft, save and
 fixed-player path. Scene courses retain their existing semantic projection and
 only admit current mapped `native_text`, `native_shape` or `image_layer`
 associations. Plain and imported presentations use the current Host-bound saved
@@ -410,7 +407,7 @@ unreviewed semantic associations retain their existing invalidation states.
 No authoritative mapping, native ID or new canonical teaching field is accepted
 from the UI.
 
-Effects require an unlocked, explicitly confirmed saved page and existing fixed
+Effects require an unlocked saved page and existing fixed
 audio on the selected speech. Main rereads the current saved-source owner and
 Host project/object context before writing, rejects stale baselines and invalid
 targets, and validates the exact supported cue shape and bounded interval.
@@ -425,7 +422,7 @@ chosen millisecond interval matches spoken words. A native source save keeps
 effect editing unavailable until the existing saved-source review is adopted.
 That review requires explicit page associations and one object association for
 every distinct old highlight/spotlight target. No object selection is prefilled.
-The teacher separately confirms all target choices and the preserved timing.
+Target choices and preserved timing are validated as part of the effect save.
 Pages with cues cannot be omitted, and distinct old targets cannot be merged.
 
 The Host's review projection contains only the previous cue target UUID,

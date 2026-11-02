@@ -128,7 +128,8 @@ async function fixture(t, { reference = false } = {}) {
     async getImageQuote(model) {
       calls.push({ method: "GET quote", model }); await hooks.get("GET quote")?.(); return quote;
     },
-    async submitConfirmedImage(key, request, confirmation, signal, projectId) {
+    async submitConfirmedImage(key, request, confirmation, signal, projectId, check, admit) {
+      await check?.(); if (admit) projectId = await admit();
       const scope = { sessionId: state.active, principalKey: state.account };
       const intent = records(scope).find(row => row.idempotencyKey === key);
       assert(intent, "POST belongs to the authenticated original Chat");

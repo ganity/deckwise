@@ -89,5 +89,5 @@ export async function buildSceneCourseDeck(input: {
   signal?.throwIfAborted();
   if (compiled.pptx.length < 1 || compiled.pptx.length > 50 * 1024 * 1024 || compiled.mapping.pages.length !== pages.length)
     throw new Error("Invalid compiled scene course deck");
-  return { ...compiled, teaching: pages.map(({ pageId, narration }) => ({ pageId, narration })) };
+  return { ...compiled, mapping: { ...compiled.mapping, pages: compiled.mapping.pages.map((entry, index) => ({ ...entry, ...(pages[index].teaching ? { teaching: pages[index].teaching } : {}) })) }, teaching: pages.map(({ pageId, narration }) => ({ pageId, narration })) };
 }

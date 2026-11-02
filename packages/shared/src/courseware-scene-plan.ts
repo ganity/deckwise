@@ -1,3 +1,4 @@
+import type { CoursewareSceneTeaching } from "./courseware-scene-teaching.js";
 export type CoursewareScenePlanPage = {
   pageId: string;
   sourceHash: string;
@@ -5,6 +6,7 @@ export type CoursewareScenePlanPage = {
   visibleText: string[];
   visualIntent: string;
   narration: string;
+  teaching?: CoursewareSceneTeaching;
 };
 
 /** A validated generation draft, not the authoritative teaching of an open PPTX. */

@@ -6,6 +6,41 @@ use tts::TaskRef;
 
 pub const JOURNAL: &str = "coursewareMediaCanvasMusic.v1";
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Target {
+    pub version: u8,
+    pub project_id: String,
+    pub page_id: String,
+    pub action_id: String,
+    pub source: CoursewareSource,
+    pub prompt: String,
+}
+
+impl Target {
+    pub fn valid(&self) -> bool {
+        self.version == 1
+            && valid_id(&self.project_id)
+            && valid_id(&self.page_id)
+            && valid_id(&self.action_id)
+            && valid_id(&self.source.revision)
+            && hash(&self.source.sha256)
+            && !self.prompt.trim().is_empty()
+            && self.prompt.encode_utf16().count() <= 4000
+    }
+    pub fn matches(&self, project: &CoursewareProject) -> bool {
+        self.project_id == project.project_id
+            && self.source == project.source
+            && project.pages.iter().any(|p| {
+                p.page_id == self.page_id
+                    && !p.locked
+                    && p.actions.iter().any(|a| {
+                        a["id"] == self.action_id && valid_slot(a) && a["prompt"] == self.prompt
+                    })
+            })
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Selection {
@@ -88,6 +123,150 @@ fn key(workspace: &str, project_id: &str) -> Result<String> {
 }
 
 impl Database {
+    pub(super) fn rebind_native_save_music(
+        &self,
+        workspace: &str,
+        previous: &CoursewareProject,
+        next: &CoursewareProject,
+    ) -> Result<()> {
+        use sha2::{Digest, Sha256};
+        anyhow::ensure!(
+            !self.conn.is_autocommit(),
+            "COURSEWARE_INVALID: music binding requires native-save transaction"
+        );
+        let prefix = format!(
+            "[{},",
+            serde_json::to_string(&std::fs::canonicalize(workspace)?)?
+        );
+        let rows = self.conn.prepare("SELECT key,value_json FROM kv WHERE ns=?1 AND substr(key,1,length(?2))=?2 LIMIT 1001")?
+            .query_map(params![JOURNAL, prefix], |r| Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?)))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        anyhow::ensure!(
+            rows.len() <= 1000,
+            "COURSEWARE_INVALID: too many music journals"
+        );
+        for (key, raw) in rows {
+            let mut intents: Vec<Value> = serde_json::from_str(&raw)?;
+            for intent in &mut intents {
+                if intent["request"]["kind"] != "music" {
+                    continue;
+                }
+                let mut target = if intent.get("target").is_some() {
+                    let target: Target = serde_json::from_value(intent["target"].clone())?;
+                    anyhow::ensure!(target.valid(), "COURSEWARE_INVALID: invalid music target");
+                    if target.project_id != previous.project_id || target.source != previous.source
+                    {
+                        continue;
+                    }
+                    target
+                } else {
+                    let Some(draft) = intent["draft"]["id"].as_str() else {
+                        continue;
+                    };
+                    let matches = previous
+                        .pages
+                        .iter()
+                        .enumerate()
+                        .flat_map(|(index, page)| {
+                            let prefix =
+                                format!("auto-music-{}-p{}-", previous.source.sha256, index + 1);
+                            page.actions.iter().filter_map(move |action| {
+                                let id = action["id"].as_str()?;
+                                let suffix =
+                                    draft.strip_prefix(&prefix)?.strip_prefix(&format!(
+                                        "{}-",
+                                        &hex::encode(Sha256::digest(id.as_bytes()))[..16]
+                                    ))?;
+                                if suffix.len() != 24
+                                    || !suffix.bytes().all(|c| c.is_ascii_hexdigit())
+                                    || !valid_slot(action)
+                                {
+                                    return None;
+                                }
+                                Some(Target {
+                                    version: 1,
+                                    project_id: previous.project_id.clone(),
+                                    page_id: page.page_id.clone(),
+                                    action_id: id.into(),
+                                    source: previous.source.clone(),
+                                    prompt: action["prompt"].as_str()?.into(),
+                                })
+                            })
+                        })
+                        .collect::<Vec<_>>();
+                    if matches.len() != 1 {
+                        if draft.starts_with(&format!("auto-music-{}-p", previous.source.sha256)) {
+                            intent["unresolvedProjectId"] =
+                                Value::String(previous.project_id.clone());
+                        }
+                        continue;
+                    }
+                    matches[0].clone()
+                };
+                let action = |p: &CoursewareProject| {
+                    p.pages
+                        .iter()
+                        .find(|p| p.page_id == target.page_id)
+                        .and_then(|p| p.actions.iter().find(|a| a["id"] == target.action_id))
+                        .cloned()
+                };
+                let old = action(previous);
+                if old.is_some() && old == action(next) {
+                    target.source = next.source.clone();
+                    intent["target"] = serde_json::to_value(target)?;
+                }
+            }
+            let targets = intents
+                .iter()
+                .filter(|i| i["request"]["kind"] == "music" && i.get("target").is_some())
+                .map(|i| (i["intentId"].clone(), i["target"].clone()))
+                .collect::<Vec<_>>();
+            for intent in &mut intents {
+                if let Some((_, target)) = targets
+                    .iter()
+                    .find(|(id, _)| *id == intent["sourceIntentId"])
+                {
+                    intent["target"] = target.clone();
+                }
+            }
+            self.kv_set(JOURNAL, &key, &serde_json::to_value(intents)?)?;
+        }
+        Ok(())
+    }
+    /// An unapproved slot is removable only while every matching order is unsubmitted.
+    pub(super) fn music_slot_has_submission(&self, workspace: &str, slot_id: &str) -> Result<bool> {
+        use sha2::{Digest, Sha256};
+        let root = std::fs::canonicalize(workspace)?;
+        let slot = format!(
+            "-{}-",
+            &hex::encode(Sha256::digest(slot_id.as_bytes()))[..16]
+        );
+        let rows = self
+            .conn
+            .prepare("SELECT key,value_json FROM kv WHERE ns=?1")?
+            .query_map([JOURNAL], |r| {
+                Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        for (key, raw) in rows {
+            let scope: Vec<String> = serde_json::from_str(&key)?;
+            if scope.len() != 3 || std::path::Path::new(&scope[0]) != root {
+                continue;
+            }
+            let intents: Vec<Value> = serde_json::from_str(&raw)?;
+            if intents.iter().any(|i| {
+                i["draft"]["id"]
+                    .as_str()
+                    .is_some_and(|id| id.starts_with("auto-music-") && id.contains(&slot))
+                    && (!matches!(i["phase"].as_str(), Some("prepared" | "rejected"))
+                        || !i["taskRef"].is_null())
+            }) {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
     pub fn courseware_music_adoptions(
         &self,
         workspace: &str,

@@ -94,7 +94,7 @@ associated logical page when its speech/action and private receipt still match;
 object cue/effect-bearing projects continue to reject intact.
 Optional integer `pauseAfterMs`
 from 0 through 30,000 is copied unchanged; it carries no asset/object binding.
-All associated pages still require review after visual changes.
+Associated pages use automatic saved-source, target and media validation.
 This operation never replaces PPTX bytes and does not authorize generated
 candidate adoption or arbitrary caller-supplied lineage.
 
@@ -181,9 +181,9 @@ A16 keeps immutable exports in the same Host database, separate from the mutable
 project: one frozen canonical snapshot, complete project, bound identity and
 fixed audio metadata, with content-addressed source/audio files. Exact IDs replay
 but cannot overwrite different content. Reads verify the frozen data and files
-without falling back to live state. Explicit per-page confirmation uses the
-existing Main-owned teaching view and Host CAS; the renderer owns no revisions,
-paths or snapshot storage. A fixed snapshot is build input, not a publication
+without falling back to live state. Teaching edits use the existing Main-owned teaching view and Host CAS; the
+renderer owns no revisions, paths or snapshot storage. Per-page confirmation is
+not a workflow gate (runtime contract 22, 2026-10-30 correction). A fixed snapshot is build input, not a publication
 or promise of supported rendering/audio. D must independently validate actions,
 assets, bindings and conversion warnings before playback. See runtime spec 26.
 
@@ -202,8 +202,14 @@ Explicit saved-source association may advance only the adopted receipt's
 and immutable bytes never move or regenerate. Source review checks the old
 binding, logical page/action and speech before advancing; Main/Host snapshot
 capture independently require the current binding. Copies stay empty and old
-snapshots retain their previous source and asset bytes. This does not grant
-generated-candidate audio migration or object-effect rebinding.
+snapshots retain their previous source and asset bytes. A verified native-save commit also advances a separate optional `boundSource`
+on already-dispatched TTS journals, including not-yet-archived/adopted work, when
+the old source binding and unchanged logical page/action/text match both projects.
+It changes no original paid request, selection, key or task. Cancelled saves,
+changed speech, copied/deleted pages and arbitrary source switches cannot grant
+this authority; adoption still requires fresh teaching CAS, account and lock
+checks. This does not grant generated-candidate audio migration or object-effect
+rebinding.
 This Host-only checkpoint does not certify playback or expose private paths to
 the renderer/model; Main decoding and narrated integration remain required.
 
@@ -245,9 +251,9 @@ Proposal execution still pins its fresh native generation across generation.
 A40 uses the same retained candidate review and recoverable source installation
 for verified rebuilt pages. Main freezes and reopens primary Office through the
 existing adoption coordinator; Host owns the durable intent, page/object identity
-migration and teaching transaction. Explicit sidebar confirmation remains required.
+migration and teaching transaction. Saved teaching needs no sidebar confirmation.
 Only target object IDs are replaced; page IDs, peer object IDs and supported
-speech/pauses/locks persist, with target teaching requiring review. No new file
+speech/pauses/locks persist, with target teaching validated against saved mappings. No new file
 writer, canonical store or model-facing adoption tool is introduced. This
 supersedes A39's temporary Desktop rebuilt-page adoption restriction.
 

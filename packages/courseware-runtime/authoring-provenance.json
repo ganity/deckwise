@@ -21,7 +21,7 @@
       "source": "lib/generation/kindergarten/scene-to-pptx.ts",
       "sourceSha256": "a66706ba7323852e84a4872fe7b531bba272c122cdb9ad2ba1fba50c2ecd89aa",
       "path": "src/authoring/kindergarten/scene-to-pptx.ts",
-      "sha256": "4b5c6c3b5d96c37ca258aeda035008941cd2cdd3a753ab9141809b96a142311a"
+      "sha256": "8250aa5334d3d29e3d8009c56a649b7463c5e7127372c2d8a8cd014a171b0036"
     },
     {
       "source": "lib/generation/kindergarten/image2-pptist/contracts.ts",
@@ -51,13 +51,13 @@
       "source": "tests/generation/kindergarten/scene-to-pptx.test.ts",
       "sourceSha256": "b54d7062cec99a65f4d43a78e4a4634836a9ec8feba3421b8a58616f028c97f8",
       "path": "src/authoring/tests/kindergarten/scene-to-pptx.test.ts",
-      "sha256": "9059cf34eb554a94ea0b3c3655dcb10fe3929639b1736c5ff689b6187f714c44"
+      "sha256": "8ed98eb355032db5612f047c26147c0335cff1e84f15bf9401d3cb004c4f1836"
     },
     {
       "source": "tests/generation/kindergarten/scenes-to-pptx.test.ts",
       "sourceSha256": "7b77586e0cf1a067f813b0e4773421a25713b6eae401701e0d02994b249ae3e6",
       "path": "src/authoring/tests/kindergarten/scenes-to-pptx.test.ts",
-      "sha256": "6ff8984e0389525b9896abd82e642252f277ea0c09f49d12eebcfe076012b563"
+      "sha256": "a21255ed998f978e23fb6c3ffecde544259ff15b72911e95beee45918390bfdf"
     },
     {
       "source": "Desktop-authored W10.2 native compiler edge regression",

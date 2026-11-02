@@ -2,135 +2,162 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { CoursewareWorkflowView } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
-import { pptEditorWorkPanelTab, toolWorkPanelTab } from "../../lib/work-panel-tabs";
 import { useAppStore } from "../../stores/app-store";
 import { CoursewareSourceVisuals } from "../workpanel/CoursewareSourceVisuals";
+import { PptEditorTab } from "../workpanel/PptEditorTab";
+import { CoursewareImportDialog } from "../workpanel/CoursewareImportDialog";
 import { CoursewareChatPresentation } from "./CoursewareChatPresentation";
 import { CoursewareChatNarration } from "./CoursewareChatNarration";
 import { CoursewareChatPptxCandidates } from "./CoursewareChatPptxCandidates";
+import { CoursewareChatImages } from "./CoursewareChatImages";
 
-export function CoursewareChatWorkflow() {
+type WorkspaceProps = { maximized?: boolean; onToggleMaximize?: () => void };
+export function CoursewareChatWorkflow(props: WorkspaceProps) {
   const sessionId = useAppStore(state => state.activeSessionId);
-  return sessionId ? <Workflow key={sessionId} sessionId={sessionId} /> : null;
+  return sessionId ? <Workflow key={sessionId} sessionId={sessionId} {...props} /> : null;
 }
 
-function Workflow({ sessionId }: { sessionId: string }) {
+function Workflow({ sessionId, maximized, onToggleMaximize }: { sessionId: string } & WorkspaceProps) {
   const { t } = useTranslation();
   const isRunning = useAppStore(state => state.runningSessions[sessionId] ?? false);
-  const messageCount = useAppStore(state => state.messages.length);
-  const projectPath = useAppStore(state => state.sessions.find(session => session.id === sessionId)?.projectPath);
+  const messages = useAppStore(state => state.messages);
+  const session = useAppStore(state => state.sessions.find(session => session.id === sessionId));
   const [view, setView] = useState<CoursewareWorkflowView | null>(null);
   const [error, setError] = useState("");
+  const [readError, setReadError] = useState("");
   const [busy, setBusy] = useState(false);
   const [visualBusy, setVisualBusy] = useState(false);
+  const [plainPath, setPlainPath] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const visualWasBusy = useRef(false);
   const [refresh, setRefresh] = useState(0);
-  const active = useRef(true), inFlight = useRef(false), previewPlan = useRef("");
-  useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
-  const current = () => active.current && useAppStore.getState().activeSessionId === sessionId;
-
+  const active = useRef(true), inFlight = useRef(false), epoch = useRef(0);
   useEffect(() => {
-    let disposed = false, request = 0;
+    active.current = true;
+    const unsubscribe = api.onAuthChanged(() => { epoch.current++; setView(null); setPlainPath(null); setRefresh(value => value + 1); });
+    return () => { active.current = false; epoch.current++; unsubscribe(); };
+  }, []);
+  const current = () => active.current && useAppStore.getState().activeSessionId === sessionId;
+  useEffect(() => {
+    let disposed = false, loading = false;
+    const revision = epoch.current;
     const load = async () => {
-      const id = ++request;
+      if (loading) return;
+      loading = true;
       try {
         const value = await api.coursewareWorkflowGet(sessionId);
-        if (!disposed && id === request) { setView(value); setError(""); }
+        if (!disposed && revision === epoch.current && current()) { setView(value); setReadError(""); }
       } catch (failure) {
-        if (!disposed && id === request) setError(String(failure));
-      }
+        if (!disposed && revision === epoch.current && current()) setReadError(String(failure));
+      } finally { loading = false; }
     };
-    if (!projectPath) return;
+    if (!session?.projectPath) return;
     void load();
-    const timer = isRunning ? window.setInterval(() => void load(), 2000) : undefined;
-    return () => { disposed = true; if (timer !== undefined) window.clearInterval(timer); };
-  }, [sessionId, projectPath, isRunning, messageCount, refresh]);
+    const timer = isRunning ? window.setInterval(() => void load(), 3000) : undefined;
+    return () => { disposed = true; window.clearInterval(timer); };
+  }, [sessionId, session?.projectPath, isRunning, messages.length, refresh]);
 
-  useEffect(() => {
-    const plan = view?.plan;
-    if (current() && plan && plan.sha256 === plan.approvedSha256 && previewPlan.current !== plan.sha256) {
-      previewPlan.current = plan.sha256;
-      useAppStore.getState().openWorkPanelTab(toolWorkPanelTab("scene-images"));
-    }
-  }, [view?.plan?.sha256, view?.plan?.approvedSha256]);
-
-  const run = async (operation: () => Promise<void>) => {
+  const run = async (operation: (valid: () => boolean) => Promise<void>) => {
     if (!current() || inFlight.current || visualBusy || useAppStore.getState().runningSessions[sessionId]) return;
+    const revision = epoch.current;
+    const valid = () => current() && revision === epoch.current;
     inFlight.current = true; setBusy(true); setError("");
-    try { await operation(); }
-    catch (failure) { if (current()) setError(String(failure)); }
+    try { await operation(valid); }
+    catch (failure) { if (valid()) setError(String(failure)); }
     finally { if (current()) { setBusy(false); setRefresh(value => value + 1); } inFlight.current = false; }
   };
-  const continueChat = async () => {
-    if (!current()) return;
-    const accepted = await useAppStore.getState().sendPrompt(t("coursewareWorkflow.continuePrompt"), undefined, sessionId);
+  const continueChat = async (action: "plan" | "style" | "resume" | "restyle", instruction = "") => {
+    if (!current() || useAppStore.getState().runningSessions[sessionId]) return;
+    setError("");
+    const accepted = await useAppStore.getState().sendPrompt(t(`coursewareWorkflow.${action}Prompt`, { instruction }), undefined, sessionId);
     if (!accepted) throw new Error(t("coursewareWorkflow.sendFailed"));
   };
-  const openEditor = async () => {
-    const { task } = await api.coursewareTaskGet(sessionId);
-    if (!current()) return;
-    const path = task?.generatedPath ?? task?.importPath;
-    if (!path) throw new Error(t("coursewareWorkflow.sourceMissing"));
-    useAppStore.getState().openWorkPanelTab(pptEditorWorkPanelTab(path));
-  };
-  if (!projectPath) return null;
-  if (!view?.task) return error ? <section className="courseware-chat-workflow" aria-label={t("coursewareWorkflow.title")}>
-    <p role="alert" className="courseware-workflow-error">{error}</p>
-    <button type="button" onClick={() => setRefresh(value => value + 1)}>{t("coursewareWorkflow.refresh")}</button>
-  </section> : null;
+  const path = view?.task?.sourcePath ?? plainPath;
+  useEffect(() => {
+    if (path && current()) useAppStore.getState().replaceWorkPanelTab("ppt", { id: "ppt", kind: "ppt", resource: path });
+  }, [path]);
   const plan = view?.plan;
   const approved = !!plan && plan.sha256 === plan.approvedSha256;
   const blocked = busy || isRunning || visualBusy;
-  const ordinary = view.task.taskType === "plain" && !view.task.generated;
+  const ordinary = view?.task?.taskType === "plain" && !view.task.generated;
   const sourceVisuals = <details>
-        <summary>{t("panel.pptEditor.visualTitle")}</summary>
-        <CoursewareSourceVisuals sessionId={sessionId} enabled disabled={busy || isRunning} onActiveChange={value => {
-          const finished = visualWasBusy.current && !value;
-          visualWasBusy.current = value;
-          setVisualBusy(value);
-          if (finished && current()) useAppStore.setState({ coursewareTeachingRefresh: { sessionId, reread: true } });
-        }} />
-      </details>;
+    <summary>{t("panel.pptEditor.visualTitle")}</summary>
+    <CoursewareSourceVisuals sessionId={sessionId} enabled disabled={busy || isRunning} onActiveChange={value => {
+      const finished = visualWasBusy.current && !value;
+      visualWasBusy.current = value; setVisualBusy(value);
+      if (finished && current()) useAppStore.setState({ coursewareTeachingRefresh: { sessionId, reread: true } });
+    }} />
+  </details>;
+  const firstLessonPlan = messages.filter(message => message.role === "user").flatMap(message => message.attachments ?? [])
+    .find(attachment => attachment.kind === "file" && /\.(pdf|docx?)$/i.test(attachment.name));
 
-  return <section className="courseware-chat-workflow" aria-label={t("coursewareWorkflow.title")} aria-busy={blocked}>
-    {!ordinary && <header><strong>{t("coursewareWorkflow.title")}</strong><span role="status">{t(isRunning ? "coursewareWorkflow.working" :
-      view?.task?.generated || view?.task?.imported ? "coursewareWorkflow.editable" : plan ? approved ? "coursewareWorkflow.assets" : "coursewareWorkflow.reviewPlan" : "coursewareWorkflow.requirements")}</span></header>}
-    {error && <p role="alert" className="courseware-workflow-error">{error}</p>}
-    <>
-      {!ordinary && !plan && !view.task.imported && !view.task.generated && <p>{t(view.task.taskType === "import" ? "coursewareWorkflow.importHint" : "coursewareWorkflow.briefHint")}</p>}
-      {plan && <details><summary>{plan.title} · {t("coursewareWorkflow.pages", { count: plan.pages.length })}</summary>
-        {plan.visualBible && <section aria-label={t("coursewareWorkflow.visualBible")}>
-          <strong>{t("coursewareWorkflow.visualBible")}</strong>
-          <p>{plan.visualBible.artDirection}</p><p>{plan.visualBible.characters}</p><p>{plan.visualBible.setting}</p>
-        </section>}
-        <ol>{plan.pages.map(page => <li key={page.pageId}><strong>{page.title}</strong>
-          <p>{page.visibleText.join(" · ")}</p><p>{page.visualIntent}</p><p>{page.narration}</p></li>)}</ol>
-      </details>}
-      {plan && !approved && <button type="button" disabled={blocked} onClick={() => void run(async () => {
-        const result = await api.coursewareScenePlanApprove(sessionId, plan.sha256);
-        if (!current()) return;
-        if (!result.plan || result.plan.sha256 !== result.plan.approvedSha256) throw new Error(t("coursewareWorkflow.planChanged"));
-        setView(value => value ? { ...value, plan: result.plan } : value);
-        await continueChat();
-      })}>{t("coursewareWorkflow.approveContinue")}</button>}
-      {plan && approved && <button type="button" onClick={() => useAppStore.getState().openWorkPanelTab(toolWorkPanelTab("scene-images"))}>
-        {t("coursewareWorkflow.imagePreview")}</button>}
-      {view.task.taskType === "import" && !view.task.imported && <button type="button" disabled={blocked} onClick={() => void run(async () => {
+  return <section className={`courseware-chat-workflow courseware-workspace${path ? " has-editor" : ""}`} aria-label={t("coursewareWorkflow.workspace")}>
+    <header className="courseware-workspace-heading">
+      <strong>{t("coursewareWorkflow.workspace")}</strong>
+      <div className="courseware-workflow-actions">
+        {path && <button type="button" disabled={blocked} onClick={() => setImportOpen(true)}>{t("coursewareWorkflow.publish")}</button>}
+        <button type="button" disabled={busy} onClick={() => setRefresh(value => value + 1)}>{t("coursewareWorkflow.refresh")}</button>
+      </div>
+    </header>
+    {(error || readError) && <p role="alert" className="courseware-workflow-error">{error || readError}</p>}
+    {!view && !readError && <p role="status">{t("coursewareWorkflow.loadingWorkspace")}</p>}
+    {view && !view.task && <p>{t("coursewareWorkflow.briefHint")}</p>}
+    {view?.task && <>
+      {!path && !ordinary && !plan && <p role="status">{t(view.task.taskType === "import" ? "coursewareWorkflow.importHint" : "coursewareWorkflow.briefHint")}</p>}
+      {!path && plan && !approved && <div className="courseware-plan-review">
+        <div className="courseware-plan-scroll">
+          <div className="courseware-plan-heading">
+            <span className="courseware-plan-status">{t("coursewareWorkflow.reviewPlan")}</span>
+            <h2>{plan.title}</h2>
+            <p>{t("coursewareWorkflow.pages", { count: plan.pages.length })}</p>
+          </div>
+          {plan.visualBible && <details className="courseware-plan-guide">
+            <summary>{t("coursewareWorkflow.visualBible")}</summary>
+            <div><p>{plan.visualBible.artDirection}</p><p>{plan.visualBible.characters}</p><p>{plan.visualBible.setting}</p></div>
+          </details>}
+          <ol className="courseware-plan-pages">{plan.pages.map((page, index) => <li key={page.pageId}>
+            <details open={index === 0}>
+              <summary>
+                <span className="courseware-plan-number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+                <span className="courseware-plan-page-heading"><strong>{page.title}</strong><span>{page.visibleText.join(" · ")}</span></span>
+              </summary>
+              <dl className="courseware-plan-page-content">
+                <div><dt>{t("panel.scenePlan.visibleText")}</dt><dd className="courseware-plan-student-text">{page.visibleText.join(" · ")}</dd></div>
+                <div><dt>{t("panel.scenePlan.visualIntent")}</dt><dd>{page.visualIntent}</dd></div>
+                <div><dt>{t("panel.scenePlan.narration")}</dt><dd>{page.narration}</dd></div>
+              </dl>
+            </details>
+          </li>)}</ol>
+        </div>
+        <footer className="courseware-plan-footer">
+        <p>{t("coursewareWorkflow.revisePlanHint")}</p>
+        <button type="button" className="courseware-scene-primary" disabled={blocked} onClick={() => void run(async valid => {
+          const result = await api.coursewareScenePlanApprove(sessionId, plan.sha256);
+          if (!valid()) return;
+          if (!result.plan || result.plan.sha256 !== result.plan.approvedSha256) throw new Error(t("coursewareWorkflow.planChanged"));
+          setView(value => value ? { ...value, plan: result.plan } : value);
+          await continueChat("plan");
+        })}>{t("coursewareWorkflow.approveContinue")}</button>
+        </footer>
+      </div>}
+      {!path && plan && approved && <CoursewareChatImages key={plan.sha256} sessionId={sessionId} plan={plan} disabled={blocked}
+        refreshKey={refresh} compilation={view.compilation} onContinue={continueChat} />}
+      {view.task.taskType === "import" && !path && <button type="button" disabled={blocked} onClick={() => void run(async valid => {
         const picked = await api.pickFiles();
-        if (!picked.token || !current()) return;
-        await api.coursewareImportPptx(sessionId, picked.token);
-        if (!current()) return;
-        await openEditor();
+        if (!picked.token || !valid()) return;
+        const imported = await api.coursewareImportPptx(sessionId, picked.token);
+        if (valid()) setView(value => value?.task ? { ...value, task: { ...value.task, imported: true, sourcePath: imported.path } } : value);
       })}>{t("coursewareWorkflow.selectPpt")}</button>}
-      {ordinary && <CoursewareChatPresentation sessionId={sessionId} disabled={blocked} refreshKey={refresh} sourceVisuals={sourceVisuals} />}
-      {(view.task.generated || view.task.imported) && sourceVisuals}
-      <CoursewareChatNarration sessionId={sessionId} disabled={blocked} />
-      <CoursewareChatPptxCandidates sessionId={sessionId} disabled={blocked} />
-      {(view.task.generated || view.task.imported) && <button type="button" disabled={blocked} onClick={() => void run(openEditor)}>{t("coursewareWorkflow.openEditor")}</button>}
-    </>
-    <div className="courseware-workflow-actions">
-      <button type="button" disabled={blocked} onClick={() => void run(continueChat)}>{t("coursewareWorkflow.continue")}</button>
-      <button type="button" disabled={busy} onClick={() => setRefresh(value => value + 1)}>{t("coursewareWorkflow.refresh")}</button>
-    </div>
+      {ordinary && <CoursewareChatPresentation sessionId={sessionId} disabled={blocked} refreshKey={refresh}
+        sourceVisuals={sourceVisuals} onReady={setPlainPath} />}
+      {path && <details className="courseware-workspace-reviews"><summary>{t("coursewareWorkflow.reviews")}</summary>
+        {!ordinary && sourceVisuals}
+        <CoursewareChatNarration sessionId={sessionId} disabled={blocked} />
+        <CoursewareChatPptxCandidates sessionId={sessionId} disabled={blocked} />
+      </details>}
+      {path && <PptEditorTab key={path} path={path} tabId="ppt" maximized={maximized} onToggleMaximize={onToggleMaximize} />}
+      {path && <CoursewareImportDialog open={importOpen} sessionId={sessionId} initialTitle={session?.title ?? t("coursewareWorkflow.workspace")}
+        pptxPath={path} firstLessonPlan={firstLessonPlan ? { name: firstLessonPlan.name, path: firstLessonPlan.ref } : null} onClose={() => setImportOpen(false)} />}
+    </>}
   </section>;
 }

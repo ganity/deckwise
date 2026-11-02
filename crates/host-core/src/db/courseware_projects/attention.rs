@@ -85,8 +85,7 @@ impl Database {
             .collect();
         if project.task_type != "scene"
             || page.locked
-            || page.review_state == "ready"
-            || page.actions.iter().any(|a| a["type"] == "video_slot")
+            || page.actions.iter().any(|a| matches!(a["type"].as_str(), Some("video_slot" | "music_slot")))
             || speeches.is_empty()
             || speeches.iter().any(|a| {
                 a["source"] != "generated"

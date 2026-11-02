@@ -15,7 +15,8 @@ type Selection = Pick<Context, "projectId" | "pageId" | "expectedSourceRevision"
 };
 type Summary = { selection: Selection; phase: CoursewareTtsView["phase"]; idempotencyKey: string;
   requestHash: string; taskRef: CoursewareTaskRef | null; current: boolean; audioReady: false };
-type Journal = { intent: Omit<Summary, "current" | "audioReady"> & { request: CoursewareTtsRequest; sourceSha256: string; submissionScope?: unknown };
+type Journal = { intent: Omit<Summary, "current" | "audioReady"> & { request: CoursewareTtsRequest; sourceSha256: string; submissionScope?: unknown;
+  boundSource?: { revision: string; sha256: string } };
   current: boolean; audioReady: false };
 type Audio = { taskRef: CoursewareTaskRef; sha256: string; mimeType: "audio/wav" | "audio/mpeg"; byteLength: number; durationMs: number };
 type TtsSnapshotAudio = { asset: { id: string; sha256: string; mimeType: string }; tts: { principalKey: string; intentId: string } };
@@ -38,7 +39,7 @@ function view(summary: Summary, task: CoursewareTtsTask | null = null): Coursewa
 }
 const summary = (journal: Journal): Summary => ({ ...journal.intent, current: journal.current, audioReady: false });
 
-/** Explicit submission only; status and recovery never POST or generate a key. */
+/** Explicit submission only; status never POSTs and recovery preserves the original key. */
 export class CoursewareTtsCoordinator {
   private quotes = new Map<string, { scope: string; requestHash: string; quote: CoursewareTtsQuote }>();
   private submitting = new Set<string>();
@@ -57,11 +58,11 @@ export class CoursewareTtsCoordinator {
     return { ...context, principal, assertCurrent, scope };
   }
 
-  async prepare(value: unknown): Promise<CoursewareTtsView> {
+  async prepare(value: unknown, intentId: string = randomUUID()): Promise<CoursewareTtsView> {
     const input = payload(value, ["actionId", "model", "voice"]);
-    if (!id(input.actionId) || !id(input.model) || (input.voice !== null && (typeof input.voice !== "string" || !/^[A-Za-z0-9_-]{1,64}$/u.test(input.voice)))) throw new Error("COURSEWARE_TTS_INVALID_REQUEST");
+    if (!id(intentId) || !id(input.actionId) || !id(input.model) || (input.voice !== null && (typeof input.voice !== "string" || !/^[A-Za-z0-9_-]{1,64}$/u.test(input.voice)))) throw new Error("COURSEWARE_TTS_INVALID_REQUEST");
     const context = await this.context(input);
-    const selection: Selection = { intentId: randomUUID(), principalKey: context.principal.key, projectId: context.projectId,
+    const selection: Selection = { intentId, principalKey: context.principal.key, projectId: context.projectId,
       pageId: context.pageId, actionId: input.actionId, expectedSourceRevision: context.expectedSourceRevision,
       expectedTeachingRevision: context.expectedTeachingRevision, model: input.model, voice: input.voice as string | null };
     const journal = await context.host.call<Journal>("courseware.tts.prepare", { sessionId: context.sessionId, selection });
@@ -134,7 +135,26 @@ export class CoursewareTtsCoordinator {
     try {
       const journal = await context.host.call<Journal>("courseware.tts.get", scope);
       this.assertScope(journal.intent.selection, context, scope.intentId);
-      if (journal.intent.phase !== "prepared") return await this.read(context, journal);
+      if (journal.intent.phase !== "prepared") {
+        if (journal.intent.phase === "submission-unknown" && !journal.intent.taskRef &&
+            (journal.intent.boundSource?.revision ?? journal.intent.selection.expectedSourceRevision) === context.expectedSourceRevision &&
+            (journal.intent.boundSource?.sha256 ?? journal.intent.sourceSha256) === context.project.source.sha256 &&
+            context.project.pages.find(page => page.pageId === context.pageId)?.actions.some(action =>
+              action.id === journal.intent.selection.actionId && action.type === "speech" && action.text === journal.intent.request.input)) {
+          const projectId = coursewareMediaSubmissionProject(journal.intent.submissionScope, context.sessionId);
+          const task = await this.auth.coursewareMedia.resumeUnstartedTts(journal.intent.idempotencyKey,
+            journal.intent.request, projectId, context.assertCurrent);
+          if (task) {
+            if (task.idempotencyKey !== journal.intent.idempotencyKey || task.requestHash !== journal.intent.requestHash ||
+                task.model !== journal.intent.selection.model) throw new Error("COURSEWARE_TTS_INVALID_TASK");
+            const bound = await context.host.call<Journal>("courseware.tts.bind", { ...scope,
+              taskRef: { taskId: task.taskId, idempotencyKey: task.idempotencyKey, requestHash: task.requestHash } });
+            await context.assertCurrent();
+            return view(summary(bound), task);
+          }
+        }
+        return await this.read(context, journal);
+      }
       const selection = journal.intent.selection;
       if (!journal.current || selection.expectedSourceRevision !== context.expectedSourceRevision ||
           selection.expectedTeachingRevision !== context.expectedTeachingRevision) throw new Error("COURSEWARE_TTS_STALE");
@@ -143,19 +163,23 @@ export class CoursewareTtsCoordinator {
           Date.parse(saved.quote.expiresAt) <= Date.now())) throw new Error("COURSEWARE_TTS_QUOTE_REQUIRED");
       await context.assertCurrent();
       if (quoteId !== undefined) this.quotes.delete(quoteId);
-      const begun = await context.host.call<Journal>("courseware.tts.begin", scope);
+      let begun = journal, teamProjectId: string | undefined;
+      const admit = async () => {
+        begun = await context.host.call<Journal>("courseware.tts.begin", scope);
       if (begun.intent.phase !== "submission-unknown" || begun.intent.idempotencyKey !== journal.intent.idempotencyKey ||
           begun.intent.requestHash !== journal.intent.requestHash || JSON.stringify(begun.intent.request) !== JSON.stringify(journal.intent.request)) throw new Error("COURSEWARE_TTS_INVALID_JOURNAL");
       await context.assertCurrent();
-      const teamProjectId = coursewareMediaSubmissionProject(begun.intent.submissionScope, context.sessionId);
+        teamProjectId = coursewareMediaSubmissionProject(begun.intent.submissionScope, context.sessionId);
       await context.assertCurrent();
+        return teamProjectId;
+      };
       let task: CoursewareTtsTask;
       try {
         task = saved
-          ? await this.auth.coursewareMedia.submitConfirmedTts(begun.intent.idempotencyKey, begun.intent.request, saved.quote, undefined, teamProjectId, context.assertCurrent)
-          : await this.auth.coursewareMedia.submitTts(begun.intent.idempotencyKey, begun.intent.request, undefined, teamProjectId, context.assertCurrent);
+          ? await this.auth.coursewareMedia.submitConfirmedTts(journal.intent.idempotencyKey, journal.intent.request, saved.quote, undefined, undefined, context.assertCurrent, admit)
+          : await this.auth.coursewareMedia.submitTts(journal.intent.idempotencyKey, journal.intent.request, undefined, undefined, context.assertCurrent, admit);
       } catch (failure) {
-        if (!isCoursewareMediaPermissionRefusal(failure, teamProjectId)) throw failure;
+        if (begun.intent.phase !== "submission-unknown" || !isCoursewareMediaPermissionRefusal(failure, teamProjectId)) throw failure;
         const rejected = await context.host.call<Journal>("courseware.tts.reject", { ...scope,
           rejectedRequest: { idempotencyKey: begun.intent.idempotencyKey, requestHash: begun.intent.requestHash } });
         this.assertScope(rejected.intent.selection, context, scope.intentId);

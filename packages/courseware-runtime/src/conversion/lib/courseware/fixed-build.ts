@@ -397,7 +397,7 @@ export async function buildFixedCourseware(
         ...(visualCues.length
           ? { speechVisualCues: hasAnimations ? 'fixed-audio/2' : 'fixed-audio/1' }
           : {}),
-        ...(hasAnimations ? { playerObjectAnimations: 'fade-pulse/1' } : {}),
+        ...(hasAnimations ? { playerObjectAnimations: visualCues.some(cue => cue.effect.type === 'element_animation' && !['fadeIn', 'fadeOut', 'pulse'].includes(cue.effect.effect)) ? 'speech-motion/2' : 'fade-pulse/1' } : {}),
       },
       sourceSha256: input.source.sha256,
       sourceRevision: input.source.revision,

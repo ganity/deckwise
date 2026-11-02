@@ -14,6 +14,7 @@ import type { LoadedFixedBuild } from "../../lib/courseware/load-fixed-build";
 import type { InteractionCheckpointPayload } from "../../lib/types/action";
 import { AudioPlayer } from "../../lib/utils/audio-player";
 import type { FixedPlayerLabels } from "../../labels";
+import { TeachingQuestionResponse } from './TeachingQuestionResponse';
 import { FixedSlide } from "./FixedSlide";
 
 /** Host owns build loading/authorization/disposal; this component owns only a playback session. */
@@ -315,7 +316,7 @@ export function FixedCoursewarePlayer({
               ? waiting.question
               : labels.continueWhenReady}
           </p>
-          {waiting.checkpointKind === "chapter_summary" && waiting.response?.options.length ? <ol>{waiting.response.options.map((option, index) => <li key={index}>{option}</li>)}</ol> : null}
+          {waiting.checkpointKind === "chapter_summary" && waiting.response ? <TeachingQuestionResponse key={waiting.checkpointId} response={waiting.response} labels={labels} /> : null}
           {waiting.checkpointKind === "chapter_summary" && <details key={waiting.checkpointId}>
             <summary>{labels.referenceAnswer ?? englishPlayerLabels.referenceAnswer}</summary>
             <p>{waiting.referenceAnswer.summary}</p>

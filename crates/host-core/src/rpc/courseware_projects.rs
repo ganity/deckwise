@@ -17,6 +17,7 @@ mod source_candidates;
 mod teaching_history;
 mod tts;
 mod video;
+mod workflow;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -180,6 +181,9 @@ pub(super) async fn handle(
 ) -> Result<Value, JsonRpcError> {
     let invalid = |error: serde_json::Error| rpc_err(1002, error.to_string(), "INVALID_PARAMS");
     match method {
+        "courseware.workflow.get" | "courseware.workflow.checkpoint" => {
+            workflow::handle(state, method, params).await
+        }
         "courseware.onlineSource.baseline"
         | "courseware.onlineSource.review"
         | "courseware.onlineSource.resolve"
@@ -191,6 +195,7 @@ pub(super) async fn handle(
             scene_plan::handle(state, method, params).await
         }
         "courseware.sceneImage.prepare"
+        | "courseware.sceneImage.retry"
         | "courseware.sceneImage.list"
         | "courseware.sceneImage.rebindModel"
         | "courseware.sceneImage.get"
@@ -575,6 +580,7 @@ pub(super) async fn handle(
             asset_locks::handle(state, method, params).await
         }
         "courseware.video.prepare"
+        | "courseware.video.retry"
         | "courseware.video.get"
         | "courseware.video.asset.get"
         | "courseware.video.reuse"

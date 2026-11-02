@@ -1,3 +1,4 @@
+import { coursewareMediaRecovery } from "@pi-desktop/shared";
 import { setTimeout as delay } from "node:timers/promises";
 import { sceneAssetBlockers, type CoursewareEducationContext, type CoursewareSceneImageView, type CoursewareWorkflowView } from "@pi-desktop/shared";
 import type { DesktopAuthSession } from "./auth-session";
@@ -10,21 +11,26 @@ type Task = { taskType: "plain" | "scene" | "import"; educationContext?: Coursew
   importPath?: string; generatedPath?: string };
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
 
+function assertWorkflowScope(host: Host | null, currentHost: Host | null, sessionId: string, viewingSession: string | null, canDispatch?: () => boolean) {
+  if (!host || currentHost !== host) throw new Error("Courseware runtime changed; read saved workflow before continuing");
+  if (!canDispatch && viewingSession !== sessionId) throw new Error("Courseware conversation changed; return to this Chat and read saved workflow");
+  if (canDispatch && !canDispatch()) throw new Error("Courseware Chat turn ended or was cancelled; read saved workflow in a new turn");
+}
+
 /** Main Chat and panel reuse the same durable jobs; image generation keeps billing internal and preserves first-page style review. */
 export class CoursewareChatWorkflow {
   private compiling = false;
+  private compilation?: { sessionId: string } & NonNullable<CoursewareWorkflowView["compilation"]>;
   narration?: { execute(sessionId: string, name: string, args: unknown, canDispatch: () => boolean): Promise<unknown> };
   media?: { execute(sessionId: string, name: string, args: unknown, canDispatch: () => boolean): Promise<unknown> };
   constructor(private getHost: () => Host | null, private getViewingSession: () => string | null,
     private auth: Pick<DesktopAuthSession, "getCoursewarePrincipal" | "coursewareMedia">,
     private generation: SceneCourseGenerationServices) {}
 
-  async read(sessionId: string, canDispatch: () => boolean = () => true): Promise<CoursewareWorkflowView> {
+  // Main supplies a turn guard for Agent work; panel reads retain foreground ownership.
+  async read(sessionId: string, canDispatch?: () => boolean): Promise<CoursewareWorkflowView> {
     const host = this.getHost();
-    const check = () => {
-      if (!host || this.getHost() !== host || this.getViewingSession() !== sessionId || !canDispatch())
-        throw new Error("Courseware conversation changed or turn ended");
-    };
+    const check = () => assertWorkflowScope(host, this.getHost(), sessionId, this.getViewingSession(), canDispatch);
     if (!/^[A-Za-z0-9_-]{1,128}$/u.test(sessionId)) throw new Error("Invalid courseware session");
     check();
     if (!host) throw new Error("Host is unavailable");
@@ -36,23 +42,28 @@ export class CoursewareChatWorkflow {
     const { plan } = task?.taskType === "scene" && !task.generatedPath
       ? await readSceneCourseDraft(host, { sessionId }) : { plan: null };
     check();
-    return { task: task ? { taskType: task.taskType, ...(task.educationContext ? { educationContext: task.educationContext } : {}),
-      imported: !!task.importPath, generated: !!task.generatedPath } : null, plan };
+    const compilation = this.compilation?.sessionId === sessionId && this.compilation.planSha256 === plan?.sha256
+      ? { planSha256: this.compilation.planSha256, state: this.compilation.state, ...(this.compilation.message ? { message: this.compilation.message } : {}) } : undefined;
+    return { ...(compilation ? { compilation } : {}), task: task ? { taskType: task.taskType, ...(task.educationContext ? { educationContext: task.educationContext } : {}),
+      imported: !!task.importPath, generated: !!task.generatedPath,
+      ...((task.generatedPath ?? task.importPath) ? { sourcePath: task.generatedPath ?? task.importPath } : {}) } : null, plan };
   }
 
   async execute(sessionId: string, name: string, args: unknown, canDispatch: () => boolean) {
     if (!record(args)) throw new Error("Invalid courseware workflow arguments");
     const input = structuredClone(args), host = this.getHost();
-    const check = () => {
-      if (!host || this.getHost() !== host || this.getViewingSession() !== sessionId || !canDispatch())
-        throw new Error("Courseware conversation changed or turn ended");
-    };
+    const check = () => assertWorkflowScope(host, this.getHost(), sessionId, this.getViewingSession(), canDispatch);
     const view = await this.read(sessionId, canDispatch);
     check();
     if (!host) throw new Error("Host is unavailable");
     const { session } = await host.call<{ session?: { mode?: string } }>("session.get", { id: sessionId, messageLimit: 1 });
     check();
     if (session?.mode !== "agent") throw new Error("Courseware workflow tools require Agent mode");
+    if (name === "courseware_scene_plan_submit") {
+      if (Object.keys(input).length || view.task?.taskType !== "scene" || view.task.generated || !view.plan)
+        throw new Error("Write a valid scene plan for this ungenerated Chat before submitting it");
+      return { validated: true, awaitingPlanApproval: view.plan.approvedSha256 !== view.plan.sha256, ...view };
+    }
     if (name.startsWith("courseware_media_")) {
       if (!this.media) throw new Error("Saved courseware media is unavailable");
       return this.media.execute(sessionId, name, input, canDispatch);
@@ -68,7 +79,7 @@ export class CoursewareChatWorkflow {
       return this.read(sessionId, canDispatch);
     }
     const images = new CoursewareSceneImages(() => this.getHost(),
-      () => { check(); return this.getViewingSession(); }, () => !canDispatch(), this.auth);
+      () => { check(); return sessionId; }, () => !canDispatch(), this.auth);
     if (name === "courseware_workflow_get") {
       if (Object.keys(input).length) throw new Error("Unexpected workflow read arguments");
       if (!view.plan || view.plan.approvedSha256 !== view.plan.sha256) return { ...view, images: [], models: [], blockers: [] };
@@ -98,7 +109,7 @@ export class CoursewareChatWorkflow {
         image = (await images.archive({ sessionId, intentId: image.intentId })).image; check();
       }
       if (!image.asset) return { image, styleConfirmed, requiresHumanSelection: false, requiresGeneration: image.phase === "prepared",
-        waitingFor: image.task?.errorCode || ["prepared", "rejected"].includes(image.phase) || ["failed", "cancelled", "archive_failed", "submission_unknown"].includes(image.task?.state ?? "") ? null : "service" };
+        recovery: coursewareMediaRecovery({ image }), waitingFor: coursewareMediaRecovery({ image }) === "pending" ? "service" : null };
       if (image.selected && !image.decomposition) return { image, styleConfirmed, requiresHumanSelection: false };
       if (image.pageId === firstPage && image.target.kind === "visualMaster")
         return { image, styleConfirmed: false, requiresHumanSelection: true };
@@ -127,15 +138,24 @@ export class CoursewareChatWorkflow {
       return finishImage(submitted);
     }
     if (name === "courseware_scene_image_refresh") {
-      if (!Object.hasOwn(input, "intentId") || Object.keys(input).some(key => !["intentId", "generatePrepared", "waitForUpdate"].includes(key)) ||
-          [input.generatePrepared, input.waitForUpdate].some(value => value !== undefined && typeof value !== "boolean")) throw new Error("Invalid image refresh arguments");
+      if (!Object.hasOwn(input, "intentId") || Object.keys(input).some(key => !["intentId", "generatePrepared", "waitForUpdate", "retryFailed"].includes(key)) ||
+          [input.generatePrepared, input.waitForUpdate, input.retryFailed].some(value => value !== undefined && typeof value !== "boolean") ||
+          input.retryFailed === true && input.generatePrepared === true) throw new Error("Invalid image refresh arguments");
       let image = await images.status({ intentId: input.intentId, sessionId }); check();
+      if (input.retryFailed === true) {
+        if (!image.current || image.planSha256 !== view.plan.sha256) throw new Error("Scene plan changed; read the current workflow");
+        canGenerate(image.pageId, image.target);
+        image = await images.retry({ intentId: input.intentId, sessionId }); check();
+        image = image.phase === "prepared" ? await images.generate({ sessionId, intentId: image.intentId }) :
+          await images.status({ sessionId, intentId: image.intentId });
+        check();
+      }
       for (let attempt = 0; input.waitForUpdate === true && attempt < 10 && !image.asset &&
           image.current && image.planSha256 === view.plan.sha256 && !image.task?.errorCode &&
           (image.task?.state === "ready" ? image.task.feeState !== "settled" :
             ["queued", "submitting", "submitted", "archiving"].includes(image.task?.state ?? image.phase)); attempt++) {
         await delay(3000); check();
-        image = await images.status({ intentId: input.intentId, sessionId }); check();
+        image = await images.status({ intentId: image.intentId, sessionId }); check();
       }
       if (!image.current || image.planSha256 !== view.plan.sha256) throw new Error("Scene plan changed; read the current workflow");
       if (input.generatePrepared === true && image.phase === "prepared") {
@@ -150,12 +170,17 @@ export class CoursewareChatWorkflow {
         throw new Error("Scene plan changed; read the current workflow");
       if (this.compiling) throw new Error("Courseware compilation is already running");
       this.compiling = true;
+      this.compilation = { sessionId, planSha256: view.plan.sha256, state: "running" };
       try {
         const result = await new CoursewareSceneGeneration(images, this.generation).generate({ planSha256: input.planSha256, sessionId });
         check();
         if (!result.path) throw new Error("Compilation returned no editable PPTX");
         return { generated: true, openEditorRequired: true };
-      } finally { this.compiling = false; }
+      } catch (error) {
+        this.compilation = { sessionId, planSha256: view.plan.sha256,
+          state: !canDispatch() || /CANCELLED|cancelled|turn ended/.test(String(error)) ? "stopped" : "failed", message: String(error) };
+        throw error;
+      } finally { this.compiling = false; if (this.compilation?.state === "running") this.compilation = undefined; }
     }
     throw new Error("Unsupported courseware workflow tool");
   }

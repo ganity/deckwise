@@ -1,4 +1,5 @@
 import JSZip from 'jszip';
+import { crc32 } from 'node:zlib';
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 
@@ -401,10 +402,17 @@ describe('scene to native PPTX prototype', () => {
     );
   });
 
-  it('bounds referenced asset bytes before decoding', async () => {
-    await expect(
-      compileSceneToPptx(scene, { ...assets, apple: Buffer.alloc(32 * 1024 * 1024 + 1) }),
-    ).rejects.toThrow('Scene assets exceed 32 MiB');
+  it('compiles a valid image above the former aggregate byte ceiling', async () => {
+    const data = Buffer.alloc(32 * 1024 * 1024 + 1, 65);
+    const type = Buffer.from('tEXt');
+    const chunk = Buffer.alloc(data.length + 12);
+    chunk.writeUInt32BE(data.length);
+    type.copy(chunk, 4);
+    data.copy(chunk, 8);
+    chunk.writeUInt32BE(crc32(Buffer.concat([type, data])), 8 + data.length);
+    const largePng = Buffer.concat([png.subarray(0, -12), chunk, png.subarray(-12)]);
+
+    await expect(compileSceneToPptx(scene, { ...assets, apple: largePng })).resolves.toHaveProperty('pptx');
   });
 
   it('owns all referenced image bytes before asynchronous validation', async () => {

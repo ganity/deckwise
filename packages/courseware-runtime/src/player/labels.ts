@@ -23,9 +23,11 @@ export interface FixedPlayerLabels {
   nativeAnimationRule?: string;
   boundNativeAnimationRule?: string;
   nextNativeAnimation?: string;
+  chooseAnswer?: string; activityResponse?: string; checkAnswer?: string; teacherAssessment?: string; answerCorrect?: string; answerTryAgain?: string;
   playbackComplete: string;
 }
 export const englishPlayerLabels: FixedPlayerLabels = {
+  chooseAnswer: 'Choose an answer', activityResponse: 'Activity response', checkAnswer: 'Check answer', teacherAssessment: 'Discuss or complete the activity, then review with the teacher.', answerCorrect: 'Correct', answerTryAgain: 'Try again',
   player: 'Courseware player', controls: 'Playback controls', seekNarration: 'Seek narration', audioClip: 'Music / audio clip', seekAudioClip: 'Seek audio clip',
   previousPage: 'Previous page', nextPage: 'Next page', pause: 'Pause', resume: 'Resume',
   teacherContinue: 'Teacher continue', playAgain: 'Play again', play: 'Play', replayPage: 'Replay page',
@@ -37,6 +39,7 @@ export const englishPlayerLabels: FixedPlayerLabels = {
   videoClip: 'Teaching video',
 };
 export const chinesePlayerLabels: FixedPlayerLabels = {
+  chooseAnswer: '选择答案', activityResponse: '课堂回应', checkAnswer: '检查答案', teacherAssessment: '讨论或完成活动后，由教师结合参考答案评价。', answerCorrect: '回答正确', answerTryAgain: '再想一想，可以重新选择',
   player: '课件播放器', controls: '播放控制', seekNarration: '调整旁白进度', audioClip: '音乐 / 音频片段', seekAudioClip: '调整音频片段进度',
   previousPage: '上一页', nextPage: '下一页', pause: '暂停', resume: '继续', teacherContinue: '教师继续',
   playAgain: '重新播放', play: '播放', replayPage: '重播本页', narration: '旁白', waitingForTeacher: '等待教师继续',

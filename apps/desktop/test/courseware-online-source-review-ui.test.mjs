@@ -57,13 +57,12 @@ function fixture() {
   };
   const check = (key, checked = true, root) => change(nodes(root).find(node => node.type === "label" && String(node.props.children.at?.(-1)).startsWith(key)).props.children.find(node => node?.type === "input"), checked);
   const confirm = () => nodes().find(node => node.type === "button" && text(node) === "panel.onlineSource.confirm");
-  const ready = index => check("panel.onlineSource.ready", true, pages()[index]);
   const complete = () => { page(0, "old-a"); page(1, "old-b"); for (let i = 0; i < 2; i++) { cueChoice(i, 1, "keep", "target-a"); cueChoice(i, 2, "keep", "target-b"); } };
   render(); render();
-  return { props, view, calls, nodes, pages, cues, page, cueChoice, check, confirm, ready, complete, render, change };
+  return { props, view, calls, nodes, pages, cues, page, cueChoice, check, confirm, complete, render, change };
 }
 
-test("no page, cue, deletion or ready choices are defaulted; retained teaching is fully visible", () => {
+test("no page, cue or deletion choices are defaulted; retained teaching is fully visible", () => {
   const f = fixture();
   assert(f.nodes().filter(node => node.type === "select").every(node => node.props.value === ""));
   assert(f.nodes().filter(node => node.type === "input").every(node => !node.props.checked));
@@ -75,7 +74,7 @@ test("no page, cue, deletion or ready choices are defaulted; retained teaching i
   assert(locked.props.children[0].props.disabled);
 });
 
-test("explicit associations preserve decisions, and pending review pages can be confirmed without publishing", () => {
+test("explicit associations preserve decisions without teaching-ready confirmation", () => {
   const f = fixture(), before = structuredClone(f.view); f.complete();
   assert.equal(f.confirm().props.disabled, false);
   assert(!f.nodes().some(node => node.type === "option" && node.props.value === "line"));
@@ -120,16 +119,17 @@ test("empty highlight needs explicit cue deletion; partial removal keeps a nonem
   f.check("panel.onlineSource.deleteCue", true, f.cues()[0]); assert.equal(f.confirm().props.disabled, false);
 });
 
-test("ready is per page, never inherited, and association changes invalidate affected review", () => {
-  const f = fixture(); f.complete(); f.ready(0); f.ready(1); f.cueChoice(0, 1, "keep", "target-a");
-  f.confirm().props.onClick(); assert.deepEqual(f.calls[0].pages.map(page => page.confirmReady), [false, true]);
-  f.ready(0); f.page(1, "new");
+test("source associations never require separate teaching-ready choices", () => {
+  const f = fixture(); f.complete(); f.cueChoice(0, 1, "keep", "target-a");
+  f.confirm().props.onClick(); assert.deepEqual(f.calls[0].pages.map(page => page.confirmReady), [false, false]);
+  f.page(1, "new");
   assert(f.nodes().filter(node => node.type === "input" && node.props.type === "checkbox").every(node => !node.props.checked));
 });
 
 test("disabled, stale render and replaced-owner callbacks cannot submit or mutate the new review", () => {
   const f = fixture(); f.complete(); const confirm = f.confirm().props.onClick;
-  f.ready(0); confirm(); assert.equal(f.calls.length, 0, "old render cannot submit stale decisions");
+  f.cueChoice(0, 1, "keep", "target-a");
+  confirm(); assert.equal(f.calls.length, 0, "old render cannot submit stale decisions");
   const disabledConfirm = f.confirm().props.onClick; f.props.disabled = true; f.render(); disabledConfirm(); assert.equal(f.calls.length, 0);
   f.props.disabled = false; f.render(); const oldConfirm = f.confirm().props.onClick;
   f.props.view = { ...f.view, viewId: "view-2", ownerId: "owner-2" }; f.render(); f.render(); oldConfirm(); assert.equal(f.calls.length, 0);

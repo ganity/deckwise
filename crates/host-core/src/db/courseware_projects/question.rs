@@ -26,3 +26,20 @@ impl Response {
 pub fn valid(value: &serde_json::Value) -> bool {
     serde_json::from_value::<Response>(value.clone()).is_ok_and(|v| v.valid())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    #[test]
+    fn question_types_keep_bounded_answer_keys_without_trusting_model_grades() {
+        for kind in ["single", "multiple", "judge", "short_answer", "discussion", "practice", "pbl"] {
+            let choice = ["single", "multiple", "judge"].contains(&kind);
+            let mut value = json!({"kind":kind,"options":if choice {vec!["Hello","Bye"]} else {vec![]},"answerIndices":if choice {vec![0]} else {vec![]}});
+            assert!(valid(&value), "{kind}");
+            value["answerIndices"] = json!([8]); assert!(!valid(&value));
+            value["answerIndices"] = json!([]); value["options"] = json!(["Same","Same"]); assert!(!valid(&value));
+            value["graded"] = json!(true); assert!(!valid(&value));
+        }
+    }
+}

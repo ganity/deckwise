@@ -91,5 +91,6 @@ export * from "./session-todos.js";
 export * from "./tool-call-lineage.js";
 export * from "./event-usage.js";
 export * from "./storage.js";
-
 export * from "./courseware-question.js";
+export * from "./courseware-scene-teaching.js";
+export * from "./courseware-teaching-quality.js";

@@ -56,13 +56,6 @@ impl SnapshotRecord {
                     .all(|(page, bound)| page.page_id == bound["logicalId"]),
             "COURSEWARE_INVALID: inconsistent snapshot binding"
         );
-        anyhow::ensure!(
-            self.project
-                .pages
-                .iter()
-                .all(|page| page.review_state == "ready"),
-            "COURSEWARE_CONFLICT: confirm every teaching page before taking a snapshot"
-        );
         let mut ids = std::collections::HashSet::new();
         anyhow::ensure!(
             self.assets.len() <= 1000,
@@ -245,7 +238,6 @@ impl Database {
     ) -> Result<SnapshotRecord> {
         let tx = self.conn.unchecked_transaction()?;
         self.ensure_no_source_adoption(workspace)?;
-        self.ensure_courseware_chat_resolved(workspace, &seed.project_id)?;
         let project = self
             .get_courseware_project(workspace, &seed.project_id)?
             .ok_or_else(|| anyhow!("COURSEWARE_NOT_FOUND: project not found"))?;

@@ -106,7 +106,7 @@ impl Database {
             "COURSEWARE_INVALID: invalid source change receipt"
         );
         let mut completed = vec!["source-saved"];
-        let mut pending: Vec<&str> = vec![];
+        let pending: Vec<&str> = vec![];
         let (phase, stale) = if let Some(associated) = &change.associated {
             associated.validate()?;
             anyhow::ensure!(
@@ -119,19 +119,8 @@ impl Database {
             if project.source.sha256 != change.target_source {
                 ("superseded", true)
             } else {
-                // Derive readiness from current authoritative teaching; a later edit reopens review.
-                pending = project
-                    .pages
-                    .iter()
-                    .filter(|p| p.review_state != "ready")
-                    .map(|p| p.page_id.as_str())
-                    .collect();
-                if pending.is_empty() {
-                    completed.push("teaching-review");
-                    ("complete", false)
-                } else {
-                    ("teaching-review", false)
-                }
+                completed.push("teaching-review");
+                ("complete", false)
             }
         } else {
             (

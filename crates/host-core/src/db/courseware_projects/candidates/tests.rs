@@ -1,6 +1,51 @@
 use super::*;
 use serde_json::json;
 
+#[test]
+fn required_action_repair_keeps_existing_audio_effects_and_timeline_anchors() {
+    let speech = |id: &str, text: &str| {
+        json!({"id":id,"type":"speech","text":text,"audioAssetId":format!("tts-{}", "a".repeat(64)),
+        "visualCues":[{"id":"focus","atMs":0,"endMs":100,"effect":{"type":"highlight","elementIds":["object"]}}]})
+    };
+    let original = vec![
+        speech("first", "Hello."),
+        json!({"id":"pause","type":"delay","durationMs":100}),
+        speech("second", "Sing along."),
+    ];
+    let response = json!({"kind":"single","options":["Hello","Bye"],"answerIndices":[0]});
+    let question = json!({"id":"question","type":"interaction_checkpoint","checkpointId":"question","checkpointKind":"chapter_summary",
+        "chapterId":"page","chapterTitle":"Greeting","question":"Which greeting?","response":response,
+        "referenceAnswer":{"summary":"Hello","keyPoints":["A greeting"]},"context":{"chapterSummary":"Greeting","sourceSceneIds":["page"]}});
+    let song = json!({"id":"song","type":"music_slot","title":"Hello","prompt":"Sing Hello"});
+    let teaching = json!({"question":{"text":"Which greeting?","response":response},"music":{"purpose":"Sing","prompt":"Sing Hello"}});
+    let proposed = vec![
+        json!({"id":"new-first","type":"speech","text":"Hello."}),
+        question.clone(),
+        song.clone(),
+        json!({"id":"new-second","type":"speech","text":"Sing along."}),
+    ];
+    let repaired = repair_required_actions(&original, &proposed, &teaching).unwrap();
+    assert_eq!(
+        repaired,
+        vec![
+            original[0].clone(),
+            question,
+            song,
+            original[1].clone(),
+            original[2].clone()
+        ]
+    );
+    let mut changed = proposed.clone();
+    changed[0]["text"] = json!("Rewritten speech.");
+    assert!(repair_required_actions(&original, &changed, &teaching).is_err());
+    assert!(repair_required_actions(&original, &proposed[..1], &teaching).is_err());
+    let mut existing = original.clone();
+    existing.push(json!({"id":"music","type":"audio_clip","audioAssetId":"music-retained"}));
+    let reused = repair_required_actions(&existing, &proposed, &teaching).unwrap();
+    assert!(!reused.iter().any(|a| a["type"] == "music_slot"));
+    assert_eq!(reused.last(), existing.last());
+}
+
 fn fixture() -> (CoursewareProject, SavedProjectSeed, TeachingWrite) {
     let accepted: Value = serde_json::from_slice(include_bytes!(
         "../../../../../../packages/shared/src/courseware-contract.fixtures/accepted.json"

@@ -12,6 +12,12 @@ pub struct Teaching {
     pub question: Option<Question>,
     #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "present_option")]
     pub music: Option<Music>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_option"
+    )]
+    pub video: Option<Music>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -29,7 +35,51 @@ impl Teaching {
             && self.required_objects.iter().all(|s| text(s, 200))
             && self.required_objects.iter().collect::<std::collections::HashSet<_>>().len() == self.required_objects.len()
             && (self.page_type == "slide" || self.question.is_some())
-            && self.question.as_ref().is_none_or(|q| text(&q.text, 160) && q.response.valid())
-            && self.music.as_ref().is_none_or(|m| text(&m.purpose, 500) && text(&m.prompt, 4000))
+            && self
+                .question
+                .as_ref()
+                .is_none_or(|q| text(&q.text, 160) && q.response.valid())
+            && self
+                .music
+                .as_ref()
+                .is_none_or(|m| text(&m.purpose, 500) && text(&m.prompt, 4000))
+            && self
+                .video
+                .as_ref()
+                .is_none_or(|m| text(&m.purpose, 500) && text(&m.prompt, 4000))
+    }
+}
+
+pub(super) fn question_matches(action: &Value, expected: &Value) -> bool {
+    action["question"]
+        .as_str()
+        .zip(expected["text"].as_str())
+        .is_some_and(|(a, b)| a.trim() == b.trim())
+        && !expected["response"].is_null()
+        && action["response"] == expected["response"]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    #[test]
+    fn approved_question_contract_matches_shared_fixtures() {
+        let cases: Value = serde_json::from_str(include_str!("../../../../../packages/shared/src/courseware-scene-teaching.fixtures/requirements.json")).unwrap();
+        for case in cases.as_array().unwrap() {
+            assert_eq!(
+                question_matches(&case["action"], &case["expected"]),
+                case["matches"].as_bool().unwrap(),
+                "{}",
+                case["name"]
+            );
+        }
+        let legacy = json!({"pageType":"slide","phase":"opening","objective":"Greet","durationSeconds":30,"requiredObjects":[]});
+        let parsed: Teaching = serde_json::from_value(legacy.clone()).unwrap();
+        assert!(parsed.valid());
+        assert_eq!(serde_json::to_value(&parsed).unwrap(), legacy);
+        let mut video = legacy.clone();
+        video["video"] = json!({"purpose":"Show a wave","prompt":"A five-second silent wave"});
+        assert!(serde_json::from_value::<Teaching>(video).unwrap().valid());
     }
 }

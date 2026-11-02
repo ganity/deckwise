@@ -171,7 +171,7 @@ export class CoursewareOnlineSourceReviewCoordinator {
       if (result.mapping.pages.some((page, index) => page.pageId !== project.pages[index]!.pageId)) throw invalid();
       await this.assertFrozen(pin);
       pin.resolved = { project: structuredClone(result.project), mapping: structuredClone(result.mapping) };
-      return { viewId, ownerId: pin.binding.ownerId, status: "reviewed", readyPages: result.project.pages.filter(page => page.reviewState === "ready").length,
+      return { viewId, ownerId: pin.binding.ownerId, status: "reviewed", readyPages: result.project.pages.length,
         totalPages: result.project.pages.length };
     });
   }
@@ -181,7 +181,7 @@ export class CoursewareOnlineSourceReviewCoordinator {
     return this.run(async () => {
       await this.check(pin);
       if (pin.snapshot) return { viewId, ownerId: pin.binding.ownerId, snapshot: structuredClone(pin.snapshot) };
-      if (!pin.resolved || pin.resolved.project.pages.some(page => page.reviewState !== "ready"))
+      if (!pin.resolved)
         throw new Error("COURSEWARE_ONLINE_SOURCE_NOT_READY");
       if (!pin.captureAttempted) await this.assertFrozen(pin);
       const { project, mapping } = pin.resolved, b = pin.binding;

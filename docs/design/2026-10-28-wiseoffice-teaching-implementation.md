@@ -256,8 +256,11 @@ round-trip and restart tests pass; do not delete source projects or private rece
 
 Acceptance: move the entire project directory, open it in a fresh isolated profile,
 and recover teaching and media without the original machine's SQLite. Private
-provider receipts are intentionally absent. A PPTX-only copy clearly lacks teaching;
-the UI provides a project-copy operation when teaching must travel with the deck.
+provider receipts are intentionally absent. A PPTX-only copy clearly lacks teaching.
+Project portability is a storage requirement, not permission to add a copy command
+to the editing toolbar. Per the user's 2026-10-29 correction, this toolbar exposes
+neither an advanced-teaching toggle nor a complete-project-copy entry. Teaching
+editing belongs exclusively to the native WiseOffice right sidebar.
 
 ## 9. G6 — final-player parity and removal of duplicate paths
 

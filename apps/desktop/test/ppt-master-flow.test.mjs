@@ -30,7 +30,7 @@ const [
   toolRow,
   composer,
 ] = await Promise.all([
-  read("../src/components/workpanel/PptMasterTab.tsx"),
+  read("../src/components/courseware/CoursewareChatWorkflow.tsx"),
   read("../src/stores/slices/queue-slice.ts"),
   read("../src/stores/slices/events-slice.ts"),
   read("../electron/main/builtin-skills.ts"),
@@ -56,6 +56,8 @@ const [
   read("../src/features/chat/transcript/ToolRow.tsx"),
   read("../src/components/Composer.tsx"),
 ]);
+
+const presentation = await read("../src/components/courseware/CoursewareChatPresentation.tsx");
 
 test("DeckWise only accepts PPTX courseware tasks and routes the selected skill", () => {
   assert.match(prompts, /specialized PPTX courseware creation agent/);
@@ -84,23 +86,16 @@ test("home quick starts prefill the composer without auto-sending", () => {
   assert.match(chatSurface, /清新插画风/);
 });
 
-test("the workbench keeps the three task choices separate and loads the saved choice", () => {
-  assert.match(panel, /coursewareTaskGet\(activeSession\.id\)/);
-  assert.match(panel, /coursewareTaskSet\(activeSession\.id, next, education\)/);
-  assert.match(panel, /setEducation\(task\?\.educationContext \?\? \{\}\)/);
-  assert.match(panel, /保存教学设置/);
-  assert.match(panel, /全英文教学/);
-  for (const field of ["textbookVersion", "chapter", "lessonType"]) assert.match(panel, new RegExp(`education\\.${field}`));
+test("the workspace preserves the chosen route without repeating task creation controls", async () => {
+  assert.match(panel, /coursewareWorkflowGet\(sessionId\)/);
+  assert.match(panel, /taskType === "plain"/);
+  assert.match(panel, /taskType === "import"/);
+  assert.match(panel, /coursewareImportPptx\(sessionId, picked\.token\)/);
+  assert.match(panel, /CoursewareChatImages/);
+  assert.match(panel, /PptEditorTab/);
+  assert.doesNotMatch(panel, /coursewareTaskSet/);
   assert.match(agentIpc, /Teaching settings:/);
   assert.match(agentIpc, /For kindergarten English, use 0–2 short English expressions/);
-  for (const label of ["普通 PPT 生成", "场景式课件生成", "已有 PPT 导入"]) {
-    assert.ok(panel.includes(label));
-  }
-  assert.match(panel, /CoursewareScenePlanPanel/);
-  assert.match(panel, /task\?\.generatedPath/);
-  assert.match(panel, /打开场景课件 PPT/);
-  assert.match(panel, /coursewareImportPptx\(sessionId, picked\.token\)/);
-  assert.match(panel, /打开已导入 PPT/);
 });
 
 test("PPT Master asks only for genuinely missing input in at most three rounds", () => {
@@ -152,8 +147,8 @@ test("Chat submission does not open a workbench and workspace edits do not open 
 });
 
 test("a new task never inherits another task's courseware project", () => {
-  assert.match(panel, /const projectPath = useMemo\(\(\) => referencedProject\(messages\), \[messages\]\)/);
-  assert.match(panel, /if \(!projectPath\) return;/);
+  assert.match(presentation, /const path = referencedProject\(messages\)/);
+  assert.match(presentation, /if \(!path\) return;/);
   assert.doesNotMatch(panel, /listDir\("\.deckwise-ppt\/projects"\)/);
 });
 
@@ -161,8 +156,8 @@ test("SVG preview opens in Browser and waits for explicit PPTX generation", () =
   assert.match(skill, /call ToolSearch for `browser`/);
   assert.match(skill, /Browser with `action=navigate`/);
   assert.match(skill, /Do not finalize or export PPTX until the user explicitly requests/);
-  assert.match(panel, /生成 PPT/);
-  assert.match(panel, /sendPrompt\(PPTX_EXPORT_PROMPT/);
+  assert.match(presentation, /coursewareWorkflow.buildPpt/);
+  assert.match(presentation, /coursewareWorkflow.exportPrompt/);
   assert.doesNotMatch(panel, /当前产物|开始生成/);
 });
 
@@ -172,9 +167,9 @@ test("the workbench blocks PPTX export while the generated pages fail the final 
   assert.match(projectInspection, /svg_quality_report\.json/);
   assert.match(projectInspection, /report\.summary\?\.errors !== 0/);
   assert.match(projectInspection, /notes\.find\(.*total\.md/);
-  assert.match(panel, /!project\?\.qualityIssue/);
-  assert.match(panel, /继续修复生成结果/);
-  assert.match(panel, /pptMasterRepairPrompt\(project\)/);
+  assert.match(presentation, /!!project.qualityIssue/);
+  assert.match(presentation, /coursewareWorkflow.repairPages/);
+  assert.match(presentation, /pptMasterRepairPrompt\(project\)/);
   assert.match(projectInspection, /不要新建项目或丢弃现有页面/);
 });
 
@@ -183,13 +178,13 @@ test("Office edits supersede SVG generation candidates", () => {
   assert.match(skill, /load deckwise\/ppt-edit/);
   assert.match(skill, /Never supersede Office edits with an older SVG export/);
   assert.match(projectInspection, /latestInputMtime > pptx\.mtimeMs/);
-  assert.match(panel, /重新生成 PPT/);
-  assert.match(panel, /正在根据最新页面生成新版本 PPT/);
+  assert.match(presentation, /needsPptxRegeneration/);
+  assert.match(presentation, /pagesChanged/);
 });
 
 test("completed PPTX projects can be published with education metadata", () => {
   assert.match(panel, /<CoursewareImportDialog/);
-  assert.match(panel, /发布到教学平台/);
+  assert.match(panel, /coursewareWorkflow.publish/);
   assert.match(importDialog, /firstLessonPlan/);
   assert.match(importDialog, /account\.dictionaries\?\.grades/);
   assert.match(importDialog, /account\.dictionaries\?\.subjects/);

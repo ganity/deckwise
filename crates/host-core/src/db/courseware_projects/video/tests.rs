@@ -1,6 +1,36 @@
 use super::*;
 
 #[test]
+fn video_retry_retains_the_receipt_and_normal_prepare_follows_the_successor() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_str().unwrap();
+    let path = dir.path().join("retry.sqlite");
+    let db = Database::open(&path).unwrap();
+    let accepted: Value = serde_json::from_slice(include_bytes!("../../../../../../packages/shared/src/courseware-contract.fixtures/accepted.json")).unwrap();
+    let mut project: CoursewareProject = serde_json::from_value(accepted["project"].clone()).unwrap();
+    project.pages[0].actions.push(json!({"id":"video-slot","type":"video_slot","prompt":"A turning square"}));
+    db.create_courseware_project(root, &project).unwrap();
+    let principal = "a".repeat(64);
+    let prepared = db.prepare_courseware_video(root, &project.project_id, &principal, &project.pages[0].page_id, "video-slot", "video").unwrap();
+    assert!(db.retry_courseware_video(root, &project.project_id, &principal, &prepared.intent_id).is_err());
+    db.begin_courseware_video(root, &project.project_id, &principal, &prepared.intent_id, "chat").unwrap();
+    let receipt = tts::TaskRef { task_id: "original-task".into(), idempotency_key: prepared.idempotency_key.clone(), request_hash: prepared.request_hash.clone() };
+    let original = db.bind_courseware_video(root, &project.project_id, &principal, &prepared.intent_id, receipt.clone()).unwrap();
+    let retry = db.retry_courseware_video(root, &project.project_id, &principal, &original.intent_id).unwrap();
+    assert_ne!(retry.intent_id, original.intent_id);
+    assert_ne!(retry.idempotency_key, original.idempotency_key);
+    assert_eq!(retry.request_hash, original.request_hash);
+    assert_eq!(retry.prompt, original.prompt);
+    assert_eq!(retry.phase, "prepared");
+    assert!(retry.task_ref.is_none() && retry.submission_scope.is_none());
+    drop(db);
+    let db = Database::open(&path).unwrap();
+    assert_eq!(db.retry_courseware_video(root, &project.project_id, &principal, &original.intent_id).unwrap().intent_id, retry.intent_id);
+    assert_eq!(db.get_courseware_video(root, &project.project_id, &principal, &original.intent_id).unwrap().task_ref, Some(receipt));
+    assert_eq!(db.prepare_courseware_video(root, &project.project_id, &principal, &project.pages[0].page_id, "video-slot", "video").unwrap().intent_id, retry.intent_id);
+}
+
+#[test]
 fn video_original_request_survives_restart_and_adoption_rejects_changed_slots() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().to_str().unwrap();

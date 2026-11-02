@@ -11,3 +11,13 @@ export const questionResponseSchema = z.object({
       (v.kind === 'multiple' ? v.answerIndices.length >= 1 : v.answerIndices.length === 1)
     : v.options.length === 0 && v.answerIndices.length === 0), 'Invalid question options or answer key');
 export type QuestionResponse = z.infer<typeof questionResponseSchema>;
+
+/** Closed questions use their saved key. Open activities require teacher assessment. */
+export function evaluateQuestionAnswer(response: QuestionResponse, selected: number[]): boolean | null {
+  questionResponseSchema.parse(response);
+  if (!Array.isArray(selected) || new Set(selected).size !== selected.length || selected.some(i => !Number.isInteger(i) || i < 0 || i >= response.options.length))
+    throw new Error('Invalid selected answers');
+  if (!['single', 'multiple', 'judge'].includes(response.kind)) return null;
+  if (response.kind !== 'multiple' && selected.length > 1) throw new Error('Choose one answer');
+  return selected.length === response.answerIndices.length && selected.every(i => response.answerIndices.includes(i));
+}

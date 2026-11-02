@@ -144,9 +144,6 @@ pub(super) async fn handle(
                     "Invalid fixed share selection"
                 );
                 task(&state.db, &workspace, &p.session_id, &selection)?;
-                state
-                    .db
-                    .ensure_courseware_chat_resolved(&workspace, &selection.project_id)?;
                 state.db.get_courseware_snapshot(
                     &workspace,
                     &selection.project_id,

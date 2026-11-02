@@ -75,44 +75,59 @@ export function isSceneImageAsset(value: unknown): value is CoursewareSceneImage
 }
 
 /** Download supplier layers in Desktop without forwarding platform/provider credentials. */
-export async function downloadSceneImageBundle(bytes: Buffer, taskRef: CoursewareTaskRef) {
+export async function downloadSceneImageBundle(bytes: Buffer, taskRef: CoursewareTaskRef,
+  stageImage?: (image: ReturnType<typeof decodeSceneImageBundle>[number]) => Promise<void>) {
   if (bytes.length < 1 || bytes.length > MAX_LAYER_JSON_BYTES) throw invalid();
   const value = JSON.parse(bytes.toString("utf8"));
   if (!Array.isArray(value?.data) || value.data.length < 2 || value.data.length > 32) throw invalid();
+  const indexes = value.data.map((item: { z_index?: unknown }) => item?.z_index);
+  if (!indexes.includes(0) || new Set(indexes).size !== indexes.length || indexes.some((z: unknown) =>
+      !Number.isSafeInteger(z) || Number(z) < 0 || Number(z) > 1_000_000)) throw invalid();
+  value.data.sort((a: { z_index: number }, b: { z_index: number }) => a.z_index - b.z_index);
   const client = createPublicHttpsClient({
     fetchImpl: (url, init) => net.fetch(url, init),
     lookupImpl: async host => (await session.defaultSession.resolveHost(host)).endpoints,
     routeImpl: url => session.defaultSession.resolveProxy(url),
   });
   let total = 0;
+  const staged = [];
   for (const item of value.data) {
-    if (typeof item?.url !== "string") continue; // Preserve legacy inline receipts.
-    if (item.b64_json !== undefined) throw invalid();
-    await client.assertPublicUrl(item.url);
-    const response = await net.fetch(item.url, { method: "GET", credentials: "omit", redirect: "error",
-      cache: "no-store", signal: AbortSignal.timeout(60_000) });
-    const reader = response.body?.getReader();
-    try {
-      if (!response.ok || !reader || !["image/png", "image/jpeg"].includes(response.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase() ?? "")) throw invalid();
-      const chunks: Buffer[] = [];
-      let size = 0;
-      while (true) {
-        const next = await reader.read();
-        if (next.done) break;
-        size += next.value.byteLength;
-        total += next.value.byteLength;
-        if (size > 8 * 1024 * 1024 || total > MAX_LAYER_BYTES) throw new Error("COURSEWARE_SCENE_IMAGE_LAYER_BUNDLE_TOO_LARGE");
-        chunks.push(Buffer.from(next.value));
-      }
-      item.b64_json = Buffer.concat(chunks, size).toString("base64");
-      delete item.url;
-    } finally {
-      if (reader) {
-        try { await reader.cancel(); } catch { /* Preserve the download failure. */ }
-        reader.releaseLock();
+    if (typeof item?.url === "string") {
+      if (item.b64_json !== undefined) throw invalid();
+      await client.assertPublicUrl(item.url);
+      const response = await net.fetch(item.url, { method: "GET", credentials: "omit", redirect: "error",
+        cache: "no-store", signal: AbortSignal.timeout(60_000) });
+      const reader = response.body?.getReader();
+      try {
+        if (!response.ok || !reader || !["image/png", "image/jpeg"].includes(response.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase() ?? "")) throw invalid();
+        const chunks: Buffer[] = [];
+        let size = 0;
+        while (true) {
+          const next = await reader.read();
+          if (next.done) break;
+          size += next.value.byteLength;
+          total += next.value.byteLength;
+          if (size > 8 * 1024 * 1024 || !stageImage && total > MAX_LAYER_BYTES) throw new Error("COURSEWARE_SCENE_IMAGE_LAYER_BUNDLE_TOO_LARGE");
+          chunks.push(Buffer.from(next.value));
+        }
+        item.b64_json = Buffer.concat(chunks, size).toString("base64");
+        delete item.url;
+      } finally {
+        if (reader) {
+          try { await reader.cancel(); } catch { /* Preserve the download failure. */ }
+          reader.releaseLock();
+        }
       }
     }
+    if (stageImage) {
+      const image = decodeSceneImageItems([item], taskRef)[0];
+      await stageImage(image);
+      const { bytesBase64: _, ...metadata } = image;
+      staged.push(metadata);
+      delete item.b64_json;
+    }
   }
+  if (stageImage) return staged;
   return decodeSceneImageBundle(Buffer.from(JSON.stringify(value)), taskRef);
 }
 
@@ -121,9 +136,14 @@ export function decodeSceneImageBundle(bytes: Buffer, taskRef: CoursewareTaskRef
   if (bytes.length < 1 || bytes.length > MAX_LAYER_JSON_BYTES) throw invalid();
   const value = JSON.parse(bytes.toString("utf8"));
   if (!Array.isArray(value?.data) || value.data.length < 2 || value.data.length > 32) throw invalid();
+  if (!value.data.some((item: { z_index?: number }) => item?.z_index === 0)) throw invalid();
+  return decodeSceneImageItems(value.data, taskRef);
+}
+
+function decodeSceneImageItems(data: Record<string, unknown>[], taskRef: CoursewareTaskRef) {
   const indexes = new Set<number>();
   let total = 0;
-  const images = value.data.map((item: Record<string, unknown>) => {
+  const images = data.map((item: Record<string, unknown>) => {
     if (!item || !Number.isSafeInteger(item.z_index) || Number(item.z_index) < 0 || indexes.has(Number(item.z_index)) ||
         Number(item.z_index) > 1_000_000 || typeof item.b64_json !== "string" || item.url !== undefined) throw invalid();
     indexes.add(Number(item.z_index));
@@ -150,7 +170,6 @@ export function decodeSceneImageBundle(bytes: Buffer, taskRef: CoursewareTaskRef
     verifySceneImageAsset(png, asset, target);
     return { zIndex: Number(item.z_index), target, asset, bytesBase64: png.toString("base64") };
   });
-  if (!indexes.has(0)) throw invalid();
   return images.sort((a: { zIndex: number }, b: { zIndex: number }) => a.zIndex - b.zIndex)
     .map(({ zIndex: _, ...image }: { zIndex: number; target: CoursewareSceneImageTarget; asset: CoursewareSceneImageAsset & { taskRef: CoursewareTaskRef }; bytesBase64: string }) => image);
 }

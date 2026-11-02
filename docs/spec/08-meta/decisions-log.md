@@ -25,6 +25,13 @@ This log freezes previously open questions into concrete decisions.
 
 ## B. Secondary implementation defaults
 
+Courseware media defaults (2026-10-30): use independent per-principal limits of
+TTS 10, image 5, image-layer decomposition 5, music generation 2, music export 2
+and video 2. Same-page TTS generation and recovery use waves of ten through
+verified archive, followed by ordered revision-checked adoption. These are local
+client protection limits, not supplier quotas or a shared total. See
+[authorized media](../03-runtime/27-courseware-authorized-media.md#per-type-generation-concurrency-2026-10-30).
+
 | ID | Topic | Decision |
 |---|---|---|
 | D011 | TS schema validation | **typebox** |

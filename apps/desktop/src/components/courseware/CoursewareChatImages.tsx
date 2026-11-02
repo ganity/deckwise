@@ -1,17 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { sceneAssetBlockers, type CoursewareSceneImagePreview,
+import { sceneWorkspaceProgress, type CoursewareWorkflowView, type CoursewareSceneImagePreview,
   type CoursewareSceneImageView, type CoursewareScenePlanSnapshot } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
 import { CoursewareSceneThumbnail } from "./CoursewareSceneThumbnail";
 
-export function CoursewareChatImages({ sessionId, plan, disabled, refreshKey = 0, onContinue }: {
-  sessionId: string; plan: CoursewareScenePlanSnapshot; disabled: boolean; refreshKey?: number; onContinue: () => Promise<void>;
+export function CoursewareChatImages({ sessionId, plan, disabled, refreshKey = 0, compilation, onContinue }: {
+  sessionId: string; plan: CoursewareScenePlanSnapshot; disabled: boolean; refreshKey?: number; compilation?: CoursewareWorkflowView["compilation"]; onContinue: (action: "style" | "resume" | "restyle", instruction?: string) => Promise<void>;
 }) {
   const { t } = useTranslation();
   const [rows, setRows] = useState<CoursewareSceneImageView[]>([]);
+  const [styleInstruction, setStyleInstruction] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<CoursewareSceneImagePreview | null>(null);
@@ -21,10 +22,12 @@ export function CoursewareChatImages({ sessionId, plan, disabled, refreshKey = 0
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [previewError, setPreviewError] = useState("");
   const [listError, setListError] = useState("");
+  const [statusErrors, setStatusErrors] = useState<Record<string, string>>({});
   const [authRevision, setAuthRevision] = useState(0);
   const [refresh, setRefresh] = useState(0);
   const panel = useRef<HTMLElement>(null);
   const active = useRef(true), working = useRef(false), generation = useRef(0);
+  const terminalTasks = useRef(new Map<string, CoursewareSceneImageView["task"]>());
   const current = () => active.current && useAppStore.getState().activeSessionId === sessionId;
   useEffect(() => {
     if (!panel.current) return;
@@ -38,7 +41,8 @@ export function CoursewareChatImages({ sessionId, plan, disabled, refreshKey = 0
   useEffect(() => {
     active.current = true;
     const unsubscribe = api.onAuthChanged(() => {
-      generation.current++; setRows([]); setPreview(null); setFocusedId(null); setError(""); setPreviewError("");
+      generation.current++; setRows([]); setPreview(null); setFocusedId(null); setError(""); setPreviewError(""); setStatusErrors({}); setListError("");
+      terminalTasks.current.clear();
       working.current = false; setBusy(false); setAuthRevision(value => value + 1);
     });
     return () => { active.current = false; generation.current++; unsubscribe(); };
@@ -52,13 +56,24 @@ export function CoursewareChatImages({ sessionId, plan, disabled, refreshKey = 0
       loading = true;
       try {
         const values = (await api.coursewareSceneImageList(sessionId)).filter(row => row.current && row.planSha256 === plan.sha256);
+        const failures: Record<string, string> = {};
         for (let index = 0; index < values.length; index++) {
           if (!valid()) return;
           const row = values[index];
-          if (!row.asset && !["prepared", "rejected"].includes(row.phase))
-            values[index] = await api.coursewareSceneImageStatus(sessionId, row.intentId);
+          const cached = terminalTasks.current.get(row.intentId);
+          if (cached) values[index] = { ...row, task: cached };
+          if (!row.asset && !["prepared", "rejected"].includes(row.phase)) {
+            if (cached) continue;
+            try {
+              values[index] = await api.coursewareSceneImageStatus(sessionId, row.intentId);
+              if (!valid()) return;
+              const task = values[index].task;
+              if (task && ["ready", "failed", "cancelled", "archive_failed"].includes(task.state)) terminalTasks.current.set(row.intentId, task);
+            }
+            catch (failure) { failures[row.intentId] = String(failure); }
+          }
         }
-        if (valid()) { setRows(values); setListError(""); }
+        if (valid()) { setRows(values); setStatusErrors(failures); setListError(""); }
       } catch (failure) { if (valid()) setListError(String(failure)); }
       finally { loading = false; }
     };
@@ -98,16 +113,13 @@ export function CoursewareChatImages({ sessionId, plan, disabled, refreshKey = 0
     finally { if (valid()) { working.current = false; setBusy(false); setRefresh(value => value + 1); } }
   };
   const status = (row: CoursewareSceneImageView) => t(`coursewareWorkflow.imageState.${row.selected ? "selected" : row.asset ? "ready" : row.task?.state ?? row.phase}`);
-  const blockers = sceneAssetBlockers(plan, rows);
+  const progress = sceneWorkspaceProgress(plan, rows, disabled, compilation);
   const blocked = disabled || busy;
   const cover = masterFor(rows.filter(row => row.pageId === plan.pages[0].pageId));
   const styleSelected = !!cover?.selected;
-  const styleReady = !!cover && (!!cover.asset || cover.task?.state === "ready" && cover.task.feeState === "settled");
   const isCover = focused?.pageId === plan.pages[0].pageId && focused.target.kind === "visualMaster";
   const index = plan.pages.indexOf(focusedPage);
   const choosePage = (id: string) => { setPageId(id); setFocusedId(null); setError(""); };
-  const hint = disabled ? "sceneRunning" : !styleSelected ? styleReady ? "sceneStyleReview" :
-    !cover || cover.phase === "prepared" ? "sceneNeedsGeneration" : "sceneCoverPending" : blockers.length ? "scenePaused" : "readyToBuild";
   return <section className={`courseware-scene-preview${leftCollapsed ? " left-collapsed" : ""}${rightCollapsed ? " right-collapsed" : ""}`}
     ref={panel} aria-label={t("coursewareWorkflow.imagePreview")}>
     <header className="courseware-scene-toolbar">
@@ -123,7 +135,7 @@ export function CoursewareChatImages({ sessionId, plan, disabled, refreshKey = 0
           if (rightCollapsed && panel.current && panel.current.clientWidth < 540) setLeftCollapsed(true);
         }}>{rightCollapsed ? <PanelRightOpen size={16} /> : <PanelRightClose size={16} />}</button>
       <button type="button" className="courseware-scene-icon" aria-label={t("coursewareWorkflow.refresh")}
-        onClick={() => setRefresh(value => value + 1)}><RefreshCw size={15} /></button>
+        onClick={() => { terminalTasks.current.clear(); setRefresh(value => value + 1); }}><RefreshCw size={15} /></button>
     </header>
     <div className="courseware-scene-workspace">
       <nav className="courseware-scene-pages" aria-label={t("coursewareWorkflow.imagePages")}>
@@ -160,10 +172,12 @@ export function CoursewareChatImages({ sessionId, plan, disabled, refreshKey = 0
           {focused && <small>{t(`coursewareWorkflow.${focused.target.kind}`)}{focused.target.kind === "layer" ? ` · ${focused.target.name}` : ""}</small>}
         </div>
         <footer className="courseware-scene-progress">
-          <p role="status">{t(`coursewareWorkflow.${hint}`)}</p>
+          <p role="status" data-courseware-phase={progress.phase}>{t(`coursewareWorkflow.phase_${progress.phase}`)}</p>
+          <small>{t(`coursewareWorkflow.activity_${progress.activity}`)}</small>
+          <small>{t("coursewareWorkflow.readOnlyImages")}</small>
           {!styleSelected && focusedPage.pageId !== plan.pages[0].pageId && <button type="button" onClick={() => choosePage(plan.pages[0].pageId)}>
             {t("coursewareWorkflow.openCover")}</button>}
-          <small>{t(blockers.length ? "coursewareWorkflow.assetProgress" : "coursewareWorkflow.readyToBuild", { count: rows.filter(row => row.selected).length })}</small>
+          <small>{t("coursewareWorkflow.pageProgress", { count: progress.imageCount, total: progress.total, assets: progress.assetPages })}</small>
         </footer>
       </main>
       <aside className="courseware-scene-inspector" aria-label={t("coursewareWorkflow.imageDetails")}>
@@ -178,6 +192,15 @@ export function CoursewareChatImages({ sessionId, plan, disabled, refreshKey = 0
               <small role="status">{status(row)}</small>
             </button>)}
           </div>
+          {pageRows.filter(row => statusErrors[row.intentId]).map(row => <p role="alert" className="courseware-workflow-error"
+            key={row.intentId} data-scene-image-error={row.intentId}>
+            {t(`coursewareWorkflow.${row.target.kind}`)}{row.target.kind === "layer" ? ` · ${row.target.name}` : ""}
+            {" · "}{row.intentId.slice(0, 8)}{" · "}
+            {statusErrors[row.intentId].includes("COURSEWARE_MEDIA_LEGACY_TASK_UNAVAILABLE")
+              ? t("coursewareWorkflow.legacyImageTaskUnavailable")
+              : t("coursewareWorkflow.imageStatusFailed", { error: statusErrors[row.intentId] })}
+          </p>)}
+          {compilation?.planSha256 === plan.sha256 && compilation.message && <p role="alert">{compilation.message}</p>}
           {focused?.task?.errorCode && <p role="alert">{focused.task.errorCode}</p>}
           {focused?.target.kind !== "layer" && <section className="courseware-scene-preview-text" aria-label={t("coursewareWorkflow.pageText")}>
             <strong>{t("coursewareWorkflow.pageText")}</strong>
@@ -190,11 +213,6 @@ export function CoursewareChatImages({ sessionId, plan, disabled, refreshKey = 0
           </details>}
         </div>
         <div className="courseware-scene-actions">
-          {focused?.phase === "prepared" && <button type="button" className="courseware-scene-primary" disabled={blocked || !styleSelected && !isCover}
-            onClick={() => void run(async valid => {
-              await api.coursewareSceneImageGenerate(sessionId, focused.intentId);
-              if (valid()) await onContinue();
-            })}>{t("coursewareWorkflow.submitImage")}</button>}
           {shownPreview && focused && isCover && !focused.selected && <button type="button" className="courseware-scene-primary"
             disabled={blocked || !shownPreview.image.current || !styleSelected && !isCover} onClick={() => void run(async valid => {
               const target = shownPreview.image.target;
@@ -202,10 +220,18 @@ export function CoursewareChatImages({ sessionId, plan, disabled, refreshKey = 0
                 (target.kind !== "layer" || row.target.kind === "layer" && row.target.name === target.name));
               const values = await api.coursewareSceneImageAdopt(sessionId, shownPreview.image.intentId, previous?.intentId ?? null);
               if (!valid()) return;
-              setRows(values); await onContinue();
+              setRows(values); await onContinue("style");
             })}>{t("coursewareWorkflow.confirmStyle")}</button>}
-          {!disabled && (!styleReady || styleSelected) && <button type="button" disabled={blocked}
-            onClick={() => void run(async valid => { if (valid()) await onContinue(); })}>{t("coursewareWorkflow.continue")}</button>}
+          {shownPreview && isCover && !styleSelected && <>
+            <label>{t("coursewareWorkflow.styleInstruction")}<textarea value={styleInstruction} maxLength={2000} disabled={blocked}
+              onChange={event => setStyleInstruction(event.target.value)} /></label>
+            <button type="button" disabled={blocked || !styleInstruction.trim()} onClick={() => void run(async valid => {
+              if (valid()) await onContinue("restyle", styleInstruction.trim());
+            })}>{t("coursewareWorkflow.restyle")}</button>
+          </>}
+          {!disabled && progress.activity !== "review" && <button type="button" disabled={blocked}
+            onClick={() => void run(async valid => { if (valid()) await onContinue("resume"); })}>{t("coursewareWorkflow.resume")}</button>}
+
         </div>
       </aside>
     </div>

@@ -87,7 +87,7 @@ test("real SDK files retain narration and object UUIDs across two real Host save
     await host.start();
     const { session } = await host.call("session.create", { title: "Native save", mode: "agent", projectPath: workspace });
     const service = new CoursewareNativeSave(() => host, () => session.id, async () => workspace, () => {}, async operation => operation());
-    let firstContext;
+    let firstContext, ttsScope, paidIntent, workflowTurn, workflowCheckpoint;
     for (const [index, name] of ["first.pptx", "second.pptx"].entries()) {
       const bytes = await fs.readFile(join(fixture, name));
       const next = await publishRevision({ root: archive, jobId: documentId, bytes, extension: "pptx", cause: "edited", expectedRevision: previous.revision });
@@ -103,14 +103,60 @@ test("real SDK files retain narration and object UUIDs across two real Host save
           expectedSourceRevision: project.source.revision, expectedTeachingRevision: project.teachingRevision,
           actions: [{ id: "narration", type: "speech", text: "Keep my narration across native PPT saves." }] } });
         firstContext = await host.call("courseware.project.context", { sessionId: session.id, projectId: project.projectId });
+        workflowTurn = (await host.call("session.beginTurn", { sessionId: session.id })).turnId;
+        workflowCheckpoint = { revision: 1, projectId: project.projectId, sourceSha256: project.source.sha256,
+          status: "running", repairAttempts: { ["c".repeat(64)]: 2 }, lastResume: null };
+        await host.call("courseware.workflow.checkpoint", { sessionId: session.id, projectId: project.projectId,
+          turnId: workflowTurn, expectedRevision: 0, checkpoint: workflowCheckpoint });
+        ttsScope = { sessionId: session.id, projectId: project.projectId, principalKey: "d".repeat(64), intentId: "native-pending-tts" };
+        paidIntent = (await host.call("courseware.tts.prepare", { sessionId: session.id, selection: {
+          projectId: ttsScope.projectId, principalKey: ttsScope.principalKey, intentId: ttsScope.intentId,
+          pageId: project.pages[0].pageId, actionId: "narration", model: "tts", voice: null,
+          expectedSourceRevision: firstContext.project.source.revision, expectedTeachingRevision: firstContext.project.teachingRevision,
+        } })).intent;
+        await host.call("courseware.tts.begin", ttsScope);
       } else {
         assert.equal(context.project.pages[0].pageId, firstContext.project.pages[0].pageId);
         assert.equal(context.savedObjects.pages[0].objects[0].objectId, firstContext.savedObjects.pages[0].objects[0].objectId);
         assert.deepEqual(context.project.pages[0].actions, firstContext.project.pages[0].actions);
+        const workflow = await host.call("courseware.workflow.get", { sessionId: session.id, projectId: context.project.projectId });
+        assert.equal(workflow.checkpoint.revision, 2);
+        assert.equal(workflow.checkpoint.sourceSha256, context.project.source.sha256);
+        assert.deepEqual(workflow.checkpoint.repairAttempts, workflowCheckpoint.repairAttempts);
+        assert.equal(workflow.completion.ready, false);
+        workflowCheckpoint = workflow.checkpoint;
+        const retained = (await host.call("courseware.tts.get", ttsScope)).intent;
+        assert.deepEqual(retained.boundSource, context.project.source);
+        assert.equal(retained.idempotencyKey, paidIntent.idempotencyKey);
+        assert.equal(retained.requestHash, paidIntent.requestHash);
+        const taskRef = { taskId: "existing-paid-task", idempotencyKey: paidIntent.idempotencyKey, requestHash: paidIntent.requestHash };
+        await host.call("courseware.tts.bind", { ...ttsScope, taskRef });
+        const audioBytes = await fs.readFile(new URL("./fixtures/courseware-tts-tone.mp3", import.meta.url));
+        const sha256 = createHash("sha256").update(audioBytes).digest("hex");
+        await host.call("courseware.tts.audio.stage", { ...ttsScope, audio: { taskRef, sha256, mimeType: "audio/mpeg",
+          byteLength: audioBytes.length, durationMs: 250 }, bytesBase64: audioBytes.toString("base64") });
+        const adopted = await host.call("courseware.tts.audio.adopt", { ...ttsScope,
+          expectedTeachingRevision: context.project.teachingRevision, expectedAudioAssetId: null });
+        assert.equal(adopted.project.pages[0].actions[0].audioAssetId, `tts-${sha256}`);
+        const archived = await host.call("courseware.tts.audio.get", ttsScope);
+        assert.deepEqual(archived.boundSource, context.project.source);
+        assert.deepEqual(await fs.readFile(archived.path), audioBytes);
       }
       previous = next;
     }
     await service.recover(workspace, sourcePath, session.id);
     assert.equal((await fs.readFile(sourcePath)).equals(await fs.readFile(join(fixture, "second.pptx"))), true);
+    await host.stop();
+    await host.start();
+    const scope = { sessionId: session.id, projectId: workflowCheckpoint.projectId };
+    const restored = await host.call("courseware.workflow.get", scope);
+    assert.deepEqual(restored.checkpoint, workflowCheckpoint);
+    const next = { ...workflowCheckpoint, revision: 3, status: "blocked" };
+    await assert.rejects(host.call("courseware.workflow.checkpoint", { ...scope, turnId: workflowTurn,
+      expectedRevision: 2, checkpoint: next }), /running Agent turn/);
+    const resumed = await host.call("session.beginTurn", { sessionId: session.id });
+    await host.call("courseware.workflow.checkpoint", { ...scope, turnId: resumed.turnId,
+      expectedRevision: 2, checkpoint: next });
+    assert.deepEqual((await host.call("courseware.workflow.get", scope)).checkpoint, next);
   } finally { await host.stop(); }
 });

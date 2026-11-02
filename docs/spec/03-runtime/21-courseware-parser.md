@@ -44,6 +44,14 @@ Release removes temporary results; it never modifies the source PPTX. No job
 is replayed after restart. Abrupt host termination recovery and automatic orphan
 cleanup are not implemented yet. Durable project teaching initialization is a separate verified RPC; asset adoption remains unimplemented.
 
+Desktop Main coordinates callers at its shared Host transport boundary. An exact
+occupied-parser rejection on `courseware.parseStart` waits at 100 ms intervals
+for at most 90 seconds for the owning caller's normal release. It never releases
+or cancels another caller's job, raises the single-job limit, or retries an
+uncertain start/transport failure. A still-occupied parser fails explicitly after
+that bound. Host exit interrupts admission on the next attempt. This read-only
+admission policy does not apply to paid generation or other RPC failures.
+
 The child inherits no provider credentials or Node path injection. It receives
 only Electron's Node-mode switch and a locale. This is not an OS sandbox.
 The Linux local pilot now admits at most 50 MiB compressed PPTX input, 100

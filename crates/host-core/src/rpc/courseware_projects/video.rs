@@ -29,7 +29,7 @@ pub(super) async fn handle(
     let extra: &[&str] = match method {
         "courseware.video.list" => &[],
         "courseware.video.prepare" => &["pageId", "slotId", "model"],
-        "courseware.video.get" | "courseware.video.asset.get" | "courseware.video.begin" => {
+        "courseware.video.get" | "courseware.video.asset.get" | "courseware.video.begin" | "courseware.video.retry" => {
             &["intentId"]
         }
         "courseware.video.bind" => &["intentId", "taskRef"],
@@ -77,6 +77,7 @@ pub(super) async fn handle(
             &required(p.slot_id)?,
             &required(p.model)?,
         ),
+        "courseware.video.retry" => state.db.retry_courseware_video(&root, &p.project_id, &p.principal_key, &required(p.intent_id)?),
         _ => {
             let intent_id = required(p.intent_id)?;
             match method {

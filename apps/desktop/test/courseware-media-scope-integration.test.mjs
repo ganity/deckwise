@@ -66,8 +66,8 @@ test("durable media scope through actual Main, Host restart and HTTP routes", {
         assert(!tasks.has(key), "One original key cannot POST twice");
         if (refusal) return send(null, refusal);
         const task = { version: "courseware-media-v1", kind: "image", taskId: `scope-task-${tasks.size + 1}`,
-          idempotencyKey: key, requestHash: requestHash(body), model: body.model, state: "queued", feeState: "reserved",
-          reservedPoints: 3, actualPoints: null, receiptId: null, errorCode: null, assetRef: null };
+          idempotencyKey: key, requestHash: requestHash(body), model: body.model, state: "failed", feeState: "released",
+          reservedPoints: 3, actualPoints: 0, receiptId: null, errorCode: "FIXTURE_FINISHED", assetRef: null };
         tasks.set(key, task);
         if (failNext) { failNext = false; request.socket.destroy(); return; }
         return send(task);
@@ -112,6 +112,26 @@ test("durable media scope through actual Main, Host restart and HTTP routes", {
   };
   const posts = () => http.filter(row => row.method === "POST");
 
+  await t.test("expired queued quote leaves the real Host intent prepared without a POST", async () => {
+    const item = await prepare(), quote = await item.coordinator.quote(item.operation);
+    let release;
+    const barrier = new Promise(resolve => { release = resolve; });
+    const held = Array.from({ length: 5 }, () => client.generate("image", principal,
+      async () => { await barrier; return { state: "ready" }; }, async () => null));
+    const before = posts().length;
+    const pending = item.coordinator.submitConfirmed({ ...item.operation, quoteId: quote.quoteId });
+    const rejected = assert.rejects(pending, /QUOTE/);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal((await host.call("courseware.mediaCanvas.image.get", item.scope)).intent.phase, "prepared");
+    assert.equal(posts().length, before);
+    const realNow = Date.now;
+    try {
+      Date.now = () => realNow() + 600_000;
+      release(); await Promise.all(held); await rejected;
+    } finally { Date.now = realNow; release(); }
+    assert.equal((await host.call("courseware.mediaCanvas.image.get", item.scope)).intent.phase, "prepared");
+    assert.equal(posts().length, before);
+  });
   await t.test("prepared personal intent takes team scope if binding commits before begin", async () => {
     const item = await prepare(); await bind();
     assert.equal((await submit(item)).phase, "submitted");
@@ -195,4 +215,5 @@ test("durable media scope through actual Main, Host restart and HTTP routes", {
     assert.equal(posts().length, before);
     assert.equal((await host.call("courseware.mediaCanvas.image.get", item.scope)).intent.phase, "submission-unknown");
   });
+  t.diagnostic(JSON.stringify({ scenario: "media-scope", mockPosts: posts().length, queuedExpiryPosts: 0, recoveredOriginals: 1 }));
 });

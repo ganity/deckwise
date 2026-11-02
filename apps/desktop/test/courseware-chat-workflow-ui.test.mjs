@@ -14,9 +14,10 @@ const plan = { title: "Shapes", sha256: "a".repeat(64), approvedSha256: null, pa
 
 async function fixture(t, component, props, overrides = {}) {
   const state = [], effects = [], pending = [], calls = [];
-  const store = { activeSessionId: "chat", runningSessions: {}, messages: [], sessions: [{ id: "chat", projectPath: "/workspace" }],
+  const store = { workPanelTabs: [], activeSessionId: "chat", runningSessions: {}, messages: [], sessions: [{ id: "chat", projectPath: "/workspace" }],
     newSession: async (...args) => { calls.push(["create", ...args]); },
     sendPrompt: async (...args) => { calls.push(["prompt", ...args]); return true; },
+    replaceWorkPanelTab: (id, tab) => calls.push(["workspace", id, tab]),
     openWorkPanelTab: tab => calls.push(["editor", tab]) };
   const currentPlan = structuredClone(plan);
   const projectPath = ".deckwise-ppt/projects/lesson";
@@ -37,12 +38,12 @@ async function fixture(t, component, props, overrides = {}) {
     },
   };
   const api = {
-    async coursewareWorkflowGet() { if (fail) throw new Error("Invalid scene draft"); return { task: taskType ? { taskType, imported: attached && taskType === "import", generated: attached && taskType !== "import" } : null,
+    async coursewareWorkflowGet() { if (fail) throw new Error("Invalid scene draft"); return { task: taskType ? { taskType, imported: attached && taskType === "import", generated: attached && taskType !== "import", ...(attached ? { sourcePath: "/workspace/import.pptx" } : {}) } : null,
       plan: taskType === "scene" ? structuredClone(currentPlan) : null }; },
     async coursewareScenePlanApprove(...args) { calls.push(["approve", ...args]); currentPlan.approvedSha256 = currentPlan.sha256; return { plan: structuredClone(currentPlan) }; },
     async pickFiles() { calls.push(["pick"]); return picker; },
-    async coursewareImportPptx(...args) { calls.push(["import", ...args]); return { path: "/workspace/import.pptx" }; },
-    async coursewareTaskGet() { return { task: { importPath: "/workspace/import.pptx" } }; },
+    async coursewareImportPptx(...args) { attached = true; calls.push(["import", ...args]); return { path: "/workspace/import.pptx" }; },
+    async coursewareTaskGet() { return { task: taskType ? { taskType, importPath: "/workspace/import.pptx" } : null }; },
     async fsList(path) {
       const names = path === projectPath ? ["design_spec.md", "spec_lock.md"] :
         path === `${projectPath}/svg_output` ? ["P01.svg"] :
@@ -84,7 +85,7 @@ async function fixture(t, component, props, overrides = {}) {
   }).outputText)(id => { assert.equal(id, "./api"); return { api }; }, projectModule);
   const isDialog = component === "CoursewareTaskDialog";
   const source = await readFile(new URL(`../src/components/${isDialog ? component : (component === "CoursewareSourceVisuals" ? "workpanel/" : "courseware/") + component}.tsx`, import.meta.url), "utf8");
-  const compiled = ts.transpileModule(source + (component === "CoursewareChatWorkflow" ? "\nexports.Workflow = Workflow;" : isDialog ? "\nexports.TaskForm = TaskForm;" : ""), {
+  const compiled = ts.transpileModule(source + (component === "CoursewareChatWorkflow" ? "\nexports.Workflow = Workflow;" : isDialog ? "\nexports.TaskForm = TaskForm;" : component === "CoursewareWorkspaceEntry" ? "\nexports.Entry = Entry;" : ""), {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
   const exports = {};
@@ -98,6 +99,8 @@ async function fixture(t, component, props, overrides = {}) {
     if (id === "../../lib/ppt-master-project") return projectModule;
     if (id === "../../lib/tool-presentation") return toolModule;
     if (id === "../../lib/courseware-chat-candidates") return candidateModule;
+    if (id === "../workpanel/PptEditorTab") return { PptEditorTab: "ppt-editor" };
+    if (id === "../workpanel/CoursewareImportDialog") return { CoursewareImportDialog: "publish-dialog" };
     if (id === "../workpanel/CoursewareSourceVisuals") return { CoursewareSourceVisuals: "source-visuals" };
     if (id === "../workpanel/CoursewarePptxCandidateReview") return { CoursewarePptxCandidateReview: "pptx-review" };
     if (id === "../../lib/work-panel-tabs") return { pptEditorWorkPanelTab: path => ({ path }), svgEditorWorkPanelTab: path => ({ svgPath: path }), toolWorkPanelTab: kind => ({ id: kind, kind }) };
@@ -105,11 +108,12 @@ async function fixture(t, component, props, overrides = {}) {
     if (id === "./ui") return { Button: "button", TooltipButton: "button", portalOverlay: value => value };
     if (id === "./icons") return { IconClose: "icon" };
     if (id === "./CoursewareChatPresentation") return { CoursewareChatPresentation: "plain-presentation" };
-    if (id === "./CoursewareChatImages" || id === "./CoursewareChatNarration" || id === "./CoursewareChatPptxCandidates") return {};
+    if (id === "./CoursewareChatImages") return { CoursewareChatImages: "scene-images" };
+    if (id === "./CoursewareChatNarration" || id === "./CoursewareChatPptxCandidates") return {};
     if (id === "./CoursewareSceneThumbnail") return { CoursewareSceneThumbnail: "scene-thumbnail" };
     assert.fail(id);
   }, exports);
-  const render = () => { cursor = 0; tree = exports[component === "CoursewareChatWorkflow" ? "Workflow" : isDialog ? "TaskForm" : component](props);
+  const render = () => { cursor = 0; tree = exports[component === "CoursewareChatWorkflow" ? "Workflow" : isDialog ? "TaskForm" : component === "CoursewareWorkspaceEntry" ? "Entry" : component](props);
     for (const effect of pending.splice(0)) effect(); return tree; };
   const flush = async () => { await new Promise(resolve => setImmediate(resolve)); render(); await new Promise(resolve => setImmediate(resolve)); render(); };
   const nodes = () => {
@@ -324,7 +328,7 @@ test("ordinary Chat requirements appear only before a project is referenced", as
 test("the ordinary Chat parent delegates status and requirements to its project inspector", async t => {
   const f = await fixture(t, "CoursewareChatWorkflow", { sessionId: "chat" });
   f.plain(); await f.click("refresh");
-  assert(!f.nodes().some(node => node.type === "header"));
+  assert.equal(f.nodes().filter(node => node.type === "header").length, 1);
   assert(!f.nodes().some(node => node.props?.children === "coursewareWorkflow.briefHint"));
 });
 
@@ -356,14 +360,14 @@ test("scene review in the main Chat pins the reviewed plan then continues the sa
   assert(f.nodes().some(node => node.type === "strong" && node.props.children === "Circle"));
   await f.click("approveContinue");
   assert.deepEqual(f.calls[0], ["approve", "chat", plan.sha256]);
-  assert.deepEqual(f.calls[1], ["prompt", "coursewareWorkflow.continuePrompt", undefined, "chat"]);
+  assert.deepEqual(f.calls[1], ["prompt", "coursewareWorkflow.planPrompt", undefined, "chat"]);
   assert.equal(f.button("approveContinue"), undefined);
 });
 
 test("ordinary conversations do not gain a courseware card and an invalid draft remains actionable", async t => {
   const f = await fixture(t, "CoursewareChatWorkflow", { sessionId: "chat" });
   f.empty(); await f.click("refresh");
-  assert.equal(f.nodes().length, 0);
+  assert(f.nodes().some(node => node.props?.children === "coursewareWorkflow.briefHint"));
   const failed = await fixture(t, "CoursewareChatWorkflow", { sessionId: "chat" }, {
     coursewareWorkflowGet: async () => { throw new Error("Invalid scene draft"); },
   });
@@ -377,25 +381,28 @@ test("PPT import can be cancelled and retried in the same Chat without the workb
   assert.equal(f.calls.filter(call => call[0] === "import").length, 0);
   f.picker({ token: "picked" }); await f.click("selectPpt");
   assert.deepEqual(f.calls.find(call => call[0] === "import"), ["import", "chat", "picked"]);
-  assert.deepEqual(f.calls.at(-1), ["editor", { path: "/workspace/import.pptx" }]);
+  assert(f.nodes().some(node => node.type === "ppt-editor" && node.props.path === "/workspace/import.pptx"));
 });
 
-test("scene image generation is direct, opens no fee dialog and rejects stale task clicks", async t => {
-  const f = await fixture(t, "CoursewareChatImages", { sessionId: "chat", plan: { ...plan, approvedSha256: plan.sha256 }, disabled: false, onContinue: async () => {} });
-  assert.equal(f.nodes().some(node => node.type === "input"), false);
-  const stale = f.button("submitImage");
+test("resuming uses the existing task and fences stale clicks without direct media submission", async t => {
+  let resumed = 0;
+  const f = await fixture(t, "CoursewareChatImages", { sessionId: "chat", plan: { ...plan, approvedSha256: plan.sha256 }, disabled: false,
+    onContinue: async action => { assert.equal(action, "resume"); resumed++; } });
+  assert(!f.button("submitImage"));
+  const stale = f.button("resume");
   f.store.activeSessionId = "peer"; stale.props.onClick(); await f.flush();
-  assert.equal(f.calls.length, 0);
-  f.store.activeSessionId = "chat"; await f.click("submitImage");
-  assert.deepEqual(f.calls, [["generate", "chat", "master"]]);
+  assert.equal(resumed, 0);
+  f.store.activeSessionId = "chat"; await f.click("resume");
+  assert.equal(resumed, 1); assert.equal(f.calls.length, 0);
 });
 
-test("refresh reconciles asset intents without requiring Chat to be idle", async t => {
+test("refresh reconciles asset intents while Chat is running without exposing generation controls", async t => {
   const props = { sessionId: "chat", plan: { ...plan, approvedSha256: plan.sha256 }, disabled: true, refreshKey: 0, onContinue: async () => {} };
   const f = await fixture(t, "CoursewareChatImages", props);
-  assert(f.button("submitImage"));
+  assert(f.nodes().some(node => node.props?.["data-scene-image-intent"] === "master"));
+  assert(!f.button("resume"));
   f.rows([]); props.refreshKey++; f.render(); await f.flush();
-  assert.equal(f.button("submitImage"), undefined);
+  assert(!f.nodes().some(node => node.props?.["data-scene-image-intent"]));
 });
 
 test("scene preview distinguishes pending and failed tasks without payment controls", async t => {
@@ -554,7 +561,7 @@ test("main Chat offers visual preparation only after a PPTX source exists", asyn
     node.props.onActiveChange(false); f.render();
     assert.equal(f.store.coursewareTeachingRefresh, undefined, "Idle mount must not start a competing teaching read");
     node.props.onActiveChange(true); f.render();
-    assert(f.button("continue").props.disabled);
+    assert(f.button("publish").props.disabled);
     node.props.onActiveChange(false); f.render();
     assert.equal(f.store.coursewareTeachingRefresh.reread, true);
     assert.equal(f.calls.filter(call => call[0] === "editor").length, 0);
@@ -665,18 +672,14 @@ test("preview polling survives Chat completion and disposes its timer on unmount
 });
 
 
-test("approved scene tasks open a real right preview tab and keep the footer compact", async t => {
+test("approved scenes replace planning with previews in the same workspace", async t => {
   const f = await fixture(t, "CoursewareChatWorkflow", { sessionId: "chat" });
   await f.click("approveContinue");
-  assert(f.calls.some(call => call[0] === "editor" && call[1].kind === "scene-images"));
-  assert(f.button("imagePreview"));
-  assert.equal(f.nodes().filter(node => node.props?.["data-scene-image-intent"]).length, 0);
-  const before = f.calls.length;
-  await f.click("imagePreview");
-  assert.equal(f.calls.length, before + 1);
-  assert.deepEqual(f.calls.at(-1), ["editor", { id: "scene-images", kind: "scene-images" }]);
+  assert(f.nodes().some(node => node.type === "scene-images"));
+  assert(!f.button("imagePreview")); assert(!f.button("continue"));
+  assert(!f.calls.some(call => call[0] === "editor"));
+  assert(!f.nodes().some(node => node.type === "ppt-editor"));
 });
-
 
 test("visual master preview exposes the actual planned student text, never narration", async t => {
   const props = { sessionId: "chat", plan: { ...plan, approvedSha256: plan.sha256,
@@ -728,8 +731,8 @@ test("preview student text follows the focused page and is hidden for decomposed
 test("a prepared cover has an explicit generation hint and no false style confirmation", async t => {
   const props = { sessionId: "chat", plan: { ...plan, approvedSha256: plan.sha256 }, disabled: false, onContinue: async () => {} };
   const f = await fixture(t, "CoursewareChatImages", props);
-  assert(f.nodes().some(node => node.props?.role === "status" && node.props.children === "coursewareWorkflow.sceneNeedsGeneration"));
-  assert(f.button("submitImage"));
+  assert(f.nodes().some(node => node.props?.role === "status" && node.props.children === "coursewareWorkflow.phase_cover"));
+  assert(f.button("resume")); assert(!f.button("submitImage"));
   assert(!f.button("confirmStyle"));
   assert(!f.nodes().some(node => node.props?.children === "coursewareWorkflow.sceneStyleReview"));
 });
@@ -746,7 +749,8 @@ test("service uncertainty never asks for another style confirmation or blocks in
     assert(!f.nodes().some(node => ["coursewareWorkflow.sceneSubmissionUnknown", "coursewareWorkflow.sceneStyleReview"].includes(node.props?.children)));
     f.nodes().find(node => node.props?.["data-scene-image-intent"] === "prepared-layer").props.onClick();
     f.render(); await f.flush();
-    assert.equal(f.button("submitImage").props.disabled, false);
+    assert.equal(f.button("resume").props.disabled, false);
+    assert(f.nodes().some(node => node.props?.children === "coursewareWorkflow.activity_unknown"));
     assert(!f.button("confirmStyle"));
     assert(!f.calls.some(call => call[0] === "generate"));
   }
@@ -803,4 +807,163 @@ test("later masters and decomposition previews have no manual adoption control",
     assert(!f.button("selectContinue"));
     assert(!f.button("confirmStyle"));
   }
+});
+
+test("a saved PPT mounts the real editor component while the Agent continues teaching", async t => {
+  const f = await fixture(t, "CoursewareChatWorkflow", { sessionId: "chat" });
+  f.attached("scene"); f.store.runningSessions.chat = true; f.render(); await f.flush();
+  const editor = f.nodes().find(node => node.type === "ppt-editor");
+  assert.equal(editor.props.path, "/workspace/import.pptx");
+  assert.equal(editor.props.tabId, "ppt");
+  assert(!f.button("openEditor")); assert(!f.button("continue"));
+  assert(!f.nodes().some(node => node.type === "scene-images"));
+  assert(f.button("publish").props.disabled);
+  await f.click("refresh");
+  assert.equal(f.nodes().find(node => node.type === "ppt-editor").props.path, editor.props.path);
+});
+
+test("ordinary inspection hands a validated PPT to the workspace during an active turn", async t => {
+  const paths = [], props = { sessionId: "chat", disabled: true, refreshKey: 0, onReady: path => paths.push(path) };
+  const f = await fixture(t, "CoursewareChatPresentation", props);
+  f.store.runningSessions.chat = true; f.project.exported = true; props.refreshKey++; f.render(); await f.flush();
+  assert.equal(paths.at(-1), `${f.projectPath}/exports/lesson.pptx`);
+  assert(!f.button("openEditor"));
+});
+
+test("images, layers and compiler stages never expose PPT editor tools", async t => {
+  const props = { sessionId: "chat", plan: { ...plan, approvedSha256: plan.sha256 }, disabled: true, refreshKey: 0, onContinue: async () => {} };
+  const f = await fixture(t, "CoursewareChatImages", props);
+  f.rows([{ ...f.image, selected: true, phase: "submitted", asset: { sha256: "b".repeat(64), byteLength: 100 } }]);
+  props.refreshKey++; f.render(); await f.flush();
+  assert(f.nodes().some(node => node.props?.["data-courseware-phase"] === "layers"));
+  props.compilation = { planSha256: plan.sha256, state: "running" }; f.render(); await f.flush();
+  assert(f.nodes().some(node => node.props?.["data-courseware-phase"] === "converting"));
+  assert(!f.nodes().some(node => node.type === "ppt-editor"));
+  assert(!f.button("submitImage")); assert(!f.button("confirmStyle"));
+  assert.equal(f.calls.length, 0);
+});
+
+test("a style change sends its own instruction and never adopts the displayed cover", async t => {
+  const actions = [], props = { sessionId: "chat", plan: { ...plan, approvedSha256: plan.sha256 }, disabled: false, refreshKey: 0,
+    onContinue: async (...args) => actions.push(args) };
+  const f = await fixture(t, "CoursewareChatImages", props);
+  f.rows([{ ...f.image, asset: { sha256: "b".repeat(64) }, phase: "submitted" }]);
+  props.refreshKey++; f.render(); await f.flush(); await f.flush();
+  assert(f.button("restyle").props.disabled);
+  f.nodes().find(node => node.type === "textarea").props.onChange({ target: { value: "Soft clay figures" } }); f.render();
+  await f.click("restyle");
+  assert.deepEqual(actions, [["restyle", "Soft clay figures"]]);
+  assert(!f.calls.some(call => call[0] === "adopt" || call[0] === "generate"));
+});
+
+
+test("the compact entrance opens a new workspace once and never reopens it on later messages", async t => {
+  const f = await fixture(t, "CoursewareWorkspaceEntry", { sessionId: "chat" });
+  assert(f.button("openWorkspace")); assert.equal(f.calls.length, 1);
+  f.store.messages = [{ role: "assistant", content: "working" }]; f.render(); await f.flush();
+  assert.equal(f.calls.length, 1);
+  await f.click("openWorkspace"); assert.equal(f.calls.length, 2);
+});
+
+test("a retained work panel is not replaced when the courseware entrance mounts", async t => {
+  let release;
+  const f = await fixture(t, "CoursewareWorkspaceEntry", { sessionId: "chat" }, {
+    coursewareTaskGet: () => new Promise(resolve => { release = resolve; }),
+  });
+  f.store.workPanelTabs = [{ id: "file:notes.txt", kind: "file", resource: "notes.txt" }];
+  release({ task: {} }); await f.flush();
+  assert(f.button("openWorkspace")); assert.equal(f.calls.length, 0);
+});
+
+
+test("failed continuation remains actionable after successful workspace polling", async t => {
+  const f = await fixture(t, "CoursewareChatWorkflow", { sessionId: "chat" });
+  f.store.sendPrompt = async () => false;
+  await f.click("approveContinue");
+  assert(f.nodes().some(node => node.props?.role === "alert" && String(node.props.children).includes("sendFailed")));
+  await f.click("refresh");
+  assert(f.nodes().some(node => node.props?.role === "alert" && String(node.props.children).includes("sendFailed")));
+  assert(f.nodes().some(node => node.type === "scene-images"));
+  assert.equal(f.calls.filter(call => call[0] === "approve").length, 1);
+});
+
+for (const state of ["ready", "failed", "cancelled", "archive_failed"]) test(`${state} image receipts survive list refreshes without repeated supplier polling`, async t => {
+  const originalInterval = window.setInterval;
+  let tick;
+  window.setInterval = callback => { tick = callback; return 0; };
+  t.after(() => { window.setInterval = originalInterval; });
+  const props = { sessionId: "chat", plan: { ...plan, approvedSha256: plan.sha256 }, disabled: false, refreshKey: 0, onContinue: async () => {} };
+  const reads = [];
+  let authChanged;
+  const f = await fixture(t, "CoursewareChatImages", props, {
+    onAuthChanged(callback) { authChanged = callback; return () => {}; },
+    async coursewareSceneImageArchive(_session, id) {
+      return { image: { ...f.image, intentId: id, asset: { sha256: "b".repeat(64) } }, dataUrl: "data:image/png;base64,aGVsbG8=" };
+    },
+    async coursewareSceneImageStatus(_session, id) {
+      reads.push(id);
+      return { ...f.image, intentId: id, phase: "submitted", task: { state, feeState: state === "ready" ? "settled" : "released", errorCode: state === "ready" ? null : "UPSTREAM_HTTP_400" } };
+    },
+  });
+  f.rows([{ ...f.image, intentId: "failed", phase: "submitted" }]);
+  tick(); await f.flush();
+  assert.deepEqual(reads, ["failed"]);
+  tick(); await f.flush();
+  props.refreshKey++; f.render(); await f.flush();
+  tick(); await f.flush();
+  assert.deepEqual(reads, ["failed"]);
+  assert(f.nodes().some(node => node.type === "small" && node.props.children === `coursewareWorkflow.imageState.${state}`));
+  f.nodes().find(node => node.type === "button" && node.props["aria-label"] === "coursewareWorkflow.refresh").props.onClick();
+  f.render(); await f.flush();
+  assert.equal(reads.length, 2, "Explicit refresh may reread the original job");
+  tick(); await f.flush();
+  assert.equal(reads.length, 2);
+  authChanged(); f.render(); await f.flush();
+  assert.deepEqual(reads, ["failed", "failed", "failed"], "Authentication changes require a fresh receipt");
+  tick(); await f.flush();
+  assert.equal(reads.length, 3);
+});
+
+test("idle workflow reads once while active workflow keeps refreshing", async t => {
+  const timers = new Map();
+  t.mock.method(window, "setInterval", fn => { const id = Symbol(); timers.set(id, fn); return id; });
+  t.mock.method(window, "clearInterval", id => timers.delete(id));
+  const f = await fixture(t, "CoursewareChatWorkflow", { sessionId: "chat" });
+  assert.equal(timers.size, 0);
+  f.store.runningSessions.chat = true; f.render(); await f.flush();
+  assert.equal(timers.size, 1);
+  f.store.runningSessions.chat = false; f.render(); await f.flush();
+  assert.equal(timers.size, 0);
+});
+
+test("a failed image status stays with its task while other pages continue refreshing", async t => {
+  const originalInterval = window.setInterval;
+  let tick;
+  window.setInterval = callback => { tick = callback; return 0; };
+  t.after(() => { window.setInterval = originalInterval; });
+  const pages = [...plan.pages, { ...plan.pages[0], pageId: "scene-002", title: "Square" }];
+  const props = { sessionId: "chat", plan: { ...plan, pages, approvedSha256: plan.sha256 }, disabled: false, onContinue: async () => {} };
+  let recovered = false;
+  const reads = [];
+  const f = await fixture(t, "CoursewareChatImages", props, {
+    async coursewareSceneImageStatus(_session, id) {
+      reads.push(id);
+      if (id === "broken" && !recovered) throw new Error("COURSEWARE_MEDIA_HTTP_503");
+      return { ...f.image, intentId: id, pageId: id === "broken" ? "scene-001" : "scene-002", phase: "submitted", asset: { sha256: "b".repeat(64) } };
+    },
+  });
+  f.rows(["broken", "healthy"].map((id, index) => ({ ...f.image, intentId: id, pageId: pages[index].pageId, phase: "submitted" })));
+  tick(); await f.flush();
+  assert.deepEqual(reads, ["broken", "healthy"]);
+  assert(f.nodes().some(node => node.props?.["data-scene-image-error"] === "broken"));
+  const next = f.nodes().find(node => node.type === "button" && node.props?.["aria-label"] === "coursewareWorkflow.nextPage");
+  assert(next); next.props.onClick(); await f.flush();
+  assert(f.nodes().some(node => node.props?.["data-scene-image-intent"] === "healthy"));
+  assert(!f.nodes().some(node => node.props?.["data-scene-image-error"] === "broken"), "Another page must not show the failed task's error");
+  recovered = true;
+  tick(); await f.flush();
+  const previous = f.nodes().find(node => node.type === "button" && node.props?.["aria-label"] === "coursewareWorkflow.previousPage");
+  previous.props.onClick(); await f.flush();
+  assert(!f.nodes().some(node => node.props?.["data-scene-image-error"] === "broken"), "Successful refresh clears the task's error");
+  assert(!f.calls.some(call => ["generate", "paid"].includes(call[0])));
 });

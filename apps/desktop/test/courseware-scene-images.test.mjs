@@ -32,11 +32,13 @@ const assetHelpers = await load("courseware-scene-image-assets", { electron, "no
   "node:fs": fsConstants, "node:fs/promises": files, "node:path": paths, "./courseware-scene-context": context,
   "./public-https-fetch": await import("../electron/main/public-https-fetch.ts") });
 const mediaScope = await load("courseware-media-scope", {});
+const retryHelpers = await import("../electron/main/courseware-retry.ts");
 const module = { exports: {} };
 new Function("require", "exports", ts.transpileModule(await readFile(new URL("../electron/main/courseware-scene-images.ts", import.meta.url), "utf8"), {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
 }).outputText)((id) => {
   if (id === "./courseware-media-scope") return mediaScope;
+  if (id === "./courseware-retry") return retryHelpers;
   if (id === "node:crypto") return { randomUUID };
   if (id === "@pi-desktop/shared") return shared;
   if (id === "./courseware-scene-draft") return draftReader;
@@ -75,7 +77,7 @@ async function fixture(t, coursePlan = plan) {
       const reference = p.referenceIntentId === undefined ? null : records(p).find(row => row.intentId === p.referenceIntentId &&
         row.selected && row.asset && row.planSha256 === p.planSha256 && row.pageId === (target.kind === "visualMaster" ? "scene-001" : p.pageId) && row.target.kind === "visualMaster");
       if (p.referenceIntentId !== undefined && !reference) throw new Error("REFERENCE_CHANGED");
-      let j = records(p).find(j => j.phase !== "rejected" && j.pageId === p.pageId && j.planSha256 === p.planSha256 && j.request.model === p.model &&
+      let j = records(p).findLast(j => j.phase !== "rejected" && j.pageId === p.pageId && j.planSha256 === p.planSha256 && j.request.model === p.model &&
         JSON.stringify(j.target) === JSON.stringify(target) && j.request.input === input && j.referenceIntentId === p.referenceIntentId);
       if (!j) {
         j = { intentId: randomUUID(), planSha256: p.planSha256, pageId: p.pageId, target, request: { kind: p.decomposition ? "image-layers" : "image", model: p.model, input },
@@ -90,7 +92,16 @@ async function fixture(t, coursePlan = plan) {
     }
     const j = records(p).find(j => j.intentId === p.intentId);
     assert(j, "scoped journal exists");
-    if (method === "courseware.sceneImage.rebindModel") {
+    if (method === "courseware.sceneImage.retry") {
+      const retryId = retryHelpers.coursewareRetryIntentId(j.intentId);
+      let retry = records(p).find(row => row.intentId === retryId);
+      if (!retry) {
+        retry = { ...structuredClone(j), intentId: retryId, idempotencyKey: randomUUID(), phase: "prepared", taskRef: null };
+        delete retry.submissionScope;
+        journals.set(partition(p), [...records(p), retry]);
+      }
+      return current(retry);
+    } else if (method === "courseware.sceneImage.rebindModel") {
       assert.equal(j.phase, "prepared"); assert.equal(j.requestHash, p.expectedRequestHash);
       assert((await current(j)).current); assert.equal(j.taskRef, null);
       j.request.model = p.model; j.idempotencyKey = randomUUID(); j.requestHash = digest(JSON.stringify(j.request));
@@ -108,9 +119,17 @@ async function fixture(t, coursePlan = plan) {
       if (j.taskRef) assert.deepEqual(j.taskRef, p.taskRef);
       j.taskRef = p.taskRef; j.phase = "submitted";
     } else if (method === "courseware.sceneImage.bundle.stage") {
-      for (const [index, image] of p.images.entries()) {
+      if (p.stageOnly) {
+        assert.equal(p.images.length, 1);
+        const image = p.images[0];
         assert.deepEqual(image.asset.taskRef, j.taskRef);
         await writeFile(join(root, `${image.asset.sha256}.bin`), Buffer.from(image.bytesBase64, "base64"));
+        return current(j);
+      }
+      for (const [index, image] of p.images.entries()) {
+        assert.deepEqual(image.asset.taskRef, j.taskRef);
+        assert.equal(image.bytesBase64, undefined);
+        assert.equal(digest(await readFile(join(root, `${image.asset.sha256}.bin`))), image.asset.sha256);
         if (!index) j.asset = structuredClone(image.asset);
         else records(p).push({ ...structuredClone(j), intentId: `${j.intentId}-layer-${index}`,
           target: image.target, asset: structuredClone(image.asset), selected: false });
@@ -136,7 +155,8 @@ async function fixture(t, coursePlan = plan) {
     async getImageModels() { calls.push("GET models"); return [{ model: "image-model", voices: [], providerDefaultVoice: false,
       ...(supportsReferenceImage === undefined ? {} : { supportsReferenceImage }) }]; },
     async getImageQuote() { calls.push("GET quote"); if (quoteGate) await quoteGate.promise; return quote; },
-    async submitConfirmedImage(key, request, confirmation, signal, projectId) {
+    async submitConfirmedImage(key, request, confirmation, signal, projectId, check, admit) {
+      await check?.(); if (admit) projectId = await admit();
       assert.equal(projectId, [...journals.values()].flat().find(j => j.idempotencyKey === key).submissionScope.teamProjectId ?? undefined);
       calls.push("POST confirmed");
       calls.push({ postedRequest: structuredClone(request) });
@@ -184,6 +204,37 @@ async function fixture(t, coursePlan = plan) {
   };
 }
 
+test("an explicitly requested retry creates one fresh attempt for a refunded failed image without changing its prompt", async t => {
+  const f = await fixture(t);
+  const original = await f.prepare();
+  await f.coordinator.generate(f.operation(original));
+  const getImage = f.media.getImage;
+  f.media.getImage = async (...args) => ({ ...await getImage(...args), state: "failed", feeState: "released", actualPoints: 0, errorCode: "UPSTREAM_HTTP_400" });
+  assert.equal((await f.coordinator.status(f.operation(original))).task.state, "failed");
+  assert.equal((await f.prepare()).intentId, original.intentId, "ordinary continuation must not buy a replacement");
+  const retry = await f.coordinator.retry(f.operation(original));
+  assert.notEqual(retry.intentId, original.intentId);
+  assert.equal(retry.prompt, original.prompt);
+  assert.equal((await f.coordinator.retry(f.operation(original))).intentId, retry.intentId, "repeat delivery must reuse this retry");
+  assert.equal((await f.prepare()).intentId, retry.intentId);
+  const rows = await f.coordinator.list(f.base);
+  assert.equal(rows.find(row => row.intentId === original.intentId).current, false);
+  assert.equal(rows.find(row => row.intentId === retry.intentId).current, true);
+  await f.coordinator.generate(f.operation(retry));
+  assert.equal(f.calls.filter(call => call === "POST confirmed").length, 2);
+});
+
+for (const state of ["queued", "submission_unknown", "ready"]) test(`explicit image retry rejects ${state} without creating a successor`, async t => {
+  const f = await fixture(t);
+  const original = await f.prepare();
+  await f.coordinator.generate(f.operation(original));
+  const getImage = f.media.getImage;
+  f.media.getImage = async (...args) => ({ ...await getImage(...args), state, feeState: state === "ready" ? "settled" : "reserved", actualPoints: state === "ready" ? 3 : null });
+  await assert.rejects(f.coordinator.retry(f.operation(original)), /CONFIRMED_TERMINAL_FAILURE/);
+  assert.equal((await f.coordinator.list(f.base)).length, 1);
+  assert.equal(f.calls.filter(call => call === "POST confirmed").length, 1);
+});
+
 test("queued scene dispatch rechecks its approved plan before the paid request", async t => {
   const f = await fixture(t), priced = await f.priced();
   f.media.submitConfirmedImage = async (...args) => {
@@ -223,6 +274,35 @@ test("one confirmed decomposition archives its base and foreground with the same
   await restarted.archive(f.operation(prepared));
   assert.equal(f.calls.filter(call => call === "GET asset").length, before);
   assert.equal(f.calls.filter(call => call === "POST confirmed").length, 2, "master plus one decomposition");
+});
+
+test("explicit failed decomposition retry retains the selected master and submits identical reference bytes once", async t => {
+  const f = await fixture(t), master = await f.priced();
+  await f.coordinator.submitConfirmed(master.payload); f.ready();
+  await f.coordinator.archive(f.operation(master.view));
+  await f.coordinator.adopt({ ...f.operation(master.view), expectedSelectedIntentId: null });
+  f.media.getLayerModels = async () => [{ model: "layers-model", supportsReferenceImage: true }];
+  const original = await f.prepare({ model: undefined, target: { kind: "cleanPlate" }, referenceIntentId: master.view.intentId });
+  Object.assign(f.quote, { kind: "image-layers", model: "layers-model" });
+  await f.coordinator.generate(f.operation(original));
+  const getImage = f.media.getImage;
+  f.media.getImage = async (...args) => ({ ...await getImage(...args), state: "failed", feeState: "released", actualPoints: 0, errorCode: "UPSTREAM_HTTP_400" });
+  const restarted = f.create();
+  const retry = await restarted.retry(f.operation(original));
+  assert.deepEqual(retry.referenceImage, original.referenceImage);
+  assert.equal(retry.model, original.model);
+  await restarted.generate(f.operation(retry));
+  const posts = f.calls.filter(call => call.postedRequest).map(call => call.postedRequest);
+  assert.deepEqual(posts[2], posts[1]);
+  assert.equal((await restarted.retry(f.operation(original))).intentId, retry.intentId);
+  assert.equal(posts.length, 3, "one master and two decomposition attempts");
+  assert((await restarted.list(f.base)).find(row => row.intentId === master.view.intentId).selected);
+});
+
+test("retry requires final accounting even when the original image has failed", () => {
+  for (const task of [{ state: "failed", feeState: "reserved", actualPoints: null },
+    { state: "failed", feeState: "released", actualPoints: 1 }, { state: "failed", feeState: "settled", actualPoints: null }])
+    assert.throws(() => retryHelpers.assertCoursewareRetryable(task), /CONFIRMED_TERMINAL_FAILURE/);
 });
 
 test("decomposition preserves validated layer bounds and rejects missing or forged layer data", async () => {
@@ -581,6 +661,8 @@ test("ready image archives original bytes, previews after coordinator restart an
   const restarted = f.create();
   assert.deepEqual(await restarted.preview(f.operation(p.view)), preview);
   assert.deepEqual(await restarted.archive(f.operation(p.view)), preview);
+  f.media.getImage = async () => { throw new Error("COURSEWARE_MEDIA_LEGACY_TASK_UNAVAILABLE"); };
+  assert.deepEqual(await restarted.status(f.operation(p.view)), preview.image);
   assert.equal(f.calls.filter(c => c === "GET asset").length, 1);
   const selected = await restarted.adopt({ ...f.operation(p.view), expectedSelectedIntentId: null });
   assert.equal(selected[0].selected, true);
@@ -828,4 +910,29 @@ test("native layer bundles above 16 MiB retain every provider pixel within Host 
   assert.equal(images.length, 5);
   assert.equal(images[4].bytesBase64, large.toString("base64"));
   assert(Buffer.byteLength(JSON.stringify({ images })) < shared.MAX_HOST_STDIN_LINE_BYTES);
+});
+
+test("large URL bundles stage one verified image per Host frame without changing supplier bytes", async () => {
+  const type = Buffer.from("caBX"), metadata = Buffer.alloc(5 * 1024 * 1024);
+  const chunk = Buffer.alloc(metadata.length + 12);
+  chunk.writeUInt32BE(metadata.length); type.copy(chunk, 4); metadata.copy(chunk, 8);
+  chunk.writeUInt32BE(crc32(chunk.subarray(4, -4)), chunk.length - 4);
+  const large = Buffer.concat([png.subarray(0, -12), chunk, png.subarray(-12)]);
+  const taskRef = { taskId: "gw-streamed", idempotencyKey: randomUUID(), requestHash: "a".repeat(64) };
+  const data = Array.from({ length: 10 }, (_, z_index) => ({ z_index, url: `https://ark-cdn.example/${z_index}.png`,
+    ...(z_index ? { bounding_box: { normalized: [100, 100, 900, 900] } } : {}) }));
+  electron.session = { defaultSession: { resolveHost: async () => ({ endpoints: [{ address: "8.8.8.8", family: "ipv4" }] }), resolveProxy: async () => "DIRECT" } };
+  let downloaded = 0, staged = 0;
+  electron.net = { fetch: async () => { assert.equal(downloaded, staged, "archive each image before downloading the next"); downloaded++; return new Response(large, { headers: { "content-type": "image/png" } }); } };
+  nativePixels = Buffer.alloc(16, 255);
+  const images = await assetHelpers.downloadSceneImageBundle(Buffer.from(JSON.stringify({ data })), taskRef, async image => {
+    assert.equal(image.bytesBase64, large.toString("base64"));
+    assert(Buffer.byteLength(JSON.stringify({ images: [image] })) < shared.MAX_HOST_STDIN_LINE_BYTES);
+    staged++;
+  });
+  assert.equal(staged, 10);
+  assert.equal(images.length, 10);
+  assert(images.every(image => image.bytesBase64 === undefined));
+  assert(large.length * images.length > 44 * 1024 * 1024);
+  assert(Buffer.byteLength(JSON.stringify({ images })) < 100_000);
 });

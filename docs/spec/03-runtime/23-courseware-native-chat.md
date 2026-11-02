@@ -3,6 +3,41 @@
 Status: source Electron integration verified (A2, 2026-10-19); packaged acceptance
 pending. No new assistant or conversation UI.
 
+## Recovery of older saved animation edits
+
+Opening a verified saved revision can recover an older native save that changed
+PPTX bytes without a durable native-save receipt. Host requires the same ordered
+page inventory, unique unchanged page content fingerprints, and a complete
+ordered object inventory with unique nonempty unchanged names, kinds and content
+fingerprints. Native numeric shape IDs and geometry fingerprints may change;
+neither is used as stable identity. Missing/error identities, page/object
+insertions, deletions, reorderings, replacements and ambiguous names still fail
+closed. Existing native-animation teaching bindings require the normal verified
+save lineage and cannot use this recovery path.
+
+Host retains page/object UUIDs and all teaching actions, rebinds adopted audio
+with the existing source-review validator, archives the previous teaching and
+persists the new exact source/mapping in one transaction. Pending source/native
+saves block recovery. Same-byte reopen remains idempotent. No new human
+confirmation or model/TTS generation is involved; source files are never changed
+by timeline loading.
+
+## Teaching recovery buffers
+
+Drafts are internal recovery buffers, not approval or a separate save workflow.
+Reading a buffer archives and retires it if its actions equal the saved page and
+its instruction is empty. Otherwise Host can rebase only an unchanged saved
+page (including lock state). Cross-source continuation additionally requires both
+identities to prove unchanged page content and ordered object UUID/kind/content
+inventories. Native-animation draft actions require normal save lineage. Missing
+identity or real conflict retains the buffer. Automatic mutations archive it.
+
+The sidebar resumes valid edits through normal autosave. A conflict offers
+Delete draft using existing session/page-scoped revision CAS. It restores saved
+teaching without submitting draft actions or paid tasks; failed clear retains
+the buffer. Page navigation resets prior page errors. This also recovers after
+an acknowledged teaching save whose separate buffer clear was interrupted.
+
 ## Before-dispatch Chat receipts (W03.3)
 
 `ppt_record_change_plan` records a current-page checklist before compound edits.
@@ -506,3 +541,27 @@ includes that directory. Release provenance must identify both repositories; a
 dirty development manifest is not a release certification. Native teaching sidebar,
 portable sidecar ownership and combined lesson playback remain separate gates in
 the approved implementation plan.
+
+### Teaching edits and sentence boundaries
+
+Background prompt dispatch without a matching foreground-session hint must not
+clear or replace the published viewing session. Only the shell's explicit
+navigation publication clears it. Native animation saves and teaching reads
+continue to use the current Chat owner, saved source and editor binding; no
+fallback conversation or weaker stale-write check is introduced.
+
+The spotlight/highlight form uses a filled primary Add/Save button and a bordered
+Cancel button. Cue editing needs saved narration audio and mapped targets on an
+unlocked page, never per-page confirmation. The existing cue ID, fixed audio,
+other effects and narration survive an edit.
+
+Newly initialized narration is stored as separate sentence actions. Generated
+detailed narration also keeps sentence boundaries, including consecutive
+sentences about the same attention target; commas do not require new actions.
+Explicitly selected notes/external narration use the same sentence boundary
+without a model call or changes to the selected spoken text.
+Preserve punctuation, whitespace, quoted closing marks and decimal numbers.
+Entrance animation belongs to the first resulting segment and a trailing wait
+belongs to the final segment. Legacy single-action initialization remains
+idempotent. Existing saved audio and manual teaching are never silently split or
+rewritten; regenerating narration uses the existing audio-invalidation workflow.

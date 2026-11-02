@@ -2,6 +2,57 @@
 
 ## Unreleased
 
+- Validate scene drafts before closing planning, stop completed courses at the
+  tool-result boundary, and summarize final media status. Repair missing character
+  focus without replacing saved speech/audio or purchasing new TTS.
+
+- Preserve original music/video target bindings across verified PPT saves; begin
+  only after queue admission, reconcile concurrent status reads and retain
+  ambiguous legacy orders without replacement purchases. Bound image/video
+  recovery, preserve healthy independent work and close terminal reporting once.
+- Repair required teaching with action deltas that preserve saved speech/audio,
+  compare the exact approved question contract, and retain required video through
+  planning, compilation and Host acceptance. Add a fresh-Host workflow gate to CI.
+
+- Validate music generation/export models before saving intents, allow corrections
+  only for never-submitted requests, and keep paid/unknown order identities.
+  Reject unapproved scene music and safely remove legacy unsubmitted slots.
+  Stop stalled courseware with one blocked report and use saved completion counts.
+
+- Check complete-course acceptance against retained page requirements, persist
+  bounded repair progress in Host, and resume verified native saves without
+  resetting budgets. Restore missing approved questions/music while retaining
+  existing speech/audio/effects; retry only explicit transient original-job reads.
+
+- Allow verified local teaching audio/video blobs in the production editor CSP.
+  Preserve user-edited native animation presets, durations and click order during
+  teaching playback; play multiple native steps per speech without duplicate effects.
+
+- Raise independent TTS concurrency to ten and batch same-page generation,
+  recovery, downloads, decoding and verified archives. Keep revision-checked
+  adoption ordered, preserve successful audio on partial failure, and recover
+  original pending jobs without duplicate paid submissions.
+
+- Resume safe teaching recovery buffers after saved-source changes, retire buffers
+  already saved, and expose page-scoped draft deletion for actual conflicts.
+
+- Keep background courseware generation, narration and media bound to their
+  owning turn when navigating between Chats or settings. Preserve Stop, source,
+  account and revision checks, and foreground ownership for editor actions.
+
+- Recover teaching after an older native animation save when the complete named
+  page/object inventory still matches. Preserve narration, adopted audio and
+  logical IDs, archive the previous teaching, and reject ambiguous changes.
+
+- Make spotlight/highlight Add, Save and Cancel controls distinct, retain the
+  foreground teaching owner during background prompts, and keep new narration
+  sentence-based without rewriting previously saved audio or manual teaching.
+
+- Remove per-page teaching confirmation and per-effect approval. Saved narration,
+  media and mapped effects use automatic validation; only teaching-plan and
+  first-page style approval gate the teaching workflow. Legacy review flags no
+  longer block editing, readiness, snapshots or playback.
+
 - Choose a scene art style or enter a custom description when creating a task.
   Preserve it in planning and across pages instead of forcing hand-painted
   picture-book styling.

@@ -41,6 +41,13 @@ jobs:
       - name: Build workspace packages
         run: pnpm build:js
 
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Courseware workflow contract gate
+        run: pnpm test:courseware-workflow
+
       - name: Typecheck Desktop
         # Workspace dependency builds already run tsc; Vite does not check the app.
         run: pnpm --filter @pi-desktop/desktop typecheck

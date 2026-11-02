@@ -55,57 +55,51 @@ function setup(fetch = async () => json(ready())) {
   return { client, calls, principal: (value) => { principal = value; } };
 }
 
-test("all media kinds share five slots, including async generation after submit returns", async t => {
+test("media types have independent limits and async jobs retain their own slots", async t => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
-  const submitted = [], completed = new Set(), tasks = new Map();
-  let releaseFirst, releaseSecond;
+  const limits = { tts: 10, image: 5, "image-layers": 5, music: 2, video: 2, "music-export": 2 };
+  const counts = Object.fromEntries(Object.keys(limits).map(kind => [kind, 0]));
+  const completed = new Set(), tasks = new Map();
+  let releaseFirst;
   const firstStarted = new Promise(resolve => { releaseFirst = resolve; });
-  const secondStarted = new Promise(resolve => { releaseSecond = resolve; });
   const f = setup(async (url, init) => {
     const parsed = new URL(url);
     if (parsed.pathname.endsWith("/models")) return json([{ model: imageInput.model, voices: [], providerDefaultVoice: false, supportsReferenceImage: true }]);
     if (init.method === "POST") {
-      const body = JSON.parse(init.body).request;
-      const key = init.headers.get("Idempotency-Key");
-      submitted.push(key);
+      const body = JSON.parse(init.body).request, key = init.headers.get("Idempotency-Key");
+      counts[body.kind]++;
       const value = { ...ready(body, key), taskId: `task-${key}`, kind: body.kind, state: "submitted", assetRef: null,
         feeState: "reserved", actualPoints: null, receiptId: null,
         requestHash: body.kind.startsWith("music") ? musicRequestHash(body) : hashRequest(body) };
       tasks.set(key, value);
-      if (submitted.length === 5) releaseFirst();
-      if (submitted.length === 10) releaseSecond();
+      if (Object.values(counts).reduce((a, b) => a + b, 0) === Object.values(limits).reduce((a, b) => a + b, 0)) releaseFirst();
       return json(value);
     }
     const key = parsed.searchParams.get("key") ?? parsed.pathname.split("/").at(-1).slice(5);
     assert(tasks.has(key), "queued work must only poll existing tasks");
     return json({ ...tasks.get(key), state: completed.has(key) ? "failed" : "submitted" });
   });
-  const jobs = Array.from({ length: 12 }, (_, index) => {
-    const kind = ["tts", "image", "image-layers", "music", "video", "music-export"][index % 6];
+  const jobs = Object.entries(limits).flatMap(([kind, limit]) => Array.from({ length: limit + 1 }, (_, index) => {
     const bytes = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg==", "base64");
     const body = kind === "tts" ? input : kind.startsWith("music") ? { kind, model: kind,
       input: kind === "music-export" ? "11111111-1111-4111-8111-111111111111" : "Hello song",
       ...(kind === "music" ? { music: { title: "Hello" } } : {}) } : { ...imageInput, kind, ...(kind === "image-layers" ? {
       referenceImage: { sha256: sha(bytes), mimeType: "image/png", byteLength: bytes.length, bytesBase64: bytes.toString("base64") },
     } : {}) };
-    const quote = { ...imageQuote(), kind, model: body.model };
-    if (kind === "music" || kind === "music-export") return f.client.music.submitConfirmed(`batch-${index}`, body, quote);
-    if (kind === "video") return f.client.video.submit(`batch-${index}`, body, quote);
-    return kind === "tts" ? f.client.submitConfirmedTts(`batch-${index}`, body, quote)
-      : f.client.submitConfirmedImage(`batch-${index}`, body, quote);
-  });
+    const quote = { ...imageQuote(), kind, model: body.model }, key = `${kind}-${index}`;
+    if (kind === "music" || kind === "music-export") return f.client.music.submitConfirmed(key, body, quote);
+    if (kind === "video") return f.client.video.submit(key, body, quote);
+    return kind === "tts" ? f.client.submitConfirmedTts(key, body, quote) : f.client.submitConfirmedImage(key, body, quote);
+  }));
+  // Let all immediately dispatched transport responses finish before advancing the clock.
+  for (let i = 0; i < 100; i++) await Promise.resolve();
+  assert.deepEqual(counts, limits, "each type must reach only its own limit, regardless of saturated peers");
+  t.diagnostic(JSON.stringify({ scenario: "concurrency", peakConcurrency: { ...counts } }));
   await firstStarted;
-  for (let i = 0; i < 60; i++) await Promise.resolve();
-  assert.equal(submitted.length, 5, "pending remote jobs must retain their generation slots");
-  for (const key of submitted) completed.add(key);
-  t.mock.timers.tick(3000);
-  await secondStarted;
-  for (let i = 0; i < 60; i++) await Promise.resolve();
-  assert.equal(submitted.length, 10);
-  for (const key of submitted) completed.add(key);
+  for (const key of tasks.keys()) completed.add(key);
   t.mock.timers.tick(3000);
   await Promise.all(jobs);
-  assert.deepEqual(submitted.toSorted(), Array.from({ length: 12 }, (_, i) => `batch-${i}`).sort());
+  assert.deepEqual(counts, Object.fromEntries(Object.entries(limits).map(([kind, limit]) => [kind, limit + 1])));
 });
 
 test("team submission uses a distinct route with unchanged hashes and never falls back", async () => {
@@ -237,7 +231,7 @@ test("configured gateway owns image catalog, quote, submit, lookup and bytes whi
   await assert.rejects(invalidGateway.findImage({ idempotencyKey: "scene-image-1", requestHash: hashRequest(imageInput) }), /INVALID_RESPONSE/);
 });
 
-test("gateway failure cannot submit to Platform and old receipts have only read-only recovery", async () => {
+test("gateway misses never fall back to retired Platform image task routes", async () => {
   const calls = [], principal = {};
   const client = new CoursewareMediaClient({ baseUrl: "https://platform.test", imageBaseUrl: "https://gateway.test/v1",
     getPrincipal: () => principal, resolveAccessToken: async () => "user", fetch: async (url, init) => {
@@ -246,15 +240,17 @@ test("gateway failure cannot submit to Platform and old receipts have only read-
         if (init.method === "POST") return new Response("missing", { status: 404 });
         return new Response(JSON.stringify({ code: 46006 }), { headers: { "content-type": "application/json" } });
       }
-      assert.notEqual(init.method, "POST"); return json(imageQueued());
+      return new Response(JSON.stringify({ code: 46019 }), { headers: { "content-type": "application/json" } });
     } });
   await assert.rejects(client.submitConfirmedImage("scene-image-1", imageInput, imageQuote()), /HTTP_404/);
   assert.equal(calls.length, 1);
-  const found = await client.findImage({ idempotencyKey: "scene-image-1", requestHash: hashRequest(imageInput) });
-  assert.equal(found.taskId, "task-1");
-  await client.getImage(reference(found));
-  assert(calls.slice(1).every(([, init]) => init.method !== "POST"));
-  assert(calls.at(-1)[0].startsWith("https://platform.test/"));
+  for (const kind of ["image", "image-layers"])
+    assert.equal(await client.findImage({ idempotencyKey: "scene-image-1", requestHash: hashRequest(imageInput) }, undefined, kind), null);
+  assert(calls.every(([url]) => url.startsWith("https://gateway.test/")));
+  const before = calls.length;
+  await assert.rejects(client.getImage(reference(imageQueued())), /COURSEWARE_MEDIA_LEGACY_TASK_UNAVAILABLE/);
+  await assert.rejects(client.downloadImage(reference(imageQueued())), /COURSEWARE_MEDIA_LEGACY_TASK_UNAVAILABLE/);
+  assert.equal(calls.length, before, "Legacy receipts must not query the retired Platform API");
 });
 
 test("confirmed reference generation sends exact reviewed PNG bytes and the shared UTF-16 hash fixture", async () => {

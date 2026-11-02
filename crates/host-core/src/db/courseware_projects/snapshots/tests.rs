@@ -158,17 +158,7 @@ fn attention_authoring_preserves_audio_waits_and_logical_targets_in_the_frozen_e
         )
         .unwrap();
     assert_eq!(edited.pages[0].review_state, "review");
-    assert!(capture(&db, root, &edited).is_err());
-    let confirmed = db
-        .review_courseware_page(
-            root,
-            &edited.project_id,
-            &edited.pages[0].page_id,
-            &edited.source.revision,
-            &edited.teaching_revision,
-        )
-        .unwrap();
-    let frozen = capture(&db, root, &confirmed).unwrap();
+    let frozen = capture(&db, root, &edited).unwrap();
     assert_eq!(frozen.project.pages[0].actions, actions);
     assert_eq!(frozen.snapshot.asset_ids, vec!["voice-1"]);
     assert_eq!(
@@ -182,7 +172,7 @@ fn attention_authoring_preserves_audio_waits_and_logical_targets_in_the_frozen_e
     drop(db);
     let db = Database::open_in_dir(dir.path()).unwrap();
     let reopened = db
-        .get_courseware_snapshot(root, &confirmed.project_id, "snapshot-1")
+        .get_courseware_snapshot(root, &edited.project_id, "snapshot-1")
         .unwrap();
     assert_eq!(reopened.project.pages[0].actions, actions);
     assert_eq!(reopened.mapping(), frozen.mapping());
@@ -325,7 +315,7 @@ fn confirmation_is_revision_checked_preserves_locks_and_is_invalidated_by_edits(
 }
 
 #[test]
-fn capture_requires_confirmed_pages_fresh_mapping_and_exact_fixed_audio_references() {
+fn capture_requires_fresh_mapping_and_exact_fixed_audio_references() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().to_str().unwrap();
     let db = Database::open_in_dir(dir.path()).unwrap();
@@ -335,7 +325,7 @@ fn capture_requires_confirmed_pages_fresh_mapping_and_exact_fixed_audio_referenc
     assert!(capture(&db, root, &initial)
         .unwrap_err()
         .to_string()
-        .contains("confirm every"));
+        .contains("unreferenced fixed audio asset"));
     let p = ready(&db, root);
     assert!(db
         .capture_courseware_snapshot(
@@ -619,4 +609,20 @@ fn native_animation_nodes_survive_restart_and_snapshot_with_exact_source_and_ord
         capture(&db, root, &reviewed).unwrap().project.pages[0].actions,
         write.actions
     );
+}
+
+#[test]
+fn saved_teaching_snapshot_needs_no_per_page_confirmation() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_str().unwrap();
+    let db = Database::open_in_dir(dir.path()).unwrap();
+    let p = ready(&db, root);
+    let edited = db.write_courseware_teaching(root, &TeachingWrite {
+        project_id: p.project_id.clone(), page_id: p.pages[0].page_id.clone(),
+        expected_source_revision: p.source.revision.clone(),
+        expected_teaching_revision: p.teaching_revision.clone(), actions: p.pages[0].actions.clone(),
+    }).unwrap();
+    assert_eq!(edited.pages[0].review_state, "review");
+    let frozen = capture(&db, root, &edited).unwrap();
+    assert_eq!(frozen.project.pages[0].actions, edited.pages[0].actions);
 }

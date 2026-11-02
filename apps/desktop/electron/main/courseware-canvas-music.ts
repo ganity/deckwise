@@ -16,7 +16,8 @@ type Host = { call<T>(method: string, params: unknown): Promise<T> };
 type Journal = { current: boolean; intent: {
   intentId: string; draft: CoursewareCanvasMusicView["draft"]; request: MusicRequest | MusicExportRequest;
   idempotencyKey: string; requestHash: string; phase: CoursewareCanvasMusicView["phase"]; taskRef: CoursewareTaskRef | null;
-  submissionScope?: unknown; sourceIntentId?: string; candidates: CoursewareCanvasMusicView["candidates"]; ready: boolean;
+  target?: CoursewareCanvasMusicView["target"]; submissionScope?: unknown; sourceIntentId?: string; candidates: CoursewareCanvasMusicView["candidates"]; ready: boolean;
+  unresolvedProjectId?: string;
   previews: CoursewareCanvasMusicView["previews"]; asset?: CoursewareCanvasMusicAsset | null;
 } };
 type Task = MediaTasks[MusicOperation];
@@ -46,6 +47,10 @@ function checked(v: Journal, expectedId?: string): Journal {
       (i.phase === "submitted") !== (i.taskRef !== null) ||
       i.taskRef !== null && (!isCoursewareTaskRef(i.taskRef) || i.taskRef.idempotencyKey !== i.idempotencyKey || i.taskRef.requestHash !== i.requestHash) ||
       typeof i.ready !== "boolean" || !Array.isArray(i.previews)) throw invalid();
+  if (i.unresolvedProjectId !== undefined && !id(i.unresolvedProjectId)) throw invalid();
+  const target = i.target;
+  if (target && (target.version !== 1 || !id(target.projectId) || !id(target.pageId) || !id(target.actionId) ||
+      !id(target.source?.revision) || !/^[a-f0-9]{64}$/u.test(target.source?.sha256) || typeof target.prompt !== "string" || !target.prompt.trim() || target.prompt.length > 4000)) throw invalid();
   musicRequest(i.request);
   if (i.request.kind === "music" ? i.sourceIntentId !== undefined || i.request.input !== d.prompt || i.request.music.title !== d.title
     : !id(i.sourceIntentId) || i.sourceIntentId === i.intentId || i.previews.length > 0 || i.candidates.length > 0 || i.ready) throw invalid();
@@ -59,7 +64,8 @@ function view(j: Journal, task: Task | null = null): CoursewareCanvasMusicView {
   const i = j.intent;
   return { intentId: i.intentId, draft: i.draft, model: i.request.model, operation: i.request.kind,
     ...(i.request.kind === "music" ? { music: i.request.music } : { sourceIntentId: i.sourceIntentId, candidateId: i.request.input }),
-    phase: i.phase, current: j.current, candidates: i.candidates, previews: i.previews, asset: i.asset ?? null,
+    ...(i.target ? { target: i.target } : {}), phase: i.phase, current: j.current, candidates: i.candidates, previews: i.previews, asset: i.asset ?? null,
+    ...(i.unresolvedProjectId ? { unresolvedProjectId: i.unresolvedProjectId } : {}),
     task: task ? { state: task.state, feeState: task.feeState, reservedPoints: task.reservedPoints,
       actualPoints: task.actualPoints, errorCode: task.errorCode } : null };
 }
@@ -96,14 +102,15 @@ export class CoursewareCanvasMusic {
   }
 
   async prepare(value: unknown): Promise<CoursewareCanvasMusicView> {
-    if (!object(value) || Object.keys(value).sort().join(",") !== "draftId,expectedDraftRevision,expectedRevision,intentId,model,music,sessionId" ||
+    if (!object(value) || Object.keys(value).filter(k => k !== "target").sort().join(",") !== "draftId,expectedDraftRevision,expectedRevision,intentId,model,music,sessionId" ||
         typeof value.draftId !== "string" || !value.draftId.trim() || value.draftId.length > 160 ||
         typeof value.expectedRevision !== "string" || !value.expectedRevision || value.expectedRevision.length > 128 ||
         !Number.isSafeInteger(value.expectedDraftRevision) || Number(value.expectedDraftRevision) < 0) throw new Error("COURSEWARE_CANVAS_MUSIC_INVALID_REQUEST");
-    const { expectedRevision, expectedDraftRevision, draftId, music, ...ids } = structuredClone(value);
+    const { expectedRevision, expectedDraftRevision, draftId, music, target, ...ids } = structuredClone(value);
     const p = input(ids, ["intentId", "model"]), c = await this.context(p, true);
     musicRequest({ kind: "music", model: p.model, input: "validation", music });
-    const saved = checked(await c.host.call<Journal>(rpc("prepare"), { ...c.scope, expectedRevision, expectedDraftRevision, draftId, model: p.model, music }), p.intentId);
+    await this.assertModel(c, "music", p.model);
+    const saved = checked(await c.host.call<Journal>(rpc("prepare"), { ...c.scope, expectedRevision, expectedDraftRevision, draftId, model: p.model, music, ...(target ? { target } : {}) }), p.intentId);
     c.assertCurrent();
     if (!saved.current || saved.intent.request.kind !== "music" || saved.intent.request.model !== p.model || saved.intent.draft.id !== draftId ||
         saved.intent.draft.revision !== expectedDraftRevision || musicRequestHash({ kind: "music", model: p.model,
@@ -115,11 +122,18 @@ export class CoursewareCanvasMusic {
     const p = input(value, ["intentId", "exportIntentId", "candidateId", "model"]);
     if (!musicCandidateId(p.candidateId)) throw new Error("COURSEWARE_CANVAS_MUSIC_INVALID_REQUEST");
     const c = await this.context(p, true);
+    await this.assertModel(c, "music-export", p.model);
     const saved = checked(await c.host.call<Journal>(rpc("export.prepare"), { ...c.scope, intentId: p.exportIntentId,
       sourceIntentId: p.intentId, candidateId: p.candidateId, model: p.model }), p.exportIntentId); c.assertCurrent();
     if (saved.intent.request.kind !== "music-export" || saved.intent.sourceIntentId !== p.intentId ||
         saved.intent.request.input !== p.candidateId || saved.intent.request.model !== p.model) throw invalid();
     return view(saved);
+  }
+
+  private async assertModel(c: Awaited<ReturnType<CoursewareCanvasMusic["context"]>>, kind: MusicOperation, model: string) {
+    const models = await this.auth.coursewareMedia.music.models(kind);
+    c.assertCurrent();
+    if (!models.some(value => value.model === model)) throw new Error("COURSEWARE_CANVAS_MUSIC_MODEL_UNAVAILABLE");
   }
 
   async list(value: unknown): Promise<CoursewareCanvasMusicView[]> {
@@ -160,15 +174,19 @@ export class CoursewareCanvasMusic {
       if (!offer || offer.scope !== key || offer.hash !== saved.intent.requestHash || Date.parse(offer.quote.expiresAt) <= Date.now())
         throw new Error("COURSEWARE_CANVAS_MUSIC_QUOTE_REQUIRED");
       this.quotes.delete(p.quoteId);
-      const begun = checked(await c.host.call<Journal>(rpc("begin"), c.scope), p.intentId); c.assertCurrent();
+      let begun = saved, projectId: string | undefined;
+      const admit = async () => {
+        begun = checked(await c.host.call<Journal>(rpc("begin"), c.scope), p.intentId); c.assertCurrent();
       if (begun.intent.phase !== "submission-unknown" || begun.intent.idempotencyKey !== saved.intent.idempotencyKey ||
           begun.intent.requestHash !== saved.intent.requestHash || JSON.stringify(begun.intent.request) !== JSON.stringify(saved.intent.request)) throw invalid();
-      const projectId = coursewareMediaSubmissionProject(begun.intent.submissionScope, p.sessionId);
+        projectId = coursewareMediaSubmissionProject(begun.intent.submissionScope, p.sessionId);
       c.assertCurrent();
+        return projectId;
+      };
       let task: Task;
-      try { task = await this.auth.coursewareMedia.music.submitConfirmed(begun.intent.idempotencyKey, begun.intent.request, offer.quote, undefined, projectId, c.assertCurrent); }
+      try { task = await this.auth.coursewareMedia.music.submitConfirmed(saved.intent.idempotencyKey, saved.intent.request, offer.quote, undefined, undefined, c.assertCurrent, admit); }
       catch (failure) {
-        if (!isCoursewareMediaPermissionRefusal(failure, projectId)) throw failure;
+        if (begun.intent.phase !== "submission-unknown" || !isCoursewareMediaPermissionRefusal(failure, projectId)) throw failure;
         const rejected = checked(await c.host.call<Journal>(rpc("reject"), { ...c.scope,
           rejectedRequest: { idempotencyKey: begun.intent.idempotencyKey, requestHash: begun.intent.requestHash } }), p.intentId);
         if (rejected.intent.phase !== "rejected" || rejected.intent.idempotencyKey !== begun.intent.idempotencyKey || rejected.intent.requestHash !== begun.intent.requestHash) throw invalid();

@@ -47,6 +47,7 @@ import {
 } from "@earendil-works/pi-agent-core";
 import {
   isContextOverflow,
+  LocalRequestError,
   getCurrentSystemMessage,
   getCurrentTools,
   getToolStateChanges,
@@ -2311,22 +2312,35 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         const { message } = turn;
         if (message.stopReason === "error" || message.stopReason === "aborted") return;
         if (!this.gracefulStopRequested) {
+          const reportOnly = this.coursewareTurn.reportOnly;
           const canWait = () => this.mode === "agent" && !this.disposed && !this.runCancelled && !this.turnHadError &&
             !this.gracefulStopRequested && this.pendingSteering.size === 0;
           const instruction = await this.coursewareTurn.finish(turn, {
             canWait,
+            checkpoints: {
+              read: projectId => this.host.call("courseware.workflow.get", { sessionId: this.sessionId, projectId }),
+              write: async (checkpoint, expectedRevision) => {
+                if (!canWait()) throw new Error("TOOL_TURN_CANCELLED: workflow turn ended");
+                await this.host.call("courseware.workflow.checkpoint", { sessionId: this.sessionId, turnId: this.turnId,
+                  projectId: checkpoint.projectId, expectedRevision, checkpoint });
+              },
+            },
             execute: async (name, args, signal) => {
               const tool = this.toolCatalog.get(name);
               if (!tool) throw new Error("Courseware workflow tool is unavailable");
               this.setAgentActivity({ phase: "preparing", since: Date.now() });
               return tool.execute(randomUUID(), args, signal);
             },
-          }, signal);
+          }, signal).catch(cause => {
+            // A local continuation failure must never restart a successful model response.
+            throw readLocalRequestErrorDetails(cause) ? cause : new LocalRequestError("request-preparation", { cause });
+          });
           if (!canWait()) this.coursewareTurn.reset();
           if (instruction && canWait()) {
             this.agent.steer({ role: "system", content: "", sections: { courseware_workflow: instruction }, timestamp: Date.now() });
             return { action: "continue" };
           }
+          if (reportOnly || this.coursewareTurn.reportOnly) return { action: "end" };
         }
         if (this.gracefulStopRequested) {
           this.gracefulStopRequested = false;
@@ -2434,7 +2448,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
 
   /** Steering is consumed after next-turn preparation; sync before dispatch. */
   private prepareToolDeclarations(context: AgentContext): AgentLoopTurnUpdate {
-    const tools = this.declaredTools();
+    const tools = this.coursewareTurn.reportOnly ? [] : this.declaredTools();
     let messages = context.messages;
     const changes = getToolStateChanges(getCurrentTools(messages), tools.map(toToolDeclaration));
     if (changes.toolsAdded.length || changes.toolsRemoved.length) {
@@ -2647,6 +2661,12 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
   private async beforeToolCall(
     context: BeforeToolCallContext,
   ): Promise<BeforeToolCallResult | undefined> {
+    if (this.gracefulStopRequested) return { block: true,
+      reason: "The user stopped this turn. Do not start another tool; retain results of work already submitted." };
+    if (this.pendingSteering.size) return { block: true,
+      reason: "Interrupted by new user input. Read it before starting any more tools from this earlier response. Unfinished subagents keep working." };
+    if (this.coursewareTurn.reportOnly) return { block: true,
+      reason: "The courseware workflow has reached its final reporting pass. Report the actual completed or unfinished state using the supplied snapshot; no more tools or replacement submissions are allowed in this reporting pass. A new user request is required to resume." };
     if (this.deferredToolNames.has(context.toolCall.name) && !this.activeDeferredToolNames.has(context.toolCall.name)) {
       return { block: true, reason: `Call ${TOOL_SEARCH_NAME} to activate ${context.toolCall.name} before using it. A tool declaration does not grant execution permission.` };
     }
@@ -5829,7 +5849,12 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
   }
 
   private activateDeferredTools(names: readonly string[]): string[] {
-    const activated = names.filter(name => this.deferredToolNames.has(name)
+    const savedTeachingTools = ["courseware_narration_context", "courseware_narration_propose",
+      "courseware_media_context", "courseware_media_prepare", "courseware_media_refresh"];
+    const selectedNames = names.includes("courseware_workflow_get") ? [...names, "courseware_scene_plan_submit"] : names;
+    const selected = selectedNames.some(name => name === "courseware_scene_compile" || savedTeachingTools.includes(name))
+      ? [...new Set([...selectedNames, ...savedTeachingTools])] : selectedNames;
+    const activated = selected.filter(name => this.deferredToolNames.has(name)
       && !this.activeDeferredToolNames.has(name));
     for (const name of activated) this.activeDeferredToolNames.add(name);
     return activated;
@@ -9077,7 +9102,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
   steeringContext(expectedTurnId: string): { projectPath?: string; remoteWorkspace?: { hostKey: string; path: string }; supportsVision: boolean } {
     if (
       this.disposed || !this.acceptingSteering || this.runCancelled ||
-      this.turnHadError || !this.getStatus().isRunning ||
+      this.turnHadError || this.coursewareTurn.reportOnly || !this.getStatus().isRunning ||
       !expectedTurnId || expectedTurnId !== this.turnId ||
       this.planningState === "awaiting_approval"
     ) {

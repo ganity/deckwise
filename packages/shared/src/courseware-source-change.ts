@@ -138,12 +138,10 @@ export function sourceChangeForTeaching(raw: unknown, project: CoursewareProject
       JSON.stringify(change.expected) !== JSON.stringify(["source-associated", "teaching-review"]) ||
       !Array.isArray(change.pendingPageIds) || !Array.isArray(change.completed)) throw new Error("Invalid source change receipt");
   const associated = change.associationTeachingRevision !== null;
-  const pending = associated && change.targetSource === project.source.sha256
-    ? project.pages.filter(page => page.reviewState !== "ready").map(page => page.pageId) : [];
-  const phase = !associated ? "source-review" : change.targetSource !== project.source.sha256 ? "superseded" : pending.length ? "teaching-review" : "complete";
+  const phase = !associated ? "source-review" : change.targetSource !== project.source.sha256 ? "superseded" : "complete";
   const completed = ["source-saved", ...(associated ? ["source-associated"] : []), ...(phase === "complete" ? ["teaching-review"] : [])];
   if (change.phase !== phase || (associated && change.stale !== (phase === "superseded")) ||
-      JSON.stringify(change.pendingPageIds) !== JSON.stringify(pending) || JSON.stringify(change.completed) !== JSON.stringify(completed))
+      change.pendingPageIds.length !== 0 || JSON.stringify(change.completed) !== JSON.stringify(completed))
     throw new Error("Inconsistent source change receipt");
   return structuredClone(change) as CoursewareSourceChange;
 }

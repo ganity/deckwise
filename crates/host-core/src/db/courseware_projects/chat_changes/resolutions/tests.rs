@@ -77,7 +77,7 @@ fn resolve(
 }
 
 #[test]
-fn declared_chat_resolution_blocks_new_snapshots_preserves_old_snapshot_and_current_content_after_restart(
+fn chat_audit_needs_no_manual_closure_for_snapshots_and_preserves_history_after_restart(
 ) {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().to_str().unwrap();
@@ -93,18 +93,16 @@ fn declared_chat_resolution_blocks_new_snapshots_preserves_old_snapshot_and_curr
     )
     .unwrap();
     let r = declare(&db, root, &p, "turn-1");
-    assert!(db
+    db
         .capture_courseware_snapshot(
             root,
             &seed,
-            "blocked",
+            "without-manual-closure",
             &p.source.revision,
             &p.teaching_revision,
             vec![]
         )
-        .unwrap_err()
-        .to_string()
-        .contains("unresolved Chat"));
+        .unwrap();
     assert!(db
         .get_courseware_snapshot(root, &p.project_id, "old")
         .is_ok());
@@ -158,16 +156,11 @@ fn declared_chat_resolution_blocks_new_snapshots_preserves_old_snapshot_and_curr
         .is_err());
     drop(db);
     let db = Database::open_in_dir(dir.path()).unwrap();
-    db.ensure_courseware_chat_resolved(root, &p.project_id)
-        .unwrap();
     assert_eq!(
         db.courseware_chat_change_context(root, &closed).unwrap(),
         view
     );
     declare(&db, root, &closed, "turn-2");
-    assert!(db
-        .ensure_courseware_chat_resolved(root, &p.project_id)
-        .is_err());
     assert!(db
         .get_courseware_snapshot(root, &p.project_id, "after")
         .is_ok());
@@ -178,7 +171,7 @@ fn declared_chat_resolution_refuses_forgery_races_storage_failure_and_hidden_his
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().to_str().unwrap();
     let db = Database::open_in_dir(dir.path()).unwrap();
-    let (_, p) = setup(&db, root);
+    let (seed, p) = setup(&db, root);
     let r = declare(&db, root, &p, "first");
     assert!(db
         .resolve_courseware_chat_change(
@@ -260,13 +253,6 @@ fn declared_chat_resolution_refuses_forgery_races_storage_failure_and_hidden_his
             .len(),
         10
     );
-    assert!(db
-        .ensure_courseware_chat_resolved(root, &p.project_id)
-        .is_err());
-    assert!(db
-        .ensure_courseware_chat_resolved("/other-workspace", &p.project_id)
-        .is_ok());
-    assert!(db
-        .ensure_courseware_chat_resolved(root, "other-project")
-        .is_ok());
+    db.capture_courseware_snapshot(root, &seed, "without-history-closure",
+        &closed.source.revision, &closed.teaching_revision, vec![]).unwrap();
 }

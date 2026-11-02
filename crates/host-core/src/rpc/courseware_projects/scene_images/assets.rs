@@ -222,6 +222,8 @@ struct Bundle {
     principal_key: String,
     intent_id: String,
     images: Vec<BundleImage>,
+    #[serde(default)]
+    stage_only: bool,
 }
 
 #[derive(Deserialize)]
@@ -229,13 +231,22 @@ struct Bundle {
 struct BundleImage {
     target: Target,
     asset: ImageAsset,
-    bytes_base64: String,
+    bytes_base64: Option<String>,
 }
 
 async fn stage_bundle(state: Arc<Mutex<AppState>>, params: Value) -> Result<Value, JsonRpcError> {
     let p: Bundle = serde_json::from_value(params).map_err(|_| invalid("Invalid layer bundle"))?;
-    if !(2..=32).contains(&p.images.len())
-        || p.images.iter().map(|i| i.asset.byte_length).sum::<usize>() > 44 * 1024 * 1024
+    if (if p.stage_only {
+        p.images.len() != 1
+    } else {
+        !(2..=32).contains(&p.images.len())
+    }) || p.images.iter().any(|i| !i.asset.valid())
+        || p.images
+            .iter()
+            .filter(|i| i.bytes_base64.is_some())
+            .map(|i| i.asset.byte_length)
+            .sum::<usize>()
+            > 44 * 1024 * 1024
     {
         return Err(invalid("Layer bundle exceeds limits"));
     }
@@ -253,7 +264,8 @@ async fn stage_bundle(state: Arc<Mutex<AppState>>, params: Value) -> Result<Valu
         .position(|i| i.intent_id == p.intent_id)
         .ok_or_else(|| invalid("Layer intent missing"))?;
     let parent = intents[parent_index].clone();
-    if parent.asset.is_some()
+    if !p.stage_only
+        && parent.asset.is_some()
         && intents
             .iter()
             .filter(|i| {
@@ -273,36 +285,55 @@ async fn stage_bundle(state: Arc<Mutex<AppState>>, params: Value) -> Result<Valu
     {
         return Err(invalid("Expected submitted decomposition intent"));
     }
-    if p.images[0].target != (Target::CleanPlate {})
-        || p.images[0].asset.normalized_bounding_box.is_some()
+    if !p.stage_only
+        && (p.images[0].target != (Target::CleanPlate {})
+            || p.images[0].asset.normalized_bounding_box.is_some())
     {
         return Err(invalid("Layer base missing"));
     }
     let mut names = std::collections::HashSet::new();
-    let mut decoded = Vec::new();
     for (index, image) in p.images.iter().enumerate() {
         if !image.target.valid()
-            || !image.asset.valid()
             || image.asset.mime_type != "image/png"
             || image.asset.task_ref != parent.task_ref.clone().unwrap()
-            || image.bytes_base64.len() > MAX_BYTES.div_ceil(3) * 4
-            || (index > 0
-                && (!matches!(image.target, Target::Layer { .. })
-                    || image.asset.normalized_bounding_box.is_none()
-                    || !names.insert(&image.target)))
+            || image
+                .bytes_base64
+                .as_ref()
+                .is_some_and(|s| s.len() > MAX_BYTES.div_ceil(3) * 4)
+            || match image.target {
+                Target::CleanPlate {} => {
+                    image.asset.normalized_bounding_box.is_some() || (!p.stage_only && index != 0)
+                }
+                Target::Layer { .. } => {
+                    image.asset.normalized_bounding_box.is_none() || !names.insert(&image.target)
+                }
+                _ => true,
+            }
         {
             return Err(invalid("Invalid layer image"));
         }
-        let bytes = STANDARD
-            .decode(&image.bytes_base64)
-            .map_err(|_| invalid("Invalid layer bytes"))?;
+        let bytes = match &image.bytes_base64 {
+            Some(encoded) => STANDARD
+                .decode(encoded)
+                .map_err(|_| invalid("Invalid layer bytes"))?,
+            None if !p.stage_only => {
+                snapshot_assets::read(&state.data_dir, &image.asset.sha256).map_err(error)?
+            }
+            None => return Err(invalid("Layer bytes missing")),
+        };
         if !image.asset.matches(&bytes) || hex::encode(Sha256::digest(&bytes)) != image.asset.sha256
         {
             return Err(invalid("Layer bytes differ"));
         }
-        decoded.push(bytes);
+        if image.bytes_base64.is_some() {
+            snapshot_assets::archive_bytes(&state.data_dir, &image.asset.sha256, &bytes)
+                .map_err(error)?;
+        }
     }
-    for (index, (image, bytes)) in p.images.into_iter().zip(decoded).enumerate() {
+    if p.stage_only {
+        return Ok(parent.view(current.as_deref()));
+    }
+    for (index, image) in p.images.into_iter().enumerate() {
         let id = if index == 0 {
             parent.intent_id.clone()
         } else {
@@ -320,8 +351,6 @@ async fn stage_bundle(state: Arc<Mutex<AppState>>, params: Value) -> Result<Valu
                 return Err(conflict("Archived decomposition cannot be replaced"));
             }
         }
-        snapshot_assets::archive_bytes(&state.data_dir, &image.asset.sha256, &bytes)
-            .map_err(error)?;
         if let Some(old) = existing {
             intents[old].asset = Some(image.asset);
         } else {

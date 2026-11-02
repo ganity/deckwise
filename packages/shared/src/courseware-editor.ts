@@ -10,6 +10,7 @@ export type CoursewareFixedBuildView =
       report: { visualFidelity: string; diagnostics: CoursewareBuildDiagnostic[] } };
 
 export type CoursewareTeachingView = {
+  teaching?: import("./courseware-scene-teaching.js").CoursewareSceneTeaching;
   viewId: string;
   project: CoursewareProject;
   pageId: string;
@@ -44,13 +45,13 @@ export type CoursewareAssetLocksView = {
 };
 
 /** Existing fixed-player visualCues, timed only against their parent speech audio. */
-export type CoursewareAttentionIntent = { type: "highlight" | "spotlight"; objectIds: string[]; animation?: "fadeIn" | "pulse" };
+export type CoursewareAttentionIntent = { type: "highlight" | "spotlight"; objectIds: string[]; animation?: "fadeIn" | "pulse" | "zoomIn" | "slideInLeft" | "slideInRight" | "gentleRotate" };
 export function isCoursewareAttentionIntent(value: unknown): value is CoursewareAttentionIntent {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const intent = value as Record<string, unknown>;
   return Object.hasOwn(intent, "type") && Object.hasOwn(intent, "objectIds") &&
     Object.keys(intent).every(key => ["type", "objectIds", "animation"].includes(key)) &&
-    (intent.animation === undefined || ["fadeIn", "pulse"].includes(String(intent.animation))) && ["highlight", "spotlight"].includes(String(intent.type)) &&
+    (intent.animation === undefined || ["fadeIn", "pulse", "zoomIn", "slideInLeft", "slideInRight", "gentleRotate"].includes(String(intent.animation))) && ["highlight", "spotlight"].includes(String(intent.type)) &&
     Array.isArray(intent.objectIds) && intent.objectIds.length > 0 && intent.objectIds.length <= 8 &&
     intent.objectIds.every(id => typeof id === "string" && id.length > 0 && id.length <= 200) && new Set(intent.objectIds).size === intent.objectIds.length;
 }
@@ -61,7 +62,7 @@ export type CoursewareAttentionCue = {
   endMs: number;
   effect: { type: "highlight"; elementIds: string[]; color?: string; style?: "outline" | "fill" | "glow"; opacity?: number } |
     { type: "spotlight"; elementId: string; elementIds?: string[]; dimOpacity?: number } |
-    { type: "element_animation"; elementId: string; elementIds?: never; effect: "fadeIn" | "fadeOut" | "pulse" };
+    { type: "element_animation"; elementId: string; elementIds?: never; effect: "fadeIn" | "fadeOut" | "pulse" | "zoomIn" | "slideInLeft" | "slideInRight" | "gentleRotate" };
 };
 
 export function isCoursewareAttentionCue(value: unknown): value is CoursewareAttentionCue {
@@ -87,7 +88,7 @@ export function isCoursewareAttentionCue(value: unknown): value is CoursewareAtt
     targets = [effect.elementId, ...(Array.isArray(effect.elementIds) ? effect.elementIds : [])];
   } else if (effect.type === "element_animation") {
     if (!fields(effect, ["type", "elementId", "effect"]) || !id(effect.elementId) ||
-        !["fadeIn", "fadeOut", "pulse"].includes(String(effect.effect)) || value.endMs - value.atMs > 5000) return false;
+        !["fadeIn", "fadeOut", "pulse", "zoomIn", "slideInLeft", "slideInRight", "gentleRotate"].includes(String(effect.effect)) || value.endMs - value.atMs > 5000) return false;
     targets = [effect.elementId];
   } else return false;
   return targets.length <= 200 && targets.every(id) && new Set(targets).size === targets.length;
@@ -239,7 +240,7 @@ export type CoursewarePptxCandidateReview = {
   targetPages: Array<{ pageId: string; pageNumber: number }>;
   effectTargets?: Array<{ pageId: string; pageIndex: number; objectId: string; kind: string; index: number }>;
   effectPages?: CoursewareSourceReview["targetPages"];
-  effectCues?: Array<{ pageNumber: number; effect: "highlight" | "spotlight" | "fadeIn" | "fadeOut" | "pulse"; atMs: number; endMs: number }>;
+  effectCues?: Array<{ pageNumber: number; effect: "highlight" | "spotlight" | "fadeIn" | "fadeOut" | "pulse" | "zoomIn" | "slideInLeft" | "slideInRight" | "gentleRotate"; atMs: number; endMs: number }>;
   outputSha256: string;
   pageCount: number;
   stale: boolean;

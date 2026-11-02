@@ -1,4 +1,6 @@
 import { expect, it } from "vitest";
+import { convertToLlm } from "./pi-runtime-messages.js";
+import { createCoursewareWorkflowTools } from "./courseware-workflow-tools.js";
 import { normalizeContext, Type, type Message, type Model } from "@earendil-works/pi-ai";
 import { stream } from "@earendil-works/pi-ai/api/openai-completions";
 import { genericModelConfig } from "./model-capabilities.js";
@@ -84,4 +86,40 @@ it("projects per-skill changes and revocations with native and fallback model su
     expect(JSON.stringify(fallback.messages)).toContain("Charlie");
     expect(JSON.stringify(fallback.messages)).not.toContain("Bravo");
   }
+});
+
+
+it("resumes courseware after a completed response without sending an assistant prefix", async () => {
+  const assistant: Message = {
+    role: "assistant", content: [{ type: "text", text: "Courseware complete." }],
+    api: "openai-completions", provider: "fixture", model: "exact", stopReason: "stop", timestamp: 4,
+    usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, totalTokens: 2,
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+  };
+  const continuation: Message = { role: "system", content: "", timestamp: 5,
+    sections: { courseware_workflow: "The authorized request is unfinished. Use this actual state: missing TTS." } };
+  const transcript: Message[] = [...messages, assistant, continuation,
+    { role: "system", content: "", timestamp: 6, toolsAdded: [search] }];
+  const original = structuredClone(transcript);
+  for (const native of [false, true]) {
+    const request = await payload(native, native, native ? baseUrl : "https://relay.invalid/v1", convertToLlm(transcript));
+    expect(request.messages.at(-1)?.role).toBe("user");
+    expect(JSON.stringify(request.messages)).toContain("missing TTS");
+    expect(request.messages.filter(message => message.role === "assistant")).toHaveLength(1);
+    expect(request.messages.find(message => message.role === "assistant")).not.toHaveProperty("partial");
+  }
+  expect(transcript).toEqual(original);
+  for (const tail of [[], [{ role: "system", content: "", timestamp: 7, sections: { courseware_workflow: null } }],
+    [{ role: "user", content: "Stop generating", timestamp: 7 }]] satisfies Message[][]) {
+    const input = tail.length ? [...transcript, ...tail] : [...messages, assistant];
+    expect(convertToLlm(input)).toEqual(input);
+  }
+});
+
+it("sends object-root parameter schemas for every courseware tool", async () => {
+  const tools = createCoursewareWorkflowTools({ async call<T>(): Promise<T> { throw new Error("No dispatch expected"); } }, "chat", () => "turn");
+  const request = await payload(false, false, "https://relay.invalid/v1", [{ role: "system", content: "Base",
+    toolsAdded: tools, timestamp: 1 }, { role: "user", content: "Continue", timestamp: 2 }]);
+  expect(request.tools).toHaveLength(tools.length);
+  for (const tool of request.tools!) expect(tool.function.parameters, tool.function.name).toMatchObject({ type: "object" });
 });

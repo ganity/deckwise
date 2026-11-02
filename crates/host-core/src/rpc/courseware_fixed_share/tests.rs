@@ -3,9 +3,9 @@ use crate::courseware::{identity::SavedSourceIdentity, SavedProjectSeed};
 use crate::db::courseware_projects::{snapshots::Asset, TeachingWrite};
 
 #[tokio::test]
-async fn unresolved_declared_chat_blocks_new_publication_without_erasing_existing_snapshot() {
+async fn chat_audit_adds_no_manual_approval_to_authorized_fixed_share() {
     use crate::db::courseware_projects::chat_changes::{
-        OperationRequest, Plan, PlanItem, ResolutionRequest,
+        OperationRequest, Plan, PlanItem,
     };
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().to_str().unwrap();
@@ -46,54 +46,14 @@ async fn unresolved_declared_chat_blocks_new_publication_without_erasing_existin
             .unwrap();
         p
     };
-    let error = call(
-        state.clone(),
-        "courseware.fixedShare.prepare",
-        request.clone(),
-    )
-    .await
-    .unwrap_err();
-    assert!(error.message.contains("unresolved Chat"));
-    assert!(call(
-        state.clone(),
-        "courseware.fixedShare.get",
-        json!({"sessionId":session,"principalKey":"a".repeat(64)})
-    )
-    .await
-    .unwrap()["intent"]
-        .is_null());
-    {
-        let state = state.lock().await;
-        assert!(state
-            .db
-            .get_courseware_snapshot(root, &project.project_id, "snapshot-1")
-            .is_ok());
-        let c = state
-            .db
-            .courseware_project_context(root, &project.project_id)
-            .unwrap()["chatChanges"][0]
-            .clone();
-        state
-            .db
-            .resolve_courseware_chat_change(
-                root,
-                &session,
-                &project.project_id,
-                &project.pages[0].page_id,
-                &project.source.revision,
-                &project.teaching_revision,
-                &ResolutionRequest {
-                    change_group_id: c["changeGroupId"].as_str().unwrap().into(),
-                    receipt_sha256: c["receiptSha256"].as_str().unwrap().into(),
-                    note: "Reviewed; retain fixed version.".into(),
-                },
-            )
-            .unwrap();
-    }
-    assert!(call(state, "courseware.fixedShare.prepare", request)
-        .await
-        .unwrap()["intent"]
-        .is_object());
+    let prepared = call(state.clone(), "courseware.fixedShare.prepare", request)
+        .await.unwrap();
+    assert!(prepared["intent"].is_object());
+    let state = state.lock().await;
+    assert!(state.db.get_courseware_snapshot(root, &project.project_id, "snapshot-1").is_ok());
+    let audit = state.db.courseware_project_context(root, &project.project_id).unwrap()["chatChanges"][0].clone();
+    assert!(audit.get("resolution").is_none());
+    assert_eq!(audit["plan"]["items"][0]["status"], "not-recorded");
 }
 
 fn setup(dir: &Path) -> (Arc<Mutex<AppState>>, String, Value) {

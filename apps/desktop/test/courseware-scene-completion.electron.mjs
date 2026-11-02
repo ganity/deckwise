@@ -119,7 +119,7 @@ test("Native compiler fits decomposed foreground pixels to their pinned canvas b
 });
 
 export async function withModel(run) {
-  const requests = [], launches = [];
+  const requests = [], launches = [], sessionReads = [];
   let auth = 0, hook, beforeLaunch, currentHost, teamProjectId, forbidden = false, empty = false, vision = true, answer = '{"version":1,"elements":[]}';
   const session = { mode: "agent", providerId: shared.DECKWISE_MANAGED_PROVIDER_ID, modelId: "vision-model", thinkingLevel: "off",
     messages: [{ role: "user", content: "PRIVATE_OLD_CONVERSATION" }] };
@@ -140,9 +140,9 @@ export async function withModel(run) {
   });
   server.listen(0, "127.0.0.1"); await once(server, "listening");
   const baseUrl = `http://127.0.0.1:${server.address().port}/v1`;
-  const host = { async call(method) {
+  const host = { async call(method, params) {
     if (method === "settings.get") return {};
-    if (method === "session.get") return { session: structuredClone(session) };
+    if (method === "session.get") { sessionReads.push(params); return { session: structuredClone(session) }; }
     if (method === "courseware.task.get") return { task: { teamProjectId } };
     throw new Error(method);
   } }; currentHost = host;
@@ -159,7 +159,7 @@ export async function withModel(run) {
       return { providerId: provider.id, modelId: provider.modelId, sidecarParams: { provider: { ...provider, modelConfig }, thinkingLevel: "off" } };
     },
   });
-  try { await run({ services, requests, launches, session, provider, hook: fn => { hook = fn; }, beforeLaunch: fn => { beforeLaunch = fn; },
+  try { await run({ services, requests, launches, sessionReads, session, provider, hook: fn => { hook = fn; }, beforeLaunch: fn => { beforeLaunch = fn; },
     replaceHost: () => { currentHost = { ...host }; }, textOnly: () => { vision = false; }, empty: () => { empty = true; }, respond: value => { answer = value; },
     baseUrl, bindTeam(id) { teamProjectId = id; session.projectPath = "/fixture"; }, forbid() { forbidden = true; } }); }
   finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
@@ -174,6 +174,8 @@ test("scene completion resolves inherited models without writing session configu
   f.hook(() => { f.provider.modelId = "changed-default"; });
   await assert.rejects(f.services.completeScene(input()), /model or mode changed/);
   assert.equal(f.requests.length, 2);
+  assert(f.sessionReads.length > 0);
+  assert(f.sessionReads.every(read => read.messageLimit === 1));
 }));
 
 test("managed narration and scene completion use the current team route and never retry personal after refusal", async () => withModel(async f => {
@@ -196,6 +198,7 @@ test("managed narration and scene completion use the current team route and neve
     assert.equal(f.requests.length, 4);
     assert.equal(f.requests.at(-1).path, path);
     assert(!JSON.stringify(f.requests.at(-1).body).includes(project));
+    assert(f.sessionReads.every(read => read.messageLimit === 1));
   } finally {
     if (original === undefined) delete process.env.DECKWISE_LLM_BASE_URL;
     else process.env.DECKWISE_LLM_BASE_URL = original;
@@ -362,6 +365,8 @@ test("Cancellation before validation or during the real request never returns a 
 test("The public text wrapper ignores image fields and retains explicit session-context behavior", async () => withModel(async f => {
   const request = input();
   await f.services.complete({ ...request, messages: [{ role: "user", content: "Text completion" }], includeSessionContext: true });
+  assert.equal(f.sessionReads[0].messageLimit, undefined);
+  assert(f.sessionReads.slice(1).every(read => read.messageLimit === 1));
   const body = JSON.stringify(f.requests[0].body);
   assert(body.includes("PRIVATE_OLD_CONVERSATION")); assert(body.includes("Text completion")); assert(!body.includes("image_url"));
   f.empty();

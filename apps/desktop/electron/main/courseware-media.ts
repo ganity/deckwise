@@ -140,14 +140,28 @@ export class CoursewareMediaClient extends CoursewareMediaTransport {
     return value;
   }
 
-  async submitConfirmedTts(key: string, input: CoursewareTtsRequest, quote: CoursewareTtsQuote, signal?: AbortSignal, projectId?: string, check?: () => void | Promise<void>): Promise<CoursewareTtsTask> {
+  async submitConfirmedTts(key: string, input: CoursewareTtsRequest, quote: CoursewareTtsQuote, signal?: AbortSignal, projectId?: string, check?: () => void | Promise<void>, admit?: () => Promise<string | undefined>): Promise<CoursewareTtsTask> {
     if (typeof key !== "string" || !/^[A-Za-z0-9._-]{1,96}$/u.test(key)) throw new Error("COURSEWARE_MEDIA_INVALID_KEY");
     const body = request(input);
     const confirmed = mediaQuote(quote, body.model, "tts");
     if (body.input.length > confirmed.maxChars) throw new Error("COURSEWARE_MEDIA_INVALID_REQUEST");
     const principal = this.principal(), ref = { idempotencyKey: key, requestHash: requestHash(body) };
-    const path = submissionPath(projectId, true);
-    return this.generate(principal, async () => {
+    submissionPath(projectId, true);
+    if (this.local) {
+      const previous = await this.local.find(ref, body.kind, { projectId });
+      this.assertPrincipal(principal);
+      signal?.throwIfAborted();
+      if (previous) {
+        await check?.();
+        this.assertPrincipal(principal);
+        signal?.throwIfAborted();
+        return previous;
+      }
+    }
+    return this.generate(body.kind, principal, async () => {
+      if (admit) projectId = await admit();
+      this.assertPrincipal(principal);
+      const path = submissionPath(projectId, true);
       if (this.local) return this.local.submit(key, body, ref.requestHash, confirmed, signal, projectId);
       const result = await this.json(path, principal, signal,
         { method: "POST", headers: { "Idempotency-Key": key }, body: JSON.stringify({ request: body,
@@ -158,15 +172,18 @@ export class CoursewareMediaClient extends CoursewareMediaTransport {
     }, () => this.findTts(ref), signal, async () => { await check?.(); mediaQuote(confirmed, body.model, "tts"); });
   }
 
-  async submitTts(key: string, input: CoursewareTtsRequest, signal?: AbortSignal, projectId?: string, check?: () => void | Promise<void>): Promise<CoursewareTtsTask> {
+  async submitTts(key: string, input: CoursewareTtsRequest, signal?: AbortSignal, projectId?: string, check?: () => void | Promise<void>, admit?: () => Promise<string | undefined>): Promise<CoursewareTtsTask> {
     if (typeof key !== "string" || !/^[A-Za-z0-9._-]{1,96}$/u.test(key)) throw new Error("COURSEWARE_MEDIA_INVALID_KEY");
     const body = request(input);
     if (this.local) throw new Error("COURSEWARE_MEDIA_QUOTE_REQUIRED");
     // Match Java UTF-16 lengths and UTF-8 bytes, including bilingual text and emoji.
     const hash = requestHash(body);
     const principal = this.principal();
-    const path = submissionPath(projectId);
-    return this.generate(principal, async () => {
+    submissionPath(projectId);
+    return this.generate(body.kind, principal, async () => {
+      if (admit) projectId = await admit();
+      this.assertPrincipal(principal);
+      const path = submissionPath(projectId);
       // A failed submit may already exist remotely; the owner must retain this key, never invent a retry key.
       const result = await this.json(path, principal, signal,
         { method: "POST", headers: { "Idempotency-Key": key }, body: JSON.stringify(body) });
@@ -174,21 +191,39 @@ export class CoursewareMediaClient extends CoursewareMediaTransport {
     }, () => this.findTts({ idempotencyKey: key, requestHash: hash }), signal, check);
   }
 
-  async submitImage(key: string, input: CoursewareImageRequest, signal?: AbortSignal, projectId?: string, check?: () => void | Promise<void>): Promise<CoursewareImageTask> {
+  /** Explicit recovery only: the local relay always journals before its first paid POST. */
+  async resumeUnstartedTts(key: string, input: CoursewareTtsRequest, projectId?: string,
+    check?: () => void | Promise<void>): Promise<CoursewareTtsTask | null> {
+    if (!this.local) return null;
+    const body = request(input), principal = this.principal();
+    const previous = await this.local.find({ idempotencyKey: key, requestHash: requestHash(body) }, "tts", { projectId });
+    await check?.();
+    this.assertPrincipal(principal);
+    if (previous) return previous;
+    const quote = await this.getTtsQuote(body.model);
+    await check?.();
+    this.assertPrincipal(principal);
+    return this.submitConfirmedTts(key, body, quote, undefined, projectId, check);
+  }
+
+  async submitImage(key: string, input: CoursewareImageRequest, signal?: AbortSignal, projectId?: string, check?: () => void | Promise<void>, admit?: () => Promise<string | undefined>): Promise<CoursewareImageTask> {
     if (this.options.imageBaseUrl) throw new Error("COURSEWARE_MEDIA_QUOTE_REQUIRED");
     if (typeof key !== "string" || !/^[A-Za-z0-9._-]{1,96}$/u.test(key)) throw new Error("COURSEWARE_MEDIA_INVALID_KEY");
     const body = imageRequest(input);
     if (body.referenceImage) throw new Error("COURSEWARE_MEDIA_REFERENCE_CONFIRMATION_REQUIRED");
     const principal = this.principal(), ref = { idempotencyKey: key, requestHash: requestHash(body) };
-    const path = submissionPath(projectId);
-    return this.generate(principal, async () => {
+    submissionPath(projectId);
+    return this.generate(body.kind, principal, async () => {
+      if (admit) projectId = await admit();
+      this.assertPrincipal(principal);
+      const path = submissionPath(projectId);
       const result = await this.json(path, principal, signal,
         { method: "POST", headers: { "Idempotency-Key": key }, body: JSON.stringify(body) });
       return task(result, { idempotencyKey: key, requestHash: requestHash(body), model: body.model }, "image");
     }, () => this.findImage(ref), signal, check);
   }
 
-  async submitConfirmedImage(key: string, input: CoursewareImageRequest, quote: CoursewareImageQuote, signal?: AbortSignal, projectId?: string, check?: () => void | Promise<void>): Promise<CoursewareImageTask> {
+  async submitConfirmedImage(key: string, input: CoursewareImageRequest, quote: CoursewareImageQuote, signal?: AbortSignal, projectId?: string, check?: () => void | Promise<void>, admit?: () => Promise<string | undefined>): Promise<CoursewareImageTask> {
     if (typeof key !== "string" || !/^[A-Za-z0-9._-]{1,96}$/u.test(key)) throw new Error("COURSEWARE_MEDIA_INVALID_KEY");
     const body = imageRequest(input);
     const confirmed = mediaQuote(quote, body.model, body.kind);
@@ -197,8 +232,11 @@ export class CoursewareMediaClient extends CoursewareMediaTransport {
     if (body.referenceImage && !(await (body.kind === "image-layers" ? this.getLayerModels(signal) : this.getImageModels(signal))).some(entry => entry.model === body.model && entry.supportsReferenceImage === true))
       throw new Error("COURSEWARE_MEDIA_REFERENCE_UNSUPPORTED");
     const ref = { idempotencyKey: key, requestHash: requestHash(body) };
-    const path = submissionPath(projectId, true);
-    return this.generate(principal, async () => {
+    submissionPath(projectId, true);
+    return this.generate(body.kind, principal, async () => {
+      if (admit) projectId = await admit();
+      this.assertPrincipal(principal);
+      const path = submissionPath(projectId, true);
       const result = await this.imageJson(path, principal, signal,
         { method: "POST", headers: { "Idempotency-Key": key }, body: JSON.stringify({ request: body,
           confirmation: { priceVersion: confirmed.priceVersion, maxPoints: confirmed.maxPoints, quoteToken: confirmed.quoteToken } }) });
@@ -237,15 +275,7 @@ export class CoursewareMediaClient extends CoursewareMediaTransport {
     try {
       const path = "/courseware/media/tasks/by-idempotency?" + new URLSearchParams({ key: expected.idempotencyKey, requestHash: expected.requestHash });
       if (kind === "tts") result = await this.json(path, principal, signal);
-      else {
-        try { result = await this.imageJson(path, principal, signal); gatewayResult = !!this.options.imageBaseUrl; }
-        catch (error) {
-          // Read-only recovery of receipts issued before the gateway migration; never submit to Platform.
-          if (!this.options.imageBaseUrl || !(error instanceof Error) || error.message !== "COURSEWARE_MEDIA_PLATFORM_46006") throw error;
-          this.assertPrincipal(principal);
-          result = await this.json(path, principal, signal);
-        }
-      }
+      else { result = await this.imageJson(path, principal, signal); gatewayResult = !!this.options.imageBaseUrl; }
     } catch (error) {
       this.assertPrincipal(principal);
       if (error instanceof Error && error.message === "COURSEWARE_MEDIA_PLATFORM_46006") return null;
@@ -259,9 +289,10 @@ export class CoursewareMediaClient extends CoursewareMediaTransport {
 
   async getImage(reference: CoursewareTaskRef, signal?: AbortSignal, kind: CoursewareImageRequest["kind"] = "image"): Promise<CoursewareImageTask> {
     const ref = taskRef(reference);
+    if (this.options.imageBaseUrl && !ref.taskId.startsWith("gw-"))
+      throw new Error("COURSEWARE_MEDIA_LEGACY_TASK_UNAVAILABLE");
     const path = `/courseware/media/tasks/${ref.taskId}`;
-    const result = this.options.imageBaseUrl && !ref.taskId.startsWith("gw-") ? await this.json(path, this.principal(), signal)
-      : await this.imageJson(path, this.principal(), signal);
+    const result = await this.imageJson(path, this.principal(), signal);
     return task(result, ref, kind);
   }
 
@@ -287,7 +318,7 @@ export class CoursewareMediaClient extends CoursewareMediaTransport {
     const asset = current.assetRef;
     const result = await this.receive(`/courseware/media/tasks/${current.taskId}/asset`, principal, signal, MAX_AUDIO_BYTES,
       {}, "application/json, image/png, image/jpeg, image/webp, application/vnd.trainwise.image-layers+json", 30_000,
-      !this.options.imageBaseUrl || current.taskId.startsWith("gw-"));
+      true);
     if (result.mime === "application/json") { envelope(result.bytes); throw invalid(); }
     if (result.mime !== asset.mime || result.bytes.length !== asset.byteLength ||
         createHash("sha256").update(result.bytes).digest("hex") !== asset.sha256) throw new Error("COURSEWARE_MEDIA_ASSET_INTEGRITY_ERROR");

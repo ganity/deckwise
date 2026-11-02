@@ -130,7 +130,150 @@ fn matches_seed(project: &CoursewareProject, seed: &SavedProjectSeed) -> Result<
     Ok(())
 }
 
+/// Required repairs use original speech anchors, preserving speech/audio while adding missing actions or focus.
+fn repair_required_actions(
+    original: &[Value],
+    proposed: &[Value],
+    teaching: &Value,
+) -> Result<Vec<Value>> {
+    let speeches: Vec<_> = original.iter().filter(|a| a["type"] == "speech").collect();
+    let candidates: Vec<_> = proposed.iter().filter(|a| a["type"] == "speech").collect();
+    anyhow::ensure!(!speeches.is_empty() && speeches.len() == candidates.len() &&
+        speeches.iter().zip(&candidates).all(|(old, new)| old["text"] == new["text"]),
+        "COURSEWARE_INVALID: requirement repair must preserve every existing speech exactly and in order; no teaching was replaced");
+    let question_missing = !teaching["question"].is_null()
+        && !original.iter().any(|a| {
+            a["type"] == "interaction_checkpoint"
+                && a["checkpointKind"] == "chapter_summary"
+                && scene_teaching::question_matches(a, &teaching["question"])
+        });
+    let music_missing = !teaching["music"].is_null()
+        && !original
+            .iter()
+            .any(|a| a["type"] == "audio_clip" || a["type"] == "music_slot");
+    let video_missing = !teaching["video"].is_null()
+        && !original
+            .iter()
+            .any(|a| a["type"] == "video_slot" || a["type"] == "video_clip");
+    let mut video_added = false;
+    let mut question_added = false;
+    let mut music_added = false;
+    let mut cursor = 0;
+    let mut actions = Vec::new();
+    for action in proposed {
+        if action["type"] == "speech" {
+            while cursor < original.len() {
+                let existing = &original[cursor];
+                let mut preserved = existing.clone();
+                if existing["type"] == "speech" {
+                    if let Some(attention) = action
+                        .get("attention")
+                        .filter(|_| existing.get("attention").is_none())
+                    {
+                        anyhow::ensure!(
+                            existing["id"] == action["id"]
+                                && existing.get("visualCues").is_none_or(|c| c.as_array().is_some_and(Vec::is_empty)),
+                            "COURSEWARE_INVALID: focus repair must preserve existing cues and speech identity"
+                        );
+                        attention::targets(attention)?;
+                        preserved["attention"] = attention.clone();
+                    }
+                }
+                actions.push(preserved);
+                cursor += 1;
+                if existing["type"] == "speech" {
+                    break;
+                }
+            }
+        } else if question_missing
+            && !question_added
+            && action["type"] == "interaction_checkpoint"
+            && action["checkpointKind"] == "chapter_summary"
+            && scene_teaching::question_matches(action, &teaching["question"])
+        {
+            narration(std::slice::from_ref(action))?;
+            actions.push(action.clone());
+            question_added = true;
+        } else if music_missing && !music_added && action["type"] == "music_slot" {
+            narration(std::slice::from_ref(action))?;
+            actions.push(action.clone());
+            music_added = true;
+        } else if video_missing && !video_added && action["type"] == "video_slot" {
+            narration(std::slice::from_ref(action))?;
+            actions.push(action.clone());
+            video_added = true;
+        }
+    }
+    actions.extend_from_slice(&original[cursor..]);
+    anyhow::ensure!((!question_missing || question_added) && (!music_missing || music_added) && (!video_missing || video_added),
+        "COURSEWARE_INCOMPLETE: proposed repair omitted a required question, music or video slot; existing teaching was preserved");
+    Ok(actions)
+}
+
 impl Database {
+    fn normalize_narration_music(
+        &self,
+        workspace: &str,
+        project: &CoursewareProject,
+        write: &mut TeachingWrite,
+    ) -> Result<Vec<Value>> {
+        let page = project
+            .pages
+            .iter()
+            .find(|p| p.page_id == write.page_id)
+            .ok_or_else(|| anyhow!("COURSEWARE_PAGE_NOT_FOUND: logical page not found"))?;
+        let mut actions = page.actions.clone();
+        if let Some(scene) = self.courseware_scene_objects(workspace, project)? {
+            let teaching = scene["pages"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .find(|p| p["pageId"] == page.page_id)
+                .map(|p| &p["teaching"]);
+            if let Some(question) = teaching.map(|t| &t["question"]).filter(|q| !q.is_null()) {
+                let questions: Vec<_> = write
+                    .actions
+                    .iter()
+                    .filter(|a| {
+                        a["type"] == "interaction_checkpoint"
+                            && a["checkpointKind"] == "chapter_summary"
+                    })
+                    .collect();
+                anyhow::ensure!(questions.is_empty() || questions.iter().any(|a| scene_teaching::question_matches(a, question)),
+                    "COURSEWARE_INVALID: include the exact approved question text, ordered options and answer indices");
+            }
+            if teaching.is_some_and(|t| t["music"].is_null()) {
+                anyhow::ensure!(
+                    write
+                        .actions
+                        .iter()
+                        .filter(|a| a["type"] == "music_slot")
+                        .all(|a| page.actions.iter().any(|old| old["id"] == a["id"]
+                            && matches!(old["type"].as_str(), Some("music_slot" | "audio_clip")))),
+                    "COURSEWARE_INVALID: music is not approved on this logical page"
+                );
+                let mut retained = Vec::new();
+                for action in actions {
+                    if action["type"] != "music_slot"
+                        || self.music_slot_has_submission(
+                            workspace,
+                            action["id"].as_str().unwrap_or_default(),
+                        )?
+                    {
+                        retained.push(action);
+                    }
+                }
+                actions = retained;
+            }
+        }
+        write.actions.retain(|a| {
+            a["type"] != "music_slot"
+                || !page.actions.iter().any(|old| old["id"] == a["id"])
+                || actions.iter().any(|old| old["id"] == a["id"])
+        });
+        Ok(actions)
+    }
+
     /// Generated narration replaces teaching directly; legacy candidates remain readable.
     pub fn save_generated_narration(
         &self,
@@ -143,8 +286,34 @@ impl Database {
     }
 
     pub fn save_generated_narration_with_semantics(
-        &self, workspace: &str, seed: &SavedProjectSeed, baseline: &CoursewareProject, write: &TeachingWrite,
+        &self,
+        workspace: &str,
+        seed: &SavedProjectSeed,
+        baseline: &CoursewareProject,
+        write: &TeachingWrite,
         semantics: &[scene_objects::SceneSemanticEvidence],
+    ) -> Result<CoursewareProject> {
+        self.save_narration(workspace, seed, baseline, write, semantics, false)
+    }
+
+    pub fn repair_required_teaching(
+        &self,
+        workspace: &str,
+        seed: &SavedProjectSeed,
+        baseline: &CoursewareProject,
+        write: &TeachingWrite,
+    ) -> Result<CoursewareProject> {
+        self.save_narration(workspace, seed, baseline, write, &[], true)
+    }
+
+    fn save_narration(
+        &self,
+        workspace: &str,
+        seed: &SavedProjectSeed,
+        baseline: &CoursewareProject,
+        write: &TeachingWrite,
+        semantics: &[scene_objects::SceneSemanticEvidence],
+        preserve_speech: bool,
     ) -> Result<CoursewareProject> {
         baseline.validate()?;
         matches_seed(baseline, seed)?;
@@ -154,7 +323,11 @@ impl Database {
                 && write.expected_teaching_revision == baseline.teaching_revision,
             "COURSEWARE_CONFLICT: narration write differs from its baseline"
         );
-        narration(&write.actions)?;
+        if preserve_speech {
+            validate_actions(&write.actions)?;
+        } else {
+            narration(&write.actions)?;
+        }
         let tx = self.conn.unchecked_transaction()?;
         let current = self
             .get_courseware_project(workspace, &seed.project_id)?
@@ -171,23 +344,65 @@ impl Database {
         narration(&replaceable_narration(&page.actions)?)?;
         self.validate_narration_attention(workspace, &current, &write.page_id, &write.actions)?;
         let mut write = write.clone();
-        for (index, clip) in page.actions.iter().enumerate().filter(|(_, action)| {
-            action["type"] == "audio_clip"
-                || action["type"] == "music_slot"
-                || action["type"] == "video_slot"
-                || action["type"] == "video_clip"
-        }) {
-            anyhow::ensure!(
-                music::valid_clip(clip)
-                    || music::valid_slot(clip)
-                    || super::video::valid_slot(clip)
-                    || super::video::valid_clip(clip),
-                "COURSEWARE_INVALID: invalid retained media action"
-            );
-            if let Some(position) = write.actions.iter().position(|a| a["type"] == "music_slot" && a["id"] == clip["id"]) {
-                write.actions[position] = clip.clone();
-            } else {
-                write.actions.insert(index.min(write.actions.len()), clip.clone());
+        let retained = self.normalize_narration_music(workspace, &current, &mut write)?;
+        if preserve_speech {
+            let scene = self.courseware_scene_objects(workspace, &current)?
+                .ok_or_else(|| anyhow!("COURSEWARE_INVALID: required teaching repair needs retained scene requirements"))?;
+            let teaching = scene["pages"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .find(|p| p["pageId"] == page.page_id)
+                .map(|p| &p["teaching"])
+                .ok_or_else(|| anyhow!("COURSEWARE_INVALID: page requirements missing"))?;
+            write.actions = repair_required_actions(&retained, &write.actions, teaching)?;
+            if write.actions.iter().any(|a| a.get("attention").is_some() && a.get("audioAssetId").is_some()) {
+                let audio = self.portable_audio(workspace, &current)?;
+                let local = self.portable_courseware_media_entries(workspace, &current)?;
+                for action in &mut write.actions {
+                    let Some(intent) = action.get("attention").cloned().filter(|_| action.get("audioAssetId").is_some()) else {
+                        continue;
+                    };
+                    let duration = audio.iter()
+                        .find(|a| action["audioAssetId"] == a.asset().id)
+                        .map(|a| a.duration_ms)
+                        .or_else(|| {
+                            local.get(&(page.page_id.clone(), action["id"].as_str().unwrap_or_default().to_owned()))
+                                .filter(|a| action["audioAssetId"] == a.id)
+                                .map(|a| a.duration_ms)
+                        })
+                        .ok_or_else(|| anyhow!("COURSEWARE_INVALID: focus repair needs verified saved speech audio"))?;
+                    action["visualCues"] = serde_json::json!(attention::cues(
+                        &intent, action["id"].as_str().unwrap_or_default(), duration
+                    )?);
+                    action.as_object_mut().unwrap().remove("attention");
+                }
+            }
+        } else {
+            for (index, clip) in retained.iter().enumerate().filter(|(_, action)| {
+                action["type"] == "audio_clip"
+                    || action["type"] == "music_slot"
+                    || action["type"] == "video_slot"
+                    || action["type"] == "video_clip"
+            }) {
+                anyhow::ensure!(
+                    music::valid_clip(clip)
+                        || music::valid_slot(clip)
+                        || super::video::valid_slot(clip)
+                        || super::video::valid_clip(clip),
+                    "COURSEWARE_INVALID: invalid retained media action"
+                );
+                if let Some(position) = write
+                    .actions
+                    .iter()
+                    .position(|a| a["type"] == "music_slot" && a["id"] == clip["id"])
+                {
+                    write.actions[position] = clip.clone();
+                } else {
+                    write
+                        .actions
+                        .insert(index.min(write.actions.len()), clip.clone());
+                }
             }
         }
         let history_key = serde_json::to_string(&(
@@ -427,20 +642,18 @@ impl Database {
         )?;
         let mut write = candidate.write.clone();
         write.expected_teaching_revision = current.teaching_revision.clone();
-        let page = current
-            .pages
-            .iter()
-            .find(|page| page.page_id == write.page_id)
-            .unwrap();
-        for (index, clip) in page.actions.iter().enumerate().filter(|(_, action)| {
+        let retained = self.normalize_narration_music(workspace, &current, &mut write)?;
+        for (index, clip) in retained.iter().enumerate().filter(|(_, action)| {
             action["type"] == "audio_clip"
                 || action["type"] == "music_slot"
                 || action["type"] == "video_slot"
                 || action["type"] == "video_clip"
         }) {
-            write
-                .actions
-                .insert(index.min(write.actions.len()), clip.clone());
+            if let Some(position) = write.actions.iter().position(|a| a["type"] == "music_slot" && a["id"] == clip["id"]) {
+                write.actions[position] = clip.clone();
+            } else {
+                write.actions.insert(index.min(write.actions.len()), clip.clone());
+            }
         }
         let project = self.write_courseware_teaching(workspace, &write)?;
         candidate.status = Status::Adopted;

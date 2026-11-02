@@ -83,7 +83,8 @@ async function fixture(t) {
     async models(kind) { provider.push(["models", kind]); return [{ model: kind === "music" ? "song-model" : "export-model" }]; },
     async quote(model, kind) { provider.push(["quote", kind]); await state.afterQuote?.(); return { version: "courseware-media-quote-v1", model, kind,
       priceVersion: "fixture", maxPoints: 5, maxChars: 4000, expiresAt: "2099-01-01T00:00:00Z", quoteToken: "fixture" }; },
-    async submitConfirmed(key, request, quote, signal, team) {
+    async submitConfirmed(key, request, quote, signal, team, check, admit) {
+      await check?.(); if (admit) team = await admit();
       provider.push(["POST", key, clone(request), team]); assert.equal(quote.kind, request.kind);
       assert.equal([...journals.values()].find(i => i.idempotencyKey === key)?.phase, "submission-unknown");
       if (state.failure) throw new Error(state.failure);

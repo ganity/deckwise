@@ -5,7 +5,7 @@ import { inspectProject, pptMasterRepairPrompt, referencedProject, type PptProje
 import { pptEditorWorkPanelTab, svgEditorWorkPanelTab } from "../../lib/work-panel-tabs";
 import { useAppStore } from "../../stores/app-store";
 
-export function CoursewareChatPresentation({ sessionId, disabled, refreshKey, sourceVisuals }: { sessionId: string; disabled: boolean; refreshKey: number; sourceVisuals?: ReactNode }) {
+export function CoursewareChatPresentation({ sessionId, disabled, refreshKey, sourceVisuals, onReady }: { sessionId: string; disabled: boolean; refreshKey: number; sourceVisuals?: ReactNode; onReady?: (path: string | null) => void }) {
   const { t } = useTranslation();
   const messages = useAppStore(state => state.messages);
   const isRunning = useAppStore(state => state.runningSessions[sessionId] ?? false);
@@ -38,6 +38,9 @@ export function CoursewareChatPresentation({ sessionId, disabled, refreshKey, so
     catch (failure) { if (useAppStore.getState().activeSessionId === sessionId) setError(String(failure)); }
     finally { working.current = false; setBusy(false); }
   };
+  const readyPath = project?.pptxPath && !project.needsPptxRegeneration && !project.qualityIssue ? project.pptxPath : null;
+  useEffect(() => { onReady?.(readyPath); }, [readyPath, onReady]);
+  if (onReady && readyPath) return <>{sourceVisuals}</>;
   const stage = isRunning ? "working" : !path ? "requirements" : !project ? "checkingPages" :
     project.qualityIssue ? "needsRepair" : project.needsPptxRegeneration ? "pagesChanged" :
     project.pptxPath ? "editable" : project.hasSvg ? "previewReady" : "pagesPending";

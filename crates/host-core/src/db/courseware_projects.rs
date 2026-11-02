@@ -7,23 +7,24 @@ const HISTORY_NAMESPACE: &str = "coursewareHistory.v1";
 
 pub mod asset_locks;
 mod candidates;
-pub mod question;
-pub mod scene_teaching;
 pub mod chat_changes;
 mod identities;
-pub mod native_save;
 pub mod media_scope;
 pub mod music;
+pub mod native_save;
 pub mod portable;
+pub mod question;
 pub mod reviews;
 pub mod scene_objects;
+pub mod scene_teaching;
 pub mod snapshots;
 pub mod source_candidates;
 mod teaching_history;
 pub mod tts;
 pub mod video;
+pub mod workflow;
 
-fn present_option<'de, D, T>(deserializer: D) -> std::result::Result<Option<T>, D::Error>
+pub(crate) fn present_option<'de, D, T>(deserializer: D) -> std::result::Result<Option<T>, D::Error>
 where
     D: serde::Deserializer<'de>,
     T: Deserialize<'de>,
@@ -31,7 +32,7 @@ where
     T::deserialize(deserializer).map(Some)
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CoursewareSource {
     pub revision: String,
@@ -103,6 +104,7 @@ pub struct CoursewarePage {
     pub page_id: String,
     pub actions: Vec<Value>,
     pub locked: bool,
+    /// Legacy wire metadata; never a human approval or playback gate.
     pub review_state: String,
 }
 
@@ -206,7 +208,11 @@ pub(crate) fn valid_teaching_checkpoint(action: &Value) -> bool {
     action["checkpointKind"] == "chapter_summary"
         && action.get("response").is_none_or(question::valid)
         && fields(
-            &{ let mut clean = action.clone(); clean.as_object_mut().unwrap().remove("response"); clean },
+            &{
+                let mut clean = action.clone();
+                clean.as_object_mut().unwrap().remove("response");
+                clean
+            },
             &[
                 "id",
                 "type",
@@ -243,6 +249,35 @@ pub(crate) fn valid_teaching_checkpoint(action: &Value) -> bool {
 
 fn validate_actions(actions: &[Value]) -> Result<()> {
     validate_actions_mode(actions, false)
+}
+
+fn narration_sentences(text: &str) -> Vec<&str> {
+    let mut sentences = Vec::new();
+    let mut chars = text.char_indices().peekable();
+    let (mut start, mut ended, mut previous) = (0, false, None::<char>);
+    while let Some((index, ch)) = chars.next() {
+        let punctuation = matches!(ch, '。' | '！' | '？' | '!' | '?' | '.' | '\n');
+        let closing = matches!(
+            ch,
+            '”' | '’' | '"' | '\'' | ')' | ']' | '}' | '»' | '】' | '」' | '』'
+        );
+        if ended && !ch.is_whitespace() && !punctuation && !closing {
+            sentences.push(&text[start..index]);
+            start = index;
+            ended = false;
+        }
+        let decimal = ch == '.'
+            && previous.is_some_and(|c| c.is_ascii_digit())
+            && chars.peek().is_some_and(|(_, c)| c.is_ascii_digit());
+        if punctuation && !decimal {
+            ended = true;
+        }
+        previous = Some(ch);
+    }
+    if start < text.len() {
+        sentences.push(&text[start..]);
+    }
+    sentences
 }
 
 fn validate_actions_mode(actions: &[Value], online: bool) -> Result<()> {
@@ -375,7 +410,7 @@ impl Database {
             return Err(anyhow!("COURSEWARE_INVALID: invalid parsed page count"));
         }
         if let Some(project) = self.get_courseware_project(workspace, project_id)? {
-            // shortcut: only byte-identical saved sources reopen; enable changed sources after lineage reconciliation lands.
+            // Changed sources must pass identity reconciliation before reaching this byte guard.
             if project.source.sha256 != sha256 || project.pages.len() != page_count {
                 return Err(anyhow!("COURSEWARE_CONFLICT: PPTX changed; reconcile page identities before editing teaching"));
             }
@@ -471,9 +506,15 @@ impl Database {
         let expected: Vec<_> = narrations
             .iter()
             .map(|text| {
-                vec![serde_json::json!({
-                    "id": "narration-0", "type": "speech", "text": text,
-                })]
+                narration_sentences(text)
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, sentence)| {
+                        serde_json::json!({
+                            "id": format!("narration-{index}"), "type": "speech", "text": sentence,
+                        })
+                    })
+                    .collect::<Vec<_>>()
             })
             .collect();
         if project.title == title
@@ -481,14 +522,21 @@ impl Database {
                 .pages
                 .iter()
                 .zip(&expected)
-                .all(|(page, actions)| page.actions == *actions)
+                .zip(narrations)
+                .all(|((page, actions), text)| {
+                    page.actions == *actions
+                        || page.actions
+                            == vec![serde_json::json!({
+                                "id": "narration-0", "type": "speech", "text": text,
+                            })]
+                })
         {
             return Ok(project);
         }
         if project
             .pages
             .iter()
-            .any(|page| !page.actions.is_empty() || page.locked || page.review_state != "review")
+            .any(|page| !page.actions.is_empty() || page.locked)
         {
             return Err(anyhow!(
                 "COURSEWARE_CONFLICT: generated narration would overwrite teaching"

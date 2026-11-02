@@ -3,27 +3,26 @@ import { sourceChangeForTeaching, chatChangesForTeaching } from "./courseware-so
 import fixture from "./courseware-contract.fixtures/accepted.json";
 import { isCoursewareProject } from "./courseware-contract.js";
 
-it("validates source changes against the current teaching, not a frozen success label", () => {
+it("source association completes without teaching confirmation and still pins source and revision", () => {
   const project = structuredClone(fixture.project);
   if (!isCoursewareProject(project)) throw new Error("Invalid fixture project");
-  const change = { changeGroupId: "review-1", phase: "teaching-review", stale: false,
+  const change = { changeGroupId: "review-1", phase: "complete", stale: false,
     baselineSource: "b".repeat(64), baselineTeachingRevision: "before", targetSource: project.source.sha256,
-    expected: ["source-associated", "teaching-review"], completed: ["source-saved", "source-associated"],
+    expected: ["source-associated", "teaching-review"], completed: ["source-saved", "source-associated", "teaching-review"],
     associationTeachingRevision: "associated", currentTeachingRevision: project.teachingRevision,
-    pendingPageIds: project.pages.filter(page => page.reviewState !== "ready").map(page => page.pageId) };
+    pendingPageIds: [] as string[] };
   project.pages[0].reviewState = "review";
-  change.pendingPageIds = project.pages.filter(page => page.reviewState !== "ready").map(page => page.pageId);
   expect(sourceChangeForTeaching({ project, sourceChange: change }, project)).toEqual(change);
   expect(sourceChangeForTeaching({ project }, project)).toBeUndefined();
-  for (const patch of [{ phase: "complete" }, { stale: true }, { completed: ["source-saved"] }, { pendingPageIds: [] },
+  for (const patch of [{ phase: "teaching-review" }, { stale: true }, { completed: ["source-saved"] },
     { pendingPageIds: ["foreign"] }, { currentTeachingRevision: "old" }, { targetSource: "no-hash" },
     { associationTeachingRevision: null }, { expected: [] }, { extra: true }]) {
     expect(() => sourceChangeForTeaching({ project, sourceChange: { ...change, ...patch } }, project)).toThrow();
   }
   project.pages.forEach(page => { page.reviewState = "ready"; });
-  const complete = { ...change, phase: "complete", pendingPageIds: [], completed: [...change.completed, "teaching-review"] };
+  const complete = { ...change, phase: "complete", pendingPageIds: [], completed: change.completed };
   expect(sourceChangeForTeaching({ project, sourceChange: complete }, project)).toEqual(complete);
-  const superseded = { ...change, targetSource: "c".repeat(64), phase: "superseded", stale: true, pendingPageIds: [] };
+  const superseded = { ...change, targetSource: "c".repeat(64), phase: "superseded", stale: true, pendingPageIds: [], completed: ["source-saved", "source-associated"] };
   expect(sourceChangeForTeaching({ project, sourceChange: superseded }, project)).toEqual(superseded);
   const prepared = { ...superseded, phase: "source-review", completed: ["source-saved"], associationTeachingRevision: null };
   expect(sourceChangeForTeaching({ project, sourceChange: prepared }, project)).toEqual(prepared);

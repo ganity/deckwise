@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { CoursewareTeachingView } from "@pi-desktop/shared";
 
@@ -8,14 +7,9 @@ const progressLabels = {
   saved: "teachingSaved", "not-recorded": "chatPlanNotRecorded", "native-unsaved": "chatPlanNativeResponse",
 } as const;
 
-/** Human disposition keeps the original tool failures and omissions visible. */
-export function CoursewareChatChanges({ view, disabled, resolve }: {
-  view: CoursewareTeachingView;
-  disabled: boolean;
-  resolve: (request: { changeGroupId: string; receiptSha256: string; note: string }) => void;
-}) {
+/** Keep original tool failures and omissions visible without an approval gate. */
+export function CoursewareChatChanges({ view }: { view: CoursewareTeachingView }) {
   const { t } = useTranslation();
-  const [review, setReview] = useState({ id: "", note: "", checked: false });
   if (!view.chatChanges?.length) return null;
   return <details className="courseware-chat-changes">
     <summary>{t("panel.pptEditor.chatChangesTitle")}</summary>
@@ -32,28 +26,7 @@ export function CoursewareChatChanges({ view, disabled, resolve }: {
       {change.candidates?.map((candidate, index) => <p key={`${candidate.candidateId}:${index}`}>
         <code>{candidate.candidateId}</code>{" · "}{t(`panel.pptEditor.${progressLabels[candidate.status]}`)}
       </p>)}
-      {change.resolution ? <p>{t("panel.pptEditor.chatResolutionClosed", { note: change.resolution.note })}</p> : change.plan && change.receiptSha256 && <>
-        <p>{t("panel.pptEditor.chatResolutionHelp")}</p>
-        {review.id !== change.changeGroupId ? <button type="button" disabled={disabled ||
-          (change.plan.pageId !== view.pageId && (view.project.pages.some(page => page.pageId === change.plan!.pageId) ||
-            view.project.pages.some(page => page.reviewState !== "ready")))}
-          onClick={() => setReview({ id: change.changeGroupId, note: "", checked: false })}>
-          {t("panel.pptEditor.chatResolutionReview")}
-        </button> : <>
-          <label>{t("panel.pptEditor.chatResolutionNote")}
-            <textarea rows={2} maxLength={500} value={review.note} disabled={disabled}
-              onChange={event => setReview({ ...review, note: event.target.value, checked: false })} />
-          </label>
-          <label><input type="checkbox" checked={review.checked} disabled={disabled}
-            onChange={event => setReview({ ...review, checked: event.target.checked })} />
-            {t("panel.pptEditor.chatResolutionCheck")}
-          </label>
-          <button type="button" disabled={disabled || !review.checked || !review.note.trim()}
-            onClick={() => resolve({ changeGroupId: change.changeGroupId, receiptSha256: change.receiptSha256!, note: review.note.trim() })}>
-            {t("panel.pptEditor.chatResolutionConfirm")}
-          </button>
-        </>}
-      </>}
+      {change.resolution && <p>{t("panel.pptEditor.chatResolutionClosed", { note: change.resolution.note })}</p>}
     </li>)}</ul>
   </details>;
 }

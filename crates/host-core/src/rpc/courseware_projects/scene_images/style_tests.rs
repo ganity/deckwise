@@ -1,6 +1,42 @@
 use super::*;
 
 #[tokio::test]
+async fn explicit_decomposition_retry_uses_maic_prompt_and_keeps_legacy_receipt_and_reference() {
+    let mut f = Fixture::new().await;
+    let master = f.submitted("image-model", "scene-001").await;
+    f.call("courseware.sceneImage.asset.stage", f.stage(&master)).await.unwrap();
+    let mut adopt = f.operation(&master);
+    adopt["expectedSelectedIntentId"] = Value::Null;
+    f.call("courseware.sceneImage.asset.adopt", adopt).await.unwrap();
+    let mut prepare = f.prepare();
+    prepare["target"] = json!({"kind":"cleanPlate"});
+    prepare["referenceIntentId"] = master["intent"]["intentId"].clone();
+    prepare["decomposition"] = json!(true);
+    let parent = f.submit(prepare.clone()).await;
+    let legacy = {
+        let state = f.state.lock().await;
+        let key = storage_key(f.root.to_str().unwrap(), &Scope { session_id: f.session.clone(), principal_key: "a".repeat(64) }).unwrap();
+        let mut intents = load(&state, &key).unwrap();
+        let intent = intents.iter_mut().find(|intent| intent.intent_id == parent["intent"]["intentId"].as_str().unwrap()).unwrap();
+        intent.request.input = "Legacy extra decomposition instructions".into();
+        intent.request_hash = intent.request.hash();
+        intent.task_ref.as_mut().unwrap().request_hash = intent.request_hash.clone();
+        let legacy = intent.view(Some(&f.sha256));
+        save(&state, &key, &intents).unwrap();
+        legacy
+    };
+    let retry = f.call("courseware.sceneImage.retry", f.operation(&legacy)).await.unwrap();
+    assert_eq!(retry["intent"]["request"]["input"], prompts::LAYER_PROMPT);
+    assert_eq!(retry["intent"]["request"]["referenceImage"], legacy["intent"]["request"]["referenceImage"]);
+    assert_eq!(retry["intent"]["referenceIntentId"], master["intent"]["intentId"]);
+    assert_ne!(retry["intent"]["requestHash"], legacy["intent"]["requestHash"]);
+    assert_eq!(f.call("courseware.sceneImage.get", f.operation(&legacy)).await.unwrap(), legacy);
+    f.restart().await;
+    assert_eq!(f.call("courseware.sceneImage.retry", f.operation(&legacy)).await.unwrap(), retry);
+    assert_eq!(f.call("courseware.sceneImage.prepare", prepare).await.unwrap(), retry);
+}
+
+#[tokio::test]
 async fn visual_master_renders_approved_display_text_in_a_complete_teaching_composition() {
     let mut f = Fixture::new().await;
     let mut plan: Value = serde_json::from_slice(&std::fs::read(f.path()).unwrap()).unwrap();
@@ -372,4 +408,120 @@ async fn native_layer_bundle_above_sixteen_mib_archives_under_existing_rpc_limit
         .await
         .unwrap();
     assert_eq!(saved["intent"]["asset"]["byteLength"], 5 * 1024 * 1024);
+}
+
+#[tokio::test]
+async fn native_layer_bundle_streams_over_44_mib_without_publishing_partial_assets() {
+    let mut f = Fixture::new().await;
+    let master = f.submitted("image-model", "scene-001").await;
+    f.call("courseware.sceneImage.asset.stage", f.stage(&master))
+        .await
+        .unwrap();
+    let mut adopt = f.operation(&master);
+    adopt["expectedSelectedIntentId"] = Value::Null;
+    f.call("courseware.sceneImage.asset.adopt", adopt)
+        .await
+        .unwrap();
+    let mut prepare = f.prepare();
+    prepare["target"] = json!({"kind":"cleanPlate"});
+    prepare["model"] = json!("seedream-layers");
+    prepare["referenceIntentId"] = master["intent"]["intentId"].clone();
+    prepare["decomposition"] = json!(true);
+    let parent = f.submit(prepare).await;
+    let stage = f.stage(&parent);
+    // Main owns full PNG decoding; Host verifies byte/hash/metadata consistency.
+    let mut bytes = STANDARD
+        .decode(stage["bytesBase64"].as_str().unwrap())
+        .unwrap();
+    bytes.resize(5 * 1024 * 1024, 0);
+    let mut image = json!({"target":{"kind":"cleanPlate"},"asset":stage["asset"],"bytesBase64":STANDARD.encode(&bytes)});
+    image["asset"]["byteLength"] = json!(bytes.len());
+    image["asset"]["sha256"] = json!(hex::encode(sha2::Sha256::digest(&bytes)));
+    let mut images = vec![image.clone()];
+    for z in 1..10 {
+        let mut layer = image.clone();
+        layer["target"] = json!({"kind":"layer","name":format!("Layer {z}")});
+        layer["asset"]["sourceZIndex"] = json!(z);
+        layer["asset"]["normalizedBoundingBox"] = json!([100, 100, 900, 900]);
+        images.push(layer);
+    }
+    for image in &images {
+        let mut chunk = f.operation(&parent);
+        chunk["stageOnly"] = json!(true);
+        chunk["images"] = json!([image]);
+        assert!(serde_json::to_vec(&chunk).unwrap().len() < 12 * 1024 * 1024);
+        f.call("courseware.sceneImage.bundle.stage", chunk)
+            .await
+            .unwrap();
+    }
+    let partial = f
+        .call("courseware.sceneImage.get", f.operation(&parent))
+        .await
+        .unwrap();
+    assert!(partial["intent"]["asset"].is_null());
+    f.restart().await;
+    for image in &mut images {
+        image.as_object_mut().unwrap().remove("bytesBase64");
+    }
+    let mut bundle = f.operation(&parent);
+    bundle["images"] = json!(images);
+    assert!(serde_json::to_vec(&bundle).unwrap().len() < 100_000);
+    let mut missing = bundle.clone();
+    missing["images"][1]["asset"]["sha256"] = json!("e".repeat(64));
+    assert!(f
+        .call("courseware.sceneImage.bundle.stage", missing)
+        .await
+        .is_err());
+    assert!(f
+        .call("courseware.sceneImage.get", f.operation(&parent))
+        .await
+        .unwrap()["intent"]["asset"]
+        .is_null());
+    f.call("courseware.sceneImage.bundle.stage", bundle.clone())
+        .await
+        .unwrap();
+    f.call("courseware.sceneImage.bundle.stage", bundle)
+        .await
+        .unwrap();
+    let saved = f
+        .call("courseware.sceneImage.get", f.operation(&parent))
+        .await
+        .unwrap();
+    assert_eq!(saved["intent"]["asset"]["byteLength"], 5 * 1024 * 1024);
+}
+
+#[tokio::test]
+async fn visual_master_preserves_required_group_and_names_without_unrelated_content() {
+    let mut f = Fixture::new().await;
+    let mut plan: Value = serde_json::from_slice(&std::fs::read(f.path()).unwrap()).unwrap();
+    let names = [
+        "Monkey Munchy",
+        "Panda Pandy",
+        "Dog Doffy",
+        "Cat Catty",
+        "Teddy Bear",
+    ];
+    plan["pages"][0]["visibleText"] = json!(names);
+    plan["pages"][0]["visualIntent"] = json!("Show all five animals with their names: Monkey Munchy, Panda Pandy, Dog Doffy, Cat Catty, Teddy Bear.");
+    plan["visualBible"] = json!({"artDirection":"Bright clay 3D", "characters":"Five recurring animal friends", "setting":"Kindergarten classroom"});
+    let bytes = serde_json::to_vec(&plan).unwrap();
+    f.sha256 = hex::encode(sha2::Sha256::digest(&bytes));
+    std::fs::write(f.path(), bytes).unwrap();
+    f.approve().await;
+    let prepared = f
+        .call("courseware.sceneImage.prepare", f.prepare())
+        .await
+        .unwrap();
+    let prompt = prepared["intent"]["request"]["input"].as_str().unwrap();
+    for name in names {
+        assert!(prompt.contains(name));
+    }
+    assert!(prompt
+        .contains("Preserve every lesson-required subject, name and prop; do not cap their count"));
+    assert!(prompt.contains("No unrequested subjects, duplicate portraits/badges, extra text carriers or decorative props"));
+    assert!(prompt
+        .contains("Use depth, light, color and materials for atmosphere, not piles of objects"));
+    assert!(prompt.contains("identity guide, not a cast list for every page"));
+    assert!(prompt.contains("Bright clay 3D"));
+    assert!(prompt.encode_utf16().count() <= 4000);
 }

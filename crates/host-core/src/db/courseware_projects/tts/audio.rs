@@ -50,10 +50,7 @@ pub struct Record {
 impl Record {
     pub fn matches_source(&self, intent: &Intent, source: &CoursewareSource) -> bool {
         self.bound_source.as_ref().map_or_else(
-            || {
-                intent.selection.expected_source_revision == source.revision
-                    && intent.source_sha256 == source.sha256
-            },
+            || intent.matches_source(source),
             |bound| bound.revision == source.revision && bound.sha256 == source.sha256,
         )
     }
@@ -229,6 +226,9 @@ impl Database {
             },
         )?;
         record.adopted_teaching_revision = Some(saved.teaching_revision.clone());
+        if record.bound_source.is_none() {
+            record.bound_source = intent.bound_source.clone();
+        }
         let key = key(workspace, project_id, principal_key, intent_id)?;
         let changed = self.conn.execute(
             "UPDATE kv SET value_json=?1,updated_at=?2 WHERE ns=?3 AND key=?4",

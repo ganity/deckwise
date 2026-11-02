@@ -1,4 +1,4 @@
-import { isCoursewareProject, isCoursewareAttentionCue, type CoursewareProject, type CoursewareTeachingView } from "@pi-desktop/shared";
+import { isCoursewareSceneTeaching, isCoursewareProject, isCoursewareAttentionCue, type CoursewareProject, type CoursewareTeachingView } from "@pi-desktop/shared";
 
 const record = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === "object" && !Array.isArray(value);
@@ -96,4 +96,15 @@ export function sceneObjectsForTeaching(raw: unknown, project: CoursewareProject
       ...(object.status === "mapped" && text(object.currentSourceShapeId, 200) ? { sourceShapeId: object.currentSourceShapeId } : {}),
       effectTargetEligible: object.status === "mapped" && ["native_text", "native_shape", "image_layer"].includes(String(object.element.type)) };
   });
+}
+
+/** Metadata follows logical page identity across native reorder/save, never the current ordinal. */
+export function sceneTeachingForPage(raw: unknown, project: CoursewareProject, pageId: string): CoursewareTeachingView["teaching"] {
+  if (project.taskType !== "scene") return undefined;
+  sceneObjectsForTeaching(raw, project, pageId);
+  if (!record(raw) || !record(raw.sceneObjects) || !Array.isArray(raw.sceneObjects.pages)) return undefined;
+  const page = raw.sceneObjects.pages.find((p: unknown) => record(p) && p.pageId === pageId);
+  if (!record(page) || page.teaching == null) return undefined;
+  if (!isCoursewareSceneTeaching(page.teaching)) throw new Error("Invalid saved teaching page metadata");
+  return page.teaching;
 }

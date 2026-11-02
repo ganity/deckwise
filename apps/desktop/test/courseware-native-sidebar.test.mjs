@@ -71,3 +71,10 @@ test("catalog and explicit adoption share native binding fences without forwardi
   await assert.rejects(handler(request("media:adopt", {}, { editGeneration: 100 })), /target changed/);
   assert.deepEqual(calls.map(([operation]) => operation), ["catalog", "adopt"]);
 });
+
+
+test("native sidebar does not expose per-page teaching confirmation", async () => {
+  const { handler, calls } = setup();
+  await assert.rejects(handler(request("confirm", { viewId: "view", expectedTeachingRevision: "rev" })));
+  assert.deepEqual(calls, []);
+});

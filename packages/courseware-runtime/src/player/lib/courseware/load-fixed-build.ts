@@ -142,7 +142,7 @@ const payloadSchema = z
             speechVisualCues: z
               .enum(["fixed-audio/1", "fixed-audio/2"])
               .optional(),
-            playerObjectAnimations: z.literal("fade-pulse/1").optional(),
+            playerObjectAnimations: z.enum(["fade-pulse/1", "speech-motion/2"]).optional(),
           })
           .strict(),
         sourceSha256: hash,
@@ -312,9 +312,12 @@ export async function loadFixedBuild(
   );
   check(
     hasAnimations ===
-      (payload.report.capabilities.playerObjectAnimations === "fade-pulse/1"),
+      (payload.report.capabilities.playerObjectAnimations !== undefined),
     "ANIMATION_CAPABILITY_MISMATCH",
   );
+  check(!payload.pages.some(page => page.actions.some(action => action.type === "speech" && action.visualCues?.some(cue =>
+    cue.effect.type === "element_animation" && !["fadeIn", "fadeOut", "pulse"].includes(cue.effect.effect)))) ||
+    payload.report.capabilities.playerObjectAnimations === "speech-motion/2", "ANIMATION_CAPABILITY_MISMATCH");
   const speechVisualCues = new Map<string, FixedVisualCue[]>();
   const urls = new Map<string, string>();
   const dispose = () => {

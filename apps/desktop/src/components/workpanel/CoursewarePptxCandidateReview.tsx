@@ -37,7 +37,7 @@ export function CoursewarePptxCandidateReview({ review, sessionId, disabled, pre
       <p>{t("panel.pptEditor.pptxCandidateEffectScope")}</p>
       {(review.effectCues ?? []).map((cue, index) => <p key={index}>
         {t("panel.pptEditor.pptxCandidateTarget", { page: cue.pageNumber })} · {t("panel.pptEditor.effectsCue", {
-          effect: t(`panel.pptEditor.effects${({ highlight: "Highlight", spotlight: "Spotlight", fadeIn: "FadeIn", fadeOut: "FadeOut", pulse: "Pulse" } as const)[cue.effect]}`), start: cue.atMs, end: cue.endMs,
+          effect: t(`panel.pptEditor.effects${({ highlight: "Highlight", spotlight: "Spotlight", fadeIn: "FadeIn", fadeOut: "FadeOut", pulse: "Pulse", zoomIn: "ZoomIn", slideInLeft: "SlideInLeft", slideInRight: "SlideInRight", gentleRotate: "GentleRotate" } as const)[cue.effect]}`), start: cue.atMs, end: cue.endMs,
         })}
       </p>)}
       {targets.map(target => {

@@ -126,6 +126,7 @@ impl PermissionManager {
             | "Grep"
             | "courseware_canvas_get"
             | "courseware_workflow_get"
+            | "courseware_scene_plan_submit"
             | "courseware_narration_context"
             | "courseware_media_context"
             | "ppt_get_context"

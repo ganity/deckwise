@@ -48,7 +48,7 @@ export function createMainCompletion({
     const host = getHost();
     if (!host) throw new Error("Host is unavailable");
     const [{ session }, settings] = await Promise.all([
-      host.call<{ session?: { mode?: string } }>("session.get", { id: sessionId }),
+      host.call<{ session?: { mode?: string } }>("session.get", { id: sessionId, messageLimit: 1 }),
       host.call<any>("settings.get"),
     ]);
     if (session?.mode !== "agent") throw new Error("Scene completion model or mode changed");
@@ -74,7 +74,7 @@ export function createMainCompletion({
     const settings = await host.call<any>("settings.get");
     const launchSessionId = input.sessionId || `plugin-complete:${crypto.randomUUID()}`;
     const session = input.sessionId
-      ? (await host.call<{ session?: any }>("session.get", { id: input.sessionId })).session
+      ? (await host.call<{ session?: any }>("session.get", { id: input.sessionId, ...(input.includeSessionContext ? {} : { messageLimit: 1 }) })).session
       : {};
     const checkSceneSession = async () => {
       input.signal?.throwIfAborted();
@@ -82,7 +82,7 @@ export function createMainCompletion({
       const current = (
         await host.call<{
           session?: { mode?: string; providerId?: string; modelId?: string; thinkingLevel?: string };
-        }>("session.get", { id: input.sessionId })
+        }>("session.get", { id: input.sessionId, messageLimit: 1 })
       ).session;
       const model = current?.providerId && current.modelId
         ? { modelKey: `${current.providerId}/${current.modelId}`, thinkingLevel: current.thinkingLevel }
@@ -186,7 +186,7 @@ export function createMainCompletion({
     const read = async () => {
       if (getHost() !== host) throw new Error("Host changed during scene generation");
       const [{ session }, { task }] = await Promise.all([
-        host.call<{ session?: { projectPath?: string; providerId?: string; modelId?: string } }>("session.get", { id: input.sessionId }),
+        host.call<{ session?: { projectPath?: string; providerId?: string; modelId?: string } }>("session.get", { id: input.sessionId, messageLimit: 1 }),
         host.call<{ task?: { taskType?: string; generatedPath?: string; importPath?: string } }>("courseware.task.get", { sessionId: input.sessionId }),
       ]);
       if (!session || session.projectPath !== input.workspace || task?.taskType !== "scene" || task.generatedPath || task.importPath)

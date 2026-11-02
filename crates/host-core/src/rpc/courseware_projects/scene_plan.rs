@@ -47,6 +47,8 @@ pub(super) struct Page {
     pub(super) visible_text: Vec<String>,
     pub(super) visual_intent: String,
     pub(super) narration: String,
+    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "crate::db::courseware_projects::present_option")]
+    pub(super) teaching: Option<crate::db::courseware_projects::scene_teaching::Teaching>,
 }
 
 impl Page {
@@ -152,6 +154,7 @@ pub(super) fn read_plan(
             !bounded(&page.title, 200)
                 || !bounded(&page.visual_intent, 1000)
                 || !bounded(&page.narration, 2500)
+                || page.teaching.as_ref().is_some_and(|t| !t.valid() || t.question.as_ref().is_some_and(|q| std::iter::once(&q.text).chain(q.response.options.iter()).any(|s| !page.visible_text.iter().any(|v| v.contains(s.as_str())))))
                 || page.visible_text.len() > 6
                 || page.visible_text.iter().any(|text| !bounded(text, 160))
         })

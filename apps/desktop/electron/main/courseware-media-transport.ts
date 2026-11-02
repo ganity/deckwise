@@ -1,4 +1,5 @@
-import { CoursewareGenerationQueue } from "./courseware-generation-queue";
+import { CoursewareGenerationQueue, COURSEWARE_GENERATION_LIMITS } from "./courseware-generation-queue";
+import type { MediaKind } from "./courseware-media-contracts";
 
 export type MediaRelayJournal = (method: "read" | "write", key: string, value?: unknown, expectedRevision?: number) => Promise<unknown>;
 export type CoursewareMediaOptions = { baseUrl: string; imageBaseUrl?: string; fetch: typeof fetch; resolveAccessToken: () => Promise<string>;
@@ -6,7 +7,7 @@ export type CoursewareMediaOptions = { baseUrl: string; imageBaseUrl?: string; f
 const invalid = () => new Error("COURSEWARE_MEDIA_INVALID_RESPONSE");
 const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 // shortcut: limits this authenticated Desktop process; persisted/provider-wide limits need server scheduling.
-const generationQueues = new WeakMap<object, CoursewareGenerationQueue>();
+const generationQueues = new WeakMap<object, Map<MediaKind, CoursewareGenerationQueue>>();
 
 export function mediaEnvelope(bytes: Buffer): unknown {
   let value: unknown;
@@ -47,10 +48,12 @@ export class CoursewareMediaTransport {
   protected assertPrincipal(principal: object): void {
     if (this.options.getPrincipal() !== principal) throw new Error("COURSEWARE_MEDIA_AUTH_CHANGED");
   }
-  protected generate<T extends { state: string }>(principal: object, submit: () => Promise<T>,
+  protected generate<T extends { state: string }>(kind: MediaKind, principal: object, submit: () => Promise<T>,
     refresh: () => Promise<{ state: string } | null>, signal?: AbortSignal, check?: () => void | Promise<void>): Promise<T> {
-    let queue = generationQueues.get(principal);
-    if (!queue) { queue = new CoursewareGenerationQueue(); generationQueues.set(principal, queue); }
+    let queues = generationQueues.get(principal);
+    if (!queues) { queues = new Map(); generationQueues.set(principal, queues); }
+    let queue = queues.get(kind);
+    if (!queue) { queue = new CoursewareGenerationQueue(COURSEWARE_GENERATION_LIMITS[kind]); queues.set(kind, queue); }
     return queue.run(submit, async () => {
       this.assertPrincipal(principal);
       const task = await refresh();

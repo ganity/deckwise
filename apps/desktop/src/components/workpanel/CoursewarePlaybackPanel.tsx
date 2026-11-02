@@ -41,8 +41,6 @@ export function CoursewarePlaybackPanel({ view, onlineSource, sessionId, enabled
   const active = useRef(false);
   const onActive = useRef(onActiveChange);
   onActive.current = onActiveChange;
-  const pendingPages = onlineSource ? Math.max(0, onlineSource.totalPages - onlineSource.readyPages)
-    : view?.project.pages.filter((page) => page.reviewState !== "ready").length ?? 0;
   const allPagesReady = !onlineSource || (Number.isInteger(onlineSource.totalPages) && onlineSource.totalPages > 0 &&
     onlineSource.readyPages === onlineSource.totalPages);
   const missingAudio = view?.project.pages.some((page) => page.actions.some((action) => action.type === "speech" &&
@@ -140,15 +138,14 @@ export function CoursewarePlaybackPanel({ view, onlineSource, sessionId, enabled
   return <section className="courseware-playback" aria-label={t("panel.pptEditor.playbackTitle")}>
     <strong>{t("panel.pptEditor.playbackTitle")}</strong>
     <p>{t(onlineSource ? "panel.onlineSource.playbackScope" : "panel.pptEditor.playbackScope")}</p>
-    {pendingPages > 0 && <p role="status">{t("panel.pptEditor.playbackUnconfirmed", { count: pendingPages })}</p>}
     {missingAudio && <p role="status">{t("panel.pptEditor.playbackAudioRequired")}</p>}
     {build && <details>
       <summary>{t("panel.pptEditor.playbackVersion")}</summary>
       <p>Snapshot: {build.snapshot.snapshotId}</p>
       {build.status === "ready" && <p>Build: {build.buildRef.buildId}</p>}
     </details>}
-    {!build && <button type="button" disabled={!enabled || busy || !allPagesReady || pendingPages > 0 || missingAudio} onClick={() => {
-      if (!allPagesReady || pendingPages > 0 || missingAudio || (onlineSource && currentBuild.current)) return;
+    {!build && <button type="button" disabled={!enabled || busy || !allPagesReady || missingAudio} onClick={() => {
+      if (!allPagesReady || missingAudio || (onlineSource && currentBuild.current)) return;
       void run(async (current) => {
       await api.coursewareFixedCancel();
       if (!current()) return;

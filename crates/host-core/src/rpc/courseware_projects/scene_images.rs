@@ -582,7 +582,7 @@ pub(super) async fn handle(
             None,
             None,
         ),
-        "courseware.sceneImage.get" | "courseware.sceneImage.begin" => {
+        "courseware.sceneImage.get" | "courseware.sceneImage.begin" | "courseware.sceneImage.retry" => {
             let p: Operation = serde_json::from_value(params).map_err(decode)?;
             (
                 Scope {
@@ -714,7 +714,7 @@ pub(super) async fn handle(
                 None
             },
         };
-        if let Some(existing) = intents.iter().find(|i| {
+        if let Some(existing) = intents.iter().rev().find(|i| {
             i.phase != Phase::Rejected
                 && i.plan_sha256 == p.plan_sha256
                 && i.page_id == p.page_id
@@ -760,6 +760,34 @@ pub(super) async fn handle(
         .iter()
         .position(|i| i.intent_id == intent_id)
         .ok_or_else(|| rpc_err(1007, "Scene image intent not found", "COURSEWARE_NOT_FOUND"))?;
+    if method == "courseware.sceneImage.retry" {
+        let original = &intents[index];
+        if current.as_deref() != Some(&original.plan_sha256) || original.phase != Phase::Submitted
+            || original.task_ref.is_none() || original.asset.is_some() || original.selected {
+            return Err(conflict("Only a current submitted request without an adopted asset can have a new attempt"));
+        }
+        verify_reference(&intents, original)?;
+        let retry_id = format!("retry-{}", hex::encode(Sha256::digest(original.intent_id.as_bytes())));
+        if let Some(existing) = intents.iter().find(|i| i.intent_id == retry_id) {
+            return Ok(existing.view(current.as_deref()));
+        }
+        if intents.len() >= MAX_INTENTS { return Err(conflict("Scene image journal is full")); }
+        let mut retry = original.clone();
+        retry.intent_id = retry_id;
+        if retry.request.kind == "image-layers" {
+            retry.request.input = prompts::LAYER_PROMPT.to_owned();
+            retry.request_hash = retry.request.hash();
+        }
+        retry.idempotency_key = uuid::Uuid::new_v4().to_string();
+        retry.phase = Phase::Prepared;
+        retry.task_ref = None;
+        retry.submission_scope = None;
+        retry.validate()?;
+        let result = retry.view(current.as_deref());
+        intents.push(retry);
+        save(&state, &key, &intents)?;
+        return Ok(result);
+    }
     if method == "courseware.sceneImage.begin" || rebind.is_some() {
         verify_reference(&intents, &intents[index])?;
     }

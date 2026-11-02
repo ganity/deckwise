@@ -1,4 +1,5 @@
 import JSZip from 'jszip';
+import { crc32 } from 'node:zlib';
 import { SaxesParser } from 'saxes';
 import { describe, expect, it } from 'vitest';
 import { kindergartenEditableSceneSchema } from '../../kindergarten/image2-pptist/contracts';
@@ -156,14 +157,20 @@ describe('resolved scene deck compiler', () => {
     ).rejects.toThrow('Invalid scene PNG: later');
   });
 
-  it('bounds referenced assets across the entire deck before decoding', async () => {
+  it('compiles a deck whose referenced assets exceed the former 32 MiB ceiling', async () => {
     const input = structuredClone(scenes);
     Object.assign(input[1].elements[1], { assetId: 'later' });
-    const oversized = Buffer.alloc(17 * 1024 * 1024);
-    png.copy(oversized);
+    const data = Buffer.alloc(17 * 1024 * 1024, 65);
+    const type = Buffer.from('tEXt');
+    const chunk = Buffer.alloc(data.length + 12);
+    chunk.writeUInt32BE(data.length);
+    type.copy(chunk, 4);
+    data.copy(chunk, 8);
+    chunk.writeUInt32BE(crc32(Buffer.concat([type, data])), 8 + data.length);
+    const large = Buffer.concat([png.subarray(0, -12), chunk, png.subarray(-12)]);
     await expect(
-      compileScenesToPptx(input, { ...assets, picture: oversized, later: oversized }),
-    ).rejects.toThrow('Scene assets exceed 32 MiB');
+      compileScenesToPptx(input, { ...assets, picture: large, later: large }),
+    ).resolves.toHaveProperty('pptx');
   });
 
   it('owns later-page descriptions and all image bytes before the first await', async () => {

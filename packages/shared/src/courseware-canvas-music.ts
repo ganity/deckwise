@@ -7,7 +7,10 @@ export type CoursewareCanvasMusicCandidate = {
   durationMs?: number; exportable: boolean;
 };
 export type CoursewareCanvasMusicAsset = { taskRef: CoursewareTaskRef; sha256: string; mimeType: "audio/mpeg"; byteLength: number };
+export type CoursewareMusicTarget = { version: 1; projectId: string; pageId: string; actionId: string; source: { revision: string; sha256: string }; prompt: string };
 export type CoursewareCanvasMusicView = {
+  target?: CoursewareMusicTarget;
+  unresolvedProjectId?: string;
   intentId: string; draft: MediaCanvasDraft; model: string; operation: "music" | "music-export";
   sourceIntentId?: string; candidateId?: string; music?: CoursewareCanvasMusicOptions;
   phase: "prepared" | "submission-unknown" | "submitted" | "rejected"; current: boolean;
@@ -20,7 +23,7 @@ export type CoursewareCanvasMusicPreview = { intentId: string; candidateId?: str
 export type CoursewareCanvasMusicModels = { generation: Array<{ model: string }>; export: Array<{ model: string }> };
 export type CoursewareCanvasMusicPrepareRequest = {
   sessionId: string; intentId: string; draftId: string; expectedRevision: string; expectedDraftRevision: number;
-  model: string; music: CoursewareCanvasMusicOptions;
+  model: string; music: CoursewareCanvasMusicOptions; target?: CoursewareMusicTarget;
 };
 export type CoursewareCanvasMusicExportPrepareRequest = { sessionId: string; intentId: string; exportIntentId: string; candidateId: string; model: string };
 export type CoursewareCanvasMusicAdoptRequest = {

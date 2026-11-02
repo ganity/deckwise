@@ -12,9 +12,9 @@ const { CoursewareGenerationQueue } = exports;
 const gate = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 const flush = async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); };
 
-test("mixed generation jobs share five slots until async tasks finish; FIFO resumes without resubmission", async t => {
+test("one media type retains its configured five slots until async tasks finish; FIFO resumes without resubmission", async t => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
-  const queue = new CoursewareGenerationQueue(), started = [], completed = new Set();
+  const queue = new CoursewareGenerationQueue(5), started = [], completed = new Set();
   const pending = Array.from({ length: 7 }, (_, i) => queue.run(async () => {
     started.push(i); return { state: "submitted" };
   }, async () => ({ state: completed.has(i) ? "ready" : "submitted" })));
@@ -30,7 +30,7 @@ test("mixed generation jobs share five slots until async tasks finish; FIFO resu
 
 test("cancelled queued work never submits and a failed active call releases capacity after reconciliation", async t => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
-  const queue = new CoursewareGenerationQueue(), held = Array.from({ length: 5 }, gate);
+  const queue = new CoursewareGenerationQueue(5), held = Array.from({ length: 5 }, gate);
   const initial = held.map((g, i) => queue.run(async () => {
     await g.promise;
     if (i === 0) throw new Error("COURSEWARE_MEDIA_TRANSPORT_FAILED");
@@ -53,7 +53,7 @@ test("cancelled queued work never submits and a failed active call releases capa
 
 test("unknown submissions retain their slot until status proves completion; read failures do not trigger paid retries", async t => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
-  const queue = new CoursewareGenerationQueue();
+  const queue = new CoursewareGenerationQueue(5);
   let paid = 0, failRead = true;
   await Promise.all(Array.from({ length: 5 }, (_, i) => queue.run(async () => {
     paid++; return { state: "submission_unknown" };
@@ -70,7 +70,7 @@ test("unknown submissions retain their slot until status proves completion; read
 
 test("queued ownership is rechecked before dispatch and a refused owner cannot block the next task", async t => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
-  const queue = new CoursewareGenerationQueue(), held = Array.from({ length: 5 }, gate);
+  const queue = new CoursewareGenerationQueue(5), held = Array.from({ length: 5 }, gate);
   const initial = held.map((g, i) => queue.run(async () => { await g.promise; return { state: "ready" }; }, async () => null));
   let current = true;
   const refused = queue.run(async () => assert.fail("stale owner submitted"), async () => null,
@@ -85,10 +85,21 @@ test("queued ownership is rechecked before dispatch and a refused owner cannot b
 test("uncertain or missing accepted jobs fail waiting work visibly without freeing or reposting those jobs", async t => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
   for (const status of [null, { state: "submission_unknown" }]) {
-    const queue = new CoursewareGenerationQueue();
+    const queue = new CoursewareGenerationQueue(5);
     await Promise.all(Array.from({ length: 5 }, () => queue.run(async () => ({ state: "submitted" }), async () => status)));
     const waiting = queue.run(async () => assert.fail("unknown work freed capacity"), async () => null);
     const refusal = assert.rejects(waiting, /GENERATION_STATUS_UNKNOWN/);
     t.mock.timers.tick(3000); await flush(); await refusal;
   }
+});
+
+test("a healthy completion releases capacity even when another original status is unavailable", async t => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const queue = new CoursewareGenerationQueue(2);
+  await queue.run(async () => ({ state: "submitted" }), async () => { throw new Error("original unavailable"); });
+  await queue.run(async () => ({ state: "submitted" }), async () => ({ state: "ready" }));
+  let posts = 0;
+  const next = queue.run(async () => { posts++; return { state: "ready" }; }, async () => null);
+  t.mock.timers.tick(3000); await flush(); await next;
+  assert.equal(posts, 1);
 });

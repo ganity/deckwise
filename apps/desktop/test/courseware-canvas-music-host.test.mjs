@@ -112,4 +112,5 @@ test("real Main/Host music lifecycle retains every candidate and separate export
   assert.deepEqual(stored[1].intent.submissionScope, { sessionId, teamProjectId: team });
   assert.equal(stored[1].intent.sourceIntentId, op.intentId);
   assert.deepEqual(await files.readFile(paths.join(data, "courseware-assets", `${sha256}.bin`)), audio);
+  t.diagnostic(JSON.stringify({ scenario: "music-originals", mockPosts: 2, recoveredOriginals: 2, archivedExports: 1 }));
 });

@@ -121,6 +121,8 @@ test("real Electron decodes portable WAV/MP3/MP4 and routes local preview/snapsh
     assert.equal(report.accountLookups, 0);
     assert.deepEqual(report.codecs.map(codec => codec.mimeType), ["audio/wav", "audio/mpeg", "video/mp4"]);
     assert.equal(report.durationMismatchRejected, true);
+    assert.equal(report.parallelDecodes, 11);
+    assert.equal(report.parallelDecodeWindows, 10);
     assert(report.mainRoutes.includes("tts-music-video-local-snapshot"));
     assert(report.hostCalls.length > 0 && report.hostCalls.every(method => method === "courseware.project.localMedia"));
   } finally { clearTimeout(timer); if (child.exitCode === null) child.kill("SIGKILL"); }

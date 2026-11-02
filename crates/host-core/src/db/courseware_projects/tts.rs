@@ -66,6 +66,8 @@ pub struct Intent {
     pub task_ref: Option<TaskRef>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub submission_scope: Option<super::media_scope::SubmissionScope>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bound_source: Option<CoursewareSource>,
 }
 
 fn hash(value: &str) -> String {
@@ -152,6 +154,14 @@ impl Intent {
                 .is_none_or(|scope| { scope.valid() && self.phase != Phase::Prepared }),
             "COURSEWARE_INVALID: invalid stored TTS submission scope"
         );
+        anyhow::ensure!(
+            self.bound_source.as_ref().is_none_or(|source| {
+                self.phase != Phase::Prepared
+                    && valid_id(&source.revision)
+                    && valid_hash(&source.sha256)
+            }),
+            "COURSEWARE_INVALID: invalid TTS source binding"
+        );
         if let Some(task) = &self.task_ref {
             anyhow::ensure!(
                 valid_id(&task.task_id)
@@ -163,6 +173,16 @@ impl Intent {
             );
         }
         Ok(())
+    }
+
+    fn matches_source(&self, source: &CoursewareSource) -> bool {
+        self.bound_source.as_ref().map_or_else(
+            || {
+                self.selection.expected_source_revision == source.revision
+                    && self.source_sha256 == source.sha256
+            },
+            |bound| bound.revision == source.revision && bound.sha256 == source.sha256,
+        )
     }
 
     fn current(&self, project: &CoursewareProject) -> bool {
@@ -334,6 +354,7 @@ impl Database {
                 phase: Phase::Prepared,
                 task_ref: None,
                 submission_scope: None,
+                bound_source: None,
             };
             intent.validate()?;
             anyhow::ensure!(
@@ -455,6 +476,59 @@ impl Database {
         tx.commit()?;
         self.source_adoption_barrier()?;
         self.get_courseware_tts(workspace, project_id, principal_key, intent_id)
+    }
+
+    pub(super) fn rebind_native_save_tts(
+        &self,
+        workspace: &str,
+        previous: &CoursewareProject,
+        next: &CoursewareProject,
+    ) -> Result<()> {
+        anyhow::ensure!(
+            !self.conn.is_autocommit(),
+            "COURSEWARE_INVALID: TTS rebinding requires native-save transaction"
+        );
+        let scope = storage_key(workspace, &previous.project_id)?;
+        let prefix = format!("[{},", serde_json::to_string(&scope)?);
+        let records = self
+            .conn
+            .prepare(
+                "SELECT value_json FROM kv WHERE ns=?1 AND substr(key,1,length(?2))=?2 LIMIT 1001",
+            )?
+            .query_map(params![INTENTS, prefix], |row| row.get::<_, String>(0))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        anyhow::ensure!(
+            records.len() <= MAX_INTENTS,
+            "COURSEWARE_INVALID: too many TTS intents for native save"
+        );
+        for raw in records {
+            let stored: Intent = serde_json::from_str(&raw)?;
+            let mut intent = self.tts_intent(
+                workspace,
+                &previous.project_id,
+                &stored.selection.principal_key,
+                &stored.selection.intent_id,
+            )?;
+            let matches = |project: &CoursewareProject| {
+                project.pages.iter().any(|page| {
+                    page.page_id == intent.selection.page_id
+                        && page.actions.iter().any(|action| {
+                            action["id"] == intent.selection.action_id
+                                && action["type"] == "speech"
+                                && action["text"] == intent.request.input
+                        })
+                })
+            };
+            if matches!(intent.phase, Phase::SubmissionUnknown | Phase::Submitted)
+                && intent.matches_source(&previous.source)
+                && matches(previous)
+                && matches(next)
+            {
+                intent.bound_source = Some(next.source.clone());
+                self.save_tts_intent(workspace, &intent)?;
+            }
+        }
+        Ok(())
     }
 
     fn save_tts_intent(&self, workspace: &str, intent: &Intent) -> Result<()> {

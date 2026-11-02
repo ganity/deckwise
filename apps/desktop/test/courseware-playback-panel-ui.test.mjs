@@ -16,7 +16,7 @@ function fixture(options = {}) {
   const hooks = [], effects = [], calls = [], auth = new Set();
   let cursor = 0, tree;
   const props = { sessionId: "chat-1", enabled: true, onActiveChange: value => calls.push(["active", value]),
-    ...(options.local ? { view: { viewId: "local-view", project: { teachingRevision: "teaching-1", pages: [{ reviewState: "ready", actions: [] }] } } }
+    ...(options.local ? { view: { viewId: "local-view", project: { teachingRevision: "teaching-1", pages: [{ reviewState: "review", actions: [] }] } } }
       : { onlineSource: { viewId: "online-view", ownerId: "owner-1", teamProjectId: "team-1", readyPages: options.readyPages ?? 1, totalPages: 1 } }) };
   let intent = options.intent ?? null;
   const api = {

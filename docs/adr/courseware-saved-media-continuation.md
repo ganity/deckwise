@@ -92,3 +92,30 @@ The new Host video journal is additive, scoped by workspace/project/principal,
 and cannot adopt output against changed source, slot, owner or locked pages.
 No existing records need migration and video slots block automatic readiness and
 publication until a verified clip replaces them.
+
+
+## Completion acceptance and durable repair amendment (2026-10-31)
+
+The same-turn-only continuation lost repair budgets on restart and reset its goal
+on any tool error. Technical readiness could also pass after required actions
+were omitted. Add a small Host-owned checkpoint in the existing KV extension
+boundary and derive final acceptance from retained scene metadata and actual
+actions. Preserve the current process model and media journals; do not introduce
+a separate workflow service or database. Existing records require no migration.
+
+Restoration requires an explicit complete-course continuation in a running Agent
+turn. It is not startup replay or new spending authorization. Verified native-save
+commit alone rebinds persisted source identity; external changes keep the fence.
+Host completion verifies requirements and existing audio provenance. Subjective
+quality remains advisory, with bounded diagnostics rather than an endless loop.
+
+For missing approved activities, reuse narration generation but merge only required
+question/music actions at exact original speech anchors in Host. Retain all existing
+actions instead of replacing speech and discarding paid audio. Invalid proposals
+fail without writes. Transient reads may retry twice; mutation/submission uncertainty
+continues to use the original journal and never authorizes a replacement.
+
+The alternative of adding stronger skill instructions leaves persistence and
+acceptance unenforced. A new orchestration framework would duplicate existing
+Host/media ownership. The narrow checkpoint and protected repair preserve those
+boundaries, but do not certify unstructured free-text intentions or supplier quality.

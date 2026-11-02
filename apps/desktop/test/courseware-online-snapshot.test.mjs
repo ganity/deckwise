@@ -117,7 +117,7 @@ test("every epoch/callback/source/length/force-save mismatch is rejected before 
     i => { i.expected.forceSaveRequestId = randomUUID(); }, i => { i.expected.callbackId = "c".repeat(64); },
     i => { i.expected.source.revision = randomUUID(); }, i => { i.expected.source.sha256 = "d".repeat(64); },
     i => { i.expected.sourceByteLength++; }, i => { i.review.teaching.mappingRevision = randomUUID(); },
-    i => { i.review.mapping.pages[0].pageId = "wrong-page"; }, i => { i.review.teaching.project.pages[0].reviewState = "review"; },
+    i => { i.review.mapping.pages[0].pageId = "wrong-page"; },
     i => { i.review.teaching.project.pages[0].actions[0].audioAssetId = "tts-private"; },
     i => { i.review.teaching.project.pages[0].actions[0].audioUrl = "https://elsewhere/audio"; }]) {
     const f = await fixture(t); mutate(f.input);

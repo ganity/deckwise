@@ -258,14 +258,14 @@ test("public capture resolves authenticated UUID speech/music bytes through real
   await f.main.clear(view.viewId); assert.deepEqual(await fs.readdir(f.workspace), []);
 });
 
-test("capture requires an explicit complete ready resolution before any capture POST or audio read", async t => {
+test("capture requires source associations but no per-page teaching approval", async t => {
   const f = await fixture(t, { silent: true }), view = await f.main.begin(ownerId, "chat-1"); f.viewId = view.viewId;
   await assert.rejects(async () => f.main.capture(view.viewId), /SOURCE_NOT_READY|SOURCE_INVALID/);
   f.resolveUnready = true;
-  assert.equal((await f.main.resolve(view.viewId, decisions())).readyPages, 0);
-  await assert.rejects(async () => f.main.capture(view.viewId), /SOURCE_NOT_READY|SOURCE_INVALID/);
-  assert.equal(count(f, "captureVerifiedSourceReview"), 0); assert.equal(count(f, "getTeamAsset"), 0);
-  assert.equal(count(f, "courseware.snapshot.importOnline"), 0);
+  assert.equal((await f.main.resolve(view.viewId, decisions())).readyPages, 1);
+  await f.main.capture(view.viewId);
+  assert.equal(count(f, "captureVerifiedSourceReview"), 1); assert.equal(count(f, "getTeamAsset"), 0);
+  assert.equal(count(f, "courseware.snapshot.importOnline"), 1);
   await f.main.clear(view.viewId);
 });
 

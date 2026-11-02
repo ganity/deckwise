@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { assertCoursewareRetryable, coursewareRetryIntentId, currentCoursewareAttempts } from "./courseware-retry";
 import { coursewareMediaSubmissionProject, isCoursewareMediaPermissionRefusal } from "./courseware-media-scope";
 import { isCoursewareTaskRef, isCoursewareSceneImageTarget, type CoursewareSceneImageTarget, type CoursewareTaskRef, type CoursewareSceneImageView, type CoursewareSceneImageQuoteView, type CoursewareSceneImageAsset, type CoursewareSceneImagePreview } from "@pi-desktop/shared";
 import type { DesktopAuthSession } from "./auth-session";
@@ -125,7 +126,9 @@ export class CoursewareSceneImages {
     const { intents } = await c.host.call<{ intents: Journal[] }>("courseware.sceneImage.list", c.scope);
     if (!Array.isArray(intents) || intents.length > 300) throw new Error("COURSEWARE_SCENE_IMAGE_INVALID_JOURNAL");
     c.assertCurrent();
-    return intents.map((j) => view(checked(j)));
+    const rows = intents.map((j) => view(checked(j)));
+    const current = new Set(currentCoursewareAttempts(rows).map(row => row.intentId));
+    return rows.map(row => ({ ...row, current: row.current && current.has(row.intentId) }));
   }
 
   /** Main-only compiler input. Private archives never become team assets or renderer paths. */
@@ -169,9 +172,8 @@ export class CoursewareSceneImages {
           new Set(assets.filter(row => row.target.kind === "layer").map(row => row.target.kind === "layer" && row.target.name)).size !== assets.filter(row => row.target.kind === "layer").length)
         throw new Error(`COURSEWARE_SCENE_GENERATION_ASSETS_REQUIRED: ${page.pageId}`);
     }
-    if (rows.some(row => !row.asset || !plan.pages.some(page => page.pageId === row.pageId)) ||
-        rows.reduce((sum, row) => sum + (row.asset?.byteLength ?? 0), 0) > 256 * 1024 * 1024)
-      throw new Error("COURSEWARE_SCENE_GENERATION_ASSET_BUDGET");
+    if (rows.some(row => !row.asset || !plan.pages.some(page => page.pageId === row.pageId)))
+      throw new Error("COURSEWARE_SCENE_GENERATION_ASSETS_REQUIRED");
     const baseline = JSON.stringify(rows);
     const assertCurrent = async () => {
       c.assertCurrent();
@@ -318,27 +320,31 @@ export class CoursewareSceneImages {
       }
       c.assertCurrent();
       this.quotes.delete(p.quoteId);
-      const begun = checked(await c.host.call<Journal>("courseware.sceneImage.begin", c.scope), p.intentId);
+      const request: CoursewareImageRequest = { kind: j.intent.request.kind, model: j.intent.request.model, input: j.intent.request.input,
+        ...(referenceImage ? { referenceImage } : {}) };
+      let begun = j, teamProjectId: string | undefined;
+      const admit = async () => {
+        begun = checked(await c.host.call<Journal>("courseware.sceneImage.begin", c.scope), p.intentId);
       if (begun.intent.phase !== "submission-unknown" || begun.intent.idempotencyKey !== j.intent.idempotencyKey ||
           begun.intent.requestHash !== j.intent.requestHash || JSON.stringify(begun.intent.request) !== JSON.stringify(j.intent.request))
         throw new Error("COURSEWARE_SCENE_IMAGE_INVALID_JOURNAL");
       await this.approved(c.host, p.sessionId, begun.intent.planSha256);
       await this.reference(c, begun);
       c.assertCurrent();
-      const request: CoursewareImageRequest = { kind: begun.intent.request.kind, model: begun.intent.request.model, input: begun.intent.request.input,
-        ...(referenceImage ? { referenceImage } : {}) };
-      const teamProjectId = coursewareMediaSubmissionProject(begun.intent.submissionScope, p.sessionId);
+        teamProjectId = coursewareMediaSubmissionProject(begun.intent.submissionScope, p.sessionId);
       c.assertCurrent();
+        return teamProjectId;
+      };
       let task: CoursewareImageTask;
       try {
-        task = await this.auth.coursewareMedia.submitConfirmedImage(begun.intent.idempotencyKey, request, saved.quote, undefined, teamProjectId, async () => {
+        task = await this.auth.coursewareMedia.submitConfirmedImage(j.intent.idempotencyKey, request, saved.quote, undefined, undefined, async () => {
           c.assertCurrent();
-          await this.approved(c.host, p.sessionId, begun.intent.planSha256);
-          await this.reference(c, begun);
+          await this.approved(c.host, p.sessionId, j.intent.planSha256);
+          await this.reference(c, j);
           c.assertCurrent();
-        });
+        }, admit);
       } catch (failure) {
-        if (!isCoursewareMediaPermissionRefusal(failure, teamProjectId)) throw failure;
+        if (begun.intent.phase !== "submission-unknown" || !isCoursewareMediaPermissionRefusal(failure, teamProjectId)) throw failure;
         const rejected = checked(await c.host.call<Journal>("courseware.sceneImage.reject", { ...c.scope,
           rejectedRequest: { idempotencyKey: begun.intent.idempotencyKey, requestHash: begun.intent.requestHash } }), p.intentId);
         if (rejected.intent.phase !== "rejected" || rejected.intent.idempotencyKey !== begun.intent.idempotencyKey ||
@@ -350,6 +356,29 @@ export class CoursewareSceneImages {
       c.assertCurrent();
       return view(bound, task);
     } finally { this.submitting.delete(key); }
+  }
+
+  async retry(value: unknown): Promise<CoursewareSceneImageView> {
+    const p = input(value, ["intentId"]), c = this.context(p);
+    const original = checked(await c.host.call<Journal>("courseware.sceneImage.get", c.scope), p.intentId);
+    if (!original.current || original.intent.asset || original.intent.selected) throw new Error("COURSEWARE_SCENE_IMAGE_PLAN_CHANGED");
+    await this.approved(c.host, p.sessionId, original.intent.planSha256);
+    await this.reference(c, original);
+    const receipt = await this.read(c, original);
+    assertCoursewareRetryable(receipt.task);
+    c.assertCurrent();
+    const retried = checked(await c.host.call<Journal>("courseware.sceneImage.retry", c.scope), coursewareRetryIntentId(p.intentId));
+    // Host rebuilds legacy decomposition instructions with the current MAIC prompt.
+    const expectedRequest = original.intent.request.kind === "image-layers"
+      ? { ...original.intent.request, input: retried.intent.request.input } : original.intent.request;
+    if (original.intent.request.kind !== "image-layers" && retried.intent.requestHash !== original.intent.requestHash ||
+        JSON.stringify(retried.intent.request) !== JSON.stringify(expectedRequest) ||
+        retried.intent.planSha256 !== original.intent.planSha256 || retried.intent.pageId !== original.intent.pageId ||
+        retried.intent.referenceIntentId !== original.intent.referenceIntentId || JSON.stringify(retried.intent.target) !== JSON.stringify(original.intent.target) ||
+        !retried.current || retried.intent.idempotencyKey === original.intent.idempotencyKey)
+      throw new Error("COURSEWARE_SCENE_IMAGE_INVALID_JOURNAL");
+    c.assertCurrent();
+    return view(retried);
   }
 
   async status(value: unknown): Promise<CoursewareSceneImageView> {
@@ -373,7 +402,11 @@ export class CoursewareSceneImages {
           throw new Error("COURSEWARE_SCENE_IMAGE_INVALID_TASK");
         if (task.kind === "image-layers") {
           if (j.intent.target?.kind !== "cleanPlate") throw new Error("COURSEWARE_SCENE_IMAGE_INVALID_TASK");
-          const images = await downloadSceneImageBundle(bytes, j.intent.taskRef);
+          const images = await downloadSceneImageBundle(bytes, j.intent.taskRef, async image => {
+            c.assertCurrent();
+            checked(await c.host.call<Journal>("courseware.sceneImage.bundle.stage", { ...c.scope, stageOnly: true, images: [image] }), p.intentId);
+            c.assertCurrent();
+          });
           c.assertCurrent();
           checked(await c.host.call<Journal>("courseware.sceneImage.bundle.stage", { ...c.scope, images }), p.intentId);
           return await this.preview(value);
@@ -426,7 +459,7 @@ export class CoursewareSceneImages {
   }
 
   private async read(c: ReturnType<CoursewareSceneImages["context"]>, j: Journal): Promise<CoursewareSceneImageView> {
-    if (j.intent.phase === "prepared" || j.intent.phase === "rejected") { c.assertCurrent(); return view(j); }
+    if (j.intent.asset || j.intent.phase === "prepared" || j.intent.phase === "rejected") { c.assertCurrent(); return view(j); }
     c.assertCurrent();
     const task = j.intent.taskRef ? await this.auth.coursewareMedia.getImage(j.intent.taskRef, undefined, j.intent.request.kind)
       : await this.auth.coursewareMedia.findImage({ idempotencyKey: j.intent.idempotencyKey, requestHash: j.intent.requestHash }, undefined, j.intent.request.kind);

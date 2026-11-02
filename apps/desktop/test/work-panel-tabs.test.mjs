@@ -269,8 +269,26 @@ test("scene image preview is a recognized per-Chat resource that reopens without
   const once = openWorkPanelTabState({ tabs: [], activeTabId: null }, tab);
   const twice = openWorkPanelTabState(once, tab);
   assert.equal(twice.tabs.length, 1);
-  assert.equal(sanitizeWorkPanelTabsState(twice).activeTabId, "scene-images");
+  assert.equal(sanitizeWorkPanelTabsState(twice).activeTabId, "ppt");
   const switched = switchWorkPanelContextState({}, "chat-a", { ...twice, open: true, fileRequest: null }, "chat-b");
   assert.equal(switched.visible.tabs.length, 0);
-  assert.equal(switched.contexts["chat-a"].tabs[0].kind, "scene-images");
+  assert.equal(switched.contexts["chat-a"].tabs[0].kind, "ppt");
+});
+
+test("legacy scene previews migrate to the single courseware workspace", () => {
+  const state = sanitizeWorkPanelTabsState({ tabs: [{ id: "ppt", kind: "ppt" }, { id: "scene-images", kind: "scene-images" }], activeTabId: "scene-images" });
+  assert.deepEqual(state, { tabs: [{ id: "ppt", kind: "ppt" }], activeTabId: "ppt" });
+  assert.deepEqual(toolWorkPanelTab("scene-images"), toolWorkPanelTab("ppt"));
+});
+
+test("opening the saved courseware reuses its workspace and retains the source binding", () => {
+  let state = { tabs: [{ id: "ppt", kind: "ppt", resource: "lesson.pptx" }], activeTabId: "ppt" };
+  state = openWorkPanelTabState(state, fileWorkPanelTab("lesson.pptx"));
+  assert.equal(state.tabs.length, 1); assert.equal(state.activeTabId, "ppt");
+  state = openWorkPanelTabState(state, toolWorkPanelTab("ppt"));
+  assert.equal(state.tabs[0].resource, "lesson.pptx");
+  state = replaceWorkPanelTabState(state, "ppt", { id: "ppt", kind: "ppt", resource: "revised.pptx" });
+  assert.equal(state.tabs[0].resource, "revised.pptx");
+  state = openWorkPanelTabState(state, fileWorkPanelTab("other.pptx"));
+  assert.equal(state.tabs.length, 2, "Unrelated Office documents keep their own tab");
 });

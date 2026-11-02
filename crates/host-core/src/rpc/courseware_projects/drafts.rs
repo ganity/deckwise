@@ -3,6 +3,9 @@ use crate::db::courseware_projects::CoursewareProject;
 
 const NAMESPACE: &str = "coursewareTeachingDrafts.v1";
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Params {
@@ -90,7 +93,17 @@ pub(super) async fn handle(
         .map_err(invalid)?;
     let current = state.db.kv_get(NAMESPACE, &key).map_err(error)?;
     let Some((expected, content)) = change else {
-        return Ok(json!({ "draft": current }));
+        let recovered = current
+            .as_ref()
+            .map(|draft| {
+                state
+                    .db
+                    .reconcile_courseware_draft(&root, &project, &p.page_id, &key, draft)
+            })
+            .transpose()
+            .map_err(error)?
+            .flatten();
+        return Ok(json!({ "draft": recovered }));
     };
     let revision = current
         .as_ref()

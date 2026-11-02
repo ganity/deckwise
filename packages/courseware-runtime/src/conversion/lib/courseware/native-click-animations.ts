@@ -25,18 +25,22 @@ export function projectNativeClicks(page: SlidePageIR): NativeClickAnimations | 
 }
 
 /** Exact native mirrors of speech cues have one owner: the canonical speech clock. */
-export function hasGeneratedNativeMotions(page: SlidePageIR, actions: readonly { type: string; visualCues?: readonly { atMs: number; endMs: number; effect: { type: string; elementId?: string; effect?: string } }[] }[], mapping: readonly { objectId: string; importElementId: string }[]): boolean {
-  const motions = actions.flatMap(action => action.type === 'speech' ? (action.visualCues ?? []).filter(cue => cue.effect.type === 'element_animation') : []);
+export function hasGeneratedNativeMotions(page: SlidePageIR, actions: readonly { id?: string; type: string; visualCues?: readonly { atMs: number; endMs: number; effect: { type: string; elementId?: string; effect?: string } }[] }[], mapping: readonly { objectId: string; importElementId: string }[]): boolean {
+  const groups = actions.filter(action => action.type === 'speech').map(action =>
+    (action.visualCues ?? []).filter(cue => cue.effect.type === 'element_animation')).filter(cues => cues.length);
   const steps = page.pptxAnimation?.steps;
-  if (!motions.length || !steps || steps.length !== motions.length || actions.some(a => a.type === 'native_animation')) return false;
-  return motions.every((cue, index) => {
-    const preset = nativeMotionPreset(cue.effect.effect ?? ''), step = steps[index], item = step.items[0];
-    const imported = mapping.find(o => o.objectId === cue.effect.elementId)?.importElementId;
-    const targets = page.elements.filter(e => e.id === imported && e.sourceShapeId === item?.target?.shapeId);
-    return cue.atMs === 0 && !!preset && step.trigger === 'click' && step.items.length === 1 && !!item &&
-      targets.length === 1 && ['text', 'shape', 'image'].includes(targets[0].type) && !targets[0].sourceGroupShapeIds?.length &&
-      item.startAtMs === 0 && item.durationMs === cue.endMs && !item.target?.paragraphIndexes && !item.target?.characterRange &&
-      item.nativePreset?.version === 1 && item.nativePreset.class === preset.ooxmlClass && item.nativePreset.id === preset.presetId &&
-      (item.nativePreset.subtype ?? 0) === preset.subtype;
+  if (!groups.length || !steps || steps.length !== groups.length || actions.some(a => a.type === 'native_animation')) return false;
+  return groups.every((cues, index) => {
+    const step = steps[index];
+    return step.trigger === 'click' && step.items.length === cues.length && cues.every((cue, itemIndex) => {
+      const preset = nativeMotionPreset(cue.effect.effect ?? ''), item = step.items[itemIndex];
+      const imported = mapping.find(o => o.objectId === cue.effect.elementId)?.importElementId;
+      const targets = page.elements.filter(e => e.id === imported && e.sourceShapeId === item?.target?.shapeId);
+      return cue.atMs === 0 && Number.isInteger(cue.endMs) && cue.endMs >= 1 && cue.endMs <= 5000 && !!preset && !!item &&
+        targets.length === 1 && ['text', 'shape', 'image'].includes(targets[0].type) && !targets[0].sourceGroupShapeIds?.length &&
+        item.startAtMs === 0 && item.durationMs === cue.endMs && !item.target?.paragraphIndexes && !item.target?.characterRange &&
+        item.nativePreset?.version === 1 && item.nativePreset.verifiedSpeechMotion === true && item.nativePreset.class === preset.ooxmlClass && item.nativePreset.id === preset.presetId &&
+        (item.nativePreset.subtype ?? 0) === preset.subtype;
+    });
   });
 }

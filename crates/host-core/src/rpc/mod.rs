@@ -1861,7 +1861,9 @@ async fn handle_request(
         | "courseware.fixedShare.complete" => {
             courseware_fixed_share::handle(state, method, params).await
         }
-        "courseware.task.set"
+        "courseware.workflow.get"
+        | "courseware.workflow.checkpoint"
+        | "courseware.task.set"
         | "courseware.task.updateEducation"
         | "courseware.task.get"
         | "courseware.task.bindTeam"
@@ -1870,6 +1872,7 @@ async fn handle_request(
         | "courseware.scenePlan.get"
         | "courseware.scenePlan.approve"
         | "courseware.sceneImage.prepare"
+        | "courseware.sceneImage.retry"
         | "courseware.sceneImage.list"
         | "courseware.sceneImage.rebindModel"
         | "courseware.sceneImage.get"
@@ -1887,6 +1890,7 @@ async fn handle_request(
         | "courseware.mediaRelay.write"
         | "courseware.tts.prepare"
         | "courseware.video.prepare"
+        | "courseware.video.retry"
         | "courseware.video.get"
         | "courseware.video.asset.get"
         | "courseware.video.reuse"

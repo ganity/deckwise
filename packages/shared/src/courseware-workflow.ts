@@ -2,7 +2,7 @@ import type { CoursewareEducationContext, CoursewareTaskType, CoursewareProject 
 import type { CoursewareSceneImageView, CoursewareScenePlanSnapshot } from "./courseware-scene-plan.js";
 
 export const COURSEWARE_WORKFLOW_TOOLS = [
-  "courseware_workflow_get", "courseware_requirements_update", "courseware_scene_image_prepare",
+  "courseware_workflow_get", "courseware_scene_plan_submit", "courseware_requirements_update", "courseware_scene_image_prepare",
   "courseware_scene_image_refresh", "courseware_scene_compile",
   "courseware_narration_context", "courseware_narration_propose",
   "courseware_media_context", "courseware_media_prepare", "courseware_media_refresh",
@@ -10,13 +10,14 @@ export const COURSEWARE_WORKFLOW_TOOLS = [
 
 export type CoursewareWorkflowView = {
   task: { taskType: CoursewareTaskType; educationContext?: CoursewareEducationContext;
-    imported: boolean; generated: boolean } | null;
+    imported: boolean; generated: boolean; sourcePath?: string } | null;
   plan: CoursewareScenePlanSnapshot | null;
+  compilation?: { planSha256: string; state: "running" | "failed" | "stopped"; message?: string };
 };
 
 export type CoursewareSceneAssetBlocker = {
   pageId: string;
-  kind: "visualMaster" | "cleanPlate" | "layer" | "duplicate" | "distinctBackground" | "budget";
+  kind: "visualMaster" | "cleanPlate" | "layer" | "duplicate" | "distinctBackground" | "incomplete";
 };
 
 /** Presentation readiness only; compilation still revalidates the actual private bytes. */
@@ -44,10 +45,31 @@ export function sceneAssetBlockers(plan: CoursewareScenePlanSnapshot, images: re
     if (masters.length === 1 && backgrounds.length === 1 && masters[0].asset!.sha256 === backgrounds[0].asset!.sha256)
       blockers.push({ pageId: page.pageId, kind: "distinctBackground" });
   }
-  if (selected.some(row => !row.asset || !plan.pages.some(page => page.pageId === row.pageId)) ||
-      selected.reduce((sum, row) => sum + (row.asset?.byteLength ?? 0), 0) > 256 * 1024 * 1024)
-    blockers.push({ pageId: "", kind: "budget" });
+  if (selected.some(row => !row.asset || !plan.pages.some(page => page.pageId === row.pageId)))
+    blockers.push({ pageId: "", kind: "incomplete" });
   return blockers;
+}
+
+/** Rendering only: never infer a compiler job from Chat activity or submit media here. */
+export function sceneWorkspaceProgress(plan: CoursewareScenePlanSnapshot, images: readonly CoursewareSceneImageView[],
+  running: boolean, compilation?: CoursewareWorkflowView["compilation"]) {
+  const rows = images.filter(row => row.current && row.planSha256 === plan.sha256);
+  const masters = rows.filter(row => row.target.kind === "visualMaster" && row.asset);
+  const imageCount = new Set(masters.map(row => row.pageId).filter(id => plan.pages.some(page => page.pageId === id))).size;
+  const blockers = sceneAssetBlockers(plan, rows);
+  const assetPages = plan.pages.filter(page => !blockers.some(blocker => !blocker.pageId || blocker.pageId === page.pageId)).length;
+  const cover = masters.find(row => row.pageId === plan.pages[0].pageId && row.selected);
+  const compiling = compilation?.planSha256 === plan.sha256 ? compilation : undefined;
+  const phase = !cover ? masters.some(row => row.pageId === plan.pages[0].pageId) ? "style" : "cover" :
+    compiling?.state === "running" ? "converting" : imageCount < plan.pages.length ? "images" : blockers.length ? "layers" : "queued";
+  const unresolved = rows.filter(row => !row.asset && !rows.some(peer => peer.selected && peer.asset && peer.pageId === row.pageId &&
+    peer.target.kind === row.target.kind && (row.target.kind !== "layer" || peer.target.kind === "layer" && peer.target.name === row.target.name)));
+  const unknown = unresolved.some(row => row.phase === "submission-unknown" || row.task?.state === "submission_unknown");
+  const failed = unresolved.some(row => row.phase === "rejected" || ["failed", "cancelled", "archive_failed"].includes(row.task?.state ?? ""));
+  const waiting = unresolved.some(row => row.phase === "submitted" && !["failed", "cancelled", "archive_failed", "ready"].includes(row.task?.state ?? ""));
+  const activity = compiling?.state === "failed" ? "failed" : compiling?.state === "stopped" ? "paused" : unknown ? "unknown" :
+    failed ? "failed" : phase === "style" ? "review" : waiting ? "waiting" : running || compiling?.state === "running" ? "running" : "paused";
+  return { phase, activity, imageCount, assetPages, total: plan.pages.length };
 }
 
 export type CoursewareTeachingProgress = { total: number; audio: number; ready: number };
@@ -57,6 +79,33 @@ export function coursewareTeachingProgress(project: CoursewareProject): Coursewa
   return { total: project.pages.length,
     audio: project.pages.filter(page => page.actions.some(action => action.type === "speech") &&
       page.actions.filter(action => action.type === "speech").every(action => typeof action.audioAssetId === "string")).length,
-    ready: project.pages.filter(page => page.reviewState === "ready" &&
-      !page.actions.some(action => action.attention !== undefined || action.type === "video_slot")).length };
+    ready: project.pages.filter(page => page.actions.length > 0 && !page.actions.some(action =>
+      action.attention !== undefined || ["video_slot", "music_slot"].includes(String(action.type)) ||
+      action.type === "speech" && (typeof action.text !== "string" || !action.text.trim() || !action.audioAssetId) ||
+      action.type === "audio_clip" && !action.audioAssetId || action.type === "video_clip" && !action.videoAssetId)).length };
+}
+
+/** Host-owned recovery progress; resuming execution still requires a current authorized turn. */
+export type CoursewareWorkflowCheckpoint = {
+  revision: number; projectId: string; sourceSha256: string;
+  status: "running" | "blocked" | "completed";
+  repairAttempts: Record<string, number>; lastResume: string | null;
+};
+
+export type CoursewareMediaRecovery = "prepared" | "pending" | "unknown" | "failed" | "archived" | "adopted" | "needs-human";
+
+/** Normalize actual tool envelopes; provider readiness does not imply saved adoption. */
+export function coursewareMediaRecovery(value: unknown): CoursewareMediaRecovery {
+  const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+  if (!record(value)) return "failed";
+  const media = record(value.image) ? value.image : record(value.media) ? value.media : value;
+  const task = record(media.task) ? media.task : undefined;
+  if (value.requiresHumanSelection === true) return "needs-human";
+  if (value.saved === true || media.selected === true || media.phase === "adopted") return "adopted";
+  if (media.asset) return "archived";
+  if (media.phase === "rejected" || ["failed", "cancelled", "archive_failed"].includes(String(task?.state ?? value.state))) return "failed";
+  if ((!task && media.phase === "submission-unknown") || (task?.state ?? value.state) === "submission_unknown") return "unknown";
+  if (task?.errorCode || media.errorCode) return "failed";
+  if (media.phase === "prepared") return "prepared";
+  return value.waitingFor === "service" || media.phase === "submitted" || task ? "pending" : "failed";
 }

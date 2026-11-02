@@ -18,6 +18,7 @@ export type CoursewarePage = {
   pageId: string;
   actions: Array<Record<string, unknown>>;
   locked: boolean;
+  /** Legacy wire metadata; never a human approval or playback gate. */
   reviewState: "ready" | "review";
 };
 export type CoursewareProject = {

@@ -175,6 +175,23 @@ contextBridge.exposeInMainWorld('deckwiseEditorHost', {
     const previewPrimitives = await previewFrame.executeJavaScript(`import('/.deckwise/teaching-preview.mjs').then(m =>
       typeof m.SpeechCueScheduler === 'function' && typeof m.createTeachingTimelinePreview === 'function' && m.buildEvenOddPath([{x:1,y:2,w:3,h:4}]).includes('M 1 2'))`);
     assert.equal(previewPrimitives, true, "Local shared teaching preview primitives did not load");
+    const audioFixture = readFileSync(join(desktop, "test/fixtures/courseware-tts-tone.mp3")).toString("base64");
+    const mediaPreview = await previewFrame.executeJavaScript(`(async () => {
+      const { createTeachingTimelinePreview } = await import('/.deckwise/teaching-preview.mjs');
+      const url = URL.createObjectURL(new Blob([Uint8Array.from(atob('${audioFixture}'), c => c.charCodeAt(0))], { type: 'audio/mpeg' }));
+      let preview, timer;
+      try {
+        return await new Promise((resolve, reject) => {
+          timer = setTimeout(() => reject(new Error('Local teaching audio timed out')), 15000);
+          preview = createTeachingTimelinePreview({ pageId: 'media-probe',
+            nodes: [{id:'speech',type:'speech',text:'Local audio',audioUrl:url}, {id:'music',type:'audio_clip',audioUrl:url}],
+            onMode() {}, onProgress() {}, onNode() {}, onError: reject, onComplete: () => resolve(true) });
+          preview.start();
+        });
+      } finally { clearTimeout(timer); preview?.dispose(); URL.revokeObjectURL(url); }
+    })()`, true);
+    assert.equal(mediaPreview, true, "Production editor CSP blocked local teaching media");
+    console.log("LOCAL_TEACHING_MEDIA_PLAYED", JSON.stringify({ speech: true, music: true }));
     let teachingRequests = 0;
     const teachingListener = (_event, event) => {
       const message = event.message;

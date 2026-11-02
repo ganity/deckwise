@@ -340,7 +340,6 @@ impl Database {
     ) -> Result<Teaching> {
         let tx = self.conn.unchecked_transaction()?;
         self.ensure_no_source_adoption(workspace)?;
-        self.ensure_courseware_chat_resolved(workspace, &seed.project_id)?;
         let project = self
             .get_courseware_project(workspace, &seed.project_id)?
             .ok_or_else(|| anyhow!("COURSEWARE_NOT_FOUND: project not found"))?;

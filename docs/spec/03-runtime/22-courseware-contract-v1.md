@@ -116,7 +116,7 @@ at most 20 entries and a 2 MiB serialized response budget.
 
 Recovery projects only speech text (at most 32,000 UTF-16 units), optional
 `source` (`notes|external|original|light_rewrite|generated`), optional integer
-`pauseAfterMs` (0–30,000) and `teacher_continue` checkpoints. All action and
+`pauseAfterMs` (0–30,000), explicit `delay` nodes and `teacher_continue` checkpoints. All action and
 checkpoint IDs are newly assigned. Historical speech audio, independent audio
 clips, highlight/spotlight bindings and other timing/object metadata are never
 rebound. The preview names these omissions. Users must regenerate/review audio
@@ -230,6 +230,33 @@ These edits use the existing serial recovery draft and explicit Save narration
 path, with unchanged editor, review, page-lock and source/teaching revision gates.
 Pauses and waits are never narration text or TTS input; playback of a checkpoint
 requires the teacher's explicit continue action rather than a timer.
+
+The native WiseOffice teaching timeline also supports independent
+`{id, type: "delay", durationMs}` nodes. Host accepts exactly these fields and an
+integer duration of 0–30,000 ms. Delays can be inserted between any nodes, edited,
+reordered and removed using normal teaching drafts/CAS and page-lock gates. A
+delay consumes no TTS/media service. Editor preview and the fixed player share
+the existing pausable timer: Pause freezes the remaining duration, Resume
+continues it, Teacher Continue cannot skip it and Stop/navigation cancels it.
+Fixed-build input and package loading validate the same bound. Historical-page
+recovery assigns a fresh delay ID and retains its duration. Source review keeps
+it without object mapping. Legacy speech `pauseAfterMs` remains unchanged; there
+is no implicit migration before the new sidecar schema is introduced. Older
+strict fixed players reject packages containing delay nodes rather than silently
+omitting time; regenerate/use a current player for these packages.
+
+The native teaching pane offers explicitly labeled **Undo unsaved edits** and
+**Redo unsaved edits** for the current draft. They restore whole action payloads,
+including original audio/cues when undoing an unsaved narration edit, and persist
+the result through the existing serial recovery-draft CAS. They do not write the
+canonical teaching project, submit media work or change WiseOffice native history.
+A new edit discards redo. History retains at most 20 edits and 4 Mi UTF-16 units
+per direction, and is cleared when loading/saving/adopting a new authoritative view
+or changing native page/source context. Persisted recovery content remains, but
+this in-memory undo stack is not restored after an editor restart. Controls lock
+on draft errors and during mutations. Browser text-field undo retains its normal
+meaning. This is not compound PPTX/teaching undo or saved-version rollback; those
+still require Host operation receipts and native history correlation.
 
 ## Persisted saved-source identity baseline
 
@@ -415,3 +442,313 @@ canonical teaching/locks and current Chat ownership before and after inspection
 and after permission. The model cannot provide mapping or authorization. A
 caller holding a returned mapping cannot bypass Host permissions or the dedicated
 finite Office execution channel. Native fade mounting remains a separate gate.
+
+
+## Native slideshow ownership during teaching preview
+
+The native teaching pane observes the pinned SDK's start/slide-change/end
+slideshow callbacks. Ordinary native slideshow entry disposes editor teaching
+preview, unloads audio/video, clears cue overlays and fences pending readback.
+Exiting re-enables teaching preview without automatically starting it.
+
+The separate **Present this page's teaching** command prepares existing local
+speech/music/video through the same Host reads and preview core, then owns an
+explicit native slideshow canvas for one saved page. The pinned presentation
+controller leaves this marked canvas in place rather than opening a second
+native preview. Native click animation steps remain native user clicks. Teaching
+starts only after the transition stops and `IsMainSeqFinished` reports completion;
+no estimated timeout advances an animation. The current supported animation
+subset is static-geometry appear/fade main sequences. Triggered sequences,
+animation builds, motion/exit/other effects, automatic page advance and embedded
+native media reject before playback; normal native slideshow remains available.
+
+During native preparation the owned canvas also exposes **Next PPT animation**,
+native Pause/Resume and actual completed-step counts. The command uses the pinned
+SDK's `OnNextSlideAnimPlayer`, never the next-page fallback. Its promise resolves
+only when that exact native effect reports `isAtEnd`; pending/paused/transitioning
+or stale runs cannot advance another step. Disposing or replacing the sequence
+rejects pending completion, and an unexpected later-step start cancels ownership.
+Resume starts the current page's animation player directly, avoiding `Play`'s
+possible next-page fallback. Manual canvas clicks remain supported. These controls
+are removed when native preparation finishes. They do not yet persist or schedule
+per-node animation bindings in the teaching timeline.
+
+Once teaching starts, the shared core owns speech, audio clips, video clips,
+standalone delays and teacher-continue waits. Pause/Resume/Teacher Continue/Exit
+live below the canvas. Native play is not resumed after main-sequence completion
+because that can advance a slide. Teaching completion returns to editing.
+Escape, manual page navigation, source mutation, ownership change or disposal
+stops teaching, unloads media and removes overlays/listeners. Controls on this
+read-only surface do not invalidate document edit-generation stamps; actual
+editor interactions still do. A response from any stopped preview cannot
+restart playback.
+
+Highlight/spotlight use the native slideshow's actual slide rectangle, canvas
+backing size and CSS bounds, including letterboxing and device scale. They retain
+saved-source and current-target identity checks.
+
+Fixed exports also allow highlight/spotlight on objects revealed by the supported
+native appear/fade entrance clicks. Those clicks finish before narration starts,
+and the overlays do not alter object geometry or become a second animation owner.
+The builder and loader continue rejecting speech `element_animation` cues on the
+same native target with `NATIVE_ANIMATION_CUE_CONFLICT`. All mapping, supported
+native timing and attention-target validation remains required. This does not
+introduce per-node native animation binding or change existing package schemas.
+
+**Present the entire lesson** runs those same current-page previews in saved
+native page order. Each page is opened through a fresh Host teaching view and
+recovery-draft read; source hash, teaching revision, page identity, native slide
+instances and context generation must still match. A changed source/revision,
+missing/duplicate page mapping or unsaved/recovered teaching draft stops the run.
+There is no media generation, adoption, write or approval during this command.
+It reads and releases existing local media one page at a time, retaining the
+per-page memory bound. A covering preparation screen prevents presenting the
+underlying editor while switching pages and provides Stop/Escape. Read-only
+preparation controls do not invalidate document interaction stamps.
+
+Natural page completion cleans up that page, advances, and starts the next
+validated page. Native click steps still require actual canvas clicks. Pause,
+teacher waits and retryable media errors keep their current-page meanings;
+failed media never advances the lesson. Stop, manual navigation, Escape, dirty
+source and disposal invalidate the whole run, including late media responses.
+Successful lesson completion returns to its original editing page. Cancellation
+never forcibly restores a page over the user's navigation. Ordinary sidebar
+repaint cannot cancel a run owned by internal page preparation; unrelated edits
+and context changes retain cancellation behavior. Per-node native-animation
+scheduling, arbitrary native effects and packaged-platform certification remain
+separate design gates.
+
+### Saved-source native animation timeline nodes
+
+A local teaching page may contain `{ id, type: "native_animation", version: 1,
+sourceSha256, stepIndex }`, with no extra fields. The hash is the exact lowercase
+SHA-256 of the saved PPTX. `stepIndex` is an integer 0–199 in that logical page's
+supported native main sequence, never an SDK runtime ID. Native nodes follow
+ordinal order starting at zero; speech/media/delay/teacher waits may intervene.
+Host validates structure, source and ordinal order; actual PPTX inventory is
+validated during conversion. Local snapshots preserve bindings. Source-change
+narration projection refuses to carry them; remove or explicitly rebind them.
+
+Fixed export requires every actual supported native step exactly once on a bound
+page. Count, target, preset and duration come from the converted saved PPTX.
+Stale/gapped/duplicate/reordered bindings fail with
+`NATIVE_ANIMATION_BINDING_MISMATCH`. Bound pages emit native metadata version 2,
+`sequence: "teaching-timeline"`, and report capability `click-appear-fade/2`.
+Unbound legacy pages retain version 1 and before-narration teacher clicks; mixed
+packages report the highest native capability in use.
+
+The loader independently verifies capability, metadata and bindings before
+playback. Each bound node projects into the existing element-animation/timeline
+execution at its position, without extra teacher gates or another playback
+clock. Native entrance targets begin hidden. Speech attention on a native target
+must follow its entrance node; otherwise builder and loader return
+`NATIVE_ANIMATION_TARGET_NOT_REVEALED`. Duplicate speech/native animation
+ownership remains prohibited. The supported main-sequence subset and existing
+mapping/asset validation remain unchanged.
+
+The native sidebar now binds all supported saved-page steps in one operation.
+Native nodes can move around narration/media/delays while preserving native
+ordinal order. Individual deletion is disabled; removing all bindings restores
+legacy preparation. Binding requires a clean source matching page-lineage SHA.
+Saved writes and recovery drafts use the existing Host authorities.
+
+For bound pages, owned native presentation starts teaching once the transition
+ends, before entrance steps. The shared core projects native nodes to private
+completion checkpoints and invokes the finite native driver. Actual effect end,
+never a timer or teacher click, releases the checkpoint. Pause freezes the native
+player and completion; native failure requires restarting presentation. The
+checkpoint namespace cannot collide with explicit teacher waits. Unbound pages
+retain manual preparation. Native input on the owned canvas is blocked during
+bound playback; Escape and teaching controls remain available. Source/page/effect
+mutation and unexpected advancement stop ownership. Editor-only playback refuses
+bound nodes and directs users to teaching presentation.
+
+Before bound presentation, current source, count, order and cue target identities
+must agree. Attention cannot precede a target's entrance or duplicate native
+animation ownership. These checks use saved object proofs and actual native
+shape identities, not positions or labels. Portable sidecar migration, compound
+saved undo and packaged acceptance remain separate design gates.
+
+### Portable teaching file (G5, Linux copy mounted; migration pending)
+
+Rust validates `deckwise-teaching/1` in
+`db/courseware_projects/portable.rs`. Its strict header is
+`{schemaVersion, projectUuid, commitId, project, identity, media}`. `project` is
+canonical editable content, including education context, manual locks and review
+state; unlike a fixed snapshot, unfinished speech and unresolved video slots are
+valid. The journal pins the actual source SHA and commit UUID. Updates preserve
+the persistent UUID and canonical legacy project ID.
+
+`identity` is the existing bound saved-source identity with ordered logical
+pages, object/native export evidence and mapping revision. Its diagnostics must
+be empty; diagnostics stay in Host storage. No unknown field is accepted at a
+portable envelope, action, cue, checkpoint or media boundary. Unknown legacy
+nodes fail explicitly rather than being dropped during migration. Node and
+checkpoint IDs are unique within each page timeline, matching canonical authoring
+which may reuse `narration-0` on different pages. Attention/cue targets must be eligible mapped objects
+on the same page. Native source pins and prefix ordering use canonical validation;
+actual native inventory/owner conflicts remain SDK/fixed-build responsibilities.
+
+Each media entry is exactly
+`{id,path,sha256,mimeType,byteLength,durationMs}` with
+`path = media/<sha256>.bin`. MIME/duration come from authenticated decoder output,
+not provider estimates. Paths cannot refer to remote URLs or escape the project.
+All referenced media must exist with the recorded byte length and hash before
+publishing teaching, on recovery, and on reads. Cues require pinned audio and must
+fit its measured interval. Missing or tampered media prevents success. This
+format introduces no renderer filesystem write route, paid generation path or
+SQLite authority change; opt-in migration and its RPC/UI are separate work.
+
+
+`assetLocks` and `sceneObjects` are optional strict authored metadata fields, with
+explicit null rejected. Scene objects retain the original bound identity and the
+validated generated mapping, including aliases, role and regeneration instruction;
+this preserves historical/missing object context without inventing a new binding.
+Current-source image locks must match saved mapping/fingerprints/native shape proof.
+Historical locks remain pinned to their original source and require explicit review
+before rebinding. These records contain authored data, not private provider receipts.
+
+The retained internal project-copy IPC takes only `{sessionId}` over
+`deckwise/ppt-editor/project/copy`. Main reparses the current saved revision and
+calls `courseware.project.copy` with `{sessionId,jobId,expectedSourceRevision,
+expectedTeachingRevision}`. Host rejects caller paths/metadata, stale revisions,
+foreign jobs and missing media provenance. It writes a new
+`<session-workspace>/courseware-copies/<uuid>.deckwise/` containing `lesson.pptx`,
+`lesson.teaching.json`, content-addressed media and recovery metadata. Existing
+copies/originals are not overwritten. It returns the copied path, UUID, pinned
+source/teaching revision and media count to Main; renderer gets only path/count.
+No network, generation, charge or SQLite authority switch occurs. Unfinished
+narration and review state are preserved; only already saved teaching is copied.
+This internal compatibility operation has no editor toolbar entry; the user's
+2026-10-29 scope correction removed the complete-project-copy and advanced-teaching
+buttons. Desktop never mounts the outer teaching panel alongside WiseOffice.
+Teaching, voice and attention editing use its native right sidebar exclusively.
+Main attaches a Linux portable
+project before opening saved teaching; whole-editor fresh-profile acceptance
+remains separate from the installed-parser and component tests.
+
+The Host restore boundary is `courseware.project.restore` with exact
+`{sessionId,jobId,sourcePath}`. The path must resolve to a workspace-contained
+portable `lesson.pptx`; no caller project ID, sidecar content or media metadata is
+accepted. Host verifies committed public/archive bytes and fresh parser mapping,
+archives verified relative media, then transactionally imports teaching, logical
+identities, scene metadata, locks and a portable baseline marker. The canonical ID
+is `portable-<projectUuid>`, and that parser job is bound to it after success.
+Portable identities deliberately exclude free-form parser diagnostics; all
+source/page/object evidence must still match. Identical repeated imports preserve
+local edits. Different same-UUID baselines, missing markers, changed sources and
+invalid media reject without overwriting teaching. SQLite remains the editing
+authority; this does not enable normal sidecar saves.
+
+The private automatic boundary is `courseware.project.attach`, with the same
+exact `{sessionId,jobId,sourcePath}` input. Main obtains `sourcePath` from the
+authorized editor, never renderer input, after parsing its saved revision. Host
+returns exactly `{attached:boolean}`. Ordinary PPTX files return false without
+creating project metadata. Portable `lesson.pptx` files require the committed
+sidecar, immutable baseline/source archive and verified media. A retained commit
+with a removed sidecar fails. Initial import uses strict restore; existing
+same-baseline imports keep local teaching and bind every new saved parser job to
+the durable UUID. A changed public PPTX must match parsed bytes and enter the
+existing explicit source-review flow. It cannot overwrite teaching or silently
+change page/object associations. A changed baseline rejects even for an already
+imported UUID. Unsupported platforms reject portable attachment; ordinary PPTX
+behavior is retained.
+
+`courseware.project.localMedia` takes exact `{sessionId,projectId,pageId,actionId,
+expectedSourceRevision,expectedTeachingRevision}` and returns `{media:null}` or
+`{media:{asset:{id,sha256,mimeType},path,byteLength,durationMs}}`. The absolute path
+is Host-to-Main only. Provenance requires bound current source identity,
+page/action kind, asset reference and unchanged speech text to match the imported baseline, with
+archived bytes reverified. Portable media never serves as a provider authorization
+or paid task receipt. Re-copy validates imported and provider-backed media
+separately. Explicit source review may preserve these exact logical references;
+changed speech, cross-page reuse and unbound source edits do not acquire proof.
+
+Native speech/music/video preview first checks imported local provenance. Main
+reads bounded no-follow regular files, verifies SHA-256 and byte length, then
+validates MIME and exact declared duration with the sandboxed Electron decoder.
+Portable limits remain 50 MiB/file, 128 MiB total, 1000 assets and one hour/file.
+Renderer receives bytes/MIME only. Corruption rejects without a network retry or
+paid generation. Ordinary and newly generated media retain their previous path.
+Local-only preview and snapshot capture require no account/provider lookup.
+
+Snapshot assets admit the exclusive local form `{asset:{id,sha256,mimeType},
+local:true}`. False, unknown or combined path/provider proofs reject. Host checks
+every current page/action referencing that ID against its imported baseline,
+rechecks archived bytes and requires exact MIME/hash. Main includes speech,
+music and video in snapshot completeness and decodes repeated assets once while
+checking each reference. Fixed snapshots consume the normal immutable asset
+archive. Whole-editor playback/export acceptance, coordinated normal sidecar
+saves and authority migration remain pending.
+
+### Scene teaching follow-up (2026-10-30)
+
+Scene page metadata optionally carries validated `teaching` requirements: page
+type, phase, objective, duration, required objects, typed question and music.
+Identity follows the saved logical page ID after reorder. Scene semantic evidence
+persists current UUID-bound role, spoken aliases, text and target eligibility;
+it grants neither geometry changes nor inferred re-association.
+
+Question responses optionally retain `{kind,options,answerIndices}` with strict
+bounds for single, multiple, judge, short_answer, discussion, practice and pbl.
+Objective index sets are evaluated locally; open responses require teacher
+evaluation. Legacy question checkpoints without a response remain compatible.
+`music_slot` retains `{id,type,title,prompt}` until the corresponding verified
+music result replaces it with an `audio_clip` at the same action position.
+
+The bounded speech motion vocabulary adds zoomIn, slideInLeft, slideInRight and
+gentleRotate to fadeIn/fadeOut/pulse. Native projection occurs on corresponding
+teaching-page load and never overwrites a manual animation sequence. Fixed-build
+deduplication requires exact validated SDK behavior plus canonical target/group/
+timing equality. Highlight and spotlight remain sidecar overlays. Advisory quality
+uses `blocking:false`; unresolved quality is reported independently from editable
+artifact availability and technical playback readiness. See the
+[implementation and device acceptance record](../../design/2026-10-30-scene-teaching-parity.md)
+for verified scope and remaining differences.
+
+
+### Native teaching editing clarity (2026-10-30)
+
+Native teaching reads may retry at most twice when the editor renews its
+selection generation on the same writable page during a saved-source read.
+Every retry uses a fresh context and the existing Host source/page/session
+validation. Writes and paid operations are never retried by this recovery.
+A failed animation projection must not permanently suppress subsequent context
+refreshes. Existing manually authored native sequences remain untouched.
+
+Every speech inspector exposes spotlight, highlight and native animation
+editing. Missing audio, object mappings or an unlocked page are stated
+explicitly instead of hiding the entry points. Saved teaching needs no per-page
+confirmation or effect-review checkbox. The native sidebar has no confirmation
+operation. Multiple eligible targets may be selected; existing cue targets,
+times, preview, edit and remove actions remain visible. Native animation editing
+opens the SDK panel without imposing the narrower synchronized-playback preset
+restrictions.
+
+Adopted music and video steps load their verified local bytes into a native
+media control only while selected. They display duration, allow playback/seek
+and preserve recorded gain. Selection changes, page changes, stop and disposal
+release playback and object URLs. Loading never autoplays or creates a paid
+job. Speech model/voice/task identifiers stay in collapsed voice settings.
+Imported teacher-continue checkpoints are labeled as legacy teacher pauses and
+explain their manual continuation; new pauses remain narration-tail settings.
+
+## Teaching approval boundary (2026-10-30 correction)
+
+Only teaching-plan approval and first-page style confirmation gate the teaching
+workflow. Saving narration, adopting verified media, editing attention cues and
+building saved teaching never require individual page approval. `reviewState`
+is retained solely for v1 stored/wire compatibility; neither value grants or
+revokes editing, generation progress, snapshot capture or playback. Readiness
+follows actual saved actions, resolved attention, media slots and verified assets.
+Legacy confirmation RPCs remain compatible with older clients but are not exposed
+as required steps in the current UI. Locks and exact source/page/revision/session
+checks still apply.
+
+A completed source association is complete immediately. Chat change plans remain
+auditable receipts, including pending or uncertain operations, without a manual
+request-disposition prerequisite for snapshots, portable exports or fixed shares.
+This does not grant source-replacement, destructive deletion or external-publication
+authority; existing explicit user choices for those operations remain intact.
+This correction supersedes earlier per-page teaching-review language in this
+contract and the Host-owned-courseware ADR.

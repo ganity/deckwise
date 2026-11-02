@@ -35,6 +35,7 @@ test("personal and unbound completion preserve the original model base URL", asy
   f.session({}); f.calls.length = 0;
   assert.deepEqual(await f.resolve(), { apiKey: "fresh-token" });
   assert.equal(f.calls.length, 1);
+  assert.deepEqual(f.calls[0].params, { id: "chat", messageLimit: 1 });
   assert.deepEqual(await resolveCoursewareLlmAuth(f.host, undefined, async () => "fresh-token"), { apiKey: "fresh-token" });
 });
 

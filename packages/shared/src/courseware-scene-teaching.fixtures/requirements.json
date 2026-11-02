@@ -1,0 +1,7 @@
+[
+  { "name": "exact discussion", "expected": { "text": "Say hello", "response": { "kind": "discussion", "options": [], "answerIndices": [] } }, "action": { "question": "Say hello", "response": { "kind": "discussion", "options": [], "answerIndices": [] } }, "matches": true },
+  { "name": "boundary whitespace", "expected": { "text": "Say hello", "response": { "kind": "discussion", "options": [], "answerIndices": [] } }, "action": { "question": " Say hello\n", "response": { "kind": "discussion", "options": [], "answerIndices": [] } }, "matches": true },
+  { "name": "unrelated discussion", "expected": { "text": "Say hello", "response": { "kind": "discussion", "options": [], "answerIndices": [] } }, "action": { "question": "Say goodbye", "response": { "kind": "discussion", "options": [], "answerIndices": [] } }, "matches": false },
+  { "name": "ordered choices", "expected": { "text": "Which greeting?", "response": { "kind": "single", "options": ["Hello", "Bye"], "answerIndices": [0] } }, "action": { "question": "Which greeting?", "response": { "kind": "single", "options": ["Bye", "Hello"], "answerIndices": [1] } }, "matches": false },
+  { "name": "changed answer", "expected": { "text": "Which greeting?", "response": { "kind": "single", "options": ["Hello", "Bye"], "answerIndices": [0] } }, "action": { "question": "Which greeting?", "response": { "kind": "single", "options": ["Hello", "Bye"], "answerIndices": [1] } }, "matches": false }
+]

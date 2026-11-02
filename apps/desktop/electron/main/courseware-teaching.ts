@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { LocalSnapshotAsset } from "./courseware-portable-media";
-import { objectsForTeaching } from "./courseware-scene-object-view";
+import { sceneTeachingForPage, objectsForTeaching } from "./courseware-scene-object-view";
 import { isCoursewareTeachingDraft, isCoursewareTeachingHistory, isCoursewareAttentionCue, isCoursewareAttentionIntent, isCoursewareInteractionCheckpoint, sourceChangeForTeaching, chatChangesForTeaching, type CoursewareTeachingHistory } from "@pi-desktop/shared";
 import { setTimeout as delay } from "node:timers/promises";
 import { isCoursewareProject, isCoursewareSnapshot, isTeachingWrite, samePptEditorBinding, type CoursewareTeachingDraft, type CoursewareSnapshot, type CoursewareTeachingView, type CoursewareNarrationReview, type CoursewarePptxCandidateReview, type CoursewareSourceReview, type PptEditorBinding, type PptEditorContext } from "@pi-desktop/shared";
@@ -135,7 +135,7 @@ export class CoursewareTeachingCoordinator {
     const opened = await this.withSaved(sessionId, async (host, jobId, snapshot, context, sessionId) => {
       const result = await host.call<{ project: unknown }>("courseware.project.openSaved", { sessionId, jobId });
       if (isCoursewareProject(result.project) && result.project.taskType === "plain" && result.project.pages.length <= 30 &&
-          result.project.pages.every((page) => page.actions.length === 0 && !page.locked && page.reviewState === "review")) {
+          result.project.pages.every((page) => page.actions.length === 0 && !page.locked)) {
         const narrations: string[] = [];
         let missing = 0;
         for (let pageNumber = 1; pageNumber <= result.project.pages.length; pageNumber++) {
@@ -238,8 +238,6 @@ export class CoursewareTeachingCoordinator {
     this.assertCandidateOwner(pin.sessionId);
     await this.assertCurrent(pin.snapshot, pin.context, pin.sessionId, pin.host);
     if (this.pin !== pin || this.opening) throw new Error("Teaching view changed; reload current page");
-    if (pin.view.project.pages.some((page) => page.reviewState !== "ready"))
-      throw new Error("COURSEWARE_REVIEW_REQUIRED: confirm every page before building a preview");
     const mediaAssetIds = pin.view.project.pages.flatMap((page) => page.actions)
       .filter((action) => action.type === "speech" || action.type === "audio_clip" || action.type === "video_clip")
       .map((action) => action.type === "video_clip" ? action.videoAssetId : action.audioAssetId);
@@ -480,11 +478,12 @@ export class CoursewareTeachingCoordinator {
     if (warnings !== undefined && (!Array.isArray(warnings) || warnings.length > 200 || !warnings.every(value => typeof value === "string" && value.length <= 1000)))
       throw new Error("Invalid saved teaching warnings");
     const teachingObjects = objectsForTeaching(raw, project, page.pageId);
+    const teaching = sceneTeachingForPage(raw, project, page.pageId);
     const sourceChange = sourceChangeForTeaching(raw, project);
     const chatChanges = chatChangesForTeaching(raw);
     await this.assertCurrent(snapshot, context, sessionId, host);
     if (expectedPin && (this.pin !== expectedPin || this.opening)) throw new Error("Teaching view changed; reload current page");
-    const view = { viewId, project, pageId: page.pageId, pageNumber: context.page!,
+    const view = { viewId, project, ...(teaching ? { teaching } : {}), pageId: page.pageId, pageNumber: context.page!,
       ...(warnings?.length ? { saveWarnings: warnings as string[] } : {}),
       ...(teachingObjects ? { teachingObjects } : {}), ...(sourceChange ? { sourceChange } : {}), ...(chatChanges ? { chatChanges } : {}) };
     this.pin = { view, snapshot, context, sessionId, host };
@@ -718,8 +717,8 @@ export class CoursewareTeachingCoordinator {
         !(action.visualCues === undefined && (action.text !== old?.text || action.audioAssetId !== old?.audioAssetId));
     });
     if (!changed.length) return;
-    if (page.locked || page.reviewState !== "ready")
-      throw new Error("Effect authoring requires an unlocked, explicitly confirmed saved page");
+    if (page.locked)
+      throw new Error("Effect authoring requires an unlocked saved page");
     const raw = await pin.host.call("courseware.project.context", { sessionId: pin.sessionId, projectId: pin.view.project.projectId });
     const objects = objectsForTeaching(raw, pin.view.project, pin.view.pageId) ?? [];
     for (const action of changed) {

@@ -340,6 +340,10 @@ impl Database {
         );
         if commit {
             self.rebind_courseware_review_audio(workspace, &journal.baseline, &journal.next)?;
+            self.rebind_native_save_tts(workspace, &journal.baseline, &journal.next)?;
+            self.rebind_native_save_music(workspace, &journal.baseline, &journal.next)?;
+            self.rebind_native_save_video(workspace, &journal.baseline, &journal.next)?;
+            self.rebind_native_workflow(workspace, &journal.baseline, &journal.next)?;
             self.kv_set(
                 HISTORY_NAMESPACE,
                 &serde_json::to_string(&(&project_key, &journal.baseline.teaching_revision))?,

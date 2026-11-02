@@ -47,8 +47,7 @@ export async function importOnlineCoursewareSnapshot(input: CoursewareOnlineSnap
       !Number.isSafeInteger(expected.sourceByteLength) || expected.sourceByteLength < 1 || expected.sourceByteLength > 20 * 1024 * 1024 ||
       review.sourceByteLength !== expected.sourceByteLength || review.teaching.mappingRevision !== mapping.revision ||
       mapping.sourceSha256 !== project.source.sha256 || mapping.pages.length !== project.pages.length ||
-      mapping.pages.some((page, index) => page.pageId !== project.pages[index]?.pageId) ||
-      project.pages.some(page => page.reviewState !== "ready")) throw invalid();
+      mapping.pages.some((page, index) => page.pageId !== project.pages[index]?.pageId)) throw invalid();
   const ids = new Set<string>();
   for (const page of project.pages) for (const action of page.actions) {
     if (Object.hasOwn(action, "audioUrl") || Object.hasOwn(action, "audioId") ||

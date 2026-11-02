@@ -1,4 +1,5 @@
 import { SaxesParser } from 'saxes';
+import { nativeSpeechComposite } from './native-speech-composite';
 import type { PptAnimationItemIR, PptAnimationPageIR } from '../../types';
 
 const MAX_TIMING_XML_BYTES = 10 * 1024 * 1024;
@@ -20,7 +21,7 @@ export type PptxTimingParseResult =
   | { accepted: true; animation: PptAnimationPageIR; warnings?: string[] }
   | { accepted: false; warning: string };
 
-type TimingNode = {
+export type TimingNode = {
   local: string;
   uri: string;
   attrs: Record<string, string>;
@@ -29,7 +30,8 @@ type TimingNode = {
 };
 type StartDependency = { timingId: string; event: 'onBegin' | 'onEnd'; delayMs: number };
 type StartCondition = StartDependency | { delayMs: number };
-type AnimationComposite = {
+export type AnimationComposite = {
+  nativeVerified?: boolean;
   primaryNode: TimingNode;
   nodes: TimingNode[];
   targetNode: TimingNode;
@@ -249,7 +251,9 @@ function collectSteps(
           .filter((condition): condition is { delayMs: number } => !isStartDependency(condition))
           .reduce((total, condition) => total + condition.delayMs, 0) +
         parentStartAnchors.reduce((total, condition) => total + condition.delayMs, 0);
-      const animationType = rotationAnimation
+      const animationType = animationComposite?.nativeVerified
+        ? (effectNode?.attrs.presetClass === 'emph' ? 'attention' : effectNode?.attrs.presetClass === 'exit' ? 'out' : 'in')
+        : rotationAnimation
         ? 'attention'
         : motionAnimation
           ? motionAnimation.animationType
@@ -319,7 +323,7 @@ function collectSteps(
         item: {
           target,
           ...(effectNode && /^\d+$/.test(effectNode.attrs.presetID ?? '') && effectNode.attrs.presetClass
-            ? { nativePreset: { version: 1 as const, class: effectNode.attrs.presetClass, id: Number(effectNode.attrs.presetID), ...(effectNode.attrs.presetSubtype && /^\d+$/.test(effectNode.attrs.presetSubtype) ? { subtype: Number(effectNode.attrs.presetSubtype) } : {}) } }
+            ? { nativePreset: { version: 1 as const, ...(animationComposite?.nativeVerified ? { verifiedSpeechMotion: true as const } : {}), class: effectNode.attrs.presetClass, id: Number(effectNode.attrs.presetID), ...(effectNode.attrs.presetSubtype && /^\d+$/.test(effectNode.attrs.presetSubtype) ? { subtype: Number(effectNode.attrs.presetSubtype) } : {}) } }
             : {}),
           effect: rotationAnimation
             ? 'rotation'
@@ -556,6 +560,7 @@ function collectUnsupportedBranches(
 
   walk(root, (node, ancestors) => {
     if (ancestors.some((ancestor) => nodes.has(ancestor))) return;
+    if (ancestors.some(a => animationComposites.get(a)?.nativeVerified) || animationComposites.get(node)?.nativeVerified) return;
     const isInsideAudio =
       node.local === 'audio' || ancestors.some((ancestor) => ancestor.local === 'audio');
     if (
@@ -625,6 +630,8 @@ function collectSupportedAnimationComposites(
   const composites = new Map<TimingNode, AnimationComposite>();
   walk(root, (node) => {
     if (node.local !== 'cTn' || !isEffectNode(node)) return;
+    const native = nativeSpeechComposite(node);
+    if (native) { native.nodes.forEach(child => composites.set(child, native)); return; }
     const visualNodes = collectEffectVisualNodes(node);
     const nodesByTarget = new Map<string, TimingNode[]>();
     for (const visualNode of visualNodes) {

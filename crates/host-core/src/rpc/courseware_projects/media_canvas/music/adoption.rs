@@ -65,6 +65,32 @@ pub(super) async fn handle(
                 matches!(intent.request, Request::Export { .. }) && intent.phase == Phase::Submitted
             })
             .ok_or_else(|| invalid("Only an archived exported MP3 can be adopted"))?;
+        if let Some(target) = &intent.target {
+            let project = state
+                .db
+                .get_courseware_project(
+                    root.to_str().ok_or_else(|| invalid("Invalid workspace"))?,
+                    &p.project_id,
+                )
+                .map_err(error)?
+                .ok_or_else(|| invalid("Music project missing"))?;
+            if target.project_id != p.project_id
+                || target.page_id != p.page_id
+                || p.slot_id.as_deref() != Some(&target.action_id)
+                || target.source != project.source
+                || !project.pages.iter().any(|page| {
+                    page.page_id == target.page_id
+                        && page.actions.iter().any(|a| {
+                            a["id"] == target.action_id
+                                && (a["type"] == "music_slot" && a["prompt"] == target.prompt
+                                    || a["type"] == "audio_clip"
+                                        && a["audioAssetId"] == format!("music-{}", asset.sha256))
+                        })
+                })
+            {
+                return Err(conflict());
+            }
+        }
         let scope = intent
             .submission_scope
             .clone()

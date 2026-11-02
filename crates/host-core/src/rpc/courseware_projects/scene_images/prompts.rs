@@ -2,11 +2,12 @@ use super::{scene_plan, Target};
 
 // Ported from MAIC slide-authoring.ts at fdb27892; keep PPTX delivery and the 4000-unit transport limit.
 const COMPOSITION: &str = "Use the full canvas as one intentional teaching composition, not a generic background or slot template. Prefer one focal action, no collage or disconnected vignettes, generous breathing room. Integrate the requested text components into the finished composition at natural readable locations. Continue one environment, floor, light, and perspective across the full canvas.";
-const BACKGROUND: &str = "Background art direction: do not reduce the scene to a plain color, simple gradient, empty wall, or studio backdrop. Build a cohesive illustrated environment across the full canvas using visible depth, lighting, material texture, and harmonious color variation. Preserve extraction by keeping only the immediate gutters around each foreground or text component calm and lower contrast; keep the environment visually developed elsewhere.";
+const BACKGROUND: &str = "Background art direction: preserve a cohesive full-canvas setting, not a blank wall or generic gradient. Use depth, light, color and materials for atmosphere, not piles of objects. Keep background detail subordinate and calm around subjects and text.";
+const CONTENT: &str = "Preserve every lesson-required subject, name and prop; do not cap their count. No unrequested subjects, duplicate portraits/badges, extra text carriers or decorative props. The visual bible is an identity guide, not a cast list for every page. Keep the requested style and setting.";
 const SEPARATION: &str = "Every foreground subject and readable text component must be independent, non-touching, non-overlapping and fully inside the canvas, with visible background gutters. Keep glyph edges crisp and opaque with a thick high-contrast outline. No lettering, outline, ribbon, bubble or accent may touch or cover a foreground subject. Avoid stiff front-facing lineups, repeated clip-art spacing, excessive empty space, cropped faces or limbs, distorted anatomy and unrelated decoration.";
 
 // MAIC lib/media/adapters/seedream-layer-adapter.ts, SEEDREAM_LAYER_PROMPT.
-const LAYER_PROMPT: &str = "将图片进行精确图层分离，只分离所有可独立编辑的前景教学元素：人物、动物、植物、主要教学道具，以及所有文字、卡片、气泡、按钮等文字载体（整块载体连同上面的文字一起分离）。背景、墙面、窗户、家具、地毯、绿植、挂画、旗帜等环境装饰全部保留在底图中，不要单独分离。";
+pub(super) const LAYER_PROMPT: &str = "将图片进行精确图层分离，只分离所有可独立编辑的前景教学元素：人物、动物、植物、主要教学道具，以及所有文字、卡片、气泡、按钮等文字载体（整块载体连同上面的文字一起分离）。背景、墙面、窗户、家具、地毯、绿植、挂画、旗帜等环境装饰全部保留在底图中，不要单独分离。";
 
 pub(super) fn build(
     plan: &scene_plan::Plan,
@@ -22,7 +23,9 @@ pub(super) fn build(
         format!("Lesson context (not extra display text): {}. Page context: {}.\nPage visual storytelling: {}\n{}", plan.title, page.title, page.visual_intent, target.prompt())
     };
     if matches!(target, Target::VisualMaster {}) {
-        prompt.push_str(&format!("\n{COMPOSITION}\n{BACKGROUND}\n{SEPARATION}"));
+        prompt.push_str(&format!(
+            "\n{COMPOSITION}\n{BACKGROUND}\n{SEPARATION}\n{CONTENT}"
+        ));
     }
     if !decomposition {
         if let Some(bible) = &plan.visual_bible {
@@ -37,7 +40,7 @@ pub(super) fn build(
             prompt.push_str("\nUse the reference image ONLY for art style and recurring character identity, including materials, lighting, proportions and outfits. Follow this page's subjects and action; do not copy reference text, character count or composition.");
         }
     }
-    if !instructions.trim().is_empty() {
+    if !decomposition && !instructions.trim().is_empty() {
         prompt.push_str(&format!(
             "\nAdditional requirements: {}",
             instructions.trim()
@@ -94,6 +97,7 @@ mod tests {
             "",
         );
         assert_eq!(decomposition, LAYER_PROMPT);
+        assert_eq!(build(&plan, &plan.pages[0], &Target::CleanPlate {}, true, true, "Legacy instructions"), LAYER_PROMPT);
         assert!(decomposition.contains("整块载体连同上面的文字一起分离"));
         assert!(!decomposition.contains("Remove every readable title"));
         let mut page: scene_plan::Page = serde_json::from_value(json!({"title":"Quiet scene", "visibleText":[], "visualIntent":"A landscape", "narration":"Listen"})).unwrap();

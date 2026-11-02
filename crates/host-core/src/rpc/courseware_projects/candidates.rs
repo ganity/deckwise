@@ -9,6 +9,8 @@ struct Save {
     write: TeachingWrite,
     #[serde(default)]
     semantics: Vec<crate::db::courseware_projects::scene_objects::SceneSemanticEvidence>,
+    #[serde(default)]
+    repair_required_teaching: bool,
 }
 
 #[derive(Deserialize)]
@@ -72,10 +74,20 @@ pub(super) async fn handle(
                     "COURSEWARE_CONFLICT",
                 ));
             }
-            let project = state
-                .db
-                .save_generated_narration_with_semantics(&root, &seed, &p.baseline, &p.write, &p.semantics)
-                .map_err(error)?;
+            let project = if p.repair_required_teaching {
+                state
+                    .db
+                    .repair_required_teaching(&root, &seed, &p.baseline, &p.write)
+            } else {
+                state.db.save_generated_narration_with_semantics(
+                    &root,
+                    &seed,
+                    &p.baseline,
+                    &p.write,
+                    &p.semantics,
+                )
+            }
+            .map_err(error)?;
             Ok(json!({"project":project}))
         }
         "courseware.narrationCandidate.stage" => {

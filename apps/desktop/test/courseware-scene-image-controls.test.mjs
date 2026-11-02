@@ -1,83 +1,48 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
-import ts from "typescript";
+import { sceneWorkspaceProgress } from "@pi-desktop/shared";
 
-const source = await readFile(new URL("../src/components/workpanel/CoursewareSceneImages.tsx", import.meta.url), "utf8");
-const output = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022,
-  module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
+const plan = { sha256: "a".repeat(64), pages: [{ pageId: "cover" }, { pageId: "page2" }] };
+const image = (pageId, kind, extra = {}) => ({ intentId: `${pageId}-${kind}`, pageId, planSha256: plan.sha256,
+  target: kind === "layer" ? { kind, name: "Character" } : { kind }, current: true, selected: true, phase: "submitted",
+  asset: { sha256: kind.repeat(16).slice(0, 64), byteLength: 100 }, ...extra });
+const masters = plan.pages.map(page => image(page.pageId, "visualMaster"));
+const complete = plan.pages.flatMap(page => [image(page.pageId, "visualMaster"), image(page.pageId, "cleanPlate"), image(page.pageId, "layer")]);
+const progress = (rows, running = false, compilation) => sceneWorkspaceProgress(plan, rows, running, compilation);
 
-// Deterministic hook driver exercises the component's public controls without a Desktop instance.
-function fixture(options = {}) {
-  const supported = Object.hasOwn(options, "supported") ? options.supported : true;
-  const selected = options.selected ?? true;
-  const state = [], effects = [], pending = [], calls = [];
-  let cursor = 0;
-  const slot = initial => { const index = cursor++; if (!(index in state)) state[index] = initial; return index; };
-  const react = {
-    useState(initial) { const index = slot(initial); return [state[index], value => { state[index] = typeof value === "function" ? value(state[index]) : value; }]; },
-    useRef(initial) { return state[slot({ current: initial })]; },
-    useEffect(effect, deps) { const index = cursor++; if (!effects[index] || deps.some((value, i) => value !== effects[index][i])) { effects[index] = deps; pending.push(effect); } },
-  };
-  const ref = { intentId: "master", planSha256: "a".repeat(64), pageId: "scene-001", target: { kind: "visualMaster" },
-    current: true, selected, model: "image-model", phase: "submitted", task: null, prompt: "Reference",
-    asset: { sha256: "b".repeat(64), mimeType: "image/png", byteLength: 70, width: 1, height: 1 } };
-  const intent = { ...ref, intentId: "background", target: { kind: "cleanPlate" }, asset: null, selected: false,
-    phase: "prepared", referenceImage: { intentId: ref.intentId, sha256: ref.asset.sha256, mimeType: "image/png", byteLength: 70 } };
-  const api = {
-    onAuthChanged: () => () => {},
-    async coursewareSceneImageModels() { return [{ model: "image-model", ...(supported === undefined ? {} : { supportsReferenceImage: supported }) }]; },
-    async coursewareSceneImageList() { return [ref]; },
-    async coursewareSceneImagePrepare(...args) { calls.push(["prepare", ...args]); return intent; },
-    async coursewareSceneImageQuote() { calls.push(["quote"]); return { quoteId: "quote", model: "image-model", maxPoints: 3, expiresAt: "2099-01-01T00:00:00Z" }; },
-    async coursewareSceneImagePreview() { calls.push(["preview"]); return { image: ref, dataUrl: "data:image/png;base64,local-private-preview" }; },
-    async coursewareSceneImageGenerate(...args) { calls.push(["submit", ...args]); return { ...intent, phase: "submitted" }; },
-  };
-  const exports = {};
-  new Function("require", "exports", output)(id => {
-    if (id === "react") return react;
-    if (id === "react/jsx-runtime") return { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) };
-    if (id === "react-i18next") return { useTranslation: () => ({ t: (key, data) => key + (data ? " " + JSON.stringify(data) : "") }) };
-    assert.equal(id, "../../lib/api"); return { api };
-  }, exports);
-  const props = { sessionId: "chat", plan: { sha256: ref.planSha256, pages: [{ pageId: ref.pageId, title: "Circle" }] },
-    enabled: true, onActiveChange() {}, onGenerated() {} };
-  let tree;
-  const render = () => { cursor = 0; tree = exports.CoursewareSceneImages(props); for (const effect of pending.splice(0)) effect(); return tree; };
-  const nodes = () => {
-    const all = [], visit = value => { if (Array.isArray(value)) return value.forEach(visit); if (!value || typeof value !== "object") return;
-      all.push(value); visit(value.props?.children); };
-    visit(tree); return all;
-  };
-  const button = key => nodes().find(node => node.type === "button" && node.props.children === "panel.sceneImages." + key);
-  const click = async key => { const node = button(key); assert(node, key); assert.equal(!!node.props.disabled, false, key);
-    node.props.onClick(); await new Promise(resolve => setImmediate(resolve)); render(); };
-  const choose = (index, value) => { nodes().filter(node => node.type === "select")[index].props.onChange({ target: { value } }); render(); };
-  render(); render();
-  return { calls, nodes, button, click, choose, render };
-}
-
-test("reference generation uses the selected private master directly without a fee dialog", async () => {
-  const f = fixture();
-  await f.click("models"); await f.click("refresh");
-  f.choose(0, "scene-001"); f.choose(1, "image-model"); f.choose(2, "cleanPlate");
-  await f.click("submit");
-  assert.deepEqual(f.calls.map(call => call[0]), ["prepare", "submit"]);
-  assert.equal(f.calls[0].at(-1), "master");
-  assert.equal(f.calls.some(call => ["quote", "preview"].includes(call[0])), false);
-  assert.equal(f.nodes().some(node => node.type === "input" && node.props.type === "checkbox"), false);
-  assert.deepEqual(f.calls.at(-1), ["submit", "chat", "background"]);
+test("cover review and page generation have distinct states and real page counts", () => {
+  assert.equal(progress([]).phase, "cover");
+  assert.equal(progress([{ ...masters[0], selected: false }]).phase, "style");
+  assert.equal(progress([{ ...masters[0], selected: false }]).activity, "review");
+  assert.deepEqual(progress([masters[0]], true), { phase: "images", activity: "running", imageCount: 1, assetPages: 0, total: 2 });
 });
 
-test("missing selection and unsupported or absent model capability visibly disable reference generation", async () => {
-  for (const options of [{ supported: false }, { supported: undefined }, { selected: false }]) {
-    const f = fixture(options);
-    await f.click("models"); await f.click("refresh");
-    f.choose(0, "scene-001"); f.choose(1, "image-model"); f.choose(2, "cleanPlate");
-    assert.equal(f.button("submit").props.disabled, true);
-    assert(f.nodes().some(node => typeof node.props?.children === "string" && node.props.children.includes("referenceRequired")));
-    assert.equal(f.calls.length, 0);
-    f.choose(2, "visualMaster");
-    assert.equal(f.button("submit").props.disabled, false, "text-only visual masters keep existing model behavior");
-  }
+test("all images remain previews while layers are missing, even when Chat stops", () => {
+  assert.deepEqual(progress(masters), { phase: "layers", activity: "paused", imageCount: 2, assetPages: 0, total: 2 });
+  assert.equal(progress(masters, true).phase, "layers");
+  assert.equal(progress([...masters, ...complete.filter(row => row.pageId === "cover" && row.target.kind !== "visualMaster")]).assetPages, 1);
+});
+
+test("only a matching actual compiler job shows conversion", () => {
+  assert.equal(progress(complete, true).phase, "queued");
+  assert.equal(progress(complete, true, { state: "running", planSha256: "old" }).phase, "queued");
+  assert.equal(progress(complete, false, { state: "running", planSha256: plan.sha256 }).phase, "converting");
+  assert.equal(progress(complete, true, { state: "failed", planSha256: plan.sha256 }).activity, "failed");
+  assert.equal(progress(complete, true, { state: "stopped", planSha256: plan.sha256 }).activity, "paused");
+});
+
+test("service waiting, uncertainty and failure cannot be reported as completion", () => {
+  const pending = image("page2", "cleanPlate", { selected: false, asset: null });
+  assert.equal(progress([...masters, pending]).activity, "waiting");
+  assert.equal(progress([...masters, { ...pending, phase: "submission-unknown" }]).activity, "unknown");
+  assert.equal(progress([...masters, { ...pending, task: { state: "failed" } }]).activity, "failed");
+  assert.equal(progress([...masters, { ...pending, task: { state: "cancelled" } }]).activity, "failed");
+  assert.equal(progress([...complete, { ...pending, task: { state: "failed" } }]).activity, "paused", "Superseded failed alternatives do not block selected assets");
+});
+
+test("foreign, stale and duplicate assets do not inflate progress", () => {
+  const rows = [...masters, masters[0], image("foreign", "visualMaster"), image("page2", "layer", { planSha256: "old" })];
+  assert.equal(progress(rows).imageCount, 2);
+  assert.equal(progress(rows).assetPages, 0);
+  assert.equal(progress([{ ...masters[0], current: false }]).imageCount, 0);
 });

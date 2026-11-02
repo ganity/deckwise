@@ -20,6 +20,7 @@ Each ADR includes:
 
 | ID | Title | Status |
 |---|---|---|
+| courseware-media-bindings-and-requirements | [Verified media bindings and retained requirements](courseware-media-bindings-and-requirements.md) | Accepted |
 | subagent-model-fallback | [Ordered subagent model fallback](subagent-model-fallback.md) | Accepted for implementation |
 | subagent-model-opt-in | [Separate Subagent Model Opt-In from Definition Pins](subagent-model-opt-in.md) | Accepted for implementation |
 | 0001 | Use Electron as the desktop shell | Accepted |

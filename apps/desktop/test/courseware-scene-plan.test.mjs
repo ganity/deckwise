@@ -23,10 +23,36 @@ const commands = await loadSource("../../../packages/agent-runtime/src/coursewar
 const profiles = await loadSource("../../../packages/agent-runtime/src/courseware/generation-profile-registry.ts", {
   "./kindergarten-english-commands.js": commands,
 });
-const planning = await loadSource("../electron/main/courseware-scene-plan.ts", { "@pi-desktop/agent-runtime": profiles });
+const planning = await loadSource("../electron/main/courseware-scene-plan.ts", { "@pi-desktop/agent-runtime": profiles, "@pi-desktop/shared": shared });
 const { createSceneCoursePlan, parseSceneCoursePlan } = planning;
 const input = { sessionId: "session-1", modelKey: "provider/model", brief: "幼儿园英语问候课", education: { schoolStage: "kindergarten", subject: "english" } };
 const answer = JSON.stringify({ title: "问候", pages: [{ title: "打招呼", visibleText: ["Hello"], visualIntent: "两个孩子挥手", narration: "和朋友挥挥手，说 Hello。Good!" }] });
+
+test("initial planning corrects invalid JSON with bounded feedback instead of human schema steering", async () => {
+  const requests = [];
+  const result = await createSceneCoursePlan(input, async request => {
+    const data = JSON.parse(request.messages[0].content); requests.push(data);
+    return { text: requests.length === 1 ? "invalid JSON" : answer };
+  });
+  assert.equal(result.title, "问候"); assert.equal(requests.length, 2);
+  assert.equal(requests[1].repair.previousOutput, "invalid JSON");
+  assert.deepEqual(requests[1].education, requests[0].education);
+  let calls = 0;
+  await assert.rejects(createSceneCoursePlan(input, async () => { calls++; return { text: "invalid JSON" }; }));
+  assert.equal(calls, 3);
+  calls = 0;
+  await assert.rejects(createSceneCoursePlan(input, async () => { calls++; throw Error("Provider lost"); }), /Provider lost/);
+  assert.equal(calls, 1);
+});
+
+test("Chat draft errors expose the actual teaching format and missing visible question", () => {
+  const plan = JSON.parse(answer);
+  plan.pages[0].teaching = { pageType: "invalid" };
+  assert.throws(() => parseSceneCoursePlan(JSON.stringify(plan)), /teaching.*pageType:slide\|quiz\|interactive\|pbl/);
+  plan.pages[0].teaching = { pageType: "interactive", phase: "practice", objective: "Greet", durationSeconds: 120,
+    requiredObjects: [], question: { text: "Wave hello", response: { kind: "practice", options: [], answerIndices: [] } } };
+  assert.throws(() => parseSceneCoursePlan(JSON.stringify(plan)), /must be visible.*Wave hello/);
+});
 
 test("initial scene plan uses the selected teaching policy and yields stable page bindings", async () => {
   let request;
@@ -231,4 +257,43 @@ test("preset and custom art directions reach both planning entrances as saved us
     assert(content.includes(JSON.stringify(education)));
     assert.match(content, /Never change a user-selected style without a new user request/);
   }
+});
+
+
+test("scene planning preserves required groups and names while excluding unrequested clutter", async () => {
+  const policy = planning.sceneCourseTeachingPolicy(input.education);
+  for (const content of [policy, sceneSkill]) {
+    assert.match(content, /Preserve every lesson-required character, name and prop; do not cap their count/);
+    assert.match(content, /five animals and all five names/);
+    assert.match(content, /Do not add unrequested subjects, duplicate portraits\/badges, extra text carriers or decorative props/);
+    assert.match(content, /depth, light, color and materials/);
+  }
+});
+
+test("typed teaching questions and hash order survive reordered JSON fields", () => {
+  const teaching = { pageType: "quiz", phase: "practice", objective: "Identify a greeting", durationSeconds: 40, requiredObjects: ["Monkey"],
+    question: { text: "Which greeting?", response: { kind: "single", options: ["Hello", "Goodbye"], answerIndices: [0] } },
+    music: { purpose: "Listening", prompt: "Hello song" } };
+  const page = { title: "Choose", visibleText: ["Which greeting?", "Hello", "Goodbye"], visualIntent: "Monkey asks the visible question", narration: "Which greeting?", teaching };
+  const plan = p => parseSceneCoursePlan(JSON.stringify({ title: "Greetings", pages: [p] }));
+  const reversed = value => Array.isArray(value) ? value.map(reversed) : value && typeof value === "object" ? Object.fromEntries(Object.entries(value).reverse().map(([k,v]) => [k, reversed(v)])) : value;
+  assert.equal(plan(page).pages[0].sourceHash, plan(reversed(page)).pages[0].sourceHash);
+  // Captured from the pre-repair parser; absent video must retain approved legacy hashes.
+  assert.equal(plan(page).pages[0].sourceHash, "sha256:d7ae53a010809e5c2c8aa4f58cec177be6519106e59664f35fa695bc35aca1d9");
+  assert.deepEqual(plan(page).pages[0].teaching, teaching);
+  const withVideo = { ...page, teaching: { ...teaching, video: { purpose: "Wave", prompt: "A five-second silent wave" } } };
+  assert.deepEqual(plan(withVideo).pages[0].teaching.video, withVideo.teaching.video);
+  assert.notEqual(plan(withVideo).pages[0].sourceHash, plan(page).pages[0].sourceHash);
+  assert.equal(plan(withVideo).pages[0].sourceHash, plan(reversed(withVideo)).pages[0].sourceHash);
+  assert.throws(() => plan({ ...page, visibleText: ["Which greeting?"] }), /must be visible/);
+  assert.throws(() => plan({ ...page, teaching: null }));
+});
+
+test("the skill planning example passes the actual parser and retains question and music requirements", () => {
+  const example = sceneSkill.match(/```json\s*([\s\S]*?)```/u)?.[1];
+  assert(example, "The planning skill needs an executable JSON example");
+  const plan = parseSceneCoursePlan(example);
+  assert.equal(plan.pages[0].teaching?.question?.response.kind, "practice");
+  assert(plan.pages[0].teaching?.music?.prompt);
+  assert(plan.pages[0].teaching?.video?.prompt);
 });
