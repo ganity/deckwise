@@ -1,4 +1,5 @@
 import { planSceneVisualMaster, type VisualMasterPlanningInput } from "../courseware-visual-master";
+import { planMagicLayers, magicLayersBundle, type MagicLayersFallback } from "../courseware-magic-layers";
 import { join } from "node:path";
 import type { BrowserWindow, IpcMain, IpcMainInvokeEvent } from "electron";
 import { err, ErrorCodes, IPC, ok, type Result, type HostStatusEvent } from "@pi-desktop/shared";
@@ -245,6 +246,12 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     sendToRenderer,
   });
   const sceneGeneration = { ...dependencies.sceneGeneration,
+    layerFallback: (async input => {
+      const result = await authSession.coursewareMedia.magicLayers.split({ ...input, image: input.bytes,
+        plan: async () => planMagicLayers(input, await dependencies.sceneGeneration.resolveModel(input.sessionId), dependencies.completeScene) });
+      await input.check();
+      return magicLayersBundle(result.bytes, result.manifest, input.width, input.height);
+    }) satisfies MagicLayersFallback,
     planVisualMaster: async (input: VisualMasterPlanningInput) => planSceneVisualMaster(input,
       await dependencies.sceneGeneration.resolveModel(input.sessionId), dependencies.completeNarration) };
   registerCoursewareSceneImageIpc({ registrar, getHost, getViewingSessionId: getNotificationViewingSessionId,

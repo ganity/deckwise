@@ -4,6 +4,7 @@ import { sceneAssetBlockers, type CoursewareEducationContext, type CoursewareSce
 import type { DesktopAuthSession } from "./auth-session";
 import { readSceneCourseDraft } from "./courseware-scene-draft";
 import { CoursewareSceneImages } from "./courseware-scene-images";
+import { runSceneImagePipeline } from "./courseware-scene-image-pipeline";
 import { CoursewareSceneGeneration, type SceneCourseGenerationServices } from "./courseware-scene-generation";
 
 type Host = { call<T>(method: string, params: unknown): Promise<T> };
@@ -20,6 +21,7 @@ function assertWorkflowScope(host: Host | null, currentHost: Host | null, sessio
 /** Main Chat and panel reuse the same durable jobs; image generation keeps billing internal and preserves first-page style review. */
 export class CoursewareChatWorkflow {
   private compiling = false;
+  private readonly imagePipelines = new Set<string>();
   private compilation?: { sessionId: string } & NonNullable<CoursewareWorkflowView["compilation"]>;
   narration?: { execute(sessionId: string, name: string, args: unknown, canDispatch: () => boolean): Promise<unknown> };
   media?: { execute(sessionId: string, name: string, args: unknown, canDispatch: () => boolean): Promise<unknown> };
@@ -49,7 +51,7 @@ export class CoursewareChatWorkflow {
       ...((task.generatedPath ?? task.importPath) ? { sourcePath: task.generatedPath ?? task.importPath } : {}) } : null, plan };
   }
 
-  async execute(sessionId: string, name: string, args: unknown, canDispatch: () => boolean) {
+  async execute(sessionId: string, name: string, args: unknown, canDispatch: () => boolean): Promise<unknown> {
     if (!record(args)) throw new Error("Invalid courseware workflow arguments");
     const input = structuredClone(args), host = this.getHost();
     const check = () => assertWorkflowScope(host, this.getHost(), sessionId, this.getViewingSession(), canDispatch);
@@ -79,7 +81,7 @@ export class CoursewareChatWorkflow {
       return this.read(sessionId, canDispatch);
     }
     const images = new CoursewareSceneImages(() => this.getHost(),
-      () => { check(); return sessionId; }, () => !canDispatch(), this.auth, this.generation?.planVisualMaster);
+      () => { check(); return sessionId; }, () => !canDispatch(), this.auth, this.generation?.planVisualMaster, this.generation?.layerFallback);
     if (name === "courseware_workflow_get") {
       if (Object.keys(input).length) throw new Error("Unexpected workflow read arguments");
       if (!view.plan || view.plan.approvedSha256 !== view.plan.sha256) return { ...view, images: [], models: [], blockers: [] };
@@ -105,6 +107,10 @@ export class CoursewareChatWorkflow {
       let image = initial;
       check();
       if (!image.current || image.planSha256 !== view.plan!.sha256) throw new Error("Scene plan changed; read the current workflow");
+      if (!image.asset && image.decomposition && image.task?.state === "failed") {
+        canGenerate(image.pageId, image.target);
+        image = await images.fallback({ sessionId, intentId: image.intentId }); check();
+      }
       if (!image.asset && image.task?.state === "ready" && image.task.feeState === "settled") {
         image = (await images.archive({ sessionId, intentId: image.intentId })).image; check();
       }
@@ -119,11 +125,13 @@ export class CoursewareChatWorkflow {
         (row.intentId === image.intentId || image.decomposition && row.intentId.startsWith(`${image.intentId}-layer-`)));
       for (const row of group) {
         check();
-        if (row.selected) continue;
-        const previous = candidates.find(peer => peer.current && peer.selected && peer.pageId === row.pageId &&
+        const current = await images.list({ sessionId }); check();
+        const peers = current.filter(peer => peer.current && peer.planSha256 === row.planSha256 && peer.pageId === row.pageId &&
           peer.target.kind === row.target.kind && (row.target.kind !== "layer" || peer.target.kind === "layer" && peer.target.name === row.target.name));
-        if (previous) throw new Error("Scene asset selection changed; review the current image before replacing it");
-        await images.adopt({ sessionId, intentId: row.intentId, expectedSelectedIntentId: null }); check();
+        const previous = peers.find(peer => peer.selected);
+        if (previous?.intentId === row.intentId) continue;
+        if (peers.at(-1)?.intentId !== row.intentId) throw new Error("Newer scene asset exists; refresh the latest saved image job");
+        await images.adopt({ sessionId, intentId: row.intentId, expectedSelectedIntentId: previous?.intentId ?? null }); check();
       }
       const selected = await images.list({ sessionId }); check();
       image = selected.find(row => row.intentId === image.intentId) ?? image;
@@ -138,11 +146,39 @@ export class CoursewareChatWorkflow {
       return finishImage(submitted);
     }
     if (name === "courseware_scene_image_refresh") {
-      if (!Object.hasOwn(input, "intentId") || Object.keys(input).some(key => !["intentId", "generatePrepared", "waitForUpdate", "retryFailed"].includes(key)) ||
-          [input.generatePrepared, input.waitForUpdate, input.retryFailed].some(value => value !== undefined && typeof value !== "boolean") ||
-          input.retryFailed === true && input.generatePrepared === true) throw new Error("Invalid image refresh arguments");
+      if (!Object.hasOwn(input, "intentId") || Object.keys(input).some(key => !["intentId", "generatePrepared", "waitForUpdate", "retryFailed", "generateRemaining"].includes(key)) ||
+          [input.generatePrepared, input.waitForUpdate, input.retryFailed, input.generateRemaining].some(value => value !== undefined && typeof value !== "boolean") ||
+          input.retryFailed === true && input.generatePrepared === true ||
+          input.generateRemaining === true && [input.retryFailed, input.generatePrepared, input.waitForUpdate].some(value => value === true)) throw new Error("Invalid image refresh arguments");
       let image = await images.status({ intentId: input.intentId, sessionId }); check();
-      if (input.retryFailed === true) {
+      if (input.generateRemaining === true) {
+        if (!styleConfirmed || !image.current || !image.selected || !image.asset || image.planSha256 !== view.plan.sha256 ||
+            image.pageId !== firstPage || image.target.kind !== "visualMaster")
+          throw new Error("Confirm the current first-page visual master before generating all scene images");
+        if (this.imagePipelines.has(sessionId)) throw new Error("Scene image pipeline is already running for this Chat");
+        this.imagePipelines.add(sessionId);
+        const coverIntentId = image.intentId, coverSha256 = image.asset.sha256;
+        try {
+          const currentImages = async () => {
+            const latest = await this.read(sessionId, canDispatch); check();
+            if (latest.plan?.sha256 !== view.plan!.sha256 || latest.plan.approvedSha256 !== view.plan!.sha256 || latest.task?.generated)
+              throw new Error("Scene plan changed; read the current workflow");
+            const current = await images.list({ sessionId }); check();
+            if (!current.some(row => row.intentId === coverIntentId && row.current && row.selected && row.asset?.sha256 === coverSha256))
+              throw new Error("First-page style selection changed; read the current workflow");
+            return current;
+          };
+          const pipeline = await runSceneImagePipeline(view.plan, {
+            check, images: currentImages,
+            execute: async (operation, parameters) => {
+              await currentImages();
+              return await this.execute(sessionId, operation, parameters, canDispatch) as { image: CoursewareSceneImageView };
+            },
+          });
+          return { image, styleConfirmed: true, requiresHumanSelection: false, pipeline };
+        } finally { this.imagePipelines.delete(sessionId); }
+      }
+      if (input.retryFailed === true && !(image.decomposition && image.task?.state === "failed")) {
         if (!image.current || image.planSha256 !== view.plan.sha256) throw new Error("Scene plan changed; read the current workflow");
         canGenerate(image.pageId, image.target);
         image = await images.retry({ intentId: input.intentId, sessionId }); check();

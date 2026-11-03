@@ -32,8 +32,11 @@ const assets = new Proxy({}, { get() { throw new Error("Unexpected image-archive
 const { CoursewareCanvasImages } = await load("courseware-canvas-images", { "node:crypto": crypto,
   "@pi-desktop/shared": shared, "./courseware-scene-image-assets": assets, "./courseware-media-scope": mediaScope });
 const digest = value => crypto.createHash("sha256").update(value).digest("hex");
-const requestHash = request => digest("courseware-media-v1" + [request.kind, request.model, request.input, null]
-  .map(value => `:${value === null ? -1 : value.length}:${value ?? ""}`).join(""));
+const requestHash = request => {
+  const fields = [request.kind, request.model, request.input, null];
+  if (request.parameters) fields.push(JSON.stringify(request.parameters, Object.keys(request.parameters).sort()));
+  return digest("courseware-media-v1" + fields.map(value => `:${value === null ? -1 : value.length}:${value ?? ""}`).join(""));
+};
 
 // Requires a freshly built Host; never falls back to an older installed binary.
 test("durable media scope through actual Main, Host restart and HTTP routes", {

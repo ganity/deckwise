@@ -18,9 +18,9 @@ function flashProvider(): RuntimeProviderConfig {
 const pluginTools: PluginToolDef[] = ["plugin_alpha", "plugin_beta"].map((name) => ({
   name, description: `${name} synthetic probe`, parameters: { type: "object", properties: {}, required: [] }, risk: "low",
 }));
-type Payload = { tools: { function: { name: string } }[]; messages: { role: string; content?: unknown }[] };
+type Payload = { tools: { function: { name: string } }[]; tool_choice?: string; messages: { role: string; content?: unknown }[] };
 type Call = { name: string; args?: Record<string, unknown> };
-async function wireFixture(calls: Call[], beforeReply?: () => Promise<void>) {
+async function wireFixture(calls: Call[], beforeReply?: () => Promise<void>, closingText = (_request: Payload) => "Done.") {
   const requests: Payload[] = [];
   const fetch = globalThis.fetch;
   const server = createServer(async (req, res) => {
@@ -31,7 +31,7 @@ async function wireFixture(calls: Call[], beforeReply?: () => Promise<void>) {
     await beforeReply?.();
     const delta = call ? { role: "assistant", tool_calls: [{ index: 0, id: randomUUID(),
       type: "function", function: { name: call.name, arguments: JSON.stringify(call.args ?? {}) } }] }
-      : { role: "assistant", content: "Done." };
+      : { role: "assistant", content: closingText(requests.at(-1)!) };
     res.writeHead(200, { "content-type": "text/event-stream" });
     res.end(`data: ${JSON.stringify({ choices: [{ index: 0, delta, finish_reason: call ? "tool_calls" : "stop" }] })}\n\ndata: [DONE]\n\n`);
   });
@@ -44,7 +44,8 @@ async function wireFixture(calls: Call[], beforeReply?: () => Promise<void>) {
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   } };
 }
-function runtimeFixture(history: UiMessage[] = [], tools = pluginTools, provider = flashProvider(), denied = false, mode: "agent" | "plan" = "agent") {
+function runtimeFixture(history: UiMessage[] = [], tools = pluginTools, provider = flashProvider(), denied = false, mode: "agent" | "plan" = "agent",
+  toolReply?: (params: { toolName: string; args: Record<string, unknown> }) => unknown) {
   const rows = structuredClone(history);
   const executed: string[] = [];
   const errors: unknown[] = [];
@@ -55,6 +56,7 @@ function runtimeFixture(history: UiMessage[] = [], tools = pluginTools, provider
       if (method === "session.appendMessage") rows.push((params as { message: UiMessage }).message);
       else if (method === "tools.execute") {
         executed.push((params as { toolName: string }).toolName);
+        if (toolReply) return toolReply(params as { toolName: string; args: Record<string, unknown> }) as T;
         return denied ? { ok: false, denied: true, content: "Permission denied" } as T
           : { ok: true, content: "Synthetic success" } as T;
       } else throw new Error(`Unexpected host method: ${method}`);
@@ -81,6 +83,102 @@ function runtimeFixture(history: UiMessage[] = [], tools = pluginTools, provider
 }
 afterEach(() => vi.unstubAllGlobals());
 describe("fixed Flash declarations through runtime and HTTP/SSE", () => {
+  it("bounds explicit invalid submissions after Bash repairs without duplicate Host submissions", async () => {
+    const wire = await wireFixture([
+      { name: "ToolSearch", args: { query: "courseware_scene_plan_submit" } },
+      ...Array.from({ length: 3 }, () => [
+        { name: "Bash", args: { command: "rewrite plan.json" } },
+        { name: "courseware_scene_plan_submit" },
+      ]).flat(),
+    ]);
+    const error = "pages[3].teaching.pageType: received practice; expected slide|quiz|interactive|pbl";
+    const f = runtimeFixture([], pluginTools, flashProvider(), false, "agent", ({ toolName }) =>
+      toolName === "courseware_scene_plan_submit"
+        ? { ok: false, content: { error } } : { ok: true, content: "Written" });
+    try {
+      await f.prompt();
+      expect(f.errors).toEqual([]);
+      expect(f.executed.filter(name => name === "courseware_scene_plan_submit")).toHaveLength(3);
+      expect(JSON.stringify(wire.requests[3].messages)).toContain(error);
+      expect(JSON.stringify(wire.requests.at(-1)!.messages)).toContain("planning is unfinished");
+      expect(wire.requests.at(-1)!.tool_choice).toBe("none");
+    } finally { await f.runtime.dispose(); await wire.close(); }
+  });
+
+  it.each(["path", "file_path"])("rejects partial planning repairs and malformed JSON before Host using %s, then accepts a complete rewrite", async pathKey => {
+    const path = ".deckwise-ppt/scenes/fixed-tools/plan.json";
+    const wire = await wireFixture([
+      { name: "Write", args: { [pathKey]: path, content: "{}" } },
+      { name: "Edit", args: { [pathKey]: path, tag: "707E", ops: 'PUT 78.=78:\n+      "visibleText": ["Hello!"],' } },
+      { name: "Write", args: { [pathKey]: path, content: '{"title":,}' } },
+      { name: "Write", args: { [pathKey]: path, content: '{"title":"Corrected"}' } },
+    ]);
+    let saved = "";
+    const f = runtimeFixture([], pluginTools, flashProvider(), false, "agent", ({ toolName, args }) => {
+      if (toolName === "Write") saved = String(args.content);
+      if (toolName === "courseware_scene_plan_submit") return saved.includes("Corrected")
+        ? { ok: true, content: { validated: true, awaitingPlanApproval: true } }
+        : { ok: false, content: { error: "Question and choices must be visible on scene page 3" } };
+      return { ok: true, content: "Written" };
+    });
+    try {
+      await f.prompt();
+      expect(f.errors).toEqual([]);
+      expect(f.executed.filter(name => ["Edit", "Write"].includes(name))).toEqual(["Write", "Write"]);
+      expect(f.rows.find(row => row.toolName === "Edit")).toMatchObject({ isError: true });
+      expect(f.rows.filter(row => row.toolName === "Write").map(row => row.isError)).toEqual([false, true, false]);
+      expect(saved).toBe('{"title":"Corrected"}');
+      expect(JSON.stringify(wire.requests[1].messages)).toContain("complete Write");
+      expect(wire.requests.at(-1)!.tool_choice).not.toBe("none");
+      expect(f.executed).not.toContain("courseware_scene_image_prepare");
+    } finally { await f.runtime.dispose(); await wire.close(); }
+  });
+
+  it("keeps tool schemas with tool_choice none for final reporting and blocks a noncompliant provider call", async () => {
+    const path = ".deckwise-ppt/scenes/fixed-tools/plan.json";
+    const wire = await wireFixture([
+      ...Array.from({ length: 3 }, () => ({ name: "Write", args: { path, content: "{}" } })),
+      { name: "Write", args: { path, content: '{"unexpected":true}' } },
+    ]);
+    const f = runtimeFixture([], pluginTools, flashProvider(), false, "agent", ({ toolName }) =>
+      toolName === "courseware_scene_plan_submit"
+        ? { ok: false, content: { error: "Question must be visible on page 3" } }
+        : { ok: true, content: "Written" });
+    try {
+      await f.prompt();
+      expect(f.errors).toEqual([]);
+      expect(wire.requests).toHaveLength(4);
+      expect(wire.requests.at(-1)!.tool_choice).toBe("none");
+      expect(wire.requests.at(-1)!.tools).toEqual(wire.requests.at(-2)!.tools);
+      expect(JSON.stringify(wire.requests.at(-1)!.messages)).toContain("planning is unfinished");
+      expect(f.executed.filter(name => name === "Write")).toHaveLength(3);
+      expect(f.rows.filter(row => row.toolName === "Write").at(-1)).toMatchObject({ isError: true });
+    } finally { await f.runtime.dispose(); await wire.close(); }
+  });
+
+  it("does not trigger DSML prose by removing schemas from failed planning tool history", async () => {
+    const path = ".deckwise-ppt/scenes/fixed-tools/plan.json";
+    const wire = await wireFixture(
+      Array.from({ length: 3 }, () => ({ name: "Write", args: { path, content: "{}" } })),
+      undefined,
+      request => request.tools?.length ? "Planning is unfinished: question text is missing."
+        : '<｜DSML｜calls><｜DSML｜invoke name="Edit">',
+    );
+    const f = runtimeFixture([], pluginTools, flashProvider(), false, "agent", ({ toolName }) =>
+      toolName === "courseware_scene_plan_submit"
+        ? { ok: false, content: { error: "Question must be visible on page 3" } }
+        : { ok: true, content: "Written" });
+    try {
+      await f.prompt();
+      expect(f.errors).toEqual([]);
+      expect(wire.requests).toHaveLength(4);
+      const answer = f.rows.filter(row => row.role === "assistant").at(-1)!.content;
+      expect(answer).toBe("Planning is unfinished: question text is missing.");
+      expect(answer).not.toContain("DSML");
+      expect(wire.requests.at(-1)!.tool_choice).toBe("none");
+    } finally { await f.runtime.dispose(); await wire.close(); }
+  });
+
   it("activates saved teaching tools together before narration fallback", async () => {
     const wire = await wireFixture([
       { name: "ToolSearch", args: { query: "courseware_media_context" } },

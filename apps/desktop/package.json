@@ -67,6 +67,7 @@
     "electron-builder": "^26.15.3",
     "electron-vite": "^4.0.0",
     "i18next": "^26.3.6",
+    "jszip": "3.10.1",
     "katex": "^0.16.47",
     "lucide-react": "^1.31.0",
     "marked": "^18.0.9",

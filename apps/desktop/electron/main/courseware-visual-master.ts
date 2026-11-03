@@ -12,12 +12,13 @@ export type VisualMasterPlanningInput = {
 };
 export type VisualMasterPlanner = (input: VisualMasterPlanningInput) => Promise<string>;
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
+const ORIGINAL_CHARACTERS = "Original character design: use distinct silhouettes, proportions, faces and color/outfit combinations, not recognizable commercial mascots or their signature feature combinations. Preserve required names, species, count, explicit user appearance requirements and approved identities, applying requested corrections consistently across pages. For unspecified traits, describe concrete original features without franchise references.";
 
 /** MAIC prompt-only art direction; the approved page keeps authoritative text and subjects. */
 export async function planSceneVisualMaster(input: VisualMasterPlanningInput,
   model: { modelKey: string; thinkingLevel?: string }, complete: NarrationComplete): Promise<string> {
   const { page, plan, signal } = input;
-  const suffix = `\n${MAIC_EXTRACTION}\n${MAIC_BACKGROUND}${input.courseStyleReferenceSupplied ? "\nCourse consistency: use the supplied accepted course-style reference for palette, linework, lighting, material treatment, typography style, and recurring character identity only. Do not copy its page-specific objects, words, layout, or location; the authoritative story location takes priority." : ""}`;
+  const suffix = `\n${MAIC_EXTRACTION}\n${MAIC_BACKGROUND}\n${ORIGINAL_CHARACTERS}${input.courseStyleReferenceSupplied ? "\nCourse consistency: use the supplied accepted course-style reference for palette, linework, lighting, material treatment, typography style, and recurring character identity only. Do not copy its page-specific objects, words, layout, or location; the authoritative story location takes priority." : ""}`;
   const data = {
     canvas: "16:10 / 1280x800",
     slide: { title: page.title, description: page.visualIntent, keyPoints: page.visibleText, pageRole: page.teaching?.phase },
@@ -31,7 +32,7 @@ export async function planSceneVisualMaster(input: VisualMasterPlanningInput,
     optionalActionContexts: [],
     courseStyleReferenceSupplied: input.courseStyleReferenceSupplied,
   };
-  const system = `${MAIC_VISUAL_MASTER_SYSTEM}\nStrict output requirement: return one valid JSON object only, with no markdown or commentary. Copy every required display text exactly into selectedDisplayText and into prompt. The approved page text is authoritative; do not add or paraphrase text. Follow the supplied art direction and character identities. Do not copy teacher narration into the image. Keep prompt within ${4000 - suffix.length} UTF-16 units for the existing media transport. Render one complete 1280x800, 16:10 teaching slide.`;
+  const system = `${MAIC_VISUAL_MASTER_SYSTEM}\n${ORIGINAL_CHARACTERS}\nStrict output requirement: return one valid JSON object only, with no markdown or commentary. Copy every required display text exactly into selectedDisplayText and into prompt. The approved page text is authoritative; do not add or paraphrase text. Follow the supplied art direction and character identities. Do not copy teacher narration into the image. Keep prompt within ${4000 - suffix.length} UTF-16 units for the existing media transport. Render one complete 1280x800, 16:10 teaching slide.`;
   let failure: unknown;
   for (let attempt = 0; attempt < 2; attempt++) {
     signal.throwIfAborted();

@@ -209,6 +209,24 @@ prompts no longer force a hand-painted picture-book fallback for legacy plans.
 Approval and cover selection retain their existing lifecycle; changes after
 approval still require plan revision and invalidate affected asset bindings.
 Existing paid images are not silently regenerated.
+Both planning entrances describe concrete original identities for generic lesson
+characters in the visual bible: silhouette, proportions, face and color/outfit
+combinations. Generic animal names do not imply commercial mascots. Preserve
+required names, species, count, style and explicit appearance requirements.
+Originality corrections revise the combined design consistently across pages,
+rather than just swapping an accessory; approved identities otherwise remain
+unchanged. The visual-master planner and actual provider prompt carry the same
+original-character guidance, including the deterministic Host fallback and
+legacy plans without a visual bible. It stays within the existing 4000 UTF-16
+unit limit. Image size remains 1280x800 / 16:10; the MAIC layer-split prompt,
+human approval gates and llm-ha relay role are unchanged. This prompt guidance
+reduces accidental resemblance; it does not certify originality or supplier
+acceptance, and existing images require explicit revision/regeneration.
+When a later page's deterministic visual-master prompt exceeds that limit, Host
+shortens its repeated generic art instructions before preparation. The approved
+visual intent, visual bible, required objects, exact display text, additional
+instructions, plan hash and cover style reference remain unchanged. If even the
+compact prompt cannot fit, Host still rejects it before image submission.
 Changing stage or subject preserves entered grade/custom-subject text; an
 incompatible full-English option is reset. The dialog traps keyboard focus,
 including its textarea and expandable details, and blocks duplicate submission.
@@ -531,6 +549,52 @@ source before Host begin. Same-original local status refreshes coalesce and CAS
 conflicts reread the committed journal; they never cause another POST.
 
 
+## Per-page image pipeline (2026-11-02)
+
+After human plan and first-page style approval, an authorized whole-course run
+uses `courseware_scene_image_refresh` with the selected first-page master
+`intentId` and `generateRemaining:true`. This flag cannot be combined with
+retry, prepared submission or polling flags. Default refresh remains read-only
+apart from verified archive/adoption; single-page and scoped retry requests do
+not authorize the whole-course pipeline.
+
+Desktop Main coordinates up to five master workers. Each verified, archived and
+selected master immediately hands off its own cleanPlate decomposition, including
+the first page, without occupying a master worker until decomposition completes.
+All submissions reuse the existing independent image and image-layers queues
+(five in-flight jobs each); task-ID receipts do not free capacity. There is no
+all-masters barrier, extra queue service, or business logic in llm-ha.
+
+The pipeline pins the approved plan and selected cover bytes and reuses saved
+prepared/submitted intents. Decomposition references that page's selected master
+ID and hash. It never resubmits failed/unknown Seedream jobs or requests foreground
+layers separately. Confirmed failures use the local fallback described below.
+Per-page failures retain original IDs
+and errors while independent pages finish. Concurrent whole-course invocations
+for the same Chat are refused. Stop prevents further dispatch; started work is
+joined and recovery reads the original durable journals. A bounded 15-minute
+pass reports timeout rather than waiting indefinitely. Completion returns
+`pipeline.ready`, exact blockers and per-page failures; compilation remains a
+separate action and revalidates all required selected assets.
+
+After cover approval, refreshing the latest replacement intent for a later page
+automatically adopts its verified archived result using the previous selection ID
+as a compare-and-set guard. Late completion of an older unselected request cannot
+replace a newer request. The pipeline resolves the latest later-page master,
+including previously generated unselected replacements, before decomposition.
+Host atomically clears that page's background and foreground selections when
+its master changes, and foreground selections when its background changes.
+Archived bytes and paid receipts remain intact; other pages remain selected.
+Plan approval and cover style approval are still human decisions. Courseware
+failure recovery uses saved workflow tools and exact errors, not application
+source or private database searches without an explicit debugging request.
+
+Image failure snapshots include the optional original upstream response (HTTP
+status, MIME, request ID, bounded verbatim body and encoding/truncation metadata).
+Main requests this additive field from llm-ha explicitly for compatibility with
+older strict clients. The preview displays the original body and the pipeline
+retains it with per-page failures; llm-ha does not interpret supplier policy.
+
 ## Validated drafts and bounded final status (2026-11-01)
 
 `courseware_scene_plan_submit({})` validates the owning Chat's current plan file
@@ -541,10 +605,16 @@ returns exact business-validation feedback for at most two corrections, and
 reports an unfinished draft if validation still fails. Generic JSON parsing and
 file-write success are not plan acceptance. Explicit requirements such as song
 names and placement still need fidelity review in the normal plan approval.
-The correction budget advances only after a successful draft write/edit following
-validation failure. Revalidating an unchanged draft or a failed edit does not
-consume it. Failed partial edits direct the model to reread and rewrite the draft
-while retaining required fields and explicit requirements. Both plan approval
+Validation reports field paths, actual invalid enum values and expected constraints
+across all pages in one response, including missing visible questions and choices.
+The budget permits the initial failed validation and two further attempts,
+regardless of whether corrections use Write or a shell. Explicit submission
+results are reused rather than submitted again by continuation. Failed file edits
+and shell reads do not trigger automatic revalidation. After validation failure, partial Edit repairs are rejected before
+Host dispatch; the model must reread and use one complete Write while retaining
+required fields and explicit requirements. Scene-plan Write content must parse
+as JSON before Host dispatch, so malformed replacements leave saved bytes intact.
+Product validation still owns plan acceptance. Both plan approval
 and first-page visual-master approval remain required human decisions.
 Only Write/Edit target paths identify a draft mutation, including the legacy
 `file_path` alias. Shell reads of current or reference drafts, unrelated file
@@ -566,8 +636,11 @@ For an authorized complete-course run, a successful media-context tool result
 with no original pending jobs and Host `completion.ready:true` enters saved
 acceptance handling at that tool-result boundary, including tool-use turns.
 Checkpoint/source/revision checks and advisory repair budgets still apply.
-Final reporting removes tool declarations and retains the execution fence;
-compaction cannot rearm the continuation. Status-only reads never authorize work.
+Final reporting retains tool declarations for the existing tool-call history and
+sets provider `toolChoice:none`, avoiding a schema-less response that can leak
+DeepSeek DSML as prose. The execution fence still blocks calls from a provider
+that ignores this choice. Compaction cannot rearm the continuation. Status-only
+reads never authorize work.
 
 Model-facing media context and continuation reports omit full page actions,
 speech text and the original approved plan. Internal result details retain that
@@ -603,3 +676,37 @@ list refreshes and does not query those jobs again. Authentication changes clear
 those receipts and fence late responses. Explicit image-panel refresh rereads the
 original jobs once; subsequent timer ticks retain the refreshed terminal receipts.
 No renderer refresh submits generation.
+
+### Local layer fallback
+
+A confirmed Seedream decomposition failure with final accounting switches to
+MagicLayers in Desktop Main, including when resuming a failed page. Pending,
+unknown and cancelled requests do not trigger fallback. A timeout only resumes
+the saved job. Planning and first-page style remain the two human approval gates.
+
+Main verifies the same approved plan, selected source master, original bytes,
+principal and captured personal/team scope before each dispatch and archive.
+The configured scene vision completion locates objects in the actual source PNG;
+its manifest is saved in the principal-scoped Host media journal before upload.
+MagicLayers receives revision 2, extract_only and best_effort, using local SAM2
+and LaMa without cloud segmentation or generative repair. A complete, unflagged
+background plus all requested foregrounds is required before existing private
+bundle staging/adoption and compilation. Partial results, placeholder layers,
+low-confidence backgrounds and unsafe ZIP entries report errors with no adoption.
+The existing Seedream receipt, original error and accounting remain unchanged.
+
+MagicLayers uses a stable submission key and durable content fingerprint. A lost
+POST response is recovered by GET; repeating the same upload returns the same
+job, changed content conflicts, and an expired/deleted result cannot rerun the
+same key. Local final failures are reported rather than resubmitted. Submission
+uses the existing image-layers concurrency limiter. The MagicLayers service owns
+its existing single CPU worker, not a new DeckWise queue.
+
+llm-ha forwards authenticated multipart uploads, status JSON and ZIP responses
+through `/v1/courseware/media/magiclayers/jobs/:key` (POST/GET) and `/:key/result`
+(GET), with equivalent team paths. It preserves HTTP statuses/error bodies and
+isolates upstream job identifiers by tenant, user, captured project and service
+binding. Supplier credentials stay server-side. llm-ha does not decide fallback,
+create object manifests, unpack archives, or modify billing outcomes. Deployment
+requires the `magiclayers` relay account and updated MagicLayers service; see
+llm-ha `docs/courseware-images.md` for configuration.

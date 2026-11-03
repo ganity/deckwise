@@ -639,6 +639,45 @@ async fn scene_image_selection_is_page_local_compare_and_set_and_stale_plan_is_r
 }
 
 #[tokio::test]
+async fn replacing_master_or_background_clears_only_that_pages_stale_layer_selection() {
+    let mut f = Fixture::new().await;
+    let mut selected = Vec::new();
+    for target in [json!({"kind":"visualMaster"}), json!({"kind":"cleanPlate"}), json!({"kind":"layer","name":"Circle"})] {
+        let mut request = f.prepare();
+        request["target"] = target;
+        let image = f.submit(request).await;
+        f.call("courseware.sceneImage.asset.stage", f.stage(&image)).await.unwrap();
+        let mut adopt = f.operation(&image);
+        adopt["expectedSelectedIntentId"] = Value::Null;
+        f.call("courseware.sceneImage.asset.adopt", adopt).await.unwrap();
+        selected.push(image);
+    }
+    let peer = f.submitted("image-model", "scene-002").await;
+    f.call("courseware.sceneImage.asset.stage", f.stage(&peer)).await.unwrap();
+    let mut adopt = f.operation(&peer);
+    adopt["expectedSelectedIntentId"] = Value::Null;
+    f.call("courseware.sceneImage.asset.adopt", adopt).await.unwrap();
+    for (index, target) in [(1, json!({"kind":"cleanPlate"})), (0, json!({"kind":"visualMaster"}))] {
+        let mut request = f.prepare();
+        request["model"] = json!("replacement-model");
+        request["target"] = target;
+        let image = f.submit(request).await;
+        f.call("courseware.sceneImage.asset.stage", f.stage(&image)).await.unwrap();
+        let mut adopt = f.operation(&image);
+        adopt["expectedSelectedIntentId"] = selected[index]["intent"]["intentId"].clone();
+        f.call("courseware.sceneImage.asset.adopt", adopt).await.unwrap();
+        selected[index] = image;
+        f.restart().await;
+        assert_eq!(f.call("courseware.sceneImage.get", f.operation(&selected[2])).await.unwrap()["intent"]["selected"], false);
+        if index == 0 {
+            assert_eq!(f.call("courseware.sceneImage.get", f.operation(&selected[1])).await.unwrap()["intent"]["selected"], false);
+        }
+        assert_eq!(f.call("courseware.sceneImage.get", f.operation(&peer)).await.unwrap()["intent"]["selected"], true);
+        assert!(f.call("courseware.sceneImage.asset.get", f.operation(&selected[2])).await.is_ok());
+    }
+}
+
+#[tokio::test]
 async fn scene_image_old_journals_default_to_unarchived_unselected() {
     let f = Fixture::new().await;
     let prepared = f

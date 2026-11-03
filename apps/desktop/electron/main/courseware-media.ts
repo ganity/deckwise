@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { CoursewareLocalMedia } from "./courseware-local-media";
 import { CoursewareMusicMediaClient } from "./courseware-music-media";
 import { CoursewareVideoMediaClient } from "./courseware-video-media";
+import { CoursewareMagicLayersMedia } from "./courseware-magic-layers-media";
 import { COURSEWARE_MAX_MEDIA_ASSET_BYTES, isCoursewareTeamAssetRef, isCoursewareTeamMember, isCoursewareTeamProject, type CoursewareTaskRef, type CoursewareTeamAssetRef, type CoursewareTeamMember, type CoursewareTeamProject } from "@pi-desktop/shared";
 
 export type CoursewareTtsRequest = { kind: "tts"; model: string; input: string; voice?: string | null };
@@ -99,9 +100,10 @@ export class CoursewareMediaClient extends CoursewareMediaTransport {
   private readonly local: CoursewareLocalMedia | null;
   readonly music: CoursewareMusicMediaClient;
   readonly video: CoursewareVideoMediaClient;
+  readonly magicLayers: CoursewareMagicLayersMedia;
   private readonly teamPlaybackOwners = new WeakMap<object, object>();
   private readonly teamPlaybackRefreshes = new WeakMap<object, CoursewareTeamFixedPlayback>();
-  constructor(options: CoursewareMediaOptions) { super(options); this.local = options.relayJournal ? new CoursewareLocalMedia(options) : null; this.music = new CoursewareMusicMediaClient(options); this.video = new CoursewareVideoMediaClient(options); }
+  constructor(options: CoursewareMediaOptions) { super(options); this.local = options.relayJournal ? new CoursewareLocalMedia(options) : null; this.music = new CoursewareMusicMediaClient(options); this.video = new CoursewareVideoMediaClient(options); this.magicLayers = new CoursewareMagicLayersMedia(options); }
 
   /** Read-only offer; callers still need server-verified price binding before enabling submission. */
   async getTtsQuote(model: string, signal?: AbortSignal): Promise<CoursewareTtsQuote> {

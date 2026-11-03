@@ -53,7 +53,7 @@ const plan = { title: "Shapes", pages: [{ title: "Circle", visibleText: ["圆"],
 const digest = (v) => createHash("sha256").update(v).digest("hex");
 const pause = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 
-async function fixture(t, coursePlan = plan, planner) {
+async function fixture(t, coursePlan = plan, planner, layerFallback) {
   const root = await mkdtemp(join(tmpdir(), "deckwise-scene-images-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const path = join(root, sceneCoursePlanRelativePath("chat-a"));
@@ -201,7 +201,7 @@ async function fixture(t, coursePlan = plan, planner) {
     const captured = account;
     return { key: captured, assertCurrent() { if (captured !== account) throw new Error("account changed"); } };
   } };
-  const create = () => new CoursewareSceneImages(() => host, () => active, () => running, auth, planner);
+  const create = () => new CoursewareSceneImages(() => host, () => active, () => running, auth, planner, layerFallback);
   const base = { sessionId: "chat-a" }, coordinator = create();
   const prepare = (extra = {}) => coordinator.prepare({ ...base, planSha256: sha256, pageId: "scene-001", model: "image-model", ...extra });
   const operation = v => ({ ...base, intentId: v.intentId });
@@ -1028,4 +1028,55 @@ test("large URL bundles stage one verified image per Host frame without changing
   assert(images.every(image => image.bytesBase64 === undefined));
   assert(large.length * images.length > 44 * 1024 * 1024);
   assert(Buffer.byteLength(JSON.stringify({ images })) < 100_000);
+});
+
+async function failedDecomposition(t, fallback) {
+  const f = await fixture(t, plan, undefined, fallback), master = await f.priced();
+  await f.coordinator.submitConfirmed(master.payload); f.ready();
+  await f.coordinator.archive(f.operation(master.view));
+  await f.coordinator.adopt({ ...f.operation(master.view), expectedSelectedIntentId: null });
+  f.media.getLayerModels = async () => [{ model: "layers-model", supportsReferenceImage: true }];
+  const image = await f.prepare({ model: undefined, target: { kind: "cleanPlate" }, referenceIntentId: master.view.intentId });
+  Object.assign(f.quote, { kind: "image-layers", model: "layers-model" });
+  await f.coordinator.generate(f.operation(image));
+  const getImage = f.media.getImage;
+  f.media.getImage = async (...args) => ({ ...await getImage(...args), state: "failed", feeState: "released", actualPoints: 0,
+    errorCode: "UPSTREAM_HTTP_400", upstreamResponse: { status: 400, body: "copyright rejection", truncated: false } });
+  nativePixels = Buffer.alloc(16, 255);
+  return { f, image, master: master.view };
+}
+const fallbackBundle = () => Buffer.from(JSON.stringify({ data: [
+  { z_index: 0, b64_json: png.toString("base64") },
+  { z_index: 1, name: "Animal", b64_json: png.toString("base64"), bounding_box: { normalized: [0, 0, 1000, 1000] } },
+] }));
+
+test("failed Seedream uses the pinned original master and archives local layers without resubmitting or altering accounting", async t => {
+  const received = [];
+  const { f, image, master } = await failedDecomposition(t, async input => { received.push(input); await input.check(); return fallbackBundle(); });
+  const result = await f.create().fallback(f.operation(image));
+  assert(result.asset);
+  assert.equal(result.task.state, "failed"); assert.equal(result.task.actualPoints, 0);
+  assert.equal(result.task.upstreamResponse.body, "copyright rejection");
+  assert.equal(received[0].sourceSha256, (await f.coordinator.list(f.base)).find(row => row.intentId === master.intentId).asset.sha256);
+  assert.equal(received[0].bytes.toString("base64"), png.toString("base64"));
+  const rows = await f.create().list(f.base);
+  assert.equal(rows.filter(row => row.intentId.startsWith(image.intentId) && row.asset).length, 2);
+  await f.create().fallback(f.operation(image));
+  assert.equal(received.length, 1);
+  assert.equal(f.calls.filter(call => call === "POST confirmed").length, 2);
+});
+
+test("local fallback refuses unsettled failure and checks master selection again before archiving", async t => {
+  let calls = 0;
+  const { f, image, master } = await failedDecomposition(t, async input => {
+    calls++; f.deselect(master.intentId); await input.check(); return fallbackBundle();
+  });
+  const get = f.media.getImage;
+  f.media.getImage = async (...args) => ({ ...await get(...args), feeState: "reserved", actualPoints: null });
+  await assert.rejects(f.coordinator.fallback(f.operation(image)), /CONFIRMED_TERMINAL_FAILURE/);
+  assert.equal(calls, 0);
+  f.media.getImage = get;
+  await assert.rejects(f.coordinator.fallback(f.operation(image)), /REFERENCE_CHANGED/);
+  assert.equal(calls, 1);
+  assert.equal(f.calls.filter(call => call === "courseware.sceneImage.bundle.stage").length, 0);
 });

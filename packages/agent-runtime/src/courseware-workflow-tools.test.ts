@@ -176,3 +176,12 @@ it("bounds full-deck media text while retaining complete internal evidence and p
   expect(page.details).toEqual(content);
   expect(JSON.stringify(page.content)).toContain("x".repeat(32000));
 });
+
+it("exposes whole-scene continuation only through an explicit boolean on the selected cover refresh", async () => {
+  const f = fixture();
+  const refresh = f.tools.find(tool => tool.name === "courseware_scene_image_refresh")!;
+  await refresh.execute("pipeline", { intentId: "selected-cover", generateRemaining: true });
+  expect(f.calls.at(-1)?.params).toMatchObject({ args: { intentId: "selected-cover", generateRemaining: true }, timeoutMs: 960_000 });
+  await expect(refresh.execute("invalid", { intentId: "selected-cover", generateRemaining: "true" })).rejects.toThrow("Invalid courseware");
+  expect(refresh.description).toContain("five each");
+});

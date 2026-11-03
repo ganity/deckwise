@@ -17,8 +17,10 @@ Keep orchestration and adoption in Desktop/Host. Repair invalid per-page model
 output at most twice, using the exact validator feedback and unchanged evidence.
 Do not replay provider failures, stale sources, cancellation or uncertain saves.
 Initial one-shot scene planning uses the same two-correction limit. Main Chat
-draft validation returns the actual teaching format and exact question/choices
-that must be visible, rather than only a generic invalid-page error. Legacy
+draft validation returns all page field errors and exact question/choices
+that must be visible, rather than only the first generic invalid-page error.
+Continuation reuses explicit submission results and bounds failed validations
+regardless of the tool used to correct the draft. Legacy
 plans remain readable. Format checks cannot infer omitted semantic requirements;
 normal plan approval still reviews fidelity to the user's brief and source.
 Retain existing slot orders independently of cosmetic music request parameters;

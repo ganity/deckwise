@@ -34,6 +34,10 @@ export type CoursewareSceneImageTarget =
   | { kind: "visualMaster" | "cleanPlate" }
   | { kind: "layer"; name: string };
 
+/** The original bounded supplier response, without interpreting its contents. */
+export type CoursewareUpstreamResponse = { status: number; contentType: string | null; requestId: string | null;
+  body: string; bodyEncoding: "utf-8" | "base64"; truncated: boolean };
+
 export function isCoursewareSceneImageTarget(value: unknown): value is CoursewareSceneImageTarget {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const v = value as Record<string, unknown>;
@@ -56,7 +60,8 @@ export type CoursewareSceneImageView = {
   current: boolean;
   asset: CoursewareSceneImageAsset | null;
   selected: boolean;
-  task: { state: string; feeState: string; reservedPoints: number; actualPoints: number | null; errorCode: string | null } | null;
+  task: { state: string; feeState: string; reservedPoints: number; actualPoints: number | null; errorCode: string | null;
+    upstreamResponse?: CoursewareUpstreamResponse } | null;
 };
 
 export type CoursewareSceneImagePreview = { image: CoursewareSceneImageView; dataUrl: string };

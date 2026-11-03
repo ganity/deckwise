@@ -5,8 +5,9 @@ import { isCoursewareTaskRef, isCoursewareSceneImageTarget, type CoursewareScene
 import type { DesktopAuthSession } from "./auth-session";
 import type { CoursewareImageQuote, CoursewareImageRequest, CoursewareImageTask } from "./courseware-media";
 import { readSceneCourseDraft } from "./courseware-scene-draft";
-import { downloadSceneImageBundle, isSceneImageAsset, readSceneImageAsset, verifySceneImageAsset, sceneDecompositionReference } from "./courseware-scene-image-assets";
+import { decodeSceneImageBundle, downloadSceneImageBundle, isSceneImageAsset, readSceneImageAsset, verifySceneImageAsset, sceneDecompositionReference, sceneLocalDecompositionReference } from "./courseware-scene-image-assets";
 import type { VisualMasterPlanner } from "./courseware-visual-master";
+import type { MagicLayersFallback } from "./courseware-magic-layers";
 
 type Host = { call<T>(method: string, params: unknown): Promise<T> };
 type Reference = NonNullable<CoursewareSceneImageView["referenceImage"]>;
@@ -71,7 +72,8 @@ function view(j: Journal, task: CoursewareImageTask | null = null): CoursewareSc
       ...(j.intent.asset.sourceZIndex === undefined ? {} : { sourceZIndex: j.intent.asset.sourceZIndex }) } : null,
     selected: j.intent.selected ?? false,
     task: task && { state: task.state, feeState: task.feeState, reservedPoints: task.reservedPoints,
-      actualPoints: task.actualPoints, errorCode: task.errorCode } };
+      actualPoints: task.actualPoints, errorCode: task.errorCode,
+      ...(task.upstreamResponse ? { upstreamResponse: task.upstreamResponse } : {}) } };
 }
 
 /** The Host owns durable requests; generation obtains server billing proofs internally. */
@@ -82,7 +84,7 @@ export class CoursewareSceneImages {
   constructor(private getHost: () => Host | null, private getSession: () => string | null,
     private isRunning: (sessionId: string) => boolean,
     private auth: Pick<DesktopAuthSession, "getCoursewarePrincipal" | "coursewareMedia">,
-    private planVisualMaster?: VisualMasterPlanner) {}
+    private planVisualMaster?: VisualMasterPlanner, private layerFallback?: MagicLayersFallback) {}
 
   private context(p: Record<string, string>, allowDuringTurn = false) {
     const host = this.getHost();
@@ -442,6 +444,60 @@ export class CoursewareSceneImages {
   async status(value: unknown): Promise<CoursewareSceneImageView> {
     const p = input(value, ["intentId"]), c = this.context(p, true);
     return this.read(c, checked(await c.host.call<Journal>("courseware.sceneImage.get", c.scope), p.intentId));
+  }
+
+  async fallback(value: unknown): Promise<CoursewareSceneImageView> {
+    const p = input(value, ["intentId"]), c = this.context(p), key = JSON.stringify(c.scope);
+    if (!this.layerFallback) throw new Error("COURSEWARE_MAGICLAYERS_NOT_CONFIGURED");
+    if (this.archiving.has(key)) throw new Error("COURSEWARE_SCENE_IMAGE_IN_FLIGHT");
+    this.archiving.add(key);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(new Error("COURSEWARE_MAGICLAYERS_TIMEOUT: resume the saved job")), 14 * 60_000);
+    const guard = setInterval(() => { try { c.assertCurrent(); } catch (error) { controller.abort(error); } }, 100);
+    try {
+      const j = checked(await c.host.call<Journal>("courseware.sceneImage.get", c.scope), p.intentId);
+      if (j.intent.asset) return view(j);
+      if (!j.current || j.intent.request.kind !== "image-layers" || j.intent.target?.kind !== "cleanPlate" || !j.intent.taskRef)
+        throw new Error("COURSEWARE_SCENE_IMAGE_INVALID_REQUEST");
+      const receipt = await this.read(c, j);
+      assertCoursewareRetryable(receipt.task);
+      if (receipt.task?.state !== "failed") throw new Error("COURSEWARE_MAGICLAYERS_REQUIRES_UPSTREAM_FAILURE");
+      const check = async () => {
+        controller.signal.throwIfAborted(); c.assertCurrent();
+        await this.approved(c.host, p.sessionId, j.intent.planSha256);
+        await this.reference(c, j);
+        const latest = checked(await c.host.call<Journal>("courseware.sceneImage.get", c.scope), p.intentId);
+        if (!latest.current || JSON.stringify(latest.intent) !== JSON.stringify(j.intent))
+          throw new Error("COURSEWARE_SCENE_IMAGE_CONTEXT_CHANGED");
+        c.assertCurrent(); controller.signal.throwIfAborted();
+      };
+      await check();
+      const reference = (await this.reference(c, j))!;
+      const archived = await c.host.call<Journal & { path: string }>("courseware.sceneImage.asset.get", {
+        ...c.scope, intentId: reference.intent.intentId });
+      const asset = reference.intent.asset!;
+      const original = await readSceneImageAsset(archived.path, asset, { kind: "visualMaster" });
+      const bytes = sceneLocalDecompositionReference(original, asset);
+      const plan = await this.approved(c.host, p.sessionId, j.intent.planSha256);
+      const result = await this.layerFallback({ sessionId: p.sessionId, key: j.intent.idempotencyKey,
+        requestHash: j.intent.requestHash, sourceSha256: asset.sha256,
+        projectId: coursewareMediaSubmissionProject(j.intent.submissionScope, p.sessionId),
+        page: plan.pages.find(page => page.pageId === j.intent.pageId)!, bytes, width: asset.width, height: asset.height,
+        check, signal: controller.signal });
+      await check();
+      const images = decodeSceneImageBundle(result, j.intent.taskRef);
+      const metadata = [];
+      for (const image of images) {
+        await check();
+        checked(await c.host.call<Journal>("courseware.sceneImage.bundle.stage", { ...c.scope, stageOnly: true, images: [image] }), p.intentId);
+        const { bytesBase64: _, ...entry } = image;
+        metadata.push(entry);
+      }
+      await check();
+      const saved = checked(await c.host.call<Journal>("courseware.sceneImage.bundle.stage", { ...c.scope, images: metadata }), p.intentId);
+      c.assertCurrent();
+      return { ...view(saved), task: receipt.task };
+    } finally { clearTimeout(timeout); clearInterval(guard); this.archiving.delete(key); }
   }
 
   async archive(value: unknown): Promise<CoursewareSceneImagePreview> {

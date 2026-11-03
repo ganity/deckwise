@@ -127,7 +127,7 @@ it('validates a scene plan write before allowing the model to finish and bounds 
   expect(continuation.reportOnly).toBe(true);
 });
 
-it('does not exhaust planning corrections on unchanged submissions or a failed edit', async () => {
+it('does not revalidate after a failed edit and accepts a corrected plan', async () => {
   const continuation = new CoursewareTurnContinuation();
   const makeTurn = (name: string, args: Record<string, string>, isError = false): AgentTurnContext => ({
     context: { messages: [] }, newMessages: [],
@@ -142,6 +142,7 @@ it('does not exhaust planning corrections on unchanged submissions or a failed e
   await continuation.finish(makeTurn('Write', { file_path: '.deckwise-ppt/scenes/chat/plan.json', content: '{}' }), controls);
   await continuation.finish(makeTurn('courseware_scene_plan_submit', {}, true), controls);
   await continuation.finish(makeTurn('Edit', { file_path: '.deckwise-ppt/scenes/chat/plan.json', old_string: 'bad', new_string: 'good' }, true), controls);
+  expect(execute).toHaveBeenCalledTimes(1);
   expect(continuation.reportOnly).toBe(false);
   const write = makeTurn('Write', { file_path: '.deckwise-ppt/scenes/chat/plan.json', content: '{"pages":[]}' });
   await continuation.finish(write, { canWait: () => true, execute: async () => ({ content: [], details: { validated: true, awaitingPlanApproval: true } }) });
@@ -205,10 +206,33 @@ it('keeps validation failure active even when a plan write was not observed', as
     api: 'openai-completions', provider: 'fixture', model: 'fixture', timestamp: 0, stopReason: 'toolUse',
     content: [{ type: 'toolCall', id: 'submit', name: 'courseware_scene_plan_submit', arguments: {} }],
     usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } },
-    toolResults: [{ role: 'toolResult', toolCallId: 'submit', toolName: 'courseware_scene_plan_submit', content: [], isError: true, timestamp: 0 }] };
+    toolResults: [{ role: 'toolResult', toolCallId: 'submit', toolName: 'courseware_scene_plan_submit',
+      content: [{ type: 'text', text: 'Question must be visible on page 6' }], isError: true, timestamp: 0 }] };
   const instruction = await continuation.finish(turn, { canWait: () => true,
-    execute: async () => { throw new Error('Question must be visible on page 6'); } });
+    execute: async () => { throw new Error('duplicate submit'); } });
   expect(instruction).toContain('Question must be visible on page 6');
   expect(instruction).toContain('not ready for review');
   expect(continuation.reportOnly).toBe(false);
+});
+
+it('bounds repeated invalid scene submissions after shell-authored corrections', async () => {
+  const continuation = new CoursewareTurnContinuation();
+  const turn: AgentTurnContext = { context: { messages: [] }, newMessages: [], message: { role: 'assistant',
+    api: 'openai-completions', provider: 'fixture', model: 'fixture', timestamp: 0, stopReason: 'toolUse',
+    content: [{ type: 'toolCall', id: 'submit', name: 'courseware_scene_plan_submit', arguments: {} }],
+    usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } },
+    toolResults: [{ role: 'toolResult', toolCallId: 'submit', toolName: 'courseware_scene_plan_submit',
+      content: [{ type: 'text', text: 'Invalid scene course page 4 teaching.pageType' }], isError: true, timestamp: 0 }] };
+  const execute = vi.fn(async () => { throw new Error('duplicate submit'); });
+  const controls = { canWait: () => true, execute };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const instruction = await continuation.finish(turn, controls);
+    expect(instruction).toContain('not ready for review');
+    expect(instruction).toContain('Invalid scene course page 4 teaching.pageType');
+    await continuation.finish({ ...turn, message: { ...turn.message, content: [{ type: 'toolCall', id: 'shell', name: 'Bash', arguments: { command: 'rewrite plan.json' } }] },
+      toolResults: [{ role: 'toolResult', toolCallId: 'shell', toolName: 'Bash', content: [], isError: false, timestamp: 0 }] }, controls);
+  }
+  expect(await continuation.finish(turn, controls)).toContain('planning is unfinished');
+  expect(continuation.reportOnly).toBe(true);
+  expect(execute).not.toHaveBeenCalled();
 });

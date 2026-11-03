@@ -14,7 +14,7 @@ function fixture(target: "visualMaster" | "cleanPlate" = "cleanPlate", startTool
     planSha256: sha256, phase: "submitted", queryError: false, ignoreReady: false, mediaUnknown: false, recoveryFailure: false, retryAfterBlock: false,
     repeatReadyReads: false, readyCompletion: false,
     checkpointError: "",
-    checkpointAbort: false, explicitRetry: false,
+    checkpointAbort: false, explicitRetry: false, imagePipeline: false,
     qualityIssues: [] as Array<{ pageId: string; code: string; repair: string; repairable: boolean }>, teachingMissing: false, fullMedia: false, narrationMissing: false, audioMissing: false, mediaStarted: false, audioCompleted: false };
   const calls: Array<{ name: string; args: Record<string, unknown> }> = [];
   const events: AgentEventEnvelope[] = [];
@@ -84,7 +84,7 @@ function fixture(target: "visualMaster" | "cleanPlate" = "cleanPlate", startTool
       : requests === 2
       ? [{ type: "toolCall", id: "start", name: startTool, arguments: startTool === "courseware_media_context" ? (saved.fullMedia ? { continueTeaching: true } : {}) : startTool === "courseware_scene_image_prepare"
         ? { planSha256: sha256, pageId: "scene-001", target: { kind: target } }
-        : startTool === "courseware_scene_image_refresh" ? { intentId: "decomposition", waitForUpdate: true, ...(saved.explicitRetry ? { retryFailed: true } : {}) }
+        : startTool === "courseware_scene_image_refresh" ? { intentId: "decomposition", ...(saved.imagePipeline ? { generateRemaining: true } : { waitForUpdate: true }), ...(saved.explicitRetry ? { retryFailed: true } : {}) }
         : startTool === "courseware_media_refresh" ? { kind: mediaKind, sourceSha256: sha256, pageNumber: 1, intentId: "original-tts", retryFailed: true } : {} }]
       : saved.repeatReadyReads
         ? [{ type: "toolCall", id: `repeat-${requests}`, name: "courseware_media_context", arguments: {} }]
@@ -125,7 +125,7 @@ it('keeps planning tools available after shell reads and repairs the first inval
     const { toolName, args } = params as { toolName: string; args: Record<string, unknown> };
     executed.push(toolName);
     if (toolName === 'Bash') return { ok: true, content: 'Reference plan' } as T;
-    if (toolName === 'Write') { valid = args.content === 'corrected'; return { ok: true, content: 'Written' } as T; }
+    if (toolName === 'Write') { valid = args.content === '{"corrected":true}'; return { ok: true, content: 'Written' } as T; }
     if (toolName === 'courseware_scene_plan_submit') return (valid
       ? { ok: true, content: { validated: true, awaitingPlanApproval: true, plan: { sha256, approvedSha256: 'b'.repeat(64) } } }
       : { ok: false, content: { error: 'Question and choices must be visible on scene page 1' } }) as T;
@@ -137,9 +137,9 @@ it('keeps planning tools available after shell reads and repairs the first inval
     { name: 'ToolSearch', arguments: { query: 'courseware_workflow_get' } },
     { name: 'Bash', arguments: { command: 'cat .deckwise-ppt/scenes/chat/plan.json 2>/dev/null | head -50' } },
     { name: 'Bash', arguments: { command: 'cat .deckwise-ppt/scenes/reference/plan.json | head -60' } },
-    { name: 'Write', arguments: { path: '.deckwise-ppt/scenes/chat/plan.json', content: 'invalid' } },
+    { name: 'Write', arguments: { path: '.deckwise-ppt/scenes/chat/plan.json', content: '{}' } },
     { name: 'Bash', arguments: { command: 'cat .deckwise-ppt/scenes/chat/plan.json' } },
-    { name: 'Write', arguments: { path: '.deckwise-ppt/scenes/chat/plan.json', content: 'corrected' } },
+    { name: 'Write', arguments: { path: '.deckwise-ppt/scenes/chat/plan.json', content: '{"corrected":true}' } },
     { name: 'courseware_scene_plan_submit', arguments: {} },
     { name: 'courseware_workflow_get', arguments: {} },
   ];
@@ -220,6 +220,20 @@ it.each(["stop", "steer"] as const)("fences an old batch's remaining generation 
   } finally { await f.runtime.dispose(); }
 });
 
+it("keeps authorized whole-scene continuation active after the pipeline result", async () => {
+  vi.useFakeTimers();
+  const f = fixture("visualMaster", "courseware_scene_image_refresh");
+  Object.assign(f.saved, { imagePipeline: true, completed: true });
+  try {
+    const running = f.runtime.prompt("The cover style is approved; finish all scene images and editable PPTX.", "user", "turn");
+    await vi.advanceTimersByTimeAsync(6000);
+    await running;
+    expect(f.calls.some(call => call.name === "courseware_scene_image_refresh" && call.args.generateRemaining === true)).toBe(true);
+    expect(f.saved.generated).toBe(true);
+    expect(f.calls.filter(call => call.name === "courseware_scene_compile")).toHaveLength(1);
+  } finally { await f.runtime.dispose(); vi.useRealTimers(); }
+});
+
 it("reconciles only explicitly retried images and preserves unrelated failed pages", async () => {
   vi.useFakeTimers();
   const f = fixture("cleanPlate", "courseware_scene_image_refresh");
@@ -235,7 +249,7 @@ it("reconciles only explicitly retried images and preserves unrelated failed pag
     expect(refreshes.every(call => call.args.intentId === "decomposition")).toBe(true);
     expect(f.saved.generated).toBe(false);
     expect(f.calls.some(call => /compile|prepare|narration/u.test(call.name))).toBe(false);
-    expect(f.toolCounts.at(-1)).toBe(0);
+    expect(f.toolCounts.at(-1)).toBe(f.toolCounts.at(-2));
   } finally { await f.runtime.dispose(); vi.useRealTimers(); }
 });
 
@@ -269,7 +283,7 @@ it("queues later retry input outside a terminal reporting turn and resets the gu
   try {
     await f.runtime.prompt("Finish the courseware.", "user", "turn");
     expect(rejected).toBe(true);
-    expect(f.toolCounts.at(-1)).toBe(0);
+    expect(f.toolCounts.at(-1)).toBe(f.toolCounts.at(-2));
     f.agent.streamFunction = stream;
     await f.runtime.prompt("Retry the failed pages with new requests.", "retry-user", "retry-turn");
     expect(f.toolCounts.at(-1)).toBeGreaterThan(0);
@@ -624,7 +638,7 @@ it("ends repeated ready reads at the tool boundary before full media can trigger
     await f.runtime.prompt("Finish the saved course", "user", "turn");
     expect(f.requests()).toBe(3);
     expect(f.calls.filter(call => call.name === "courseware_media_context")).toHaveLength(1);
-    expect(f.toolCounts.at(-1)).toBe(0);
+    expect(f.toolCounts.at(-1)).toBe(f.toolCounts.at(-2));
     expect(JSON.stringify(f.contexts.map(messages => messages.map(message => message.content)))).not.toContain("x".repeat(1000));
     expect(f.contexts[2].some(message => message.role === "system" && message.sections?.courseware_workflow?.includes("completed"))).toBe(true);
     expect(f.agent.state.isStreaming).toBe(false);
@@ -639,7 +653,7 @@ it("persists completion and closes after one final report", async () => {
     await f.runtime.prompt("Finish the saved course", "user", "turn");
     expect(f.checkpoint()).toMatchObject({ status: "completed", projectId: "project", sourceSha256: sha256 });
     expect(f.requests()).toBe(3);
-    expect(f.toolCounts.at(-1)).toBe(0);
+    expect(f.toolCounts.at(-1)).toBe(f.toolCounts.at(-2));
     expect(f.agent.state.isStreaming).toBe(false);
     expect(f.events.filter(e => e.event.type === "agent_end")).toHaveLength(1);
     expect(f.events.filter(e => e.event.type === "error")).toHaveLength(0);

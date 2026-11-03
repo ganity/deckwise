@@ -202,6 +202,10 @@ export function CoursewareChatImages({ sessionId, plan, disabled, refreshKey = 0
           </p>)}
           {compilation?.planSha256 === plan.sha256 && compilation.message && <p role="alert">{compilation.message}</p>}
           {focused?.task?.errorCode && <p role="alert">{focused.task.errorCode}</p>}
+          {focused?.task?.upstreamResponse && <details className="courseware-scene-intent" open>
+            <summary>HTTP {focused.task.upstreamResponse.status}{focused.task.upstreamResponse.requestId ? ` · ${focused.task.upstreamResponse.requestId}` : ""}</summary>
+            <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{focused.task.upstreamResponse.body}</pre>
+          </details>}
           {focused?.target.kind !== "layer" && <section className="courseware-scene-preview-text" aria-label={t("coursewareWorkflow.pageText")}>
             <strong>{t("coursewareWorkflow.pageText")}</strong>
             {focusedPage.visibleText.map((text, textIndex) => <p key={textIndex}>{text}</p>)}

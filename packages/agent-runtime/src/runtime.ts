@@ -2219,6 +2219,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         const stallAbort = new AbortController();
         const attemptOptions: SimpleStreamOptions = {
           ...hookedOptions,
+          ...(this.coursewareTurn.reportOnly ? { toolChoice: "none" as const } : {}),
           // Cap the output budget at the pi-desktop layer so the estimate
           // holds for both adapter branches: `streamSimple` re-derives
           // max_tokens, but the low-level `stream` path used by
@@ -2448,7 +2449,8 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
 
   /** Steering is consumed after next-turn preparation; sync before dispatch. */
   private prepareToolDeclarations(context: AgentContext): AgentLoopTurnUpdate {
-    const tools = this.coursewareTurn.reportOnly ? [] : this.declaredTools();
+    // Keep schemas for tool history; toolChoice:none and the execution fence close reporting.
+    const tools = this.declaredTools();
     let messages = context.messages;
     const changes = getToolStateChanges(getCurrentTools(messages), tools.map(toToolDeclaration));
     if (changes.toolsAdded.length || changes.toolsRemoved.length) {
@@ -2670,6 +2672,8 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     if (this.deferredToolNames.has(context.toolCall.name) && !this.activeDeferredToolNames.has(context.toolCall.name)) {
       return { block: true, reason: `Call ${TOOL_SEARCH_NAME} to activate ${context.toolCall.name} before using it. A tool declaration does not grant execution permission.` };
     }
+    const draftError = this.coursewareTurn.draftWriteError(context.toolCall.name, context.toolCall.arguments);
+    if (draftError) return { block: true, reason: draftError };
     const toolCalls = (context.assistantMessage.content as Array<{ type?: string }>).filter(
       (block) => block.type === "toolCall",
     );

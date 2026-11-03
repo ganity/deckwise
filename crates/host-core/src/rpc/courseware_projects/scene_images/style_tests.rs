@@ -110,6 +110,70 @@ async fn visual_master_renders_approved_display_text_in_a_complete_teaching_comp
 }
 
 #[tokio::test]
+async fn long_approved_later_page_fits_master_prompt_without_revising_the_plan() {
+    let mut f = Fixture::new().await;
+    let mut plan: Value = serde_json::from_slice(&std::fs::read(f.path()).unwrap()).unwrap();
+    let art = "Soft hand-painted watercolor, warm light and layered paper texture. ".repeat(6);
+    let characters = "Five original animal friends with distinct shapes, outfits and faces. ".repeat(5);
+    let setting = "A bright kindergarten room with calm wall art and a deep floor. ".repeat(3);
+    let story = "The animal friends take turns greeting each other around the classroom. ".repeat(10);
+    plan["visualBible"] = json!({"artDirection":art,"characters":characters,"setting":setting});
+    plan["pages"][1]["visualIntent"] = json!(story);
+    plan["pages"][1]["visibleText"] = json!(["Hello!", "Good morning!", "早上好"]);
+    let bytes = serde_json::to_vec(&plan).unwrap();
+    f.sha256 = hex::encode(Sha256::digest(&bytes));
+    std::fs::write(f.path(), bytes).unwrap();
+    f.approve().await;
+
+    let cover = f.submitted("image-model", "scene-001").await;
+    f.call("courseware.sceneImage.asset.stage", f.stage(&cover))
+        .await
+        .unwrap();
+    let mut adopt = f.operation(&cover);
+    adopt["expectedSelectedIntentId"] = Value::Null;
+    f.call("courseware.sceneImage.asset.adopt", adopt)
+        .await
+        .unwrap();
+
+    let mut request = f.prepare();
+    request["pageId"] = json!("scene-002");
+    request["planningRequired"] = json!(true);
+    request["instructions"] = json!("Keep the five friends waving in matching warm light.");
+    let prepared = f
+        .call("courseware.sceneImage.prepare", request)
+        .await
+        .unwrap();
+    let prompt = prepared["intent"]["request"]["input"].as_str().unwrap();
+    for required in [
+        &art,
+        &characters,
+        &setting,
+        &story,
+        "Hello!",
+        "Good morning!",
+        "早上好",
+        "Keep the five friends waving in matching warm light.",
+    ] {
+        assert!(
+            prompt.contains(required),
+            "approved content missing: {required}"
+        );
+    }
+    assert!(prompt.encode_utf16().count() <= 4000);
+    assert_eq!(prepared["intent"]["planSha256"], f.sha256);
+    assert_eq!(
+        prepared["intent"]["referenceIntentId"],
+        cover["intent"]["intentId"]
+    );
+    assert_eq!(
+        f.call("courseware.sceneImage.prepare", f.prepare())
+            .await
+            .unwrap()["intent"]["intentId"],
+        cover["intent"]["intentId"]
+    );
+}
+
+#[tokio::test]
 async fn decomposition_archives_children_atomically_and_keeps_one_task_across_restart() {
     let mut f = Fixture::new().await;
     let master = f.submitted("image-model", "scene-001").await;

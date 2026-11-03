@@ -411,9 +411,12 @@ test("scene preview distinguishes pending and failed tasks without payment contr
   f.rows([{ ...f.image, phase: "submission-unknown" }]); props.refreshKey++; f.render(); await f.flush();
   assert(f.nodes().some(node => node.props?.role === "status" && node.props.children === "coursewareWorkflow.imageState.submission-unknown"));
   assert.equal(f.button("submitImage"), undefined);
-  f.rows([{ ...f.image, phase: "submitted", task: { state: "failed", feeState: "refunded", errorCode: "IMAGE_PROVIDER_FAILED" } }]);
+  const original = '{"error":{"code":"OutputImageSensitiveContentDetected.PolicyViolation"}}';
+  f.rows([{ ...f.image, phase: "submitted", task: { state: "failed", feeState: "refunded", errorCode: "UPSTREAM_HTTP_400",
+    upstreamResponse: { status: 400, contentType: "application/json", requestId: "provider-request-1", body: original, bodyEncoding: "utf-8", truncated: false } } }]);
   props.refreshKey++; f.render(); await f.flush();
-  assert(f.nodes().some(node => node.props?.role === "alert" && node.props.children === "IMAGE_PROVIDER_FAILED"));
+  assert(f.nodes().some(node => node.props?.role === "alert" && node.props.children === "UPSTREAM_HTTP_400"));
+  assert(f.nodes().some(node => node.type === "pre" && node.props.children === original));
   assert.equal(f.button("submitImage"), undefined);
   assert.equal(f.calls.length, 0);
 });

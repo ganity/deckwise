@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { CoursewareImageRequest, CoursewareImageReference } from "./courseware-media";
-import { COURSEWARE_MAX_MEDIA_ASSET_BYTES, isCoursewareTaskRef, type CoursewareTaskRef } from "@pi-desktop/shared";
+import { COURSEWARE_MAX_MEDIA_ASSET_BYTES, isCoursewareTaskRef, type CoursewareTaskRef, type CoursewareUpstreamResponse } from "@pi-desktop/shared";
 
 export type MediaKind = "tts" | "image" | "image-layers" | "video" | "music" | "music-export";
 export type MediaQuote<K extends MediaKind> = { version: "courseware-media-quote-v1"; kind: K; model: string;
@@ -12,7 +12,7 @@ type ImageAsset = { assetId: string; sha256: string; mime: "image/png" | "image/
 type TaskBase = CoursewareTaskRef & { version: "courseware-media-v1"; model: string;
   state: "queued" | "submitting" | "submission_unknown" | "submitted" | "archiving" | "archive_failed" | "ready" | "failed" | "cancelled";
   feeState: "reserved" | "settled" | "released"; reservedPoints: number; actualPoints: number | null;
-  receiptId: string | null; errorCode: string | null };
+  receiptId: string | null; errorCode: string | null; upstreamResponse?: CoursewareUpstreamResponse };
 export type MediaTasks = {
   video: TaskBase & { kind: "video"; assetRef: { assetId: string; sha256: string; mime: "video/mp4"; byteLength: number; downloadPath: string; durationMs?: number } | null };
   tts: TaskBase & { kind: "tts"; assetRef: AudioAsset | null };
@@ -51,7 +51,7 @@ export function taskRef(value: unknown): CoursewareTaskRef {
 }
 
 export function mediaTask<K extends MediaKind>(value: unknown, expected: MediaTaskExpectation, kind: K): MediaTasks[K] {
-  if (!exact(value, ["version", "taskId", "idempotencyKey", "requestHash", "kind", "model", "state", "feeState", "reservedPoints", "actualPoints", "receiptId", "errorCode", "assetRef"]) ||
+  if (!exact(value, ["version", "taskId", "idempotencyKey", "requestHash", "kind", "model", "state", "feeState", "reservedPoints", "actualPoints", "receiptId", "errorCode", "assetRef"], ["upstreamResponse"]) ||
       value.version !== "courseware-media-v1" || value.kind !== kind || !id(value.model) ||
       !id(value.taskId) || !isCoursewareTaskRef({ taskId: value.taskId, idempotencyKey: value.idempotencyKey, requestHash: value.requestHash }) ||
       value.idempotencyKey !== expected.idempotencyKey || value.requestHash !== expected.requestHash ||
@@ -61,10 +61,19 @@ export function mediaTask<K extends MediaKind>(value: unknown, expected: MediaTa
       (value.actualPoints !== null && !integer(value.actualPoints, value.reservedPoints)) ||
       (value.receiptId !== null && value.receiptId !== `courseware-media:${value.taskId}`) ||
       (value.errorCode !== null && (typeof value.errorCode !== "string" || !/^[A-Z0-9_]{1,128}$/u.test(value.errorCode)))) throw invalid();
+  if (value.upstreamResponse !== undefined) {
+    const original = value.upstreamResponse;
+    if (!["image", "image-layers"].includes(kind) || !exact(original, ["status", "contentType", "requestId", "body", "bodyEncoding", "truncated"]) ||
+        !integer(original.status, 599) || original.status < 100 ||
+        (original.contentType !== null && (typeof original.contentType !== "string" || original.contentType.length > 1024)) ||
+        (original.requestId !== null && (typeof original.requestId !== "string" || original.requestId.length > 1024)) ||
+        typeof original.body !== "string" || Buffer.byteLength(original.body, "utf8") > 24 * 1024 ||
+        !["utf-8", "base64"].includes(String(original.bodyEncoding)) || typeof original.truncated !== "boolean") throw invalid();
+  }
   if (value.feeState === "settled" && (value.actualPoints === null || value.receiptId === null)) throw invalid();
   if (value.state === "ready") {
     const asset = value.assetRef;
-    if (value.feeState !== "settled" || value.errorCode !== null) throw invalid();
+    if (value.feeState !== "settled" || value.errorCode !== null || value.upstreamResponse !== undefined) throw invalid();
     if (kind === "music") {
       if (asset !== null) throw invalid();
     } else {

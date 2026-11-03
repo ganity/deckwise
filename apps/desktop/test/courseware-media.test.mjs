@@ -49,9 +49,9 @@ const ready = (body = input, key = "saved-key-1") => ({ version: "courseware-med
     downloadPath: "/courseware/media/tasks/task-1/asset", durationMs: 50 } });
 const reference = (task = ready()) => ({ taskId: task.taskId, idempotencyKey: task.idempotencyKey, requestHash: task.requestHash });
 const json = (value, status = 200) => new Response(JSON.stringify({ code: 200, data: value }), { status, headers: { "content-type": "application/json" } });
-function setup(fetch = async () => json(ready())) {
+function setup(fetch = async () => json(ready()), imageBaseUrl) {
   let principal = { tenantId: 1, userId: 2 }, calls = [], tokens = 0;
-  const client = new CoursewareMediaClient({ baseUrl: "https://platform.test/api/backend", getPrincipal: () => principal,
+  const client = new CoursewareMediaClient({ baseUrl: "https://platform.test/api/backend", imageBaseUrl, getPrincipal: () => principal,
     resolveAccessToken: async () => `private-access-${++tokens}`, fetch: async (url, init) => { calls.push([url, init]); return fetch(url, init); } });
   return { client, calls, principal: (value) => { principal = value; } };
 }
@@ -882,4 +882,16 @@ test("video uses the quoted original task and verifies MP4 integrity on Platform
   const invalid = setup(async url => url.endsWith("/asset") ? new Response(Buffer.alloc(24), { headers: { "content-type": "video/mp4" } }) : json(task));
   await assert.rejects(invalid.client.video.download(reference(task)), /INTEGRITY_ERROR/);
   await assert.rejects(f.client.video.submit("video-key", input, { ...quote, kind: "image" }), /INVALID_RESPONSE/);
+});
+
+test("image task preserves an opaque upstream failure response and asks the gateway for details", async () => {
+  const upstreamResponse = { status: 400, contentType: "application/json", requestId: "provider-original",
+    body: '{\n "error":{"code":"OutputImageSensitiveContentDetected.PolicyViolation","message":"The output image may be related to copyright restrictions."}\n}\n',
+    bodyEncoding: "utf-8", truncated: false };
+  const failed = { ...ready(imageInput), taskId: "gw-task-1", kind: "image", state: "failed", feeState: "released", actualPoints: 0,
+    receiptId: null, errorCode: "UPSTREAM_HTTP_400", assetRef: null, upstreamResponse };
+  const f = setup(async () => json(failed), "https://gateway.test/v1");
+  const result = await f.client.getImage(reference(failed));
+  assert.deepEqual(result.upstreamResponse, upstreamResponse);
+  assert.equal(f.calls.at(-1)[1].headers.get("X-Courseware-Upstream-Response"), "1");
 });

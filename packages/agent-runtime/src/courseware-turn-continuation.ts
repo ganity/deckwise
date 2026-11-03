@@ -9,6 +9,8 @@ import { delayWithAbort } from "./provider-retry.js";
 
 const record = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
+const scenePlanPath = (value: unknown): boolean => typeof value === "string" &&
+  /(?:^|[\\/])\.deckwise-ppt[\\/]scenes[\\/][A-Za-z0-9_-]+[\\/]plan\.json$/u.test(value);
 const pending = (image: Record<string, unknown>) => image.current === true && !image.selected &&
   !["prepared", "rejected"].includes(String(image.phase));
 
@@ -24,7 +26,7 @@ const progressKey = (value: unknown) => digest(JSON.parse(JSON.stringify(value, 
 export class CoursewareTurnContinuation {
   private active = false;
   private planning = false;
-  private planRepairs = 0;
+  private planValidationFailures = 0;
   private planRepairPending = false;
   private planSha256?: string;
   private lastResume?: string;
@@ -41,12 +43,22 @@ export class CoursewareTurnContinuation {
 
   get reportOnly(): boolean { return this.stopped; }
 
+  draftWriteError(name: string, args: Record<string, unknown>): string | undefined {
+    if (!scenePlanPath(args.path ?? args.file_path)) return;
+    if (name === "Edit" && this.planRepairPending)
+      return "The scene draft failed validation. Read the current draft and use one complete Write with corrected JSON, preserving all required fields and user requirements. Partial Edit repairs are disabled until validation succeeds.";
+    if (name === "Write" && typeof args.content === "string") {
+      try { JSON.parse(args.content); }
+      catch (error) { return `Scene plan was not written: invalid JSON. Use one complete Write with valid JSON. ${String(error)}`; }
+    }
+  }
+
   private stop(): void { this.active = false; this.stopped = true; }
 
   reset(): void {
     this.active = false;
     this.planning = false;
-    this.planRepairs = 0;
+    this.planValidationFailures = 0;
     this.planRepairPending = false;
     this.planSha256 = undefined;
     this.lastResume = undefined;
@@ -73,10 +85,8 @@ export class CoursewareTurnContinuation {
       const write = turn.message.content.find(block => block.type === "toolCall" && block.id === result.toolCallId);
       const path = write?.type === "toolCall" ? write.arguments.path ?? write.arguments.file_path : undefined;
       // Shell arguments can merely read a reference plan; explicit submission covers shell-authored drafts.
-      if (["Write", "Edit"].includes(result.toolName) && typeof path === "string" &&
-          /(?:^|[\\/])\.deckwise-ppt[\\/]scenes[\\/][A-Za-z0-9_-]+[\\/]plan\.json$/u.test(path)) {
+      if (["Write", "Edit"].includes(result.toolName) && scenePlanPath(path)) {
         this.planning = true;
-        if (!result.isError && this.planRepairPending) { this.planRepairs++; this.planRepairPending = false; }
       }
       if (!result.toolName.startsWith("courseware_")) continue;
       if (result.toolName === "courseware_scene_plan_submit" && result.isError) this.planning = true;
@@ -111,7 +121,7 @@ export class CoursewareTurnContinuation {
           task.taskType === "scene" && !task.generated && record(plan) && plan.sha256 === this.planSha256 && plan.approvedSha256 === plan.sha256);
       }
       const requested = result.toolName === "courseware_scene_image_prepare" ||
-        call?.type === "toolCall" && (call.arguments.waitForUpdate === true || call.arguments.generatePrepared === true || call.arguments.retryFailed === true);
+        call?.type === "toolCall" && (call.arguments.waitForUpdate === true || call.arguments.generatePrepared === true || call.arguments.retryFailed === true || call.arguments.generateRemaining === true);
       if ((this.active || requested) &&
           ["courseware_scene_image_prepare", "courseware_scene_image_refresh"].includes(result.toolName) && record(value.image)) {
         this.active = value.requiresHumanSelection !== true &&
@@ -131,12 +141,14 @@ export class CoursewareTurnContinuation {
     this.observe(turn);
     if (this.planning && controls.canWait() && turn.message.stopReason !== "error" && turn.message.stopReason !== "aborted" &&
         (!turn.message.content.some(block => block.type === "toolCall") || turn.toolResults.some(result =>
-          ["Write", "Edit", "courseware_scene_plan_submit"].includes(result.toolName)))) {
+          result.toolName === "courseware_scene_plan_submit" || !result.isError && ["Write", "Edit"].includes(result.toolName)))) {
       try {
-        const result = await controls.execute("courseware_scene_plan_submit", {}, signal);
+        const result = [...turn.toolResults].reverse().find(result => result.toolName === "courseware_scene_plan_submit") ??
+          await controls.execute("courseware_scene_plan_submit", {}, signal);
         if (result.isError || !record(result.details) || result.details.validated !== true)
           throw new Error(JSON.stringify(result.content));
         this.planRepairPending = false;
+        this.planValidationFailures = 0;
         if (result.details.awaitingPlanApproval === false) { this.planning = false; return; }
         // Keep tools through post-submit status reads; close on the model's final response without another tool-less pass.
         if (turn.message.content.some(block => block.type === "toolCall")) return;
@@ -146,12 +158,12 @@ export class CoursewareTurnContinuation {
       } catch (error) {
         signal?.throwIfAborted();
         if (!controls.canWait()) return;
-        if (this.planRepairs >= 2) {
+        if (++this.planValidationFailures >= 3) {
           this.stop();
-          return "Scene planning is unfinished: validation still fails after two corrections. Report the actual error; do not claim completion or request approval of an invalid draft.\n" + String(error);
+          return "Scene planning is unfinished: validation still fails after two corrections. Explain the actual error to the user in plain language. Do not output tool calls, tool markup or repair code; no further repair runs in this pass. Do not claim completion or request approval of an invalid draft.\n" + String(error);
         }
         this.planRepairPending = true;
-        return "The scene draft is not ready for review. Repair this exact product validation error in this Chat's plan.json, preserve all required fields and the user's explicit requirements, then submit again with courseware_scene_plan_submit. If Edit failed, read the draft and use one complete Write instead of another partial replacement. A file write or JSON parse is not completion.\n" + String(error);
+        return "The scene draft is not ready for review. Read this Chat's current plan.json and repair this exact product validation error using one complete Write with valid JSON, preserving all required fields and the user's explicit requirements, then submit again with courseware_scene_plan_submit. Do not use partial Edit repairs. A file write or JSON parse is not completion.\n" + String(error);
       }
     }
     const readyResult = this.savedGoal === "course" ? [...turn.toolResults].reverse().find(result =>

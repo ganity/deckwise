@@ -41,7 +41,16 @@ function fixture(options = {}) {
     async retry(args) { this.assert(); calls.push(["retry", args]); image.intentId = "retry-image-1"; image.phase = "prepared"; return { ...image }; }
     async status(args) { this.assert(); calls.push(["status", args]); if (stoppedDuringStatus) dispatchable = false; const saved = rows.find(row => row.intentId === args.intentId) ?? image; return { ...saved, task: saved.phase === "submitted" ? { state: "ready", feeState: "settled" } : null, ...states.shift() }; }
     async archive(args) { this.assert(); calls.push(["archive", args]); const result = { ...image, asset: { sha256: "b".repeat(64) } }; rows.push(result); return { image: result }; }
-    async adopt(args) { this.assert(); calls.push(["adopt", args]); const row = rows.find(row => row.intentId === args.intentId); row.selected = true; return structuredClone(rows); }
+    async fallback(args) { this.assert(); calls.push(["fallback", args]);
+      const result = { ...image, asset: { sha256: "b".repeat(64) } }; rows.push(result);
+      rows.push({ ...result, intentId: `${result.intentId}-layer-1`, target: { kind: "layer", name: "Animal" } });
+      return result;
+    }
+    async adopt(args) { this.assert(); calls.push(["adopt", args]); const row = rows.find(row => row.intentId === args.intentId);
+      const peers = rows.filter(peer => peer.pageId === row.pageId && JSON.stringify(peer.target) === JSON.stringify(row.target));
+      assert.equal(peers.find(peer => peer.selected)?.intentId ?? null, args.expectedSelectedIntentId);
+      for (const peer of peers) peer.selected = peer === row;
+      return structuredClone(rows); }
   }
   class Generation {
     async generate(args) { calls.push(["compile", args]); await options.compile?.(); generated = true; return { path: "/workspace/result.pptx" }; }
@@ -52,6 +61,11 @@ function fixture(options = {}) {
     if (id === "@pi-desktop/shared") return { coursewareMediaRecovery, sceneAssetBlockers };
     if (id === "./courseware-scene-draft") return { readSceneCourseDraft: async () => ({ plan: structuredClone(plan) }) };
     if (id === "./courseware-scene-images") return { CoursewareSceneImages: Images };
+    if (id === "./courseware-scene-image-pipeline") return { runSceneImagePipeline: async (plan, services) => {
+      calls.push(["pipeline", plan.sha256]);
+      await options.pipeline?.(services);
+      return { ready: true, failures: [], blockers: [] };
+    } };
     if (id === "./courseware-scene-generation") return { CoursewareSceneGeneration: Generation };
     assert.fail(id);
   }, exports);
@@ -309,6 +323,30 @@ test("only an unselected cover requests human style review", async () => {
   }
 });
 
+test("latest later-page replacements supersede the old selection without another human gate", async () => {
+  for (const target of [{ kind: "visualMaster" }, { kind: "cleanPlate" }]) {
+    const f = fixture();
+    f.rows.push({ ...f.image, intentId: "cover", selected: true, asset: { sha256: "c".repeat(64) } });
+    Object.assign(f.image, { pageId: "scene-002", target, asset: { sha256: "b".repeat(64) } });
+    f.rows.push({ ...f.image, intentId: "old-image", selected: true }, { ...f.image });
+    const result = await f.execute("courseware_scene_image_refresh", { intentId: f.image.intentId });
+    assert.equal(result.image.selected, true);
+    assert.equal(result.requiresHumanSelection, false);
+    assert.equal(f.rows.find(row => row.intentId === "old-image").selected, false);
+    assert.deepEqual(f.calls.find(([name]) => name === "adopt")[1], { sessionId: "chat", intentId: f.image.intentId, expectedSelectedIntentId: "old-image" });
+    assert(!f.calls.some(([name]) => ["generate", "retry"].includes(name)));
+  }
+});
+
+test("late completion cannot replace a newer later-page request", async () => {
+  const f = fixture();
+  f.rows.push({ ...f.image, intentId: "cover", selected: true, asset: { sha256: "c".repeat(64) } });
+  Object.assign(f.image, { pageId: "scene-002", asset: { sha256: "b".repeat(64) } });
+  f.rows.push({ ...f.image }, { ...f.image, intentId: "newest-image", asset: null, phase: "prepared" });
+  await assert.rejects(f.execute("courseware_scene_image_refresh", { intentId: f.image.intentId }), /Newer scene asset/);
+  assert(!f.calls.some(([name]) => name === "adopt"));
+});
+
 test("Agent waits on original jobs until ready and automatically selects decomposition without human review", async () => {
   const f = fixture();
   f.rows.push({ ...f.image, intentId: "cover", selected: true, asset: { sha256: "c".repeat(64) } });
@@ -396,4 +434,58 @@ test("scene plan submission returns validated draft status without approving or 
   assert.equal(result.plan.sha256, f.plan.sha256);
   assert(!f.calls.some(([name]) => ["compile", "generate", "courseware.scenePlan.approve"].includes(name)));
   await assert.rejects(f.execute("courseware_scene_plan_submit", { approve: true }), /valid scene plan/);
+});
+
+test("whole-scene pipeline requires the selected approved cover and explicit exclusive flag", async () => {
+  const f = fixture();
+  const args = { intentId: f.image.intentId, generateRemaining: true };
+  await assert.rejects(f.execute("courseware_scene_image_refresh", args), /Confirm the current first-page/);
+  f.rows.push({ ...f.image, selected: true, asset: { sha256: "b".repeat(64) } });
+  for (const extra of [{ generateRemaining: "yes" }, { waitForUpdate: true }, { retryFailed: true }, { generatePrepared: true }])
+    await assert.rejects(f.execute("courseware_scene_image_refresh", { ...args, ...extra }), /Invalid image refresh/);
+  await f.execute("courseware_scene_image_refresh", { intentId: f.image.intentId });
+  assert(!f.calls.some(([name]) => name === "pipeline"), "status reads do not authorize whole-deck work");
+  const result = await f.execute("courseware_scene_image_refresh", args);
+  assert.equal(result.pipeline.ready, true);
+  assert.equal(result.styleConfirmed, true);
+  assert.equal(f.calls.filter(([name]) => name === "pipeline").length, 1);
+  assert(!f.calls.some(([name]) => name === "compile"));
+  f.rows[0].pageId = "scene-002";
+  await assert.rejects(f.execute("courseware_scene_image_refresh", args), /Confirm the current first-page/);
+});
+
+test("one pipeline owns a Chat until joined and releases ownership after failure", async () => {
+  let enter, release;
+  const entered = new Promise(resolve => { enter = resolve; }), held = new Promise(resolve => { release = resolve; });
+  const f = fixture({ pipeline: async services => { await services.images(); enter(); await held; services.check(); } });
+  f.rows.push({ ...f.image, selected: true, asset: { sha256: "b".repeat(64) } });
+  const args = { intentId: f.image.intentId, generateRemaining: true };
+  const pending = f.execute("courseware_scene_image_refresh", args);
+  await entered;
+  await assert.rejects(f.execute("courseware_scene_image_refresh", args), /already running/);
+  release(); await pending;
+  assert.equal((await f.execute("courseware_scene_image_refresh", args)).pipeline.ready, true);
+});
+
+test("pipeline rechecks plan approval, cover source and cancellation before continuing", async () => {
+  for (const change of [f => { f.plan.approvedSha256 = null; }, f => { f.rows[0].asset.sha256 = "new-cover"; }, f => f.stop()]) {
+    const f = fixture({ pipeline: async services => { change(f); await services.images(); } });
+    f.rows.push({ ...f.image, selected: true, asset: { sha256: "b".repeat(64) } });
+    await assert.rejects(f.execute("courseware_scene_image_refresh", { intentId: f.image.intentId, generateRemaining: true }), /changed|cancelled/);
+    assert(!f.calls.some(([name]) => ["prepare", "generate", "adopt", "compile"].includes(name)));
+  }
+});
+
+test("confirmed Seedream failure automatically uses local fallback and adopts its layers without another retry", async () => {
+  const f = fixture();
+  f.rows.push({ ...f.image, intentId: "cover", selected: true, asset: { sha256: "c".repeat(64) } });
+  f.plan.pages.push({ ...f.plan.pages[0], pageId: "scene-002" });
+  Object.assign(f.image, { pageId: "scene-002", decomposition: true, target: { kind: "cleanPlate" } });
+  f.states.push({ task: { state: "failed", feeState: "released", actualPoints: 0, errorCode: "OutputImageSensitiveContentDetected.PolicyViolation" } });
+  const result = await f.execute("courseware_scene_image_refresh", { intentId: f.image.intentId, retryFailed: true });
+  assert.equal(f.calls.filter(([name]) => name === "fallback").length, 1);
+  assert.equal(f.calls.filter(([name]) => ["retry", "generate"].includes(name)).length, 0);
+  assert(result.image.selected);
+  assert(f.rows.find(row => row.intentId.endsWith("-layer-1")).selected);
+  assert.equal(result.requiresHumanSelection, false);
 });

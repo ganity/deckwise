@@ -1,4 +1,4 @@
-import { isCoursewareSceneTeaching } from "@pi-desktop/shared";
+import { coursewareSceneTeachingIssues, isCoursewareSceneTeaching } from "@pi-desktop/shared";
 import { createHash } from "node:crypto";
 import { buildStagePromptContext, resolveGenerationProfile } from "@pi-desktop/agent-runtime";
 import type { CoursewareEducationContext, CoursewareScenePlanPage, CoursewareScenePlanSnapshot } from "@pi-desktop/shared";
@@ -38,6 +38,7 @@ export function sceneCourseTeachingPolicy(education: CoursewareEducationContext)
     policy.editionProfile, policy.audienceStageProfile, policy.languagePolicy,
     "The saved education.visualStyle, when supplied, is the user's explicit art direction, not an age-based suggestion. Preserve its medium, materials, palette, lighting and exclusions in visualBible.artDirection and every page's visualIntent. Do not replace it with watercolor, crayon, picture-book or 3D styling just because of the audience. If unspecified, follow the latest user brief; do not impose watercolor or hand-painted textures. Never change a user-selected style without a new user request.",
     "Save a course-wide visualBible with artDirection (medium, materials, palette and lighting), characters (every recurring character name, species, silhouette, proportions, colors and outfit), and setting (one coherent visual world and default location). Keep the three values within 1000 characters in total. Each page visualIntent names only the characters needed on that page; preserve their identities and default location unless the teaching content explicitly requires a scene change. No extra mascots, duplicate character badges or unplanned decorative animals. Do not default every lesson to glossy 3D; follow the requested art style and preserve the selected representative image.",
+    "For generic lesson characters, design original identities in visualBible.characters using distinct silhouettes, body proportions, facial features and color/outfit combinations, not recognizable commercial mascots or their signature feature combinations. Describe concrete positive traits without naming existing franchises as style references. Preserve required names, species, count and explicit user appearance requirements; a generic animal name is not a request for an existing mascot. When an originality correction is requested, revise the combined design rather than only swapping one accessory, and carry the revised identity across pages. Otherwise do not silently redesign approved characters or rewrite an approved plan.",
     "Preserve every lesson-required character, name and prop; do not cap their count. A page teaching five animals and all five names must show them all. Specify required subjects and their teaching roles in visualIntent and exact names in visibleText when needed. Do not add unrequested subjects, duplicate portraits/badges, extra text carriers or decorative props. The visual bible describes identities, not a cast list for every page. Preserve the requested style and setting; build atmosphere with depth, light, color and materials rather than extra objects.",
     "Apply the audience and language policies to visibleText and narration. Map child-facing keyPoints to visibleText; put unspoken teacher operations and participation/waiting intent in visualIntent. Narration contains only words spoken directly to students, never stage directions, pause/control markers or instructions to wait for a student's answer. This plan does not encode executable waits or assess answers.",
     "The visual master is a complete teaching-page design with the exact visibleText, not a textless background. In visualIntent, plan one focal action, an intentional title/keyword hierarchy and a developed full-canvas environment with depth, light and material texture. Follow the requested art direction; avoid stiff front-facing lineups, repeated clip-art spacing, empty header bands and generic slot templates unless the lesson explicitly needs them. Keep subjects and text independent, non-overlapping and inside the canvas for extraction. PPTX compilation preserves that design using the decomposed image layers, including lettering; do not reconstruct native text.",
@@ -106,15 +107,35 @@ export function parseSceneCoursePlan(text: string): SceneCoursePlan {
       throw new Error("Invalid scene course visual bible");
     visualBible = { artDirection: bible.artDirection, characters: bible.characters, setting: bible.setting };
   }
+  const issues: string[] = [];
+  plan.pages.forEach((raw, index) => {
+    const prefix = `Invalid scene course page ${index + 1} (pages[${index}])`;
+    if (!record(raw)) { issues.push(`${prefix}: expected an object`); return; }
+    const allowed = ["title", "visibleText", "visualIntent", "narration", "teaching"];
+    const extras = Object.keys(raw).filter(key => !allowed.includes(key));
+    if (extras.length) issues.push(`${prefix}: unexpected fields ${extras.join(", ")}`);
+    if (!bounded(raw.title, 200)) issues.push(`${prefix}.title: expected nonempty text of at most 200 characters`);
+    if (!bounded(raw.visualIntent, 1_000)) issues.push(`${prefix}.visualIntent: expected nonempty text of at most 1000 characters`);
+    if (!bounded(raw.narration, 2_500)) issues.push(`${prefix}.narration: expected nonempty text of at most 2500 characters`);
+    if (!Array.isArray(raw.visibleText)) issues.push(`${prefix}.visibleText: expected an array`);
+    else {
+      if (raw.visibleText.length > 6) issues.push(`${prefix}.visibleText: expected at most 6 strings`);
+      raw.visibleText.forEach((text, textIndex) => {
+        if (!bounded(text, 160)) issues.push(`${prefix}.visibleText[${textIndex}]: expected nonempty text of at most 160 characters`);
+      });
+    }
+    if (Object.hasOwn(raw, "teaching"))
+      issues.push(...coursewareSceneTeachingIssues(raw.teaching, `pages[${index}].teaching`).map(issue => `${prefix}: ${issue}`));
+    if (record(raw.teaching) && record(raw.teaching.question) && Array.isArray(raw.visibleText)) {
+      const question = raw.teaching.question, visibleText = raw.visibleText;
+      const options = record(question.response) && Array.isArray(question.response.options) ? question.response.options : [];
+      const missing = [question.text, ...options].filter(text => typeof text === "string" && !!text.trim())
+        .filter(text => !visibleText.some(visible => typeof visible === "string" && visible.includes(text)));
+      if (missing.length) issues.push(`${prefix}: Question and choices must be visible on scene page ${index + 1}: missing ${JSON.stringify(missing)} from visibleText`);
+    }
+  });
+  if (issues.length) throw new Error(issues.join("\n"));
   const pages = plan.pages.map((raw, index) => {
-    if (record(raw) && Object.hasOwn(raw, "teaching") && !isCoursewareSceneTeaching(raw.teaching))
-      throw new Error(`Invalid scene course page ${index + 1} teaching. ${scenePlanFormat}`);
-    if (!record(raw) || !["narration,title,visibleText,visualIntent", "narration,teaching,title,visibleText,visualIntent"].includes(Object.keys(raw).sort().join(",")) ||
-        !bounded(raw.title, 200) || !bounded(raw.visualIntent, 1_000) || !bounded(raw.narration, 2_500) ||
-        !Array.isArray(raw.visibleText) || raw.visibleText.length > 6 ||
-        raw.visibleText.some((text) => !bounded(text, 160)) ||
-        Object.hasOwn(raw, "teaching") && !isCoursewareSceneTeaching(raw.teaching))
-      throw new Error(`Invalid scene course page ${index + 1}`);
     const content = { title: raw.title as string, visibleText: raw.visibleText as string[],
       visualIntent: raw.visualIntent as string, narration: raw.narration as string,
       ...(isCoursewareSceneTeaching(raw.teaching) ? { teaching: { pageType: raw.teaching.pageType, phase: raw.teaching.phase, objective: raw.teaching.objective,
@@ -123,8 +144,6 @@ export function parseSceneCoursePlan(text: string): SceneCoursePlan {
           options: raw.teaching.question.response.options, answerIndices: raw.teaching.question.response.answerIndices } } } : {}),
         ...(raw.teaching.music ? { music: { purpose: raw.teaching.music.purpose, prompt: raw.teaching.music.prompt } } : {}),
         ...(raw.teaching.video ? { video: { purpose: raw.teaching.video.purpose, prompt: raw.teaching.video.prompt } } : {}) } } : {}) };
-    if (content.teaching?.question && [content.teaching.question.text, ...content.teaching.question.response.options].some(t => !content.visibleText.some(v => v.includes(t))))
-      throw new Error(`Question and choices must be visible on scene page ${index + 1}: include question.text and every option verbatim in visibleText (at most 6 strings): ${JSON.stringify([content.teaching.question.text, ...content.teaching.question.response.options])}`);
     return { pageId: `scene-${String(index + 1).padStart(3, "0")}`,
       sourceHash: `sha256:${createHash("sha256").update(JSON.stringify(content)).digest("hex")}`, ...content };
   });

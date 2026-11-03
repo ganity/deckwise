@@ -48,10 +48,28 @@ test("initial planning corrects invalid JSON with bounded feedback instead of hu
 test("Chat draft errors expose the actual teaching format and missing visible question", () => {
   const plan = JSON.parse(answer);
   plan.pages[0].teaching = { pageType: "invalid" };
-  assert.throws(() => parseSceneCoursePlan(JSON.stringify(plan)), /teaching.*pageType:slide\|quiz\|interactive\|pbl/);
+  assert.throws(() => parseSceneCoursePlan(JSON.stringify(plan)), /teaching\.pageType:.*slide\|quiz\|interactive\|pbl/);
   plan.pages[0].teaching = { pageType: "interactive", phase: "practice", objective: "Greet", durationSeconds: 120,
     requiredObjects: [], question: { text: "Wave hello", response: { kind: "practice", options: [], answerIndices: [] } } };
   assert.throws(() => parseSceneCoursePlan(JSON.stringify(plan)), /must be visible.*Wave hello/);
+});
+
+test("Chat draft validation reports field errors across every page at once", () => {
+  const page = JSON.parse(answer).pages[0];
+  const plan = { title: "Greetings", pages: [
+    { ...page, teaching: { pageType: "practice", phase: "practice", objective: "Greet", durationSeconds: 30, requiredObjects: [] } },
+    { ...page, teaching: { pageType: "interactive", phase: "review", objective: "Greet", durationSeconds: 30, requiredObjects: [],
+      question: { text: "Which greeting?", response: { kind: "single", options: ["Hello", "Bye"], answerIndices: [2] } } } },
+    { ...page, teaching: { pageType: "review", phase: "review", objective: "Review", durationSeconds: 30, requiredObjects: [] } },
+  ] };
+  assert.throws(() => parseSceneCoursePlan(JSON.stringify(plan)), error => {
+    assert.match(error.message, /pages\[0\]\.teaching\.pageType.*practice.*slide\|quiz\|interactive\|pbl/);
+    assert.match(error.message, /pages\[0\]\.teaching\.question.*required/);
+    assert.match(error.message, /pages\[1\]\.teaching\.question\.response\.answerIndices/);
+    assert.match(error.message, /scene page 2: missing \["Which greeting\?","Bye"\]/);
+    assert.match(error.message, /pages\[2\]\.teaching\.pageType.*review/);
+    return true;
+  });
 });
 
 test("initial scene plan uses the selected teaching policy and yields stable page bindings", async () => {
@@ -257,6 +275,21 @@ test("preset and custom art directions reach both planning entrances as saved us
     assert(content.includes(JSON.stringify(education)));
     assert.match(content, /Never change a user-selected style without a new user request/);
   }
+});
+
+test("both planning entrances require concrete original identities without changing lesson requirements", async () => {
+  const check = content => {
+    assert.match(content, /For generic lesson characters, design original identities/);
+    assert.match(content, /silhouettes, body proportions, facial features and color\/outfit combinations/);
+    assert.match(content, /recognizable commercial mascots/);
+    assert.match(content, /Preserve required names, species, count and explicit user appearance requirements/);
+    assert.match(content, /do not silently redesign approved characters/);
+  };
+  await createSceneCoursePlan(input, async request => {
+    check(request.system);
+    return { text: answer };
+  });
+  check(await dispatchChat(input.education));
 });
 
 

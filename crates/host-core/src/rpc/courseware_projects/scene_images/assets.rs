@@ -214,8 +214,15 @@ pub(super) async fn handle(
                 target.target.clone(),
             );
             for i in &mut intents {
-                if i.plan_sha256 == sha && i.page_id == page && i.target == target {
-                    i.selected = i.intent_id == intent_id;
+                if i.plan_sha256 == sha && i.page_id == page {
+                    if i.target == target {
+                        i.selected = i.intent_id == intent_id;
+                    } else if matches!(target, Target::VisualMaster {})
+                        || matches!(target, Target::CleanPlate {}) && matches!(i.target, Target::Layer { .. })
+                    {
+                        // Keep archived assets, but never compile layers from the previous design.
+                        i.selected = false;
+                    }
                 }
             }
             save(&state, &key, &intents)?;

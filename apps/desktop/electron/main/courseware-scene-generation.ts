@@ -3,9 +3,11 @@ import type { stageGeneratedSceneCourse } from "./courseware-scene-staging";
 import type { CoursewareSceneImages } from "./courseware-scene-images";
 import { sceneImageForCompiler } from "./courseware-scene-image-assets";
 import type { VisualMasterPlanner } from "./courseware-visual-master";
+import type { MagicLayersFallback } from "./courseware-magic-layers";
 
 export type SceneCourseGenerationServices = {
   planVisualMaster?: VisualMasterPlanner;
+  layerFallback?: MagicLayersFallback;
   resolveModel?: (sessionId: string) => Promise<{ modelKey: string; thinkingLevel?: string }>;
   build: (input: Parameters<typeof buildSceneCourseDeck>[0]) => ReturnType<typeof buildSceneCourseDeck>;
   stage: (input: Omit<Parameters<typeof stageGeneratedSceneCourse>[0], "host">) => ReturnType<typeof stageGeneratedSceneCourse>;

@@ -75,7 +75,7 @@ export class CoursewareMediaTransport {
     return mediaEnvelope(response.bytes);
   }
   protected async receive(path: string, principal: object, signal: AbortSignal | undefined, max: number, init: RequestInit = {},
-    accept = "application/json, audio/wav, audio/mpeg", timeoutMs = 30_000, image = false) {
+    accept = "application/json, audio/wav, audio/mpeg", timeoutMs = 30_000, image = false, allowFailure = false) {
     const cancellation = AbortSignal.any([AbortSignal.timeout(timeoutMs), ...(signal ? [signal] : [])]);
     cancellation.throwIfAborted();
     let token: string;
@@ -89,6 +89,7 @@ export class CoursewareMediaTransport {
     const headers = new Headers(init.headers);
     headers.set("Authorization", `Bearer ${token}`);
     headers.set("Accept", accept);
+    if (image) headers.set("X-Courseware-Upstream-Response", "1");
     if (typeof init.body === "string") headers.set("Content-Type", "application/json");
     let response: Response;
     try {
@@ -101,7 +102,7 @@ export class CoursewareMediaTransport {
     const reader = response.body?.getReader();
     try {
       this.assertPrincipal(principal);
-      if (!response.ok) throw new Error(`COURSEWARE_MEDIA_HTTP_${response.status}`);
+      if (!response.ok && !allowFailure) throw new Error(`COURSEWARE_MEDIA_HTTP_${response.status}`);
       if (!reader) throw invalid();
       const length = response.headers.get("content-length");
       if (length !== null && (!/^\d+$/u.test(length) || Number(length) > max)) throw new Error("COURSEWARE_MEDIA_RESPONSE_TOO_LARGE");
@@ -116,7 +117,7 @@ export class CoursewareMediaTransport {
         if (size > max) throw new Error("COURSEWARE_MEDIA_RESPONSE_TOO_LARGE");
         chunks.push(Buffer.from(next.value));
       }
-      return { bytes: Buffer.concat(chunks, size), mime: response.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase() };
+      return { bytes: Buffer.concat(chunks, size), status: response.status, mime: response.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase() };
     } catch (error) {
       if (error instanceof Error && /^COURSEWARE_MEDIA_[A-Z0-9_]+$/u.test(error.message)) throw error;
       throw new Error(cancellation.aborted ? "COURSEWARE_MEDIA_WAIT_CANCELLED" : "COURSEWARE_MEDIA_TRANSPORT_FAILED");

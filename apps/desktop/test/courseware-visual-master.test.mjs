@@ -34,6 +34,29 @@ test("invalid planning gets one correction; literal text is appended when omitte
   assert(prompt.includes('"Hello!", "早上好"'));
 });
 
+test("original design guidance reaches the planner and actual image prompt even when the planner omits it", async () => {
+  for (const reference of [false, true]) {
+    const request = input();
+    request.courseStyleReferenceSupplied = reference;
+    if (!reference) delete request.plan.visualBible;
+    const check = text => {
+      assert.match(text, /Original character design:/);
+      assert.match(text, /silhouettes, proportions, faces and color\/outfit combinations/);
+      assert.match(text, /not recognizable commercial mascots or their signature feature combinations/);
+      assert.match(text, /explicit user appearance requirements and approved identities/);
+      assert.match(text, /applying requested corrections consistently across pages/);
+    };
+    const prompt = await planSceneVisualMaster(request, { modelKey: "p/m" }, async call => {
+      check(call.system);
+      if (reference) assert.equal(JSON.parse(call.messages[0].content).visualBible.characters, "A monkey in a blue vest");
+      const budget = Number(call.system.match(/Keep prompt within (\d+) UTF-16 units/)[1]);
+      return response("Hello! 早上好".padEnd(budget, "x"));
+    });
+    check(prompt);
+    assert.equal(prompt.length, 4000);
+  }
+});
+
 test("oversized, missing-text and extra-text plans fail before an image purchase", async () => {
   for (const value of [response("x".repeat(4001)), { text: JSON.stringify({ prompt: "Hello!", selectedDisplayText: ["Hello!"], selectedOptionalObjectIds: [] }) },
     { text: JSON.stringify({ prompt: "Hello! 早上好 Extra", selectedDisplayText: ["Hello!", "早上好", "Extra"], selectedOptionalObjectIds: [] }) }]) {

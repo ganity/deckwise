@@ -1,5 +1,23 @@
 # 04. E2E Test Plan
 
+## E2E-COURSEWARE-replacement-master-selection
+
+Provider-free coverage: `courseware-chat-workflow.test.mjs`,
+`courseware-scene-image-pipeline.test.mjs`, and Host `scene_images::tests`.
+
+- After cover approval, refresh a verified replacement for a later page with an
+  existing selected master: automatically replace it using selection CAS and
+  continue decomposition against the replacement ID/hash, without another review.
+- Resume the pipeline with an old selected master and a newer unselected intent:
+  process the newer intent, including its saved receipt, before splitting.
+- An older unselected completion cannot overwrite a newer request. Cover
+  replacements still require the existing human style confirmation.
+- Replacing a master clears only that page's background/foreground selections;
+  replacing a background clears that page's foreground selections. Original
+  archives and receipts survive restart and other pages remain selected.
+- Failed image responses preserve opaque supplier status/body/request ID across
+  gateway restart and reach the desktop preview and per-page pipeline failures.
+
 ## E2E-COURSEWARE-single-workspace
 
 Run `node scripts/e2e-courseware-workspace.mjs` from the task worktree. Optionally
@@ -58,9 +76,16 @@ below predate automatic continuation and do not describe this workspace UI.
   Prepare with image instructions and the same plan hash; preserve the plan's
   exact bytes, human approval and original archived image. The variant remains
   unselected for human style review. Actual plan edits still require reapproval.
+- After confirming the cover style, prepare a later page with a long approved
+  visual intent, visual bible and image instruction. The Host must fit the
+  deterministic visual-master prompt within 4000 UTF-16 units while preserving
+  all approved page text, art direction, instructions, plan hash and cover
+  reference; preparation must not require another plan approval.
 - Fail draft validation, repeat submit without writing, then fail a partial edit.
-  The repair budget must remain available. Correct the draft with a successful
-  write and require human plan approval; do not automatically approve either the
+  Reject the partial edit before Host dispatch. Attempt a malformed JSON Write;
+  reject it without changing saved bytes. The repair budget must remain available.
+  Correct the draft with a successful complete write and require human plan
+  approval; do not automatically approve either the
   plan or first-page visual master. Two unsuccessful completed corrections still
   end with an honest unfinished report.
 - Deliver Send now into a running turn. Do not issue a renderer Stop after
@@ -138,6 +163,25 @@ workspace gate above separately covers the retained human approval path.
 
 ## E2E-COURSEWARE-generation-concurrency
 
+- After human plan/style approval, invoke the selected cover refresh with
+  `generateRemaining:true` for twelve pages. Hold page 2's master and five
+  decomposition jobs. Require the cover to start decomposition immediately,
+  another completed page to split before page 2 finishes, later masters to
+  continue while decomposition is saturated, and peaks of at most five per
+  generation kind. Each split must reference its own selected master ID/hash.
+  Join all jobs, require no asset blockers, and repeat without paid resubmission.
+- Resume saved prepared, submitted, failed and unknown originals. Submit only
+  never-submitted prepared intents; poll pending originals read-only. Retain
+  failed/unknown IDs and errors, finish independent pages, and do not compile
+  when required assets are missing. A selected split from another master must
+  refuse replacement spending for that page. Stop during active work must join
+  it and prevent queued/new dependent submissions.
+- Refuse the whole-course flag before style approval, on another page's intent,
+  with incompatible refresh flags, or during another pipeline for the same Chat.
+  Recheck current plan approval, cover bytes and cancellation on continuation;
+  a status-only refresh and a scoped retry must not start whole-course work.
+  Provider-free coverage: `courseware-scene-image-pipeline.test.mjs` and
+  `courseware-chat-workflow.test.mjs`, included in the mandatory workflow gate.
 - Submit more than each type's configured limit in one authenticated Desktop
   process: TTS 10, image 5, decomposition 5, music 2, export 2 and video 2. Hold
   accepted jobs pending; require no extra POST within that type and allow all
@@ -17324,10 +17368,15 @@ remain separate checks. See [repair evidence](2026-11-01-scene-workflow-repairs.
   Replay the sixteen captured page-six character/name-label focus omissions.
 - Expected: at most two draft corrections before an honest unfinished report;
   valid submission awaits ordinary human approval. Ready saved media reaches one
-  final reporting pass with no declared tools, no further status dispatch and no
-  full-deck speech/action payload. Focus repair preserves existing speech/audio
+  final reporting pass with unchanged tool declarations and `tool_choice:none`,
+  no further status dispatch and no full-deck speech/action payload. Focus repair
+  preserves existing speech/audio
   and uses verified audio duration; existing effects, locks and stale sources are
   protected by Host validation.
+- After two unsuccessful planning corrections, retain schemas for tool history
+  and request plain-language reporting. A provider that would emit raw DSML when
+  schemas disappear must instead finish with an honest explanation. A provider
+  ignoring `tool_choice:none` must still be blocked before Host execution.
 - Specs: [native Chat workflow](../03-runtime/29-courseware-chat-workflow.md).
 - Acceptance: workflow-tool, narration-write, quality/turn-continuation tests,
   Main workflow tests and Host `missing_focus_repair_*` pass. Run the provider-free
@@ -17353,6 +17402,25 @@ remain separate checks. See [repair evidence](2026-11-01-scene-workflow-repairs.
   Keep existing historical image receipts unchanged. Offline contract coverage
   and live supplier acceptance are distinct; see the MAIC alignment record.
 
+### CW-IMAGE-ORIGINAL-01: Original lesson character guidance
+
+- Create a generic-animal lesson through initial planning and Main Chat. Verify
+  both prompts request concrete original silhouettes, proportions, faces and
+  color/outfit combinations without franchise references. Retain required names,
+  species, count, user style and explicit appearance requirements.
+- Capture the visual-master planner request and return a valid prompt omitting
+  originality guidance. Verify the final provider prompt still includes it,
+  with and without a style reference or visual bible, within 4000 UTF-16 units.
+- Fail planning to exercise the deterministic Host fallback. Require the same
+  guidance for new and legacy plans; retain literal display text and the exact
+  MAIC layer-split prompt. Preserve 1280x800 / 16:10 and human confirmation gates.
+- Approved plans and historical image receipts remain unchanged. For an explicit
+  originality correction, update the combined character design across pages and
+  confirm the new cover through the existing workflow. Prompt contract tests do
+  not establish visual originality or predict supplier review acceptance.
+- Offline coverage: `courseware-scene-plan.test.mjs`,
+  `courseware-visual-master.test.mjs` and Host `scene_images::prompts::tests`.
+
 ### E2E-COURSEWARE-caller-owned-image-parameters
 
 - On `feat/courseware-par-A`, generate a new scene master and a canvas image;
@@ -17368,3 +17436,26 @@ remain separate checks. See [repair evidence](2026-11-01-scene-workflow-repairs.
 - Run the Desktop and gateway updates together; legacy receipts remain readable
   without regeneration. No paid provider or installed-app acceptance is implied
   by local fake-provider tests.
+
+## E2E-COURSEWARE-local-layer-fallback
+
+Provider-free gates: `courseware-magic-layers.test.mjs`,
+`courseware-scene-images.test.mjs`, `courseware-chat-workflow.test.mjs`,
+llm-ha `magiclayers` tests and MagicLayers service/engine tests.
+
+- A confirmed failed/refunded Seedream split switches to local extraction of the
+  same selected master, then adopts its verified background and foregrounds.
+  Retain the original failed receipt/accounting and make no new Seedream POST.
+- Refuse unsettled failures, changed source selection, changed plans, foreign
+  principals/projects and stopped dispatch before inference or archive.
+- Lose a local submission response and recreate the coordinator: recover the
+  same job without another LLM call or POST. Concurrent callers share the job;
+  failed, expired/deleted and conflicting submissions cannot rerun inference.
+- Verify local crop geometry and original PNG bytes. Reject incomplete targets,
+  placeholders, review flags, mismatched image bounds and unsafe ZIP paths.
+- Relay multipart/status/ZIP unchanged; preserve exact HTTP errors. Configured
+  cloud clients must receive no calls for revision-2 local extraction.
+
+Live quality/latency testing requires the deployed CPU models, configured relay
+account and vision model. These provider-free checks do not certify the quality
+of an actual local background reconstruction.
