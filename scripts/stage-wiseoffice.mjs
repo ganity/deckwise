@@ -37,8 +37,9 @@ await assert.rejects(
   { code: "ENOENT" },
   "Destination already exists; keep the previous bundle intact",
 );
+const entry = await lstat(join(source, "module.html")).then(() => "module.html", () => "editor.html");
 for (const name of [
-  "editor.html",
+  entry,
   "sdkjs/slide/sdk-all-min.js",
   "web-apps/apps/presentationeditor/main/index.html",
   "sdkjs/common/wasm/x2t/x2t.wasm.br",
@@ -95,7 +96,7 @@ try {
   await inventory(temporary);
   await writeFile(
     join(temporary, "deckwise-bundle.json"),
-    JSON.stringify({ version: 1, commit, dirty, files }, null, 2),
+    JSON.stringify({ version: 1, commit, dirty, entry, files }, null, 2),
   );
   await rename(temporary, destination);
 } catch (error) {

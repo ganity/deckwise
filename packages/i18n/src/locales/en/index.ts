@@ -1921,6 +1921,12 @@ sklm: {
       approvalStale: "The plan changed. Review and approve it again.", approvalHint: "Approval only saves this plan. It does not generate assets or incur media costs.",
     },
     pptEditor: {
+      focus: "Focus",
+      returnToChat: "Return to chat",
+      teachingFlow: "Teaching flow",
+      inspection: "Review",
+      savedToFile: "Saved to original file",
+      opened: "Opened",
       effectsTitle: "Highlight and spotlight",
       effectsObject: "Object {{number}}",
       effectsObjectText: "Text · object {{number}}",

@@ -118,7 +118,10 @@ async function fixture(t, component, props, overrides = {}) {
   const flush = async () => { await new Promise(resolve => setImmediate(resolve)); render(); await new Promise(resolve => setImmediate(resolve)); render(); };
   const nodes = () => {
     const all = []; const visit = value => { if (Array.isArray(value)) return value.forEach(visit); if (!value || typeof value !== "object") return;
-      all.push(value); visit(value.props?.children); }; visit(tree); return all;
+      all.push(value); visit(value.props?.children);
+      // Inspect the editor slots supplied by Workflow; editor rendering has its own browser tests.
+      if (value.type === "ppt-editor") { visit(value.props.actions); visit(value.props.reviewPanel); }
+    }; visit(tree); return all;
   };
   const button = name => nodes().find(node => node.type === "button" && node.props.children === "coursewareWorkflow." + name);
   const click = async name => { const node = button(name); assert(node, name); assert.equal(!!node.props.disabled, false, name); node.props.onClick(); await flush(); };

@@ -1863,6 +1863,12 @@ sklm: {
       approvalStale: "Der Plan wurde geändert. Bitte erneut prüfen und bestätigen.", approvalHint: "Die Bestätigung speichert nur diesen Plan. Sie erstellt keine Medien und verursacht keine Medienkosten.",
     },
     pptEditor: {
+      focus: "Fokus",
+      returnToChat: "Zurück zum Chat",
+      teachingFlow: "Lehrablauf",
+      inspection: "Prüfen",
+      savedToFile: "In Originaldatei gespeichert",
+      opened: "Geöffnet",
       effectsTitle: "Hervorhebung und Spotlight",
       effectsObject: "Objekt {{number}}",
       effectsObjectText: "Text · Objekt {{number}}",

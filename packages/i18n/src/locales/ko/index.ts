@@ -1880,6 +1880,12 @@ sklm: {
       approvalStale: "계획이 변경되었습니다. 다시 검토하고 확인하세요.", approvalHint: "확인은 현재 계획만 저장합니다. 자료를 생성하거나 미디어 비용을 발생시키지 않습니다.",
     },
     pptEditor: {
+      focus: "집중 편집",
+      returnToChat: "채팅으로 돌아가기",
+      teachingFlow: "수업 흐름",
+      inspection: "검토",
+      savedToFile: "원본 파일에 저장됨",
+      opened: "열림",
       effectsTitle: "강조 및 스포트라이트",
       effectsObject: "개체 {{number}}",
       effectsObjectText: "텍스트 · 개체 {{number}}",

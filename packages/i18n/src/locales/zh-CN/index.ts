@@ -1864,6 +1864,12 @@ sklm: {
       approvalStale: "规划已修改，请重新审核并确认。", approvalHint: "确认只保存当前规划，不生成素材或产生媒体费用。",
     },
     pptEditor: {
+      focus: "专注编辑",
+      returnToChat: "返回对话",
+      teachingFlow: "教学流程",
+      inspection: "检查与审核",
+      savedToFile: "已保存到原文件",
+      opened: "已打开",
       effectsTitle: "高亮与聚光",
       effectsObject: "对象 {{number}}",
       effectsObjectText: "文本 · 对象 {{number}}",

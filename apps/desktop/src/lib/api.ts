@@ -231,6 +231,8 @@ export type PptEditorState = {
   dirty?: boolean;
   canSave?: boolean;
   nativeTeaching?: boolean;
+  module?: boolean;
+  teachingOpen?: boolean;
   teachingProgress?: import("@pi-desktop/shared").CoursewareTeachingProgress;
 };
 
@@ -1388,6 +1390,8 @@ export const api = {
   pptEditorClose: () => invoke<{ ok: boolean }>(IPC.invoke.pptEditorClose),
   pptEditorSetBounds: (bounds: { x: number; y: number; width: number; height: number }) =>
     invoke<{ ok: boolean }>(IPC.invoke.pptEditorSetBounds, bounds),
+  pptEditorConfigureUi: (ui: { theme?: "light" | "dark"; teachingOpen?: boolean }) =>
+    invoke<{ ok: boolean }>(IPC.invoke.pptEditorConfigureUi, ui),
   pptEditorSetVisible: (visible: boolean) =>
     invoke<{ ok: boolean }>(IPC.invoke.pptEditorSetVisible, { visible }),
   /**

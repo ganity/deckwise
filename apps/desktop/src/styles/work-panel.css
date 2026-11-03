@@ -1165,8 +1165,8 @@
 .pptx-inspection-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .pptx-inspection details { margin-top: 4px; }
 .pptx-inspection summary { cursor: pointer; }
-.ppt-editor-toolbar { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 7px 10px; border-bottom: 1px solid var(--ds-border-subtle); }
-.ppt-editor-document { display: grid; min-width: 0; margin-right: auto; }
+.ppt-editor-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 44px; padding: 7px 10px; border-bottom: 1px solid var(--ds-border-subtle); }
+.ppt-editor-document { display: grid; flex: 1 1 140px; min-width: 0; margin-right: auto; }
 .ppt-editor-document strong { overflow: hidden; color: var(--ds-text-primary); font-size: var(--text-xs); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .ppt-editor-document span { overflow: hidden; color: var(--ds-text-muted); font-size: var(--text-2xs); text-overflow: ellipsis; white-space: nowrap; }
 .ppt-editor-toolbar button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 28px; padding: 0 9px; border: 1px solid var(--ds-border-subtle); border-radius: 7px; color: var(--ds-text-primary); background: var(--ds-bg-secondary); font-size: var(--text-xs); cursor: pointer; }
@@ -1583,3 +1583,8 @@
 .courseware-narration-review { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--ds-border-subtle); }
 .courseware-narration-review p { white-space: pre-wrap; }
 .courseware-narration-review input:not([type="checkbox"]) { width: 100%; min-width: 0; box-sizing: border-box; padding: 6px; color: var(--ds-text-primary); background: var(--ds-bg-primary); border: 1px solid var(--ds-border-subtle); border-radius: 6px; font: inherit; }
+
+.ppt-editor-review { min-height: 0; max-height: 35vh; overflow: auto; border-bottom: 1px solid var(--ds-border-subtle); }
+.ppt-editor-toolbar button[aria-pressed="true"] { color: var(--ds-accent); border-color: var(--ds-accent); }
+.ppt-editor-toolbar .ppt-editor-save { color: var(--ds-bg-primary); border-color: var(--ds-accent); background: var(--ds-accent); }
+.ppt-editor-toolbar .ppt-editor-save:hover:not(:disabled) { background: var(--ds-accent-hover); }
