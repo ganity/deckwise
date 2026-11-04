@@ -220,7 +220,7 @@ fn attention_source_review_requires_every_explicit_current_target_and_is_atomic(
             json!({"id":"speech","type":"speech","text":"Find both.","source":"generated","pauseAfterMs":1200,"visualCues":[
                 {"id":"highlight","atMs":0,"endMs":800,"effect":{"type":"highlight","elementIds":[first,second],"color":"#ff00aa","opacity":0.5}},
                 {"id":"spotlight","atMs":800,"endMs":1900,"effect":{"type":"spotlight","elementId":second,"elementIds":[first],"dimOpacity":0.7}},
-                {"id":"motion","atMs":0,"endMs":600,"effect":{"type":"element_animation","elementId":first,"effect":"fadeIn"}}
+                {"id":"motion","atMs":0,"endMs":600,"trigger":{"version":1,"kind":"start"},"nativeAnimation":first,"effect":{"type":"element_animation","elementId":first,"effect":"fadeIn"}}
             ]}),
             json!({"id":"wait","type":"interaction_checkpoint","checkpointId":"wait","checkpointKind":"teacher_continue"}),
             json!({"id":"pending-focus","type":"speech","text":"Look again.","attention":{"type":"highlight","objectIds":[first]}}),
@@ -294,6 +294,7 @@ fn attention_source_review_requires_every_explicit_current_target_and_is_atomic(
         expected[0]["visualCues"][1]["effect"]["elementId"] = new_objects[0]["objectId"].clone();
         expected[0]["visualCues"][1]["effect"]["elementIds"] = json!([new_objects[1]["objectId"]]);
         expected[0]["visualCues"][2]["effect"]["elementId"] = new_objects[1]["objectId"].clone();
+        expected[0]["visualCues"][2]["nativeAnimation"] = new_objects[1]["objectId"].clone();
         expected[2]["attention"]["objectIds"] = json!([new_objects[1]["objectId"]]);
         assert_eq!(adopted.pages[0].actions, expected);
         assert_eq!(adopted.pages[0].review_state, "review");

@@ -37,9 +37,9 @@ before(async () => {
         import { PptEditorTab } from "./src/components/workpanel/PptEditorTab";
         let root;
         const f = window.fixture = {
-          calls: [], listeners: new Set(), pending: null,
+          calls: [], listeners: new Set(), pending: null, blocked: false,
           store: { activeSessionId: "chat", workPanelTabs: [{ id: "ppt" }], closeWorkPanelTab() {}, showToast() {} },
-          render() { flushSync(() => root.render(<StrictMode><PptEditorTab path="uploaded.pptx" tabId="ppt" onToggleMaximize={() => this.calls.push(["focus"])} /></StrictMode>)); },
+          render() { flushSync(() => root.render(<StrictMode><PptEditorTab path="uploaded.pptx" tabId="ppt" blocked={this.blocked} onToggleMaximize={() => this.calls.push(["focus"])} /></StrictMode>)); },
           mount() { root = createRoot(document.getElementById("root")); this.render(); },
           unmount() { this.store.workPanelTabs = []; flushSync(() => root.unmount()); },
           finish(error) {
@@ -85,6 +85,7 @@ async function fixture(t) {
 test("StrictMode opens the uploaded PPT once and displays it after native readiness", async t => {
   const page = await fixture(t);
   await page.evaluate(() => window.fixture.finish());
+  await page.waitForFunction(() => window.fixture.calls.some(([name, visible]) => name === "visible" && visible));
   assert.equal(await page.evaluate(() => window.fixture.calls.some(([name, visible]) => name === "visible" && visible)), true, "a ready uploaded PPT must be displayed");
   assert.deepEqual(await page.evaluate(() => window.fixture.calls.filter(([name]) => name === "open")), [["open", "uploaded.pptx"]]);
   assert.equal(await page.locator('[role="status"]').textContent(), "panel.pptEditor.opened");
@@ -173,4 +174,37 @@ test("module controls keep focus and inspection local and send teaching visibili
   await page.getByRole("button", { name: "panel.pptEditor.teachingFlow", exact: true }).click();
   assert.deepEqual((await page.evaluate(() => window.fixture.calls.filter(([name]) => name === "ui"))).at(-1),
     ["ui", { teachingOpen: false }]);
+});
+
+test("blocking dialogs hide Office without closing or reopening the document", async t => {
+  const page = await fixture(t);
+  await page.evaluate(() => window.fixture.finish());
+  await page.waitForFunction(() => window.fixture.calls.some(([name, visible]) => name === "visible" && visible));
+  await page.evaluate(() => { window.fixture.blocked = true; window.fixture.render(); });
+  assert.deepEqual(await page.evaluate(() => window.fixture.calls.filter(([name]) => name === "visible").at(-1)), ["visible", false]);
+  await page.evaluate(() => { window.fixture.blocked = false; window.fixture.render(); });
+  assert.deepEqual(await page.evaluate(() => window.fixture.calls.filter(([name]) => name === "visible").at(-1)), ["visible", true]);
+  assert.equal(await page.evaluate(() => window.fixture.calls.filter(([name]) => name === "open").length), 1);
+  assert.equal(await page.evaluate(() => window.fixture.calls.filter(([name]) => name === "close").length), 0);
+});
+
+test("Office becoming ready behind a dialog stays hidden until the dialog closes", async t => {
+  const page = await fixture(t);
+  await page.evaluate(() => { window.fixture.blocked = true; window.fixture.render(); window.fixture.finish(); });
+  await page.waitForFunction(() => document.querySelector('[role="status"]')?.textContent === "panel.pptEditor.opened");
+  assert.equal(await page.evaluate(() => window.fixture.calls.some(([name, visible]) => name === "visible" && visible)), false);
+  await page.evaluate(() => { window.fixture.blocked = false; window.fixture.render(); });
+  assert.deepEqual(await page.evaluate(() => window.fixture.calls.filter(([name]) => name === "visible").at(-1)), ["visible", true]);
+});
+
+test("the task dialog blocks Office through both workflow and direct-file work panel routes", async () => {
+  const read = path => readFile(new URL(path, import.meta.url), "utf8");
+  const shell = await read("../src/features/app/AppShell.tsx");
+  const panel = await read("../src/components/workpanel/WorkPanel.tsx");
+  const workflow = await read("../src/components/courseware/CoursewareChatWorkflow.tsx");
+  assert.match(shell, /useAppStore\(state => state.newTaskDialog !== null\)/);
+  assert.match(shell, /panelBlocked=\{searchOpen \|\| newTaskDialogOpen\}/);
+  assert.match(panel, /<CoursewareChatWorkflow panelBlocked=\{exiting \|\| panelBlocked\}/);
+  assert.match(panel, /<PptEditorTab\s+blocked=\{exiting \|\| panelBlocked\}/);
+  assert.match(workflow, /<PptEditorTab[^>]+blocked=\{panelBlocked \|\| importOpen\}/);
 });

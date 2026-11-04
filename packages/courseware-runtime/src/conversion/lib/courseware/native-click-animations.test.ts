@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import type { SlidePageIR } from "../import/types";
-import { projectNativeClicks } from "./native-click-animations";
+import { projectNativeClicks, detachLinkedSpeechAnimations } from "./native-click-animations";
 
 function page(): SlidePageIR {
   return { id: "page", width: 960, height: 540,
@@ -35,3 +35,21 @@ it.each(["auto", "preset", "no-provenance", "delayed", "paragraph", "group", "me
     if (kind === "parallel") step.items.push({ ...item, id: "other" });
     expect(() => projectNativeClicks(source)).toThrow("NATIVE_ANIMATION_UNSUPPORTED");
   });
+
+it("claims linked native effects once and follows native preset and duration edits", () => {
+  const source = page(), before = structuredClone(source);
+  const actions = [{ type: "speech", visualCues: [{ id: "linked", nativeAnimation: "logical", atMs: 200, endMs: 800,
+    trigger: { version: 1, kind: "start" }, effect: { type: "element_animation", elementId: "logical", effect: "fadeOut" } }] }];
+  const mapping = [{ objectId: "logical", importElementId: "target" }];
+  const detached = detachLinkedSpeechAnimations(source, actions, mapping);
+  expect(detached.pptxAnimation?.steps).toEqual([]);
+  expect(actions[0].visualCues[0]).toMatchObject({ atMs: 200, endMs: 700, effect: { effect: "fadeIn" } });
+  expect(source).toEqual(before);
+  const item = source.pptxAnimation!.steps[0].items[0];
+  item.nativePreset!.class = "exit"; item.durationMs = 900;
+  detachLinkedSpeechAnimations(source, actions, mapping);
+  expect(actions[0].visualCues[0]).toMatchObject({ endMs: 1100, effect: { effect: "fadeOut" } });
+  expect(() => detachLinkedSpeechAnimations(source, [...actions, ...structuredClone(actions)], mapping)).toThrow("NATIVE_ANIMATION_LINK_STALE");
+  source.pptxAnimation!.steps[0].items.push({ ...item, id: "another" });
+  expect(() => detachLinkedSpeechAnimations(source, actions, mapping)).toThrow("NATIVE_ANIMATION_LINK_STALE");
+});

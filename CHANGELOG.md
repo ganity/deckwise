@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- Add readable native teaching playback controls with previous/next page, replay, progress seeking and five-second fast-forward.
+
+- Disable timer throttling while the native Office view initializes offscreen.
+  Optimize SHA-256 in development builds without skipping saved-source validation.
+
+- Reuse verified unchanged PPT source digests on Linux teaching reads, while
+  retaining workspace, file identity, external-edit and native-save fences.
+
+- Hide the native Office surface behind New Task, search and courseware publishing
+  dialogs, then restore the same document when dismissed.
+
+- Add speech-triggered animations and compact native-animation linking. Preserve
+  selected words, calibrate their position against real audio, retain stale intent
+  after narration edits, and play animation tails before post-speech pauses.
+  Portable/fixed playback retains references without duplicate native execution.
+
 - Keep tools available for post-submit scene-plan status reads and finish on the
   existing final response instead of requesting a tool-less extra response.
   Route cover-only rendering corrections through image instructions, retaining

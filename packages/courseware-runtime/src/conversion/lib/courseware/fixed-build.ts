@@ -6,7 +6,7 @@ import path from 'node:path';
 import { mapSlideIrToScenes } from '../import/mappers/import-ir-to-classroom';
 import type { SlideIR, ImportWarning } from '../import/types';
 import { fixedBuildInputSchema, type FixedBuildInput } from './fixed-build-input';
-import { hasGeneratedNativeMotions, projectNativeClicks } from './native-click-animations';
+import { hasGeneratedNativeMotions, projectNativeClicks, detachLinkedSpeechAnimations } from './native-click-animations';
 import { validSpeechAnimationSequence } from '../../../speech-animation-sequence';
 import { validateNativeAnimationBindings } from '../../../native-animation-node';
 import type { NativeClickAnimations } from '../../../native-click-animations';
@@ -144,6 +144,8 @@ export function validateFixedMapping(input: FixedBuildInput, ir: SlideIR) {
     requireBuild(validSpeechAnimationSequence(teaching.actions), 'ANIMATION_TARGET_CONFLICT');
     for (const action of teaching.actions) {
       if (action.type !== 'speech') continue;
+      requireBuild((action.visualCues ?? []).every(cue => !cue.trigger || cue.trigger.kind !== 'text' ||
+        (!cue.trigger.stale && cue.trigger.audioAssetId === action.audioAssetId && action.text.slice(cue.trigger.start, cue.trigger.end) === cue.trigger.text)), 'SPEECH_TIMING_RECALIBRATION_REQUIRED');
       unique(
         (action.visualCues ?? []).map((cue) => cue.id),
         'DUPLICATE_VISUAL_CUE_ID',
@@ -322,7 +324,10 @@ export async function buildFixedCourseware(
       requireBuild(scene.content.type === 'slide', 'INVALID_SLIDE');
       const actions = input.teaching.pages.find((p) => p.pageId === mapping.pageId)!.actions;
       let nativeAnimations: NativeClickAnimations | undefined;
-      try { nativeAnimations = hasGeneratedNativeMotions(page, actions, mapping.objects) ? undefined : projectNativeClicks(page); }
+      try {
+        const remaining = detachLinkedSpeechAnimations(page, actions, mapping.objects);
+        nativeAnimations = hasGeneratedNativeMotions(remaining, actions, mapping.objects) ? undefined : projectNativeClicks(remaining);
+      }
       catch { throw new FixedBuildError('NATIVE_ANIMATION_UNSUPPORTED', [...diagnostics, {
         code: 'NATIVE_ANIMATION_UNSUPPORTED', severity: 'error', pageIndex: index,
         message: 'Fixed playback supports only whole-object on-click entrance appear/fade.',

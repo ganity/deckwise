@@ -19,15 +19,18 @@ async function fixture(t, { contextErrors = [], contextPatch = {}, onContext = (
   await fs.writeFile(source, fixtureBytes);
   const ipc = new EventEmitter();
   const commands = [];
+  const throttling = [];
   const sent = new EventEmitter();
-  let view;
+  let view, viewOptions;
   const reply = (message, sender = view.webContents.id) => ipc.emit("deckwise-editor:event", { sender: { id: sender } }, message);
   const editorSession = Object.assign(new EventEmitter(), { protocol: { handle() {} }, setPermissionRequestHandler() {} });
   class View {
-    constructor() {
+    constructor(options) {
+      viewOptions = options;
       view = this;
       this.webContents = Object.assign(new EventEmitter(), {
         id: 42, session: editorSession, isDestroyed: () => false, close() {}, setWindowOpenHandler() {},
+        setBackgroundThrottling(value) { throttling.push(value); },
         loadURL: async () => { reply({ type: "message", message: { type: "document:ready" } }); },
         send: (_channel, command) => {
           commands.push(command);
@@ -79,8 +82,15 @@ async function fixture(t, { contextErrors = [], contextPatch = {}, onContext = (
     return committed;
   };
   const ack = (save, dirty, success = true) => reply({ type: "message", message: { type: "document:save-committed", id: save.id, payload: { dirty, success } } });
-  return { root, source, controller, commands, states, reply, start, exported, ack, dirty, window };
+  return { root, source, controller, commands, states, reply, start, exported, ack, dirty, window, viewOptions, throttling };
 }
+
+test("detached Office initialization runs without background timer throttling", async t => {
+  const f = await fixture(t);
+  assert.equal(f.window.contentView.children.length, 0);
+  assert.equal(f.viewOptions.webPreferences.backgroundThrottling, false);
+  assert.deepEqual(f.throttling, [true], "normal background scheduling resumes after native readiness");
+});
 
 test("PPTX stays opening until the loaded native editor answers, even after document:opened", async t => {
   let reads = 0;
@@ -312,6 +322,57 @@ test("inspection rejects an uncertain save after acknowledgement timeout", async
   assert.throws(() => f.controller.savedPptxSnapshot(), /finish saving/);
 });
 
+
+test("unchanged teaching reads reuse the verified digest instead of hashing the whole source again", async (t) => {
+  const f = await fixture(t);
+  const crypto = require("node:crypto");
+  const hashing = t.mock.method(crypto, "createHash", crypto.createHash);
+  for (let i = 0; i < 5; i++) await f.controller.verifyTeachingSource(f.root);
+  assert.equal(hashing.mock.callCount(), process.platform === "linux" ? 1 : 5);
+});
+
+test("source verification invalidates cached bytes after same-size edits even with restored mtime", async (t) => {
+  const f = await fixture(t);
+  await f.controller.verifyTeachingSource(f.root);
+  const before = await fs.stat(f.source);
+  const changed = Buffer.from(fixtureBytes);
+  changed[changed.length - 1] ^= 1;
+  await fs.writeFile(f.source, changed);
+  await fs.utimes(f.source, before.atime, before.mtime);
+  await assert.rejects(f.controller.verifyTeachingSource(f.root), /changed outside/);
+});
+
+test("source verification rehashes replacement files and rejects changes during a cached read", async (t) => {
+  const f = await fixture(t);
+  const crypto = require("node:crypto");
+  const hashing = t.mock.method(crypto, "createHash", crypto.createHash);
+  await f.controller.verifyTeachingSource(f.root);
+  const replacement = join(f.root, "replacement.pptx");
+  await fs.writeFile(replacement, fixtureBytes);
+  await fs.rename(replacement, f.source);
+  await f.controller.verifyTeachingSource(f.root);
+  assert.equal(hashing.mock.callCount(), 2, "a new inode cannot reuse the old digest");
+  const open = fs.open;
+  t.mock.method(fs, "open", async (...args) => {
+    const handle = await open(...args);
+    const stat = handle.stat.bind(handle);
+    let reads = 0;
+    t.mock.method(handle, "stat", async (...options) => {
+      if (++reads === 2) await fs.writeFile(f.source, Buffer.concat([fixtureBytes, Buffer.from("external")]));
+      return stat(...options);
+    });
+    return handle;
+  });
+  await assert.rejects(f.controller.verifyTeachingSource(f.root), /changed outside/);
+});
+
+test("a cached digest never bypasses native dirty-state checks", async (t) => {
+  const f = await fixture(t);
+  await f.controller.verifyTeachingSource(f.root);
+  const checking = f.controller.verifyTeachingSource(f.root);
+  f.dirty();
+  await assert.rejects(checking, /Save or reopen/);
+});
 
 test("teaching verifies actual live source bytes and workspace before trusting an archived revision", async (t) => {
   const f = await fixture(t);

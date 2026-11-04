@@ -1,3 +1,4 @@
+import { speechAnimationTriggerSchema } from '../../../speech-animation-trigger';
 import { questionResponseSchema } from '../../../question-response';
 import { z } from "zod";
 import { validSpeechAnimationSequence } from "../../../speech-animation-sequence";
@@ -23,6 +24,8 @@ const visualCueSchema = z
     id,
     atMs: z.number().int().min(0).max(3_600_000),
     endMs: z.number().int().positive().max(3_600_000),
+    trigger: speechAnimationTriggerSchema.optional(),
+    nativeAnimation: z.string().min(1).max(200).optional(),
     effect: z.discriminatedUnion("type", [
       z
         .object({
@@ -54,6 +57,8 @@ const visualCueSchema = z
     ]),
   })
   .strict()
+  .refine(cue => (!cue.trigger || cue.effect.type === 'element_animation') &&
+    (!cue.nativeAnimation || cue.effect.type === 'element_animation' && cue.nativeAnimation === cue.effect.elementId))
   .refine(
     (cue) =>
       cue.endMs > cue.atMs &&
@@ -188,6 +193,7 @@ const payloadSchema = z
 export type FixedAsset = z.infer<typeof assetSchema>;
 export type FixedPayload = z.infer<typeof payloadSchema>;
 export interface FixedVisualCue {
+  trigger?: import("../../../speech-animation-trigger").SpeechAnimationTrigger;
   id: string;
   atMs: number;
   endMs: number;
@@ -424,6 +430,8 @@ export async function loadFixedBuild(
           return { ...action, audioId: action.audioAssetId, audioUrl };
         }
         if (action.type !== "speech") return action;
+        check((action.visualCues ?? []).every(cue => !cue.trigger || cue.trigger.kind !== 'text' ||
+          (!cue.trigger.stale && cue.trigger.audioAssetId === action.audioAssetId && action.text.slice(cue.trigger.start, cue.trigger.end) === cue.trigger.text)), 'SPEECH_TIMING_RECALIBRATION_REQUIRED');
         check(
           unique((action.visualCues ?? []).map((c) => c.id)),
           "DUPLICATE_VISUAL_CUE_ID",

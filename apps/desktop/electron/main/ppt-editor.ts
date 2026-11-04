@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { createReadStream, promises as fs } from "node:fs";
+import { promises as fs, type BigIntStats } from "node:fs";
 import { basename, dirname, extname, join, relative } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { coursewareTeachingProgress, isCoursewareProject, type CoursewareTeachingProgress, getOfficeExtension, assertPptEditorCommand, assertPptEditorContext, assertPptEditorCommandResult, samePptEditorBinding, type PptEditorBinding, type OfficeExtension } from "@pi-desktop/shared";
@@ -19,6 +19,10 @@ import { captureSourcePagePreview, sourcePreviewTarget } from "./courseware-page
 
 const HOST_PAGE = "deckwise-editor://host/index.html";
 const REVISION_DIR = ".deckwise-ppt/revisions";
+
+function sourceStamp(stat: BigIntStats): string {
+  return [stat.dev, stat.ino, stat.size, stat.mtimeNs, stat.ctimeNs].join(":");
+}
 
 export type NativeSaveInput = {
   workspace: string; sourcePath: string; sourceRevisionPath: string; sourceSha256: string;
@@ -70,7 +74,7 @@ export class PptEditorController {
   private visible = false;
   private bounds = { x: 0, y: 0, width: 0, height: 0 };
   private current:
-    | { workspaceRoot: string; sourcePath: string; revisionRoot: string; jobId: string; revision: Revision; savedRevision: Revision; extension: OfficeExtension; readOnly: boolean; sourceHash: string; savedPath?: string }
+    | { workspaceRoot: string; sourcePath: string; revisionRoot: string; jobId: string; revision: Revision; savedRevision: Revision; extension: OfficeExtension; readOnly: boolean; sourceHash: string; savedPath?: string; verifiedSource?: { stamp: string; sha256: string } }
     | null = null;
   private pendingSave: { id: string; phase: "export" | "writing" | "ack"; error?: string } | null = null;
   private saveTimer: ReturnType<typeof setTimeout> | undefined;
@@ -229,6 +233,7 @@ export class PptEditorController {
       if (this.nativeTeaching && this.editorUrl.protocol === "deckwise-editor:")
         this.sendCommand("document:teaching-enable", { binding: this.bridgeBinding });
       if (this.visible) this.attach();
+      view.webContents.setBackgroundThrottling(true);
       const state = this.state("ready");
       this.emit(state);
       return state;
@@ -456,17 +461,36 @@ export class PptEditorController {
     const document = this.current!;
     const sourceHash = document.sourceHash;
     if (!workspaceRoot || await resolveRealOpenablePath(document.sourcePath, workspaceRoot) !== document.sourcePath) throw new Error("Teaching source is outside the current workspace");
-    const hash = createHash("sha256");
-    let size = 0;
-    for await (const chunk of createReadStream(document.sourcePath)) {
-      size += chunk.length;
-      if (size > MAX_OFFICE_BYTES) throw new Error("Teaching source exceeds 256 MiB");
-      hash.update(chunk);
-    }
+    const file = await fs.open(document.sourcePath, "r");
+    let stamp: string, digest: string;
+    try {
+      const before = await file.stat({ bigint: true });
+      if (!before.isFile() || before.size > BigInt(MAX_OFFICE_BYTES)) throw new Error("Teaching source exceeds 256 MiB or is not a regular file");
+      stamp = sourceStamp(before);
+      // Linux ctime catches same-size edits with restored mtime; other platforms keep full hashing.
+      const verified = process.platform === "linux" ? document.verifiedSource : undefined;
+      if (verified?.stamp === stamp && verified.sha256 === snapshot.sha256) {
+        digest = verified.sha256;
+      } else {
+        document.verifiedSource = undefined;
+        const hash = createHash("sha256");
+        let size = 0;
+        for await (const chunk of file.createReadStream({ autoClose: false })) {
+          size += chunk.length;
+          if (size > MAX_OFFICE_BYTES) throw new Error("Teaching source exceeds 256 MiB");
+          hash.update(chunk);
+        }
+        digest = hash.digest("hex");
+      }
+      if (sourceStamp(await file.stat({ bigint: true })) !== stamp ||
+          sourceStamp(await fs.stat(document.sourcePath, { bigint: true })) !== stamp)
+        throw new Error("Source file changed outside the editor; reopen before editing teaching");
+    } finally { await file.close(); }
     const current = this.teachingSnapshot(workspaceRoot);
-    if (this.current !== document || document.sourceHash !== sourceHash || hash.digest("hex") !== snapshot.sha256 ||
+    if (this.current !== document || document.sourceHash !== sourceHash || digest !== snapshot.sha256 ||
         sourceHash !== snapshot.sha256 || current.revision !== snapshot.revision || current.sha256 !== snapshot.sha256 ||
         !samePptEditorBinding(current, snapshot)) throw new Error("Source file changed outside the editor; reopen before editing teaching");
+    document.verifiedSource = { stamp, sha256: digest };
   }
 
   setBounds(bounds: { x: number; y: number; width: number; height: number }): void {
@@ -704,6 +728,8 @@ export class PptEditorController {
         nodeIntegrationInSubFrames: false,
         sandbox: true,
         webviewTag: false,
+        // The view stays detached until native readiness; do not throttle its initialization timers.
+        backgroundThrottling: false,
       },
     });
     const contents = view.webContents;

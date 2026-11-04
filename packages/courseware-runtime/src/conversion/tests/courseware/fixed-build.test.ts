@@ -73,6 +73,19 @@ it('builds and loads attention after saved native entrance clicks but rejects a 
         expect.objectContaining({ kind: 'spotlight', targetId: target.importElementId }),
       ]);
     } finally { loaded.dispose(); }
+    speech.visualCues = [{ id: 'linked-native', atMs: 0, endMs: 600, trigger: { version: 1, kind: 'end' },
+      nativeAnimation: target.objectId, effect: { type: 'element_animation', elementId: target.objectId, effect: 'fadeOut' } }];
+    const linkedBuild = await buildFixedCourseware(candidate, { workerDirectory, outputDirectory: path.join(temporary, 'linked-builds') });
+    const linkedBytes = await readFile(path.join(linkedBuild.directory, 'package.json'));
+    const linked = await loadFixedBuild(linkedBytes, linkedBuild.buildId, async asset => readFile(path.join(linkedBuild.directory, asset.path)));
+    try {
+      expect(linked.nativeAnimations?.get(candidate.mapping.pages[0].pageId)).toBeUndefined();
+      expect(linked.speechVisualCues.get(speech.id)).toEqual([expect.objectContaining({
+        id: 'linked-native', atMs: 0, endMs: 500, trigger: { version: 1, kind: 'end' }, nativeAnimation: target.objectId,
+        effect: expect.objectContaining({ kind: 'element_animation', action: expect.objectContaining({ effect: 'fadeIn', duration: 500 }) })
+      })]);
+      expect(linked.scenes[0].actions?.[0].type).toBe('speech');
+    } finally { linked.dispose(); }
     for (const effect of ['fadeIn', 'fadeOut', 'pulse'] as const) {
       speech.visualCues = [{ id: 'competing-owner', atMs: 0, endMs: 200,
         effect: { type: 'element_animation', elementId: target.objectId, effect } }];

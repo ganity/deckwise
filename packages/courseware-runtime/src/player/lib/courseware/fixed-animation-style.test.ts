@@ -87,3 +87,14 @@ it('renders scale, directional entrances and gentle rotation on the speech clock
   expect(motion('gentleRotate', 150).rotate).toBeCloseTo(6);
   expect(motion('gentleRotate', 600).rotate).toBeCloseTo(0);
 });
+
+it("does not apply a future exit over an entrance within the same narration", () => {
+  const entrance = { ...cue("fadeIn"), atMs: 0, endMs: 1000 };
+  const exit = { ...cue("fadeOut"), atMs: 2000, endMs: 3000 };
+  const at = (timeMs: number) => fixedAnimationStyles([{ cue: entrance, timeMs }, { cue: exit, timeMs }]).get("object");
+  expect(at(-1)?.hidden).toBe(true);
+  expect(at(500)?.opacity).toBe(.5);
+  expect(at(1500)?.opacity).toBe(1);
+  expect(at(2500)?.opacity).toBe(.5);
+  expect(at(3000)?.hidden).toBe(true);
+});

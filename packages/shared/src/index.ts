@@ -94,3 +94,5 @@ export * from "./storage.js";
 export * from "./courseware-question.js";
 export * from "./courseware-scene-teaching.js";
 export * from "./courseware-teaching-quality.js";
+
+export * from "./courseware-speech-trigger.js";

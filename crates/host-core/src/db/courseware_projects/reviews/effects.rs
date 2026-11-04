@@ -21,9 +21,52 @@ fn eligible(value: &Value) -> bool {
     matches!(value.as_str(), Some("text" | "shape" | "image"))
 }
 
+pub(crate) fn valid_trigger(value: &Value) -> bool {
+    if value["version"].as_u64() != Some(1) {
+        return false;
+    }
+    if matches!(value["kind"].as_str(), Some("start" | "end")) {
+        return fields(value, &["version", "kind"], &[]);
+    }
+    let start = value["start"].as_u64();
+    let end = value["end"].as_u64();
+    value["kind"] == "text"
+        && fields(
+            value,
+            &[
+                "version",
+                "kind",
+                "text",
+                "start",
+                "end",
+                "phase",
+                "audioAssetId",
+            ],
+            &["stale"],
+        )
+        && matches!(value["phase"].as_str(), Some("with" | "after"))
+        && value["audioAssetId"].as_str().is_some_and(valid_id)
+        && value.get("stale").is_none_or(|v| v == true)
+        && start.zip(end).is_some_and(|(start, end)| {
+            end > start
+                && end <= 32000
+                && value["text"].as_str().is_some_and(|text| {
+                    !text.trim().is_empty() && text.encode_utf16().count() as u64 == end - start
+                })
+        })
+}
+
 pub(crate) fn cue_targets(cue: &Value) -> Result<Vec<String>> {
     anyhow::ensure!(
-        fields(cue, &["id", "atMs", "endMs", "effect"], &[])
+        fields(
+            cue,
+            &["id", "atMs", "endMs", "effect"],
+            &["trigger", "nativeAnimation"]
+        ) && cue.get("trigger").is_none_or(
+            |trigger| valid_trigger(trigger) && cue["effect"]["type"] == "element_animation"
+        ) && cue.get("nativeAnimation").is_none_or(|id| object_id(id)
+            && cue["effect"]["type"] == "element_animation"
+            && *id == cue["effect"]["elementId"])
             && object_id(&cue["id"])
             && cue["atMs"].as_u64().is_some()
             && cue["endMs"].as_u64().is_some_and(|end| end
@@ -85,7 +128,15 @@ pub(crate) fn cue_targets(cue: &Value) -> Result<Vec<String>> {
                 fields(effect, &["type", "elementId", "effect"], &[])
                     && matches!(
                         effect["effect"].as_str(),
-                        Some("fadeIn" | "fadeOut" | "pulse" | "zoomIn" | "slideInLeft" | "slideInRight" | "gentleRotate")
+                        Some(
+                            "fadeIn"
+                                | "fadeOut"
+                                | "pulse"
+                                | "zoomIn"
+                                | "slideInLeft"
+                                | "slideInRight"
+                                | "gentleRotate"
+                        )
                     )
                     && cue["endMs"].as_u64().unwrap() - cue["atMs"].as_u64().unwrap() <= 5000,
                 "COURSEWARE_INVALID: unsupported object animation cue"
@@ -121,10 +172,11 @@ pub(in crate::db::courseware_projects) fn validate_animation_sequence(
             let id = effect["elementId"].as_str().unwrap_or_default();
             let motion = effect["effect"].as_str().unwrap_or_default();
             anyhow::ensure!(
-                current.insert(id)
+                (current.insert(id) || cue.get("trigger").is_some())
                     && previous
                         .get(id)
-                        .is_none_or(|old| matches!(motion, "pulse" | "gentleRotate" | "fadeOut") && *old != "fadeOut"),
+                        .is_none_or(|old| matches!(motion, "pulse" | "gentleRotate" | "fadeOut")
+                            && *old != "fadeOut"),
                 "COURSEWARE_INVALID: duplicate page animation target"
             );
             previous.insert(id, motion);
@@ -320,6 +372,9 @@ pub(in crate::db::courseware_projects) fn rebind(
                     .into_iter()
                     .flatten()
                 {
+                    replace(id)?;
+                }
+                if let Some(id) = cue.get_mut("nativeAnimation") {
                     replace(id)?;
                 }
             }

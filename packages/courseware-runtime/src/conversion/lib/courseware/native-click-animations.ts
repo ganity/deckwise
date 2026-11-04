@@ -44,3 +44,29 @@ export function hasGeneratedNativeMotions(page: SlidePageIR, actions: readonly {
     });
   });
 }
+
+/** A unique native effect on a logical object keeps its identity through native reorder and preset edits. */
+export function detachLinkedSpeechAnimations<T extends { type: string; visualCues?: Array<{ nativeAnimation?: string; atMs: number; endMs: number; effect: { type: string; elementId?: string; effect?: string } }> }>(
+  page: SlidePageIR, actions: T[], mapping: readonly { objectId: string; importElementId: string }[],
+): SlidePageIR {
+  const claimed = new Set<object>();
+  for (const action of actions) for (const cue of action.visualCues ?? []) {
+    if (!cue.nativeAnimation) continue;
+    if (action.type !== 'speech' || cue.effect.type !== 'element_animation' || cue.nativeAnimation !== cue.effect.elementId) throw new Error('NATIVE_ANIMATION_LINK_INVALID');
+    const id = mapping.find(object => object.objectId === cue.nativeAnimation)?.importElementId;
+    const target = page.elements.find(element => element.id === id);
+    const matches = page.pptxAnimation?.steps.flatMap(step => step.items).filter(item => item.target?.shapeId === target?.sourceShapeId) ?? [];
+    const item = matches[0];
+    if (!target?.sourceShapeId || matches.length !== 1 || !item || claimed.has(item) || item.startAtMs !== 0 || item.durationMs < 1 || item.durationMs > 5000 ||
+        item.target?.paragraphIndexes || item.target?.characterRange || item.motion || item.rotation) throw new Error('NATIVE_ANIMATION_LINK_STALE');
+    const effects = ['fadeIn', 'fadeOut', 'pulse', 'zoomIn', 'slideInLeft', 'slideInRight', 'gentleRotate'];
+    const effect = effects.find(effect => { const preset = nativeMotionPreset(effect)!; return item.nativePreset?.class === preset.ooxmlClass &&
+      item.nativePreset.id === preset.presetId && (item.nativePreset.subtype ?? 0) === preset.subtype; });
+    if (!effect) throw new Error('NATIVE_ANIMATION_LINK_UNSUPPORTED');
+    cue.effect.effect = effect; cue.endMs = cue.atMs + item.durationMs;
+    claimed.add(item);
+  }
+  return !claimed.size || !page.pptxAnimation ? page : { ...page, pptxAnimation: { ...page.pptxAnimation,
+    steps: page.pptxAnimation.steps.map(step => ({ ...step, items: step.items.filter(item => !claimed.has(item)) })).filter(step => step.items.length),
+  } };
+}

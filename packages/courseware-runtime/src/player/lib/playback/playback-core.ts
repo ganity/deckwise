@@ -74,6 +74,9 @@ export interface PlaybackRuntime {
     ttsVoice?: string;
   };
   speechFallback?: "reading" | "pause";
+  getSpeechTailDuration?(actionId: string, audioDurationMs: number): number;
+  waitForSpeechEffects?(actionId: string): Promise<void>;
+
 }
 export interface PlaybackActions {
 execute(action: Action): Promise<void>;
@@ -125,6 +128,10 @@ export class PlaybackCore {
   private currentSpeechPauseAfterMs: number = 0;
   private currentSpeechResolve: (() => void) | null = null;
   private currentAudioIsClip = false;
+  private speechTail: { actionId: string; audioDurationMs: number; durationMs: number } | null = null;
+  private currentSpeechId = '';
+  private waitingSpeechEffects = false;
+
   private speechExecutionId = 0;
   private retrySpeech: (() => void) | null = null;
   private speechCueScheduler: SpeechCueScheduler | null = null;
@@ -276,11 +283,14 @@ export class PlaybackCore {
         this.browserTTSPausedChunks = [];
         this.playBrowserTTSChunk();
         resumedSpeech = true;
+      } else if (this.waitingSpeechEffects) {
+        resumedSpeech = true;
       } else if (this.speechTimerCompletion) {
         // Reading time or post-speech pause was frozen by pause().
         if (this.speechTimerRemaining > 0) {
           const completion = this.speechTimerCompletion;
           this.scheduleSpeechTimer(this.speechTimerRemaining, completion);
+          if (this.speechTail) this.speechCueScheduler?.resume();
         } else {
           this.completeSpeechTimer();
         }
@@ -987,6 +997,8 @@ export class PlaybackCore {
   private executeSpeechAction(speechAction: SpeechAction | AudioClipAction): Promise<void> {
     const isSpeech = speechAction.type === "speech";
     this.currentAudioIsClip = !isSpeech;
+    this.currentSpeechId = speechAction.id;
+    this.speechTail = null;
     const speechExecutionId = ++this.speechExecutionId;
     this.currentSpeechPauseAfterMs = normalizeSpeechPauseMs(
       isSpeech ? speechAction.pauseAfterMs : undefined,
@@ -1004,7 +1016,8 @@ export class PlaybackCore {
       speechCueActions.length || (isSpeech ? this.callbacks.onSpeechProgress : this.callbacks.onAudioClipProgress)
         ? new SpeechCueScheduler(
             speechCueActions,
-            () => this.audioPlayer.getCurrentTime(),
+            () => this.speechTail ? this.speechTail.audioDurationMs + Math.min(this.speechTail.durationMs,
+              this.speechTail.durationMs - this.speechTimerRemaining + (this.speechTimer ? Date.now() - this.speechTimerStart : 0)) : this.audioPlayer.getCurrentTime(),
             (cue) => {
               void Promise.resolve(
                 this.callbacks.onElementAnimation?.(cue),
@@ -1204,27 +1217,59 @@ export class PlaybackCore {
   }
 
   private finishCurrentSpeech(): void {
-    (this.currentAudioIsClip ? this.callbacks.onAudioClipProgress : this.callbacks.onSpeechProgress)?.(null);
-    this.speechCueScheduler?.stop();
-    this.speechCueScheduler = null;
+    const execution = this.speechExecutionId;
+    const id = this.currentSpeechId;
+    const isSpeech = !this.currentAudioIsClip;
+    const durationMs = this.runtime.getSpeechTailDuration ? this.audioPlayer.getDuration() : 0;
+    let tailMs = 0;
+    try { tailMs = isSpeech ? Math.max(0, this.runtime.getSpeechTailDuration?.(id, durationMs) ?? 0) : 0; }
+    catch (error) { this.pause(); this.callbacks.onPlaybackError?.(error instanceof Error ? error : new Error('Invalid speech timing')); return; }
+    if (isSpeech && tailMs > 0) {
+      this.speechTail = { actionId: id, audioDurationMs: durationMs, durationMs: tailMs };
+      this.callbacks.onSpeechProgress?.({ actionId: id, timeMs: durationMs, durationMs });
+    }
     const complete = () => {
       const resolve = this.currentSpeechResolve;
-      if (!resolve) return;
+      if (!resolve || execution !== this.speechExecutionId) return;
       this.currentSpeechResolve = null;
       this.currentSpeechPauseAfterMs = 0;
-      if (!this.currentAudioIsClip) this.callbacks.onSpeechEnd?.();
+      if (isSpeech) this.callbacks.onSpeechEnd?.();
       this.currentAudioIsClip = false;
       resolve();
     };
-
-    if (this.currentSpeechPauseAfterMs > 0) {
-      this.scheduleSpeechTimer(this.currentSpeechPauseAfterMs, complete);
-      return;
-    }
-    complete();
+    const afterEffects = () => {
+      if (execution !== this.speechExecutionId || !this.currentSpeechResolve) return;
+      this.speechTail = null;
+      this.speechCueScheduler?.stop();
+      this.speechCueScheduler = null;
+      (isSpeech ? this.callbacks.onSpeechProgress : this.callbacks.onAudioClipProgress)?.(null);
+      if (this.currentSpeechPauseAfterMs > 0) this.scheduleSpeechTimer(this.currentSpeechPauseAfterMs, complete);
+      else if (this.mode === 'paused') { this.speechTimerCompletion = complete; this.speechTimerRemaining = 0; }
+      else complete();
+    };
+    const afterTail = () => {
+      if (execution !== this.speechExecutionId || !this.currentSpeechResolve) return;
+      if (isSpeech && this.runtime.waitForSpeechEffects) {
+        this.waitingSpeechEffects = true;
+        void this.runtime.waitForSpeechEffects(id).then(() => {
+          if (execution !== this.speechExecutionId || !this.currentSpeechResolve) return;
+          this.waitingSpeechEffects = false;
+          if (this.mode === 'paused') { this.speechTimerCompletion = afterEffects; this.speechTimerRemaining = 0; }
+          else { this.speechTimerCompletion = null; afterEffects(); }
+        }).catch(error => {
+          if (execution !== this.speechExecutionId || !this.currentSpeechResolve) return;
+          this.waitingSpeechEffects = false; this.speechTimerCompletion = null; this.pause();
+          this.callbacks.onPlaybackError?.(error instanceof Error ? error : new Error('Speech animation failed'));
+        });
+      } else afterEffects();
+    };
+    if (tailMs > 0) this.scheduleSpeechTimer(tailMs, afterTail);
+    else afterTail();
   }
 
   private cancelCurrentSpeech(finishCues = false): void {
+    this.speechTail = null;
+    this.waitingSpeechEffects = false;
     (this.currentAudioIsClip ? this.callbacks.onAudioClipProgress : this.callbacks.onSpeechProgress)?.(null);
     this.retrySpeech = null;
     if (finishCues) this.speechCueScheduler?.finish();

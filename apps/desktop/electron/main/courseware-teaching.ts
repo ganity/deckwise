@@ -713,8 +713,18 @@ export class CoursewareTeachingCoordinator {
     const page = pin.view.project.pages.find(entry => entry.pageId === pin.view.pageId)!;
     const changed = actions.filter(action => {
       const old = page.actions.find(entry => entry.id === action.id);
-      return action.type === "speech" && JSON.stringify(action.visualCues) !== JSON.stringify(old?.visualCues) &&
-        !(action.visualCues === undefined && (action.text !== old?.text || action.audioAssetId !== old?.audioAssetId));
+      // Removing saved semantic bindings needs no audio; adding or changing one still does.
+      const next = action.visualCues === undefined ? [] : action.visualCues;
+      const previous = old?.visualCues;
+      const removedOnly = !page.locked && action.text === old?.text && action.audioAssetId === old?.audioAssetId &&
+        Array.isArray(next) && Array.isArray(previous) && next.every(cue => previous.some(saved => JSON.stringify(saved) === JSON.stringify(cue))) &&
+        previous.every(saved => next.some(cue => JSON.stringify(cue) === JSON.stringify(saved)) || isCoursewareAttentionCue(saved) && !!saved.trigger);
+      return !removedOnly && action.type === "speech" && JSON.stringify(action.visualCues) !== JSON.stringify(old?.visualCues) &&
+        !((action.text !== old?.text || action.audioAssetId !== old?.audioAssetId) &&
+          (action.visualCues === undefined || Array.isArray(action.visualCues) && action.visualCues.every(cue =>
+            isCoursewareAttentionCue(cue) && cue.trigger && (cue.trigger.kind !== "text" || cue.trigger.stale === true) &&
+            Array.isArray(old?.visualCues) && old.visualCues.some(saved => isCoursewareAttentionCue(saved) && saved.id === cue.id &&
+              JSON.stringify(saved.effect) === JSON.stringify(cue.effect) && saved.nativeAnimation === cue.nativeAnimation))));
     });
     if (!changed.length) return;
     if (page.locked)
@@ -738,6 +748,8 @@ export class CoursewareTeachingCoordinator {
       for (const cue of cues) {
         if (previous.some(saved => JSON.stringify(saved) === JSON.stringify(cue))) continue;
         if (!isCoursewareAttentionCue(cue)) throw new Error("Invalid or unsupported effect cue");
+        if (cue.trigger?.kind === "text" && !cue.trigger.stale && (cue.trigger.audioAssetId !== action.audioAssetId ||
+            action.text.slice(cue.trigger.start, cue.trigger.end) !== cue.trigger.text)) throw new Error("Speech trigger does not match the current narration audio");
         const targets = cue.effect.type === "highlight" ? cue.effect.elementIds : [cue.effect.elementId, ...(cue.effect.elementIds ?? [])];
         if (targets.some(id => !objects.some(object => object.objectId === id && object.status === "mapped" && object.effectTargetEligible === true)))
           throw new Error("Effect target is stale, unsupported or not mapped to this saved page");

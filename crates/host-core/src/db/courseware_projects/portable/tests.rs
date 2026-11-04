@@ -62,6 +62,28 @@ fn portable_media_reuse_is_page_action_text_and_source_bound_without_provider_re
     repeated.project.pages[0].actions.last_mut().unwrap()["visualCues"][0]["effect"]["effect"] =
         json!("fadeIn");
     assert!(repeated.validate(repeated.commit_id, &seed.sha256).is_err());
+    let mut linked = content.clone();
+    linked.project.pages[0].actions[0]["visualCues"] = json!([
+        {"id":"entrance","atMs":0,"endMs":600,"trigger":{"version":1,"kind":"start"},
+          "nativeAnimation":target,"effect":{"type":"element_animation","elementId":target,"effect":"fadeIn"}},
+        {"id":"exit","atMs":1000,"endMs":1600,"trigger":{"version":1,"kind":"end"},
+          "effect":{"type":"element_animation","elementId":target,"effect":"fadeOut"}}
+    ]);
+    linked.validate(linked.commit_id, &seed.sha256).unwrap();
+    let encoded = serde_json::to_vec(&linked).unwrap();
+    let decoded = Teaching::parse(&encoded, linked.commit_id, &seed.sha256).unwrap();
+    assert_eq!(
+        decoded.project.pages[0].actions,
+        linked.project.pages[0].actions
+    );
+    linked.project.pages[0].actions[0]
+        .as_object_mut()
+        .unwrap()
+        .remove("audioAssetId");
+    linked.media.remove(0);
+    linked.validate(linked.commit_id, &seed.sha256).unwrap();
+    linked.project.pages[0].actions[0]["visualCues"][0]["trigger"]["unexpected"] = json!(true);
+    assert!(linked.validate(linked.commit_id, &seed.sha256).is_err());
     let fresh = tempfile::tempdir().unwrap();
     let restored_db = Database::open_in_dir(fresh.path()).unwrap();
     let root = fresh.path().to_str().unwrap();

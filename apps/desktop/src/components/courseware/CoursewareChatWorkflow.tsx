@@ -11,13 +11,13 @@ import { CoursewareChatNarration } from "./CoursewareChatNarration";
 import { CoursewareChatPptxCandidates } from "./CoursewareChatPptxCandidates";
 import { CoursewareChatImages } from "./CoursewareChatImages";
 
-type WorkspaceProps = { maximized?: boolean; onToggleMaximize?: () => void };
+type WorkspaceProps = { panelBlocked?: boolean; maximized?: boolean; onToggleMaximize?: () => void };
 export function CoursewareChatWorkflow(props: WorkspaceProps) {
   const sessionId = useAppStore(state => state.activeSessionId);
   return sessionId ? <Workflow key={sessionId} sessionId={sessionId} {...props} /> : null;
 }
 
-function Workflow({ sessionId, maximized, onToggleMaximize }: { sessionId: string } & WorkspaceProps) {
+function Workflow({ sessionId, panelBlocked = false, maximized, onToggleMaximize }: { sessionId: string } & WorkspaceProps) {
   const { t } = useTranslation();
   const isRunning = useAppStore(state => state.runningSessions[sessionId] ?? false);
   const messages = useAppStore(state => state.messages);
@@ -150,7 +150,7 @@ function Workflow({ sessionId, maximized, onToggleMaximize }: { sessionId: strin
       })}>{t("coursewareWorkflow.selectPpt")}</button>}
       {ordinary && <CoursewareChatPresentation sessionId={sessionId} disabled={blocked} refreshKey={refresh}
         sourceVisuals={sourceVisuals} onReady={setPlainPath} />}
-      {path && <PptEditorTab key={path} path={path} tabId="ppt" maximized={maximized} onToggleMaximize={onToggleMaximize}
+      {path && <PptEditorTab key={path} path={path} tabId="ppt" blocked={panelBlocked || importOpen} maximized={maximized} onToggleMaximize={onToggleMaximize}
         actions={<>
           <button type="button" disabled={blocked} onClick={() => setImportOpen(true)}>{t("coursewareWorkflow.publish")}</button>
           <button type="button" disabled={busy} onClick={() => setRefresh(value => value + 1)}>{t("coursewareWorkflow.refresh")}</button>

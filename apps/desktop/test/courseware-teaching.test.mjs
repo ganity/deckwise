@@ -1409,3 +1409,19 @@ test("snapshot capture accepts legacy unconfirmed pages without a confirmation o
   assert(snapshot.snapshotId);
   assert(!f.calls.some(([method]) => method === "courseware.teaching.confirm"));
 });
+
+
+test("removing stale speech animation bindings needs no old audio or new confirmation", async () => {
+  const f = setup();
+  f.project().pages[0].actions = [{ id: "speech", type: "speech", text: "Updated narration.", visualCues: [{
+    id: "linked", atMs: 0, endMs: 600, nativeAnimation: "object-a",
+    trigger: { version: 1, kind: "text", text: "Updated", start: 0, end: 7, phase: "with", audioAssetId: "old-audio", stale: true },
+    effect: { type: "element_animation", elementId: "object-a", effect: "fadeIn" }
+  }] }];
+  const teaching = f.make(), view = await teaching.open("chat-1");
+  const actions = structuredClone(view.project.pages[0].actions);
+  delete actions[0].visualCues;
+  const saved = await teaching.update({ viewId: view.viewId, expectedTeachingRevision: view.project.teachingRevision, actions }, false);
+  assert.equal(saved.project.pages[0].actions[0].visualCues, undefined);
+  assert(!f.calls.some(([method]) => method === "courseware.teaching.confirm"));
+});

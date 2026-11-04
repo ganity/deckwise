@@ -17,6 +17,7 @@ import { ProjectCreateDialog } from "../../components/ProjectCreateDialog";
 import { UpdateBanner } from "../../components/UpdateBanner";
 import { WindowControls } from "../../components/WindowControls";
 import { api } from "../../lib/api";
+import { useAppStore } from "../../stores/app-store";
 import { CollapsedTitlebarActions, RoutePending } from "./chrome";
 import { useAppShellRuntime } from "./useAppShellRuntime";
 
@@ -36,6 +37,7 @@ const ScheduledPage = lazy(() =>
   })),
 );
 export function AppShell() {
+  const newTaskDialogOpen = useAppStore(state => state.newTaskDialog !== null);
   const {
     t,
     ready,
@@ -243,7 +245,7 @@ export function AppShell() {
 
           {(presentedWorkPanelOpen || workPanelExiting) && (
             <WorkPanel
-              panelBlocked={searchOpen}
+              panelBlocked={searchOpen || newTaskDialogOpen}
               exiting={workPanelExiting}
               onExitAnimationEnd={() =>
                 finishWorkPanelExit(workPanelExitGeneration.current)

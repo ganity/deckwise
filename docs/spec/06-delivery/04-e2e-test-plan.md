@@ -1,5 +1,19 @@
 # 04. E2E Test Plan
 
+## E2E-COURSEWARE-dialog-hides-native-office
+
+Provider-free interaction gate: `node --test apps/desktop/test/ppt-editor-visibility.test.mjs`.
+
+- With an opened courseware or direct-file Office view, open New Task or global
+  search: hide the native view so the dialog stays visible and interactive.
+- Dismiss the dialog: restore the existing document without reopening or closing it.
+- Open a dialog while Office is still loading: readiness must keep it hidden;
+  dismissal restores it. Unmounting must not redisplay the editor.
+- The courseware publish/import dialog also blocks the underlying Office view.
+
+The Chromium fixture validates visibility IPC and lifecycle behavior; actual
+Electron/WiseOffice compositing still requires a native smoke check.
+
 ## E2E-COURSEWARE-replacement-master-selection
 
 Provider-free coverage: `courseware-chat-workflow.test.mjs`,
@@ -17459,3 +17473,53 @@ llm-ha `magiclayers` tests and MagicLayers service/engine tests.
 Live quality/latency testing requires the deployed CPU models, configured relay
 account and vision model. These provider-free checks do not certify the quality
 of an actual local background reconstruction.
+
+
+### Speech animation anchor regression — 2026-11-03
+
+- In a saved narration, select text, move focus, open Add/Link animation; retain
+  the range. Save sentence start/end and selected-text with/after triggers.
+- Mark text timing against preview audio; missing marks, stale text/audio and
+  unsupported native effects cannot silently play or export.
+- Link through the compact multiselect, cancel without writes, move an existing
+  owner with notice, and unlink without deleting the native PPT effect.
+- In the actual native editor, run a quick entrance and a linked native entrance
+  concurrently, then an exit on the same quick-animation target. Await completion,
+  exit, and verify the saved timing reference and history index are unchanged.
+  Automated fixture: WiseOffice `deckwise-speech-animation-schedule.spec.ts`.
+- Pause/resume the animation tail; post-narration pause begins only after all
+  motions complete. Existing media, teacher wait and legacy click paths survive.
+- Round-trip semantic bindings through portable Host content and fixed build/load;
+  linked native animation has one playback owner and adopts current native edits.
+
+Validation uses isolated editor/browser fixtures and local media only; it does
+not authorize paid TTS, provider requests, or attaching to the user's Desktop.
+
+
+Compact teaching sidebar regression (2026-11-03): verify named playback icons and
+notes share the status row; notes expand by click/keyboard; actual browser field
+height grows from short to long narration and caps at 240 px. Verify animation
+choices explain narration start/end/selected words and rows show translated effect
+labels and explicit duration units. Covered by WiseOffice teaching-sidebar browser
+and animation-form unit tests.
+
+### E2E-COURSEWARE-native-playback-controls
+
+In WiseOffice's teaching-sidebar browser scenario, start full-lesson playback,
+check readable computed button colors and 36px minimum height, verify boundary
+buttons, navigate forward and back, then complete the lesson with teacher gates.
+Sidebar interaction tests additionally cover play/pause, five-second forward seek,
+progress dragging, replay navigation and stale completion after switching pages.
+Runtime tests verify forward seek with native speech motions and rejection of
+backward seeks. These browser tests do not attach to the user's Desktop process.
+
+For Desktop resource integration, build WiseOffice with `pnpm build:module`, stage
+that output with `node scripts/stage-wiseoffice.mjs <dist-module> <new-directory>`,
+verify the manifest file sizes and SHA-256 values, then preserve the old bundle
+outside Desktop resources and promote the staged directory to
+`apps/desktop/resources/wiseoffice`. Staging also bundles the current Desktop
+teaching runtime; never substitute the WiseOffice UI adapter for that runtime.
+Run the editor-host protocol/visibility tests and the independent Electron
+`scripts/verify-local-wiseoffice.mjs` fixture probe to verify local module loading,
+media playback, save/reopen, and zero remote requests. The probe uses its own
+profile and does not attach to the user's running Desktop.

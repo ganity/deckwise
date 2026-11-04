@@ -293,3 +293,40 @@ it('rejects interleaved speech bindings that would reorder native click steps', 
     speechMotions: [{ actionId: 'first', stepIndex: 0 }, { actionId: 'last', stepIndex: 1 }, { actionId: 'first', stepIndex: 2 }],
     onMode: vi.fn(), onProgress: vi.fn(), onNode: vi.fn(), onError: vi.fn(), onComplete: vi.fn() })).toThrow('Invalid speech-native');
 });
+it('fires simultaneous calibrated native motions at audio time, then sentence-end motion before the post-speech pause', async () => {
+  const oldRaf = globalThis.requestAnimationFrame, oldCancel = globalThis.cancelAnimationFrame;
+  globalThis.requestAnimationFrame = cb => setTimeout(() => cb(0), 16) as unknown as number;
+  globalThis.cancelAnimationFrame = id => clearTimeout(id);
+  const next = vi.fn(async (_index: number) => {}), onError = vi.fn(), complete = vi.fn();
+  try {
+    current = createTeachingTimelinePreview({ pageId: 'page', nodes: [{ id: 'speech', type: 'speech', text: '小狗好', audioAssetId: 'audio', audioUrl: 'blob:voice', pauseAfterMs: 300 }],
+      native: { sourceSha256: 'a'.repeat(64), stepCount: 3, next, pause() {}, resume() {} },
+      speechMotions: [
+        { actionId: 'speech', stepIndex: 0, atMs: 400, endMs: 600, trigger: { version: 1, kind: 'text', text: '小狗', start: 0, end: 2, phase: 'with', audioAssetId: 'audio' } },
+        { actionId: 'speech', stepIndex: 1, atMs: 400, endMs: 600 },
+        { actionId: 'speech', stepIndex: 2, atMs: 1000, endMs: 1600, trigger: { version: 1, kind: 'end' } },
+      ], onMode() {}, onProgress() {}, onNode() {}, onError, onComplete: complete });
+    current.start(); await vi.advanceTimersByTimeAsync(16);
+    expect(next).not.toHaveBeenCalled();
+    current.seek(400); await vi.advanceTimersByTimeAsync(16);
+    expect(next.mock.calls.map(([i]) => i)).toEqual([0, 1]);
+    current.pause(); media.position = 800; await vi.advanceTimersByTimeAsync(1000);
+    expect(next).toHaveBeenCalledTimes(2);
+    current.resume(); media.position = 1000; media.ended();
+    await vi.advanceTimersByTimeAsync(300); expect(next.mock.calls.map(([i]) => i)).toEqual([0, 1, 2]); expect(complete).not.toHaveBeenCalled();
+    current.pause(); await vi.advanceTimersByTimeAsync(1000); expect(complete).not.toHaveBeenCalled();
+    current.resume(); await vi.advanceTimersByTimeAsync(599); expect(complete).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1); expect(complete).toHaveBeenCalledOnce(); expect(onError).not.toHaveBeenCalled();
+  } finally { current?.dispose(); globalThis.requestAnimationFrame = oldRaf; globalThis.cancelAnimationFrame = oldCancel; }
+});
+
+it('allows forward seeking with native speech motions but rejects rewinding their state', async () => {
+  const onError = vi.fn();
+  current = createTeachingTimelinePreview({ pageId: 'page', nodes: [speech('s')],
+    native: { sourceSha256: 'a'.repeat(64), stepCount: 1, next: vi.fn(async () => {}), pause() {}, resume() {} },
+    speechMotions: [{ actionId: 's', stepIndex: 0 }],
+    onMode() {}, onProgress() {}, onNode() {}, onError, onComplete() {} });
+  current.start(); await vi.advanceTimersByTimeAsync(0);
+  current.seek(700); expect(media.position).toBe(700); expect(onError).not.toHaveBeenCalled();
+  current.seek(200); expect(media.position).toBe(700); expect(onError).toHaveBeenCalledOnce();
+});

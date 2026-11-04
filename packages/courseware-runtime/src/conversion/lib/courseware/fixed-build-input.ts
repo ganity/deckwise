@@ -1,3 +1,4 @@
+import { speechAnimationTriggerSchema } from '../../../speech-animation-trigger';
 import { questionResponseSchema } from '../../../question-response';
 import { z } from 'zod';
 import { nativeAnimationNodeSchema } from '../../../native-animation-node';
@@ -10,6 +11,8 @@ const visualCueSchema = z
     id,
     atMs: z.number().int().min(0).max(3_600_000),
     endMs: z.number().int().positive().max(3_600_000),
+    trigger: speechAnimationTriggerSchema.optional(),
+    nativeAnimation: z.string().min(1).max(200).optional(),
     effect: z.discriminatedUnion('type', [
       z
         .object({
@@ -41,6 +44,8 @@ const visualCueSchema = z
     ]),
   })
   .strict()
+  .refine(cue => (!cue.trigger || cue.effect.type === 'element_animation') &&
+    (!cue.nativeAnimation || cue.effect.type === 'element_animation' && cue.nativeAnimation === cue.effect.elementId))
   .refine(
     (cue) =>
       cue.endMs > cue.atMs &&

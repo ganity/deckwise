@@ -663,13 +663,13 @@ export function WorkPanel({
               role="tabpanel"
               aria-labelledby={`work-panel-tab-${activeTab.id}`}
             >
-              <CoursewareChatWorkflow maximized={maximized} onToggleMaximize={onToggleMaximize} />
+              <CoursewareChatWorkflow panelBlocked={exiting || panelBlocked} maximized={maximized} onToggleMaximize={onToggleMaximize} />
             </div>
           )}
           {!subagentPanel && activeTab?.kind === "scene-images" && (
             <div key={activeTab.id} id={`work-panel-surface-${activeTab.id}`} className="work-panel-tabpane"
               role="tabpanel" aria-labelledby={`work-panel-tab-${activeTab.id}`}>
-              <CoursewareChatWorkflow maximized={maximized} onToggleMaximize={onToggleMaximize} />
+              <CoursewareChatWorkflow panelBlocked={exiting || panelBlocked} maximized={maximized} onToggleMaximize={onToggleMaximize} />
             </div>
           )}
           {!subagentPanel && activeTab?.kind === "editor" && activeTab.resource && (
@@ -681,6 +681,7 @@ export function WorkPanel({
               aria-labelledby={`work-panel-tab-${activeTab.id}`}
             >
               <PptEditorTab
+                blocked={exiting || panelBlocked}
                 path={activeTab.resource}
                 mimeType={activeTab.mimeType}
                 tabId={activeTab.id}

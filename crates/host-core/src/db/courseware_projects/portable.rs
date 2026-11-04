@@ -259,9 +259,22 @@ impl Teaching {
                             for cue in cues {
                                 anyhow::ensure!(
                                     ids.insert(cue["id"].clone())
-                                        && audio.is_some_and(|a| cue["endMs"]
-                                            .as_u64()
-                                            .is_some_and(|end| end <= a.duration_ms)),
+                                        && (cue.get("trigger").is_some() && audio.is_none()
+                                            || cue["trigger"]["stale"] == true
+                                            || audio.is_some_and(|a| {
+                                                if cue["effect"]["type"] == "element_animation"
+                                                    && cue.get("trigger").is_some()
+                                                {
+                                                    cue["trigger"]["kind"] == "end"
+                                                        || cue["atMs"]
+                                                            .as_u64()
+                                                            .is_some_and(|at| at <= a.duration_ms)
+                                                } else {
+                                                    cue["endMs"]
+                                                        .as_u64()
+                                                        .is_some_and(|end| end <= a.duration_ms)
+                                                }
+                                            })),
                                     "COURSEWARE_INVALID: cue requires current audio interval"
                                 );
                                 for target in reviews::effects::cue_targets(cue)? {
@@ -269,7 +282,6 @@ impl Teaching {
                                         objects.contains(target.as_str()),
                                         "COURSEWARE_INVALID: cue target not mapped on page"
                                     );
-
                                 }
                             }
                         }

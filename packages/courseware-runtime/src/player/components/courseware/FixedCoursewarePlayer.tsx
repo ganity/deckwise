@@ -15,6 +15,7 @@ import type { InteractionCheckpointPayload } from "../../lib/types/action";
 import { AudioPlayer } from "../../lib/utils/audio-player";
 import type { FixedPlayerLabels } from "../../labels";
 import { TeachingQuestionResponse } from './TeachingQuestionResponse';
+import { resolveSpeechAnimationCue } from '../../../speech-animation-trigger';
 import { FixedSlide } from "./FixedSlide";
 
 /** Host owns build loading/authorization/disposal; this component owns only a playback session. */
@@ -51,6 +52,13 @@ export function FixedCoursewarePlayer({
   const [retry, setRetry] = useState(0);
   const [complete, setComplete] = useState(false);
   const [nativeVisible, setNativeVisible] = useState<ReadonlySet<string>>(new Set());
+  const resolvedCues = useRef(new Map<string, readonly import('../../lib/courseware/load-fixed-build').FixedVisualCue[]>());
+  const resolveCues = (actionId: string, durationMs: number) => {
+    const speech = build.scenes.flatMap(scene => scene.actions ?? []).find(action => action.type === 'speech' && action.id === actionId);
+    const cues = (build.speechVisualCues.get(actionId) ?? []).map(cue => resolveSpeechAnimationCue(cue,
+      speech?.type === 'speech' ? speech.text : '', cue.trigger?.kind === 'text' ? cue.trigger.audioAssetId : '', durationMs));
+    resolvedCues.current.set(actionId, cues); return cues;
+  };
   const engine = useRef<PlaybackCore | null>(null);
   const surface = useRef<HTMLElement | null>(null);
   const nativeHandles = useRef<Animation[]>([]);
@@ -97,6 +105,10 @@ export function FixedCoursewarePlayer({
         onSpeechEnd: () => events.current.onSpeechEnd?.(),
         onAudioClipProgress: setClipProgress,
         onSpeechProgress: (position) => {
+          if (position && position.durationMs > 0) {
+            try { resolveCues(position.actionId, position.durationMs); }
+            catch (error) { resourceError(error instanceof Error ? error : new Error(String(error))); return; }
+          }
           setProgress(position);
           setAnimationPosition((previous) =>
             position
@@ -131,9 +143,11 @@ export function FixedCoursewarePlayer({
         },
         onComplete: () => setComplete(true),
       },
-      { speechFallback: "pause" },
+      { speechFallback: "pause", getSpeechTailDuration: (actionId, durationMs) =>
+        Math.max(0, ...resolveCues(actionId, durationMs).filter(cue => cue.effect.kind === 'element_animation').map(cue => cue.endMs - durationMs)) },
     );
     engine.current = playback;
+    resolvedCues.current.clear();
     setAnimationPosition(null);
     setProgress(null);
     setClipProgress(null);
@@ -154,6 +168,7 @@ export function FixedCoursewarePlayer({
     const playback = engine.current;
     if (!playback || index < 0 || index >= build.scenes.length) return;
     playback.stop();
+    resolvedCues.current.clear();
     setNativeVisible(new Set());
     setPageIndex(index);
     setAnimationPosition(null);
@@ -187,7 +202,7 @@ export function FixedCoursewarePlayer({
     ? speechIds.indexOf(animationPosition.actionId)
     : -1;
   const animations = speechIds.flatMap((id, index) =>
-    (build.speechVisualCues.get(id) ?? [])
+    (resolvedCues.current.get(id) ?? build.speechVisualCues.get(id) ?? [])
       .filter((cue) => cue.effect.kind === "element_animation")
       .map((cue) => ({
         cue,
@@ -200,7 +215,7 @@ export function FixedCoursewarePlayer({
       })),
   );
   const cues = progress
-    ? (build.speechVisualCues.get(progress.actionId) ?? []).filter(
+    ? (resolvedCues.current.get(progress.actionId) ?? build.speechVisualCues.get(progress.actionId) ?? []).filter(
         (cue) => cue.atMs <= progress.timeMs && progress.timeMs < cue.endMs,
       )
     : [];

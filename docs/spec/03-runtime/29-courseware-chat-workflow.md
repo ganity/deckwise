@@ -193,6 +193,12 @@ of this workspace's native integration.
 
 ## Task creation and handoff
 
+The new-task dialog participates in the work-panel native-surface blocker, as
+does global search. Both direct-file and courseware Office mounts hide their
+isolated view while blocked and restore it on dismissal without closing or
+reopening the document. Late native readiness cannot override a blocker. The
+courseware publish/import dialog also blocks its underlying Office view.
+
 The three-route creation dialog accepts an optional brief, audience/grade and
 subject. Textbook, chapter and lesson type are under expandable teaching details.
 Scene creation also offers six localized style presets (3D cartoon, 2D cartoon,

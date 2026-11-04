@@ -205,3 +205,40 @@ credentials, expiry renewal and HTTP/envelope checks belong to Host. Abort and
 LoadedFixedBuild disposal retain existing semantics. This adds no canonical
 schema, archive, playback clock or generation path. Offline C2b replay is not
 an immutable A Host snapshot or actual team/production authorization acceptance.
+
+
+### Explicit speech animation anchors
+
+Optional `visualCues[].trigger` carries version 1 and kind `start`, `end`, or
+`text`. Text anchors additionally carry exact UTF-16 range/text, phase `with` or
+`after`, and the audio asset used for manual calibration. `stale: true` preserves
+intent after narration changes while blocking playback/publication until repaired.
+The optional `nativeAnimation` is the same logical object ID as the cue target;
+it denotes the object's unique supported native effect, not a new native copy.
+Strict Shared, Host, build and playback boundaries validate these optional fields.
+Legacy cues without them retain their original behavior.
+
+Sentence end resolves from the decoded audio's actual duration. Text timing uses
+the calibrated audio position and fails closed on text/audio mismatch. Remaining
+speech animation time is a pauseable tail before existing post-speech pause or
+teacher-continue behavior. Native teaching preview uses independent temporary
+interactive sequences so multiple selected effects may start together, awaits
+native completion, then restores the saved timing tree and registry without a
+history write. Unlinked native steps still precede narration.
+
+Fixed conversion claims each linked native effect once, reads its current preset
+and duration, and removes its separate native-click owner. The supported finite
+preset is then rendered on the canonical speech clock. Unsupported/ambiguous links
+fail before package publication; ordinary unlinked native conversion retains the
+bounded appear/fade policy described above. No provider alignment API is invoked.
+
+### Native teaching slideshow controls
+
+The WiseOffice teaching slideshow uses a scoped dark control bar with explicit
+button foreground/background colors and visible disabled/focus states. It offers
+previous/next page (disabled at document boundaries), replay page, a single
+play/pause toggle, teacher continuation, exit, current-media time/progress and a
+five-second forward seek. Page changes dispose the previous timeline and native
+animation session before loading the selected page. Stale callbacks cannot
+advance the new page. Speech synchronized with native animation supports forward
+seeks; backward review restarts the page to preserve native state.

@@ -135,3 +135,41 @@ input for an idempotent retry and retains its private audio directory because a
 late reader may still be active. Other acknowledged staging paths clean their
 owned files. This does not generate speech, charge a supplier or rewrite live
 teaching.
+
+
+### Speech-triggered animation authoring (2026-11-03)
+
+Each narration inspector keeps **Add animation** (fade in/out on a mapped object)
+and adds **Link animation**, an inline checkbox dropdown of the saved native PPT
+animations. Selecting narration text is retained when focus moves to the canvas
+or dropdown. Both paths support sentence start, sentence end, selected text
+**with** (start speaking that text), and **after** (finish that text). The card
+lists the anchor, object, effect and duration; clicking a row edits it. Cancelling
+staged selection writes nothing. Unlinking retains the original native effect.
+Linking an already-owned native effect explicitly moves its sole narration owner.
+
+Current TTS results supply duration but no word alignment. Text anchors therefore
+use **Listen and locate** and mark the selected text's start/end from the real
+preview audio clock. Sentence boundaries need no calibration. No character-count
+estimate is presented as exact timing. Editing narration retains semantic intent,
+invalidates old text timing, and requires re-marking against regenerated audio.
+Stale bindings can be removed even after their old audio has been invalidated.
+
+Native identity currently follows a logical object with exactly one supported,
+finite, whole-object effect. The dropdown lists other effects as unavailable;
+multiple effects on one object, repeats, rewind, groups and unsupported presets
+require a future persisted native-effect identity/capability adapter. Native
+reordering and supported preset/duration edits preserve the reference. No new
+page-confirmation requirement is introduced. Legacy page-click bindings must be
+removed before switching that page to speech-linked scheduling.
+
+
+The teaching sidebar combines status, icon-only whole-course/current-slide/canvas
+playback controls and an expandable page-notes icon in one row. Each icon retains
+an accessible name and hover label. Narration fields size to content (58–240 px),
+then scroll internally. Animation forms say when animation plays relative to
+narration and explain each choice. Rows show that timing separately from object
+name, localized effect and seconds. All object pickers use native layer thumbnails,
+saved Chinese aliases (or actual text/type labels), and a Locate action that
+selects the exact mapped canvas object without changing the checked targets.
+English semantic descriptions remain in tooltips; translations are not guessed.

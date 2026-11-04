@@ -35,7 +35,7 @@ export function fixedAnimationStyles(animations: readonly { cue: FixedVisualCue;
     if (cue.effect.kind !== "element_animation") continue;
     const id = cue.effect.action.elementId;
     // Future emphasis must not overwrite an earlier entrance or the current speech's motion.
-    if (!styles.has(id) || timeMs >= 0) styles.set(id, fixedAnimationStyle(cue, timeMs));
+    if (!styles.has(id) || timeMs >= cue.atMs) styles.set(id, fixedAnimationStyle(cue, timeMs));
   }
   return styles;
 }

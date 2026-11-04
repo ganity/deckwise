@@ -12,6 +12,7 @@ export function PptEditorTab({
   mimeType,
   tabId,
   maximized = false,
+  blocked = false,
   onToggleMaximize,
   actions,
   reviewPanel,
@@ -20,6 +21,7 @@ export function PptEditorTab({
   mimeType?: string;
   tabId: string;
   maximized?: boolean;
+  blocked?: boolean;
   onToggleMaximize?: () => void;
   actions?: ReactNode;
   reviewPanel?: ReactNode;
@@ -39,7 +41,6 @@ export function PptEditorTab({
       (next) => {
         if (openRequest.current !== request) return;
         setState(next);
-        void api.pptEditorSetVisible(true);
       },
       (error) => {
         if (openRequest.current === request) setState({ status: "error", path, canRetry: true, message: String(error) });
@@ -48,6 +49,11 @@ export function PptEditorTab({
   }, [path, mimeType, sessionId]);
 
   useEffect(() => api.onPptEditorState(setState), []);
+
+  useEffect(() => {
+    // Native views composite above renderer dialogs, regardless of CSS z-index.
+    void api.pptEditorSetVisible(!blocked && ["ready", "saved", "saving"].includes(state.status));
+  }, [blocked, state.status]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -146,8 +152,10 @@ export function PptEditorTab({
         </div>
       </aside>}
       <div className="ppt-editor-body">
-      <div ref={surfaceRef} className="ppt-editor-surface">
-        {state.status === "opening" && <WorkTabEmpty icon={IconFileText} title={t("panel.pptEditor.loading")} />}
+      <div ref={surfaceRef} className="ppt-editor-surface" aria-busy={state.status === "opening"}>
+        {state.status === "opening" && <WorkTabEmpty icon={IconFileText} title={t("panel.pptEditor.loading")}>
+          <span className="ppt-editor-loading-dots" aria-hidden="true"><i /><i /><i /></span>
+        </WorkTabEmpty>}
         {state.status === "error" && (
           <WorkTabEmpty icon={IconFileText} title={t("panel.pptEditor.error")} body={state.message}>
             <button type="button" className="btn btn-secondary" onClick={() => void api.fsOpen(path)}><IconExternal size={14} /> {t("panel.files.openExternally")}</button>

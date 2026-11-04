@@ -6,3 +6,7 @@ resolver = "2"
 edition = "2021"
 license = "LGPL-3.0-or-later"
 version = "0.17.7"
+
+# Saved PPTX reads verify full-file hashes even in development builds.
+[profile.dev.package.sha2]
+opt-level = 3

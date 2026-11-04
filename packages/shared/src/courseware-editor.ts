@@ -1,3 +1,4 @@
+import { isCoursewareSpeechTrigger, rebaseSpeechTrigger, type CoursewareSpeechTrigger } from './courseware-speech-trigger.js';
 import { isCoursewareQuestionResponse } from "./courseware-question.js";
 import type { CoursewareBuildRef, CoursewareProject, CoursewareSnapshot } from "./courseware-contract.js";
 import { isCoursewareProject, isTeachingWrite } from "./courseware-contract.js";
@@ -57,6 +58,9 @@ export function isCoursewareAttentionIntent(value: unknown): value is Courseware
 }
 
 export type CoursewareAttentionCue = {
+  trigger?: CoursewareSpeechTrigger;
+  /** Unique logical object owning a saved native effect; never a display step ordinal. */
+  nativeAnimation?: string;
   id: string;
   atMs: number;
   endMs: number;
@@ -71,9 +75,11 @@ export function isCoursewareAttentionCue(value: unknown): value is CoursewareAtt
     required.every(key => Object.hasOwn(v, key)) && Object.keys(v).every(key => required.includes(key) || optional.includes(key));
   const id = (v: unknown): v is string => typeof v === "string" && v.length > 0 && v.length <= 200;
   const unit = (v: unknown) => typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 1;
-  if (!record(value) || !fields(value, ["id", "atMs", "endMs", "effect"]) || !id(value.id) ||
+  if (!record(value) || !fields(value, ["id", "atMs", "endMs", "effect"], ["trigger", "nativeAnimation"]) || !id(value.id) ||
       typeof value.atMs !== "number" || !Number.isInteger(value.atMs) || value.atMs < 0 ||
       typeof value.endMs !== "number" || !Number.isInteger(value.endMs) || value.endMs <= value.atMs || value.endMs > 3_600_000 || !record(value.effect)) return false;
+  if ((value.trigger !== undefined && (!isCoursewareSpeechTrigger(value.trigger) || value.effect.type !== "element_animation")) ||
+      (value.nativeAnimation !== undefined && (!id(value.nativeAnimation) || value.effect.type !== "element_animation" || value.nativeAnimation !== value.effect.elementId))) return false;
   const effect = value.effect;
   let targets: unknown[];
   if (effect.type === "highlight") {
@@ -214,6 +220,11 @@ export function replaceNarrationText(action: Record<string, unknown>, text: stri
   const changed: Record<string, unknown> = { ...action, text };
   for (const key of ["audioId", "audioUrl", "audioAssetId", "duration", "durationMs", "visualCues", "speechCuePlans", "pptxCue", "attention"]) {
     delete changed[key];
+  }
+  if (Array.isArray(action.visualCues)) {
+    const retained = action.visualCues.filter(isCoursewareAttentionCue).filter(cue => cue.trigger).map(cue =>
+      ({ ...cue, trigger: rebaseSpeechTrigger(cue.trigger!, text) }));
+    if (retained.length) changed.visualCues = retained;
   }
   return changed;
 }
