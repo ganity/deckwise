@@ -2136,7 +2136,7 @@ sklm: {
       restore: "退出全屏",
       maximize: "全屏编辑",
       saveCopy: "保存副本",
-      save: "保存到原文件",
+      save: "保存",
       close: "关闭 Office 编辑器",
     },
     files: {

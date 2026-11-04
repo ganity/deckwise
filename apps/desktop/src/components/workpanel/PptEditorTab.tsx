@@ -114,7 +114,6 @@ export function PptEditorTab({
     <div className={`ppt-editor-tab${inspectionOpen && extension === "pptx" ? " has-inspection" : ""}`}>
       <div className="ppt-editor-toolbar">
         <div className="ppt-editor-document">
-          <strong>{path.split("/").at(-1) || path}</strong>
           <span role="status" title={state.savedPath}>{state.status === "error" ? state.message || t("panel.pptEditor.error") : state.status === "opening" ? t("panel.pptEditor.loading") : state.status === "saving" ? t("panel.pptEditor.saving") : state.dirty ? t("panel.pptEditor.unsaved") : state.status === "saved" ? t("panel.pptEditor.savedToFile") : t("panel.pptEditor.opened")}{state.status === "saved" && saveCopy && state.savedPath ? ` · ${state.savedPath}` : ""}</span>
         </div>
         {state.teachingProgress && <span className="courseware-teaching-progress" role="status">
@@ -136,10 +135,16 @@ export function PptEditorTab({
           <IconClose size={14} />
         </button>}
       </div>
-      {extension === "pptx" && inspectionOpen && <div className="ppt-editor-review">
+      {extension === "pptx" && inspectionOpen && <aside className="ppt-editor-review" aria-label={t("panel.pptEditor.inspection")}>
+        <header className="ppt-editor-review-heading">
+          <strong>{t("panel.pptEditor.inspection")}</strong>
+          <button type="button" className="btn btn-ghost" aria-label={t("common.close")} onClick={() => setInspectionOpen(false)}><IconClose size={16} /></button>
+        </header>
+        <div className="ppt-editor-review-content">
         <PptxInspectionPanel key={path} revision={state.revision} enabled={!busy && !state.readOnly && (state.status === "ready" || state.status === "saved")} />
         {reviewPanel}
-      </div>}
+        </div>
+      </aside>}
       <div className="ppt-editor-body">
       <div ref={surfaceRef} className="ppt-editor-surface">
         {state.status === "opening" && <WorkTabEmpty icon={IconFileText} title={t("panel.pptEditor.loading")} />}

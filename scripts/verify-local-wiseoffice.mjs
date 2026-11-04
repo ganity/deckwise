@@ -111,6 +111,7 @@ contextBridge.exposeInMainWorld('deckwiseEditorHost', {
           event.type === "saved" ||
           message?.type === "document:error" ||
           message?.type === "document:opened" ||
+          message?.type === "document:ui-configured" ||
           message?.type === "document:save-committed"
         ) {
           ipcMain.removeListener("probe", listener);
@@ -123,9 +124,7 @@ contextBridge.exposeInMainWorld('deckwiseEditorHost', {
       window.webContents.send("command", { type, payload, id });
     });
   const nativeReady = async () => {
-    const editorFrame = window.webContents.mainFrame.frames.find((frame) =>
-      frame.url.startsWith("deckwise-editor://wiseoffice/"),
-    );
+    const editorFrame = window.webContents.mainFrame;
     assert(editorFrame, "Local editor frame missing");
     return editorFrame.executeJavaScript(`new Promise((resolve, reject) => {
     const started = Date.now();
@@ -148,9 +147,10 @@ contextBridge.exposeInMainWorld('deckwiseEditorHost', {
       ipcMain.on("probe", listener);
     });
     await window.loadURL(
-      "deckwise-editor://host/index.html?deckwise=1&editor=deckwise-editor%3A%2F%2Fwiseoffice&editorOrigin=deckwise-editor%3A%2F%2Fwiseoffice",
+      "deckwise-editor://wiseoffice/module.html?deckwise=1",
     );
     await ready;
+    await request("document:configure-ui", { theme: "light" }, "initial-theme");
     const original = new Uint8Array(await readFile(input));
     const binding = {
       projectId: "probe",
@@ -171,7 +171,21 @@ contextBridge.exposeInMainWorld('deckwiseEditorHost', {
     assert(opened.pages > 0);
     assert.equal(opened.origin, "deckwise-editor://wiseoffice");
     assert.equal(opened.isolated, true);
-    const previewFrame = window.webContents.mainFrame.frames.find(frame => frame.url.startsWith("deckwise-editor://wiseoffice/"));
+    const previewFrame = window.webContents.mainFrame;
+    for (const theme of ["light", "dark", "light"]) {
+      await request("document:configure-ui", { theme }, "theme-" + theme);
+      const expected = theme === "dark" ? "theme-dark" : "theme-white";
+      await previewFrame.executeJavaScript(`new Promise((resolve, reject) => {
+        const started = Date.now();
+        const check = () => {
+          const themes = document.querySelector('iframe[name="frameEditor"]')?.contentWindow?.Common?.UI?.Themes;
+          if (themes?.currentThemeId?.() === '${expected}') resolve(true);
+          else if (Date.now() - started > 10000) reject(new Error('Host theme did not reach the native editor'));
+          else setTimeout(check, 50);
+        }; check();
+      })`);
+    }
+    console.log("LOCAL_EDITOR_THEME_SYNCED", JSON.stringify({ light: "theme-white", dark: "theme-dark" }));
     const previewPrimitives = await previewFrame.executeJavaScript(`import('/.deckwise/teaching-preview.mjs').then(m =>
       typeof m.SpeechCueScheduler === 'function' && typeof m.createTeachingTimelinePreview === 'function' && m.buildEvenOddPath([{x:1,y:2,w:3,h:4}]).includes('M 1 2'))`);
     assert.equal(previewPrimitives, true, "Local shared teaching preview primitives did not load");
@@ -208,7 +222,7 @@ contextBridge.exposeInMainWorld('deckwiseEditorHost', {
     };
     ipcMain.on("probe", teachingListener);
     window.webContents.send("command", { type: "document:teaching-enable", payload: { binding } });
-    const localFrame = window.webContents.mainFrame.frames.find(frame => frame.url.startsWith("deckwise-editor://wiseoffice/"));
+    const localFrame = window.webContents.mainFrame;
     await localFrame.executeJavaScript(`new Promise((resolve, reject) => {
       const started = Date.now();
       const check = () => {

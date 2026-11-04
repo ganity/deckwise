@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -151,6 +152,7 @@ test("native teaching progress appears in the toolbar without another teaching v
 
 test("module controls keep focus and inspection local and send teaching visibility to the isolated view", async t => {
   const page = await fixture(t);
+  await page.addStyleTag({ content: (await readFile(new URL("../src/styles/work-panel.css", import.meta.url), "utf8")) + "\nhtml,body,#root{height:100%;margin:0}" });
   await page.evaluate(() => window.fixture.finish());
   await page.evaluate(() => {
     for (const listener of window.fixture.listeners) listener({ status: "ready", path: "uploaded.pptx", module: true,
@@ -161,6 +163,13 @@ test("module controls keep focus and inspection local and send teaching visibili
   assert.equal(await page.evaluate(() => window.fixture.calls.some(([name]) => name === "focus")), true);
   await page.getByRole("button", { name: "panel.pptEditor.inspection", exact: true }).click();
   assert.equal(await page.locator(".ppt-editor-review").count(), 1);
+  assert.equal(await page.locator(".ppt-editor-document strong").count(), 0, "WiseOffice owns the document title");
+  const review = await page.locator(".ppt-editor-review").boundingBox();
+  const editor = await page.locator(".ppt-editor-body").boundingBox();
+  assert.ok(review && editor && review.x >= editor.x + editor.width - 1, "review belongs beside the editor");
+  await page.getByRole("button", { name: "common.close", exact: true }).click();
+  assert.equal(await page.locator(".ppt-editor-review").count(), 0);
+  await page.getByRole("button", { name: "panel.pptEditor.inspection", exact: true }).click();
   await page.getByRole("button", { name: "panel.pptEditor.teachingFlow", exact: true }).click();
   assert.deepEqual((await page.evaluate(() => window.fixture.calls.filter(([name]) => name === "ui"))).at(-1),
     ["ui", { teachingOpen: false }]);
