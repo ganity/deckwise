@@ -16,7 +16,7 @@ const compiled = ts.transpileModule(source, { compilerOptions: {
 } }).outputText;
 
 function fixture(options = {}) {
-  let viewing = "chat", dispatchable = true, mode = "agent", generated = false;
+  let viewing = "chat", dispatchable = true, mode = "agent", generated = false, canonicalProjectId;
   const calls = [], rows = [], states = [];
   let stoppedDuringStatus = false, stoppedDuringWait = false;
   const plan = { sha256: "a".repeat(64), approvedSha256: "a".repeat(64), pages: [
@@ -25,7 +25,7 @@ function fixture(options = {}) {
   const host = { async call(method, params) {
     calls.push([method, params]);
     if (method === "session.get") { await options.readSession?.(); return { session: { projectPath: "/workspace", mode } }; }
-    if (method === "courseware.task.get") return { task: { taskType: "scene", educationContext: {}, ...(generated ? { generatedPath: "/workspace/result.pptx" } : {}) } };
+    if (method === "courseware.task.get") return { task: { taskType: "scene", educationContext: {}, ...(generated ? { generatedPath: "/workspace/result.pptx" } : {}), ...(canonicalProjectId ? { canonicalProjectId } : {}) } };
     if (method === "courseware.task.updateEducation") return {};
     assert.fail(method);
   } };
@@ -53,7 +53,11 @@ function fixture(options = {}) {
       return structuredClone(rows); }
   }
   class Generation {
-    async generate(args) { calls.push(["compile", args]); await options.compile?.(); generated = true; return { path: "/workspace/result.pptx" }; }
+    async generate(args) {
+      calls.push(["compile", args]); await options.compile?.();
+      if (options.quizOnly) { canonicalProjectId = "canonical-project"; return { path: "" }; }
+      generated = true; return { path: "/workspace/result.pptx" };
+    }
   }
   const exports = {};
   new Function("require", "exports", compiled)(id => {
@@ -114,6 +118,21 @@ test("navigation during compilation does not cancel its owning turn", async () =
   const f = fixture({ compile: async () => { f.view("other"); } });
   assert.equal((await f.execute("courseware_scene_compile", { planSha256: f.plan.sha256 })).generated, true);
   assert.equal((await f.execute("courseware_workflow_get")).task.sourcePath, "/workspace/result.pptx");
+});
+test("Quiz-only compilation opens its saved canonical classroom without requiring a fake PPTX", async () => {
+  const f = fixture({ quizOnly: true });
+  f.plan.pages = [{ pageId: "scene-001", title: "Quiz", quiz: { questions: [] } }];
+  assert.deepEqual(await f.execute("courseware_scene_compile", { planSha256: f.plan.sha256 }), {
+    generated: true, openClassroomRequired: true, canonicalProjectId: "canonical-project",
+  });
+  const saved = await f.coordinator.read("chat");
+  assert.equal(saved.task.generated, true);
+  assert.equal(saved.task.canonicalProjectId, "canonical-project");
+  assert.equal(saved.task.sourcePath, undefined);
+  assert.equal(saved.plan, null);
+  await assert.rejects(f.execute("courseware_scene_compile", { planSha256: f.plan.sha256 }), /approve/);
+  await assert.rejects(f.execute("courseware_scene_plan_submit"), /ungenerated/);
+  assert.equal(f.calls.filter(([method]) => method === "compile").length, 1);
 });
 
 test("background narration and media receive the owning session and live turn guard", async () => {

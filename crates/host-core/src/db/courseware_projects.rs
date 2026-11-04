@@ -7,6 +7,7 @@ const HISTORY_NAMESPACE: &str = "coursewareHistory.v1";
 
 pub mod asset_locks;
 mod candidates;
+pub mod classroom;
 pub mod chat_changes;
 mod identities;
 pub mod media_scope;

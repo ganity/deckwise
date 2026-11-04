@@ -102,6 +102,10 @@ export function FixedVisualEffects({
             );
           }),
       )}
+      {cues.flatMap(cue => cue.effect.kind === 'laser' ? targets([cue.effect.targetId]).map(e => <div key={`${cue.id}:${e.id}`}
+        data-fixed-effect="laser" data-target-ids={e.id} style={{ position: 'absolute', left: e.left + e.width / 2 - 5,
+          top: e.top + e.height / 2 - 5, width: 10, height: 10, borderRadius: '50%',
+          background: cue.effect.kind === 'laser' ? cue.effect.color ?? '#ff0000' : undefined, boxShadow: '0 0 12px #f00' }} />) : [])}
     </div>
   );
 }

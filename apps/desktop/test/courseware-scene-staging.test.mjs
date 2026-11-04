@@ -154,3 +154,30 @@ test("reviewed scene proof reaches both Host writes and a changed selection stop
     } finally { await fs.rm(workspace, { recursive: true, force: true }); }
   });
 });
+
+test("canonical-only Quiz staging creates no fake PPT and archives resource pixels once", async () => {
+  const workspace = await mkdtemp(join(tmpdir(), "maic-quiz-stage-"));
+  const image = Buffer.from("verified image pixels");
+  const src = `data:image/png;base64,${image.toString("base64")}`;
+  const document = { stage: { name: "draft" }, scenes: [{ type: "quiz", content: { type: "quiz", questions: [{ id: "q", image: { src } }] } }], mediaManifest: [{ src, originalSrc: src, mimeType: "image/png" }] };
+  const calls = [];
+  try {
+    const result = await stageGeneratedSceneCourse({ workspace, sessionId: "s", title: "Final lesson", pptx: new Uint8Array(), teaching: [], canonicalClassroom: document,
+      host: { async call(method, params) {
+        calls.push(method);
+        assert.equal(method, "courseware.classroom.create");
+        assert.equal(params.classroom.stage.name, "Final lesson");
+        const asset = params.classroom.mediaManifest[0];
+        assert.match(asset.src, /^\.deckwise-ppt\/classroom-assets\/[a-f0-9]{64}\.png$/);
+        assert.equal(asset.src, asset.originalSrc);
+        assert.equal(params.classroom.scenes[0].content.questions[0].image.src, asset.src);
+        assert.deepEqual(await fs.readFile(join(workspace, asset.src)), image);
+        return { projectId: "canonical-only", sourceRevision: "sha256", revision: "1" };
+      } } });
+    assert.equal(result.path, "");
+    assert.equal(result.project.projectId, "canonical-only");
+    assert.deepEqual(calls, ["courseware.classroom.create"]);
+    assert.equal(document.mediaManifest[0].src, src, "Staging doesn't mutate the caller's document");
+    assert(!await fs.stat(join(workspace, ".deckwise-ppt", "generated")).catch(() => false));
+  } finally { await fs.rm(workspace, { recursive: true, force: true }); }
+});

@@ -237,6 +237,45 @@ it("waits at a teacher checkpoint until explicitly resumed", async () => {
   expect(complete).toHaveBeenCalledOnce();
   core.stop();
 });
+it('keeps Quiz between its intro and review speech until explicitly submitted', async () => {
+  const quiz: Scene = { ...scene('quiz'), type: 'quiz', content: { type: 'quiz', questions: [] }, actions: [1, 2, 3].map(n => ({ id: `speech-${n}`, type: 'speech', text: `Speech ${n}`, audioId: `audio-${n}`, audioUrl: 'blob:audio' })) };
+  const f = fixture(async () => true), ready = vi.fn(), complete = vi.fn();
+  const core = new PlaybackCore([quiz, scene('after')], actions, f.audio, { onComplete: complete }, { onQuizReady: ready });
+  core.start(); await Promise.resolve(); f.end(); await Promise.resolve(); await Promise.resolve();
+  expect(f.audio.play).toHaveBeenCalledTimes(2);
+  f.end(); await Promise.resolve(); await Promise.resolve();
+  expect(ready).toHaveBeenCalledWith('quiz'); expect(core.getSnapshot().sceneId).toBe('quiz');
+  expect(core.getMode()).toBe('idle'); expect(complete).not.toHaveBeenCalled();
+  core.completeQuiz(); await Promise.resolve(); expect(f.audio.play).toHaveBeenCalledTimes(3);
+  f.end(); await Promise.resolve(); await Promise.resolve();
+  expect(core.getSnapshot().sceneId).toBe('after'); expect(f.audio.play).toHaveBeenCalledTimes(4);
+  core.stop();
+});
+it('announces an empty-action Quiz rather than skipping it', async () => {
+  const quiz: Scene = { ...scene('quiz'), type: 'quiz', content: { type: 'quiz', questions: [] }, actions: [] };
+  const ready = vi.fn(), complete = vi.fn(); const f = fixture(async () => true);
+  const core = new PlaybackCore([quiz], actions, f.audio, { onComplete: complete }, { onQuizReady: ready });
+  core.start(); expect(ready).toHaveBeenCalledWith('quiz'); expect(complete).not.toHaveBeenCalled();
+  core.completeQuiz(); expect(complete).toHaveBeenCalledOnce(); core.stop();
+});
+it('waits for configured instant feedback speech, retries wrong answers and advances only correct answers', async () => {
+  const quiz: Scene = { ...scene('instant'), type: 'quiz', content: { type: 'quiz', interactionMode: 'classroom_instant_feedback', questions: [],
+    playbackConfig: { introSpeechMode: 'page_enter_only', attemptPolicy: 'until_correct', successSpeechText: 'Configured success', failureSpeechText: 'Configured retry', cueUserOnEnter: true, cueUserOnRetry: false } }, actions: [] };
+  const f = fixture(async () => true), ready = vi.fn(), speech = vi.fn();
+  const core = new PlaybackCore([quiz, scene('after')], actions, f.audio, { onSpeechStart: speech }, { onQuizReady: ready });
+  core.start(); const wrong = core.answerInstantQuiz(false); await Promise.resolve();
+  expect(speech).toHaveBeenLastCalledWith('Configured retry'); expect(core.getMode()).toBe('playing'); expect(core.getSnapshot().sceneId).toBe('instant');
+  f.end(); await wrong; expect(core.getMode()).toBe('idle'); expect(ready).toHaveBeenCalledTimes(2);
+  const correct = core.answerInstantQuiz(true); await Promise.resolve(); expect(speech).toHaveBeenLastCalledWith('Configured success');
+  f.end(); await correct; expect(core.getSnapshot().sceneId).toBe('after'); core.stop();
+});
+it('hands canonical media checkpoints to the player until media completion', () => {
+  const page = scene('media'); page.actions = [{ id: 'media', type: 'interaction_checkpoint', checkpointId: 'media', checkpointKind: 'media_playback', elementId: 'video', mediaType: 'video', startMode: 'teacher_triggered', waitForCompletion: true, videoUrl: 'blob:video' }];
+  const ready = vi.fn(), complete = vi.fn();
+  const core = new PlaybackCore([page], actions, fixture(async () => true).audio, { onInteractionStart: ready, onComplete: complete }, { waitForMediaCheckpoint: true });
+  core.start(); expect(core.getMode()).toBe('waiting_interaction'); expect(ready).toHaveBeenCalledWith(expect.objectContaining({ videoUrl: 'blob:video' }));
+  expect(complete).not.toHaveBeenCalled(); core.resumeInteraction('media'); expect(complete).toHaveBeenCalledOnce(); core.stop();
+});
 it("pauses on autoplay rejection and retries the same narration without estimating completion", async () => {
   vi.useFakeTimers();
   const f = fixture(async () => false);
@@ -261,6 +300,37 @@ it("pauses on autoplay rejection and retries the same narration without estimati
   f.end();
   await Promise.resolve();
   expect(complete).toHaveBeenCalledOnce();
+});
+it('does not estimate completion when canonical browser narration is unavailable', async () => {
+  vi.useFakeTimers(); const page = scene('browser'); page.actions = [{ id: 'speech', type: 'speech', text: 'No stored audio' }];
+  const error = vi.fn(), complete = vi.fn();
+  const core = new PlaybackCore([page], actions, fixture(async () => false).audio, { onPlaybackError: error, onComplete: complete },
+    { speechFallback: 'browser', getSpeechSettings: () => ({ ttsEnabled: true, ttsProviderId: 'browser-native-tts' }) });
+  core.start(); await vi.advanceTimersByTimeAsync(60_000);
+  expect(core.getMode()).toBe('paused'); expect(error).toHaveBeenCalledOnce(); expect(complete).not.toHaveBeenCalled(); core.stop();
+});
+it('retries failed browser Quiz feedback and allows an explicit skip to the next interaction', async () => {
+  let utterance: SpeechSynthesisUtterance;
+  const synthesis = { getVoices: () => [{ voiceURI: 'test', lang: 'en-US' }], cancel: vi.fn(), speak: vi.fn(value => { utterance = value; }) };
+  vi.stubGlobal('window', { speechSynthesis: synthesis });
+  vi.stubGlobal('SpeechSynthesisUtterance', class { constructor(public text: string) {} });
+  const quiz: Scene = { ...scene('instant'), type: 'quiz', content: { type: 'quiz', interactionMode: 'classroom_instant_feedback', questions: [] }, actions: [] };
+  const interaction = scene('interaction');
+  interaction.actions = [{ id: 'checkpoint', type: 'interaction_checkpoint', checkpointId: 'checkpoint', checkpointKind: 'chapter_summary', chapterId: 'chapter', chapterTitle: 'Chapter', question: 'Say hello', referenceAnswer: { summary: '', keyPoints: [] }, context: { chapterSummary: '', sourceSceneIds: [] } }];
+  const error = vi.fn();
+  const core = new PlaybackCore([quiz, interaction], actions, fixture(async () => false).audio, { onPlaybackError: error },
+    { onQuizReady: vi.fn(), speechFallback: 'browser', getSpeechSettings: () => ({ ttsEnabled: true, ttsProviderId: 'browser-native-tts' }) });
+  try {
+    core.start(); const feedback = core.answerInstantQuiz(true);
+    await vi.waitFor(() => expect(synthesis.speak).toHaveBeenCalledOnce());
+    utterance!.onerror!({ error: 'synthesis-failed' } as SpeechSynthesisErrorEvent);
+    expect(core.getMode()).toBe('paused'); expect(core.canSkipFailedSpeech()).toBe(true);
+    core.resume(); await vi.waitFor(() => expect(synthesis.speak).toHaveBeenCalledTimes(2));
+    utterance!.onerror!({ error: 'synthesis-failed' } as SpeechSynthesisErrorEvent);
+    expect(core.skipCurrentPlaybackPoint()).toBe(true); await feedback;
+    expect(core.getSnapshot().sceneId).toBe('interaction'); expect(core.getMode()).toBe('waiting_interaction');
+    expect(error).toHaveBeenCalledTimes(2);
+  } finally { core.stop(); vi.unstubAllGlobals(); }
 });
 it("does not let stale narration errors pause a different page", async () => {
   const f = fixture(async () => true);

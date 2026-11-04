@@ -5,6 +5,7 @@ import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
 import { CoursewareSourceVisuals } from "../workpanel/CoursewareSourceVisuals";
 import { PptEditorTab } from "../workpanel/PptEditorTab";
+import { CoursewareClassroomEditor } from "../workpanel/CoursewareClassroomEditor";
 import { CoursewareImportDialog } from "../workpanel/CoursewareImportDialog";
 import { CoursewareChatPresentation } from "./CoursewareChatPresentation";
 import { CoursewareChatNarration } from "./CoursewareChatNarration";
@@ -29,6 +30,7 @@ function Workflow({ sessionId, panelBlocked = false, maximized, onToggleMaximize
   const [visualBusy, setVisualBusy] = useState(false);
   const [plainPath, setPlainPath] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [classroomOpen, setClassroomOpen] = useState(false);
   const visualWasBusy = useRef(false);
   const [refresh, setRefresh] = useState(0);
   const active = useRef(true), inFlight = useRef(false), epoch = useRef(0);
@@ -74,6 +76,9 @@ function Workflow({ sessionId, panelBlocked = false, maximized, onToggleMaximize
   };
   const path = view?.task?.sourcePath ?? plainPath;
   useEffect(() => {
+    if (view?.task?.canonicalProjectId && !path) setClassroomOpen(true);
+  }, [view?.task?.canonicalProjectId, path]);
+  useEffect(() => {
     if (path && current()) useAppStore.getState().replaceWorkPanelTab("ppt", { id: "ppt", kind: "ppt", resource: path });
   }, [path]);
   const plan = view?.plan;
@@ -91,10 +96,16 @@ function Workflow({ sessionId, panelBlocked = false, maximized, onToggleMaximize
   const firstLessonPlan = messages.filter(message => message.role === "user").flatMap(message => message.attachments ?? [])
     .find(attachment => attachment.kind === "file" && /\.(pdf|docx?)$/i.test(attachment.name));
 
+  if (classroomOpen) return <section className="courseware-chat-workflow courseware-workspace has-editor">
+    <button type="button" onClick={() => setClassroomOpen(false)}>返回课程工作区</button>
+    <CoursewareClassroomEditor sessionId={sessionId} readOnly={blocked} />
+  </section>;
+
   return <section className={`courseware-chat-workflow courseware-workspace${path ? " has-editor" : ""}`} aria-label={t("coursewareWorkflow.workspace")}>
     {!path && <header className="courseware-workspace-heading">
       <strong>{t("coursewareWorkflow.workspace")}</strong>
       <div className="courseware-workflow-actions">
+        <button type="button" disabled={blocked} onClick={() => setClassroomOpen(true)}>Quiz / 互动编辑</button>
         {path && <button type="button" disabled={blocked} onClick={() => setImportOpen(true)}>{t("coursewareWorkflow.publish")}</button>}
         <button type="button" disabled={busy} onClick={() => setRefresh(value => value + 1)}>{t("coursewareWorkflow.refresh")}</button>
       </div>

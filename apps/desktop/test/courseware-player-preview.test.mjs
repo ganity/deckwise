@@ -82,6 +82,30 @@ test("preview admits only its own top frame, finite reads and a still-selected b
     assert.equal(parent.webContents.listenerCount("did-start-navigation"), 0);
   } finally { await rm(temp, { recursive: true, force: true }); }
 });
+test("canonical preview serves selected classroom and finite resources with revision checks", async () => {
+  const parent = new Window({}), handlers = new Map(), module = { exports: {} };
+  new Function("require", "exports", "__dirname", outputText)(id => {
+    if (id === "electron") return { BrowserWindow: Window };
+    if (id === "node:path") return { join };
+    if (id === "node:url") return { pathToFileURL: path => new URL("file://" + path) };
+    if (id === "./courseware-build-files") return { openCoursewareBuildFiles };
+    throw new Error(id);
+  }, module.exports, "/fixture/main");
+  let current = true;
+  const preview = new module.exports.CoursewarePlayerPreview({ handle: (key, handler) => handlers.set(key, handler) }, () => parent,
+    { selected: () => assert.fail("canonical preview never selects native fixed package") });
+  await preview.openClassroom({ classroom: { id: "classroom", scenes: [{ type: "quiz" }] }, buildId: "revision", locale: "zh-CN",
+    assertCurrent: async () => { if (!current) throw new Error("canonical revision changed"); },
+    readAsset: async id => { if (id !== "image") throw new Error("not in manifest"); return new Uint8Array([1, 2]); } });
+  const child = Window.windows.at(-1), event = { sender: child.webContents, senderFrame: child.webContents.mainFrame };
+  const read = handlers.get(module.exports.COURSEWARE_PLAYER_READ);
+  assert.equal((await read(event, { kind: "package" })).classroom.id, "classroom");
+  assert.deepEqual(await read(event, { kind: "asset", id: "image" }), new Uint8Array([1, 2]));
+  await assert.rejects(read(event, { kind: "asset", id: "forged" }), /not in manifest/);
+  current = false;
+  await assert.rejects(read(event, { kind: "package" }), /revision changed/);
+  preview.close();
+});
 
 test("team preview exposes file metadata but never signed URLs to the sandbox renderer", async () => {
   const parent = new Window({});

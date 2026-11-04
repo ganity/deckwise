@@ -179,7 +179,7 @@ export class CoursewareSceneImages {
           rows.some(layer => layer.pageId === clean.pageId && layer.target.kind === "layer" && !layer.intentId.startsWith(`${clean.intentId}-layer-`)))
         throw new Error("COURSEWARE_SCENE_GENERATION_DECOMPOSITION_CHANGED");
     }
-    for (const page of plan.pages) {
+    for (const page of plan.pages.filter(page => !page.quiz)) {
       const assets = rows.filter(row => row.pageId === page.pageId);
       const master = assets.filter(row => row.target.kind === "visualMaster"), clean = assets.filter(row => row.target.kind === "cleanPlate");
       if (master.length !== 1 || clean.length !== 1 || !assets.some(row => row.target.kind === "layer") ||

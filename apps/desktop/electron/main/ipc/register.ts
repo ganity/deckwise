@@ -357,8 +357,14 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     stripWinLongPrefix,
   });
 
+  let canonicalClassroom: import("../courseware-classroom").CoursewareClassroomCoordinator | undefined;
   cancelCoursewarePlayback = registerCoursewarePlaybackIpc({ registrar, getMainWindow, getHost,
-    getWorkspaceRoot: optionalWorkspaceRoot, getViewingSessionId: getNotificationViewingSessionId, dataDir, authSession });
+    getWorkspaceRoot: optionalWorkspaceRoot, getViewingSessionId: getNotificationViewingSessionId, dataDir, authSession,
+    refreshCanonical: async (sessionId, projectId) => {
+      if (!canonicalClassroom) throw new Error("Classroom editor is unavailable");
+      const view = await canonicalClassroom.open({ sessionId });
+      if (view.projectId !== projectId) throw new Error("Canonical/native project changed");
+    } });
   registerPptEditorIpc({
     savedNarration,
     registrar,
@@ -370,6 +376,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     getViewingSessionId: getNotificationViewingSessionId,
     onChatBridgeReady: dependencies.onPptEditorChatReady,
     onOnlinePreparationReady: preparation => { onlinePreparation = preparation; },
+    onClassroomReady: classroom => { canonicalClassroom = classroom; },
     completeNarration: dependencies.completeNarration,
     completeScene: dependencies.completeScene,
     resolveModel: dependencies.sceneGeneration?.resolveModel,

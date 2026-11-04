@@ -10,7 +10,7 @@ export const COURSEWARE_WORKFLOW_TOOLS = [
 
 export type CoursewareWorkflowView = {
   task: { taskType: CoursewareTaskType; educationContext?: CoursewareEducationContext;
-    imported: boolean; generated: boolean; sourcePath?: string } | null;
+    imported: boolean; generated: boolean; sourcePath?: string; canonicalProjectId?: string } | null;
   plan: CoursewareScenePlanSnapshot | null;
   compilation?: { planSha256: string; state: "running" | "failed" | "stopped"; message?: string };
 };
@@ -24,7 +24,7 @@ export type CoursewareSceneAssetBlocker = {
 export function sceneAssetBlockers(plan: CoursewareScenePlanSnapshot, images: readonly CoursewareSceneImageView[]): CoursewareSceneAssetBlocker[] {
   const selected = images.filter(row => row.current && row.selected && row.planSha256 === plan.sha256);
   const blockers: CoursewareSceneAssetBlocker[] = [];
-  for (const page of plan.pages) {
+  for (const page of plan.pages.filter(page => !page.quiz)) {
     const rows = selected.filter(row => row.pageId === page.pageId && row.asset);
     const masters = rows.filter(row => row.target.kind === "visualMaster");
     const backgrounds = rows.filter(row => row.target.kind === "cleanPlate");
@@ -58,10 +58,12 @@ export function sceneWorkspaceProgress(plan: CoursewareScenePlanSnapshot, images
   const imageCount = new Set(masters.map(row => row.pageId).filter(id => plan.pages.some(page => page.pageId === id))).size;
   const blockers = sceneAssetBlockers(plan, rows);
   const assetPages = plan.pages.filter(page => !blockers.some(blocker => !blocker.pageId || blocker.pageId === page.pageId)).length;
-  const cover = masters.find(row => row.pageId === plan.pages[0].pageId && row.selected);
+  const slidePages = plan.pages.filter(page => !page.quiz);
+  const firstSlide = slidePages[0];
+  const cover = masters.find(row => row.pageId === firstSlide?.pageId && row.selected);
   const compiling = compilation?.planSha256 === plan.sha256 ? compilation : undefined;
-  const phase = !cover ? masters.some(row => row.pageId === plan.pages[0].pageId) ? "style" : "cover" :
-    compiling?.state === "running" ? "converting" : imageCount < plan.pages.length ? "images" : blockers.length ? "layers" : "queued";
+  const phase = !slidePages.length ? compiling?.state === "running" ? "converting" : "queued" : !cover ? masters.some(row => row.pageId === firstSlide.pageId) ? "style" : "cover" :
+    compiling?.state === "running" ? "converting" : imageCount < slidePages.length ? "images" : blockers.length ? "layers" : "queued";
   const unresolved = rows.filter(row => !row.asset && !rows.some(peer => peer.selected && peer.asset && peer.pageId === row.pageId &&
     peer.target.kind === row.target.kind && (row.target.kind !== "layer" || peer.target.kind === "layer" && peer.target.name === row.target.name)));
   const unknown = unresolved.some(row => row.phase === "submission-unknown" || row.task?.state === "submission_unknown");

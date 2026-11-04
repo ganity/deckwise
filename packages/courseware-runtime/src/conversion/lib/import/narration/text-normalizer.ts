@@ -125,16 +125,20 @@ export function joinImportFacts(
   return normalizeImportTextList(values, options).join(separator);
 }
 
-function decodeHtmlEntities(text: string): string {
+export function decodeHtmlEntities(text: string): string {
   return text.replace(/&(#x?[0-9a-f]+|\w+);/gi, (match, entity) => {
     const normalizedEntity = String(entity).toLowerCase();
     if (normalizedEntity.startsWith('#x')) {
       const codePoint = Number.parseInt(normalizedEntity.slice(2), 16);
-      return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : match;
+      return Number.isFinite(codePoint) && codePoint >= 0 && codePoint <= 0x10ffff
+        ? String.fromCodePoint(codePoint)
+        : match;
     }
     if (normalizedEntity.startsWith('#')) {
       const codePoint = Number.parseInt(normalizedEntity.slice(1), 10);
-      return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : match;
+      return Number.isFinite(codePoint) && codePoint >= 0 && codePoint <= 0x10ffff
+        ? String.fromCodePoint(codePoint)
+        : match;
     }
     return ENTITY_MAP[normalizedEntity] ?? match;
   });

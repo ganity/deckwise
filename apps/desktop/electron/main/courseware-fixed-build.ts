@@ -3,6 +3,8 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { isCoursewareSnapshot, type CoursewareFixedBuildView, type CoursewareSnapshot } from "@pi-desktop/shared";
 import { adaptCanonicalSnapshot, buildFixedCourseware, FixedBuildError } from "@pi-desktop/courseware-runtime/node";
+import { buildMaicCourseware } from "./courseware-classroom-build";
+import type { ClassroomView } from "./courseware-classroom";
 
 type Host = { call<T>(method: string, params: unknown): Promise<T> };
 type Selection = { sessionId: string; projectId: string; snapshotId: string };
@@ -10,7 +12,7 @@ type Built = Awaited<ReturnType<typeof buildFixedCourseware>>;
 type Diagnostic = Built["report"]["diagnostics"][number];
 type Owner = { host: Host; workspace: string; selection: Selection; abort: AbortController };
 type Review = { owner: Owner; reviewId: string; snapshot: CoursewareSnapshot; diagnostics: Diagnostic[]; codes: string[] };
-type Ready = { owner: Owner; previewId: string; snapshot: CoursewareSnapshot; build: Built };
+type Ready = { owner: Owner; previewId: string; snapshot: CoursewareSnapshot; build: Built; canonical?: { revision: string; sourceRevision: string } };
 export type FixedBuildView = CoursewareFixedBuildView;
 
 /** Main consumes only persisted Host exports; callers never supply file paths or converter approvals. */
@@ -26,6 +28,7 @@ export class CoursewareFixedBuildCoordinator {
     private getViewingSessionId: () => string | null,
     private workerDirectory: string,
     private outputDirectory: string,
+    private refreshCanonical?: (sessionId: string, projectId: string) => Promise<void>,
   ) {}
 
   async build(payload: unknown): Promise<FixedBuildView> {
@@ -66,18 +69,26 @@ export class CoursewareFixedBuildCoordinator {
   }
 
   /** Private Main handoff. No directory is returned through renderer IPC. */
-  async selected(previewId: unknown): Promise<{ snapshot: CoursewareSnapshot; build: Built }> {
+  async selected(previewId: unknown): Promise<{ snapshot: CoursewareSnapshot; build: Built; canonical?: { revision: string; sourceRevision: string } }> {
     const ready = this.ready;
     if (!ready || previewId !== ready.previewId) throw new Error("Courseware preview expired");
     await this.assertOwner(ready.owner);
+    if (ready.canonical) {
+      const current = await ready.owner.host.call<ClassroomView>("courseware.classroom.get", {
+        sessionId: ready.owner.selection.sessionId, projectId: ready.owner.selection.projectId });
+      if (current.revision !== ready.canonical.revision || current.sourceRevision !== ready.canonical.sourceRevision) throw new Error("Canonical classroom changed; rebuild before playback or sharing");
+      await this.assertOwner(ready.owner);
+    }
     if (this.ready !== ready) throw new Error("Courseware preview changed");
-    return { snapshot: structuredClone(ready.snapshot), build: structuredClone(ready.build) };
+    return { snapshot: structuredClone(ready.snapshot), build: structuredClone(ready.build), ...(ready.canonical ? { canonical: { ...ready.canonical } } : {}) };
   }
 
   private async run(owner: Owner, codes: string[], expected?: CoursewareSnapshot): Promise<FixedBuildView> {
     if (this.active) throw new Error("A courseware build is already running");
     this.active = owner;
     try {
+      await this.assertOwner(owner);
+      await this.refreshCanonical?.(owner.selection.sessionId, owner.selection.projectId);
       await this.assertOwner(owner);
       const raw = await owner.host.call<unknown>("courseware.snapshot.get", owner.selection);
       await this.assertOwner(owner);
@@ -88,6 +99,32 @@ export class CoursewareFixedBuildCoordinator {
         throw new Error("Host snapshot differs from the selected immutable input");
       const manifest = await readFile(join(this.workerDirectory, "manifest.json"));
       await this.assertOwner(owner);
+      const canonical = await owner.host.call<ClassroomView>("courseware.classroom.get", {
+        sessionId: owner.selection.sessionId, projectId: owner.selection.projectId });
+      await this.assertOwner(owner);
+      if (canonical.classroom && canonical.revision) {
+        if (canonical.sourceRevision !== snapshot.source.revision) throw new Error("Canonical/native source changed; reopen the classroom editor");
+        const report: Built["report"] = { ready: true, reviewedWarningCodes: [], visualFidelity: "NOT_VERIFIED", diagnostics: [],
+          capabilities: { staticSlides: "limited", fixedNarration: true, teacherWait: true, transitions: false, objectAnimations: false, spotlight: false },
+          sourceSha256: snapshot.source.sha256, sourceRevision: snapshot.source.revision, teachingRevision: snapshot.teachingRevision,
+          mappingRevision: snapshot.mappingRevision, converter: { version: "maic-pptx-import-ir/1", manifestSha256: createHash("sha256").update(manifest).digest("hex") } };
+        const assertCurrent = async () => {
+          await this.assertOwner(owner);
+          const latest = await owner.host.call<ClassroomView>("courseware.classroom.get", { sessionId: owner.selection.sessionId, projectId: owner.selection.projectId });
+          if (latest.revision !== canonical.revision || latest.sourceRevision !== canonical.sourceRevision) throw new Error("Canonical classroom changed during build");
+          await this.assertOwner(owner);
+        };
+        const sourcePath = Reflect.get(raw, "sourcePath");
+        if (typeof sourcePath !== "string") throw new Error("Canonical native source path is unavailable");
+        const built = await buildMaicCourseware({ classroom: canonical.classroom, workspace: owner.workspace,
+          sourcePath, outputDirectory: this.outputDirectory, report, assertCurrent });
+        await assertCurrent();
+        const build: Built = { ...built, report }, previewId = randomUUID();
+        this.ready = { owner, previewId, snapshot: structuredClone(snapshot), build,
+          canonical: { revision: canonical.revision, sourceRevision: canonical.sourceRevision } };
+        return { status: "ready", previewId, snapshot: structuredClone(snapshot), buildRef: { buildId: build.buildId,
+          packageSha256: build.packageHash, snapshotId: snapshot.snapshotId }, report: structuredClone(report) };
+      }
       const input = adaptCanonicalSnapshot(Reflect.get(raw, "project"), snapshot, {
         sourcePath: Reflect.get(raw, "sourcePath"), mapping: Reflect.get(raw, "mapping"), assets: Reflect.get(raw, "assets"),
         converter: { version: "maic-pptx-import-ir/1", manifestSha256: createHash("sha256").update(manifest).digest("hex") },

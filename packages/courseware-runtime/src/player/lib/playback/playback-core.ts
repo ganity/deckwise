@@ -73,9 +73,12 @@ export interface PlaybackRuntime {
     ttsVolume?: number;
     ttsVoice?: string;
   };
-  speechFallback?: "reading" | "pause";
+  speechFallback?: "reading" | "pause" | "browser";
   getSpeechTailDuration?(actionId: string, audioDurationMs: number): number;
   waitForSpeechEffects?(actionId: string): Promise<void>;
+  /** Canonical Quiz is a scene lifecycle, never an interaction checkpoint action. */
+  onQuizReady?(sceneId: string): void;
+  waitForMediaCheckpoint?: boolean;
 
 }
 export interface PlaybackActions {
@@ -92,6 +95,7 @@ export class PlaybackCore {
   private actionIndex: number = 0;
   private mode: EngineMode = "idle";
   private consumedDiscussions: Set<string> = new Set();
+  private completedQuizzes = new Set<string>();
 
   // Discussion state save
   private savedSceneIndex: number | null = null;
@@ -137,6 +141,7 @@ export class PlaybackCore {
   private speechCueScheduler: SpeechCueScheduler | null = null;
   // Browser-native TTS state (Web Speech API)
   private browserTTSActive: boolean = false;
+  private browserTTSAttempt = 0;
   private browserTTSChunks: string[] = []; // sentence-level chunks for sequential playback
   private browserTTSChunkIndex: number = 0; // current chunk being spoken
   private browserTTSPausedChunks: string[] = []; // remaining chunks saved on pause (for cancel+re-speak)
@@ -160,6 +165,31 @@ export class PlaybackCore {
   /** Get the current engine mode */
   getMode(): EngineMode {
     return this.mode;
+  }
+
+  /** Resume the Quiz review narration and scene sequence after submitted work. */
+  completeQuiz(): void {
+    const scene = this.scenes[this.sceneIndex];
+    if (!scene || scene.content.type !== 'quiz' || this.mode !== 'idle') return;
+    this.completedQuizzes.add(scene.id);
+    this.continuePlayback();
+  }
+
+  /** Terminal feedback uses configured speech; the serialized scene stays untouched. */
+  async answerInstantQuiz(correct: boolean): Promise<void> {
+    const scene = this.scenes[this.sceneIndex];
+    if (scene?.content.type !== 'quiz' || scene.content.interactionMode !== 'classroom_instant_feedback' || this.mode !== 'idle') return;
+    const config = scene.content.playbackConfig;
+    const text = correct ? config?.successSpeechText ?? '回答正确！非常棒！' : config?.failureSpeechText ?? '很遗憾，你选错了，再试一次吧！';
+    const epoch = this.executionEpoch;
+    this.setMode('playing');
+    if (text) await this.executeSpeechAction({ id: `${scene.id}:feedback`, type: 'speech', text });
+    if (this.executionEpoch !== epoch || this.getMode() !== 'playing') return;
+    if (correct) {
+      this.completedQuizzes.add(scene.id); void this.processNext();
+    } else {
+      this.setMode('idle'); this.runtime.onQuizReady?.(scene.id);
+    }
   }
 
   /** Export a serializable playback snapshot */
@@ -187,6 +217,7 @@ export class PlaybackCore {
     }
 
     this.sceneIndex = 0;
+    this.completedQuizzes.clear();
     this.actionIndex = 0;
     this.executionEpoch += 1;
     this.setMode("playing");
@@ -227,6 +258,7 @@ export class PlaybackCore {
       // Freeze TTS — but skip if waiting on ProactiveCard (no active speech)
       if (!this.currentTrigger) {
         if (this.browserTTSActive) {
+          this.browserTTSAttempt += 1;
           // Cancel+re-speak pattern: save remaining chunks for resume.
           // speechSynthesis.pause()/resume() is broken on Firefox, so we
           // cancel now and re-speak from current chunk onward on resume.
@@ -349,6 +381,7 @@ export class PlaybackCore {
 
   /** → idle */
   stop(): void {
+    this.completedQuizzes.clear();
     // Set mode BEFORE stopping audio to prevent spurious processNext from
     // synchronous onend callbacks (see handleUserInterrupt for details).
     this.setMode("idle");
@@ -523,6 +556,7 @@ export class PlaybackCore {
     let si = this.sceneIndex;
     let ai = this.actionIndex;
     while (si < this.scenes.length) {
+      if (this.runtime.onQuizReady && this.scenes[si].content.type === 'quiz' && !this.completedQuizzes.has(this.scenes[si].id)) return false;
       const actions = this.scenes[si].actions || [];
       while (ai < actions.length) {
         const action = actions[ai];
@@ -568,6 +602,14 @@ export class PlaybackCore {
       const scene = this.scenes[this.sceneIndex];
       const actions = scene.actions || [];
 
+      if (scene.content.type === 'quiz' && this.runtime.onQuizReady && !this.completedQuizzes.has(scene.id)) {
+        // Same phase projection as cloud-web getQuizPlaybackActionsForPhase:
+        // first two speech actions introduce the page, remaining speech reviews it.
+        const speeches = actions.flatMap((a, index) => a.type === 'speech' ? [index] : []);
+        const boundary = speeches.length > 2 ? speeches[2] : actions.length;
+        if (this.actionIndex >= boundary) return null;
+      }
+
       if (this.actionIndex < actions.length) {
         return { action: actions[this.actionIndex], sceneId: scene.id };
       }
@@ -596,6 +638,12 @@ export class PlaybackCore {
     }
 
     if (!current) {
+      const scene = this.scenes[this.sceneIndex];
+      if (scene?.content.type === 'quiz' && this.runtime.onQuizReady) {
+        this.setMode('idle');
+        this.runtime.onQuizReady(scene.id);
+        return;
+      }
       // All scenes complete
       this.actionEngine.clearEffects();
       this.setMode("idle");
@@ -760,7 +808,12 @@ export class PlaybackCore {
       case "interaction_checkpoint": {
         const interactionAction = action as InteractionCheckpointAction;
         if (interactionAction.checkpointKind === "media_playback") {
-          this.processNext();
+          if (this.runtime.waitForMediaCheckpoint) {
+            this.currentInteractionCheckpointId = interactionAction.checkpointId;
+            const { id: _id, type: _type, ...payload } = interactionAction;
+            this.callbacks.onInteractionStart?.(payload);
+            this.setMode('waiting_interaction');
+          } else this.processNext();
           break;
         }
         this.currentInteractionCheckpointId = interactionAction.checkpointId;
@@ -775,6 +828,7 @@ export class PlaybackCore {
           chapterId: interactionAction.chapterId,
           chapterTitle: interactionAction.chapterTitle,
           question: interactionAction.question,
+          constraintPrompt: interactionAction.constraintPrompt,
           referenceAnswer: interactionAction.referenceAnswer,
           context: interactionAction.context,
         });
@@ -790,6 +844,7 @@ export class PlaybackCore {
       case "wb_draw_chart":
       case "wb_draw_latex":
       case "wb_draw_table":
+      case "wb_draw_line":
       case "wb_clear":
       case "wb_delete":
       case "wb_close": {
@@ -801,7 +856,12 @@ export class PlaybackCore {
           return;
         }
         // Synchronous whiteboard actions — await completion, then continue
-        await this.actionEngine.execute(action);
+        try { await this.actionEngine.execute(action); }
+        catch (error) {
+          this.pause();
+          this.callbacks.onPlaybackError?.(error instanceof Error ? error : new Error(String(error)));
+          return;
+        }
         if (this.mode === "playing") {
           this.processNext();
         }
@@ -1070,7 +1130,7 @@ export class PlaybackCore {
 
       const failSource = (error: Error) => {
         if (!isActive()) return;
-        if (isSpeech && this.runtime.speechFallback !== "pause") {
+        if (isSpeech && this.runtime.speechFallback !== "pause" && this.runtime.speechFallback !== 'browser') {
           scheduleReadingTimer();
           return;
         }
@@ -1111,6 +1171,9 @@ export class PlaybackCore {
               );
               return;
             }
+            if (this.runtime.speechFallback === 'browser' && latestAudioUrl) {
+              failSource(new Error('Stored narration could not play. Retry this page.')); return;
+            }
             const settings = this.runtime.getSpeechSettings?.() ?? {};
             if (
               settings.ttsEnabled &&
@@ -1119,6 +1182,7 @@ export class PlaybackCore {
               window.speechSynthesis
             )
               this.playBrowserTTS(speechAction);
+            else if (this.runtime.speechFallback === 'browser') failSource(new Error('No stored narration or browser speech voice is available.'));
             else scheduleReadingTimer();
           })
           .catch(error => { if (isCurrentAttempt()) failSource(error); });
@@ -1315,6 +1379,7 @@ export class PlaybackCore {
 
   /** Speak the current chunk; on completion, advance to next or finish. */
   private async playBrowserTTSChunk(): Promise<void> {
+    const attempt = ++this.browserTTSAttempt;
     if (this.browserTTSChunkIndex >= this.browserTTSChunks.length) {
       // All chunks done
       this.browserTTSActive = false;
@@ -1334,6 +1399,7 @@ export class PlaybackCore {
 
     // Ensure voices are loaded (Chrome loads them asynchronously)
     const voices = await this.ensureVoicesLoaded();
+    if (attempt !== this.browserTTSAttempt || this.mode !== 'playing') return;
 
     // Set voice: try user's configured voice, fall back to auto-detect language
     let voiceFound = false;
@@ -1355,6 +1421,7 @@ export class PlaybackCore {
     }
 
     utterance.onend = () => {
+      if (attempt !== this.browserTTSAttempt || !this.browserTTSActive) return;
       this.browserTTSChunkIndex++;
       if (this.mode === "playing") {
         this.playBrowserTTSChunk(); // next chunk
@@ -1362,9 +1429,19 @@ export class PlaybackCore {
     };
 
     utterance.onerror = (event) => {
+      if (attempt !== this.browserTTSAttempt || !this.browserTTSActive) return;
       // 'canceled' is expected when stop/pause is called — not a real error
       if (event.error !== "canceled") {
         log.warn("Browser TTS chunk error:", event.error);
+        if (this.runtime.speechFallback === 'browser') {
+          this.pause();
+          this.retrySpeech = () => {
+            this.browserTTSPausedChunks = [];
+            void this.playBrowserTTSChunk();
+          };
+          this.callbacks.onPlaybackError?.(new Error(`Browser narration failed: ${event.error}`));
+          return;
+        }
         // Skip failed chunk, try next
         this.browserTTSChunkIndex++;
         if (this.mode === "playing") {
@@ -1423,6 +1500,7 @@ export class PlaybackCore {
 
   /** Cancel any active browser-native TTS */
   private cancelBrowserTTS(): void {
+    this.browserTTSAttempt += 1;
     if (this.browserTTSActive) {
       this.browserTTSActive = false;
       this.browserTTSChunks = [];

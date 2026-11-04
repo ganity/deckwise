@@ -6,7 +6,7 @@ export type CoursewareSceneTeaching = {
   objective: string;
   durationSeconds: number;
   requiredObjects: string[];
-  question?: { text: string; response: CoursewareQuestionResponse };
+  question?: { text: string; response: CoursewareQuestionResponse; referenceAnswer?: { summary: string; keyPoints: string[] }; constraintPrompt?: string };
   music?: { purpose: string; prompt: string };
   video?: { purpose: string; prompt: string };
 };
@@ -39,10 +39,16 @@ export function coursewareSceneTeachingIssues(value: unknown, path: string): str
   if (Object.hasOwn(value, "question")) {
     if (!record(value.question)) issues.push(path + ".question: expected an object");
     else {
-      if (Object.keys(value.question).sort().join(",") !== "response,text")
-        issues.push(path + ".question: expected exactly text and response");
+      if (Object.keys(value.question).some(key => !["text", "response", "referenceAnswer", "constraintPrompt"].includes(key)))
+        issues.push(path + ".question: expected text, response and optional referenceAnswer/constraintPrompt");
       if (!text(value.question.text, 160)) issues.push(path + ".question.text: expected nonempty text of at most 160 characters");
       issues.push(...coursewareQuestionResponseIssues(value.question.response, path + ".question.response"));
+      const reference = value.question.referenceAnswer;
+      if (reference !== undefined && (!record(reference) || Object.keys(reference).sort().join(",") !== "keyPoints,summary" ||
+          !text(reference.summary, 4000) || !Array.isArray(reference.keyPoints) || reference.keyPoints.length > 20 || reference.keyPoints.some(key => !text(key, 500))))
+        issues.push(path + ".question.referenceAnswer: expected summary and keyPoints");
+      if (value.question.constraintPrompt !== undefined && !text(value.question.constraintPrompt, 4000))
+        issues.push(path + ".question.constraintPrompt: expected nonempty prompt of at most 4000 characters");
     }
   } else if (value.pageType !== "slide") issues.push(path + ".question: required for every non-slide pageType");
   for (const kind of ["music", "video"] as const) {

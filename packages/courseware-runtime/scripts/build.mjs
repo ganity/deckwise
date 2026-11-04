@@ -32,6 +32,6 @@ for (const [name, entry, platform] of [
   }
   graphs[name] = { inputs, external, outputs: result.metafile.outputs };
 }
-await writeFile(path.join(outdir, 'player.css'), await readFile(path.join(root, 'src/player.css')));
+await writeFile(path.join(outdir, 'player.css'), Buffer.concat([await readFile(path.join(root, 'src/player.css')), await readFile(path.join(root, 'src/maic-quiz.css'))]));
 await writeFile(path.join(outdir, 'graphs.json'), JSON.stringify(graphs, null, 2));
 console.log('PASS isolated desktop Node/authoring/player/worker bundles; no server or editor runtime');

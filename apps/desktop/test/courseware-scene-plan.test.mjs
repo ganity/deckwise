@@ -45,20 +45,22 @@ test("initial planning corrects invalid JSON with bounded feedback instead of hu
   assert.equal(calls, 1);
 });
 
-test("Chat draft errors expose the actual teaching format and missing visible question", () => {
+test("Chat draft errors expose the format while interaction questions remain separate editable text", () => {
   const plan = JSON.parse(answer);
   plan.pages[0].teaching = { pageType: "invalid" };
   assert.throws(() => parseSceneCoursePlan(JSON.stringify(plan)), /teaching\.pageType:.*slide\|quiz\|interactive\|pbl/);
   plan.pages[0].teaching = { pageType: "interactive", phase: "practice", objective: "Greet", durationSeconds: 120,
     requiredObjects: [], question: { text: "Wave hello", response: { kind: "practice", options: [], answerIndices: [] } } };
-  assert.throws(() => parseSceneCoursePlan(JSON.stringify(plan)), /must be visible.*Wave hello/);
+  assert.equal(parseSceneCoursePlan(JSON.stringify(plan)).pages[0].teaching.question.text, "Wave hello");
+  plan.pages[0].teaching.question.text = "";
+  assert.throws(() => parseSceneCoursePlan(JSON.stringify(plan)), /question\.text/);
 });
 
 test("Chat draft validation reports field errors across every page at once", () => {
   const page = JSON.parse(answer).pages[0];
   const plan = { title: "Greetings", pages: [
     { ...page, teaching: { pageType: "practice", phase: "practice", objective: "Greet", durationSeconds: 30, requiredObjects: [] } },
-    { ...page, teaching: { pageType: "interactive", phase: "review", objective: "Greet", durationSeconds: 30, requiredObjects: [],
+    { ...page, teaching: { pageType: "quiz", phase: "review", objective: "Greet", durationSeconds: 30, requiredObjects: [],
       question: { text: "Which greeting?", response: { kind: "single", options: ["Hello", "Bye"], answerIndices: [2] } } } },
     { ...page, teaching: { pageType: "review", phase: "review", objective: "Review", durationSeconds: 30, requiredObjects: [] } },
   ] };
@@ -66,7 +68,7 @@ test("Chat draft validation reports field errors across every page at once", () 
     assert.match(error.message, /pages\[0\]\.teaching\.pageType.*practice.*slide\|quiz\|interactive\|pbl/);
     assert.match(error.message, /pages\[0\]\.teaching\.question.*required/);
     assert.match(error.message, /pages\[1\]\.teaching\.question\.response\.answerIndices/);
-    assert.match(error.message, /scene page 2: missing \["Which greeting\?","Bye"\]/);
+    assert.match(error.message, /pages\[1\].*independent MAIC quiz/);
     assert.match(error.message, /pages\[2\]\.teaching\.pageType.*review/);
     return true;
   });
@@ -307,12 +309,13 @@ test("typed teaching questions and hash order survive reordered JSON fields", ()
   const teaching = { pageType: "quiz", phase: "practice", objective: "Identify a greeting", durationSeconds: 40, requiredObjects: ["Monkey"],
     question: { text: "Which greeting?", response: { kind: "single", options: ["Hello", "Goodbye"], answerIndices: [0] } },
     music: { purpose: "Listening", prompt: "Hello song" } };
-  const page = { title: "Choose", visibleText: ["Which greeting?", "Hello", "Goodbye"], visualIntent: "Monkey asks the visible question", narration: "Which greeting?", teaching };
+  const quiz = { type: "quiz", questions: [{ id: "greeting", type: "single", question: "Which greeting?", options: [{ value: "A", label: "Hello" }, { value: "B", label: "Goodbye" }], answer: ["A"] }] };
+  const page = { quiz, title: "Choose", visibleText: ["Which greeting?", "Hello", "Goodbye"], visualIntent: "Monkey asks the visible question", narration: "Which greeting?", teaching };
   const plan = p => parseSceneCoursePlan(JSON.stringify({ title: "Greetings", pages: [p] }));
   const reversed = value => Array.isArray(value) ? value.map(reversed) : value && typeof value === "object" ? Object.fromEntries(Object.entries(value).reverse().map(([k,v]) => [k, reversed(v)])) : value;
   assert.equal(plan(page).pages[0].sourceHash, plan(reversed(page)).pages[0].sourceHash);
-  // Captured from the pre-repair parser; absent video must retain approved legacy hashes.
-  assert.equal(plan(page).pages[0].sourceHash, "sha256:d7ae53a010809e5c2c8aa4f58cec177be6519106e59664f35fa695bc35aca1d9");
+  assert.deepEqual(plan(page).pages[0].quiz.questions[0].answer, ["A"]);
+  assert.throws(() => { const { quiz, ...withoutQuiz } = page; plan(withoutQuiz); }, /independent MAIC quiz/);
   assert.deepEqual(plan(page).pages[0].teaching, teaching);
   const withVideo = { ...page, teaching: { ...teaching, video: { purpose: "Wave", prompt: "A five-second silent wave" } } };
   assert.deepEqual(plan(withVideo).pages[0].teaching.video, withVideo.teaching.video);

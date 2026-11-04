@@ -21,7 +21,17 @@ pub struct Teaching {
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct Question { pub text: String, pub response: question::Response }
+pub struct Question {
+    pub text: String,
+    pub response: question::Response,
+    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "present_option")]
+    pub reference_answer: Option<ReferenceAnswer>,
+    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "present_option")]
+    pub constraint_prompt: Option<String>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ReferenceAnswer { pub summary: String, pub key_points: Vec<String> }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Music { pub purpose: String, pub prompt: String }
@@ -34,11 +44,13 @@ impl Teaching {
             && self.required_objects.len() <= 30
             && self.required_objects.iter().all(|s| text(s, 200))
             && self.required_objects.iter().collect::<std::collections::HashSet<_>>().len() == self.required_objects.len()
-            && (self.page_type == "slide" || self.question.is_some())
+            && (matches!(self.page_type.as_str(), "slide" | "quiz") || self.question.is_some())
             && self
                 .question
                 .as_ref()
-                .is_none_or(|q| text(&q.text, 160) && q.response.valid())
+                .is_none_or(|q| text(&q.text, 160) && q.response.valid()
+                    && q.reference_answer.as_ref().is_none_or(|r| text(&r.summary, 4000) && r.key_points.len() <= 20 && r.key_points.iter().all(|p| text(p, 500)))
+                    && q.constraint_prompt.as_ref().is_none_or(|p| text(p, 4000)))
             && self
                 .music
                 .as_ref()

@@ -202,6 +202,7 @@ export interface FixedVisualCue {
     | { kind: "element_animation"; action: ElementAnimationAction };
 }
 export interface LoadedFixedBuild {
+  classroom?: import("../../../maic-classroom").MaicClassroom;
   buildId: string;
   report: FixedPayload["report"];
   scenes: Scene[];

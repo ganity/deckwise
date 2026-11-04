@@ -1273,6 +1273,27 @@ export const api = {
     invoke<{ ok: boolean }>(IPC.invoke.pptEditorPptxCandidateReject, { reviewId }),
   pptEditorPptxCandidateAdopt: (reviewId: string, effectBindings?: CoursewareEffectBinding[]) =>
     invoke<{ ok: boolean }>(IPC.invoke.pptEditorPptxCandidateAdopt, { reviewId, ...(effectBindings?.length ? { effectBindings } : {}) }),
+  coursewareClassroomTtsModels: (sessionId: string) =>
+    invoke<CoursewareTtsModel[]>(IPC.invoke.coursewareClassroomTtsModels, { sessionId }),
+  coursewareClassroomTtsQuote: (input: import("./courseware-classroom").ClassroomTtsSelection) =>
+    invoke<import("./courseware-classroom").ClassroomTtsResult>(IPC.invoke.coursewareClassroomTtsQuote, input),
+  coursewareClassroomTtsSubmit: (input: import("./courseware-classroom").ClassroomTtsSelection & { quoteId: string }) =>
+    invoke<import("./courseware-classroom").ClassroomTtsResult>(IPC.invoke.coursewareClassroomTtsSubmit, input),
+  coursewareClassroomTtsRefresh: (input: import("./courseware-classroom").ClassroomTtsSelection) =>
+    invoke<import("./courseware-classroom").ClassroomTtsResult>(IPC.invoke.coursewareClassroomTtsRefresh, input),
+  coursewareClassroomPlay: (sessionId: string, projectId: string, expectedRevision: string | null, expectedSourceRevision: string, locale: "en" | "zh-CN") =>
+    invoke<{ ok: boolean }>(IPC.invoke.coursewareClassroomPlay, { sessionId, projectId, expectedRevision, expectedSourceRevision, locale }),
+  coursewareClassroomReference: (sessionId: string, projectId: string, expectedRevision: string | null, expectedSourceRevision: string, sceneId: string, actionId: string) =>
+    invoke<import("./courseware-classroom").ClassroomEditorView>(IPC.invoke.coursewareClassroomReference, { sessionId, projectId, expectedRevision, expectedSourceRevision, sceneId, actionId }),
+  coursewareClassroomCreate: (sessionId: string, classroom: import("./courseware-classroom").ClassroomDocument) =>
+    invoke<import("./courseware-classroom").ClassroomEditorView>(IPC.invoke.coursewareClassroomCreate, { sessionId, classroom }),
+  coursewareClassroomExport: (sessionId: string, projectId: string, expectedRevision: string | null, expectedSourceRevision: string) =>
+    invoke<{ fileName: string; bytes: number[] }>(IPC.invoke.coursewareClassroomExport, { sessionId, projectId, expectedRevision, expectedSourceRevision }),
+  coursewareClassroomOpen: (sessionId: string) => invoke<import("./courseware-classroom").ClassroomEditorView>(IPC.invoke.coursewareClassroomOpen, { sessionId }),
+  coursewareClassroomWrite: (sessionId: string, projectId: string, expectedRevision: string | null, expectedSourceRevision: string, classroom: import("./courseware-classroom").ClassroomDocument) =>
+    invoke<import("./courseware-classroom").ClassroomEditorView>(IPC.invoke.coursewareClassroomWrite, { sessionId, projectId, expectedRevision, expectedSourceRevision, classroom }),
+  coursewareClassroomImage: (sessionId: string, projectId: string, expectedRevision: string | null, expectedSourceRevision: string, target: { sceneId: string; questionId: string; optionValue?: string; dataUrl: string }) =>
+    invoke<import("./courseware-classroom").ClassroomEditorView>(IPC.invoke.coursewareClassroomImage, { sessionId, projectId, expectedRevision, expectedSourceRevision, ...target }),
   pptEditorTeachingOpen: (sessionId: string) => invoke<CoursewareTeachingView>(IPC.invoke.pptEditorTeachingOpen, { sessionId }),
   coursewareOnlineState: () => invoke<CoursewareOnlineEditorState>(IPC.invoke.coursewareOnlineState),
   coursewareOnlinePrepareReview: (request: { sessionId: string; projectId: string; includeTeaching?: boolean }) =>

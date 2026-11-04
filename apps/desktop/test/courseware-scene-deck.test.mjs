@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import test from "node:test";
 import ts from "typescript";
+import { parseMaicClassroom } from "../../../packages/courseware-runtime/dist/node.mjs";
 import * as authoring from "@pi-desktop/courseware-runtime/authoring";
 
 const requireCourseware = createRequire(new URL("../../../packages/courseware-runtime/package.json", import.meta.url));
@@ -115,4 +116,33 @@ test("scene compilation accepts decomposed lettering images without native text"
   assert.equal((xml.match(/<p:pic>/gu) ?? []).length, 1, "one independent image layer over the base background");
   assert(!xml.includes("<a:t>"), "lettering stays in the layer pixels");
   assert.equal(calls.length, 0, "complete native placements do not require model reconstruction");
+});
+
+test("mixed generation keeps Quiz independent and interaction question in an editable PPTist frame", async () => {
+  const question = { text: "请介绍你的名字", response: { kind: "discussion", options: [], answerIndices: [] } };
+  const interaction = { ...pages[0], visibleText: ["课堂互动"], teaching: { pageType: "interactive", phase: "practice", objective: "自我介绍", durationSeconds: 30, requiredObjects: [], question } };
+  const quiz = { ...pages[1], quiz: { type: "quiz", questions: [{ id: "q1", type: "single", question: "选出问候语", options: [{ value: "A", label: "Hello" }, { value: "B", label: "Bye" }], answer: ["A"] }], interactionMode: "classroom_instant_feedback" } };
+  const deck = await buildSceneCourseDeck({ ...input, pages: [interaction, quiz], visuals: [visuals[0]] }, async () => ({ text: "" }), authoring);
+  parseMaicClassroom(deck.canonicalClassroom);
+  assert.equal(deck.canonicalClassroom.scenes[0].content.canvas.elements[0].imageType, "background");
+  assert.equal(deck.mapping.pages.length, 1);
+  assert.deepEqual(deck.canonicalClassroom.scenes.map(scene => scene.type), ["slide", "quiz"]);
+  const slide = deck.canonicalClassroom.scenes[0], checkpoint = slide.actions.find(action => action.type === "interaction_checkpoint");
+  assert.equal(checkpoint.question, question.text);
+  assert.equal(slide.content.canvas.elements.find(element => element.id === `${slide.id}_question`).content, `<p><span style="font-size: 28px; color: #111827;">${checkpoint.question}</span></p>`);
+  assert(!Object.hasOwn(checkpoint, "response"));
+  assert.deepEqual(deck.canonicalClassroom.scenes[1].content.questions[0].answer, ["A"]);
+  assert(!deck.canonicalClassroom.scenes[1].actions.some(action => action.type === "interaction_checkpoint"));
+});
+
+test("an all-Quiz course has no invented PPT page or native image prerequisites", async () => {
+  const quiz = { ...pages[0], quiz: { type: "quiz", questions: [{ id: "q1", type: "short_answer", question: "你的名字", referenceAnswer: "完整自我介绍", keyPoints: ["名字"] }] } };
+  let compiled = false;
+  const deck = await buildSceneCourseDeck({ ...input, pages: [quiz], visuals: [] }, async () => ({ text: "" }), { ...authoring, async compileScenesToPptx() { compiled = true; throw new Error("must not compile"); } });
+  parseMaicClassroom(deck.canonicalClassroom);
+  assert.equal(compiled, false);
+  assert.equal(deck.pptx.length, 0);
+  assert.equal(deck.mapping, undefined);
+  assert.deepEqual(deck.teaching, []);
+  assert.equal(deck.canonicalClassroom.scenes[0].type, "quiz");
 });

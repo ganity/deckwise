@@ -13,11 +13,13 @@ function setup() {
   const snapshot = { snapshotId: "snap-1", projectId: "project-1", source: { revision: "R1", sha256: "a".repeat(64) },
     teachingRevision: "T1", mappingRevision: "M1", assetIds: [] };
   let session = "chat-1", workspace = "/workspace", host, resolveWorkspace = async () => workspace;
-  const calls = [], builds = [];
+  const calls = [], builds = [], canonicalBuilds = [];
+  let canonical = { projectId: "project-1", revision: null, sourceRevision: "R1", classroom: null };
   let convert = async () => ({ buildId: "b".repeat(64), packageHash: "b".repeat(64), directory: "/private/build",
     report: { ready: true, diagnostics: [], sourceRevision: "R1", teachingRevision: "T1" } });
   host = { async call(method, params) {
     calls.push([method, params]);
+    if (method === "courseware.classroom.get") return structuredClone(canonical);
     return { snapshot: structuredClone(snapshot), project: { private: "frozen" }, mapping: {}, sourcePath: "/private/archive.pptx", assets: [] };
   } };
   const module = { exports: {} };
@@ -29,10 +31,14 @@ function setup() {
     if (id === "@pi-desktop/courseware-runtime/node") return { FixedBuildError,
       adaptCanonicalSnapshot: (project, saved, files) => ({ project, snapshot: saved, ...files }),
       buildFixedCourseware: async (input, options) => { builds.push({ input, options }); return convert(input, options); } };
+    if (id === "./courseware-classroom-build") return { buildMaicCourseware: async input => {
+      canonicalBuilds.push(input); await input.assertCurrent();
+      return { buildId: "d".repeat(64), packageHash: "d".repeat(64), directory: "/private/maic-build" };
+    } };
     throw new Error(id);
   }, module.exports);
   const coordinator = new module.exports.CoursewareFixedBuildCoordinator(() => host, () => resolveWorkspace(), () => session, "/trusted/worker", "/private/builds");
-  return { coordinator, snapshot, calls, builds, select: { sessionId: "chat-1", projectId: "project-1", snapshotId: "snap-1" },
+  return { coordinator, snapshot, calls, builds, canonicalBuilds, canonical: value => { canonical = value; }, select: { sessionId: "chat-1", projectId: "project-1", snapshotId: "snap-1" },
     convert: (fn) => { convert = fn; }, session: (value) => { session = value; }, workspace: (value) => { workspace = value; },
     host: (value) => { host = value; }, resolveWorkspace: (fn) => { resolveWorkspace = fn; } };
 }
@@ -43,13 +49,27 @@ test("only a finite Host snapshot selection reaches the builder; paths stay Main
   assert.equal(f.calls.length, 0);
   const ready = await f.coordinator.build(f.select);
   assert.equal(ready.status, "ready");
-  assert.deepEqual(f.calls, [["courseware.snapshot.get", f.select]]);
+  assert.deepEqual(f.calls, [["courseware.snapshot.get", f.select], ["courseware.classroom.get", { sessionId: "chat-1", projectId: "project-1" }]]);
   assert.deepEqual(f.builds[0].input.reviewedWarningCodes, []);
   assert(!JSON.stringify(ready).includes("/private"));
   assert.equal((await f.coordinator.selected(ready.previewId)).build.directory, "/private/build");
   await assert.rejects(f.coordinator.selected("forged"), /expired/);
   f.workspace("/different");
   await assert.rejects(f.coordinator.selected(ready.previewId), /owner changed/);
+});
+test("default build uses saved MAIC classroom and invalidates preview after canonical edits", async () => {
+  const f = setup();
+  const canonical = { projectId: "project-1", revision: "canonical-1", sourceRevision: "R1", classroom: { id: "maic", scenes: [{ type: "quiz" }] } };
+  f.canonical(canonical);
+  const ready = await f.coordinator.build(f.select);
+  assert.equal(ready.status, "ready");
+  assert.equal(f.builds.length, 0, "canonical does not pass through legacy fixed action mapping");
+  assert.deepEqual(f.canonicalBuilds[0].classroom, canonical.classroom);
+  const selected = await f.coordinator.selected(ready.previewId);
+  assert.equal(selected.canonical.revision, "canonical-1");
+  assert.equal(selected.build.directory, "/private/maic-build");
+  f.canonical({ ...canonical, revision: "canonical-2" });
+  await assert.rejects(f.coordinator.selected(ready.previewId), /Canonical classroom changed/);
 });
 
 test("conversion warnings require exact retained approval and re-read the same immutable Host snapshot", async () => {
@@ -67,7 +87,7 @@ test("conversion warnings require exact retained approval and re-read the same i
   review.diagnostics[0].code = "OTHER";
   const ready = await f.coordinator.approveWarnings({ reviewId: review.reviewId, codes: ["NOTES"] });
   assert.equal(ready.status, "ready");
-  assert.equal(f.calls.length, 2);
+  assert.equal(f.calls.length, 4);
   assert.deepEqual(f.builds[1].input.reviewedWarningCodes, ["NOTES"]);
   await assert.rejects(f.coordinator.approveWarnings({ reviewId: review.reviewId, codes: ["NOTES"] }), /expired/);
 });

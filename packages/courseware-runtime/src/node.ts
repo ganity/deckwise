@@ -2,3 +2,8 @@ export { buildFixedCourseware, validateFixedMapping, FixedBuildError, sha256, ca
 export { adaptCanonicalSnapshot } from './conversion/lib/courseware/adapt-canonical-snapshot';
 export { fixedBuildInputSchema, type FixedBuildInput } from './conversion/lib/courseware/fixed-build-input';
 export { validateSavedSourceIdentity, exportSavedSourceIdentity, bindSavedSourceIdentity, reconcileSavedSources, type SavedSourceIdentity } from './conversion/lib/import/pptx/saved-source-identity';
+export { parseMaicClassroom, maicClassroomSchema, type MaicClassroom } from './maic-classroom';
+export { exportMaicClassroom } from './conversion/lib/courseware/export-maic-classroom';
+export { mapSlideIrToScenes as mapMaicSlideIrToScenes } from './conversion/lib/import/mappers/import-ir-to-classroom';
+export type { SlideIR as MaicSlideIR } from './conversion/lib/import/types';
+export { sniffMaicMime } from './maic-resources';

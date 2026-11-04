@@ -9,7 +9,7 @@ import { CoursewareSceneGeneration, type SceneCourseGenerationServices } from ".
 
 type Host = { call<T>(method: string, params: unknown): Promise<T> };
 type Task = { taskType: "plain" | "scene" | "import"; educationContext?: CoursewareEducationContext;
-  importPath?: string; generatedPath?: string };
+  importPath?: string; generatedPath?: string; canonicalProjectId?: string };
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
 
 function assertWorkflowScope(host: Host | null, currentHost: Host | null, sessionId: string, viewingSession: string | null, canDispatch?: () => boolean) {
@@ -41,13 +41,14 @@ export class CoursewareChatWorkflow {
     if (!session?.projectPath) throw new Error("Courseware requires a saved workspace");
     const { task } = await host.call<{ task: Task | null }>("courseware.task.get", { sessionId });
     check();
-    const { plan } = task?.taskType === "scene" && !task.generatedPath
+    const { plan } = task?.taskType === "scene" && !task.generatedPath && !task.canonicalProjectId
       ? await readSceneCourseDraft(host, { sessionId }) : { plan: null };
     check();
     const compilation = this.compilation?.sessionId === sessionId && this.compilation.planSha256 === plan?.sha256
       ? { planSha256: this.compilation.planSha256, state: this.compilation.state, ...(this.compilation.message ? { message: this.compilation.message } : {}) } : undefined;
     return { ...(compilation ? { compilation } : {}), task: task ? { taskType: task.taskType, ...(task.educationContext ? { educationContext: task.educationContext } : {}),
-      imported: !!task.importPath, generated: !!task.generatedPath,
+      imported: !!task.importPath, generated: !!task.generatedPath || !!task.canonicalProjectId,
+      ...(task.canonicalProjectId ? { canonicalProjectId: task.canonicalProjectId } : {}),
       ...((task.generatedPath ?? task.importPath) ? { sourcePath: task.generatedPath ?? task.importPath } : {}) } : null, plan };
   }
 
@@ -210,7 +211,12 @@ export class CoursewareChatWorkflow {
       try {
         const result = await new CoursewareSceneGeneration(images, this.generation).generate({ planSha256: input.planSha256, sessionId });
         check();
-        if (!result.path) throw new Error("Compilation returned no editable PPTX");
+        if (!result.path) {
+          const saved = await this.read(sessionId, canDispatch);
+          check();
+          if (!saved.task?.canonicalProjectId || !saved.task.generated) throw new Error("Compilation returned no saved editable courseware");
+          return { generated: true, openClassroomRequired: true, canonicalProjectId: saved.task.canonicalProjectId };
+        }
         return { generated: true, openEditorRequired: true };
       } catch (error) {
         this.compilation = { sessionId, planSha256: view.plan.sha256,

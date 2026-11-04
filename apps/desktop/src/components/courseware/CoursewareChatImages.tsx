@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ComponentProps } from "react";
 import { ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { sceneWorkspaceProgress, type CoursewareWorkflowView, type CoursewareSceneImagePreview,
   type CoursewareSceneImageView, type CoursewareScenePlanSnapshot } from "@pi-desktop/shared";
+import { MaicQuiz } from "@pi-desktop/courseware-runtime/player";
+import "@pi-desktop/courseware-runtime/player.css";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
 import { CoursewareSceneThumbnail } from "./CoursewareSceneThumbnail";
@@ -115,9 +117,10 @@ export function CoursewareChatImages({ sessionId, plan, disabled, refreshKey = 0
   const status = (row: CoursewareSceneImageView) => t(`coursewareWorkflow.imageState.${row.selected ? "selected" : row.asset ? "ready" : row.task?.state ?? row.phase}`);
   const progress = sceneWorkspaceProgress(plan, rows, disabled, compilation);
   const blocked = disabled || busy;
-  const cover = masterFor(rows.filter(row => row.pageId === plan.pages[0].pageId));
+  const firstVisualPage = plan.pages.find(page => !page.quiz);
+  const cover = masterFor(rows.filter(row => row.pageId === firstVisualPage?.pageId));
   const styleSelected = !!cover?.selected;
-  const isCover = focused?.pageId === plan.pages[0].pageId && focused.target.kind === "visualMaster";
+  const isCover = focused?.pageId === firstVisualPage?.pageId && focused.target.kind === "visualMaster";
   const index = plan.pages.indexOf(focusedPage);
   const choosePage = (id: string) => { setPageId(id); setFocusedId(null); setError(""); };
   return <section className={`courseware-scene-preview${leftCollapsed ? " left-collapsed" : ""}${rightCollapsed ? " right-collapsed" : ""}`}
@@ -146,7 +149,7 @@ export function CoursewareChatImages({ sessionId, plan, disabled, refreshKey = 0
             aria-current={page.pageId === focusedPage.pageId ? "page" : undefined} onClick={() => choosePage(page.pageId)}>
             <CoursewareSceneThumbnail key={`${master?.intentId}-${authRevision}`} sessionId={sessionId} image={master} pageNumber={pageIndex + 1} />
             <span className="courseware-scene-page-title">{pageIndex + 1}. {page.title}</span>
-            <small>{master ? status(master) : t("coursewareWorkflow.imageNotPrepared")}</small>
+            <small>{page.quiz ? "Quiz · 结构化题目" : master ? status(master) : t("coursewareWorkflow.imageNotPrepared")}</small>
           </button>;
         })}
       </nav>
@@ -160,7 +163,7 @@ export function CoursewareChatImages({ sessionId, plan, disabled, refreshKey = 0
         </div>
         <div className="courseware-scene-canvas">
           <div className="courseware-scene-preview-stage" aria-busy={previewReady && !shownPreview && !previewError}>
-            {shownPreview ? <img src={shownPreview.dataUrl} alt={t("coursewareWorkflow.previewAlt")} onError={() => {
+            {focusedPage.quiz ? <MaicQuiz key={focusedPage.pageId} content={focusedPage.quiz as ComponentProps<typeof MaicQuiz>["content"]} /> : shownPreview ? <img src={shownPreview.dataUrl} alt={t("coursewareWorkflow.previewAlt")} onError={() => {
               setPreview(null); setPreviewError(t("coursewareWorkflow.previewLoadFailed"));
             }} /> : <div className="courseware-scene-placeholder">
               <p role="status">{previewError ? t("coursewareWorkflow.previewLoadFailed") : previewReady ? t("coursewareWorkflow.loadingPreview") :
@@ -175,7 +178,7 @@ export function CoursewareChatImages({ sessionId, plan, disabled, refreshKey = 0
           <p role="status" data-courseware-phase={progress.phase}>{t(`coursewareWorkflow.phase_${progress.phase}`)}</p>
           <small>{t(`coursewareWorkflow.activity_${progress.activity}`)}</small>
           <small>{t("coursewareWorkflow.readOnlyImages")}</small>
-          {!styleSelected && focusedPage.pageId !== plan.pages[0].pageId && <button type="button" onClick={() => choosePage(plan.pages[0].pageId)}>
+          {firstVisualPage && !styleSelected && focusedPage.pageId !== firstVisualPage.pageId && <button type="button" onClick={() => choosePage(firstVisualPage!.pageId)}>
             {t("coursewareWorkflow.openCover")}</button>}
           <small>{t("coursewareWorkflow.pageProgress", { count: progress.imageCount, total: progress.total, assets: progress.assetPages })}</small>
         </footer>

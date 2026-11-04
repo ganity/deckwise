@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coursewareMediaRecovery, coursewareTeachingProgress, sceneAssetBlockers } from "./courseware-workflow.js";
+import { coursewareMediaRecovery, coursewareTeachingProgress, sceneAssetBlockers, sceneWorkspaceProgress } from "./courseware-workflow.js";
 import type { CoursewareSceneImageView, CoursewareScenePlanSnapshot } from "./courseware-scene-plan.js";
 
 const plan: CoursewareScenePlanSnapshot = { relativePath: "plan.json", sha256: "a".repeat(64), approvedSha256: "a".repeat(64), title: "Lesson",
@@ -53,4 +53,15 @@ it("teaching readiness follows saved media and unresolved slots, not legacy page
     project.pages[0].reviewState = "ready";
     expect(coursewareTeachingProgress(project as any).ready).toBe(0);
   }
+});
+
+
+it("Quiz scenes bypass native image gates and mixed courses choose their first slide for style review", () => {
+  const quiz = { ...plan.pages[0], pageId: "quiz", quiz: { type: "quiz" as const, questions: [{ id: "q", type: "short_answer" as const, question: "Name?" }] } };
+  const allQuiz = { ...plan, pages: [quiz] };
+  expect(sceneAssetBlockers(allQuiz, [])).toEqual([]);
+  expect(sceneWorkspaceProgress(allQuiz, [], false).phase).toBe("queued");
+  const mixed = { ...plan, pages: [quiz, ...plan.pages] };
+  expect(sceneAssetBlockers(mixed, []).every(blocker => blocker.pageId === "scene-001")).toBe(true);
+  expect(sceneWorkspaceProgress(mixed, [image("visualMaster", "b")], false).phase).toBe("layers");
 });

@@ -3,6 +3,7 @@ use crate::db::courseware_projects::TeachingWrite;
 
 mod asset_locks;
 mod candidates;
+mod classroom;
 mod drafts;
 mod media_canvas;
 mod media_relay;
@@ -181,6 +182,7 @@ pub(super) async fn handle(
 ) -> Result<Value, JsonRpcError> {
     let invalid = |error: serde_json::Error| rpc_err(1002, error.to_string(), "INVALID_PARAMS");
     match method {
+        "courseware.classroom.mediaScope" | "courseware.classroom.refresh" | "courseware.classroom.source" | "courseware.classroom.create" | "courseware.classroom.get" | "courseware.classroom.write" | "courseware.classroom.snapshot" => classroom::handle(state, method, params).await,
         "courseware.workflow.get" | "courseware.workflow.checkpoint" => {
             workflow::handle(state, method, params).await
         }
@@ -303,7 +305,7 @@ pub(super) async fn handle(
                 ));
             }
             if current.as_ref().is_some_and(|value| {
-                value.get("importPath").is_some() || value.get("generatedPath").is_some()
+                value.get("importPath").is_some() || value.get("generatedPath").is_some() || value.get("canonicalProjectId").is_some()
             }) {
                 return Err(rpc_err(
                     1008,
@@ -337,6 +339,7 @@ pub(super) async fn handle(
                 })?;
             if task.get("importPath").is_some()
                 || task.get("generatedPath").is_some()
+                || task.get("canonicalProjectId").is_some()
                 || scene_plan::has_approval(&state, &root, &p.session_id)?
             {
                 return Err(rpc_err(
@@ -492,7 +495,7 @@ pub(super) async fn handle(
                 .kv_get(TASK_NAMESPACE, &p.session_id)
                 .map_err(error)?
                 .ok_or_else(|| rpc_err(1002, "Select a scene task first", "COURSEWARE_INVALID"))?;
-            if task["taskType"] != "scene" || task.get("importPath").is_some() {
+            if task["taskType"] != "scene" || task.get("importPath").is_some() || task.get("canonicalProjectId").is_some() {
                 return Err(rpc_err(
                     1008,
                     "Generated source requires a scene task",
@@ -784,14 +787,14 @@ pub(super) async fn handle(
                         "COURSEWARE_INVALID",
                     )
                 })?;
+                let native_pages: Vec<_> = plan.pages.iter().enumerate().filter(|(_, page)| page.teaching.as_ref().is_none_or(|t| t.page_type != "quiz")).collect();
                 if task_type != "scene"
                     || plan.title != p.title
-                    || plan
-                        .pages
+                    || native_pages
                         .iter()
-                        .map(|page| &page.narration)
+                        .map(|(_, page)| &page.narration)
                         .ne(p.narrations.iter())
-                    || mapping.pages.len() != plan.pages.len()
+                    || mapping.pages.len() != native_pages.len()
                 {
                     return Err(rpc_err(
                         1008,
@@ -799,7 +802,7 @@ pub(super) async fn handle(
                         "COURSEWARE_CONFLICT",
                     ));
                 }
-                for (index, (mapped, planned)) in mapping.pages.iter().zip(&plan.pages).enumerate()
+                for (mapped, (index, planned)) in mapping.pages.iter().zip(native_pages)
                 {
                     if mapped.slide_id != format!("scene-{:03}", index + 1)
                         || mapped.source_hash != planned.source_hash()?

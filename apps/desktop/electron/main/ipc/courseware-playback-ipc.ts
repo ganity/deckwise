@@ -8,6 +8,9 @@ import type { HostProcess } from "../host-process";
 import type { IpcRegistrar } from "./types";
 import type { DesktopAuthSession } from "../auth-session";
 import type { CoursewareFixedShareSelection } from "../courseware-media";
+import type { ClassroomView } from "../courseware-classroom";
+import { parseMaicClassroom } from "@pi-desktop/courseware-runtime/node";
+import { readClassroomAsset } from "../courseware-classroom-assets";
 
 type ShareIntent = { intentId: string; state: "unknown" | "bound"; selection: CoursewareFixedShareSelection; receiptAware?: boolean };
 
@@ -19,6 +22,7 @@ export function registerCoursewarePlaybackIpc(input: {
   getViewingSessionId: () => string | null;
   dataDir: string;
   authSession: DesktopAuthSession;
+  refreshCanonical?: (sessionId: string, projectId: string) => Promise<void>;
 }): () => void {
   const worker = process.env.DECKWISE_PPTX_WORKER || join(process.resourcesPath || "", "pptx-worker/pptx-worker.mjs");
   let observedHost: HostProcess | null = null;
@@ -33,10 +37,44 @@ export function registerCoursewarePlaybackIpc(input: {
     return host;
   };
   const builds = new CoursewareFixedBuildCoordinator(getHost, input.getWorkspaceRoot, input.getViewingSessionId,
-    dirname(worker), join(input.dataDir, "courseware-builds"));
+    dirname(worker), join(input.dataDir, "courseware-builds"), input.refreshCanonical);
   const player = new CoursewarePlayerPreview(input.registrar.ipcMain, input.getMainWindow, builds, input.authSession.coursewareMedia);
   const cancel = () => { sharing?.abort(new Error("Courseware share canceled")); player.close(); builds.cancel(); };
   for (const [channel, operation] of [
+    [IPC.invoke.coursewareClassroomPlay, async (payload: unknown) => {
+      if (!payload || typeof payload !== "object" || Array.isArray(payload) || Object.keys(payload).length !== 5 ||
+          !["sessionId", "projectId", "expectedRevision", "expectedSourceRevision", "locale"].every(key => Object.hasOwn(payload, key))) throw new Error("Invalid canonical preview request");
+      const sessionId = Reflect.get(payload, "sessionId"), projectId = Reflect.get(payload, "projectId");
+      const revision = Reflect.get(payload, "expectedRevision"), sourceRevision = Reflect.get(payload, "expectedSourceRevision"), locale = Reflect.get(payload, "locale");
+      if (typeof sessionId !== "string" || typeof projectId !== "string" || typeof revision !== "string" || typeof sourceRevision !== "string" || !["en", "zh-CN"].includes(locale)) throw new Error("Invalid canonical preview identity");
+      const host = getHost(), workspace = await input.getWorkspaceRoot();
+      if (!host || !workspace || input.getViewingSessionId() !== sessionId) throw new Error("Canonical preview owner changed");
+      const { session } = await host.call<{ session?: { projectPath?: string; mode?: string } }>("session.get", { id: sessionId });
+      if (session?.projectPath !== workspace || session.mode !== "agent") throw new Error("Canonical preview workspace changed");
+      const assertCurrent = async () => {
+        if (getHost() !== host || input.getViewingSessionId() !== sessionId || await input.getWorkspaceRoot() !== workspace) throw new Error("Canonical preview owner changed");
+        const current = await host.call<ClassroomView>("courseware.classroom.get", { sessionId, projectId });
+        if (current.revision !== revision || current.sourceRevision !== sourceRevision) throw new Error("Canonical classroom changed; reopen preview");
+        if (getHost() !== host || input.getViewingSessionId() !== sessionId) throw new Error("Canonical preview owner changed");
+      };
+      await assertCurrent();
+      const view = await host.call<ClassroomView>("courseware.classroom.get", { sessionId, projectId });
+      const classroom = parseMaicClassroom(view.classroom), resources = new Map<string, { assetId: string; url: string; mimeType: string }>();
+      for (const asset of classroom.mediaManifest ?? []) {
+        resources.set(asset.assetId, { assetId: asset.assetId, url: asset.src, mimeType: asset.mimeType });
+        if (asset.posterAssetId && asset.posterUrl) resources.set(asset.posterAssetId, { assetId: asset.posterAssetId, url: asset.posterUrl, mimeType: "image/*" });
+      }
+      for (const asset of classroom.audioManifest ?? []) resources.set(asset.assetId, { assetId: asset.assetId, url: asset.url, mimeType: asset.mimeType });
+      await player.openClassroom({ classroom, buildId: revision, locale, assertCurrent, async readAsset(id) {
+        const asset = typeof id === "string" ? resources.get(id) : undefined;
+        if (!asset) throw new Error("Canonical asset is not in the selected manifest");
+        await assertCurrent();
+        const bytes = await readClassroomAsset(workspace, asset);
+        await assertCurrent();
+        return bytes;
+      } });
+      return { ok: true };
+    }],
     [IPC.invoke.coursewareFixedBuild, (payload: unknown) => { player.close(); return builds.build(payload); }],
     [IPC.invoke.coursewareFixedApprove, (payload: unknown) => builds.approveWarnings(payload)],
     [IPC.invoke.coursewareFixedPlay, async (payload: unknown) => {
@@ -92,6 +130,7 @@ export function registerCoursewarePlaybackIpc(input: {
         };
         await checkBinding();
         const selected = await builds.selected(previewId);
+        if (selected.canonical) throw new Error("Canonical MAIC classrooms must use MAIC ZIP export; this fixed-build sharing endpoint does not accept MAIC packages");
         const upload = await openCoursewareBuildUpload(selected.build.directory, selected.build.buildId);
         await checkBinding();
         ({ intent } = await host.call<{ intent: ShareIntent }>("courseware.fixedShare.prepare", { sessionId, principalKey: principal.key, receiptAware: true,

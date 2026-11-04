@@ -16,7 +16,11 @@ import { AudioPlayer } from "../../lib/utils/audio-player";
 import type { FixedPlayerLabels } from "../../labels";
 import { TeachingQuestionResponse } from './TeachingQuestionResponse';
 import { resolveSpeechAnimationCue } from '../../../speech-animation-trigger';
+import { MaicQuiz } from "./MaicQuiz";
 import { FixedSlide } from "./FixedSlide";
+import { createMaicDomMedia } from '../../lib/courseware/maic-dom-media';
+import { maicAnimationFrames } from '../../lib/courseware/maic-animation';
+import type { Effect } from '../../lib/playback/types';
 
 /** Host owns build loading/authorization/disposal; this component owns only a playback session. */
 export function FixedCoursewarePlayer({
@@ -51,6 +55,8 @@ export function FixedCoursewarePlayer({
   const [failedSpeech, setFailedSpeech] = useState(false);
   const [retry, setRetry] = useState(0);
   const [complete, setComplete] = useState(false);
+  const [quizReady, setQuizReady] = useState(false);
+  const [actionEffect, setActionEffect] = useState<Effect | null>(null);
   const [nativeVisible, setNativeVisible] = useState<ReadonlySet<string>>(new Set());
   const resolvedCues = useRef(new Map<string, readonly import('../../lib/courseware/load-fixed-build').FixedVisualCue[]>());
   const resolveCues = (actionId: string, durationMs: number) => {
@@ -71,19 +77,17 @@ export function FixedCoursewarePlayer({
   }, []);
   useEffect(() => {
     const audio = new AudioPlayer();
+    const media = createMaicDomMedia(() => surface.current);
+    let effectTimer: ReturnType<typeof setTimeout> | undefined;
     const playback = new PlaybackCore(
       build.scenes,
       {
-        execute: async () => {
-          throw new Error("This build does not support classroom actions.");
-        },
+        ...media,
         clearEffects: () => {
           nativeHandles.current.forEach(handle => handle.cancel());
           nativeHandles.current = [];
+          clearTimeout(effectTimer); setActionEffect(null);
         },
-        pauseActiveVideo: () => false,
-        resumeActiveVideo: () => false,
-        stopActiveVideo: () => false,
       },
       audio,
       {
@@ -96,6 +100,7 @@ export function FixedCoursewarePlayer({
           events.current.onState?.(state, playback.getSnapshot());
         },
         onSceneChange: (id) => {
+          setQuizReady(false);
           setAnimationPosition(null);
           setNativeVisible(new Set());
           setPageIndex(build.scenes.findIndex((s) => s.id === id));
@@ -104,6 +109,10 @@ export function FixedCoursewarePlayer({
         onSpeechStart: (text) => events.current.onSpeechStart?.(text),
         onSpeechEnd: () => events.current.onSpeechEnd?.(),
         onAudioClipProgress: setClipProgress,
+        onEffectFire: effect => {
+          clearTimeout(effectTimer); setActionEffect(effect);
+          effectTimer = setTimeout(() => setActionEffect(null), 5000);
+        },
         onSpeechProgress: (position) => {
           if (position && position.durationMs > 0) {
             try { resolveCues(position.actionId, position.durationMs); }
@@ -128,14 +137,22 @@ export function FixedCoursewarePlayer({
           events.current.onInteractionComplete?.(id);
         },
         onPlaybackError: resourceError,
-        onElementAnimation: (action) => {
+        onElementAnimation: async (action) => {
+          if (build.classroom) await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
           const target = [...(surface.current?.querySelectorAll<HTMLElement>("[data-slide-render-element-id]") ?? [])]
             .find(element => element.dataset.slideRenderElementId === action.elementId);
-          if (!target || !action.pptxTimeline || !["fadeIn", "appear"].includes(action.effect)) {
+          if (!target || (!build.classroom && (!action.pptxTimeline || !["fadeIn", "appear"].includes(action.effect)))) {
             resourceError(new Error("Native animation target is unavailable. Retry this page."));
             return;
           }
           setNativeVisible(previous => new Set([...previous, action.elementId]));
+          if (build.classroom) {
+            try {
+              const handle = target.animate(maicAnimationFrames(action), { duration: action.duration, fill: 'forwards', easing: 'linear' });
+              nativeHandles.current.push(handle);
+            } catch (error) { resourceError(error instanceof Error ? error : new Error(String(error))); }
+            return;
+          }
           if (action.effect === "fadeIn") {
             const handle = target.animate([{ opacity: 0 }, { opacity: 1 }], { duration: action.duration, fill: "forwards", easing: "linear" });
             nativeHandles.current.push(handle);
@@ -143,7 +160,8 @@ export function FixedCoursewarePlayer({
         },
         onComplete: () => setComplete(true),
       },
-      { speechFallback: "pause", getSpeechTailDuration: (actionId, durationMs) =>
+      { speechFallback: build.classroom ? 'browser' : "pause", getSpeechSettings: () => ({ ttsEnabled: true, ttsProviderId: 'browser-native-tts' }),
+        waitForMediaCheckpoint: !!build.classroom, onQuizReady: () => setQuizReady(true), getSpeechTailDuration: (actionId, durationMs) =>
         Math.max(0, ...resolveCues(actionId, durationMs).filter(cue => cue.effect.kind === 'element_animation').map(cue => cue.endMs - durationMs)) },
     );
     engine.current = playback;
@@ -157,6 +175,7 @@ export function FixedCoursewarePlayer({
     setError("");
     setFailedSpeech(false);
     setComplete(false);
+    setQuizReady(false);
     setNativeVisible(new Set());
     return () => {
       playback.stop();
@@ -176,6 +195,7 @@ export function FixedCoursewarePlayer({
     setError("");
     setFailedSpeech(false);
     setComplete(false);
+    setQuizReady(false);
     setRetry((r) => r + 1);
     playback.restoreFromSnapshot({
       sceneIndex: index,
@@ -183,7 +203,7 @@ export function FixedCoursewarePlayer({
       consumedDiscussions: [],
       sceneId: build.scenes[index]?.id,
     });
-    if (build.scenes[index]?.actions?.length) playback.continuePlayback();
+    if (build.scenes[index]?.actions?.length || build.scenes[index]?.content.type === 'quiz') playback.continuePlayback();
     else {
       setComplete(true);
       events.current.onPageChange?.(build.scenes[index].id);
@@ -240,13 +260,19 @@ export function FixedCoursewarePlayer({
           width={width}
           mode={mode}
           onError={resourceError}
-          cues={cues}
+          cues={actionEffect ? [...cues, { id: 'maic-action-effect', atMs: 0, endMs: Infinity, effect: actionEffect }] : cues}
           animations={animations}
           ducked={progress !== null && mode === "playing"}
           nativeTargets={nativeTargets}
           nativeVisible={nativeVisible}
         />
       )}
+      {scene?.content.type === "quiz" && <MaicQuiz key={`${build.buildId}:${scene.id}:${retry}`} content={scene.content} disabled={mode === 'playing' || mode === 'paused' || (!quizReady && !!scene.actions?.length)}
+        onInstantAnswer={correct => {
+          setQuizReady(false); void engine.current?.answerInstantQuiz(correct);
+        }} onComplete={() => {
+        setQuizReady(false); engine.current?.completeQuiz();
+      }} />}
       {native && <p role="note" data-native-animation-policy>
         {native.version === 2
           ? labels.boundNativeAnimationRule ?? englishPlayerLabels.boundNativeAnimationRule
@@ -277,7 +303,7 @@ export function FixedCoursewarePlayer({
           </Button>
         ) : mode === "waiting_interaction" ? (
           <Button
-            disabled={waiting?.checkpointKind === "media_playback"}
+            disabled={waiting?.checkpointKind === "media_playback" && waiting.waitForCompletion}
             onClick={() => engine.current?.resumeInteraction()}
           >
             {nativeWaitIndex >= 0 ? `${labels.nextNativeAnimation ?? labels.teacherContinue} ${nativeWaitIndex / 2 + 1}/${native!.steps.length}` : labels.teacherContinue}
@@ -337,11 +363,14 @@ export function FixedCoursewarePlayer({
             <p>{waiting.referenceAnswer.summary}</p>
             <ul>{waiting.referenceAnswer.keyPoints.map((point, index) => <li key={index}>{point}</li>)}</ul>
           </details>}
-          {waiting.checkpointKind === "media_playback" && waiting.videoUrl && <video key={waiting.checkpointId}
+          {waiting.checkpointKind === "media_playback" && waiting.videoUrl && waiting.mediaType === 'video' && <video key={waiting.checkpointId}
             controls playsInline preload="metadata" src={waiting.videoUrl}
             onEnded={() => engine.current?.resumeInteraction(waiting.checkpointId)}
             onError={() => resourceError(new Error("Video playback failed. Retry this page."))} aria-label={labels.videoClip ?? englishPlayerLabels.videoClip}
             style={{ width: "100%", maxHeight: "60vh" }} />}
+          {waiting.checkpointKind === "media_playback" && waiting.videoUrl && waiting.mediaType === 'audio' && <audio key={waiting.checkpointId}
+            controls preload="metadata" src={waiting.videoUrl} onEnded={() => engine.current?.resumeInteraction(waiting.checkpointId)}
+            onError={() => resourceError(new Error('Audio playback failed. Retry this page.'))} />}
         </div>
       )}
       {error && (

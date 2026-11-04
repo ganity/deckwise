@@ -1,4 +1,12 @@
 import type { CoursewareSceneTeaching } from "./courseware-scene-teaching.js";
+export type CoursewarePlannedQuiz = {
+  type: "quiz";
+  questions: Array<{ id: string; type: "single" | "multiple" | "judge" | "short_answer"; question: string;
+    options?: Array<{ value: string; label: string; image?: { src: string; assetId?: string; mimeType?: string } }>;
+    answer?: string[]; image?: { src: string; assetId?: string; mimeType?: string };
+    analysis?: string; referenceAnswer?: string; keyPoints?: string[]; commentPrompt?: string; points?: number; hasAnswer?: boolean }>;
+  interactionMode?: "assessment_review" | "classroom_instant_feedback";
+};
 export type CoursewareScenePlanPage = {
   pageId: string;
   sourceHash: string;
@@ -7,6 +15,7 @@ export type CoursewareScenePlanPage = {
   visualIntent: string;
   narration: string;
   teaching?: CoursewareSceneTeaching;
+  quiz?: CoursewarePlannedQuiz;
 };
 
 /** A validated generation draft, not the authoritative teaching of an open PPTX. */

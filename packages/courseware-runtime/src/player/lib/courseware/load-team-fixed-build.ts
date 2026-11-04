@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { CoursewareBuildRef } from "../../../conversion/lib/courseware/canonical/courseware-contract";
 import { isCoursewareBuildRef } from "../../../conversion/lib/courseware/canonical/courseware-contract";
 import { digestBytes, loadFixedBuild, type LoadedFixedBuild } from "./load-fixed-build";
+import { loadMaicClassroom } from './load-maic-classroom';
 
 const MIB = 1024 * 1024;
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
@@ -77,7 +78,8 @@ export async function loadTeamFixedBuild(
   check(new Set(manifest.files.map(f => f.path)).size === manifest.files.length && manifest.files.length === files.size - 1 &&
     manifest.files.every(f => f.path !== "manifest.json" && files.get(f.path)?.sha256 === f.sha256), "TEAM_MANIFEST_MISMATCH");
   const packageBytes = await read("package.json");
-  const projection = payloadProjection.safeParse(JSON.parse(new TextDecoder().decode(packageBytes)));
+  const payload: unknown = JSON.parse(new TextDecoder().decode(packageBytes));
+  const projection = payloadProjection.safeParse(payload);
   check(projection.success, "PACKAGE_SCHEMA_INVALID");
   const { report, assets } = projection.data;
   check(files.get("source.pptx")!.sha256 === report.sourceSha256, "TEAM_SOURCE_MISMATCH");
@@ -92,6 +94,20 @@ export async function loadTeamFixedBuild(
   await read("source.pptx");
   const resources = new Map<string, Uint8Array>();
   for (const path of paths) if (assetPath.test(path)) resources.set(path, await read(path));
+  if (payload && typeof payload === 'object' && 'schemaVersion' in payload && payload.schemaVersion === 'deckwise-maic/1' && 'classroom' in payload) {
+    const urls: string[] = [];
+    try {
+      const loaded = await loadMaicClassroom(payload.classroom, buildId, async asset => {
+        const ref = assets.find(candidate => candidate.id === asset.assetId && candidate.path === asset.url);
+        check(ref && (asset.mimeType === 'image/*' ? ref.mimeType.startsWith('image/') : ref.mimeType === asset.mimeType), 'TEAM_ASSET_MISMATCH');
+        const bytes = resources.get(ref.path);
+        check(bytes, 'TEAM_ASSET_MISMATCH');
+        const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: ref.mimeType }));
+        urls.push(url); return url;
+      }, signal);
+      return { ...loaded, dispose() { urls.forEach(url => URL.revokeObjectURL(url)); } };
+    } catch (error) { urls.forEach(url => URL.revokeObjectURL(url)); throw error; }
+  }
   return loadFixedBuild(packageBytes, buildId, async asset => {
     const bytes = resources.get(asset.path);
     check(bytes, "TEAM_ASSET_MISMATCH");

@@ -48,6 +48,8 @@ pub(super) struct Page {
     pub(super) visual_intent: String,
     pub(super) narration: String,
     #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "crate::db::courseware_projects::present_option")]
+    pub(super) quiz: Option<Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "crate::db::courseware_projects::present_option")]
     pub(super) teaching: Option<crate::db::courseware_projects::scene_teaching::Teaching>,
 }
 
@@ -152,9 +154,13 @@ pub(super) fn read_plan(
         || plan.pages.len() > 30
         || plan.pages.iter().any(|page| {
             !bounded(&page.title, 200)
+                || (page.teaching.as_ref().is_some_and(|t| t.page_type == "quiz") != page.quiz.is_some())
+                || page.quiz.as_ref().is_some_and(|quiz| {
+                    crate::db::courseware_projects::classroom::validate_classroom(&json!({"id":"plan","createdAt":"plan","stage":{"id":"plan","name":"plan","createdAt":0,"updatedAt":0},"scenes":[{"id":"quiz","stageId":"plan","type":"quiz","title":"quiz","order":0,"content":quiz}]})).is_err()
+                })
                 || !bounded(&page.visual_intent, 1000)
                 || !bounded(&page.narration, 2500)
-                || page.teaching.as_ref().is_some_and(|t| !t.valid() || t.question.as_ref().is_some_and(|q| std::iter::once(&q.text).chain(q.response.options.iter()).any(|s| !page.visible_text.iter().any(|v| v.contains(s.as_str())))))
+                || page.teaching.as_ref().is_some_and(|t| !t.valid())
                 || page.visible_text.len() > 6
                 || page.visible_text.iter().any(|text| !bounded(text, 160))
         })
@@ -211,7 +217,7 @@ pub(super) async fn handle(
         .kv_get(TASK_NAMESPACE, &session_id)
         .map_err(error)?
         .ok_or_else(|| invalid("Select a scene task first"))?;
-    if task["taskType"] != "scene" || (sha256.is_some() && task.get("generatedPath").is_some()) {
+    if task["taskType"] != "scene" || (sha256.is_some() && (task.get("generatedPath").is_some() || task.get("canonicalProjectId").is_some())) {
         return Err(invalid("Scene approval requires an ungenerated scene task"));
     }
     let key = key(&root, &session_id)?;
@@ -463,6 +469,22 @@ mod tests {
             page.source_hash().unwrap(),
             "sha256:53189ad924861bd6c42e7112eb48effd735afc5abaeb573d78fa34623376a308"
         );
+    }
+
+    #[test]
+    fn independent_quiz_plan_hash_and_interaction_reference_fields_match_main() {
+        let quiz = json!({"title":"Question","visibleText":["Practice"],"visualIntent":"A class","narration":"Choose.","quiz":{"questions":[{"answer":["A"],"id":"q","options":[{"label":"Hello","value":"A"},{"label":"Bye","value":"B"}],"question":"Greeting?","type":"single"}],"type":"quiz"},"teaching":{"pageType":"quiz","phase":"practice","objective":"Greet","durationSeconds":30,"requiredObjects":[]}});
+        let page: Page = serde_json::from_value(quiz.clone()).unwrap();
+        assert_eq!(page.source_hash().unwrap(), "sha256:4fa644f27a2cd2b050955929684b48fbea8955b906682557d6bf7a736acc4497");
+        let interaction = json!({"title":"Discuss","visibleText":["Practice"],"visualIntent":"A class","narration":"Listen.","teaching":{"pageType":"interactive","phase":"practice","objective":"Greet","durationSeconds":30,"requiredObjects":[],"question":{"text":"Say hello","response":{"kind":"discussion","options":[],"answerIndices":[]},"referenceAnswer":{"summary":"Hello","keyPoints":["greeting"]},"constraintPrompt":"Only greetings"}}});
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join(".deckwise-ppt/scenes/chat-a/plan.json");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let bytes = serde_json::to_vec(&json!({"title":"Mixed","pages":[quiz,interaction]})).unwrap();
+        std::fs::write(&path,&bytes).unwrap();
+        let plan = read_plan(root.path().to_str().unwrap(),"chat-a",&hex::encode(sha2::Sha256::digest(&bytes))).unwrap();
+        assert!(plan.pages[0].teaching.as_ref().unwrap().question.is_none());
+        assert_eq!(plan.pages[1].teaching.as_ref().unwrap().question.as_ref().unwrap().reference_answer.as_ref().unwrap().summary,"Hello");
     }
 
     #[cfg(unix)]

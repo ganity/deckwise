@@ -1,5 +1,31 @@
 # 04. E2E Test Plan
 
+
+## E2E-COURSEWARE-maic-assessment-review
+
+Provider-free source browser gates:
+`node packages/courseware-runtime/scripts/verify-maic-assessment.mjs` and
+`node packages/courseware-runtime/scripts/verify-maic-assessment-reference.mjs`.
+The latter requires the pinned cloud-web checkout, selected with
+`MAIC_CLOUD_WEB_ROOT` when it is not at the sibling reference location.
+
+- Submit stays disabled until every single/multiple/judge/short-answer question
+  has an answer; authored reference guidance is hidden while answering.
+- Submission locks answers and shows exact weighted objective results. Short
+  answers explicitly remain ungraded and are excluded from the scored total.
+- Review exposes reference guidance and analysis; retry clears all answers and
+  returns to the answering phase. Explicit completion leaves the Quiz scene.
+- Actual cloud-web single/multiple/short-answer card text, controls and geometry
+  match within two pixels at 1280 and 1844 viewport widths. The offline microphone
+  boundary is omitted; neither test invokes grading, TTS or paid providers.
+- Load actual Desktop tokens/base/editor CSS after runtime styles under a dark
+  editor parent. Quiz controls preserve reference color, background, padding,
+  radius and opacity in answering and disabled states for both modes. Preview
+  content retains the reference 16px scale independently of shell font scaling.
+- Match the actual reference explicit `.dark` variant. OS dark mode alone must
+  preserve light classroom cards; explicit `.dark` must match reference dark
+  controls in both operating-system schemes.
+
 ## E2E-COURSEWARE-dialog-hides-native-office
 
 Provider-free interaction gate: `node --test apps/desktop/test/ppt-editor-visibility.test.mjs`.

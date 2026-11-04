@@ -5,6 +5,7 @@ import { api, type PptEditorState } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
 import { IconCheck, IconClose, IconExternal, IconFileText, IconPanelMaximize, IconPanelRestore, IconRefresh } from "../icons";
 import { WorkTabEmpty } from "./WorkTabEmpty";
+import { CoursewareClassroomEditor } from "./CoursewareClassroomEditor";
 import { PptxInspectionPanel } from "./PptxInspectionPanel";
 
 export function PptEditorTab({
@@ -29,6 +30,7 @@ export function PptEditorTab({
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const openRequest = useRef(0);
   const [state, setState] = useState<PptEditorState>({ status: "opening", path });
+  const [courseEditorOpen, setCourseEditorOpen] = useState(false);
   const [inspectionOpen, setInspectionOpen] = useState(false);
   const closeTab = useAppStore((store) => store.closeWorkPanelTab);
   const sessionId = useAppStore((store) => store.activeSessionId);
@@ -52,8 +54,8 @@ export function PptEditorTab({
 
   useEffect(() => {
     // Native views composite above renderer dialogs, regardless of CSS z-index.
-    void api.pptEditorSetVisible(!blocked && ["ready", "saved", "saving"].includes(state.status));
-  }, [blocked, state.status]);
+    void api.pptEditorSetVisible(!blocked && !courseEditorOpen && ["ready", "saved", "saving"].includes(state.status));
+  }, [blocked, courseEditorOpen, state.status]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -129,6 +131,7 @@ export function PptEditorTab({
           disabled={!state.nativeTeaching} onClick={() => void api.pptEditorConfigureUi({ teachingOpen: state.teachingOpen === false })
             .catch(error => useAppStore.getState().showToast(String(error)))}>{t("panel.pptEditor.teachingFlow")}</button>}
         {extension === "pptx" && <button type="button" aria-expanded={inspectionOpen} onClick={() => setInspectionOpen(value => !value)}>{t("panel.pptEditor.inspection")}</button>}
+        {extension === "pptx" && sessionId && <button type="button" aria-pressed={courseEditorOpen} disabled={busy} onClick={() => setCourseEditorOpen(value => !value)}>{courseEditorOpen ? "返回 PPT" : "Quiz / 互动编辑"}</button>}
         {actions}
         <button type="button" aria-pressed={maximized} disabled={!onToggleMaximize} onClick={() => onToggleMaximize?.()}>
           {maximized ? <IconPanelRestore size={13} /> : <IconPanelMaximize size={13} />}
@@ -152,7 +155,8 @@ export function PptEditorTab({
         </div>
       </aside>}
       <div className="ppt-editor-body">
-      <div ref={surfaceRef} className="ppt-editor-surface" aria-busy={state.status === "opening"}>
+      {courseEditorOpen && sessionId && <div style={{ flex: 1, minWidth: 0 }}><CoursewareClassroomEditor sessionId={sessionId} readOnly={state.readOnly} /></div>}
+      <div style={courseEditorOpen ? { display: "none" } : undefined} ref={surfaceRef} className="ppt-editor-surface" aria-busy={state.status === "opening"}>
         {state.status === "opening" && <WorkTabEmpty icon={IconFileText} title={t("panel.pptEditor.loading")}>
           <span className="ppt-editor-loading-dots" aria-hidden="true"><i /><i /><i /></span>
         </WorkTabEmpty>}

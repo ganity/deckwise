@@ -242,3 +242,20 @@ five-second forward seek. Page changes dispose the previous timeline and native
 animation session before loading the selected page. Stale callbacks cannot
 advance the new page. Speech synchronized with native animation supports forward
 seeks; backward review restarts the page to preserve native state.
+
+## Canonical MAIC assessment review
+
+Canonical Quiz scenes retain separate instant-feedback and assessment-review
+presentations. Assessment review ports the pinned cloud-web question cards,
+weighted objective grading, score banner and answering/review/retry phases.
+Submitting locks the answer inputs and exposes review results; explicit completion
+continues the course. Retry clears the selected options and short-answer text.
+Question and option images remain available in both presentations.
+
+Desktop does not implicitly call cloud-web microphone or AI-grading services.
+Short answers remain explicitly ungraded, display their authored reference and
+key points only in review, and are excluded from the objective-score denominator.
+They are never reported as incorrect or assigned a fabricated zero score.
+The source-level browser gate checks this behavior and an independent actual
+cloud-web card projection checks layout at 1280 and 1844 pixels; this does not
+claim online grading or reference animation-service parity.

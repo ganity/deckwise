@@ -25,6 +25,9 @@ import { registerCoursewareCanvasMusicIpc } from "./courseware-canvas-music-ipc"
 import { CoursewareOnlinePreparation } from "../courseware-online-prepare";
 import { registerCoursewareOnlinePreparationIpc } from "./courseware-online-prepare-ipc";
 import { coursewareOnlineDeployment } from "../courseware-online-deployment";
+import { CoursewareClassroomCoordinator } from "../courseware-classroom";
+import { refreshNativeMaicClassroom } from "../courseware-classroom-native";
+import { CoursewareClassroomTts } from "../courseware-classroom-tts";
 
 export function registerPptEditorIpc(input: {
   registrar: IpcRegistrar;
@@ -39,6 +42,7 @@ export function registerPptEditorIpc(input: {
   getViewingSessionId: () => string | null;
   onChatBridgeReady: (bridge: PptEditorChatBridge) => void;
   onOnlinePreparationReady?: (preparation: CoursewareOnlinePreparation) => void;
+  onClassroomReady?: (classroom: CoursewareClassroomCoordinator) => void;
   onDeactivate?: () => void;
   getWorkspaceRoot: () => Promise<string | null>;
   getExtraRoots: (workspaceRoot: string | null) => Promise<string[]>;
@@ -75,6 +79,47 @@ export function registerPptEditorIpc(input: {
   };
   const teaching = new CoursewareTeachingCoordinator(editor, getHost, getWorkspaceRoot, input.getViewingSessionId,
     sessionId => chat.assertActive(sessionId), sessionId => chat.assertOwned(sessionId));
+  const assertClassroomOwner = (sessionId: string) => {
+    if (!getHost() || input.getViewingSessionId() !== sessionId) throw new Error("Classroom is no longer active in this Chat");
+  };
+  const classroom = new CoursewareClassroomCoordinator({ getHost, getWorkspace: getWorkspaceRoot,
+    getSessionId: input.getViewingSessionId, assertOwned: assertClassroomOwner,
+    openProject: sessionId => teaching.open(sessionId),
+    refreshNative: (sessionId, projectId) => teaching.withSaved(sessionId, async (host, jobId, snapshot, context) => {
+      const workspace = await getWorkspaceRoot();
+      if (!workspace) throw new Error("Classroom workspace is unavailable");
+      return refreshNativeMaicClassroom({ host, sessionId, projectId, jobId, workspace,
+        assertCurrent: () => teaching.assertCurrent(snapshot, context, sessionId, host) });
+    }),
+    completeReference: async (sessionId, data, signal) => {
+      if (!input.resolveModel) throw new Error("Select a model before generating a reference");
+      const model = await input.resolveModel(sessionId);
+      assertClassroomOwner(sessionId);
+      const result = await input.completeNarration({ sessionId, ...model, signal, maxOutputTokens: 2048, includeSessionContext: false,
+        system: "为课堂互动问题生成参考答案与评价提示。仅输出 JSON 对象，字段 summary（字符串）、keyPoints（字符串数组）、constraintPrompt（可选字符串）。保留题意，答案根据给定上下文，不要编造背景事实。", messages: [{ role: "user", content: data }] });
+      assertClassroomOwner(sessionId);
+      if (JSON.stringify(await input.resolveModel(sessionId)) !== JSON.stringify(model)) throw new Error("Reference model changed");
+      return result.text;
+    } });
+  input.onClassroomReady?.(classroom);
+  const classroomTts = new CoursewareClassroomTts({ auth: input.authSession, open: sessionId => classroom.open({ sessionId }),
+    getHost, getWorkspace: getWorkspaceRoot, assertOwned: assertClassroomOwner, decodeAudio: decodeCoursewareAudio });
+  for (const [channel, method] of [[IPC.invoke.coursewareClassroomTtsModels, "models"], [IPC.invoke.coursewareClassroomTtsQuote, "quote"],
+    [IPC.invoke.coursewareClassroomTtsSubmit, "submit"], [IPC.invoke.coursewareClassroomTtsRefresh, "refresh"]] as const) {
+    registrar.handleWithEvent(channel, async (event, payload: unknown, ...extra: unknown[]) => {
+      registrar.assertMainWindowSender(event);
+      if (extra.length) throw new Error("Unexpected classroom TTS parameters");
+      return classroomTts[method](payload);
+    });
+  }
+  for (const [channel, method] of [[IPC.invoke.coursewareClassroomOpen, "open"], [IPC.invoke.coursewareClassroomCreate, "create"], [IPC.invoke.coursewareClassroomWrite, "write"],
+    [IPC.invoke.coursewareClassroomImage, "image"], [IPC.invoke.coursewareClassroomExport, "export"], [IPC.invoke.coursewareClassroomReference, "reference"]] as const) {
+    registrar.handleWithEvent(channel, async (event, payload: unknown, ...extra: unknown[]) => {
+      registrar.assertMainWindowSender(event);
+      if (extra.length) throw new Error("Unexpected classroom parameters");
+      return classroom[method](payload);
+    });
+  }
   const nativeSave = new CoursewareNativeSave(getHost, input.getViewingSessionId, getWorkspaceRoot,
     sessionId => chat.assertOwned(sessionId), operation => teaching.duringNativeSave(operation));
   editor.nativeSave = value => input.getViewingSessionId() ? nativeSave.prepare(value) : Promise.resolve(undefined);

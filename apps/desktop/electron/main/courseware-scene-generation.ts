@@ -38,7 +38,7 @@ export class CoursewareSceneGeneration {
       timer = setInterval(() => { try { selected.assertScope(); } catch (error) { controller.abort(error); } }, 100);
       await assertCurrent();
       const canvas = { width: 1280, height: 800 };
-      const visuals = selected.plan.pages.map(page => {
+      const visuals = selected.plan.pages.filter(page => !page.quiz).map(page => {
         const rows = selected.images.filter(image => image.pageId === page.pageId);
         const base = rows.find(row => row.target.kind === "cleanPlate")!.asset;
         const scale = Math.min(canvas.width / base.width, canvas.height / base.height);
@@ -67,7 +67,7 @@ export class CoursewareSceneGeneration {
         thinkingLevel: selected.thinkingLevel, pages: selected.plan.pages, visuals, canvas, signal });
       await assertCurrent();
       const result = await this.services.stage({ workspace: selected.workspace, sessionId,
-        title: selected.plan.title, pptx: deck.pptx, teaching: deck.teaching, sceneMapping: deck.mapping, signal,
+        title: selected.plan.title, pptx: deck.pptx, teaching: deck.teaching, sceneMapping: deck.mapping, canonicalClassroom: deck.canonicalClassroom, signal,
         sceneProof: selected.proof, assertCurrent });
       return { path: result.path };
     } finally { if (timer) clearInterval(timer); clearTimeout(timeout); this.active = null; }

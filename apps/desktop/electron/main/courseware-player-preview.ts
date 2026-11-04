@@ -4,11 +4,13 @@ import { BrowserWindow, type IpcMain } from "electron";
 import type { CoursewareFixedBuildCoordinator } from "./courseware-fixed-build";
 import type { CoursewareMediaClient, CoursewareTeamFixedPlayback } from "./courseware-media";
 import { openCoursewareBuildFiles } from "./courseware-build-files";
+import type { MaicClassroom } from "@pi-desktop/courseware-runtime/node";
 
 export const COURSEWARE_PLAYER_READ = "deckwise-fixed-player:read";
 type TeamMedia = Pick<CoursewareMediaClient, "getTeamFixedPlayback" | "downloadTeamFixedFile">;
 type CurrentPlayer = { window: BrowserWindow; previewId?: string; projectId?: string; buildId: string; url: string; locale: string;
-  files?: Awaited<ReturnType<typeof openCoursewareBuildFiles>>; teamPlayback?: CoursewareTeamFixedPlayback };
+  files?: Awaited<ReturnType<typeof openCoursewareBuildFiles>>; teamPlayback?: CoursewareTeamFixedPlayback;
+  canonical?: { classroom: MaicClassroom; readAsset(id: unknown): Promise<Uint8Array>; assertCurrent(): Promise<void> } };
 
 /** Dedicated sandboxed surface; only its top frame may read the selected package's finite assets. */
 export class CoursewarePlayerPreview {
@@ -31,6 +33,15 @@ export class CoursewarePlayerPreview {
       if (this.reading) throw new Error("Courseware preview read already running");
       this.reading = true;
       try {
+        if (current.canonical) {
+          await current.canonical.assertCurrent();
+          const result = kind === "package" ? { classroom: current.canonical.classroom, buildId: current.buildId, locale: current.locale }
+            : kind === "asset" ? await current.canonical.readAsset(Reflect.get(payload, "id")) : null;
+          if (!result) throw new Error("Invalid canonical preview read");
+          await current.canonical.assertCurrent();
+          if (this.current !== current || current.window.isDestroyed()) throw new Error("Courseware preview changed");
+          return result;
+        }
         if (current.teamPlayback) {
           if (kind === "team-selection") return this.teamSelection(current);
           if (kind !== "team-file" || !this.teamMedia) throw new Error("Invalid team preview read");
@@ -43,9 +54,23 @@ export class CoursewarePlayerPreview {
         const bytes = kind === "package" ? current.files.packageBytes() : await current.files.assetBytes(Reflect.get(payload, "id"));
         await builds.selected(current.previewId);
         if (this.current !== current || current.window.isDestroyed()) throw new Error("Courseware preview changed");
-        return kind === "package" ? { bytes, buildId: current.buildId, locale: current.locale } : bytes;
+        if (kind === "package") {
+          const pkg = JSON.parse(Buffer.from(bytes).toString("utf8"));
+          return pkg.classroom ? { classroom: pkg.classroom, buildId: current.buildId, locale: current.locale } : { bytes, buildId: current.buildId, locale: current.locale };
+        }
+        return bytes;
       } finally { this.reading = false; }
     });
+  }
+
+  async openClassroom(input: { classroom: MaicClassroom; buildId: string; locale: string;
+    readAsset(id: unknown): Promise<Uint8Array>; assertCurrent(): Promise<void> }): Promise<void> {
+    if (!["en", "zh-CN"].includes(input.locale)) throw new Error("Invalid classroom locale");
+    this.close();
+    const generation = this.generation, parent = this.getParent();
+    if (!parent || parent.isDestroyed()) throw new Error("Main window is unavailable");
+    await input.assertCurrent();
+    await this.present({ buildId: input.buildId, locale: input.locale, canonical: input }, generation, parent);
   }
 
   async open(previewId: unknown, locale: unknown): Promise<void> {

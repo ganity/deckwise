@@ -4,3 +4,7 @@ export { createMediaTaskAssetResolver } from './player/lib/courseware/media-task
 export { englishPlayerLabels, chinesePlayerLabels, type FixedPlayerLabels } from './player/labels';
 export { mountFixedBuild } from './player/mount-fixed-build';
 export { loadTeamFixedBuild } from './player/lib/courseware/load-team-fixed-build';
+export { parseMaicClassroom, maicClassroomSchema, type MaicClassroom } from './maic-classroom';
+export { loadMaicClassroom, type MaicResourceResolver } from './player/lib/courseware/load-maic-classroom';
+export { MaicQuiz, scoreMaicQuiz } from './player/components/courseware/MaicQuiz';
+export { MaicInstantQuizCard } from './player/components/courseware/MaicInstantQuizCard';

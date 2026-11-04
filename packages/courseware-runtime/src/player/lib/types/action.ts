@@ -291,10 +291,12 @@ type ChapterSummaryInteractionCheckpointAction = ActionBase & {
   chapterId: string;
   chapterTitle: string;
   question: string;
+  constraintPrompt?: string;
   response?: QuestionResponse;
   referenceAnswer: {
     summary: string;
     keyPoints: string[];
+    label?: string;
   };
   context: {
     chapterSummary: string;

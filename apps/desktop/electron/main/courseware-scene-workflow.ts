@@ -29,12 +29,12 @@ export async function assembleSceneCourse(input: {
     throw new Error("Invalid approved scene course plan");
   const check = async () => { signal?.throwIfAborted(); await assertCurrent(); signal?.throwIfAborted(); };
   await check();
-  const visuals = await services.resolve({ pages: captured.plan.pages, assignments: captured.assignments, canvas: captured.canvas, signal });
+  const visuals = await services.resolve({ pages: captured.plan.pages.filter(page => !page.quiz), assignments: captured.assignments, canvas: captured.canvas, signal });
   await check();
   const deck = await services.build({ sessionId: captured.sessionId, modelKey: captured.modelKey,
     thinkingLevel: captured.thinkingLevel, pages: captured.plan.pages, visuals, canvas: captured.canvas, signal });
   await check();
   return services.stage({ workspace: captured.workspace, sessionId: captured.sessionId,
-    title: captured.plan.title, pptx: deck.pptx, teaching: deck.teaching,
+    title: captured.plan.title, pptx: deck.pptx, teaching: deck.teaching, canonicalClassroom: deck.canonicalClassroom,
     ...(captured.sceneProof ? { sceneMapping: deck.mapping, sceneProof: captured.sceneProof } : {}), signal });
 }

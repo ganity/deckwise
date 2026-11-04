@@ -440,7 +440,7 @@ fn verify_decomposition_selection(intents: &[Intent], clean: &Intent) -> Result<
 
 fn current_plan(state: &AppState, root: &str, scope: &Scope) -> Option<String> {
     let task = state.db.kv_get(TASK_NAMESPACE, &scope.session_id).ok()??;
-    if task["taskType"] != "scene" || task.get("generatedPath").is_some() {
+    if task["taskType"] != "scene" || task.get("generatedPath").is_some() || task.get("canonicalProjectId").is_some() {
         return None;
     }
     let approval = scene_plan::approval(state, root, &scope.session_id).ok()??;
@@ -487,8 +487,9 @@ pub(super) fn verify_generation(
     if expected.len() != proof.selected_intent_ids.len() || expected != actual {
         return Err(conflict("Reviewed scene asset selection changed"));
     }
-    let pages: std::collections::HashSet<_> = (1..=plan.pages.len())
-        .map(|index| format!("scene-{index:03}"))
+    let pages: std::collections::HashSet<_> = plan.pages.iter().enumerate()
+        .filter(|(_, page)| page.teaching.as_ref().is_none_or(|t| t.page_type != "quiz"))
+        .map(|(index, _)| format!("scene-{:03}", index + 1))
         .collect();
     for page_id in &pages {
         let assets: Vec<_> = selected.iter().filter(|i| &i.page_id == page_id).collect();

@@ -11,6 +11,7 @@ use tokio::process::Command;
 use tokio::sync::watch;
 use tokio::task::JoinHandle;
 
+mod classroom_source;
 pub mod identity;
 mod narration;
 mod online_source_review;
