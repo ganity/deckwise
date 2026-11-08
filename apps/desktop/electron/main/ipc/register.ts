@@ -269,6 +269,16 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
       throw new Error("Invalid courseware workflow request");
     return coursewareWorkflow.read(Reflect.get(value, "sessionId"));
   });
+  registrar.handleWithEvent(IPC.invoke.coursewareStoryDecision, async (event, input: unknown, ...extra: unknown[]) => {
+    registrar.assertMainWindowSender(event);
+    if (extra.length || !input || typeof input !== "object" || Array.isArray(input)) throw new Error("Invalid story decision");
+    const sessionId = Reflect.get(input, "sessionId"), host = getHost();
+    if (!host || typeof sessionId !== "string" || sessionId !== getNotificationViewingSessionId() || activeTurns.has(sessionId))
+      throw new Error("Wait for the current Chat to finish before deciding its story");
+    await coursewareWorkflow.read(sessionId);
+    if (host !== getHost() || sessionId !== getNotificationViewingSessionId() || activeTurns.has(sessionId)) throw new Error("Story decision scope changed");
+    return host.call("courseware.story.decide", input);
+  });
   registerCoursewareMediaCanvasIpc(registrar, dependencies.mediaCanvas);
   registerCoursewareCanvasImageIpc({ registrar, getHost, getViewingSessionId: getNotificationViewingSessionId,
     activeTurns, authSession });
@@ -377,6 +387,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     onChatBridgeReady: dependencies.onPptEditorChatReady,
     onOnlinePreparationReady: preparation => { onlinePreparation = preparation; },
     onClassroomReady: classroom => { canonicalClassroom = classroom; },
+    onAssessmentMediaReady: media => { coursewareWorkflow.assessments = media; },
     completeNarration: dependencies.completeNarration,
     completeScene: dependencies.completeScene,
     resolveModel: dependencies.sceneGeneration?.resolveModel,

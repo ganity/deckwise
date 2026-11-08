@@ -15,7 +15,7 @@ export async function readSceneCourseDraft(host: Host, payload: unknown): Promis
   const relativePath = sceneCoursePlanRelativePath(sessionId);
   const capture = async () => {
     const [{ task }, { session }] = await Promise.all([
-      host.call<{ task: { taskType: string; generatedPath?: string } | null }>("courseware.task.get", { sessionId }),
+      host.call<{ task: { taskType: string; generatedPath?: string; storyFirst?: boolean; educationContext?: { bodyPageLimit?: number } } | null }>("courseware.task.get", { sessionId }),
       host.call<{ session: { projectPath?: string } | null }>("session.get", { id: sessionId, messageLimit: 1 }),
     ]);
     if (task?.taskType !== "scene" || task.generatedPath || !session?.projectPath || !isAbsolute(session.projectPath))
@@ -44,6 +44,13 @@ export async function readSceneCourseDraft(host: Host, payload: unknown): Promis
     if (size > 256 * 1024) throw new Error("Scene course plan exceeds limits");
     const bytes = buffer.subarray(0, size);
     const plan = parseSceneCoursePlan(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+    const bodyPageLimit = before.task.educationContext?.bodyPageLimit;
+    if (bodyPageLimit !== undefined && plan.bodyPageLimit !== bodyPageLimit)
+      throw new Error(`Plan bodyPageLimit must match the saved body-page requirement ${bodyPageLimit}; Quiz and checkpoint pages are additional, not deducted. Correct the draft before submission.`);
+    if (before.task.storyFirst) {
+      const { story } = await host.call<{ story: import("@pi-desktop/shared").CoursewareStoryState | null }>("courseware.story.get", { sessionId });
+      if (!story?.sha256 || story.sha256 !== story.approvedSha256 || plan.storySha256 !== story.sha256) return { plan: null };
+    }
     const { approval } = await host.call<{ approval: { sha256: string } | null }>("courseware.scenePlan.get", { sessionId });
     const after = await capture();
     const finalInfo = await fs.stat(path);

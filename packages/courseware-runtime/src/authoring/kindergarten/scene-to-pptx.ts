@@ -198,6 +198,8 @@ function appendScene(
           });
         slide.addText(element.content, {
           ...box,
+          // Keep multiline text as one native textbox through the trusted importer.
+          isTextBox: true,
           ...paint(style.color, opacity),
           fontFace: style.fontFace,
           fontSize: style.fontSizePt,

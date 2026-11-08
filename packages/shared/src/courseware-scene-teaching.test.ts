@@ -24,3 +24,16 @@ it("reports nested field constraints together without accepting malformed teachi
   expect(errors).toContain("unexpected fields extra");
   expect(isCoursewareSceneTeaching(invalid)).toBe(false);
 });
+
+it("allows independent Quiz content without a duplicated teaching question, while checkpoints still require one", () => {
+  const teaching = { pageType: "quiz", phase: "practice", objective: "Greet", durationSeconds: 30, requiredObjects: [] };
+  expect(coursewareSceneTeachingIssues(teaching, "teaching")).toEqual([]);
+  expect(isCoursewareSceneTeaching({ ...teaching, question: null })).toBe(false);
+  for (const pageType of ["interactive", "pbl"])
+    expect(coursewareSceneTeachingIssues({ ...teaching, pageType }, "teaching")).toEqual([
+      "teaching.question: required for interactive and pbl pageType",
+    ]);
+  expect(isCoursewareSceneTeaching({ ...teaching, pageType: "interactive", question: {
+    text: "Introduce your family.", response: { kind: "discussion", options: [], answerIndices: [] },
+  } })).toBe(true);
+});

@@ -134,7 +134,7 @@ describe("fixed Flash declarations through runtime and HTTP/SSE", () => {
     } finally { await f.runtime.dispose(); await wire.close(); }
   });
 
-  it("keeps tool schemas with tool_choice none for final reporting and blocks a noncompliant provider call", async () => {
+  it("keeps tool schemas and corrects final reporting after blocking a noncompliant provider call", async () => {
     const path = ".deckwise-ppt/scenes/fixed-tools/plan.json";
     const wire = await wireFixture([
       ...Array.from({ length: 3 }, () => ({ name: "Write", args: { path, content: "{}" } })),
@@ -147,12 +147,16 @@ describe("fixed Flash declarations through runtime and HTTP/SSE", () => {
     try {
       await f.prompt();
       expect(f.errors).toEqual([]);
-      expect(wire.requests).toHaveLength(4);
+      expect(wire.requests).toHaveLength(5);
       expect(wire.requests.at(-1)!.tool_choice).toBe("none");
       expect(wire.requests.at(-1)!.tools).toEqual(wire.requests.at(-2)!.tools);
       expect(JSON.stringify(wire.requests.at(-1)!.messages)).toContain("planning is unfinished");
       expect(f.executed.filter(name => name === "Write")).toHaveLength(3);
       expect(f.rows.filter(row => row.toolName === "Write").at(-1)).toMatchObject({ isError: true });
+      expect(JSON.stringify(f.rows.filter(row => row.toolName === "Write").at(-1))).toContain("planning is unfinished");
+      expect(JSON.stringify(f.rows.filter(row => row.toolName === "Write").at(-1))).toContain("does not undo saved assets");
+      expect(f.rows.filter(row => row.role === "assistant").at(-1)?.content).toBe("Done.");
+      expect(JSON.stringify(wire.requests.at(-1)!.messages)).toContain("final reporting correction");
     } finally { await f.runtime.dispose(); await wire.close(); }
   });
 

@@ -128,8 +128,10 @@ export class CoursewareSceneImages {
     if (!Array.isArray(intents) || intents.length > 300) throw new Error("COURSEWARE_SCENE_IMAGE_INVALID_JOURNAL");
     const selected = intents.map(value => checked(value)).find(row => row.intent.intentId === j.intent.referenceIntentId);
     const asset = selected?.intent.asset;
+    const plan = await this.approved(c.host, c.scope.sessionId, j.intent.planSha256);
+    const firstVisualPage = plan.pages.find(page => !page.quiz && !page.teaching?.question);
     if (!selected?.current || !selected.intent.selected || selected.intent.planSha256 !== j.intent.planSha256 ||
-        selected.intent.pageId !== ((j.intent.target?.kind ?? "visualMaster") === "visualMaster" ? "scene-001" : j.intent.pageId) ||
+        selected.intent.pageId !== ((j.intent.target?.kind ?? "visualMaster") === "visualMaster" ? firstVisualPage?.pageId : j.intent.pageId) ||
         selected.intent.intentId === j.intent.intentId || (selected.intent.target?.kind ?? "visualMaster") !== "visualMaster" ||
         !asset || asset.sha256 !== ref.sha256 || asset.mimeType !== ref.mimeType || asset.byteLength !== ref.byteLength)
       throw new Error("COURSEWARE_SCENE_IMAGE_REFERENCE_CHANGED");
@@ -179,7 +181,7 @@ export class CoursewareSceneImages {
           rows.some(layer => layer.pageId === clean.pageId && layer.target.kind === "layer" && !layer.intentId.startsWith(`${clean.intentId}-layer-`)))
         throw new Error("COURSEWARE_SCENE_GENERATION_DECOMPOSITION_CHANGED");
     }
-    for (const page of plan.pages.filter(page => !page.quiz)) {
+    for (const page of plan.pages.filter(page => !page.quiz && !page.teaching?.question)) {
       const assets = rows.filter(row => row.pageId === page.pageId);
       const master = assets.filter(row => row.target.kind === "visualMaster"), clean = assets.filter(row => row.target.kind === "cleanPlate");
       if (master.length !== 1 || clean.length !== 1 || !assets.some(row => row.target.kind === "layer") ||
@@ -187,7 +189,7 @@ export class CoursewareSceneImages {
           new Set(assets.filter(row => row.target.kind === "layer").map(row => row.target.kind === "layer" && row.target.name)).size !== assets.filter(row => row.target.kind === "layer").length)
         throw new Error(`COURSEWARE_SCENE_GENERATION_ASSETS_REQUIRED: ${page.pageId}`);
     }
-    if (rows.some(row => !row.asset || !plan.pages.some(page => page.pageId === row.pageId)))
+    if (rows.some(row => !row.asset || !plan.pages.some(page => page.pageId === row.pageId && !page.quiz && !page.teaching?.question)))
       throw new Error("COURSEWARE_SCENE_GENERATION_ASSETS_REQUIRED");
     const baseline = JSON.stringify(rows);
     const assertCurrent = async () => {
@@ -228,16 +230,17 @@ export class CoursewareSceneImages {
     const p = input({ ...payload, model: chosen.model }, ["planSha256", "pageId", "model"]), c = this.context(p);
     if (!hash(p.planSha256)) throw new Error("COURSEWARE_SCENE_IMAGE_INVALID_REQUEST");
     const plan = await this.approved(c.host, p.sessionId, p.planSha256);
-    if (!plan.pages.some((page) => page.pageId === p.pageId)) throw new Error("COURSEWARE_SCENE_IMAGE_INVALID_REQUEST");
+    if (!plan.pages.some((page) => page.pageId === p.pageId && !page.quiz && !page.teaching?.question)) throw new Error("COURSEWARE_SCENE_IMAGE_INVALID_REQUEST");
+    const firstVisualPage = plan.pages.find(page => !page.quiz && !page.teaching?.question)!;
     let referenceIntentId = requestedReference;
     if (target.kind === "visualMaster") {
-      if (p.pageId === plan.pages[0].pageId) {
+      if (p.pageId === firstVisualPage.pageId) {
         if (requestedReference !== undefined) throw new Error("COURSEWARE_SCENE_IMAGE_INVALID_REQUEST");
       } else {
         const rows = await this.list({ sessionId: p.sessionId });
         c.assertCurrent();
         const style = rows.find(row => row.current && row.selected && row.asset && row.planSha256 === p.planSha256 &&
-          row.pageId === plan.pages[0].pageId && row.target.kind === "visualMaster");
+          row.pageId === firstVisualPage.pageId && row.target.kind === "visualMaster");
         if (!style || requestedReference !== undefined && requestedReference !== style.intentId)
           throw new Error("COURSEWARE_SCENE_IMAGE_REFERENCE_CHANGED");
         if (!chosen.supportsReferenceImage) throw new Error("COURSEWARE_SCENE_IMAGE_REFERENCE_UNSUPPORTED");

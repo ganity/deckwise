@@ -5,6 +5,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { resolveRealOpenablePath, resolveRealPathForCreateWithinRoot } from "./fs-panel";
 import { validateOfficeBytes } from "./office-file";
 import { jobIdFor, listRevisions, publishRevision } from "./ppt-editor-files";
+import type { MaicClassroom } from "@pi-desktop/courseware-runtime/node";
 
 type Host = { call<T>(method: string, params: unknown): Promise<T> };
 
@@ -63,10 +64,13 @@ export async function stageGeneratedSceneCourse(input: {
   }
   const sceneMapping = input.sceneMapping && structuredClone(input.sceneMapping);
   if (input.sceneProof && !sceneMapping) throw new Error("Generated scene object mapping is required");
+  const assessmentIds = new Set((canonicalClassroom as MaicClassroom | undefined)?.scenes.filter(scene =>
+    scene.type === "quiz" || scene.actions?.some(action => action.type === "interaction_checkpoint" && action.checkpointKind === "chapter_summary"))
+    .map(scene => scene.id) ?? []);
   if (!input.title.trim() || input.title.length > 500 || !Array.isArray(input.teaching) ||
-      input.teaching.length < 1 || input.teaching.length > 30 ||
+      input.teaching.length < 1 || input.teaching.length > 100 ||
       input.teaching.some((page) => typeof page.pageId !== "string" || !page.pageId ||
-        typeof page.narration !== "string" || !page.narration.trim() || page.narration.length > 2500))
+        typeof page.narration !== "string" || (!page.narration.trim() && !assessmentIds.has(page.pageId)) || page.narration.length > 2500))
     throw new Error("Invalid generated course title or narration");
   const bytes = validateOfficeBytes(input.pptx, "pptx");
   if (bytes.length > 50 * 1024 * 1024) throw new Error("Generated PPTX exceeds 50 MiB");
@@ -139,7 +143,7 @@ export async function stageGeneratedSceneCourse(input: {
       const classroom = structuredClone(canonicalClassroom) as { stage: { name: string }; scenes: Array<{ type: string; content: { canvas?: { elements: Array<{ id: string; type: string; content?: string }> } }; actions?: Array<{ type: string; question?: string }>; metadata?: Record<string, unknown> }> };
       classroom.stage.name = input.title;
       let nativeIndex = 0;
-      for (const scene of classroom.scenes) if (scene.type === "slide") {
+      for (const scene of classroom.scenes) {
         const question = scene.actions?.find(action => action.type === "interaction_checkpoint" && typeof action.question === "string")?.question;
         scene.metadata = { ...scene.metadata, nativePageId: project.pages[nativeIndex++]?.pageId,
           ...(question !== undefined ? { nativeQuestionText: question } : {}),

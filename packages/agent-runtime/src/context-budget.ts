@@ -14,6 +14,7 @@
 
 import type { Api, Model } from "@earendil-works/pi-ai";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import { effectiveModelContextWindow } from "./output-cap.js";
 import { estimateContextTokens } from "./pi-runtime-estimates.js";
 import {
   DEFAULT_CONTEXT_WINDOW,
@@ -80,6 +81,7 @@ export function automaticCompactionThresholdFor(
  */
 export type ContextBudgetModel = {
   contextWindow?: number;
+  catalogContextWindow?: number;
   maxTokens?: number;
 };
 
@@ -107,7 +109,7 @@ export function contextBudgetLimitsFor(
 ): ContextBudgetLimits {
   const contextWindow = Math.max(
     1,
-    Math.round(model.contextWindow || DEFAULT_CONTEXT_WINDOW),
+    effectiveModelContextWindow({ ...model, contextWindow: model.contextWindow || DEFAULT_CONTEXT_WINDOW, maxTokens: model.maxTokens || DEFAULT_MAX_TOKENS }),
   );
   const modelOutputBudget = Math.min(
     Math.max(1, Math.round(model.maxTokens || DEFAULT_MAX_TOKENS)),

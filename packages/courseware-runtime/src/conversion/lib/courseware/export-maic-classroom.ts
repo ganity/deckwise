@@ -8,10 +8,12 @@ type Asset = { assetId: string; url: string; mimeType: string };
 /** Local MAIC content archive. Trusted publication/signing remains the server publisher's job. */
 export async function exportMaicClassroom(raw: unknown, resolve: (asset: Asset) => Promise<Uint8Array>): Promise<Uint8Array> {
   const classroom = parseMaicClassroom(raw);
+  if (classroom.scenes.some(scene => scene.metadata?.nativeTeachingSyncPending === true))
+    throw new Error(`Native teaching is not fully synchronized: ${classroom.scenes.filter(scene => scene.metadata?.nativeTeachingSyncPending === true).map(scene => `${scene.title}: ${scene.metadata?.nativeTeachingSyncReason ?? "media, pauses or cues"}`).join("; ")}`);
   classroom.scenes = classroom.scenes.map(scene => ensureInteractionCheckpoint(scene, classroom.scenes));
   // Native reconciliation baselines are local authoring state, never MAIC content.
   for (const scene of classroom.scenes) if (scene.metadata) {
-    for (const key of ['nativePageId', 'nativeNarrationText', 'nativeQuestionText', 'nativeQuestionElementId']) delete scene.metadata[key];
+    for (const key of ['nativePageId', 'copiedFromNativePageId', 'nativeNarrationText', 'nativeQuestionText', 'nativeQuestionElementId', 'nativeAudioBindings', 'nativeTeachingSyncPending', 'nativeTeachingSyncReason', 'nativeTeachingSignature', 'nativeTeachingActionIds', 'nativeTeachingElementIds', 'nativeTeachingActionsHash', 'nativeTeachingRevision']) delete scene.metadata[key];
     if (!Object.keys(scene.metadata).length) delete scene.metadata;
   }
   const zip = new JSZip();

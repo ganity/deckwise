@@ -1046,3 +1046,27 @@ async fn rejected_scene_image_prepares_a_fresh_attempt_without_replaying_history
 
 #[path = "style_tests.rs"]
 mod style_tests;
+
+#[tokio::test]
+async fn assessment_pages_need_no_images_and_style_review_starts_at_first_body_page() {
+    let mut f = Fixture::new().await;
+    let quiz = json!({"title":"Quiz","visibleText":[],"visualIntent":"Quiz template","narration":"","quiz":{"type":"quiz","questions":[{"id":"q","type":"single","question":"Greeting?","options":[{"value":"A","label":"Hello"},{"value":"B","label":"Bye"}],"answer":["A"]}]},"teaching":{"pageType":"quiz","phase":"practice","objective":"Greet","durationSeconds":30,"requiredObjects":[]}});
+    let checkpoint = json!({"title":"Discuss","visibleText":[],"visualIntent":"MAIC template","narration":"","teaching":{"pageType":"interactive","phase":"practice","objective":"Explain","durationSeconds":30,"requiredObjects":[],"question":{"text":"Why?","response":{"kind":"discussion","options":[],"answerIndices":[]}}}});
+    let mut plan = json!({"title":"Assessment","pages":[quiz,checkpoint]});
+    let write = |f: &mut Fixture, plan: &Value| {
+        let bytes = serde_json::to_vec(plan).unwrap();
+        f.sha256 = hex::encode(sha2::Sha256::digest(&bytes));
+        std::fs::write(f.path(), bytes).unwrap();
+    };
+    write(&mut f, &plan); f.approve().await;
+    let proof = GenerationProof { plan_sha256: f.sha256.clone(), principal_key: "a".repeat(64), selected_intent_ids: vec![] };
+    assert_eq!(verify_generation(&*f.state.lock().await, f.root.to_str().unwrap(), &f.session, &proof).unwrap().pages.len(), 2);
+    assert!(f.call("courseware.sceneImage.prepare", f.prepare()).await.is_err());
+    plan["pages"].as_array_mut().unwrap().push(json!({"title":"Body","visibleText":["Hello"],"visualIntent":"Greeting","narration":"Hello."}));
+    write(&mut f, &plan); f.approve().await;
+    let mut request = f.prepare(); request["pageId"] = json!("scene-003");
+    let prepared = f.call("courseware.sceneImage.prepare", request).await.unwrap();
+    assert!(prepared["intent"].get("referenceIntentId").is_none_or(Value::is_null));
+    let proof = GenerationProof { plan_sha256: f.sha256.clone(), ..proof };
+    assert!(verify_generation(&*f.state.lock().await, f.root.to_str().unwrap(), &f.session, &proof).is_err());
+}

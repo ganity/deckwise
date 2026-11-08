@@ -15,6 +15,46 @@ fn seed() -> SavedProjectSeed {
     }
 }
 
+#[test]
+fn native_saved_current_object_evidence_does_not_reassociate_original_layers() {
+    for page_token in ["page", "replacement"] {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().to_str().unwrap();
+        let db = Database::open_in_dir(dir.path()).unwrap();
+        let s = seed();
+        let project = db.open_identified_courseware_project_with_metadata(root, &s, "scene", None).unwrap();
+        db.initialize_generated_scene_objects(root, &project, &mapping(&s)).unwrap();
+        db.initialize_generated_narration(root, &project.project_id, &s.sha256, "Lesson", &["Saved text.".into()]).unwrap();
+        let original = db.kv_get(SCENE_OBJECTS_NAMESPACE, &storage_key(root, &project.project_id).unwrap()).unwrap();
+        let mut identity = s.identity.as_ref().unwrap().value().clone();
+        identity["sourceSha256"] = json!("b".repeat(64));
+        let output = SavedProjectSeed { project_id: s.project_id.clone(), pages: s.pages, sha256: "b".repeat(64), identity: Some(SavedSourceIdentity::parse(&serde_json::to_vec(&identity).unwrap()).unwrap()) };
+        let proof = native_save::NativeLineage {
+            protocol: "deckwise-office-page-lineage/1".into(), project_id: "f".repeat(64),
+            document_id: "doc".into(), session_id: "session".into(), save_request_id: "save".into(),
+            source_sha256: s.sha256.clone(), output_sha256: output.sha256.clone(),
+            opened_page_tokens: vec!["page".into()], page_tokens: vec![page_token.into()],
+            objects: vec![vec![]], animation_unchanged: vec![false],
+        };
+        let receipt = db.prepare_native_save(root, "/lesson.pptx", &output, &proof).unwrap();
+        db.resolve_native_save(root, receipt["saveId"].as_str().unwrap(), &output.sha256).unwrap();
+        let saved = db.get_courseware_project(root, &project.project_id).unwrap().unwrap();
+        let context = db.courseware_project_context(root, &project.project_id).unwrap();
+        let issues = context["completion"]["issues"].as_array().unwrap();
+        assert!(!issues.iter().any(|i| i["code"] == "PAGE_MISSING" || i["code"] == "PAGE_COUNT_MISMATCH"));
+        assert_eq!(issues.iter().any(|i| i["code"] == "NARRATION_MISSING"), page_token == "replacement");
+        let object_id = context["savedObjects"]["pages"][0]["objects"][0]["objectId"].as_str().unwrap();
+        let evidence = SceneSemanticEvidence { object_id: object_id.into(), role: "Observed object".into(), aliases: vec![], text: "".into(), teaching_target: true };
+        db.save_scene_semantic_evidence(root, &saved, &saved.pages[0].page_id, &[evidence.clone()]).unwrap();
+        let mut foreign = evidence.clone(); foreign.object_id = "unknown-object".into();
+        assert!(db.save_scene_semantic_evidence(root, &saved, &saved.pages[0].page_id, &[evidence, foreign]).is_err());
+        assert_eq!(original, db.kv_get(SCENE_OBJECTS_NAMESPACE, &storage_key(root, &project.project_id).unwrap()).unwrap());
+        db.kv_set("coursewareNativeSaveWarnings.v1", &storage_key(root, &project.project_id).unwrap(), &json!({"sourceSha256":s.sha256})).unwrap();
+        let evidence = SceneSemanticEvidence { object_id: object_id.into(), role: "Stale save".into(), aliases: vec![], text: "".into(), teaching_target: true };
+        assert!(db.save_scene_semantic_evidence(root, &saved, &saved.pages[0].page_id, &[evidence]).is_err());
+    }
+}
+
 fn mapping(seed: &SavedProjectSeed) -> GeneratedSceneMapping {
     serde_json::from_value(json!({"pages":[{"slideId":"scene-001", "sourceHash":format!("sha256:{}", "a".repeat(64)),
         "slidePart":"ppt/slides/slide1.xml", "elements":seed.identity.as_ref().unwrap().value()["pages"][0]["objects"]
@@ -83,13 +123,32 @@ fn generated_objects_bind_to_host_ids_and_remain_read_only_after_restart() {
 }
 
 #[test]
-fn native_text_matches_the_trusted_parsers_shape_type() {
+fn native_text_matches_trusted_textboxes_and_legacy_shapes_but_not_images() {
     let s = seed();
     let mut text = mapping(&s);
     text.pages[0].elements[0].kind = "native_text".into();
     text.validate_source(s.identity.as_ref().unwrap()).unwrap();
+    let mut value = s.identity.as_ref().unwrap().value().clone();
+    value["pages"][0]["objects"][0]["type"] = json!("text");
+    let identity = SavedSourceIdentity::parse(&serde_json::to_vec(&value).unwrap()).unwrap();
+    text.validate_source(&identity).unwrap();
+    text.pages[0].elements[0].kind = "native_shape".into();
+    assert!(text.validate_source(&identity).is_err());
+    text.pages[0].elements[0].kind = "native_text".into();
     text.pages[0].elements[3].kind = "native_text".into();
     assert!(text.validate_source(s.identity.as_ref().unwrap()).is_err());
+}
+
+#[test]
+fn mapping_errors_identify_counts_separately_from_page_metadata() {
+    let s = seed();
+    let mut bad = mapping(&s);
+    bad.pages[0].elements.pop();
+    let error = bad.validate_source(s.identity.as_ref().unwrap()).unwrap_err().to_string();
+    assert!(error.contains("page 1 (scene-001): exported 3, parsed 4"), "{error}");
+    bad.pages[0].slide_part = "ppt/slides/slide2.xml".into();
+    let error = bad.validate_source(s.identity.as_ref().unwrap()).unwrap_err().to_string();
+    assert!(error.contains("invalid scene page metadata at page 1 (scene-001)"), "{error}");
 }
 
 #[test]

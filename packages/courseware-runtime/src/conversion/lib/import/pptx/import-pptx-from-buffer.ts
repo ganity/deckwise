@@ -1097,6 +1097,10 @@ function mergeFallbackPagesWithSupplements(
       ),
       supplement?.pptxAnimation,
     );
+    for (const element of elements) {
+      const name = element.sourceShapeId && supplement?.sourceNames?.get(element.sourceShapeId);
+      if (name) element.sourceObjectName = name;
+    }
     return {
       ...page,
       background: mergeSupplementBackground(page.background, supplement?.background),

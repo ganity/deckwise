@@ -1,5 +1,5 @@
 use super::*;
-use crate::db::courseware_projects::native_save::NativeLineage;
+use crate::db::courseware_projects::native_save::{NativeLineage, ClassroomSave};
 use sha2::{Digest, Sha256};
 
 #[derive(Deserialize)]
@@ -9,6 +9,8 @@ struct Prepare {
     job_id: String,
     source_path: String,
     lineage: NativeLineage,
+    #[serde(default)]
+    classroom_save: Option<ClassroomSave>,
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -67,7 +69,7 @@ pub(super) async fn handle(
                 .map_err(error)?;
             state
                 .db
-                .prepare_native_save(&root, &p.source_path, &seed, &p.lineage)
+                .prepare_native_save_with_classroom(&root, &p.source_path, &seed, &p.lineage, p.classroom_save.as_ref())
                 .map_err(error)
         }
         "courseware.nativeSave.forPath" => {

@@ -3,6 +3,7 @@ use super::*;
 #[tokio::test]
 async fn ppt_editor_tools_reuse_permission_dispatch_and_cancellation() {
     for name in [
+        "courseware_media_assessments",
         "ppt_add_slide_text",
         "ppt_replace_slide_image_from_asset",
         "ppt_set_slide_text_bold",

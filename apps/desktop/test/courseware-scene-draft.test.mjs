@@ -81,6 +81,24 @@ test("explicit approval pins the reviewed draft; Chat changes require reapproval
     await assert.rejects(approveSceneCourseDraft(f.host, payload), /Invalid scene plan/);
 });
 
+test("Chat planning preserves the saved body budget through review and rejects subtracting assessments", async t => {
+  const f = await fixture(t);
+  f.tasks.set("chat-a", { taskType: "scene", educationContext: { bodyPageLimit: 8 } });
+  const plan = { ...draft, bodyPageLimit: 6, pages: Array.from({ length: 6 }, () => draft.pages[0]) };
+  const path = await f.save("chat-a", JSON.stringify(plan));
+  await assert.rejects(readSceneCourseDraft(f.host, { sessionId: "chat-a" }), /bodyPageLimit.*saved.*8/);
+  assert.equal(JSON.parse(await readFile(path)).bodyPageLimit, 6);
+  plan.bodyPageLimit = 8;
+  await f.save("chat-a", JSON.stringify(plan));
+  const { plan: reviewed } = await readSceneCourseDraft(f.host, { sessionId: "chat-a" });
+  assert.equal(reviewed.bodyPageLimit, 8);
+  const approved = await approveSceneCourseDraft(f.host, { sessionId: "chat-a", sha256: reviewed.sha256 });
+  assert.equal(approved.plan.bodyPageLimit, 8);
+  plan.pages = Array.from({ length: 9 }, () => draft.pages[0]);
+  await f.save("chat-a", JSON.stringify(plan));
+  await assert.rejects(readSceneCourseDraft(f.host, { sessionId: "chat-a" }), /正文 pages exceed/);
+});
+
 test("wrong task, attached PPTX, malformed input and changed task cannot expose a draft", async (t) => {
   const f = await fixture(t); await f.save("chat-a");
   for (const task of [{ taskType: "plain" }, { taskType: "import" }, { taskType: "scene", generatedPath: "/lesson.pptx" }]) {

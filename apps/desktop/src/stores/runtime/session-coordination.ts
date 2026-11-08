@@ -325,7 +325,8 @@ export function createSessionCoordination({
     const sessionId = created.session.id;
     if (options.courseware) {
       try {
-        await api.coursewareTaskSet(sessionId, options.courseware.taskType, options.courseware.educationContext);
+        await api.coursewareTaskSet(sessionId, options.courseware.taskType, options.courseware.educationContext,
+          ...(options.courseware.storyFirst ? [true] as const : []));
       } catch (error) {
         // Keep the empty session recoverable without presenting an unconfigured task as ready.
         commitCreatedEmptySession(created.session, { activate: false });

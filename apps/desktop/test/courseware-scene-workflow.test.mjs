@@ -2,11 +2,15 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import ts from "typescript";
+import * as shared from "../../../packages/shared/dist/index.js";
 
 const source = await readFile(new URL("../electron/main/courseware-scene-workflow.ts", import.meta.url), "utf8");
 const { outputText } = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } });
 const module = { exports: {} };
-new Function("exports", outputText)(module.exports);
+new Function("require", "exports", outputText)((id) => {
+  if (id === "@pi-desktop/shared") return shared;
+  throw new Error(`Unexpected dependency: ${id}`);
+}, module.exports);
 const { assembleSceneCourse } = module.exports;
 const makeInput = () => ({ workspace: "/workspace", sessionId: "scene-chat", modelKey: "provider/model",
   plan: { title: "问候课", pages: [{ pageId: "scene-001", sourceHash: `sha256:${"a".repeat(64)}`,

@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, PanelRightClo
 import { useTranslation } from "react-i18next";
 import { sceneWorkspaceProgress, type CoursewareWorkflowView, type CoursewareSceneImagePreview,
   type CoursewareSceneImageView, type CoursewareScenePlanSnapshot } from "@pi-desktop/shared";
-import { MaicQuiz } from "@pi-desktop/courseware-runtime/player";
+import { MaicQuiz, MaicSlidePreview, createMaicInteractionCanvas } from "@pi-desktop/courseware-runtime/player";
 import "@pi-desktop/courseware-runtime/player.css";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
@@ -117,7 +117,7 @@ export function CoursewareChatImages({ sessionId, plan, disabled, refreshKey = 0
   const status = (row: CoursewareSceneImageView) => t(`coursewareWorkflow.imageState.${row.selected ? "selected" : row.asset ? "ready" : row.task?.state ?? row.phase}`);
   const progress = sceneWorkspaceProgress(plan, rows, disabled, compilation);
   const blocked = disabled || busy;
-  const firstVisualPage = plan.pages.find(page => !page.quiz);
+  const firstVisualPage = plan.pages.find(page => !page.quiz && !page.teaching?.question);
   const cover = masterFor(rows.filter(row => row.pageId === firstVisualPage?.pageId));
   const styleSelected = !!cover?.selected;
   const isCover = focused?.pageId === firstVisualPage?.pageId && focused.target.kind === "visualMaster";
@@ -142,14 +142,16 @@ export function CoursewareChatImages({ sessionId, plan, disabled, refreshKey = 0
     </header>
     <div className="courseware-scene-workspace">
       <nav className="courseware-scene-pages" aria-label={t("coursewareWorkflow.imagePages")}>
-        <div className="courseware-scene-section-heading">{t("coursewareWorkflow.pages", { count: plan.pages.length })}</div>
+        <div className="courseware-scene-section-heading">{t("coursewareWorkflow.pages", { count: progress.total })}
+          {plan.pages.some(page => page.quiz) ? ` · ${t("coursewareWorkflow.quizPages", { count: plan.pages.filter(page => page.quiz).length })}` : ""}
+          {plan.pages.some(page => page.teaching?.question) ? ` · ${t("coursewareWorkflow.interactionPages", { count: plan.pages.filter(page => page.teaching?.question).length })}` : ""}</div>
         {plan.pages.map((page, pageIndex) => {
           const master = masterFor(rows.filter(row => row.pageId === page.pageId));
           return <button type="button" key={page.pageId} data-scene-page={page.pageId}
             aria-current={page.pageId === focusedPage.pageId ? "page" : undefined} onClick={() => choosePage(page.pageId)}>
             <CoursewareSceneThumbnail key={`${master?.intentId}-${authRevision}`} sessionId={sessionId} image={master} pageNumber={pageIndex + 1} />
             <span className="courseware-scene-page-title">{pageIndex + 1}. {page.title}</span>
-            <small>{page.quiz ? "Quiz · 结构化题目" : master ? status(master) : t("coursewareWorkflow.imageNotPrepared")}</small>
+            <small>{page.quiz ? t("coursewareWorkflow.quizTemplate") : page.teaching?.question ? t("coursewareWorkflow.checkpointTemplate") : master ? status(master) : t("coursewareWorkflow.imageNotPrepared")}</small>
           </button>;
         })}
       </nav>
@@ -163,7 +165,7 @@ export function CoursewareChatImages({ sessionId, plan, disabled, refreshKey = 0
         </div>
         <div className="courseware-scene-canvas">
           <div className="courseware-scene-preview-stage" aria-busy={previewReady && !shownPreview && !previewError}>
-            {focusedPage.quiz ? <MaicQuiz key={focusedPage.pageId} content={focusedPage.quiz as ComponentProps<typeof MaicQuiz>["content"]} /> : shownPreview ? <img src={shownPreview.dataUrl} alt={t("coursewareWorkflow.previewAlt")} onError={() => {
+            {focusedPage.quiz ? <MaicQuiz key={focusedPage.pageId} content={focusedPage.quiz as ComponentProps<typeof MaicQuiz>["content"]} /> : focusedPage.teaching?.question ? <MaicSlidePreview canvas={createMaicInteractionCanvas(focusedPage.pageId, focusedPage.title, focusedPage.teaching.question.text)} /> : shownPreview ? <img src={shownPreview.dataUrl} alt={t("coursewareWorkflow.previewAlt")} onError={() => {
               setPreview(null); setPreviewError(t("coursewareWorkflow.previewLoadFailed"));
             }} /> : <div className="courseware-scene-placeholder">
               <p role="status">{previewError ? t("coursewareWorkflow.previewLoadFailed") : previewReady ? t("coursewareWorkflow.loadingPreview") :
@@ -180,7 +182,7 @@ export function CoursewareChatImages({ sessionId, plan, disabled, refreshKey = 0
           <small>{t("coursewareWorkflow.readOnlyImages")}</small>
           {firstVisualPage && !styleSelected && focusedPage.pageId !== firstVisualPage.pageId && <button type="button" onClick={() => choosePage(firstVisualPage!.pageId)}>
             {t("coursewareWorkflow.openCover")}</button>}
-          <small>{t("coursewareWorkflow.pageProgress", { count: progress.imageCount, total: progress.total, assets: progress.assetPages })}</small>
+          {firstVisualPage && <small>{t("coursewareWorkflow.pageProgress", { count: progress.imageCount, total: progress.total, assets: progress.assetPages })}</small>}
         </footer>
       </main>
       <aside className="courseware-scene-inspector" aria-label={t("coursewareWorkflow.imageDetails")}>

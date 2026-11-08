@@ -76,6 +76,7 @@ export * from "./courseware-contract.js";
 export * from "./courseware-editor.js";
 export * from "./courseware-scene-plan.js";
 export * from "./courseware-workflow.js";
+export * from "./courseware-story.js";
 export * from "./courseware-media-canvas.js";
 export * from "./courseware-canvas-music.js";
 export * from "./courseware-online-editing.js";

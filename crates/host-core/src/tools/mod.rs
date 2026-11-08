@@ -1011,11 +1011,12 @@ pub fn is_desktop_dispatched(tool_name: &str) -> bool {
         )
         || matches!(
             tool_name,
-            "courseware_workflow_get"
+            "courseware_story_begin" | "courseware_story_save" | "courseware_workflow_get"
                 | "courseware_scene_plan_submit"
                 | "courseware_media_context"
                 | "courseware_media_prepare"
                 | "courseware_media_refresh"
+                | "courseware_media_assessments"
                 | "courseware_narration_context"
                 | "courseware_narration_propose"
                 | "courseware_requirements_update"
@@ -5604,6 +5605,12 @@ mod tests {
 
 #[cfg(test)]
 mod ppt_format_dispatch_tests {
+    #[test]
+    fn assessment_media_uses_desktop_dispatch() {
+        assert!(super::is_desktop_dispatched("courseware_media_assessments"));
+        assert!(!super::is_ppt_editor_tool("courseware_media_assessments"));
+    }
+
     #[test]
     fn formatting_uses_finite_desktop_dispatch() {
         for name in ["courseware_canvas_get", "courseware_canvas_edit"] {

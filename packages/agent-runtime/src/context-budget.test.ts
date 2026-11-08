@@ -232,3 +232,8 @@ describe("hosted search target model threading", () => {
     );
   });
 });
+
+it("compacts against the same published ceiling used by the output cap", () => {
+  expect(contextBudgetLimitsFor({ contextWindow: 256_000, catalogContextWindow: 128_000, maxTokens: 32_768 }))
+    .toEqual(contextBudgetLimitsFor({ contextWindow: 128_000, maxTokens: 32_768 }));
+});

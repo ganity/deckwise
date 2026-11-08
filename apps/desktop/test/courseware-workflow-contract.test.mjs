@@ -33,7 +33,7 @@ const { buildSceneCourseDeck } = await load("courseware-scene-deck", {
 });
 const hash = bytes => createHash("sha256").update(bytes).digest("hex");
 
-test("approved requirements survive actual Main/Host repair, lost save reply and restart", {
+test("approved body media survives actual Main/Host repair, lost save reply and restart", {
   skip: !process.env.DECKWISE_E2E_WORKFLOW_HOST, timeout: 90_000,
 }, async t => {
   const directory = await mkdtemp(join(tmpdir(), "deckwise-workflow-contract-")), workspace = join(directory, "workspace"), data = join(directory, "data");
@@ -44,11 +44,10 @@ test("approved requirements survive actual Main/Host repair, lost save reply and
   await host.start();
   const sessionId = (await host.call("session.create", { projectPath: workspace })).session.id, principalKey = "a".repeat(64);
   await host.call("courseware.task.set", { sessionId, taskType: "scene" });
-  const question = { text: "Which greeting?", response: { kind: "single", options: ["Hello", "Bye"], answerIndices: [0] } };
-  const teaching = { pageType: "quiz", phase: "practice", objective: "Greet", durationSeconds: 30, requiredObjects: [], question,
+  const teaching = { pageType: "slide", phase: "practice", objective: "Greet", durationSeconds: 30, requiredObjects: [],
     video: { purpose: "Show a wave", prompt: "A five-second silent wave" } };
   const plan = { title: "Greeting", pages: [
-    { title: "Greeting", visibleText: [question.text, "Hello", "Bye"], visualIntent: "A wave", narration: "Hello. Welcome!", teaching },
+    { title: "Greeting", visibleText: ["Hello", "Bye"], visualIntent: "A wave", narration: "Hello. Welcome!", teaching },
     { title: "Goodbye", visibleText: ["Bye"], visualIntent: "A goodbye wave", narration: "Goodbye!", teaching: {
       pageType: "slide", phase: "review", objective: "Say goodbye", durationSeconds: 30, requiredObjects: [],
     } },
@@ -114,9 +113,8 @@ test("approved requirements survive actual Main/Host repair, lost save reply and
       if (request.outline) return { text: JSON.stringify({ goal: "Greet", pages: request.outline.map(p => ({ pageNumber: p.pageNumber, purpose: "Greet", bridge: "Continue", focus: "Greeting" })) }) };
       if (request.missing) {
         deltaCalls++;
-        return { text: JSON.stringify({ insertions: request.missing.map(type => ({ afterSpeechId: request.speechAnchors[0], block: type === "interaction"
-          ? { type, question: question.text, response: question.response, referenceAnswer: { summary: "Hello", keyPoints: ["A greeting"] } }
-          : { type, prompt: teaching.video.prompt } })) }) };
+        assert.deepEqual(request.missing, ["video"]);
+        return { text: JSON.stringify({ insertions: [{ afterSpeechId: request.speechAnchors[0], block: { type: "video", prompt: teaching.video.prompt } }] }) };
       }
       return { text: JSON.stringify({ blocks: [{ type: "speech", text: "Hello. Welcome!" }] }) };
     },
@@ -126,7 +124,6 @@ test("approved requirements survive actual Main/Host repair, lost save reply and
   project = await read();
   const completion = async () => (await host.call("courseware.workflow.get", { sessionId, projectId: project.projectId })).completion;
   assert((await completion()).issues.some(i => i.code === "VIDEO_MISSING"));
-  assert((await completion()).issues.some(i => i.code === "QUESTION_MISSING"));
   assert.equal(project.pages[0].actions[0].text, "Hello. ");
   const audio = await readFile(new URL("fixtures/courseware-tts-tone.mp3", import.meta.url));
   for (const page of project.pages) for (const speech of page.actions.filter(a => a.type === "speech")) {
@@ -148,7 +145,7 @@ test("approved requirements survive actual Main/Host repair, lost save reply and
   project = await read();
   assert.equal(deltaCalls, 1);
   assert.deepEqual(project.pages.map(p => p.actions.filter(a => a.type === "speech")), originalSpeech);
-  assert.equal(project.pages[0].actions.filter(a => a.type === "interaction_checkpoint").length, 1);
+  assert.equal(project.pages[0].actions.filter(a => a.type === "interaction_checkpoint").length, 0);
   const slot = project.pages[0].actions.find(a => a.type === "video_slot");
   assert(slot);
   const scope = { sessionId, projectId: project.projectId, principalKey };
@@ -216,5 +213,5 @@ test("approved requirements survive actual Main/Host repair, lost save reply and
     assert.equal(events.filter(e => e.event.type === "agent_end").length, 1);
     assert.equal((await host.call("courseware.workflow.get", { sessionId, projectId: project.projectId })).checkpoint.status, "completed");
   } finally { await agent.dispose(); }
-  t.diagnostic(JSON.stringify({ modelRepairCalls: deltaCalls, savedQuestions: 1, originalVideoAdoptions: 1, preservedSpeeches: originalSpeech.flat().length, terminalEvents: 1, providerCalls: 0 }));
+  t.diagnostic(JSON.stringify({ modelRepairCalls: deltaCalls, originalVideoAdoptions: 1, preservedSpeeches: originalSpeech.flat().length, terminalEvents: 1, providerCalls: 0 }));
 });

@@ -16,12 +16,30 @@ function fixture() {
 
 it("advertises only finite sequential actions and pins every call to the owning active turn", async () => {
   const f = fixture();
+  for (const tool of f.tools) expect(JSON.parse(JSON.stringify(tool.parameters)).type, tool.name).toBe("object");
   expect(f.tools.map(tool => tool.name)).toEqual(COURSEWARE_WORKFLOW_TOOLS);
   expect(f.tools.every(tool => tool.executionMode === "sequential")).toBe(true);
   expect(f.tools.some(tool => /approve|select|publish/.test(tool.name))).toBe(false);
-  await f.tools[0]!.execute("read", {});
+  await f.tools.find(tool => tool.name === "courseware_workflow_get")!.execute("read", {});
   expect(f.calls).toEqual([{ method: "tools.execute", params: { sessionId: "chat-1", turnId: "turn-1",
     toolCallId: "read", toolName: "courseware_workflow_get", mode: "agent", args: {} } }]);
+});
+
+it("dispatches bounded story drafts while rejecting invalid references and model-owned approval", async () => {
+  const f = fixture();
+  const save = f.tools.find(tool => tool.name === "courseware_story_save")!;
+  const story = { title: "Rainbow rescue", summary: "Find the colors", setting: "A garden", objectives: ["Name red"],
+    characters: [{ name: "Robin", description: "A round robot" }],
+    beats: [{ id: "find", title: "Find red", event: "Find a red ball", objective: "Name red", activity: "Sort colors" }], assumptions: [] };
+  await save.execute("story", { expectedRevision: 0, story });
+  expect(f.calls.at(-1)?.params).toMatchObject({ sessionId: "chat-1", turnId: "turn-1", toolName: "courseware_story_save", args: { expectedRevision: 0, story } });
+  for (const input of [
+    { expectedRevision: 0, story, approved: true },
+    { expectedRevision: -1, story },
+    { expectedRevision: 0, story: { ...story, beats: [...story.beats, ...story.beats] } },
+    { expectedRevision: 0, story: { ...story, objectives: ["Unrelated"] } },
+  ]) await expect(save.execute("invalid", input)).rejects.toThrow();
+  expect(f.calls).toHaveLength(1);
 });
 
 it("accepts explicit retry flags only on a single original refresh", async () => {
@@ -36,12 +54,37 @@ it("accepts explicit retry flags only on a single original refresh", async () =>
   await expect(media.execute("invalid", { kind: "tts", sourceSha256: "a".repeat(64), pageNumber: 1, intentIds: ["original"], retryFailed: true })).rejects.toThrow();
 });
 
-it("preserves bounded custom scene style in revision-checked requirements updates", async () => {
+it("gives shared assessment media the saved-media dispatch budget", async () => {
+  const f = fixture();
+  await f.tools.find(tool => tool.name === "courseware_media_assessments")!.execute("assessment", { mode: "context" });
+  expect(f.calls.at(-1)?.params).toMatchObject({ toolName: "courseware_media_assessments", timeoutMs: 960_000 });
+});
+
+it("validates assessment identities, revisions and TTS voice before dispatch", async () => {
+  const f = fixture(), tool = f.tools.find(tool => tool.name === "courseware_media_assessments")!;
+  const target = { mode: "prepare", kind: "tts", projectId: "project", sceneId: "scene", actionId: "speech",
+    expectedRevision: "r1", expectedSourceRevision: "s1", model: "tts", voice: null };
+  for (const field of ["projectId", "sceneId", "actionId", "expectedRevision", "expectedSourceRevision", "model", "voice"]) {
+    const invalid: Record<string, unknown> = { ...target }; delete invalid[field];
+    await expect(tool.execute("invalid", invalid)).rejects.toThrow("Invalid courseware");
+  }
+  await expect(tool.execute("invalid", { mode: "context", actionId: "speech" })).rejects.toThrow();
+  await expect(tool.execute("invalid", { ...target, kind: "image", questionId: "q", optionValue: "A" })).rejects.toThrow();
+  expect(f.calls).toHaveLength(0);
+  for (const mode of ["prepare", "refresh"]) await tool.execute("valid", { ...target, mode });
+  await tool.execute("image", { mode: "prepare", kind: "image", projectId: "project", sceneId: "scene", questionId: "q", optionValue: "A",
+    expectedRevision: "r1", expectedSourceRevision: "s1", model: "image" });
+  expect(f.calls).toHaveLength(3);
+});
+
+it("preserves the body-page budget and bounded custom style in revision-checked requirements updates", async () => {
   const f = fixture();
   const update = f.tools.find(tool => tool.name === "courseware_requirements_update")!;
-  const args = { expectedEducationContext: {}, educationContext: { visualStyle: "Matte clay 3D; no watercolor" } };
+  const args = { expectedEducationContext: {}, educationContext: { visualStyle: "Matte clay 3D; no watercolor", bodyPageLimit: 8 } };
   await update.execute("style", args);
   expect(f.calls.at(-1)?.params).toMatchObject({ args });
+  for (const bodyPageLimit of [null, 0, 31, 1.5, "8"])
+    await expect(update.execute("invalid", { ...args, educationContext: { bodyPageLimit } })).rejects.toThrow("Invalid courseware");
   for (const visualStyle of [null, 3, "x".repeat(501)])
     await expect(update.execute("invalid", { ...args, educationContext: { visualStyle } })).rejects.toThrow("Invalid courseware");
 });
@@ -184,4 +227,18 @@ it("exposes whole-scene continuation only through an explicit boolean on the sel
   expect(f.calls.at(-1)?.params).toMatchObject({ args: { intentId: "selected-cover", generateRemaining: true }, timeoutMs: 960_000 });
   await expect(refresh.execute("invalid", { intentId: "selected-cover", generateRemaining: "true" })).rejects.toThrow("Invalid courseware");
   expect(refresh.description).toContain("five each");
+});
+
+it("scopes narration context to selected pages and omits repeated full-deck payloads from model text", async () => {
+  const value = { projectId: "project", sourceSha256: "a".repeat(64), approvedPlan: { pages: Array(100).fill("x".repeat(1000)) },
+    completion: { ready: false, issues: Array(100).fill({ pageNumber: 1, code: "AUDIO_MISSING" }) },
+    quality: { counts: { AUDIO_MISSING: 100 }, issues: [{ pageNumber: 1, code: "AUDIO_MISSING" }, { pageNumber: 2, code: "NARRATION_MISSING" }] },
+    pages: [{ pageNumber: 2, actions: [{ id: "speech", type: "speech", text: "Keep exact speech" }], speeches: [{ actionId: "speech", text: "Keep exact speech" }] }] };
+  const tools = createCoursewareWorkflowTools({ async call<T>(): Promise<T> { return { ok: true, content: value } as T; } }, "chat", () => "turn");
+  const result = await tools.find(tool => tool.name === "courseware_narration_context")!.execute("read", { pageNumbers: [2] });
+  const text = JSON.stringify(result.content);
+  expect(text.length).toBeLessThan(2000);
+  expect(text).toContain("Keep exact speech");
+  expect(text).not.toContain("approvedPlan");
+  expect(result.details).toEqual(value);
 });

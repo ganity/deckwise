@@ -1,0 +1,52 @@
+{
+  "status": "PASS",
+  "checks": [
+    "Real Main/Host create an independent all-Quiz course",
+    "Question, stable options, correct answers and image uploads survive autosave",
+    "Undo and redo restore Quiz text without losing image associations",
+    "Shared Quiz preview shows image options and supports retry then correct completion",
+    "Interaction is a distinct editable slide checkpoint in a mixed course",
+    "Assessment multiple, judge and short-answer guidance are authored through the real editor",
+    "The actual assessment player reviews objective answers, marks short answers ungraded and resets on retry",
+    "The actual course player waits for Quiz completion and then pauses at the interaction",
+    "A fresh Electron and Host process reopens the exact saved mixed content",
+    "Blank MAIC display fields save and reopen through real Main and Host without relaxing identities"
+  ],
+  "sourceRevision": "e46d2870e311d1106c6fe0afb600dfbe198dff92",
+  "directory": "/tmp/maic-electron-W9Gxzl",
+  "realElectron": true,
+  "realMain": true,
+  "realHost": true,
+  "identityFixture": true,
+  "paidCalls": false,
+  "artifacts": [
+    "/tmp/maic-parity-C4qBxC/electron/all-quiz.zip",
+    "/tmp/maic-parity-C4qBxC/electron/quiz-image-options.png",
+    "/tmp/maic-parity-C4qBxC/electron/interaction-editor.png",
+    "/tmp/maic-parity-C4qBxC/electron/mixed.zip",
+    "/tmp/maic-parity-C4qBxC/electron/mixed.zip",
+    "/tmp/maic-parity-C4qBxC/electron/assessment-player-review.png",
+    "/tmp/maic-parity-C4qBxC/electron/mixed-playback.zip",
+    "/tmp/maic-parity-C4qBxC/electron/interaction-player.png",
+    "/tmp/maic-parity-C4qBxC/electron/mixed-reopened.zip"
+  ],
+  "excluded": [
+    "paid provider generation",
+    "production signing/publication",
+    "native PPT edit/reorder (separate integration gate)"
+  ],
+  "instantPreviewStyle": {
+    "background": "rgb(255, 255, 255)",
+    "radius": "28px"
+  },
+  "assessmentEditor": {
+    "selected": "2. Quiz · 课堂测验",
+    "questionForms": 1,
+    "selectLabels": [
+      "测验模式课堂即时反馈（每页一题）测验与复盘",
+      "题型单选多选判断简答"
+    ]
+  },
+  "offlineFeedback": "Unavailable system speech voice was explicitly skipped through the player control; no speech events were fabricated.",
+  "pageErrors": []
+}

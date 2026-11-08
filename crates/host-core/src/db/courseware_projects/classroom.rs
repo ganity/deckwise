@@ -5,8 +5,8 @@ use std::collections::HashSet;
 mod validation;
 
 const ANCHORS: &str = "coursewareClassroomProjects.v1";
-const DOCUMENTS: &str = "coursewareClassrooms.v1";
-const REVISIONS: &str = "coursewareClassroomRevisions.v1";
+pub(super) const DOCUMENTS: &str = "coursewareClassrooms.v1";
+pub(super) const REVISIONS: &str = "coursewareClassroomRevisions.v1";
 const MAX_CLASSROOM_BYTES: usize = 16 * 1024 * 1024;
 
 fn invalid(condition: bool, message: &str) -> Result<()> {
@@ -100,6 +100,10 @@ pub fn validate_classroom(value: &Value) -> Result<()> {
                 .as_array()
                 .ok_or_else(|| anyhow!("COURSEWARE_INVALID: quiz questions must be an array"))?;
             invalid(questions.len() <= 1000, "too many questions")?;
+            invalid(
+                content["interactionMode"] != "classroom_instant_feedback" || questions.len() <= 1,
+                "Instant Quiz accepts one question; use assessment_review for multiple questions",
+            )?;
             let mut question_ids = HashSet::new();
             for question in questions {
                 invalid(
@@ -283,6 +287,39 @@ fn validate_document(document: &Value, project_id: &str) -> Result<()> {
 }
 
 impl Database {
+    /// Called inside the native-save transaction, before source bytes are replaced.
+    pub(super) fn prepare_native_classroom(&self, workspace: &str, baseline: &CoursewareProject,
+        next: &CoursewareProject, expected_revision: &str, value: &Value) -> Result<Value> {
+        let current = self.courseware_classroom(workspace, &baseline.project_id, None)?;
+        anyhow::ensure!(current["revision"] == expected_revision,
+            "COURSEWARE_CONFLICT: classroom changed; reopen before saving");
+        let scenes = value["scenes"].as_array().ok_or_else(|| anyhow!("COURSEWARE_INVALID: scenes missing"))?;
+        invalid(scenes.len() == next.pages.len(), "every scene requires its own native page")?;
+        for page in baseline.pages.iter().filter(|page| page.locked) {
+            let find = |doc: &Value| doc["scenes"].as_array().and_then(|scenes| scenes.iter()
+                .find(|scene| scene["metadata"]["nativePageId"] == page.page_id)).cloned();
+            anyhow::ensure!(find(&current["classroom"]) == find(value), "COURSEWARE_LOCKED: canonical scene is locked");
+        }
+        let mut classroom = value.clone();
+        validation::invalidate_edited_audio(&current["classroom"], &mut classroom);
+        for (scene, page) in classroom["scenes"].as_array_mut().unwrap().iter_mut().zip(&next.pages) {
+            if !scene["metadata"].is_object() { scene["metadata"] = json!({}); }
+            scene["metadata"]["nativePageId"] = json!(page.page_id);
+            scene["metadata"].as_object_mut().unwrap().remove("copiedFromNativePageId");
+            let question = scene["actions"].as_array().and_then(|actions| actions.iter().find(|a|
+                a["type"] == "interaction_checkpoint" && a["checkpointKind"] == "chapter_summary"))
+                .map(|a| a["question"].clone());
+            if let Some(question) = question { scene["metadata"]["nativeQuestionText"] = question; }
+            scene["metadata"]["nativeNarrationText"] = json!(scene["actions"].as_array().into_iter().flatten().filter(|a| a["type"] == "speech")
+                .filter(|a| !scene["metadata"]["assessmentSpeechIds"].as_object().is_some_and(|ids| ids.values().any(|id| *id == a["id"])))
+                .filter_map(|a| a["text"].as_str()).collect::<Vec<_>>().join("\n"));
+        }
+        validate_classroom(&classroom)?;
+        validation::validate_workspace_assets(workspace, &classroom)?;
+        Ok(json!({"projectId":next.project_id,"revision":uuid::Uuid::new_v4().to_string(),
+            "sourceRevision":next.source.revision,"classroom":classroom}))
+    }
+
     fn classroom_project(
         &self,
         workspace: &str,
@@ -409,6 +446,19 @@ impl Database {
         Ok(stored.unwrap_or_else(|| json!({"projectId":project_id,"revision":null,"sourceRevision":source_revision,"classroom":null})))
     }
 
+    /// Assessment identity comes from the current canonical scene, never the page ordinal.
+    pub(crate) fn courseware_assessment_page_ids(&self, workspace: &str, project: &CoursewareProject) -> Result<std::collections::HashSet<String>> {
+        // Stable page bindings survive native saves before the canonical canvas is refreshed.
+        let document = self.classroom_source_document(workspace, &project.project_id)?;
+        Ok(document["classroom"]["scenes"].as_array().into_iter().flatten()
+            .filter(|scene| scene["metadata"]["nativeEmbeddedAssessments"] != true)
+            .filter(|scene| scene["type"] == "quiz" || scene["actions"].as_array().is_some_and(|actions|
+                actions.iter().any(|a| a["type"] == "interaction_checkpoint" && a["checkpointKind"] == "chapter_summary")))
+            .filter_map(|scene| scene["metadata"]["nativePageId"].as_str())
+            .filter(|id| project.pages.iter().any(|page| page.page_id == *id))
+            .map(str::to_owned).collect())
+    }
+
     pub fn write_courseware_classroom(
         &self,
         workspace: &str,
@@ -456,6 +506,7 @@ impl Database {
         allow_source_refresh: bool,
     ) -> Result<Value> {
         self.ensure_no_source_adoption(workspace)?;
+        self.ensure_no_native_save(workspace)?;
         let tx = self.conn.unchecked_transaction()?;
         let key = storage_key(workspace, project_id)?;
         let (source_revision, project) = self.classroom_project(workspace, project_id)?;
@@ -514,6 +565,12 @@ impl Database {
         }
         validate_classroom(&classroom)?;
         validation::validate_workspace_assets(workspace, &classroom)?;
+        if let Some(current) = current {
+            if current["sourceRevision"] == expected_source_revision && current["classroom"] == classroom {
+                tx.commit()?;
+                return Ok(current);
+            }
+        }
         let revision = uuid::Uuid::new_v4().to_string();
         let document = json!({"projectId":project_id,"revision":revision,"sourceRevision":expected_source_revision,"classroom":classroom});
         let encoded = serde_json::to_string(&document)?;

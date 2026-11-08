@@ -1,4 +1,4 @@
-import { sceneTeachingForPage } from "./courseware-scene-object-view";
+import { assessmentPageIds, sceneTeachingForPage } from "./courseware-scene-object-view";
 import { parseSceneCoursePlan } from "./courseware-scene-plan";
 import { randomUUID } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
@@ -6,22 +6,18 @@ import { generateSavedNarrationBatch, type NarrationPageCache } from "./coursewa
 import type { CoursewareSceneCompleteInput } from "./courseware-scene-context";
 import { objectsForTeaching } from "./courseware-scene-object-view";
 import type { NarrationEvidence } from "./courseware-narration-visuals";
-import { inspectCoursewareTeaching, isCoursewareProject, isTeachingWrite, type CoursewareProject, type CoursewareNarrationReview } from "@pi-desktop/shared";
+import { hasDetailedCoursewareNarration, inspectCoursewareTeaching, isCoursewareProject, isTeachingWrite, type CoursewareProject, type CoursewareNarrationReview } from "@pi-desktop/shared";
 import { adoptionRevision, readLiveSource, sourceHash } from "./courseware-source-files";
 import { jobIdFor } from "./ppt-editor-files";
 import type { NarrationComplete, CandidateModelResolver } from "./courseware-candidates";
 
 type Host = { call<T>(method: string, params: unknown): Promise<T> };
 type Task = { task?: { importPath?: string; generatedPath?: string } };
-export type SavedCourseware = { host: Host; jobId: string; project: CoursewareProject; bytes: Uint8Array; check(): Promise<void> };
+export type SavedCourseware = { host: Host; jobId: string; project: CoursewareProject; bytes: Uint8Array; check(): Promise<void>; release(): Promise<void> };
 const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 const savedId = (v: unknown): v is string => typeof v === "string" && /^saved-[\w.-]{1,120}$/u.test(v);
 
-export const hasDetailedNarration = (page: CoursewareProject["pages"][number]) => {
-  const speeches = page.actions.filter(a => a.type === "speech");
-  return speeches.length > 0 && speeches.every(a => typeof a.text === "string" && !!a.text.trim() &&
-    (a.source === "generated" || typeof a.id === "string" && !/^narration-\d+$/u.test(a.id)));
-};
+export const hasDetailedNarration = hasDetailedCoursewareNarration;
 
 /** Saved file and logical page identity own narration; Office visibility and selection do not. */
 export class CoursewareSavedNarration {
@@ -84,7 +80,11 @@ export class CoursewareSavedNarration {
       if (!isCoursewareProject(project) || project.source.sha256 !== sha256 || project.projectId !== `office-${jobIdFor(workspace, path)}`)
         throw new Error("Invalid saved courseware project");
       await check();
-      return await operation({ host, jobId, project, bytes, check });
+      return await operation({ host, jobId, project, bytes, check, release: async () => {
+        if (!jobId) return;
+        await host.call("courseware.parseRelease", { jobId });
+        jobId = undefined;
+      } });
     } finally {
       try {
         if (jobId) {
@@ -115,8 +115,10 @@ export class CoursewareSavedNarration {
       const approval = project.taskType === "scene" ? await host.call<{ approval: { plan: unknown } | null }>("courseware.scenePlan.get", { sessionId }) : null;
       const approvedPlan = approval?.approval ? parseSceneCoursePlan(JSON.stringify(approval.approval.plan)) : undefined;
       await check();
+      const raw = await host.call("courseware.project.context", { sessionId, projectId: project.projectId });
+      const assessments = assessmentPageIds(raw, project);
+      const nativeSaved = record(raw) && raw.nativeSaved === true;
       if (!propose) {
-        const raw = project.taskType === "scene" ? await host.call("courseware.project.context", { sessionId, projectId: project.projectId }) : undefined;
         const teachingByPage = new Map(project.pages.flatMap(page => {
           const teaching = sceneTeachingForPage(raw, project, page.pageId);
           return teaching ? [[page.pageId, teaching] as const] : [];
@@ -132,10 +134,11 @@ export class CoursewareSavedNarration {
           catch (error) { diagnostic = String(error); }
           const speeches = page.actions.filter(a => a.type === "speech").map(a => ({ actionId: a.id, text: a.text,
             audioReady: typeof a.audioAssetId === "string", ...(a.audioAssetId ? { audioAssetId: a.audioAssetId } : {}) }));
-          const narrationReady = hasDetailedNarration(page);
+          const assessment = assessments.has(page.pageId);
+          const narrationReady = assessment || hasDetailedNarration(page, nativeSaved);
           pages.push({ pageNumber, pageId: page.pageId, locked: page.locked, hasNarration: speeches.length > 0,
-            narrationReady, audioReady: speeches.length > 0 && speeches.every(a => a.audioReady),
-            teachingReady: speeches.length > 0 && speeches.every(a => a.audioReady) &&
+            narrationReady, audioReady: assessment || speeches.length > 0 && speeches.every(a => a.audioReady),
+            teachingReady: assessment || speeches.length > 0 && speeches.every(a => a.audioReady) &&
               !page.actions.some(a => a.attention !== undefined || ["video_slot", "music_slot"].includes(String(a.type))),
             actions: page.actions, speeches,
             ...(text === undefined ? {} : { text, notes, hasImages }), ...(diagnostic ? { diagnostic } : {}) });
@@ -144,10 +147,18 @@ export class CoursewareSavedNarration {
         return { projectId: project.projectId, sourceRevision: project.source.revision,
           teachingRevision: project.teachingRevision, sourceSha256: project.source.sha256,
           educationContext: project.educationContext, pageCount: project.pages.length, pages,
-          quality: inspectCoursewareTeaching(project, teachingByPage),
+          quality: inspectCoursewareTeaching(project, teachingByPage, assessments, nativeSaved),
           ...(record(raw) && record(raw.completion) ? { completion: raw.completion } : {}),
           ...(approvedPlan ? { approvedPlan } : {}),
           narrationReady: pages.every(page => page.narrationReady), audioReady: pages.every(page => page.audioReady), teachingReady: pages.every(page => page.teachingReady) };
+      }
+      const skippedPages = selected.filter(n => assessments.has(project.pages[n - 1].pageId))
+        .map(pageNumber => ({ pageNumber, pageId: project.pages[pageNumber - 1].pageId, reason: "independent-assessment" }));
+      const bodySelected = selected.filter(n => !assessments.has(project.pages[n - 1].pageId));
+      if (!bodySelected.length) return { savedPages: [], skippedPages, failures: [], diagnostics: [], applied: false, saved: true, audioReady: true };
+      if (input.repairRequiredTeaching && project.taskType === "scene") {
+        const unfinished = bodySelected.filter(number => !hasDetailedNarration(project.pages[number - 1], nativeSaved));
+        if (unfinished.length) throw new Error(`Detailed narration is missing on pages ${unfinished.join(", ")}; call courseware_narration_propose without repairRequiredTeaching to generate and save detailed narration before TTS. Repair mode preserves existing speech and cannot promote an outline.`);
       }
       const detail = await host.call<{ session?: { providerId?: string; modelId?: string; thinkingLevel?: string; mode?: string } }>("session.get", { id: sessionId, messageLimit: 1 });
       const session = detail.session;
@@ -164,9 +175,10 @@ export class CoursewareSavedNarration {
             effective.modelKey !== model.modelKey || effective.thinkingLevel !== model.thinkingLevel) throw new Error("Teaching or Chat model changed during generation");
         await check();
       };
-      return generateSavedNarrationBatch({ host, sessionId, jobId, project, bytes, selected, approvedPlan,
+      const result = await generateSavedNarrationBatch({ host, sessionId, jobId, project, bytes, selected: bodySelected, approvedPlan,
         instruction: input.instruction as string, repairRequiredTeaching: input.repairRequiredTeaching === true, model, complete: this.complete, completeVision: this.completeVision,
         current, cache: this.pageEvidenceCache, canDispatch });
+      return { ...result, skippedPages };
     });
   }
 

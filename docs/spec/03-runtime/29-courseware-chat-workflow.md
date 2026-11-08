@@ -11,6 +11,21 @@ quality, complex decks and release acceptance remain separate.
 
 ## Ownership
 
+Scene planning counts cover, opening, illustrated setup and review pages within
+the saved body-page budget. Story beats map onto those pages; they do not create
+additional pages. Explicit total limits include the separate assessment pages.
+Automatic plan validation exposes the same bounded product validation error as
+explicit submission. Two rewritten corrections remain available when the model
+resubmits an unchanged invalid draft; repeated unchanged failures are bounded
+separately. Exhausted recovery ends with a truthful failure report. The reporting
+request retains tool schemas for provider replay compatibility with
+`tool_choice: none` and the execution fence. A noncompliant final tool call is
+blocked with the latest saved acceptance, then receives at most one plain-language
+reporting correction without reopening execution. A reporting block does not undo
+saved results or imply missing media; completion and assessment readiness remain
+authoritative, with non-blocking quality diagnostics reported separately. Later
+user requests reset this guard.
+
 The existing main Chat owns requirements and generation progression. The work
 panel remains an inspection/editing entrance. Task types remain `plain`, `scene`
 and `import`; school stage is guidance, not routing. No second assistant, model
@@ -328,7 +343,11 @@ for generation. Existing editor review and publication controls remain available
 candidate review also has the main Chat entrances described above. Collaboration,
 animation coverage and media canvas are unchanged.
 Images retain individual confirmation/selection; no bulk spend or paid retry.
-Status refresh is explicit or Chat-driven, not indefinite polling. Whole-plan
+The question/narration Generate action obtains its quote internally, submits once,
+then polls for a bounded period and adopts verified audio automatically. It shows
+no separate quote/fee-confirmation or refresh controls; insufficient points is a
+clear error. Uncertain tasks keep their original identity and cannot be silently
+resubmitted. Other status refresh remains explicit or Chat-driven. Whole-plan
 approval/asset invalidation remains unchanged; narration-only draft changes do
 not gain automatic reuse of paid assets.
 
@@ -611,8 +630,45 @@ returns exact business-validation feedback for at most two corrections, and
 reports an unfinished draft if validation still fails. Generic JSON parsing and
 file-write success are not plan acceptance. Explicit requirements such as song
 names and placement still need fidelity review in the normal plan approval.
+Initial planning and production Main Chat share the scene planning format. Quiz
+pages require independent `page.quiz` MAIC content with stable option values and
+answer values, while interactive/PBL pages use `teaching.question` for a separate
+editable `interaction_checkpoint`, reference answer and feedback constraints.
+The bundled skill includes executable examples of both. Quiz questions are not
+checkpoint metadata or raster lettering. A missing quiz reports `pages[n].quiz`
+without also requesting a checkpoint question. Checkpoint questions remain
+required on interactive/PBL pages and are rendered as separate editable text.
+Explicit single-choice, multiple-choice and true/false assessment must remain an
+independent Quiz even inside a classroom game. Main and Host reject these response
+kinds on checkpoints and reject a second checkpoint question on a Quiz page.
+Planning preserves suitable assessment from the lesson in additional independent
+pages outside the requested body-page budget; no fixed Quiz quota is imposed on lessons without objective assessment.
+
+The generated-PPT toolbar opens “编辑当前页题目” at the current physical page.
+The native teaching sidebar shows the chapter checkpoint as a timeline node and
+question summary; question, reference and constraint editing belongs to the
+canonical MAIC editor. It has no second response-kind/options/answer-index form.
+Desktop builds the upstream sidebar through `scripts/build-wiseoffice-maic.mjs`;
+staging requires its integration marker so a plain upstream build cannot restore
+the duplicate form.
+
+Native teaching reconciliation projects archived speech, music and video to
+standard MAIC speech, audio/video canvas elements and playback actions. Bounded
+post-speech pauses use `pauseAfterMs`; timed visual cues use MAIC speech cues or
+the existing PPTist animation timeline. Target identities, saved-source
+fingerprints and cue audio timing are validated before adoption. Reconciliation
+is idempotent and preserves independent Quiz/checkpoint content and native PPT
+bytes. A wait or cue without a faithful MAIC representation remains
+`nativeTeachingSyncPending`; the editor shows the exact reason and disables
+whole-course playback/export. The shared exporter rejects it before reading
+assets. It must never silently discard native timeline semantics to claim a
+complete MAIC export.
+Independent Quiz scenes and checkpoint reference/constraint fields remain intact.
+Supported speech-only synchronization and genuine concurrent-edit conflicts keep
+their existing behavior. No old-course migration or provider regeneration occurs.
+
 Validation reports field paths, actual invalid enum values and expected constraints
-across all pages in one response, including missing visible questions and choices.
+across all pages in one response.
 The budget permits the initial failed validation and two further attempts,
 regardless of whether corrections use Write or a shell. Explicit submission
 results are reused rather than submitted again by continuation. Failed file edits
@@ -660,6 +716,58 @@ existing speech. Host preserves original speech IDs, text, audio, pauses and
 existing effects; verified archived/portable audio supplies timing. Existing cues
 cannot be overwritten and missing audio evidence rejects the write atomically.
 No TTS order is generated for focus repair.
+
+An explicit speech-only or page-range request does not authorize
+`continueTeaching:true` or advisory repairs elsewhere in the course. If automatic
+focus repair in an authorized complete-course run throws or returns failures,
+re-read saved acceptance before reporting. Preserve successful narration/audio,
+stop advisory retries, and report playable acceptance and remaining diagnostics
+instead of converting this non-blocking repair into an `INTERNAL` turn failure.
+Cancellation and failed acceptance reads still stop or fail the turn normally;
+missing required teaching remains blocking.
+
+### Repair reliability and consistent constraints (2026-11-07)
+
+Saved-teaching repair reads evidence only for selected non-assessment pages and
+does not call the whole-deck narration planner. The approved logical-page
+requirements and current saved speech own the repair delta. Normal lecture
+generation still plans the ordered body deck. Independent-assessment body
+instructions apply only to normal lecture generation, never to a required-action
+repair. Prompts must not both request an interaction and prohibit it.
+
+Repair budgets are persisted per requirement (required/advisory, logical page,
+diagnostic code and repair kind), with at most two attempts. Fixing another page
+or reordering diagnostics does not reset a remaining requirement's budget. Keep
+legacy checkpoint counters and enforce the Host's 100-counter capacity before
+adding entries. Exhaustion blocks required teaching, while advisory exhaustion
+retains playable acceptance and reports the remaining diagnostics.
+
+If a required repair throws or returns a failed save receipt, re-read Host
+acceptance before deciding the outcome. A successful persisted repair can finish
+despite its missing receipt. Remaining requirements stop the automatic repair
+with a blocked report; never replay the mutation on uncertain success. A later
+explicit continuation can use the remaining durable budget. Cancellation is
+propagated and cannot be converted into either successful acceptance or an
+ordinary repair failure.
+
+Assessment context accepts only context parameters. Prepare/refresh require
+current project, scene and revision identities, configured model, and either a
+speech action plus voice (including explicit provider-default null), or a Quiz
+question and option value. Reject incomplete or mixed targets before dispatch.
+After refreshing an original assessment order, submission_unknown stops with
+that original's report, without polling indefinitely or placing a replacement.
+
+Narration output accepts fixed waits up to 30000 ms, matching saved speech limits.
+Existing music can be retained without requiring a new plan approval; adding
+unapproved music still fails. Spoken block policy must allow the separately
+documented interaction/music/video types instead of claiming that speech and
+wait are the only block types.
+
+Runtime-owned continuation executes through the existing tool_start/tool_end
+event path. The Chat and normal tool log receive operation identity, duration,
+outcome and a sanitized allowlisted failure code. Do not expose raw exception
+messages or stacks, fabricate assistant tool-call history, or replay a failed
+mutation just to make it visible.
 
 ## Stop, immediate input and idle receipts (2026-11-01)
 
@@ -716,3 +824,193 @@ binding. Supplier credentials stay server-side. llm-ha does not decide fallback,
 create object manifests, unpack archives, or modify billing outcomes. Deployment
 requires the `magiclayers` relay account and updated MagicLayers service; see
 llm-ha `docs/courseware-images.md` for configuration.
+
+## Independent physical assessment pages (2026-11-05)
+
+Confirmed page counts are saved in `educationContext.bodyPageLimit` before
+assessment clarification and copied unchanged into `plan.bodyPageLimit`.
+An explicit request such as “generate 8 pages” means 8 body pages, including
+ordinary cover/summary slides; one Quiz and one checkpoint make 10 physical
+pages. Clarification options must not subtract assessments from that count.
+Main review and Host approval reject drafts whose budget differs from the saved
+requirement, including omitted budgets. Requirement updates preserve the count
+unless the user explicitly changes it; it survives application restart.
+
+The approved plan records `bodyPageLimit`; only ordinary teaching pages count
+against it. Quiz and checkpoint pages are planned together with the body, but
+receive separate physical PPT pages and stable native identities. They use
+fixed templates and do not enter paid body-image preparation. The physical
+page cap is 100, while the maximum body-page budget remains 30.
+
+Quiz's physical page is a local navigation placeholder. Its MAIC scene has
+`type: "quiz"`, native question content and no PPTist canvas. Checkpoints use
+the MAIC interaction slide template plus a `chapter_summary` checkpoint action.
+The toolbar opens the canonical editor at the selected native page; reference
+answers and constraints are not duplicated into the teaching sidebar.
+
+An illustrated activity (for example Freeze game rules, characters and mats)
+remains a body slide. Its student question occupies an additional checkpoint
+page. Main and Host reject assessment plans containing body narration, visible
+text, required illustration objects, music or video instead of replacing that
+body content with the assessment template. New assessment pages have empty
+native narration; canonical Quiz content or the checkpoint action owns the
+question. Completion and narration generation use current canonical native-page
+bindings to skip these pages. Body narration generation and saves reject embedded
+checkpoint actions. These generation constraints do not change MAIC's support
+for a short opening speech on imported/existing interaction scenes.
+
+An ordinary native PPT save may precede canonical canvas reconciliation. During
+that interval, assessment classification reads validated persisted scene bindings
+and intersects their `nativePageId` values with the current native project.
+Teaching and completion reads remain available without changing canonical
+content or guessing page types by position. Full canonical reads and writes
+retain their source-revision checks until explicit native reconciliation.
+
+Saved teaching validation in Main and Host must accept Quiz metadata without
+`teaching.question`: independent canonical Quiz content owns its questions.
+Interactive/PBL teaching still requires `teaching.question`, and any supplied
+question must pass its nested validation. Narration and media context reads
+validate this same contract before skipping canonical assessment pages. An
+existing course using this format resumes without rewriting its plan or saved
+metadata. Canonical checkpoint scene `type: "slide"` is intentional and does
+not mean that its teaching metadata is an ordinary body page.
+
+Main saves physical page edits and canonical classroom changes through the
+Host native-save receipt. Reorder, copy, add, delete and undo update the same
+ordered page identities. A question edit changes only the bound text object's
+text, preserving its native formatting and geometry. A native edit reconciles
+back using stable object identity; conflicting question changes require
+resolution. Quiz placeholders and local reconciliation metadata are excluded
+from MAIC export. The authoring compiler loads beside the verified staged
+worker so native dependencies are not bundled into Electron Main.
+
+Native Quiz/checkpoint selection may reuse canonical assessment content only
+when source revision, verified teaching revision, page count and each bound
+native page identity match the current editor project. Reconciliation records
+the verified teaching revision on bound scenes. A mismatch or source conflict
+must run the existing reconciliation path before editing. Assessment reads
+encode only selected-Quiz images and request a minimal Chat session window;
+unrelated body images and transcript history are not part of this read.
+
+Native text exports explicitly set OOXML `txBox`. This preserves a multiline
+Quiz placeholder or checkpoint question as one text object through the trusted
+importer, without creating a second decorative background. Host accepts the
+importer's `text` type and the existing `shape` representation for `native_text`,
+while retaining exact page/object counts and source-shape identity checks.
+Validation errors identify the failing physical page and exported/parsed counts.
+Scene image progress counts only body pages; the heading lists body, Quiz and
+checkpoint counts separately. Assessment templates require no generated images.
+
+
+## Optional teaching-story design
+
+Ordinary (`plain` / PPT Master) and scene tasks may opt into `storyFirst` at
+creation; omission preserves direct generation. Imports reject this option.
+The initial brief still prefills Chat without sending or starting a model turn.
+An explicit Chat request can call `courseware_story_begin` before authoring tools
+have run. A started ordinary project requires a new task for story redesign.
+Missing source material alone does not enable this stage.
+
+In New Task, select ordinary or scene creation and choose **Design a teaching
+story first**. Enter a topic and teaching audience, then send the prefilled Chat
+brief. Review the saved story in the workspace, request changes in Chat, and
+choose **Confirm story and continue** when ready. **Use direct generation
+instead** returns to the original route before authoring starts.
+
+The same Chat agent designs a complete structured teaching story from topic,
+audience, saved settings and supplied materials. It proposes objectives,
+characters, setting, ordered events, learning activities, assessment intentions
+and explicit assumptions; the user need not supply a lesson plan. Each event
+references a saved objective and can span multiple pages. Stories are not page
+layouts or final spoken narration. Questions remain separate from body lecture.
+
+Rust Host owns `coursewareStories.v1` records scoped to canonical workspace and
+session, using the existing KV extension. No storage-schema migration is needed.
+The bounded, versioned contract accepts at most 64 KiB and 30 unique events.
+`courseware_story_save` checks expected revision and replays identical lost-reply
+saves without advancing twice. Only the main-window UI can confirm the exact
+revision/hash; model tools cannot approve. Until confirmation, Host tool admission
+allows story planning and reads but blocks page/media/shell/file production.
+Content requirements changes invalidate effective story approval. Saving or
+changing only `educationContext.bodyPageLimit` preserves the exact story hash
+and approval: story events are independent of pagination. The current task's
+page budget overrides the story snapshot's suggested count and remains checked
+by scene-plan approval. This also restores previously confirmed stories whose
+approval was only hidden by a later page-budget save; no draft or approval is
+rewritten. Reading or restoring state never generates content. Cancellation
+retains saved successful work.
+
+The workspace displays objectives, characters, events, activities, proposed
+settings and assessment references. Users revise via Chat or choose direct
+generation before production; a failed continuation send retains the saved
+confirmation and offers resume. Both routes receive the exact approved snapshot.
+PPT Master retains its existing content/design/SVG/quality/preview/explicit-export
+pipeline and is instructed to archive the story as source material. Its first
+authoring-tool dispatch binds the story. Scene plans add an optional `storySha256`;
+legacy plans omit it. Both scene planning entrances carry the story, and Host
+rejects approval without the current approved story hash. Planning and first-page
+style confirmation remain separate decisions. Story-based scene drafts from an
+older story revision are hidden until regenerated. Scene-plan approval binds the
+story. Once bound, story redesign requires a new task; existing courseware and
+native user edits are retained. This first implementation does not synchronize
+story edits into already generated pages or promise automatic answer grading.
+
+Story bindings prove source/version identity, not semantic fidelity of model
+output. Production-model story quality and both routes' generated content require
+separate content review; fixture results establish orchestration and persistence.
+
+## Saved narration and bounded recovery context (2026-11-05)
+
+Scene quality checks and saved TTS admission share the detailed-narration rule:
+nonempty speech with seeded `narration-N` IDs requires `source: generated` from
+normal detailed generation until a verified native save makes the current saved
+text authoritative. Legacy IDs on such saved pages do not force a narration
+rewrite before synthesizing missing audio. The Host receipt must match the
+current source hash; an unrelated or stale receipt cannot promote an outline.
+Merely splitting the approved outline, adding focus
+or repairing required media does not promote it. Repair-only narration requests
+for unfinished scene pages fail before model completion and direct callers to
+normal narration generation. Existing detailed speech and paid audio remain
+unchanged during valid repairs. Independent assessments remain excluded.
+
+Canonical saves compare body speech with the previous canonical version before
+replacing native speech. Unchanged canonical text cannot overwrite newer native
+narration or audio. Reconciliation retains the canonical text baseline until it
+has adopted the newer native text. Empty saved visual-cue arrays are valid.
+Fresh semantic evidence for objects from a verified native save is checked
+against current Host UUIDs. It can accompany narration without reassigning old
+scene metadata to new objects; subsequent generation observes those objects
+again. Original scene associations remain unchanged. Intentional native page
+deletions do not leave obsolete required-page errors in completion checks.
+
+Model-facing media and unscoped narration context return page status and speech
+identities without speech text/actions or the full approved plan. Explicit
+narration page selection returns exact actions and diagnostics for those pages.
+Repeated diagnostics in status summaries are grouped by page and code; the full
+Host result remains available internally for durable continuation/recovery.
+
+Automatic compaction uses the same effective published context ceiling as output
+capping. Responses truncation reported as `length` or `max_output_tokens` is
+terminal for the generic transport retry controller; it must not spend ten
+retries on the same deterministic length failure. A terminal truncation remains
+an unfinished turn and never certifies saved narration, TTS or course completion.
+
+### Single-question Quiz pages
+
+Generated and natively authored Quiz slides contain exactly one question in all
+interaction modes. Separate questions require separate physical slides, inserted
+between relevant body slides without reducing the requested body page count.
+Planning, Host plan approval, native saving and PPT compilation enforce this rule.
+The teaching sidebar shows the question and options first, autosaves edits, and
+keeps feedback settings collapsed. It has no question-list controls or redundant
+manual save button. Course preview is enabled independently of unrelated native
+body animation conversion status; unsupported native timeline conversion still
+blocks complete MAIC export.
+
+## Assessment sidebar header
+
+Quiz and chapter-interaction pages reuse the ordinary native Teaching Flow
+header, status row and icon controls. Only the content below that header changes
+to the corresponding assessment form. Undo, redo, save, refresh and preview use
+the canonical draft on these pages; they must never write native body teaching
+actions. Autosave remains active. No duplicate assessment toolbar is rendered.

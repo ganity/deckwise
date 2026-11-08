@@ -3,8 +3,34 @@ import { describe, expect, it } from "vitest";
 import { COURSEWARE_CONTRACT_VERSION, type CoursewareProject } from "@pi-desktop/shared";
 import { candidateHash } from "./page-candidate-baseline.js";
 import { generateNarrationWrite } from "./narration-write.js";
+import { pageNarrationOutputSchema } from "./page-narration-candidate.js";
 
 describe("page narration source", () => {
+  it("advertises the same fixed-wait limit that saved speech accepts", () => {
+    const blocks = [{ type: "speech", text: "Listen." }, { type: "wait", durationMs: 30000 }];
+    expect(pageNarrationOutputSchema.safeParse({ blocks }).success).toBe(true);
+    expect(pageNarrationOutputSchema.safeParse({ blocks: [blocks[0], { type: "wait", durationMs: 30001 }] }).success).toBe(false);
+  });
+
+  it("keeps body-lecture prompts consistent with independent assessment validation and retained music", async () => {
+    const project: CoursewareProject = { schemaVersion: COURSEWARE_CONTRACT_VERSION, projectId: "project", taskType: "scene", title: "Lesson",
+      source: { revision: "R1", sha256: candidateHash("pptx") }, teachingRevision: "T1",
+      pages: [{ pageId: "page", locked: false, reviewState: "review", actions: [
+        { id: "music", type: "audio_clip", audioAssetId: `music-${"a".repeat(64)}` },
+      ] }] };
+    const baseline = { projectId: "project", documentId: "doc", pageId: "page", sourceRevision: "R1", sourceHash: project.source.sha256,
+      teachingRevision: "T1", contentHash: candidateHash(""), clean: true, readOnly: false, manualLocked: false };
+    const result = await generateNarrationWrite({ project, pageId: "page", baseline, pageText: "", instruction: "Keep the lesson's music",
+      independentAssessmentPages: true, coursePlan: { teaching: { pageType: "slide", phase: "practice", objective: "Listen", durationSeconds: 30, requiredObjects: [] } },
+      getCurrentBaseline: async () => baseline, generate: async ({ system }) => {
+        expect(system).not.toContain("emit an interaction block");
+        expect(system).toContain("separate assessment pages");
+        return { blocks: [{ type: "speech", text: "Listen." }, { type: "music", title: "Song", prompt: "Retained song" }] };
+      } });
+    expect(result.write.actions.find(action => action.type === "music_slot")?.id).toBe("music");
+    expect(project.pages[0].actions[0].audioAssetId).toBe(`music-${"a".repeat(64)}`);
+  });
+
   it("repairs missing approved actions without a speech round trip and is idempotent", async () => {
     const speech = { id: "speech", type: "speech", text: "Hello. ", source: "original", pauseAfterMs: 1000,
       audioAssetId: "tts-" + "b".repeat(64), visualCues: [] };
@@ -270,11 +296,11 @@ describe("page narration source", () => {
     expect(prompts[2]).toContain("Kindergarten English classroom command policy");
     expect(prompts[2]).toContain("Good!");
     for (const prompt of prompts.slice(0, 2)) {
-      expect(prompt).toContain("Allowed block types: speech and wait.");
+      expect(prompt).toContain("For spoken teaching use speech blocks.");
       expect(prompt).not.toContain('"type":"praise"');
       expect(prompt).toContain("Do not emit english_phrase or praise blocks.");
     }
-    expect(prompts[2]).toContain("Allowed block types: speech, english_phrase, wait and praise.");
+    expect(prompts[2]).toContain("Only fixed classroom commands from the kindergarten command bank use english_phrase");
     expect(prompts[2]).toContain("Thank you for trying.");
   });
   it("regenerates imported narration without retaining its former source", async () => {
@@ -406,8 +432,9 @@ it("rejects unapproved music with actionable feedback before saving narration", 
   await expect(generateNarrationWrite({ ...input, generate: async () => ({ blocks: [{ type: "speech", text: "Hello." }] }) })).resolves.toMatchObject({ write: { actions: [expect.objectContaining({ type: "speech" })] } });
 });
 
-it("repairs focus on existing speech without returning its text or audio through the model", async () => {
-  const speech = { id: "speech", type: "speech", text: "Monkey Munchy！", source: "generated", audioAssetId: "tts-" + "b".repeat(64), pauseAfterMs: 1000 };
+it.each([{ visualCues: undefined }, { visualCues: [] }])("repairs focus with saved cues=$visualCues without returning text or audio through the model", async ({ visualCues }) => {
+  const speech = { id: "speech", type: "speech", text: "Monkey Munchy！", source: "generated", audioAssetId: "tts-" + "b".repeat(64), pauseAfterMs: 1000,
+    ...(visualCues ? { visualCues } : {}) };
   const project: CoursewareProject = { schemaVersion: COURSEWARE_CONTRACT_VERSION, projectId: "project", taskType: "scene", title: "Greeting",
     source: { revision: "R1", sha256: candidateHash("pptx") }, teachingRevision: "T1",
     pages: [{ pageId: "page", locked: false, reviewState: "review", actions: [speech] }] };
@@ -419,7 +446,8 @@ it("repairs focus on existing speech without returning its text or audio through
       { objectId: "label", kind: "image", text: "Monkey Munchy", aliases: [], bbox: [0,100,100,20] },
     ] }, coursePlan: { teaching: { pageType: "slide", phase: "explore", objective: "Greet", durationSeconds: 30, requiredObjects: ["Monkey Munchy"] } },
     getCurrentBaseline: async () => baseline, generate: async () => { throw new Error("No model needed for existing exact identities"); } });
-  expect(result.write.actions).toEqual([{ ...speech, attention: { type: "spotlight", objectIds: ["monkey"] } }]);
+  const { visualCues: _, ...preserved } = speech;
+  expect(result.write.actions).toEqual([{ ...preserved, attention: { type: "spotlight", objectIds: ["monkey"] } }]);
   expect(project.pages[0].actions).toEqual([speech]);
 });
 

@@ -7,3 +7,5 @@ export { coursewarePageBaseline, type CoursewarePageContext } from './authoring/
 export { inspectPageFadeSource, type PageFadeSourceInput } from './authoring/page-pptx-candidate';
 export { compileSceneCoursewareCandidate } from './authoring/scene-courseware-candidate';
 export { inspectPageImageAssets, type PreservedPageImage } from './authoring/page-asset-locks';
+export { prepareAssessmentPage, assessmentPptxScene, assessmentBackground, syncClassroomPptx } from './authoring/classroom-pptx';
+export { createMaicInteractionCanvas } from './maic-interaction-canvas';

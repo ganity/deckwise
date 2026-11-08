@@ -2,6 +2,7 @@
 use super::*;
 use crate::courseware::{identity::SavedSourceIdentity, SavedProjectSeed};
 use std::collections::{HashMap, HashSet};
+use serde_json::json;
 
 fn tokens_valid(token: &str) -> bool {
     valid_id(token)
@@ -34,6 +35,12 @@ pub struct NativeLineage {
     pub objects: Vec<Vec<ObjectLineage>>,
     pub animation_unchanged: Vec<bool>,
 }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ClassroomSave {
+    pub expected_revision: String,
+    pub classroom: Value,
+}
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Journal {
@@ -45,6 +52,8 @@ struct Journal {
     warnings: Vec<String>,
     animation_pages: Vec<String>,
     status: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    classroom: Option<Value>,
 }
 impl Journal {
     fn receipt(&self) -> Value {
@@ -55,6 +64,11 @@ impl Journal {
 }
 
 impl Database {
+    pub(super) fn has_native_save_receipt(&self, workspace: &str, project: &CoursewareProject) -> Result<bool> {
+        Ok(self.kv_get(WARNINGS, &storage_key(workspace, &project.project_id)?)?
+            .is_some_and(|value| value["sourceSha256"] == project.source.sha256))
+    }
+
     pub(super) fn ensure_no_native_save(&self, workspace: &str) -> Result<()> {
         anyhow::ensure!(
             self.kv_get(PENDING, &storage_key(workspace, "native-save")?)?
@@ -101,6 +115,12 @@ impl Database {
         path: &str,
         seed: &SavedProjectSeed,
         proof: &NativeLineage,
+    ) -> Result<Value> {
+        self.prepare_native_save_with_classroom(workspace, path, seed, proof, None)
+    }
+    pub fn prepare_native_save_with_classroom(
+        &self, workspace: &str, path: &str, seed: &SavedProjectSeed, proof: &NativeLineage,
+        classroom: Option<&ClassroomSave>,
     ) -> Result<Value> {
         let tx = self.conn.unchecked_transaction()?;
         self.ensure_no_source_adoption(workspace)?;
@@ -270,6 +290,36 @@ impl Database {
         }
         identity["mappingRevision"] = uuid::Uuid::new_v4().to_string().into();
         SavedSourceIdentity::parse(&serde_json::to_vec(&identity)?)?;
+        if let Some(save) = classroom {
+            let previous = self.courseware_classroom(workspace, &baseline.project_id, None)?;
+            let scenes = save.classroom["scenes"].as_array().ok_or_else(|| anyhow!("COURSEWARE_INVALID: scenes missing"))?;
+            anyhow::ensure!(scenes.len() == next.pages.len(), "COURSEWARE_INVALID: scene/page count differs");
+            for (page, scene) in next.pages.iter_mut().zip(scenes) {
+                let old_scene = previous["classroom"]["scenes"].as_array().into_iter().flatten()
+                    .find(|old| old["metadata"]["nativePageId"] == page.page_id);
+                let speech_text = |scene: &Value| scene["actions"].as_array().into_iter().flatten()
+                    .filter(|a| a["type"] == "speech" && !scene["metadata"]["assessmentSpeechIds"].as_object()
+                        .is_some_and(|ids| ids.values().any(|id| *id == a["id"])))
+                    .map(|a| a["text"].clone()).collect::<Vec<_>>();
+                // An unrelated canonical edit must not roll back newer native narration/audio.
+                if old_scene.is_some_and(|old| speech_text(old) == speech_text(scene)) { continue; }
+                // Keep native-only media/actions. Speech edits share the canonical text baseline.
+                let assessment_ids = scene["metadata"]["assessmentSpeechIds"].as_object();
+                let existing: Vec<_> = page.actions.iter().filter(|action| action["type"] == "speech").cloned().collect();
+                let speeches: Vec<Value> = scene["actions"].as_array().into_iter().flatten()
+                    .filter(|action| action["type"] == "speech" && !assessment_ids.is_some_and(|ids| ids.values().any(|id| *id == action["id"])))
+                    .enumerate()
+                    .map(|(index, action)| existing.iter().find(|old| old["id"] == action["id"] && old["text"] == action["text"])
+                        .or_else(|| existing.get(index).filter(|old| old["text"] == action["text"]))
+                        .cloned().unwrap_or_else(|| json!({"id":action["id"],"type":"speech","text":action["text"]}))).collect();
+                if existing != speeches {
+                    let position = page.actions.iter().position(|action| action["type"] == "speech").unwrap_or(0);
+                    page.actions.retain(|action| action["type"] != "speech");
+                    let position = position.min(page.actions.len());
+                    page.actions.splice(position..position, speeches);
+                }
+            }
+        }
         next.validate()?;
         self.validate_courseware_review_audio(workspace, &baseline, &next)?;
         let animation_pages = next
@@ -279,6 +329,8 @@ impl Database {
             .filter(|(i, _)| proof.animation_unchanged[*i])
             .map(|(_, page)| page.page_id.clone())
             .collect();
+        let classroom = classroom.map(|save| self.prepare_native_classroom(workspace, &baseline, &next,
+            &save.expected_revision, &save.classroom)).transpose()?;
         let journal = Journal {
             save_id: uuid::Uuid::new_v4().to_string(),
             source_path: path.into(),
@@ -288,6 +340,7 @@ impl Database {
             warnings,
             animation_pages,
             status: "pending".into(),
+            classroom,
         };
         let key = storage_key(workspace, &journal.save_id)?;
         self.kv_set(JOURNALS, &key, &serde_json::to_value(&journal)?)?;
@@ -452,6 +505,11 @@ impl Database {
                 &project_key,
                 &serde_json::json!({"sourceSha256":live_sha,"warnings":journal.warnings}),
             )?;
+            if let Some(document) = &journal.classroom {
+                self.kv_set(classroom::DOCUMENTS, &project_key, document)?;
+                self.kv_set(classroom::REVISIONS,
+                    &serde_json::to_string(&(&project_key, &document["revision"]))?, document)?;
+            }
         }
         journal.status = if commit { "committed" } else { "cancelled" }.into();
         self.kv_set(JOURNALS, &key, &serde_json::to_value(&journal)?)?;

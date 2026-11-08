@@ -17423,6 +17423,22 @@ remain separate checks. See [repair evidence](2026-11-01-scene-workflow-repairs.
   workflow contract gate on the current checkout; do not substitute paid reruns.
 - Milestone: none (maintenance). Status: automated regression coverage.
 
+### CW-SCENE-QUIZ-01: matching planning instructions and MAIC quiz validation
+
+- Inspect both initial planning and the actual production Main Chat request.
+  Both describe independent `page.quiz` content with stable option values and
+  distinguish it from `teaching.question` checkpoints. Parse the bundled skill's
+  mixed-lesson JSON example through the production parser; preserve quiz answers,
+  checkpoint reference answers/constraints and existing music/video requirements.
+- Return a five-page plan whose fifth page has `pageType=quiz` but lacks `quiz`.
+  Expect `pages[4].quiz` validation feedback without requesting `teaching.question`.
+  Return the complete corrected plan using `page.quiz` within the existing bounded
+  correction loop; retain the page order, brief/settings and independent content.
+  An interactive page with stray quiz content must still require its checkpoint.
+- Automated coverage: `courseware-scene-plan.test.mjs`, plus saved-draft/workflow
+  regressions. This provider-free gate verifies planning contracts and correction
+  dispatch; it does not establish real provider output or packaged-app acceptance.
+
 ### CW-IMAGE-MAIC-01: 1280x800 visual-master planning
 
 - Approve a scene plan with exact visible text and required characters. Verify
@@ -17539,8 +17555,9 @@ progress dragging, replay navigation and stale completion after switching pages.
 Runtime tests verify forward seek with native speech motions and rejection of
 backward seeks. These browser tests do not attach to the user's Desktop process.
 
-For Desktop resource integration, build WiseOffice with `pnpm build:module`, stage
-that output with `node scripts/stage-wiseoffice.mjs <dist-module> <new-directory>`,
+For Desktop resource integration, build the MAIC sidebar adapter with
+`node scripts/build-wiseoffice-maic.mjs <WiseOffice-source> <new-build-directory>`.
+Stage that output with `node scripts/stage-wiseoffice.mjs <build-directory> <new-directory>`,
 verify the manifest file sizes and SHA-256 values, then preserve the old bundle
 outside Desktop resources and promote the staged directory to
 `apps/desktop/resources/wiseoffice`. Staging also bundles the current Desktop
@@ -17549,3 +17566,317 @@ Run the editor-host protocol/visibility tests and the independent Electron
 `scripts/verify-local-wiseoffice.mjs` fixture probe to verify local module loading,
 media playback, save/reopen, and zero remote requests. The probe uses its own
 profile and does not attach to the user's running Desktop.
+
+### E2E-COURSEWARE-maic-assessment-visibility (2026-11-04)
+
+- Submit a family-word single-choice assessment as an interactive checkpoint and
+  verify Main and Host reject it before approval. Submit independent Quiz content
+  instead and verify its option values/answer are retained. Quiz pages reject a
+  second teaching question; open-ended practice remains a valid checkpoint.
+- Mount a generated-PPT workflow and open Quiz / interaction editing from its
+  toolbar. Verify the standard editor mounts and the native PPT surface unmounts.
+- Run `node --test apps/desktop/test/wiseoffice-maic-*.test.mjs`: the native adapter
+  removes the legacy question/reference/response forms, retains the checkpoint
+  node and media controls, and staging rejects a plain upstream build. The receipt
+  pins transformed source provenance and every resource size/hash.
+- Run `node apps/desktop/test/wiseoffice-maic-sidebar.browser.mjs` against installed
+  Desktop resources. Open an actual PPTX with the native SDK, select the MAIC
+  checkpoint, and verify no legacy inputs/selectors or content writes occur.
+- Run `node apps/desktop/test/courseware-classroom-editor.browser.mjs`: edit Quiz
+  text/options/images and checkpoint question/reference, save and preview. An
+  untranslated native action shows its exact reason and keeps full-course
+  play/export disabled while independent assessment editing remains available.
+- Run `node apps/desktop/test/courseware-classroom-timeline.browser.mjs`: export and
+  reload a converted native timeline in the real fixed player; verify animations,
+  timed focus/highlight, pauses, adopted music, pause/resume and page completion.
+- Native reconciliation tests check target identity, source fingerprint, audio
+  timing, no partial updates, and repeated-refresh idempotence. The actual saved
+  course must refresh through Host CAS, export, reload, and retain its source PPTX.
+- Unsupported waits or untimed cues stay pending with an explicit reason; never
+  report MAIC playback/export parity while that marker remains.
+  Tests run with local fixtures and no paid provider calls or live SQLite writes.
+
+
+### Preserve body-page requirements through assessment clarification (2026-11-05)
+
+- Request 8 courseware pages, then add one Quiz and one checkpoint. Save
+  `educationContext.bodyPageLimit:8` before asking the assessment question;
+  the options describe additional pages and never offer 6 body + 2 assessments.
+- Submit a draft with budget 6 against saved budget 8. Main review and direct
+  Host approval reject it without rewriting the file or storing an approval.
+  An omitted budget is also rejected. Correcting the budget to 8 permits
+  review; 9 body pages still fail, while separate assessment pages do not count.
+- Requirements accept integer budgets 1–30, reject null/string/fractional/out of
+  range values, retain revision checks and survive restart.
+- Targeted regressions: desktop `courseware-scene-plan.test.mjs` and
+  `courseware-scene-draft.test.mjs`, shared `courseware-contract.test.ts`, runtime
+  `courseware-workflow-tools.test.ts`, Host `courseware_task_tests` and
+  `courseware_projects::scene_plan::tests`.
+
+
+## Teaching-story creation acceptance
+
+Run the actual creation dialog and workspace interaction tests for ordinary and
+scene routes: direct generation is default; story selection is omitted for
+imports; a pending story hides downstream generation; active turns disable
+confirmation; confirmation pins exact revision/hash and resumes the selected
+route. A failed send must retain confirmation and allow resume.
+
+`apps/desktop/test/courseware-story.test.mjs` exercises real Main workflow modules
+and an isolated Host: create without a supplied lesson plan, save/read draft,
+reject production before approval, approve, carry the exact source into each
+route, repair mismatched scene-story hashes, approve the scene plan, reject late
+story rewrites, cancel stale work and restore records after Host restart. Model
+completion is fixed at the external boundary and no paid service is called.
+After story confirmation, save a ten-page body budget through the actual Main
+requirements tool for each route, retain the approved hash, and write the
+ordinary source or scene plan through Host admission. Scene approval still
+requires the saved page budget. Changing audience/subject/language settings
+must continue to invalidate story approval.
+`rpc::courseware_projects::story::tests` covers version conflicts, lost save
+replies, approval checks, requirements changes, import rejection, disabling,
+re-enabling, immutable bound stories and atomic rollback on storage failure.
+`courseware-scene-completion.electron.mjs` also verifies the one-shot Main
+planning entrance with a pending and approved story through the real local
+completion transport. Existing scene planning, native save,
+PPT Master quality and three-route workflow tests remain required regressions.
+These tests do not certify real-model pedagogy or the native Office application.
+
+## Multiline assessment compilation acceptance (2026-11-05)
+
+Run `apps/desktop/test/courseware-assessment-compile.test.mjs` with
+`DECKWISE_E2E_WORKFLOW_HOST` pointing to the built Host binary,
+`DECKWISE_PPTX_WORKER` to the built runtime worker, and `DECKWISE_PPTX_NODE` to
+Node. The real Main compiler exports a three-question Quiz and a multiline
+checkpoint with empty illustration requirements and narration. The real parser
+must preserve exactly five objects per page with trusted shape identities.
+An isolated Host must initialize the project, save canonical assessment content,
+attach the generated task and report completion. Feed persisted metadata back
+through Main's actual teaching projection, saved narration context and saved
+media context. Quiz metadata has no duplicated `teaching.question`; the
+checkpoint retains its question and its canonical scene type is `slide`.
+Both context tools must report teaching ready without invoking a model or
+decoding/submitting audio. Restore identical saved state after Host restart.
+No paid provider, existing workspace database or live app is used.
+
+`courseware-saved-narration.test.mjs` also covers a mixed body/Quiz/checkpoint
+course with realistic saved teaching metadata: context reads succeed, only body
+pages enter lecture planning/generation, and assessments remain empty native
+narration pages. Shared metadata tests retain required checkpoint/PBL questions
+and reject malformed supplied Quiz questions.
+
+Runtime `classroom-pptx.test.ts` checks multiline content and object identity
+through the actual compiler/importer. Host `scene_objects::tests` checks text
+versus shape types, rejects mismatched objects and checks page/count diagnostics.
+Shared workflow and desktop workflow UI tests verify body-only image progress
+and separate body, Quiz and checkpoint counts.
+
+The failed Family course was replayed offline with its unchanged approved plan
+and existing body-image bytes: eight body pages, one three-question Quiz and one
+checkpoint. Exported and parsed object counts both became
+`[5, 6, 9, 5, 8, 6, 14, 4, 5, 5]`; previously page nine parsed as six objects.
+All eight body pages retained their image content fingerprints. This verifies
+compilation and trusted parsing, not generation of narration, TTS or music.
+
+## Narration readiness and length-failure regression (2026-11-05)
+
+- Shared teaching-quality tests reject seeded outline speech as detailed scene
+  narration; generated and manually authored detailed speech retain their prior
+  acceptance rules. Main saved-narration tests read quality, reject repair-only
+  promotion before any model call, then generate/save normal detailed narration
+  and observe readiness. Saved-media tests keep outline single/batch TTS blocked
+  before purchase and allow the verified detailed-generation state.
+- Runtime workflow-tool tests retain exact selected-page actions and full private
+  receipts while keeping a large plan and unrelated page diagnostics out of model
+  text. Continuation and recovery tests must pass with the summarized projection.
+- Error-classification/provider-retry tests keep Responses `length` and
+  `max_output_tokens` terminal. Context-budget tests use the same published ceiling
+  as output capping even with an enlarged user window.
+- Run the isolated real Host assessment compilation/context regression as well.
+  None of these checks uses a live supplier, the user's running app or paid media.
+  They do not certify the upstream gateway's actual output-budget configuration.
+
+### MAIC assessment editing beside native PPT (2026-11-05)
+
+- Run `node --test apps/desktop/test/ppt-editor-visibility.test.mjs`: selecting a
+  Quiz page opens a sibling assessment sidebar, keeps native PPT visible and
+  resizes its bounds. Returning to a body page restores native teaching. Atomic
+  reopen does not unmount the canonical editor or drop its draft.
+- Run `node apps/desktop/test/courseware-classroom-editor.browser.mjs`: sidebar
+  mode hides course navigation and lecture tools; changing pages retains pending
+  Quiz edits while interaction constraints and reference labels autosave.
+- Run runtime `src/authoring/tests/classroom-pptx.test.ts`: option-only changes
+  and images update real PPTX, remain importable, preserve other pages, and never
+  add a canonical Quiz canvas or expose grading prompts on the learner page.
+- Run `node --test apps/desktop/test/courseware-classroom-save.test.mjs`: actual
+  Main/Host save receipts preserve canonical/native identity through restart;
+  option-only edits change native bytes and appear in the saved slide XML.
+- Build/stage the WiseOffice adapter and run
+  `node apps/desktop/test/wiseoffice-maic-sidebar.browser.mjs <staged-directory>`:
+  module UI page restoration is reflected by native `document:get-context`.
+- These fixture checks do not prove full playback parity for untranslated native
+  teaching timelines. They do not touch the running user application or call
+  paid generation providers.
+
+### Teaching after ordinary native save (2026-11-06)
+
+- Rust regression `native_save_keeps_teaching_readable_before_canonical_canvas_refresh`
+  saves native bytes without a canonical edit, then reads project context and
+  completion. Stable assessment IDs remain available; canonical content remains
+  unchanged and full canonical reads still require reconciliation.
+- `node --test apps/desktop/test/courseware-classroom-save.test.mjs` also exercises
+  Main's ordinary native-save coordinator after editing Quiz/checkpoint pages.
+  Restart Host, read the body narration and assessment IDs, then reconcile the
+  canonical classroom through the actual saved parser job. Preserve Quiz content
+  and body narration throughout. All storage and files are isolated fixtures.
+
+- `E2E-COURSEWARE-single-question-quiz-sidebar`: reject multi-question Quiz plans
+  including review mode; insert independent questions between body slides; edit
+  one question/options in the native teaching sidebar, autosave, verify physical
+  PPT text/options and canonical data agree, and open course preview when another
+  body scene carries native teaching conversion metadata. The sidebar has no
+  manual save, add/delete question controls, or unrelated conversion warning.
+
+## E2E-COURSEWARE-shared-assessment-header
+
+- Run `node apps/desktop/test/wiseoffice-maic-sidebar.browser.mjs` against the
+  staged WiseOffice bundle (or pass a candidate bundle directory).
+- The real native iframe switches body → Quiz → chapter interaction → body.
+  All pages retain the same Teaching Flow title, icon controls and status-row
+  layout; assessment pages render no second toolbar or text preview button.
+- Exercise canonical undo/redo, save, refresh and course preview from the native
+  header. Verify question/option autosave, interaction prompt edits and unsaved
+  changes across navigation. No native teaching write may occur from assessment
+  controls. Header controls must fit within the actual sidebar width.
+
+## E2E-COURSEWARE-native-playback-preparation
+
+- Click the shared header's current-page slideshow button once on an interaction
+  page. Hold the canonical-read and audio-read responses independently: show the
+  appropriate preparation text, an indeterminate progress indicator and disabled
+  start buttons throughout. On release, open the real native slideshow and play
+  its question audio before presenting the checkpoint. Clear the busy state.
+- Fail the audio read: retain an alert instead of replacing it with autosave
+  status, clear the progress indicator and allow a retry. Three subsequent starts
+  must each reach the checkpoint with a single click.
+- Automated: `node apps/desktop/test/wiseoffice-maic-sidebar.browser.mjs`.
+
+- Repeat current-page slideshow and embedded-question canvas preview with saved
+  `context.sourceSceneIds: []`. Both must read the question, reach the checkpoint
+  and continue teaching without rewriting its source context. Native preview
+  must also accept references to another lesson page; blank source IDs and lists
+  exceeding the existing size limit still reject before playback. Runtime:
+  `packages/courseware-runtime/src/teaching-timeline-preview.test.ts`.
+
+## E2E-COURSEWARE-one-click-speech
+
+- Speech generation in Quiz, checkpoint and native narration uses one click,
+  automatically adopts the archived result, and shows no quote/fee-confirmation
+  or manual-refresh buttons. Editing spoken text invalidates the matching audio.
+  Insufficient points shows an actionable error, keeps existing audio and records
+  a definite refusal; refresh/restart cannot submit a duplicate paid request.
+  Automated: `courseware-classroom-editor.browser.mjs`,
+  `wiseoffice-maic-sidebar.browser.mjs`, `courseware-local-media.test.mjs`.
+
+## E2E-COURSEWARE-atomic-quiz-image-upload
+
+- Edit a Quiz question and immediately upload an option image before autosave.
+  A native document reopen during the save must not drop the image. Question and
+  image are committed together; the rebuilt PPT contains both and Host restart
+  preserves them. An image failure leaves the draft available for retry.
+- Re-save unchanged content and refresh it: the canonical revision stays fixed,
+  while a truly stale source/content revision still rejects.
+- Import checkpoint text containing `&#160;`, `&#xA0;`, `&nbsp;`, escaped angle
+  brackets and Unicode. The form and physical PPT show decoded text. A matching
+  old encoded baseline is repaired; independent edits remain untouched.
+- Automated: `apps/desktop/test/courseware-classroom-editor.browser.mjs`,
+  `apps/desktop/test/courseware-classroom-save.test.mjs`,
+  `apps/desktop/test/courseware-classroom-native.test.mjs`, and
+  `packages/courseware-runtime/src/authoring/tests/classroom-pptx.test.ts`.
+
+## E2E-COURSEWARE-live-quiz-image
+
+- On the current native Quiz page, edit the question then upload an option image.
+  The picture and label layout update in place, with no opening-document screen,
+  no new iframe, and no page selection change. Replacing the image keeps exactly
+  one picture bound to that option. Quiz remains canonical structured content.
+- Native undo/redo changes the page in one history step. Export contains the
+  uploaded image and edited question. The sidebar's canonical undo still uses
+  revision-fenced saves. Stale targets and malformed images leave the page intact.
+- Fail Host preparation before replacing the source; retry ordinary save. Both
+  attempts carry the same canonical draft, and subsequent unrelated saves do not.
+
+## E2E-COURSEWARE-assessment-page-load-latency
+
+- On a real or isolated multi-page native course, switch body → Quiz →
+  interaction checkpoint → body repeatedly. Warm reads must not invoke PPT
+  parse/source refresh, serialize unrelated slide images, or read full Chat
+  history. Quiz images still load for the selected assessment.
+- Change the saved source, teaching revision or page identities and verify the
+  next assessment read reconciles before editing. Exercise the Host source
+  conflict path and preserve unrelated read errors.
+- Automated: `node --test apps/desktop/test/courseware-classroom.test.mjs
+  apps/desktop/test/courseware-classroom-native.test.mjs
+  apps/desktop/test/courseware-native-sidebar.test.mjs`; also record timings
+  from the actual bundled Desktop Host on an unchanged course.
+- Automated: `node apps/desktop/test/wiseoffice-quiz-live.browser.mjs <bundle>`,
+  `node --test apps/desktop/test/courseware-classroom-save.test.mjs`, and
+  `node --test apps/desktop/test/ppt-editor-save.test.mjs`.
+
+## E2E-COURSEWARE-native-quiz-thumbnail-navigation
+
+Open a Quiz with an option image, edit its question, and select another Quiz whose
+image URLs were not included in the first response. Its option thumbnail must
+successfully decode (`naturalWidth > 0`), with a resolved display URL. Return to
+the first page: both its draft and thumbnail remain available. Page selection
+must not remount the native iframe. Run
+`node apps/desktop/test/wiseoffice-quiz-images.browser.mjs <wiseoffice-bundle>`.
+
+## E2E-COURSEWARE-saved-story-sidebar
+
+With a saved PPT and bound teaching story, the workspace has no saved-story block
+above the editor. The teaching story toolbar button opens the existing right
+sidebar; inspection and story replace each other in that single sidebar. Close
+restores the editor width. Opening, switching and closing retain editor height
+and must not reopen Office. Story approval before generation is unchanged.
+Automated by `ppt-editor-visibility.test.mjs` and
+`courseware-chat-workflow-ui.test.mjs`.
+
+## E2E-COURSEWARE-repair-failure-boundaries
+
+- Generate a six-page lesson with four body pages and two assessments from an
+  approved story containing more than six beats. Opening/setup/review must fit
+  the four body pages. On invalid drafts, automatic and explicit validation
+  expose the same exact product error. Repeated unchanged submissions do not
+  consume the two rewritten-correction opportunities, but are bounded themselves.
+  Exhaustion requests a visible final report with tool_choice none, retained
+  schemas and execution fenced; one noncompliant report receives a bounded
+  text-only correction. The next user request resets the guard. Cover with Main/Host story tests and runtime
+  planning-continuation/recovery tests.
+
+- Repair a selected page's focus with saved speech/audio while the whole-deck
+  planner would fail. Only selected body-page evidence is read; no planner call,
+  unrelated-page write or TTS order occurs. Repair a required activity without
+  inheriting the independent-body interaction prohibition.
+- Fix one of two diagnostic pages, then leave the other unresolved. The remaining
+  page gets at most two attempts across changed issue sets and runtime restart.
+  Retain exhausted legacy counters and stop before exceeding 100 counters.
+- Lose the reply after required teaching is saved, then query actual Host
+  acceptance. Report completion only when the saved requirements are satisfied;
+  otherwise stop with the preserved partial results. Abort during repair must
+  not report either teaching completion or an ordinary repair failure.
+- Return submission_unknown from an original question-media refresh. End with
+  that original result and no replacement request. Reject incomplete/mixed
+  assessment targets before Host dispatch. Keep provider-default null TTS voice.
+- Verify independent-body prompts, retained paid music and the 30000 ms wait
+  limit agree with the write validators. Automatic continuation must emit tool
+  progress and sanitized error events through the normal desktop log path.
+- Automated: agent-runtime `courseware-turn-continuation.test.ts`,
+  `courseware-workflow-recovery.test.ts`, `courseware-workflow-tools.test.ts`, and
+  `courseware/narration-write.test.ts`; Desktop
+  `courseware-saved-narration.test.mjs` and `courseware-narration.test.mjs`.
+- Run `courseware-workflow-contract.test.mjs` and
+  `courseware-assessment-compile.test.mjs` with DECKWISE_E2E_WORKFLOW_HOST pointing
+  to the built Host. These use isolated workspace/data directories, real
+  compilation, parsing and persistence, and synthetic supplier output. They do
+  not authorize paid provider calls or writes to the user's courseware database.

@@ -3,7 +3,7 @@ import { createCoursewareSceneGenerator } from "./courseware-scene-generator";
 import type { CoursewareSceneImage } from "./courseware-scene-context";
 import type { SceneCoursePlanPage } from "./courseware-scene-plan";
 
-type Authoring = Pick<typeof import("@pi-desktop/courseware-runtime/authoring"), "editablePptxSceneSchema" | "compileScenesToPptx">;
+type Authoring = Pick<typeof import("@pi-desktop/courseware-runtime/authoring"), "editablePptxSceneSchema" | "compileScenesToPptx" | "assessmentPptxScene" | "assessmentBackground" | "createMaicInteractionCanvas">;
 type Visuals = { pageId: string; visualMasterAssetId: string; cleanPlateAssetId: string; images: CoursewareSceneImage[];
   foregroundPlacements?: { assetId: string; bboxPx: [number, number, number, number]; zIndex?: number; semanticRole?: string }[] };
 const hash = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
@@ -19,8 +19,8 @@ export async function buildSceneCourseDeck(input: {
   signal?: AbortSignal;
 }, complete: Parameters<typeof createCoursewareSceneGenerator>[1], authoring: Authoring) {
   const { pages, visuals, signal } = input;
-  const slidePages = pages.filter(page => !page.quiz);
-  if (!Array.isArray(pages) || pages.length < 1 || pages.length > 30 || !Array.isArray(visuals) || visuals.length !== slidePages.length ||
+  const slidePages = pages.filter(page => !page.quiz && !page.teaching?.question);
+  if (!Array.isArray(pages) || pages.length < 1 || pages.length > 100 || !Array.isArray(visuals) || visuals.length !== slidePages.length ||
       new Set(pages.map((page) => page.pageId)).size !== pages.length ||
       new Set(visuals.map((visual) => visual.pageId)).size !== visuals.length ||
       !Number.isFinite(input.canvas.width) || !Number.isFinite(input.canvas.height) ||
@@ -28,7 +28,20 @@ export async function buildSceneCourseDeck(input: {
     throw new Error("Invalid scene course pages, visuals or canvas");
   const scenes: ReturnType<Authoring["editablePptxSceneSchema"]["parse"]>[] = [];
   const assets: Record<string, Uint8Array> = {};
-  for (const page of slidePages) {
+  for (const page of pages) {
+    if (page.quiz || page.teaching?.question) {
+      if (page.narration !== "" || page.visibleText.length || page.teaching?.requiredObjects.length || page.teaching?.music || page.teaching?.video)
+        throw new Error(`Assessment ${page.pageId} must preserve a separate body activity slide; refusing to discard body content`);
+      const question = page.teaching?.question;
+      const canonical: Parameters<Authoring["assessmentPptxScene"]>[0] = { id: page.pageId, stageId: "generated", type: page.quiz ? "quiz" : "slide", title: page.title, order: scenes.length,
+        content: page.quiz ?? { type: "slide", canvas: authoring.createMaicInteractionCanvas(page.pageId, page.title, question!.text, input.canvas.width, input.canvas.height / input.canvas.width) },
+        actions: question ? [{ id: `${page.pageId}-interaction`, type: "interaction_checkpoint", checkpointKind: "chapter_summary",
+          checkpointId: `${page.pageId}-checkpoint`, chapterId: page.pageId, chapterTitle: page.title, question: question.text,
+          referenceAnswer: question.referenceAnswer ?? { summary: "", keyPoints: [] }, context: { chapterSummary: page.title, sourceSceneIds: [] } }] : [] };
+      scenes.push(authoring.assessmentPptxScene(canonical, page.sourceHash, input.canvas));
+      assets[authoring.assessmentBackground.id] = authoring.assessmentBackground.bytes;
+      continue;
+    }
     signal?.throwIfAborted();
     const visual = visuals.find((item) => item.pageId === page.pageId);
     if (!visual || !/^sha256:[a-f0-9]{64}$/u.test(page.sourceHash) || !Array.isArray(page.visibleText) ||
@@ -83,26 +96,30 @@ export async function buildSceneCourseDeck(input: {
       if (assets[id] && hash(assets[id]) !== hash(bytes)) throw new Error(`Scene asset ID has conflicting bytes: ${id}`);
       assets[id] = bytes;
     }
-    // Interaction wording stays editable and is never baked into the reviewed image pixels.
-    if (page.teaching?.question) scene.elements.push({ id: `${page.pageId}_question`, type: "native_text",
-      bboxPx: [input.canvas.width * .08, input.canvas.height * .68, input.canvas.width * .84, input.canvas.height * .24],
-      zIndex: Math.max(...scene.elements.map(element => element.zIndex), 0) + 1, spokenAliases: [],
-      content: page.teaching.question.text, style: { fontFace: "Arial", fontSizePt: 28, color: "#111827", align: "left", lineHeight: 1.2 } });
     scenes.push(scene);
   }
   signal?.throwIfAborted();
   const compiled = scenes.length ? await authoring.compileScenesToPptx(scenes, assets) : { pptx: new Uint8Array(), mapping: undefined };
   signal?.throwIfAborted();
-  if (scenes.length && (compiled.pptx.length < 1 || compiled.pptx.length > 50 * 1024 * 1024 || compiled.mapping?.pages.length !== slidePages.length))
+  if (scenes.length && (compiled.pptx.length < 1 || compiled.pptx.length > 50 * 1024 * 1024 || compiled.mapping?.pages.length !== pages.length))
     throw new Error("Invalid compiled scene course deck");
   // These are the same image objects, geometry and pixels compiled above, expressed in MAIC's PPTist canvas.
-  // Quiz scenes never become PPT pages or interaction actions.
+  // Quiz navigation cards are local PPT pages; canonical Quiz remains independent content.
   const stageId = `course-${hash(Buffer.from(input.sessionId + pages.map(page => page.sourceHash).join("|"))).slice(0, 32)}`, now = Date.now();
   const mediaManifest: Array<{ sceneId: string; elementId: string; assetId: string; assetType: "image"; mimeType: string; src: string; originalSrc: string }> = [];
   const canonicalScenes = pages.map((page, order) => {
-    const actions: Record<string, unknown>[] = [{ id: `${page.pageId}-speech`, type: "speech", text: page.narration }];
+    const actions: Record<string, unknown>[] = page.narration.trim() ? [{ id: `${page.pageId}-speech`, type: "speech", text: page.narration }] : [];
     if (page.quiz) return { id: page.pageId, stageId, type: "quiz", title: page.title, order, content: structuredClone(page.quiz), actions };
-    const scene = scenes[slidePages.indexOf(page)];
+    const question = page.teaching?.question;
+    if (question) actions.push({ id: `${page.pageId}-interaction`, type: "interaction_checkpoint", checkpointKind: "chapter_summary",
+      checkpointId: `${page.pageId}-checkpoint`, chapterId: page.pageId, chapterTitle: page.title, question: question.text,
+      referenceAnswer: question.referenceAnswer ?? { summary: question.response.answerIndices.map(index => question.response.options[index]).join("；"), keyPoints: [] },
+      ...(question.constraintPrompt ? { constraintPrompt: question.constraintPrompt } : {}),
+      context: { chapterSummary: page.teaching?.objective ?? page.title, sourceSceneIds: [page.pageId] } });
+    if (question) return { id: page.pageId, stageId, type: "slide", title: page.title, order,
+      content: { type: "slide", canvas: authoring.createMaicInteractionCanvas(page.pageId, page.title, question.text, input.canvas.width, input.canvas.height / input.canvas.width) }, actions,
+      metadata: { interaction: { kind: "chapter_summary", chapterId: page.pageId, chapterTitle: page.title, sourceSceneIds: [page.pageId] } } };
+    const scene = scenes[order];
     const background = assets[scene.cleanPlateAssetId];
     if (!background) throw new Error("Missing generated clean background pixels");
     const backgroundMime = background[0] === 0xff && background[1] === 0xd8 ? "image/jpeg" : "image/png";
@@ -110,7 +127,7 @@ export async function buildSceneCourseDeck(input: {
     const backgroundAssetId = `image-${hash(background)}`;
     const backgroundElementId = `${page.pageId}_background`;
     mediaManifest.push({ sceneId: page.pageId, elementId: backgroundElementId, assetId: backgroundAssetId, assetType: "image", mimeType: backgroundMime, src: backgroundSrc, originalSrc: backgroundSrc });
-    const elements = [...scene.elements].sort((a, b) => a.zIndex - b.zIndex).map(element => {
+    const elements = [...scene.elements].filter(element => element.type !== "native_shape").sort((a, b) => a.zIndex - b.zIndex).map(element => {
       if (element.type === "native_text") {
         const [left, top, width, height] = element.bboxPx;
         const escaped = element.content.replace(/[&<>"']/g, value => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[value]!));
@@ -129,12 +146,6 @@ export async function buildSceneCourseDeck(input: {
         ...(element.opacity !== undefined ? { filters: { opacity: `${Math.round(element.opacity * 100)}%` } } : {}),
         ...(element.crop ? { clip: { shape: "rect", range: element.crop } } : {}) };
     });
-    const question = page.teaching?.question;
-    if (question) actions.push({ id: `${page.pageId}-interaction`, type: "interaction_checkpoint", checkpointKind: "chapter_summary",
-      checkpointId: `${page.pageId}-checkpoint`, chapterId: page.pageId, chapterTitle: page.title, question: question.text,
-      referenceAnswer: question.referenceAnswer ?? { summary: question.response.answerIndices.map(index => question.response.options[index]).join("；"), keyPoints: [] },
-      ...(question.constraintPrompt ? { constraintPrompt: question.constraintPrompt } : {}),
-      context: { chapterSummary: page.teaching?.objective ?? page.title, sourceSceneIds: [page.pageId] } });
     return { id: page.pageId, stageId, type: "slide", title: page.title, order,
       content: { type: "slide", canvas: { id: page.pageId, viewportSize: input.canvas.width, viewportRatio: input.canvas.height / input.canvas.width,
         theme: { backgroundColor: "#FFFFFF", themeColors: ["#3B82F6"], fontColor: "#111827", fontName: "Arial" }, elements: [
@@ -144,6 +155,6 @@ export async function buildSceneCourseDeck(input: {
     canvas: { preset: "WIDE_16_9", viewportSize: input.canvas.width, viewportRatio: input.canvas.height / input.canvas.width } },
     scenes: canonicalScenes, mediaManifest, audioManifest: [], createdAt: new Date(now).toISOString() };
   return { ...compiled, ...(compiled.mapping ? { mapping: { ...compiled.mapping,
-    pages: compiled.mapping.pages.map((entry, index) => ({ ...entry, ...(slidePages[index].teaching ? { teaching: slidePages[index].teaching } : {}) })) } } : {}),
-    teaching: slidePages.map(({ pageId, narration }) => ({ pageId, narration })), canonicalClassroom };
+    pages: compiled.mapping.pages.map((entry, index) => ({ ...entry, ...(pages[index].teaching ? { teaching: pages[index].teaching } : {}) })) } } : {}),
+    teaching: pages.map(({ pageId, narration }) => ({ pageId, narration })), canonicalClassroom };
 }

@@ -22,6 +22,8 @@ impl Database {
         workspace: &str,
         project: &CoursewareProject,
     ) -> Result<Value> {
+        let assessments = self.courseware_assessment_page_ids(workspace, project)?;
+        let native_saved = self.has_native_save_receipt(workspace, project)?;
         let mut issues = Vec::new();
         let mut add = |page: &CoursewarePage,
                        number: usize,
@@ -36,6 +38,7 @@ impl Database {
             issues.push(issue);
         };
         for (i, page) in project.pages.iter().enumerate() {
+            if assessments.contains(&page.page_id) { continue; }
             let speeches: Vec<_> = page
                 .actions
                 .iter()
@@ -44,7 +47,7 @@ impl Database {
             if speeches.is_empty()
                 || speeches.iter().any(|a| {
                     a["text"].as_str().is_none_or(|s| s.trim().is_empty())
-                        || a["source"] != "generated"
+                        || project.task_type == "scene" && !native_saved && a["source"] != "generated"
                             && a["id"].as_str().is_some_and(|id| {
                                 id.strip_prefix("narration-").is_some_and(|s| {
                                     !s.is_empty() && s.bytes().all(|c| c.is_ascii_digit())
@@ -75,9 +78,12 @@ impl Database {
                     .enumerate()
                     .find(|(_, p)| p.page_id == expected["pageId"])
                 else {
-                    issues.push(json!({"pageId":expected["pageId"],"code":"PAGE_MISSING","repair":"source","repairable":false}));
+                    if !native_saved {
+                        issues.push(json!({"pageId":expected["pageId"],"code":"PAGE_MISSING","repair":"source","repairable":false}));
+                    }
                     continue;
                 };
+                if assessments.contains(&page.page_id) { continue; }
                 let teaching = &expected["teaching"];
                 let question = &teaching["question"];
                 if !question.is_null() {
@@ -121,7 +127,7 @@ impl Database {
                     issues.push(json!({"pageId":page.page_id,"pageNumber":i+1,"code":"MUSIC_MISSING","repair":"narration","repairable":!page.locked}));
                 }
             }
-            if scene["pages"]
+            if !native_saved && scene["pages"]
                 .as_array()
                 .is_some_and(|pages| pages.len() != project.pages.len())
             {

@@ -27,6 +27,8 @@ export class CoursewareTurnContinuation {
   private active = false;
   private planning = false;
   private planValidationFailures = 0;
+  private lastPlanWrite?: string;
+  private planRepeatedFailures = 0;
   private planRepairPending = false;
   private planSha256?: string;
   private lastResume?: string;
@@ -38,8 +40,10 @@ export class CoursewareTurnContinuation {
   private progress?: string;
   private progressedAt = 0;
   private stopped = false;
+  private reportRetryUsed = false;
   private imageRetries = new Set<string>();
   private mediaRetries = new Set<string>();
+  private assessmentJobs = new Map<string, Record<string, unknown>>();
 
   get reportOnly(): boolean { return this.stopped; }
 
@@ -55,10 +59,23 @@ export class CoursewareTurnContinuation {
 
   private stop(): void { this.active = false; this.stopped = true; }
 
+  private takeRepairBudget(issues: unknown[], kind: "required" | "advisory"): boolean {
+    const legacy = digest(issues.map(issue => record(issue) ? [issue.pageId, issue.code, issue.repair] : null));
+    const keys = [...new Set(issues.map(issue => record(issue) ? digest([kind, issue.pageId, issue.code, issue.repair]) : legacy))];
+    const previous = this.qualityRepairs.get(legacy) ?? 0;
+    if (previous >= 2 || keys.some(key => (this.qualityRepairs.get(key) ?? 0) >= 2) ||
+        new Set([...this.qualityRepairs.keys(), ...keys]).size > 100) return false;
+    // Fixing one page or reordering diagnostics cannot renew another page's durable budget.
+    for (const key of keys) this.qualityRepairs.set(key, Math.max(previous, this.qualityRepairs.get(key) ?? 0) + 1);
+    return true;
+  }
+
   reset(): void {
     this.active = false;
     this.planning = false;
     this.planValidationFailures = 0;
+    this.lastPlanWrite = undefined;
+    this.planRepeatedFailures = 0;
     this.planRepairPending = false;
     this.planSha256 = undefined;
     this.lastResume = undefined;
@@ -70,8 +87,10 @@ export class CoursewareTurnContinuation {
     this.progress = undefined;
     this.progressedAt = 0;
     this.stopped = false;
+    this.reportRetryUsed = false;
     this.imageRetries.clear();
     this.mediaRetries.clear();
+    this.assessmentJobs.clear();
   }
 
   private matchesPlan(snapshot: Record<string, unknown>): boolean {
@@ -85,7 +104,13 @@ export class CoursewareTurnContinuation {
       const write = turn.message.content.find(block => block.type === "toolCall" && block.id === result.toolCallId);
       const path = write?.type === "toolCall" ? write.arguments.path ?? write.arguments.file_path : undefined;
       // Shell arguments can merely read a reference plan; explicit submission covers shell-authored drafts.
-      if (["Write", "Edit"].includes(result.toolName) && scenePlanPath(path)) {
+      if (!result.isError && ["Write", "Edit"].includes(result.toolName) && scenePlanPath(path)) {
+        const version = digest(write?.type === "toolCall" ? write.arguments : {});
+        if (version !== this.lastPlanWrite) {
+          if (this.planRepairPending) this.planValidationFailures++;
+          this.lastPlanWrite = version;
+          this.planRepeatedFailures = 0;
+        }
         this.planning = true;
       }
       if (!result.toolName.startsWith("courseware_")) continue;
@@ -95,6 +120,12 @@ export class CoursewareTurnContinuation {
       const value: unknown = result.details;
       if (!record(value)) continue;
       const call = turn.message.content.find(block => block.type === "toolCall" && block.id === result.toolCallId);
+      if (result.toolName === "courseware_media_assessments" && call?.type === "toolCall" && ["prepare", "refresh"].includes(String(call.arguments.mode))) {
+        const { mode, projectId, expectedRevision, expectedSourceRevision, ...target } = call.arguments;
+        const key = digest(target);
+        if (value.state === "adopted") this.assessmentJobs.delete(key);
+        else this.assessmentJobs.set(key, { ...call.arguments, mode: "refresh" });
+      }
       if (result.toolName === "courseware_scene_plan_submit" && value.awaitingPlanApproval === true) this.planning = true;
       if (result.toolName === "courseware_scene_compile" && value.generated === true) {
         if (call?.type !== "toolCall" || call.arguments.continueTeaching !== true) { this.reset(); continue; }
@@ -137,7 +168,14 @@ export class CoursewareTurnContinuation {
     canWait: () => boolean;
     checkpoints?: Checkpoints;
   }, signal?: AbortSignal): Promise<string | undefined> {
-    if (this.stopped) return;
+    if (this.stopped) {
+      if (!this.reportRetryUsed && turn.message.stopReason !== "error" && turn.message.stopReason !== "aborted" &&
+          controls.canWait() && turn.message.content.some(block => block.type === "toolCall")) {
+        this.reportRetryUsed = true;
+        return "The attempted tools in the final reporting pass were blocked; they performed no work and did not undo saved results. Now provide only a plain-language final answer using the latest saved workflow snapshot and its exact acceptance or error. Treat completion.ready and assessmentMedia.ready as authoritative: report missing media only when the latest snapshot lists it, and keep non-blocking quality diagnostics separate. Do not infer unfinished generation or request another user message merely because a reporting tool was blocked. No tool calls, tool markup, new submissions or claims of unverified completion. This is the final reporting correction.";
+      }
+      return;
+    }
     this.observe(turn);
     if (this.planning && controls.canWait() && turn.message.stopReason !== "error" && turn.message.stopReason !== "aborted" &&
         (!turn.message.content.some(block => block.type === "toolCall") || turn.toolResults.some(result =>
@@ -149,6 +187,7 @@ export class CoursewareTurnContinuation {
           throw new Error(JSON.stringify(result.content));
         this.planRepairPending = false;
         this.planValidationFailures = 0;
+        this.planRepeatedFailures = 0;
         if (result.details.awaitingPlanApproval === false) { this.planning = false; return; }
         // Keep tools through post-submit status reads; close on the model's final response without another tool-less pass.
         if (turn.message.content.some(block => block.type === "toolCall")) return;
@@ -158,12 +197,12 @@ export class CoursewareTurnContinuation {
       } catch (error) {
         signal?.throwIfAborted();
         if (!controls.canWait()) return;
-        if (++this.planValidationFailures >= 3) {
+        if (this.planValidationFailures >= 2 || ++this.planRepeatedFailures >= 3) {
           this.stop();
-          return "Scene planning is unfinished: validation still fails after two corrections. Explain the actual error to the user in plain language. Do not output tool calls, tool markup or repair code; no further repair runs in this pass. Do not claim completion or request approval of an invalid draft.\n" + String(error);
+          return "Scene planning is unfinished: " + (this.planValidationFailures >= 2 ? "validation still fails after two corrections." : "repeated submission has not corrected the saved draft.") + " Explain the actual error to the user in plain language. Do not output tool calls, tool markup or repair code; no further repair runs in this pass. Do not claim completion or request approval of an invalid draft.\n" + String(error);
         }
         this.planRepairPending = true;
-        return "The scene draft is not ready for review. Read this Chat's current plan.json and repair this exact product validation error using one complete Write with valid JSON, preserving all required fields and the user's explicit requirements, then submit again with courseware_scene_plan_submit. Do not use partial Edit repairs. A file write or JSON parse is not completion.\n" + String(error);
+        return "The scene draft is not ready for review. Read this Chat's current plan.json and repair this exact product validation error using one complete Write with valid JSON, preserving all required fields and the user's explicit requirements, then submit again with courseware_scene_plan_submit. Do not resubmit unchanged bytes or use partial Edit repairs. Recheck every constraint, including the saved body-page budget and the user's total-page limit; opening, cover, activity setup and review consume body pages. Merge setup into existing body pages rather than adding a slide to fix an assessment. A file write or JSON parse is not completion.\n" + String(error);
       }
     }
     const readyResult = this.savedGoal === "course" ? [...turn.toolResults].reverse().find(result =>
@@ -260,9 +299,12 @@ export class CoursewareTurnContinuation {
     let snapshot: Record<string, unknown> | undefined;
     let checkpoint: CoursewareWorkflowCheckpoint | null = null;
     let repairFailure: Record<string, unknown> | undefined;
+    let advisoryRepairFailed = false;
+    let requiredRepairFailed = false;
     let lastSavedRefresh: string | undefined;
+    const assessmentRefreshFailures = new Set<string>();
     const save = async (status: CoursewareWorkflowCheckpoint["status"]) => {
-      if (!checkpoints || !snapshot || !canWait()) return;
+      if (!checkpoints || !snapshot || snapshot.canonicalOnly === true || !canWait()) return;
       const next: CoursewareWorkflowCheckpoint = { revision: (checkpoint?.revision ?? 0) + 1,
         projectId: String(snapshot.projectId), sourceSha256: String(snapshot.sourceSha256), status,
         repairAttempts: Object.fromEntries([...this.qualityRepairs].sort(([a], [b]) => a.localeCompare(b))), lastResume: this.lastResume ?? null };
@@ -278,7 +320,7 @@ export class CoursewareTurnContinuation {
         if (!canWait()) return;
         if (typeof snapshot.sourceSha256 !== "string" || !Array.isArray(snapshot.jobs)) throw new LocalRequestError("context-validation");
         const jobs = this.mediaRetries.size ? snapshot.jobs.filter(job => record(job) && this.mediaRetries.has(String(job.intentId))) : snapshot.jobs;
-        if (checkpoints) {
+        if (checkpoints && snapshot.canonicalOnly !== true) {
           if (typeof snapshot.projectId !== "string") throw new LocalRequestError("context-validation");
           const durable = await checkpoints.read(snapshot.projectId);
           if (!canWait()) return;
@@ -313,26 +355,35 @@ export class CoursewareTurnContinuation {
           const completion = record(snapshot.completion) ? snapshot.completion : undefined;
           if (completion && completion.ready !== true) {
             const issues = Array.isArray(completion.issues) ? completion.issues : [];
+            if (requiredRepairFailed) {
+              await save("blocked"); this.stop();
+              return "Required teaching repair failed. Saved acceptance still has missing requirements. Report the affected pages and preserved successful assets; do not repeat the failed repair or claim completion.\n" + JSON.stringify(coursewareStatusSummary(snapshot));
+            }
             if (!issues.length || issues.some(issue => !record(issue) || issue.repairable !== true)) {
               await save("blocked"); this.stop();
               return "The authorized courseware request is unfinished. Required teaching cannot be repaired automatically. Report these missing or locked requirements; preserve saved content and paid assets.\n" + JSON.stringify(coursewareStatusSummary(snapshot));
             }
-            const key = digest(issues.map(issue => record(issue) ? [issue.pageId, issue.code, issue.repair] : null));
-            const attempts = this.qualityRepairs.get(key) ?? 0;
-            if (attempts >= 2) {
+            if (!this.takeRepairBudget(issues, "required")) {
               await save("blocked"); this.stop();
-              return "The authorized courseware request is unfinished. Required teaching still fails acceptance after two repairs. Report the remaining requirements and affected pages; do not claim completion or regenerate successful media.\n" + JSON.stringify(coursewareStatusSummary(snapshot));
+              return "The authorized courseware request is unfinished. Required teaching repair budget is exhausted (at most two repairs per requirement and 100 tracked requirements). Report the remaining requirements and affected pages; do not claim completion or regenerate successful media.\n" + JSON.stringify(coursewareStatusSummary(snapshot));
             }
-            this.qualityRepairs.set(key, attempts + 1);
             await save("running");
             if (snapshot.narrationReady === true && issues.every(issue => record(issue) &&
                 ["QUESTION_MISSING", "QUESTION_TYPE_MISMATCH", "MUSIC_MISSING", "VIDEO_MISSING"].includes(String(issue.code)))) {
               const pageNumbers = [...new Set(issues.flatMap(issue => record(issue) && Number.isInteger(issue.pageNumber) ? [issue.pageNumber] : []))];
               if (pageNumbers.length) {
-                const repaired = await execute("courseware_narration_propose", { sourceSha256: this.sourceSha256, pageNumbers,
-                  repairRequiredTeaching: true, instruction: "Restore only the missing approved questions/music/video at their teaching positions. Preserve all existing speech texts verbatim and in order, audio, effects and media. Follow retained logical-page requirements." });
+                try {
+                  const repaired = await execute("courseware_narration_propose", { sourceSha256: this.sourceSha256, pageNumbers,
+                    repairRequiredTeaching: true, instruction: "Restore only the missing approved questions/music/video at their teaching positions. Preserve all existing speech texts verbatim and in order, audio, effects and media. Follow retained logical-page requirements." });
+                  if (repaired.saved !== true) { repairFailure = repaired; requiredRepairFailed = true; }
+                } catch (cause) {
+                  signal?.throwIfAborted();
+                  if (!canWait()) return;
+                  if (coursewareFailureRecovery(cause) === "cancelled") throw cause;
+                  repairFailure = { code: "REQUIRED_REPAIR_FAILED", toolName: "courseware_narration_propose", pageNumbers };
+                  requiredRepairFailed = true;
+                }
                 if (!canWait()) return;
-                if (repaired.saved !== true) repairFailure = repaired;
                 // Read saved acceptance before another bounded repair, including after a lost save receipt.
                 continue;
               }
@@ -342,28 +393,70 @@ export class CoursewareTurnContinuation {
             return instruction;
           }
           const quality = record(snapshot.quality) ? snapshot.quality : undefined;
+          if (record(snapshot.assessmentMedia) && snapshot.assessmentMedia.ready === false) {
+            const context = snapshot.assessmentMedia;
+            if (this.assessmentJobs.size) {
+              for (const [key, request] of this.assessmentJobs) {
+                const missing = Array.isArray(context.targets) && context.targets.some(target => record(target) &&
+                  ["kind", "sceneId", "actionId", "questionId", "optionValue"].every(field => target[field] === request[field]));
+                if (!missing) { this.assessmentJobs.delete(key); continue; }
+                let result: Record<string, unknown>;
+                try {
+                  result = await execute("courseware_media_assessments", { ...request, projectId: context.projectId,
+                    expectedRevision: context.expectedRevision, expectedSourceRevision: context.expectedSourceRevision });
+                } catch (cause) {
+                  signal?.throwIfAborted();
+                  if (!canWait()) return;
+                  if (coursewareFailureRecovery(cause) === "cancelled") throw cause;
+                  if (assessmentRefreshFailures.has(key)) {
+                    await save("blocked"); this.stop();
+                    return "Assessment media refresh failed after rereading saved state. Report the affected original task and preserve its order and saved assets; do not submit a replacement.\n" + JSON.stringify(request);
+                  }
+                  assessmentRefreshFailures.add(key);
+                  // A native save or lost adoption receipt can invalidate this revision; reread before reconciling the original.
+                  break;
+                }
+                if (result.state === "adopted") { this.assessmentJobs.delete(key); break; }
+                if (["failed", "cancelled", "archive_failed", "not_submitted", "submission_unknown"].includes(String(result.state))) {
+                  await save("blocked"); this.stop();
+                  return "Assessment media is unfinished. Report this original task failure or unknown submission; preserve saved assets and do not submit a replacement.\n" + JSON.stringify(result);
+                }
+              }
+              if (this.assessmentJobs.size) await delayWithAbort(3000, signal);
+              continue;
+            }
+            await save("running");
+            return this.resume(snapshot) + "\nComplete the missing question audio and multiple-choice option images with courseware_media_assessments context/prepare/refresh. Load configured models with context kind:tts/image. Re-read context before each operation. Preserve adopted assets; do not ask for per-question approval.";
+          }
           const issues = quality && Array.isArray(quality.issues) ? quality.issues.filter(issue => record(issue) && issue.repairable === true) : [];
           if (snapshot.narrationReady === true && snapshot.audioReady === true && snapshot.teachingReady === true && snapshot.videoReady !== false) {
-            if (issues.length) {
-              const key = digest(issues.map(issue => record(issue) ? [issue.pageId, issue.code, issue.repair] : null));
-              const attempts = this.qualityRepairs.get(key) ?? 0;
-              if (attempts < 2) {
-                this.qualityRepairs.set(key, attempts + 1);
+            if (issues.length && !advisoryRepairFailed) {
+              if (this.takeRepairBudget(issues, "advisory")) {
                 await save("running");
                 if (issues.every(issue => record(issue) && issue.code === "FOCUS_MISSING" && Number.isInteger(issue.pageNumber))) {
-                  const repaired = await execute("courseware_narration_propose", { sourceSha256: this.sourceSha256,
-                    pageNumbers: [...new Set(issues.map(issue => (issue as Record<string, unknown>).pageNumber))],
-                    repairRequiredTeaching: true, instruction: "Repair only missing unambiguous focus on existing speech. Preserve all text, IDs, audio, effects and media." });
+                  const pageNumbers = [...new Set(issues.map(issue => (issue as Record<string, unknown>).pageNumber))];
+                  try {
+                    const repaired = await execute("courseware_narration_propose", { sourceSha256: this.sourceSha256, pageNumbers,
+                      repairRequiredTeaching: true, instruction: "Repair only missing unambiguous focus on existing speech. Preserve all text, IDs, audio, effects and media." });
+                    if (repaired.saved !== true) { repairFailure = repaired; advisoryRepairFailed = true; }
+                  } catch (cause) {
+                    signal?.throwIfAborted();
+                    if (!canWait()) return;
+                    if (coursewareFailureRecovery(cause) === "cancelled") throw cause;
+                    // Reconcile a possibly partial save; advisory failure must not discard playable acceptance.
+                    repairFailure = { code: "ADVISORY_REPAIR_FAILED", toolName: "courseware_narration_propose", pageNumbers };
+                    advisoryRepairFailed = true;
+                  }
                   if (!canWait()) return;
-                  if (repaired.saved !== true) repairFailure = repaired;
                   continue;
                 }
                 return "The saved course is technically playable, with non-blocking teaching diagnostics. Repair only the listed unlocked pages using existing narration/media tools, preserving existing assets and manual changes. Never regenerate adopted speech/audio to repair an advisory; if the available tool cannot preserve it, report that diagnostic. Re-read diagnostics after the repair; never regenerate successful media as a blanket retry. At most two attempts are allowed for unchanged diagnostics. Do not request per-page approval.\n" + JSON.stringify(coursewareStatusSummary(snapshot));
               }
             }
             await save("completed"); this.stop();
-            if (quality && Array.isArray(quality.issues) && quality.issues.length)
-              return "The course remains playable. Stop automatic repairs and report these unresolved teaching diagnostics and affected pages honestly; do not claim full teaching quality, ask for approval, or regenerate successful media.\n" + JSON.stringify(coursewareStatusSummary(snapshot));
+            if (advisoryRepairFailed || quality && Array.isArray(quality.issues) && quality.issues.length)
+              return "The course remains playable. " + (advisoryRepairFailed ? "Automatic focus repair failed; saved narration and audio remain available. " : "") +
+                "Stop automatic repairs and report the saved acceptance, unresolved teaching diagnostics and affected pages honestly; do not claim full teaching quality, ask for approval, or regenerate successful media.\n" + JSON.stringify(coursewareStatusSummary(snapshot));
             return "The authorized courseware request is completed. Give the final report using this saved acceptance; do not call more tools.\n" + JSON.stringify(coursewareStatusSummary(snapshot));
           }
           const instruction = this.resume(snapshot);

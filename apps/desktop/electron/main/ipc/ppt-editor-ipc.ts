@@ -27,7 +27,12 @@ import { registerCoursewareOnlinePreparationIpc } from "./courseware-online-prep
 import { coursewareOnlineDeployment } from "../courseware-online-deployment";
 import { CoursewareClassroomCoordinator } from "../courseware-classroom";
 import { refreshNativeMaicClassroom } from "../courseware-classroom-native";
+import { createClassroomNativeWriter } from "../courseware-classroom-save";
 import { CoursewareClassroomTts } from "../courseware-classroom-tts";
+import { CoursewareAssessmentMedia } from "../courseware-assessment-media";
+import { executeSavedAssessmentMedia } from "../courseware-assessment-saved";
+import { CoursewareClassroomImages } from "../courseware-classroom-images";
+import { assessmentPageIds } from "../courseware-scene-object-view";
 
 export function registerPptEditorIpc(input: {
   registrar: IpcRegistrar;
@@ -43,6 +48,7 @@ export function registerPptEditorIpc(input: {
   onChatBridgeReady: (bridge: PptEditorChatBridge) => void;
   onOnlinePreparationReady?: (preparation: CoursewareOnlinePreparation) => void;
   onClassroomReady?: (classroom: CoursewareClassroomCoordinator) => void;
+  onAssessmentMediaReady?: (media: Pick<CoursewareAssessmentMedia, "execute">) => void;
   onDeactivate?: () => void;
   getWorkspaceRoot: () => Promise<string | null>;
   getExtraRoots: (workspaceRoot: string | null) => Promise<string[]>;
@@ -84,7 +90,15 @@ export function registerPptEditorIpc(input: {
   };
   const classroom = new CoursewareClassroomCoordinator({ getHost, getWorkspace: getWorkspaceRoot,
     getSessionId: input.getViewingSessionId, assertOwned: assertClassroomOwner,
-    openProject: sessionId => teaching.open(sessionId),
+    openProject: async sessionId => { await editor.ensureSaved(await getWorkspaceRoot()); return teaching.open(sessionId); },
+    writeNative: createClassroomNativeWriter({ teaching, editor, getWorkspace: getWorkspaceRoot, assertOwned: assertClassroomOwner,
+      reopen: async (path, sessionId) => {
+        const window = getMainWindow(), workspace = await getWorkspaceRoot();
+        assertClassroomOwner(sessionId);
+        if (!window || !workspace) throw new Error("Classroom window is unavailable");
+        await editor.open(window, workspace, path);
+        assertClassroomOwner(sessionId); chat.setOwner(sessionId);
+      } }),
     refreshNative: (sessionId, projectId) => teaching.withSaved(sessionId, async (host, jobId, snapshot, context) => {
       const workspace = await getWorkspaceRoot();
       if (!workspace) throw new Error("Classroom workspace is unavailable");
@@ -104,6 +118,32 @@ export function registerPptEditorIpc(input: {
   input.onClassroomReady?.(classroom);
   const classroomTts = new CoursewareClassroomTts({ auth: input.authSession, open: sessionId => classroom.open({ sessionId }),
     getHost, getWorkspace: getWorkspaceRoot, assertOwned: assertClassroomOwner, decodeAudio: decodeCoursewareAudio });
+  const classroomImages = new CoursewareClassroomImages({ auth: input.authSession, classroom,
+    getHost, getWorkspace: getWorkspaceRoot, assertOwned: assertClassroomOwner });
+  const assessmentMedia = new CoursewareAssessmentMedia(classroom, classroomTts, classroomImages);
+  input.onAssessmentMediaReady?.({ execute: async (sessionId, args, canDispatch) => {
+    let live = false;
+    if (input.getViewingSessionId() === sessionId) {
+      try {
+        const workspace = await getWorkspaceRoot();
+        const snapshot = editor.teachingSnapshot(workspace);
+        const { task } = await getHost()!.call<{ task?: { importPath?: string; generatedPath?: string } }>("courseware.task.get", { sessionId });
+        live = snapshot.sourcePath === (task?.importPath ?? task?.generatedPath);
+      } catch { /* A saved course does not require an open native editor. */ }
+    }
+    if ((live && (!args || typeof args !== "object" || Reflect.get(args, "mode") !== "context")) || !input.savedNarration)
+      return assessmentMedia.execute(sessionId, args, canDispatch);
+    return executeSavedAssessmentMedia({ sessionId, args, canDispatch, getHost, saved: input.savedNarration,
+      auth: input.authSession, decodeAudio: decodeCoursewareAudio });
+  } });
+  for (const [channel, method] of [[IPC.invoke.coursewareClassroomImageModels, "models"], [IPC.invoke.coursewareClassroomImageQuote, "quote"],
+    [IPC.invoke.coursewareClassroomImageSubmit, "submit"], [IPC.invoke.coursewareClassroomImageRefresh, "refresh"]] as const) {
+    registrar.handleWithEvent(channel, async (event, payload: unknown, ...extra: unknown[]) => {
+      registrar.assertMainWindowSender(event);
+      if (extra.length) throw new Error("Unexpected classroom image parameters");
+      return classroomImages[method](payload);
+    });
+  }
   for (const [channel, method] of [[IPC.invoke.coursewareClassroomTtsModels, "models"], [IPC.invoke.coursewareClassroomTtsQuote, "quote"],
     [IPC.invoke.coursewareClassroomTtsSubmit, "submit"], [IPC.invoke.coursewareClassroomTtsRefresh, "refresh"]] as const) {
     registrar.handleWithEvent(channel, async (event, payload: unknown, ...extra: unknown[]) => {
@@ -163,7 +203,17 @@ export function registerPptEditorIpc(input: {
     render: request => renderCoursewareSourceVisuals({ ...request, ipcMain: registrar.ipcMain }) }, input.resolveModel);
   const localMedia = new CoursewarePortableMedia(teaching, decodeCoursewarePortableMedia);
   const tts = new CoursewareTtsCoordinator(teaching, input.authSession, decodeCoursewareAudio, localMedia);
-  editor.nativeTeaching = createNativeTeachingHandler({ teaching, tts, media: new CoursewareNativeMedia(teaching, input.authSession, music, localMedia), sessionId: input.getViewingSessionId,
+  editor.nativeTeaching = createNativeTeachingHandler({ teaching, tts, classroom, classroomTts, classroomImages,
+    assessmentContext: async view => {
+      const host = getHost(), sessionId = input.getViewingSessionId();
+      if (!host || !sessionId) throw new Error("Teaching owner changed");
+      const context = await host.call("courseware.project.context", { sessionId, projectId: view.project.projectId });
+      assertClassroomOwner(sessionId);
+      const ids = assessmentPageIds(context, view.project);
+      return { current: ids.has(view.pageId), embedded: !ids.has(view.pageId) && view.project.pages
+        .find(page => page.pageId === view.pageId)?.actions.some(action => action.type === "interaction_checkpoint" && action.checkpointKind === "chapter_summary") };
+    },
+    media: new CoursewareNativeMedia(teaching, input.authSession, music, localMedia), sessionId: input.getViewingSessionId,
     context: async () => editor.getContext(await getWorkspaceRoot()),
     ensureSaved: async () => editor.ensureSaved(await getWorkspaceRoot()) });
   for (const [channel, method] of [[IPC.invoke.pptEditorTtsModels, "models"], [IPC.invoke.pptEditorTtsQuote, "quote"],

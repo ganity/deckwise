@@ -37,6 +37,23 @@ function fixture() {
 const song = {kind:"music",model:"music",input:"Hello",music:{title:"Hello Song",tags:"gentle"}};
 const speech = {kind:"tts",model:"tts",input:"Hello children!",voice:"teacher"};
 
+test("insufficient points is a definite refusal, preserves no reservation and never resubmits on refresh", async () => {
+  const f = fixture();
+  f.options.fetch = async (url, init) => {
+    f.calls.push({ url, init });
+    return new Response(JSON.stringify({ code: 400, message: "积分不足，请先充值", data: null }), { headers: { "content-type": "application/json" } });
+  };
+  await assert.rejects(f.client().submitConfirmedTts("no-points", speech, quote("tts")), /COURSEWARE_MEDIA_INSUFFICIENT_POINTS/);
+  const saved = f.db.get("task:no-points").value.task;
+  assert.equal(saved.state, "failed");
+  assert.equal(saved.errorCode, "INSUFFICIENT_POINTS");
+  assert.equal(saved.feeState, "released");
+  assert.equal(saved.actualPoints, 0);
+  assert.deepEqual(await f.client().get(ref(saved)), saved);
+  assert.deepEqual(await f.client().submitConfirmedTts("no-points", speech, quote("tts")), saved);
+  assert.equal(f.calls.length, 1);
+});
+
 test("lost TTS audio recovers from the original key after restart without a new paid submission",async()=>{
   const f=fixture(); f.fail();
   await assert.rejects(f.client().submitConfirmedTts("lost-tts",speech,quote("tts")),/TRANSPORT_FAILED/);

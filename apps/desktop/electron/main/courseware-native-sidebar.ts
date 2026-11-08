@@ -1,4 +1,7 @@
-import { samePptEditorBinding, type PptEditorContext } from "@pi-desktop/shared";
+import { samePptEditorBinding, type PptEditorContext, type CoursewareTeachingView } from "@pi-desktop/shared";
+import type { CoursewareClassroomCoordinator } from "./courseware-classroom";
+import type { CoursewareClassroomTts } from "./courseware-classroom-tts";
+import type { CoursewareClassroomImages } from "./courseware-classroom-images";
 import type { CoursewareTeachingCoordinator } from "./courseware-teaching";
 import type { CoursewareNativeMedia } from "./courseware-native-media";
 import type { CoursewareTtsCoordinator } from "./courseware-tts";
@@ -11,13 +14,18 @@ export function createNativeTeachingHandler(input: {
   sessionId(): string | null;
   context(): Promise<PptEditorContext>;
   ensureSaved?(): Promise<void>;
+  classroom?: CoursewareClassroomCoordinator;
+  classroomTts?: CoursewareClassroomTts;
+  classroomImages?: CoursewareClassroomImages;
+  assessmentContext?(view: CoursewareTeachingView): Promise<{ current: boolean; embedded?: boolean }>;
 }) {
-  return async (payload: unknown): Promise<unknown> => {
+  const execute = async (payload: unknown): Promise<unknown> => {
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error("Invalid teaching request");
     const request = payload as Record<string, unknown>;
     if (Object.keys(request).some(key => !["operation", "context", "args"].includes(key)) ||
         typeof request.operation !== "string" || !request.context || typeof request.context !== "object" ||
-        !request.args || typeof request.args !== "object" || Array.isArray(request.args) || JSON.stringify(request).length > 2_000_000)
+        !request.args || typeof request.args !== "object" || Array.isArray(request.args) ||
+        JSON.stringify(request).length > (request.operation?.startsWith("classroom:") ? 24_000_000 : 2_000_000))
       throw new Error("Invalid teaching request");
     if (request.operation === "open") await input.ensureSaved?.();
     const context = await input.context();
@@ -27,8 +35,36 @@ export function createNativeTeachingHandler(input: {
     const sessionId = input.sessionId();
     if (!sessionId) throw new Error("Open a courseware conversation before editing teaching");
     const args = request.args;
+    if (request.operation.startsWith("classroom:")) {
+      if (!input.classroom || Object.hasOwn(args, "sessionId")) throw new Error("Invalid assessment request");
+      const payload = { ...args, sessionId };
+      switch (request.operation) {
+        case "classroom:open": return input.classroom.open(payload);
+        case "classroom:write": return input.classroom.write(payload);
+        case "classroom:image": return input.classroom.image(payload);
+        case "classroom:image:models": if (input.classroomImages) return input.classroomImages.models(payload); break;
+        case "classroom:image:quote": if (input.classroomImages) return input.classroomImages.quote(payload); break;
+        case "classroom:image:submit": if (input.classroomImages) return input.classroomImages.submit(payload); break;
+        case "classroom:image:refresh": if (input.classroomImages) return input.classroomImages.refresh(payload); break;
+        case "classroom:reference": return input.classroom.reference(payload);
+        case "classroom:audio:preview": return input.classroom.previewAudio(payload);
+        case "classroom:tts:models": if (input.classroomTts) return input.classroomTts.models(payload); break;
+        case "classroom:tts:quote": if (input.classroomTts) return input.classroomTts.quote(payload); break;
+        case "classroom:tts:submit": if (input.classroomTts) return input.classroomTts.submit(payload); break;
+        case "classroom:tts:refresh": if (input.classroomTts) return input.classroomTts.refresh(payload); break;
+        default: throw new Error("Unsupported assessment operation");
+      }
+    }
     switch (request.operation) {
-      case "open": return input.teaching.open(sessionId);
+      case "open": {
+        const view = await input.teaching.open(sessionId);
+        const assessment = await input.assessmentContext?.(view);
+        if (!assessment) return view;
+        return { ...view, ...(input.classroom && assessment.current
+            ? { assessment: await input.classroom.openNative(sessionId, view) }
+            : { nativeDraft: await input.teaching.draft({ viewId: view.viewId }, false),
+                ...(input.classroom && assessment.embedded ? { embeddedAssessment: await input.classroom.openNative(sessionId, view) } : {}) }) };
+      }
       case "write": return input.teaching.update(args, false);
       case "draft:get": return input.teaching.draft(args, false);
       case "draft:set": return input.teaching.draft(args, true);
@@ -46,5 +82,12 @@ export function createNativeTeachingHandler(input: {
       case "tts:adopt": return input.tts.adopt(args);
       default: throw new Error("Unsupported native teaching operation");
     }
+  };
+  // Reopening the PPT during an assessment save triggers another native load.
+  let queue: Promise<unknown> = Promise.resolve();
+  return (payload: unknown): Promise<unknown> => {
+    const result = queue.then(() => execute(payload));
+    queue = result.catch(() => {});
+    return result;
   };
 }

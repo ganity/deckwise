@@ -13,9 +13,9 @@ function fixture(target: "visualMaster" | "cleanPlate" = "cleanPlate", startTool
   const saved = { completed: false, generated: false, failed: false, styleConfirmed: true,
     planSha256: sha256, phase: "submitted", queryError: false, ignoreReady: false, mediaUnknown: false, recoveryFailure: false, retryAfterBlock: false,
     repeatReadyReads: false, readyCompletion: false,
-    checkpointError: "",
+    checkpointError: "", assessmentMissing: false, assessmentStarted: false, assessmentCompleted: false,
     checkpointAbort: false, explicitRetry: false, imagePipeline: false,
-    qualityIssues: [] as Array<{ pageId: string; code: string; repair: string; repairable: boolean }>, teachingMissing: false, fullMedia: false, narrationMissing: false, audioMissing: false, mediaStarted: false, audioCompleted: false };
+    qualityIssues: [] as Array<{ pageId: string; pageNumber?: number; code: string; repair: string; repairable: boolean }>, teachingMissing: false, fullMedia: false, narrationMissing: false, audioMissing: false, mediaStarted: false, audioCompleted: false };
   const calls: Array<{ name: string; args: Record<string, unknown> }> = [];
   const events: AgentEventEnvelope[] = [];
   const image = () => ({ intentId: "decomposition", planSha256: sha256, pageId: "scene-001",
@@ -63,9 +63,16 @@ function fixture(target: "visualMaster" | "cleanPlate" = "cleanPlate", startTool
           ...(saved.mediaUnknown ? { media: { task: { state: "submission_unknown" } } } : {}),
           ...(saved.explicitRetry ? { job: { kind: mediaKind, intentId: "original-tts", pageNumber: 1, sourceSha256: sha256 } } : {}) };
       }
+      if (toolName === "courseware_media_assessments") {
+        saved.assessmentStarted = true;
+        if (saved.assessmentCompleted) saved.assessmentMissing = false;
+        content = { state: saved.assessmentCompleted ? 'adopted' : 'queued' };
+      }
       if (toolName === "courseware_media_context") content = { projectId: "project", teachingRevision: "t1", sourceSha256: sha256, narrationReady: !saved.narrationMissing,
         audioReady: !saved.audioMissing, teachingReady: !saved.audioMissing && !saved.teachingMissing, pages: [{ pageNumber: 1, narrationReady: !saved.narrationMissing, audioReady: !saved.audioMissing, speeches: [{ actionId: "speech", audioReady: !saved.audioMissing }] }],
         videoReady: mediaKind !== "video" || !saved.audioMissing,
+        assessmentMedia: { ready: !saved.assessmentMissing, projectId: 'project', expectedRevision: 'r1', expectedSourceRevision: 'source',
+          targets: saved.assessmentMissing ? [{kind:'image',sceneId:'quiz',questionId:'q',optionValue:'A'}] : [] },
         ...(saved.repeatReadyReads || saved.readyCompletion ? { completion: { ready: true, sourceSha256: sha256, teachingRevision: "t1" },
           approvedPlan: { narration: "x".repeat(338000) } } : {}),
         quality: { blocking: false, issues: saved.qualityIssues },
@@ -92,6 +99,8 @@ function fixture(target: "visualMaster" | "cleanPlate" = "cleanPlate", startTool
         ? [{ type: "toolCall", id: "replacement", name: "courseware_media_prepare", arguments: { kind: "tts", sourceSha256: sha256, pageNumber: 1, actionId: "speech", model: "different-model" } }]
       : requests === 4 && !saved.generated && saved.styleConfirmed && !saved.failed && !saved.ignoreReady
         ? [{ type: "toolCall", id: "compile", name: "courseware_scene_compile", arguments: { planSha256: sha256, ...(saved.fullMedia ? { continueTeaching: true } : {}) } }]
+        : saved.assessmentMissing && !saved.assessmentStarted
+          ? [{type:'toolCall',id:'assessment',name:'courseware_media_assessments',arguments:{mode:'prepare',kind:'image',projectId:'project',expectedRevision:'r1',expectedSourceRevision:'source',sceneId:'quiz',questionId:'q',optionValue:'A',model:'image-model'}}]
         : saved.fullMedia && requests === (startTool === "courseware_media_context" ? 4 : 6)
           ? [{ type: "toolCall", id: "narration", name: "courseware_narration_propose", arguments: { sourceSha256: sha256, pageNumbers: [1], instruction: "Explain the whole lesson" } }]
         : saved.fullMedia && requests === (startTool === "courseware_media_context" ? 6 : 8)
@@ -114,7 +123,7 @@ function fixture(target: "visualMaster" | "cleanPlate" = "cleanPlate", startTool
   return { runtime, agent, calls, events, saved, contexts, toolCounts, requests: () => requests, checkpoint: () => checkpoint };
 }
 
-it('keeps planning tools available after shell reads and repairs the first invalid draft before human review', async () => {
+it('preserves exact planning errors and two rewritten corrections despite repeated submission before human review', async () => {
   const f = fixture();
   let valid = false;
   const executed: string[] = [];
@@ -128,7 +137,7 @@ it('keeps planning tools available after shell reads and repairs the first inval
     if (toolName === 'Write') { valid = args.content === '{"corrected":true}'; return { ok: true, content: 'Written' } as T; }
     if (toolName === 'courseware_scene_plan_submit') return (valid
       ? { ok: true, content: { validated: true, awaitingPlanApproval: true, plan: { sha256, approvedSha256: 'b'.repeat(64) } } }
-      : { ok: false, content: { error: 'Question and choices must be visible on scene page 1' } }) as T;
+      : { ok: false, errorCode: 'COURSEWARE_WORKFLOW_REJECTED', content: { error: 'Scene course正文 pages exceed the requested limit: 6 > 4' } }) as T;
     if (toolName === 'courseware_workflow_get') return { ok: true,
       content: { task: { taskType: 'scene', generated: false }, plan: { sha256, approvedSha256: 'b'.repeat(64) } } } as T;
     return execute<T>(method, params);
@@ -138,6 +147,10 @@ it('keeps planning tools available after shell reads and repairs the first inval
     { name: 'Bash', arguments: { command: 'cat .deckwise-ppt/scenes/chat/plan.json 2>/dev/null | head -50' } },
     { name: 'Bash', arguments: { command: 'cat .deckwise-ppt/scenes/reference/plan.json | head -60' } },
     { name: 'Write', arguments: { path: '.deckwise-ppt/scenes/chat/plan.json', content: '{}' } },
+    { name: 'courseware_scene_plan_submit', arguments: {} },
+    { name: 'Bash', arguments: { command: 'cat .deckwise-ppt/scenes/chat/plan.json' } },
+    { name: 'Write', arguments: { path: '.deckwise-ppt/scenes/chat/plan.json', content: '{"partial":true}' } },
+    { name: 'courseware_scene_plan_submit', arguments: {} },
     { name: 'Bash', arguments: { command: 'cat .deckwise-ppt/scenes/chat/plan.json' } },
     { name: 'Write', arguments: { path: '.deckwise-ppt/scenes/chat/plan.json', content: '{"corrected":true}' } },
     { name: 'courseware_scene_plan_submit', arguments: {} },
@@ -166,8 +179,10 @@ it('keeps planning tools available after shell reads and repairs the first inval
   };
   try {
     await f.runtime.prompt('Create the Greetings scene draft.', 'user', 'turn');
-    expect(executed.filter(name => name === 'Write'), JSON.stringify(executed)).toHaveLength(2);
-    expect(contexts[4]).toContain('Question and choices must be visible on scene page 1');
+    expect(executed.filter(name => name === 'Write'), JSON.stringify(executed)).toHaveLength(3);
+    expect(contexts[4]).toContain('Scene course正文 pages exceed the requested limit: 6 > 4');
+    const failedValidation = f.events.find(e => e.event.type === 'tool_end' && e.event.isError);
+    expect(JSON.stringify(failedValidation)).toContain('Scene course正文 pages exceed the requested limit: 6 > 4');
     expect(executed).toContain('courseware_workflow_get');
     expect(contexts.at(-1)).toContain('approvedSha256');
     expect(requests).toBe(script.length + 1);
@@ -311,8 +326,24 @@ it("ends after one reporting pass and prevents the model restarting blocked gene
     await running;
     expect(f.calls.filter(call => call.name === "courseware_media_prepare")).toHaveLength(0);
     expect(f.calls.filter(call => call.name === "courseware_media_refresh")).toHaveLength(1);
-    expect(f.requests()).toBe(4);
+    expect(f.requests()).toBe(5);
   } finally { await f.runtime.dispose(); vi.useRealTimers(); }
+});
+
+it("returns completed acceptance with a blocked final tool instead of implying missing question media", async () => {
+  const f = fixture("cleanPlate", "courseware_media_context");
+  Object.assign(f.saved, { generated: true, fullMedia: true, retryAfterBlock: true });
+  try {
+    await f.runtime.prompt("Finish the complete saved course", "user", "turn");
+    expect(f.checkpoint()).toMatchObject({ status: "completed" });
+    expect(f.calls.filter(call => call.name === "courseware_media_prepare")).toHaveLength(0);
+    const blocked = f.events.find(e => e.event.type === "tool_end" && e.event.isError);
+    const text = JSON.stringify(blocked);
+    expect(text).toContain("does not undo saved assets");
+    expect(text).toContain('assessmentMedia');
+    expect(text).toContain('\\"ready\\":true');
+    expect(f.requests()).toBe(5);
+  } finally { await f.runtime.dispose(); }
 });
 
 it("keeps the compiled course active through saved narration and actual TTS adoption", async () => {
@@ -334,6 +365,50 @@ it("keeps the compiled course active through saved narration and actual TTS adop
     expect(f.events.filter(e => e.event.type === "agent_end")).toHaveLength(1);
     expect(f.calls.filter(c => c.name === "courseware_media_refresh").every(c => c.args.intentId === "original-tts")).toBe(true);
   } finally { await f.runtime.dispose(); vi.useRealTimers(); }
+});
+
+it('keeps the complete course active until original assessment media is archived and adopted', async () => {
+  vi.useFakeTimers();
+  const f = fixture('cleanPlate', 'courseware_media_context');
+  Object.assign(f.saved, { generated: true, fullMedia: true, assessmentMissing: true });
+  try {
+    const running = f.runtime.prompt('Finish the complete saved teaching course.', 'user', 'turn');
+    await vi.waitFor(() => expect(f.calls.some(call => call.name === 'courseware_media_assessments' && call.args.mode === 'refresh')).toBe(true));
+    expect(f.events.filter(event => event.event.type === 'agent_end')).toHaveLength(0);
+    f.saved.assessmentCompleted = true;
+    await vi.advanceTimersByTimeAsync(3000);
+    await running;
+    expect(f.saved.assessmentMissing).toBe(false);
+    expect(f.calls.filter(call => call.name === 'courseware_media_assessments' && call.args.mode === 'prepare')).toHaveLength(1);
+    expect(f.events.filter(event => event.event.type === 'agent_end')).toHaveLength(1);
+  } finally { await f.runtime.dispose(); vi.useRealTimers(); }
+});
+
+it.each([false, true])('reconciles an assessment refresh failure without a local preparation error (persistent=%s)', async persistent => {
+  vi.useFakeTimers();
+  const f = fixture('cleanPlate', 'courseware_media_context');
+  Object.assign(f.saved, { generated: true, fullMedia: true, assessmentMissing: true });
+  const call = f.runtime['host'].call.bind(f.runtime['host']);
+  let refreshes = 0;
+  f.runtime['host'].call = async <T>(method: string, params: unknown): Promise<T> => {
+    const input = params as { toolName?: string; args?: { mode?: string } };
+    if (method === 'tools.execute' && input.toolName === 'courseware_media_assessments' && input.args?.mode === 'refresh') {
+      refreshes++;
+      if (!persistent) f.saved.assessmentMissing = false;
+      return { ok: false, content: { error: 'Classroom changed; reopen narration generation' } } as T;
+    }
+    return call<T>(method, params);
+  };
+  try {
+    const run = f.runtime.prompt('Finish the complete saved teaching course.', 'user', 'turn');
+    await vi.advanceTimersByTimeAsync(30_000);
+    await run;
+    expect(refreshes).toBe(persistent ? 2 : 1);
+    expect(f.calls.filter(call => call.name === 'courseware_media_assessments' && call.args.mode === 'prepare')).toHaveLength(1);
+    expect(f.events.filter(e => e.event.type === 'error')).toHaveLength(0);
+    expect(f.events.filter(e => e.event.type === 'agent_end')).toHaveLength(1);
+    expect(f.checkpoint()).toMatchObject({ status: persistent ? 'blocked' : 'completed' });
+  } finally { await f.runtime.abort(); await f.runtime.dispose(); vi.useRealTimers(); }
 });
 
 it("does not equate speech audio with completed teaching", async () => {
@@ -611,6 +686,134 @@ it("bounds advisory repairs and returns a playable course without endless unchan
   } finally { await f.runtime.dispose(); }
 });
 
+it.each(["throws", "returns failures"])("reports saved audio and advisory diagnostics when automatic focus repair %s", async failure => {
+  const f = fixture("cleanPlate", "courseware_media_context");
+  Object.assign(f.saved, { generated: true, fullMedia: true, readyCompletion: true });
+  f.saved.qualityIssues = [{ pageId: "page", pageNumber: 1, code: "FOCUS_MISSING", repair: "narration", repairable: true }];
+  const call = f.runtime["host"].call.bind(f.runtime["host"]);
+  f.runtime["host"].call = async <T>(method: string, params: unknown): Promise<T> => {
+    if (method === "tools.execute" && (params as { toolName: string }).toolName === "courseware_narration_propose")
+      return (failure === "throws"
+        ? { ok: false, errorCode: "TOOL_FAILED", content: { error: "Focus repair unavailable" } }
+        : { ok: true, content: { saved: false, failures: [{ pageNumber: 1, error: "Focus repair unavailable" }] } }) as T;
+    return call<T>(method, params);
+  };
+  try {
+    await f.runtime.prompt("Finish the saved course", "user", "turn");
+    expect(f.events.filter(e => e.event.type === "error")).toHaveLength(0);
+    expect(f.events.filter(e => e.event.type === "agent_end")).toHaveLength(1);
+    expect(f.checkpoint()).toMatchObject({ status: "completed" });
+    const report = getCurrentSystemMessage(f.contexts.at(-1)!)?.sections?.courseware_workflow;
+    expect(report).toContain("FOCUS_MISSING");
+    expect(report).toContain("repair failed");
+    expect(f.events.some(e => e.event.type === "tool_start" && e.event.toolName === "courseware_narration_propose")).toBe(true);
+    if (failure === "throws") expect(f.events.some(e => e.event.type === "tool_end" && e.event.isError)).toBe(true);
+    expect(f.calls.filter(c => c.name === "courseware_media_context").length).toBeGreaterThanOrEqual(2);
+    expect(f.calls.some(c => c.name === "courseware_media_prepare")).toBe(false);
+  } finally { await f.runtime.dispose(); }
+});
+
+
+it("keeps an unresolved advisory's repair budget when another page is fixed", async () => {
+  const f = fixture("cleanPlate", "courseware_media_context");
+  Object.assign(f.saved, { generated: true, fullMedia: true, readyCompletion: true });
+  f.saved.qualityIssues = [1, 2].map(pageNumber => ({ pageId: `page-${pageNumber}`, pageNumber,
+    code: "FOCUS_MISSING", repair: "narration", repairable: true }));
+  const call = f.runtime["host"].call.bind(f.runtime["host"]);
+  let repairs = 0;
+  f.runtime["host"].call = async <T>(method: string, params: unknown): Promise<T> => {
+    if (method === "tools.execute" && (params as { toolName: string }).toolName === "courseware_narration_propose") {
+      repairs++;
+      f.saved.qualityIssues = f.saved.qualityIssues.filter(issue => issue.pageNumber === 2);
+      if (repairs > 5) f.saved.qualityIssues = [];
+      return { ok: true, content: { saved: true } } as T;
+    }
+    return call<T>(method, params);
+  };
+  try {
+    await f.runtime.prompt("Finish the saved course", "user", "turn");
+    expect(repairs).toBe(2);
+    expect(f.checkpoint()).toMatchObject({ status: "completed" });
+    expect(getCurrentSystemMessage(f.contexts.at(-1)!)?.sections?.courseware_workflow).toContain("FOCUS_MISSING");
+  } finally { await f.runtime.dispose(); }
+});
+
+it.each([false, true])("does not report a cancelled repair as accepted or failed teaching (required=%s)", async required => {
+  const f = fixture("cleanPlate", "courseware_media_context");
+  Object.assign(f.saved, { generated: true, fullMedia: true, readyCompletion: true, teachingMissing: required });
+  if (!required) f.saved.qualityIssues = [{ pageId: "page", pageNumber: 1, code: "FOCUS_MISSING", repair: "narration", repairable: true }];
+  const call = f.runtime["host"].call.bind(f.runtime["host"]);
+  f.runtime["host"].call = async <T>(method: string, params: unknown): Promise<T> => {
+    if (method === "courseware.workflow.get") {
+      const result = await call<{ completion: { issues: Array<Record<string, unknown>> } }>(method, params);
+      result.completion.issues.forEach(issue => { issue.pageNumber = 1; });
+      return result as T;
+    }
+    if (method === "tools.execute" && (params as { toolName: string }).toolName === "courseware_narration_propose")
+      throw Object.assign(new Error("Repair cancelled"), { name: "AbortError" });
+    return call<T>(method, params);
+  };
+  try {
+    await f.runtime.prompt("Finish the saved course", "user", "turn");
+    expect(f.checkpoint()).toMatchObject({ status: "blocked" });
+    expect(f.contexts.some(messages => getCurrentSystemMessage(messages)?.sections?.courseware_workflow?.includes("repair failed"))).toBe(false);
+  } finally { await f.runtime.dispose(); }
+});
+
+it.each([true, false])("reconciles a required-repair failure before reporting (saved=%s)", async saved => {
+  const f = fixture("cleanPlate", "courseware_media_context");
+  Object.assign(f.saved, { generated: true, fullMedia: true, readyCompletion: true, teachingMissing: true });
+  const call = f.runtime["host"].call.bind(f.runtime["host"]);
+  let repairs = 0;
+  f.runtime["host"].call = async <T>(method: string, params: unknown): Promise<T> => {
+    if (method === "courseware.workflow.get") {
+      const result = await call<{ checkpoint: unknown; completion: { issues: Array<Record<string, unknown>> } }>(method, params);
+      result.completion.issues.forEach(issue => { issue.pageNumber = 1; });
+      return result as T;
+    }
+    if (method === "tools.execute" && (params as { toolName: string }).toolName === "courseware_narration_propose") {
+      repairs++;
+      f.saved.teachingMissing = !saved;
+      return { ok: false, errorCode: "TOOL_FAILED", content: { error: "Repair response lost" } } as T;
+    }
+    return call<T>(method, params);
+  };
+  try {
+    await f.runtime.prompt("Complete retained teaching", "user", "turn");
+    expect(f.events.filter(e => e.event.type === "error")).toHaveLength(0);
+    expect(repairs).toBe(1);
+    expect(f.checkpoint()).toMatchObject({ status: saved ? "completed" : "blocked" });
+    expect(getCurrentSystemMessage(f.contexts.at(-1)!)?.sections?.courseware_workflow).toContain(saved ? "completed" : "Required teaching repair failed");
+    expect(f.calls.some(c => c.name === "courseware_media_prepare")).toBe(false);
+  } finally { await f.runtime.dispose(); }
+});
+
+it("ends unknown assessment submission with an original-task report instead of polling indefinitely", async () => {
+  vi.useFakeTimers();
+  const f = fixture("cleanPlate", "courseware_media_context");
+  Object.assign(f.saved, { generated: true, fullMedia: true, readyCompletion: true, assessmentMissing: true });
+  const call = f.runtime["host"].call.bind(f.runtime["host"]);
+  let refreshes = 0;
+  f.runtime["host"].call = async <T>(method: string, params: unknown): Promise<T> => {
+    const input = params as { toolName?: string; args?: Record<string, unknown> };
+    if (method === "tools.execute" && input.toolName === "courseware_media_assessments") {
+      f.saved.assessmentStarted = true;
+      if (input.args?.mode === "refresh") refreshes++;
+      return { ok: true, content: { key: "original", state: "submission_unknown", task: { taskId: "original" } } } as T;
+    }
+    return call<T>(method, params);
+  };
+  try {
+    const run = f.runtime.prompt("Finish the saved course", "user", "turn");
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(f.agent.state.isStreaming).toBe(false);
+    await run;
+    expect(refreshes).toBe(1);
+    expect(f.checkpoint()).toMatchObject({ status: "blocked" });
+    expect(f.events.filter(e => e.event.type === "error")).toHaveLength(0);
+    expect(getCurrentSystemMessage(f.contexts.at(-1)!)?.sections?.courseware_workflow).toContain("submission_unknown");
+  } finally { await f.runtime.abort(); await f.runtime.dispose(); vi.useRealTimers(); }
+});
 
 it("settles a failed original batch with one report, without a fresh TTS order or repeated final answers", async () => {
   vi.useFakeTimers();
@@ -622,7 +825,7 @@ it("settles a failed original batch with one report, without a fresh TTS order o
     await run;
     expect(f.calls.filter(c => c.name === "courseware_media_refresh")).toHaveLength(1);
     expect(f.calls.filter(c => c.name === "courseware_media_prepare")).toHaveLength(0);
-    expect(f.requests()).toBe(4);
+    expect(f.requests()).toBe(5);
     expect(f.contexts[3].some(message => message.role === "system" && message.sections?.courseware_workflow?.includes("results are unknown or failed"))).toBe(true);
     expect(f.events.filter(e => e.event.type === "agent_end")).toHaveLength(1);
     expect(f.agent.state.isStreaming).toBe(false);
@@ -636,7 +839,7 @@ it("ends repeated ready reads at the tool boundary before full media can trigger
   Object.assign(f.saved, { generated: true, fullMedia: true, repeatReadyReads: true });
   try {
     await f.runtime.prompt("Finish the saved course", "user", "turn");
-    expect(f.requests()).toBe(3);
+    expect(f.requests()).toBe(4);
     expect(f.calls.filter(call => call.name === "courseware_media_context")).toHaveLength(1);
     expect(f.toolCounts.at(-1)).toBe(f.toolCounts.at(-2));
     expect(JSON.stringify(f.contexts.map(messages => messages.map(message => message.content)))).not.toContain("x".repeat(1000));

@@ -73,8 +73,8 @@ export class CoursewareLocalMedia extends CoursewareMediaTransport {
     result = mediaEnvelope(response.bytes);
     } catch (error) {
       const code = error instanceof Error ? /^COURSEWARE_MEDIA_PLATFORM_([0-9]+)$/u.exec(error.message)?.[1] : undefined;
-      if (code && ["46001", "46002", "46003", "46004", "46010", "46011", "46012", "46013", "46014", "46015", "46019", "46100", "46102"].includes(code)) {
-        task.state = "failed"; task.feeState = "released"; task.actualPoints = 0; task.errorCode = `PLATFORM_${code}`;
+      if ((error instanceof Error && error.message === "COURSEWARE_MEDIA_INSUFFICIENT_POINTS") || (code && ["46001", "46002", "46003", "46004", "46010", "46011", "46012", "46013", "46014", "46015", "46019", "46100", "46102"].includes(code))) {
+        task.state = "failed"; task.feeState = "released"; task.actualPoints = 0; task.errorCode = code ? `PLATFORM_${code}` : "INSUFFICIENT_POINTS";
         await this.write(journalKey, saved, 1, principal);
       }
       throw error;

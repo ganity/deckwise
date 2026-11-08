@@ -32,10 +32,10 @@ const sceneImages = await load("courseware-scene-image-assets", { electron: { na
     "node:dns/promises": await import("node:dns/promises"), "@pi-desktop/shared": shared }) });
 const { CoursewareSceneGeneration } = await load("courseware-scene-generation", { "./courseware-scene-image-assets": sceneImages });
 const generator = await load("courseware-scene-generator", { "node:crypto": crypto, "./courseware-scene-context": scene });
-const planner = await load("courseware-scene-plan", { "node:crypto": crypto, "@pi-desktop/agent-runtime": runtime });
+const planner = await load("courseware-scene-plan", { "node:crypto": crypto, "@pi-desktop/agent-runtime": runtime, "@pi-desktop/shared": shared });
 const deckBuilder = await load("courseware-scene-deck", { "node:crypto": crypto, "./courseware-scene-generator": generator });
 const sceneAssets = await load("courseware-scene-assets", { "@pi-desktop/shared": shared });
-const sceneWorkflow = await load("courseware-scene-workflow", {});
+const sceneWorkflow = await load("courseware-scene-workflow", { "@pi-desktop/shared": shared });
 const llmAuth = await load("courseware-llm-auth", { "@pi-desktop/shared": shared });
 const { createMainCompletion } = await load("main-completion", {
   "@pi-desktop/agent-runtime": runtime, "@pi-desktop/shared": shared,
@@ -120,7 +120,7 @@ test("Native compiler fits decomposed foreground pixels to their pinned canvas b
 
 export async function withModel(run) {
   const requests = [], launches = [], sessionReads = [];
-  let auth = 0, hook, beforeLaunch, currentHost, teamProjectId, forbidden = false, empty = false, vision = true, answer = '{"version":1,"elements":[]}';
+  let auth = 0, hook, beforeLaunch, currentHost, teamProjectId, storyState, forbidden = false, empty = false, vision = true, answer = '{"version":1,"elements":[]}';
   const session = { mode: "agent", providerId: shared.DECKWISE_MANAGED_PROVIDER_ID, modelId: "vision-model", thinkingLevel: "off",
     messages: [{ role: "user", content: "PRIVATE_OLD_CONVERSATION" }] };
   const server = createServer(async (req, res) => {
@@ -143,7 +143,8 @@ export async function withModel(run) {
   const host = { async call(method, params) {
     if (method === "settings.get") return {};
     if (method === "session.get") { sessionReads.push(params); return { session: structuredClone(session) }; }
-    if (method === "courseware.task.get") return { task: { teamProjectId } };
+    if (method === "courseware.task.get") return { task: { teamProjectId, ...(storyState ? { storyFirst: true } : {}) } };
+    if (method === "courseware.story.get") return { story: structuredClone(storyState) };
     throw new Error(method);
   } }; currentHost = host;
   const provider = { id: session.providerId, name: "Loopback", modelId: session.modelId, apiKey: "not-the-live-token", authKind: shared.OAUTH_AUTH_KIND,
@@ -161,7 +162,7 @@ export async function withModel(run) {
   });
   try { await run({ services, requests, launches, sessionReads, session, provider, hook: fn => { hook = fn; }, beforeLaunch: fn => { beforeLaunch = fn; },
     replaceHost: () => { currentHost = { ...host }; }, textOnly: () => { vision = false; }, empty: () => { empty = true; }, respond: value => { answer = value; },
-    baseUrl, bindTeam(id) { teamProjectId = id; session.projectPath = "/fixture"; }, forbid() { forbidden = true; } }); }
+    baseUrl, bindTeam(id) { teamProjectId = id; session.projectPath = "/fixture"; }, bindStory(value) { storyState = value; }, forbid() { forbidden = true; } }); }
   finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
 }
 
@@ -326,6 +327,16 @@ test("initial scene planning uses the existing managed model route without prior
   const serialized = JSON.stringify(f.requests[0].body);
   assert(serialized.includes("幼儿园英语问候课"));
   assert(!serialized.includes("PRIVATE_OLD_CONVERSATION"));
+  const story = { schemaVersion: 1, revision: 1, sha256: "a".repeat(64), approvedSha256: null, bound: false,
+    educationContext: {}, draft: { title: "Greetings rescue", objectives: ["Say hello"], beats: [{ id: "hello", event: "Help Robin greet a friend" }] } };
+  f.bindStory(story);
+  const request = { sessionId: "chat-1", modelKey: input().modelKey, brief: "Greetings", education: {} };
+  await assert.rejects(f.services.planSceneCourseware(request), /Confirm the teaching story/);
+  assert.equal(f.requests.length, 1);
+  story.approvedSha256 = story.sha256;
+  f.respond(JSON.stringify({ title: "Greetings", storySha256: story.sha256, pages: [{ title: "Hello", visibleText: ["Hello"], visualIntent: "Robin waves hello", narration: "Hello, Robin!" }] }));
+  assert.equal((await f.services.planSceneCourseware(request)).storySha256, story.sha256);
+  assert(JSON.stringify(f.requests[1].body).includes(story.draft.title));
 }));
 
 test("API key and vendor OAuth retain their configured credential route without exposing it in results", async () => {

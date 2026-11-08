@@ -26,6 +26,7 @@ function sourceStamp(stat: BigIntStats): string {
 
 export type NativeSaveInput = {
   workspace: string; sourcePath: string; sourceRevisionPath: string; sourceSha256: string;
+  classroomSave?: { expectedRevision: string | null; classroom: import("@pi-desktop/courseware-runtime/node").MaicClassroom };
   outputPath: string; outputSha256: string; saveRequestId: string; binding: PptEditorBinding; lineage: unknown;
 };
 export type NativeSaveCommit = { commit(): Promise<void>; cancel(): Promise<void> };
@@ -60,6 +61,7 @@ function transferableBuffer(bytes: Buffer): ArrayBuffer {
 export class PptEditorController {
   invalidateFade?: () => void;
   nativeSave?: (input: NativeSaveInput) => Promise<NativeSaveCommit | undefined>;
+  private classroomSave?: NativeSaveInput["classroomSave"];
   private saveWaiters = new Set<{ resolve(): void; reject(error: Error): void }>();
   nativeTeaching?: (payload: unknown) => Promise<unknown>;
   private nativeTeachingReady = false;
@@ -397,6 +399,25 @@ export class PptEditorController {
     }
   }
 
+  /** Keep the live document and commit its export with the canonical draft in one Host receipt. */
+  async applyClassroomPage(workspace: string, expected: ReturnType<PptEditorController["teachingSnapshot"]>,
+    payload: Record<string, unknown>, classroomSave: NonNullable<NativeSaveInput["classroomSave"]>): Promise<void> {
+    if (!this.nativeSave) throw new Error("Native classroom save is unavailable");
+    await this.verifyTeachingSource(workspace);
+    const before = this.teachingSnapshot(workspace);
+    if (!samePptEditorBinding(before, expected) || before.sha256 !== expected.sha256 || before.revision !== expected.revision || this.classroomSave)
+      throw new Error("Quiz save target changed; refresh before saving");
+    const result = await this.bridgeRequest("document:apply-quiz-page", "document:command-result", payload);
+    if (!result || typeof result !== "object" || !samePptEditorBinding(before, result as PptEditorBinding) ||
+        Reflect.get(result, "applied") !== true || Reflect.get(result, "page") !== payload.page || Reflect.get(result, "editGeneration") !== payload.editGeneration)
+      throw new Error("Native Quiz update was not verified");
+    this.classroomSave = classroomSave;
+    this.dirty = true;
+    // Retain the canonical draft if export/commit fails so a save retry stays atomic.
+    await this.ensureSaved(workspace);
+    this.classroomSave = undefined;
+  }
+
   async ensureSaved(workspace: string | null): Promise<void> {
     if (!this.current || this.current.workspaceRoot !== workspace || !this.ready || this.current.readOnly)
       throw new Error("No writable current PPTX");
@@ -505,13 +526,14 @@ export class PptEditorController {
 
   configureUi(payload: unknown): void {
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error("Invalid editor UI configuration");
-    const theme: unknown = Reflect.get(payload, "theme"), teachingOpen: unknown = Reflect.get(payload, "teachingOpen");
-    if (Object.keys(payload).some(key => !["theme", "teachingOpen"].includes(key)) ||
+    const theme: unknown = Reflect.get(payload, "theme"), teachingOpen: unknown = Reflect.get(payload, "teachingOpen"), page: unknown = Reflect.get(payload, "page");
+    if (Object.keys(payload).some(key => !["theme", "teachingOpen", "page"].includes(key)) ||
         (theme !== undefined && theme !== "light" && theme !== "dark") ||
+        (page !== undefined && (typeof page !== "number" || !Number.isSafeInteger(page) || page < 1 || page > 5000)) ||
         (teachingOpen !== undefined && typeof teachingOpen !== "boolean")) throw new Error("Invalid editor UI configuration");
     if (theme === "light" || theme === "dark") this.ui.theme = theme;
     if (typeof teachingOpen === "boolean") this.ui.teachingOpen = teachingOpen;
-    if (this.module && this.ready) this.sendCommand("document:configure-ui", this.ui);
+    if (this.module && this.ready) this.sendCommand("document:configure-ui", { ...this.ui, ...(page === undefined ? {} : { page }) });
   }
 
   setVisible(visible: boolean): void {
@@ -636,8 +658,9 @@ export class PptEditorController {
           workspace: current.workspaceRoot, sourcePath: current.sourcePath,
           sourceRevisionPath: current.savedRevision.documentPath, sourceSha256: current.sourceHash,
           outputPath: revision.documentPath, outputSha256: revision.sha256,
-          saveRequestId: pending.id, binding: this.bridgeBinding!, lineage: message.pageLineage,
+          saveRequestId: pending.id, binding: this.bridgeBinding!, lineage: message.pageLineage, classroomSave: this.classroomSave,
         });
+      if (this.classroomSave && !synchronized) throw new Error("Native classroom save owner changed");
       const extension = officeSaveExtension(current.extension);
       const target = extension === current.extension
         ? current.sourcePath
@@ -652,6 +675,7 @@ export class PptEditorController {
       current.savedRevision = revision;
       installed = true;
       await synchronized?.commit();
+      this.classroomSave = undefined;
       } catch (error) {
         if (installed) this.saveOutcomeUncertain = true;
         else await synchronized?.cancel();
@@ -778,6 +802,7 @@ export class PptEditorController {
   }
 
   private closeView(): void {
+    this.classroomSave = undefined;
     this.finishSaveWaiters(new Error("Editor closed"));
     this.nativeTeachingReady = false;
     this.teachingProgress = undefined;

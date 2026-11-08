@@ -72,7 +72,7 @@ export class CoursewareNativeSave {
           this.verified = { host, sessionId, path: input.sourcePath, sha256: input.sourceSha256 };
         }
         const newJob = await parse(input.outputPath, input.outputSha256);
-        receipt = await host.call<Receipt>("courseware.nativeSave.prepare", { sessionId, jobId: newJob, sourcePath: input.sourcePath, lineage: proof });
+        receipt = await host.call<Receipt>("courseware.nativeSave.prepare", { sessionId, jobId: newJob, sourcePath: input.sourcePath, lineage: proof, ...(input.classroomSave ? { classroomSave: input.classroomSave } : {}) });
         if (!receipt || receipt.status !== "pending" || receipt.sourcePath !== input.sourcePath ||
             receipt.sourceSha256 !== input.sourceSha256 || receipt.outputSha256 !== input.outputSha256 || !receipt.saveId)
           throw new Error("Invalid native PPT save receipt");

@@ -120,29 +120,51 @@ test("scene compilation accepts decomposed lettering images without native text"
 
 test("mixed generation keeps Quiz independent and interaction question in an editable PPTist frame", async () => {
   const question = { text: "请介绍你的名字", response: { kind: "discussion", options: [], answerIndices: [] } };
-  const interaction = { ...pages[0], visibleText: ["课堂互动"], teaching: { pageType: "interactive", phase: "practice", objective: "自我介绍", durationSeconds: 30, requiredObjects: [], question } };
-  const quiz = { ...pages[1], quiz: { type: "quiz", questions: [{ id: "q1", type: "single", question: "选出问候语", options: [{ value: "A", label: "Hello" }, { value: "B", label: "Bye" }], answer: ["A"] }], interactionMode: "classroom_instant_feedback" } };
-  const deck = await buildSceneCourseDeck({ ...input, pages: [interaction, quiz], visuals: [visuals[0]] }, async () => ({ text: "" }), authoring);
+  const interaction = { ...pages[0], visibleText: [], narration: "", teaching: { pageType: "interactive", phase: "practice", objective: "自我介绍", durationSeconds: 30, requiredObjects: [], question } };
+  const quiz = { ...pages[1], visibleText: [], narration: "", quiz: { type: "quiz", questions: [{ id: "q1", type: "single", question: "选出问候语", options: [{ value: "A", label: "Hello" }, { value: "B", label: "Bye" }], answer: ["A"] }], interactionMode: "classroom_instant_feedback" } };
+  const deck = await buildSceneCourseDeck({ ...input, pages: [interaction, quiz], visuals: [] }, async () => { throw Error("Assessment pages need no image/layout LLM"); }, authoring);
   parseMaicClassroom(deck.canonicalClassroom);
-  assert.equal(deck.canonicalClassroom.scenes[0].content.canvas.elements[0].imageType, "background");
-  assert.equal(deck.mapping.pages.length, 1);
+  assert.equal(deck.canonicalClassroom.scenes[0].content.canvas.elements[0].type, "shape");
+  assert.equal(deck.mapping.pages.length, 2);
   assert.deepEqual(deck.canonicalClassroom.scenes.map(scene => scene.type), ["slide", "quiz"]);
   const slide = deck.canonicalClassroom.scenes[0], checkpoint = slide.actions.find(action => action.type === "interaction_checkpoint");
   assert.equal(checkpoint.question, question.text);
-  assert.equal(slide.content.canvas.elements.find(element => element.id === `${slide.id}_question`).content, `<p><span style="font-size: 28px; color: #111827;">${checkpoint.question}</span></p>`);
+  assert.deepEqual(slide.actions.map(a => a.type), ["interaction_checkpoint"]);
+  assert.deepEqual(deck.canonicalClassroom.scenes[1].actions, []);
+  assert(slide.content.canvas.elements.find(element => element.id === `${slide.id}_question`).content.includes(checkpoint.question));
   assert(!Object.hasOwn(checkpoint, "response"));
   assert.deepEqual(deck.canonicalClassroom.scenes[1].content.questions[0].answer, ["A"]);
   assert(!deck.canonicalClassroom.scenes[1].actions.some(action => action.type === "interaction_checkpoint"));
 });
 
-test("an all-Quiz course has no invented PPT page or native image prerequisites", async () => {
-  const quiz = { ...pages[0], quiz: { type: "quiz", questions: [{ id: "q1", type: "short_answer", question: "你的名字", referenceAnswer: "完整自我介绍", keyPoints: ["名字"] }] } };
-  let compiled = false;
-  const deck = await buildSceneCourseDeck({ ...input, pages: [quiz], visuals: [] }, async () => ({ text: "" }), { ...authoring, async compileScenesToPptx() { compiled = true; throw new Error("must not compile"); } });
+test("an all-Quiz course has native navigation placeholders and pure MAIC Quiz content", async () => {
+  const quiz = { ...pages[0], visibleText: [], narration: "", quiz: { type: "quiz", questions: [{ id: "q1", type: "short_answer", question: "你的名字", referenceAnswer: "完整自我介绍", keyPoints: ["名字"] }] } };
+  const deck = await buildSceneCourseDeck({ ...input, pages: [quiz], visuals: [] }, async () => { throw Error("Quiz needs no image/layout LLM"); }, authoring);
   parseMaicClassroom(deck.canonicalClassroom);
-  assert.equal(compiled, false);
-  assert.equal(deck.pptx.length, 0);
-  assert.equal(deck.mapping, undefined);
-  assert.deepEqual(deck.teaching, []);
+  assert(deck.pptx.length > 1000);
+  assert.equal(deck.mapping.pages.length, 1);
+  assert.equal(deck.teaching.length, 1);
+  assert(!Object.hasOwn(deck.canonicalClassroom.scenes[0].content, "canvas"));
   assert.equal(deck.canonicalClassroom.scenes[0].type, "quiz");
+});
+
+test("Freeze activity artwork and lecture remain a body page followed by a separate checkpoint", async () => {
+  const body = { ...pages[0], title: "Freeze game rules", visibleText: ["Freeze!", "I love my mum."], narration: "Stand on a mat and freeze.",
+    teaching: { pageType: "slide", phase: "practice", objective: "Family sentences", durationSeconds: 60, requiredObjects: ["Children on mats"] } };
+  const checkpoint = { ...pages[1], title: "课堂互动", visibleText: [], narration: "",
+    teaching: { ...body.teaching, pageType: "interactive", requiredObjects: [], question: { text: "Say a complete family sentence", response: { kind: "practice", options: [], answerIndices: [] } } } };
+  const visual = { ...visuals[0], images: ["master", "clean", "teacher"].map(id => ({ assetIds: [id], bytes: background })),
+    foregroundPlacements: [{ assetId: "teacher", bboxPx: [128, 184, 768, 504], zIndex: 2 }] };
+  const deck = await buildSceneCourseDeck({ ...input, pages: [body, checkpoint], visuals: [visual] }, async () => { throw Error("No model needed"); }, authoring);
+  parseMaicClassroom(deck.canonicalClassroom);
+  assert.equal(deck.mapping.pages.length, 2);
+  const [ordinary, assessment] = deck.canonicalClassroom.scenes;
+  assert(ordinary.content.canvas.elements.some(element => element.id === "teacher" && element.type === "image"));
+  assert.deepEqual(ordinary.actions.map(a => a.type), ["speech"]);
+  assert.equal(ordinary.actions[0].text, body.narration);
+  assert.deepEqual(assessment.actions.map(a => a.type), ["interaction_checkpoint"]);
+  assert(assessment.content.canvas.elements.some(element => element.content?.includes("课堂互动")));
+  const zip = await requireCourseware("jszip").loadAsync(deck.pptx);
+  assert(zip.file("ppt/slides/slide1.xml") && zip.file("ppt/slides/slide2.xml"));
+  await assert.rejects(buildSceneCourseDeck({ ...input, pages: [{ ...body, teaching: checkpoint.teaching }], visuals: [] }, async () => {}, authoring), /refusing to discard body content/);
 });

@@ -50,7 +50,8 @@ export function coursewareSceneTeachingIssues(value: unknown, path: string): str
       if (value.question.constraintPrompt !== undefined && !text(value.question.constraintPrompt, 4000))
         issues.push(path + ".question.constraintPrompt: expected nonempty prompt of at most 4000 characters");
     }
-  } else if (value.pageType !== "slide") issues.push(path + ".question: required for every non-slide pageType");
+  } else if (value.pageType !== "slide" && value.pageType !== "quiz")
+    issues.push(path + ".question: required for interactive and pbl pageType");
   for (const kind of ["music", "video"] as const) {
     if (!Object.hasOwn(value, kind)) continue;
     const media = value[kind];

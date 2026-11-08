@@ -13,7 +13,11 @@ export function mediaEnvelope(bytes: Buffer): unknown {
   let value: unknown;
   try { value = JSON.parse(bytes.toString("utf8")); } catch { throw invalid(); }
   if (!record(value) || !Number.isInteger(value.code)) throw invalid();
-  if (value.code !== 200) throw new Error(`COURSEWARE_MEDIA_PLATFORM_${Number(value.code)}`);
+  if (value.code !== 200) {
+    if (value.message === "积分不足，请先充值" || value.message === "INSUFFICIENT_BALANCE" || value.message === "INSUFFICIENT_POINTS")
+      throw new Error("COURSEWARE_MEDIA_INSUFFICIENT_POINTS");
+    throw new Error(`COURSEWARE_MEDIA_PLATFORM_${Number(value.code)}`);
+  }
   if (!Object.hasOwn(value, "data")) throw invalid();
   return value.data;
 }

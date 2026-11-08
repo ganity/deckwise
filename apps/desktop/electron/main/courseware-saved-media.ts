@@ -1,7 +1,7 @@
 import { coursewareMediaRecovery } from "@pi-desktop/shared";
 import { createHash, randomUUID } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
-import type { CoursewareCanvasMusicView, CoursewareTtsView, MediaCanvasDocument } from "@pi-desktop/shared";
+import type { CoursewareCanvasMusicView, CoursewareProject, CoursewareTtsView, MediaCanvasDocument } from "@pi-desktop/shared";
 import type { DesktopAuthSession } from "./auth-session";
 import { hasDetailedNarration, type CoursewareSavedNarration, type SavedCourseware } from "./courseware-saved-narration";
 import { CoursewareTtsCoordinator } from "./courseware-tts";
@@ -108,8 +108,13 @@ export class CoursewareSavedMedia {
       const pageNumber = Number(input.pageNumber), page = saved.project.pages[pageNumber - 1];
       if (!page || page.locked) throw new Error("Saved media page missing or locked");
       if (input.kind === "tts") {
-        if (prepare && saved.project.taskType === "scene" && !hasDetailedNarration(page))
-          throw new Error("Save detailed narration for this page before TTS; initial outline speech is not ready");
+        if (prepare && saved.project.taskType === "scene" && !hasDetailedNarration(page)) {
+          const context = await saved.host.call<{ project: CoursewareProject; nativeSaved?: boolean }>("courseware.project.context", { sessionId, projectId: saved.project.projectId });
+          await saved.check();
+          if (context.project.projectId !== saved.project.projectId || context.project.source.sha256 !== saved.project.source.sha256 || context.project.teachingRevision !== saved.project.teachingRevision ||
+              !hasDetailedNarration(page, context.nativeSaved === true))
+            throw new Error("Save detailed narration for this page before TTS; initial outline speech is not ready");
+        }
         if (prepare ? input.actionIds !== undefined : input.intentIds !== undefined) return this.ttsBatch(saved, sessionId, input, prepare);
         if (prepare && page.actions.some(a => a.type === "speech" && a.id === input.actionId && a.audioAssetId))
           return { saved: true, audioReady: true, pageNumber, actionId: input.actionId };

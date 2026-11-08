@@ -81,6 +81,9 @@ async function presentationSlides(zip: JSZip) {
   return { presentation, slideParts };
 }
 
+// Shared bounded package primitives for deterministic classroom page edits.
+export const pptxPackage = { load, xml, nodes, append, relationships, resolvePart, presentationSlides, P, R, REL, CT };
+
 export interface PageFadeSourceInput {
   baseline: unknown;
   sourcePptx: Uint8Array;

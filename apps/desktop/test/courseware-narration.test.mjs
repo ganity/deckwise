@@ -161,7 +161,7 @@ test("Main preserves the stage-specific output instructions for ordinary narrati
   f.project.educationContext = { schoolStage: "PRIMARY", grade: "3", subject: "MATH" };
   const context = await f.context();
   const coordinator = new CoursewareCandidateCoordinator(f.teaching, async ({ system }) => {
-    assert(system.includes("Allowed block types: speech and wait."));
+    assert(system.includes("For spoken teaching use speech blocks."));
     assert(!system.includes('"type":"praise"'));
     return { text: JSON.stringify({ blocks: [{ type: "speech", text: "这是什么图形？" }, { type: "wait", durationMs: 4000 }] }), modelKey: "provider/model" };
   });

@@ -9,7 +9,7 @@ import * as shared from "@pi-desktop/shared";
 const require = createRequire(import.meta.url);
 const fixtureProject = JSON.parse(await readFile(new URL("../../../packages/shared/src/courseware-contract.fixtures/accepted.json", import.meta.url), "utf8")).project;
 
-async function fixture({ scene = false, failPage, saveFailPage, sourceChange = false, pageCount = 3, cancelAfterSave = false, lostSaveReply = false, inheritedModel = false, visionOutput, teachingPages, planOutputs = [], pageOutputs = {}, planError, stopOnRepair = false, onComplete } = {}) {
+async function fixture({ assessmentPageIds = [], nativeSaved = false, scene = false, failPage, saveFailPage, sourceChange = false, pageCount = 3, cancelAfterSave = false, lostSaveReply = false, inheritedModel = false, visionOutput, teachingPages, planOutputs = [], pageOutputs = {}, planError, stopOnRepair = false, onComplete } = {}) {
   const source = await readFile(new URL("../electron/main/courseware-saved-narration.ts", import.meta.url), "utf8");
   const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
   const project = structuredClone(fixtureProject);
@@ -31,7 +31,7 @@ async function fixture({ scene = false, failPage, saveFailPage, sourceChange = f
     if (method === "courseware.pageText") return { text: `Page ${args.pageNumber}` };
     if (method === "courseware.pageEvidence") return { text: `Page ${args.pageNumber}`, notes: "Notes", width: 1000, height: 750,
       elements: [{ id: "text-1", kind: "text", text: `Page ${args.pageNumber}`, bbox: [0,0,100,100] }] };
-    if (method === "courseware.project.context") return { project: structuredClone(project),
+    if (method === "courseware.project.context") return { project: structuredClone(project), assessmentPageIds, nativeSaved,
       ...(teachingPages ? { sceneObjects: { schemaVersion: "deckwise-scene-objects/1", sourceSha256: project.source.sha256,
         requiresReview: true, pages: teachingPages.map(page => ({ ...page, objects: [] })) } } : {}),
       mapping: { sourceSha256: project.source.sha256, pages: project.pages.map(p => ({ pageId: p.pageId, objects: [{ objectId: `object-${p.pageId}`, importElementId: "text-1" }] })) } };
@@ -71,8 +71,8 @@ async function fixture({ scene = false, failPage, saveFailPage, sourceChange = f
   const coordinator = new exports.CoursewareSavedNarration(() => host, () => viewing, async input => {
     const data = JSON.parse(input.messages[0].content);
     requests.push(data);
-    await onComplete?.(data);
-    if (scene) assert.equal((data.approvedPlan ?? data.coursePlan?.approvedPlan)?.pages[0].visualIntent, "A five-second silent turning square video");
+    await onComplete?.(data, input);
+    if (scene && (data.outline || data.pageText)) assert.equal((data.approvedPlan ?? data.coursePlan?.approvedPlan)?.pages[0].visualIntent, "A five-second silent turning square video");
     if (data.outline) {
       if (planError) throw planError;
       if (data.repair && stopOnRepair) active = false;
@@ -230,6 +230,18 @@ test("split scene outline speeches do not count as detailed narration", async ()
   assert.equal((await f.execute("courseware_narration_context")).narrationReady, true);
   f.project.pages[0].actions = [{ id: "narration-0", type: "speech", text: "Generated teaching.", source: "generated" }];
   assert.equal((await f.execute("courseware_narration_context")).narrationReady, true);
+});
+
+test("verified native saved text reports only missing audio and never asks for a narration rewrite", async () => {
+  const f = await fixture({ scene: true, nativeSaved: true, pageCount: 1 });
+  f.project.pages[0].actions = [0, 1].map(index => ({ id: `narration-${index}`, type: "speech", text: `Saved sentence ${index}.` }));
+  const before = structuredClone(f.project);
+  const context = await f.execute("courseware_narration_context");
+  assert.equal(context.narrationReady, true);
+  assert.equal(context.audioReady, false);
+  assert.deepEqual(context.quality.counts, { AUDIO_MISSING: 2 });
+  assert.equal(f.requests.length, 0);
+  assert.deepEqual(f.project, before);
 });
 
 test("reads saved deck and generates all selected pages without an editor or page navigation", async () => {
@@ -437,6 +449,39 @@ test("required teaching repair reaches the Host save boundary with exact speech 
     instruction: "Repair", repairRequiredTeaching: "true" }), /Invalid teaching repair mode/);
 });
 
+test("local focus repair needs neither whole-deck planning nor evidence from unrelated pages", async () => {
+  const f = await fixture({ scene: true, pageCount: 3, planError: new Error("Planning must not run for local repair"),
+    teachingPages: [{ pageId: "page-1", teaching: {
+      pageType: "slide", phase: "opening", objective: "Retain teaching", durationSeconds: 30, requiredObjects: [] } }] });
+  const speech = { id: "saved-speech", type: "speech", text: "Already paid narration.", source: "generated", audioAssetId: `tts-${"c".repeat(64)}` };
+  f.project.pages[0].actions = [speech];
+  const peers = structuredClone(f.project.pages.slice(1));
+  const result = await f.execute("courseware_narration_propose", { pageNumbers: [1], sourceSha256: f.project.source.sha256,
+    instruction: "Repair existing focus only", repairRequiredTeaching: true });
+  assert.equal(result.saved, true);
+  assert.equal(f.requests.length, 0);
+  assert.deepEqual(f.calls.filter(([method]) => method === "courseware.pageEvidence").map(([, args]) => args.pageNumber), [1]);
+  assert.deepEqual(f.project.pages[0].actions, [speech]);
+  assert.deepEqual(f.project.pages.slice(1), peers);
+});
+
+test("approved activity repair does not receive the conflicting body-lecture prohibition", async () => {
+  const question = { text: "Which greeting?", response: { kind: "single", options: ["Hello", "Bye"], answerIndices: [0] } };
+  let generated = false;
+  const f = await fixture({ scene: true, pageCount: 1, teachingPages: [{ pageId: "page-1", teaching: {
+    pageType: "slide", phase: "practice", objective: "Greet", durationSeconds: 30, requiredObjects: [], question } }],
+    onComplete: (data, input) => { if (data.missing) { generated = true; assert.doesNotMatch(input.system, /omit interaction blocks/); } },
+    pageOutputs: { undefined: [JSON.stringify({ insertions: [{ afterSpeechId: "saved-speech", block: {
+      type: "interaction", question: question.text, response: question.response,
+      referenceAnswer: { summary: "Hello", keyPoints: ["Hello is a greeting"] } } }] })] } });
+  f.project.pages[0].actions = [{ id: "saved-speech", type: "speech", text: "Already paid narration.", source: "generated", audioAssetId: `tts-${"c".repeat(64)}` }];
+  const result = await f.execute("courseware_narration_propose", { pageNumbers: [1], sourceSha256: f.project.source.sha256,
+    instruction: "Repair the required activity", repairRequiredTeaching: true });
+  assert(generated);
+  assert.equal(result.saved, true);
+  assert.deepEqual(f.project.pages[0].actions.map(a => a.type), ["speech", "interaction_checkpoint"]);
+});
+
 
 test("unapproved music is corrected within the narration request before any Host save", async () => {
   const valid = { blocks: [{ type: "speech", text: "Hello." }] };
@@ -448,4 +493,73 @@ test("unapproved music is corrected within the narration request before any Host
   assert.equal(f.saved.length, 1);
   assert(f.requests.some(r => r.repair?.error.includes("not approved")));
   assert.deepEqual(f.project.pages[0].actions.map(a => a.type), ["speech"]);
+});
+
+// Independent assessments are owned by the canonical classroom, not the lecture generator.
+test("independent quiz and checkpoint pages need no lecture and are excluded from generation", async () => {
+  const f = await fixture({ scene: true, pageCount: 2, assessmentPageIds: ["page-1", "page-2"] });
+  const context = await f.execute("courseware_narration_context");
+  assert.equal(context.narrationReady, true);
+  assert.equal(context.audioReady, true);
+  assert.equal(context.teachingReady, true);
+  assert.equal(context.quality.issues.length, 0);
+  const result = await f.execute("courseware_narration_propose", { pageNumbers: [1, 2], sourceSha256: f.project.source.sha256, instruction: "Complete teaching" });
+  assert.deepEqual(result.skippedPages.map(p => p.pageNumber), [1, 2]);
+  assert.equal(f.requests.length, 0);
+  assert.equal(f.saved.length, 0);
+});
+
+test("whole-deck lecture planning retains body page identities while skipping assessments", async () => {
+  const f = await fixture({ scene: true, assessmentPageIds: ["page-2"] });
+  const result = await f.execute("courseware_narration_propose", { pageNumbers: [1, 2], sourceSha256: f.project.source.sha256, instruction: "Complete teaching" });
+  assert.deepEqual(result.savedPages.map(p => p.pageNumber), [1]);
+  assert.deepEqual(f.requests.find(r => r.outline).outline.map(p => p.pageNumber), [1, 3]);
+  assert.equal(f.project.pages[1].actions.length, 0);
+});
+
+test("saved mixed-course metadata remains readable and generates lectures only for body pages", async () => {
+  const base = { phase: "practice", objective: "Greet", durationSeconds: 30, requiredObjects: [] };
+  const f = await fixture({ scene: true, assessmentPageIds: ["page-2", "page-3"], teachingPages: [
+    { pageId: "page-1", teaching: { ...base, pageType: "slide" } },
+    { pageId: "page-2", teaching: { ...base, pageType: "quiz" } },
+    { pageId: "page-3", teaching: { ...base, pageType: "interactive", question: {
+      text: "Introduce your family.", response: { kind: "discussion", options: [], answerIndices: [] },
+    } } },
+  ] });
+  const context = await f.execute("courseware_narration_context");
+  assert.equal(context.narrationReady, false);
+  assert(context.pages.slice(1).every(page => page.narrationReady && page.audioReady && page.teachingReady));
+  assert.equal(f.requests.length, 0);
+  const result = await f.execute("courseware_narration_propose", { pageNumbers: [1, 2, 3], sourceSha256: f.project.source.sha256, instruction: "Complete teaching" });
+  assert.deepEqual(result.savedPages.map(page => page.pageNumber), [1]);
+  assert.deepEqual(result.skippedPages.map(page => page.pageNumber), [2, 3]);
+  assert.deepEqual(f.requests.find(request => request.outline).outline.map(page => page.pageNumber), [1]);
+  assert(f.project.pages.slice(1).every(page => page.actions.length === 0));
+  assert.equal((await f.execute("courseware_narration_context")).narrationReady, true);
+});
+
+test("body lecture generation repairs attempts to embed a checkpoint", async () => {
+  const mixed = JSON.stringify({ blocks: [{ type: "speech", text: "Look at your family." }, { type: "interaction", question: "Who is mum?", response: { kind: "discussion", options: [], answerIndices: [] }, referenceAnswer: { summary: "Mum", keyPoints: ["mum"] } }] });
+  const f = await fixture({ scene: true, pageOutputs: { "Page 1": [mixed] } });
+  const result = await f.execute("courseware_narration_propose", { pageNumbers: [1], sourceSha256: f.project.source.sha256, instruction: "Explain" });
+  assert.equal(result.saved, true);
+  assert(f.requests.some(r => /separate assessment pages/.test(r.repair?.error ?? "")));
+  assert(f.project.pages[0].actions.every(a => a.type !== "interaction_checkpoint"));
+});
+
+test("outline repair is rejected before a model call and quality directs generation before TTS", async () => {
+  const f = await fixture({ scene: true, pageCount: 1 });
+  f.project.pages[0].actions = [{ id: "narration-0", type: "speech", text: "Planning speech with focus." }];
+  const previous = structuredClone(f.project);
+  const context = await f.execute("courseware_narration_context");
+  assert.equal(context.narrationReady, false);
+  assert(context.quality.issues.some(issue => issue.code === "NARRATION_MISSING"));
+  await assert.rejects(f.execute("courseware_narration_propose", { pageNumbers: [1], sourceSha256: f.project.source.sha256,
+    instruction: "Only repair focus", repairRequiredTeaching: true }), /without repairRequiredTeaching/);
+  assert.equal(f.requests.length, 0);
+  assert.deepEqual(f.project, previous);
+  const result = await f.execute("courseware_narration_propose", { pageNumbers: [1], sourceSha256: f.project.source.sha256, instruction: "Complete detailed teaching" });
+  assert.equal(result.saved, true);
+  assert(f.project.pages[0].actions.filter(action => action.type === "speech").every(action => action.source === "generated"));
+  assert.equal((await f.execute("courseware_narration_context")).narrationReady, true);
 });

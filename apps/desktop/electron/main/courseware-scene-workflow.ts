@@ -1,3 +1,4 @@
+import { coursewareSceneBodyPageCount } from "@pi-desktop/shared";
 import type { createSceneCoursePlan } from "./courseware-scene-plan";
 import type { resolveSceneCourseVisuals } from "./courseware-scene-assets";
 import type { buildSceneCourseDeck } from "./courseware-scene-deck";
@@ -25,11 +26,13 @@ export async function assembleSceneCourse(input: {
   const captured = structuredClone({ ...input, signal: undefined });
   if (!captured.plan || typeof captured.plan.title !== "string" || !captured.plan.title.trim() ||
       captured.plan.title.length > 200 || !Array.isArray(captured.plan.pages) ||
-      captured.plan.pages.length < 1 || captured.plan.pages.length > 30)
+      captured.plan.pages.length < 1 || captured.plan.pages.length > 100)
     throw new Error("Invalid approved scene course plan");
+  if (captured.plan.bodyPageLimit !== undefined && coursewareSceneBodyPageCount(captured.plan.pages) > captured.plan.bodyPageLimit)
+    throw new Error("Approved scene course plan exceeds the正文 page limit");
   const check = async () => { signal?.throwIfAborted(); await assertCurrent(); signal?.throwIfAborted(); };
   await check();
-  const visuals = await services.resolve({ pages: captured.plan.pages.filter(page => !page.quiz), assignments: captured.assignments, canvas: captured.canvas, signal });
+  const visuals = await services.resolve({ pages: captured.plan.pages.filter(page => !page.quiz && !page.teaching?.question), assignments: captured.assignments, canvas: captured.canvas, signal });
   await check();
   const deck = await services.build({ sessionId: captured.sessionId, modelKey: captured.modelKey,
     thinkingLevel: captured.thinkingLevel, pages: captured.plan.pages, visuals, canvas: captured.canvas, signal });

@@ -45,7 +45,7 @@ async function fixture(t) {
     calls.push([method, clone(p)]);
     if (method === "session.get") return { session: { mode: "agent", projectPath: directory } };
     if (method === "courseware.project.get") return { project: clone(project) };
-    if (method === "courseware.project.context") return { project: clone(project), ...(state.teaching ? { sceneObjects: {
+    if (method === "courseware.project.context") return { project: clone(project), nativeSaved: state.nativeSaved === true, ...(state.teaching ? { sceneObjects: {
       schemaVersion: "deckwise-scene-objects/1", sourceSha256: sha, requiresReview: true,
       pages: project.pages.map(page => ({ pageId: page.pageId, objects: [], teaching: state.teaching })) } } : {}) };
     if (method === "courseware.mediaCanvas.get") return { document: clone(state.canvas), revision: state.canvas ? "canvas" : null };
@@ -136,6 +136,22 @@ test("scene outline narration cannot reach paid TTS through single or batch prep
   f.state.ready = true;
   f.project.pages[0].actions[0].source = "generated";
   assert.equal((await f.prepare({ actionId: "narration-0" })).saved, true);
+});
+
+test("native-saved narration fills only missing audio without rewriting other pages", async t => {
+  const f = await fixture(t); f.state.ready = true; f.state.nativeSaved = true;
+  const actionIds = Array.from({ length: 8 }, (_, i) => i ? `narration-${i}` : "scene-001-speech");
+  f.project.pages[0].actions = actionIds.map(id => ({ id, type: "speech", text: `Saved text ${id}` }));
+  f.project.pages[1].actions[0].audioAssetId = `tts-${"c".repeat(64)}`;
+  const before = clone(f.project.pages);
+  const result = await f.prepare({ actionId: undefined, actionIds });
+  assert.equal(result.saved, true);
+  assert.equal(f.posts.length, 8);
+  assert.deepEqual(f.project.pages[0].actions.map(({ audioAssetId, ...action }) => action), before[0].actions);
+  assert.deepEqual(f.project.pages[1], before[1]);
+  await f.prepare({ actionId: undefined, actionIds });
+  assert.equal(f.posts.length, 8, "saved audio is reused on replay");
+  assert(!f.calls.some(([method]) => method === "courseware.narration.save"));
 });
 
 test("explicit failed TTS retry retains content and receipts, submits once, and replaces the active failed job", async t => {

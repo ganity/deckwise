@@ -27,7 +27,7 @@ async fn chat_requirements_update_is_revision_checked_and_preserves_task_identit
     .await
     .unwrap();
     let update = json!({"sessionId":session.id, "expectedEducationContext":{"subject":"english"},
-        "educationContext":{"subject":"english", "schoolStage":"kindergarten", "grade":"K2", "visualStyle":"Matte clay 3D; no watercolor"}});
+        "educationContext":{"subject":"english", "schoolStage":"kindergarten", "grade":"K2", "visualStyle":"Matte clay 3D; no watercolor", "bodyPageLimit":8}});
     let saved = handle_request(
         state.clone(),
         "courseware.task.updateEducation",
@@ -38,6 +38,7 @@ async fn chat_requirements_update_is_revision_checked_and_preserves_task_identit
     .unwrap();
     assert_eq!(saved["task"]["taskType"], "scene");
     assert_eq!(saved["task"]["educationContext"]["grade"], "K2");
+    assert_eq!(saved["task"]["educationContext"]["bodyPageLimit"], 8);
     assert_eq!(
         saved["task"]["educationContext"]["visualStyle"],
         "Matte clay 3D; no watercolor"
@@ -51,6 +52,12 @@ async fn chat_requirements_update_is_revision_checked_and_preserves_task_identit
     .await
     .is_err());
     for education in [
+        json!({"subject":"english", "visualStyle":"Updated style"}),
+        json!({"bodyPageLimit":null}),
+        json!({"bodyPageLimit":0}),
+        json!({"bodyPageLimit":31}),
+        json!({"bodyPageLimit":1.5}),
+        json!({"bodyPageLimit":"8"}),
         json!({"unknown":true}),
         json!({"grade":"x".repeat(501)}),
         json!({"grade":null}),
@@ -164,7 +171,7 @@ async fn courseware_task_selection_persists_and_is_session_scoped() {
             "courseware.task.set",
             json!({
                 "sessionId": session.id, "taskType": "scene",
-                "educationContext": { "schoolStage": "kindergarten", "subject": "English", "visualStyle":"Clean 2D cartoon" },
+                "educationContext": { "schoolStage": "kindergarten", "subject": "English", "visualStyle":"Clean 2D cartoon", "bodyPageLimit":8 },
             }),
             tx.clone(),
         )
@@ -208,6 +215,7 @@ async fn courseware_task_selection_persists_and_is_session_scoped() {
     .unwrap();
     assert_eq!(restored["task"]["taskType"], "scene");
     assert_eq!(restored["task"]["educationContext"]["subject"], "English");
+    assert_eq!(restored["task"]["educationContext"]["bodyPageLimit"], 8);
     assert_eq!(
         restored["task"]["educationContext"]["visualStyle"],
         "Clean 2D cartoon"

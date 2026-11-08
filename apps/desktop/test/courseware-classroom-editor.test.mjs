@@ -5,8 +5,9 @@ import ts from 'typescript';
 
 const source = await readFile(new URL('../src/lib/courseware-classroom.ts', import.meta.url), 'utf8');
 const { outputText } = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } });
+const { createMaicInteractionCanvas } = await import('@pi-desktop/courseware-runtime/player');
 const editor = {};
-new Function('exports', outputText)(editor);
+new Function('exports', 'require', outputText)(editor, () => ({ createMaicInteractionCanvas }));
 const image = { src: '.deckwise-ppt/classroom-assets/image.png', assetId: 'image-1' };
 const question = { id: 'q', type: 'multiple', question: 'Choose', options: [
   { value: 'D', label: '', image }, { value: 'B', label: 'Two' }, { value: 'A', label: 'One' },
@@ -52,31 +53,6 @@ test('checkpoint question and selected canvas element change atomically and pres
   assert.throws(() => editor.updateCheckpointQuestion(slide, 'missing', 'New', 'bound'));
 });
 
-test('failed image attachment retains the already-committed revision for retries', async () => {
-  const previous = { projectId: 'p', revision: 'before', sourceRevision: 'source', classroom };
-  const saved = { ...previous, revision: 'after-save' };
-  let current = previous;
-  await assert.rejects(editor.saveBeforeImageAttachment({
-    save: async () => saved, current: () => true, saved: value => { current = value; },
-    attach: async value => { assert.equal(current.revision, 'after-save'); assert.equal(value.revision, 'after-save'); throw Error('image failed'); },
-  }), /image failed/);
-  assert.equal(current.revision, 'after-save');
-  let retryRevision;
-  await editor.saveBeforeImageAttachment({ save: async () => { retryRevision = current.revision; return saved; },
-    current: () => true, saved: value => { current = value; }, attach: async value => ({ ...value, revision: 'image-saved' }) });
-  assert.equal(retryRevision, 'after-save');
-});
-
-test('image attachment is cancelled if the editor owner changes while content save is pending', async () => {
-  let resolve;
-  const saved = new Promise(ready => { resolve = ready; });
-  let active = true, attached = false, installed = false;
-  const operation = editor.saveBeforeImageAttachment({ save: () => saved, current: () => active,
-    saved: () => { installed = true; }, attach: async value => { attached = true; return value; } });
-  active = false; resolve({ revision: 'r', classroom });
-  assert.equal(await operation, null); assert.equal(attached, false); assert.equal(installed, false);
-});
-
 test('all-Quiz to interaction uses valid MAIC slide dimensions/theme and preserves 16:10 course canvas', async () => {
   const { parseMaicClassroom } = await import('@pi-desktop/courseware-runtime/node');
   const document = { id:'course', createdAt:new Date(0).toISOString(), stage:{id:'course',name:'Test',createdAt:0,updatedAt:0,
@@ -84,7 +60,7 @@ test('all-Quiz to interaction uses valid MAIC slide dimensions/theme and preserv
   const canvas = editor.createInteractionCanvas(document, 'interaction');
   assert.equal(canvas.viewportSize, 1280); assert.equal(canvas.viewportRatio, 10/16);
   const scene = {id:'interaction',stageId:'course',type:'slide',title:'Interaction',order:1,content:{type:'slide',canvas},actions:[]};
-  assert.equal(parseMaicClassroom({...document,scenes:[scene]}).scenes[0].content.canvas.theme.fontName, 'Arial');
+  assert.equal(parseMaicClassroom({...document,scenes:[scene]}).scenes[0].content.canvas.theme.fontName, 'Noto Sans SC');
 });
 
 test('short answer reference survives the pinned cloud-web answer[0] consumer without trimming authored text', () => {
@@ -105,4 +81,13 @@ test('scene deletion clears only its owned media/audio and removes its interacti
   assert.deepEqual(next.audioManifest.map(entry=>entry.actionId),['kept']);
   assert.deepEqual(next.scenes.at(-1).actions[0].context.sourceSceneIds,['scene']);
   assert.equal(previous.scenes.at(-1).actions[0].context.sourceSceneIds.length,2);
+});
+
+test('question changes keep run formatting, including clearing and refilling the question', () => {
+  const original = '<p style="text-align:center"><span style="font-size:24px;color:#123456">Old</span><span style="font-weight:800"> question</span></p>';
+  const next = editor.replaceQuestionText(original, 'New <question>\n中文');
+  assert(next.includes('style="font-size:24px;color:#123456">New &lt;question&gt;<br>中文</span>'));
+  assert(next.includes('<span style="font-weight:800"></span>'));
+  const empty = editor.replaceQuestionText(original, '');
+  assert.equal(editor.replaceQuestionText(empty, 'Refilled'), original.replace('Old', 'Refilled').replace(' question', ''));
 });

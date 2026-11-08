@@ -72,9 +72,64 @@ test("open canonical-only project and save independent Quiz/checkpoint without c
   next.scenes[0].content.questions[0].options[0].label = "Changed";
   next.scenes[1].actions[0].constraintPrompt = "Use evidence";
   const written = await f.coordinator.write({ ...fence, classroom: next });
-  assert.deepEqual(written.classroom, next);
+  assert.deepEqual(written.classroom, runtime.prepareMaicAssessmentSpeech(next));
   assert.equal(written.revision, "r2");
   assert(f.calls.some(([method]) => method === "courseware.task.get"));
+});
+
+test("assessment editing never reads or encodes unrelated body slide images", async t => {
+  const f = await setup(t), document = classroom();
+  document.mediaManifest = [{ sceneId: "slide", elementId: "background", assetId: "body", assetType: "image", mimeType: "image/png", src: ".deckwise-ppt/missing-body.png", originalSrc: ".deckwise-ppt/missing-body.png" }];
+  document.scenes[1].content.canvas.elements = [{id:"background",type:"image",src:".deckwise-ppt/missing-body.png",left:0,top:0,width:100,height:100,rotate:0,fixedRatio:true}];
+  f.change({classroom:document});
+  const view = await f.coordinator.open({sessionId:"session"});
+  assert.deepEqual(view.resourceUrls, {});
+  assert.equal(view.classroom.mediaManifest.length, 1, "Preserve the body manifest for playback/export");
+  const [, params] = f.calls.find(([method]) => method === "session.get");
+  assert.equal(params.messageLimit, 1, "Workspace checks must not read the entire Chat history");
+  assert.equal(params.contentLimit, 1);
+});
+
+test("native assessment selection reads current canonical data without repeating native reconciliation", async t => {
+  let refreshes = 0;
+  const f = await setup(t, {refreshNative:async()=>{refreshes++; return f.view;}});
+  const document = classroom();
+  for (const scene of document.scenes) scene.metadata = {nativeTeachingRevision:"teaching-1",nativePageId:scene.id};
+  f.change({classroom:document});
+  const native = {pageId:"quiz",project:{projectId:"project",source:{revision:"source"},teachingRevision:"teaching-1",pages:[{pageId:"quiz"},{pageId:"slide"}]}};
+  await f.coordinator.openNative("session", native);
+  document.scenes[0].content.questions[0].question = "Edited by another writer";
+  f.change({revision:"r2",classroom:document});
+  const next = await f.coordinator.openNative("session", native);
+  assert.equal(next.revision, "r2");
+  assert.equal(next.classroom.scenes[0].content.questions[0].question, "Edited by another writer");
+  assert.equal(refreshes, 0);
+});
+
+for (const mismatch of ["source", "teaching", "pages"]) test(`native assessment reconciles changed ${mismatch} before editing`, async t => {
+  let refreshes = 0;
+  const f = await setup(t, {refreshNative:async()=>{refreshes++;return {...f.view,sourceRevision:mismatch === "source" ? "new-source" : "source"};}});
+  const document = classroom();
+  for (const scene of document.scenes) scene.metadata = {nativeTeachingRevision:"teaching-1",nativePageId:scene.id};
+  f.change({classroom:document});
+  const native = {pageId:"quiz",project:{projectId:"project",source:{revision:mismatch === "source" ? "new-source" : "source"},teachingRevision:mismatch === "teaching" ? "new-teaching" : "teaching-1",pages:mismatch === "pages" ? [{pageId:"quiz"}] : [{pageId:"quiz"},{pageId:"slide"}]}};
+  await f.coordinator.openNative("session", native);
+  assert.equal(refreshes, 1);
+});
+test("native assessment synchronizes a Host source conflict but never hides unrelated read failures", async t => {
+  let refreshes = 0;
+  const f = await setup(t, {refreshNative:async()=>{refreshes++;return f.view;}});
+  const document = classroom();
+  for (const scene of document.scenes) scene.metadata = {nativeTeachingRevision:"teaching-1",nativePageId:scene.id};
+  f.change({classroom:document});
+  let failure = "COURSEWARE_CONFLICT: native source changed; regenerate classroom";
+  f.intercept(method => {if(method === "courseware.classroom.get") throw new Error(failure);});
+  const native = {pageId:"quiz",project:{projectId:"project",source:{revision:"source"},teachingRevision:"teaching-1",pages:[{pageId:"quiz"},{pageId:"slide"}]}};
+  await f.coordinator.openNative("session", native);
+  assert.equal(refreshes, 1);
+  failure = "Database unavailable";
+  await assert.rejects(f.coordinator.openNative("session",native),/Database unavailable/);
+  assert.equal(refreshes, 1);
 });
 test("image question and option use exact MAIC manifest identifiers and export to archived resources", async t => {
   const f = await setup(t);
@@ -95,6 +150,19 @@ test("image question and option use exact MAIC manifest identifiers and export t
   assert.equal(meta.classroom.scenes[1].actions[0].constraintPrompt, "Respond briefly");
   const question = await f.coordinator.image({ ...fence, expectedRevision: "r2", sceneId: "quiz", questionId: "q", dataUrl: png });
   assert(question.classroom.mediaManifest.some(item => item.elementId === "quiz-question:q"));
+});
+test("image upload commits unsaved question content and the image together behind the original CAS", async t => {
+  const f = await setup(t), draft = classroom();
+  draft.scenes[0].content.questions[0].question = 'New question';
+  draft.scenes[0].content.questions[0].options.push({value:'C', label:'New option'});
+  const result = await f.coordinator.image({...fence, sceneId:'quiz', questionId:'q', optionValue:'C', dataUrl:png, classroom:draft});
+  assert.equal(result.classroom.scenes[0].content.questions[0].question, 'New question');
+  assert(result.classroom.scenes[0].content.questions[0].options[2].image);
+  assert.equal(f.calls.filter(([method]) => method === 'courseware.classroom.write').length, 1);
+  const g = await setup(t);
+  await assert.rejects(g.coordinator.image({...fence, sceneId:'quiz', questionId:'q', dataUrl:png, classroom:{id:'invalid'}}));
+  assert(!g.calls.some(([method]) => method === 'courseware.classroom.write'));
+  await assert.rejects(g.coordinator.image({...fence, expectedRevision:'stale', sceneId:'quiz', questionId:'q', dataUrl:png, classroom:draft}), /changed/);
 });
 test("stale revisions, missing options and untrusted MIME cannot write documents", async t => {
   const f = await setup(t);

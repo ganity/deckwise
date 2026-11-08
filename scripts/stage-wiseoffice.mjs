@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { execFileSync } from "node:child_process";
 import {
   cp,
   lstat,
@@ -70,15 +69,14 @@ async function inventory(directory, prefix = "") {
 }
 await inventory(source);
 files.length = 0;
-const commit = execFileSync("git", ["-C", source, "rev-parse", "HEAD"], {
-  encoding: "utf8",
-}).trim();
-const dirty =
-  execFileSync(
-    "git",
-    ["-C", source, "status", "--porcelain", "--untracked-files=no"],
-    { encoding: "utf8" },
-  ).trim().length > 0;
+const integration = await readFile(join(source, "deckwise-maic-integration.json"), "utf8").then(JSON.parse, error => {
+  if (error.code !== "ENOENT") throw error;
+  return null;
+});
+assert(integration?.version === 1 && integration.contentEditor === "maic" && integration.nativeCheckpointEditor === false &&
+  /^[a-f0-9]{40}$/.test(integration.commit) && typeof integration.dirty === "boolean",
+  "Build the MAIC editor integration with scripts/build-wiseoffice-maic.mjs before staging");
+const { commit, dirty } = integration;
 await mkdir(dirname(destination), { recursive: true });
 const temporary = await mkdtemp(
   join(dirname(destination), ".wiseoffice-stage-"),
@@ -96,7 +94,7 @@ try {
   await inventory(temporary);
   await writeFile(
     join(temporary, "deckwise-bundle.json"),
-    JSON.stringify({ version: 1, commit, dirty, entry, files }, null, 2),
+    JSON.stringify({ version: 1, commit, dirty, entry, contentEditor: integration.contentEditor, files }, null, 2),
   );
   await rename(temporary, destination);
 } catch (error) {

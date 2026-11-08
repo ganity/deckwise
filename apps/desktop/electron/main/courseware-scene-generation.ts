@@ -38,7 +38,7 @@ export class CoursewareSceneGeneration {
       timer = setInterval(() => { try { selected.assertScope(); } catch (error) { controller.abort(error); } }, 100);
       await assertCurrent();
       const canvas = { width: 1280, height: 800 };
-      const visuals = selected.plan.pages.filter(page => !page.quiz).map(page => {
+      const visuals = selected.plan.pages.filter(page => !page.quiz && !page.teaching?.question).map(page => {
         const rows = selected.images.filter(image => image.pageId === page.pageId);
         const base = rows.find(row => row.target.kind === "cleanPlate")!.asset;
         const scale = Math.min(canvas.width / base.width, canvas.height / base.height);

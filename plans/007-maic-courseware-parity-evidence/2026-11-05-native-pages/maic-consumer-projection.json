@@ -1,0 +1,315 @@
+{
+  "audioManifest": [],
+  "createdAt": "2026-11-05T03:22:28.815Z",
+  "id": "acceptance",
+  "mediaManifest": [
+    {
+      "assetId": "image-a38a4ff7320a3d8764ac959b264f15e335360d7c1e23a0627dee7f366c95c58f",
+      "assetType": "image",
+      "elementId": "quiz-option:acceptance-q:A",
+      "mimeType": "image/png",
+      "originalSrc": ".deckwise-ppt/classroom-assets/a38a4ff7320a3d8764ac959b264f15e335360d7c1e23a0627dee7f366c95c58f.png",
+      "sceneId": "acceptance-quiz",
+      "src": "assets/a38a4ff7320a3d8764ac959b264f15e335360d7c1e23a0627dee7f366c95c58f.png",
+      "zipPath": "assets/a38a4ff7320a3d8764ac959b264f15e335360d7c1e23a0627dee7f366c95c58f.png"
+    },
+    {
+      "assetId": "image-a38a4ff7320a3d8764ac959b264f15e335360d7c1e23a0627dee7f366c95c58f",
+      "assetType": "image",
+      "elementId": "quiz-option:acceptance-q:B",
+      "mimeType": "image/png",
+      "originalSrc": ".deckwise-ppt/classroom-assets/a38a4ff7320a3d8764ac959b264f15e335360d7c1e23a0627dee7f366c95c58f.png",
+      "sceneId": "acceptance-quiz",
+      "src": "assets/a38a4ff7320a3d8764ac959b264f15e335360d7c1e23a0627dee7f366c95c58f.png",
+      "zipPath": "assets/a38a4ff7320a3d8764ac959b264f15e335360d7c1e23a0627dee7f366c95c58f.png"
+    },
+    {
+      "assetId": "image-a38a4ff7320a3d8764ac959b264f15e335360d7c1e23a0627dee7f366c95c58f",
+      "assetType": "image",
+      "elementId": "quiz-question:acceptance-q",
+      "mimeType": "image/png",
+      "originalSrc": ".deckwise-ppt/classroom-assets/a38a4ff7320a3d8764ac959b264f15e335360d7c1e23a0627dee7f366c95c58f.png",
+      "sceneId": "acceptance-quiz",
+      "src": "assets/a38a4ff7320a3d8764ac959b264f15e335360d7c1e23a0627dee7f366c95c58f.png",
+      "zipPath": "assets/a38a4ff7320a3d8764ac959b264f15e335360d7c1e23a0627dee7f366c95c58f.png"
+    }
+  ],
+  "scenes": [
+    {
+      "actions": [],
+      "content": {
+        "interactionMode": "classroom_instant_feedback",
+        "playbackConfig": {
+          "attemptPolicy": "until_correct",
+          "cueUserOnEnter": true,
+          "cueUserOnRetry": false,
+          "failureSpeechText": "再试一次",
+          "introSpeechMode": "page_enter_only",
+          "successSpeechText": "回答正确"
+        },
+        "questions": [
+          {
+            "analysis": "Hello 用于见面问候。",
+            "answer": [
+              "A"
+            ],
+            "hasAnswer": true,
+            "id": "acceptance-q",
+            "image": {
+              "assetId": "image-a38a4ff7320a3d8764ac959b264f15e335360d7c1e23a0627dee7f366c95c58f",
+              "mimeType": "image/png",
+              "src": "assets/a38a4ff7320a3d8764ac959b264f15e335360d7c1e23a0627dee7f366c95c58f.png",
+              "resolvedSrc": "assets/a38a4ff7320a3d8764ac959b264f15e335360d7c1e23a0627dee7f366c95c58f.png"
+            },
+            "options": [
+              {
+                "image": {
+                  "assetId": "image-a38a4ff7320a3d8764ac959b264f15e335360d7c1e23a0627dee7f366c95c58f",
+                  "mimeType": "image/png",
+                  "src": "assets/a38a4ff7320a3d8764ac959b264f15e335360d7c1e23a0627dee7f366c95c58f.png",
+                  "resolvedSrc": "assets/a38a4ff7320a3d8764ac959b264f15e335360d7c1e23a0627dee7f366c95c58f.png"
+                },
+                "label": "Bye",
+                "value": "B"
+              },
+              {
+                "image": {
+                  "assetId": "image-a38a4ff7320a3d8764ac959b264f15e335360d7c1e23a0627dee7f366c95c58f",
+                  "mimeType": "image/png",
+                  "src": "assets/a38a4ff7320a3d8764ac959b264f15e335360d7c1e23a0627dee7f366c95c58f.png",
+                  "resolvedSrc": "assets/a38a4ff7320a3d8764ac959b264f15e335360d7c1e23a0627dee7f366c95c58f.png"
+                },
+                "label": "Hello",
+                "value": "A"
+              },
+              {
+                "label": "Thanks",
+                "value": "C"
+              }
+            ],
+            "points": 1,
+            "question": "当我们和小朋友打招呼的时候，可以用哪个词呢？",
+            "type": "single"
+          }
+        ],
+        "type": "quiz"
+      },
+      "id": "acceptance-quiz",
+      "order": 1,
+      "stageId": "acceptance",
+      "title": "打招呼",
+      "type": "quiz"
+    },
+    {
+      "actions": [],
+      "content": {
+        "interactionMode": "assessment_review",
+        "questions": [
+          {
+            "answer": [
+              "A",
+              "B"
+            ],
+            "hasAnswer": true,
+            "id": "acceptance-assessment-q",
+            "options": [
+              {
+                "label": "选项一",
+                "value": "A"
+              },
+              {
+                "label": "选项二",
+                "value": "B"
+              }
+            ],
+            "points": 1,
+            "question": "选择正确答案",
+            "type": "multiple"
+          },
+          {
+            "answer": [
+              "T"
+            ],
+            "hasAnswer": true,
+            "id": "935f22d2-3587-41a8-b9ca-58c34309e020",
+            "options": [
+              {
+                "label": "正确",
+                "value": "T"
+              },
+              {
+                "label": "错误",
+                "value": "F"
+              }
+            ],
+            "points": 1,
+            "question": "新题目",
+            "type": "judge"
+          },
+          {
+            "answer": [
+              "Hello, my name is Pandy."
+            ],
+            "commentPrompt": "认可正确问候和自己的姓名。",
+            "hasAnswer": false,
+            "id": "04ced8ef-eee3-4b8f-b30c-a8369ef946ce",
+            "keyPoints": [
+              "问候语",
+              "姓名"
+            ],
+            "points": 1,
+            "question": "新题目",
+            "referenceAnswer": "Hello, my name is Pandy.",
+            "type": "short_answer"
+          }
+        ],
+        "type": "quiz"
+      },
+      "id": "acceptance-assessment",
+      "order": 2,
+      "stageId": "acceptance",
+      "title": "课堂测验",
+      "type": "quiz"
+    },
+    {
+      "actions": [
+        {
+          "chapterId": "0fbe4e84-e3ba-4e16-9b22-03df2266cfc3",
+          "chapterTitle": "课堂互动",
+          "checkpointId": "5c7de60f-5fce-402f-aead-0f79c6088457",
+          "checkpointKind": "chapter_summary",
+          "constraintPrompt": "引导学生自己说出姓名，不直接代答。",
+          "context": {
+            "chapterSummary": "请完整说出你的英文自我介绍。",
+            "sourceSceneIds": []
+          },
+          "id": "a2e9fe98-5027-4f1e-8601-8a047b3ec67c",
+          "question": "请完整说出你的英文自我介绍。",
+          "referenceAnswer": {
+            "keyPoints": [
+              "问候语",
+              "姓名"
+            ],
+            "summary": "Hello, my name is Pandy."
+          },
+          "type": "interaction_checkpoint"
+        }
+      ],
+      "content": {
+        "canvas": {
+          "background": {
+            "color": "#FFFFFF",
+            "type": "solid"
+          },
+          "elements": [
+            {
+              "fill": "#F6F8FC",
+              "fixedRatio": false,
+              "height": 384,
+              "id": "0fbe4e84-e3ba-4e16-9b22-03df2266cfc3_panel",
+              "left": 88,
+              "opacity": 1,
+              "path": "M 28 0 L 796 0 Q 824 0 824 28 L 824 356 Q 824 384 796 384 L 28 384 Q 0 384 0 356 L 0 28 Q 0 0 28 0 Z",
+              "rotate": 0,
+              "top": 72,
+              "type": "shape",
+              "viewBox": [
+                824,
+                384
+              ],
+              "width": 824
+            },
+            {
+              "content": "<p><span style=\"font-size: 28px; font-weight: 800; color: #1F2A44;\">课堂互动</span></p>",
+              "defaultColor": "#1F2A44",
+              "defaultFontName": "Noto Sans SC",
+              "height": 54,
+              "id": "0fbe4e84-e3ba-4e16-9b22-03df2266cfc3_chapter_title",
+              "left": 136,
+              "lineHeight": 1.3,
+              "rotate": 0,
+              "top": 114,
+              "type": "text",
+              "width": 728
+            },
+            {
+              "content": "<p><span style=\"font-size: 18px; color: #5B6B8C;\">课堂互动问答</span></p>",
+              "defaultColor": "#5B6B8C",
+              "defaultFontName": "Noto Sans SC",
+              "height": 32,
+              "id": "0fbe4e84-e3ba-4e16-9b22-03df2266cfc3_section_label",
+              "left": 136,
+              "lineHeight": 1.3,
+              "rotate": 0,
+              "top": 180,
+              "type": "text",
+              "width": 728
+            },
+            {
+              "content": "<p><span style=\"font-size: 24px; color: #111827;\">请完整说出你的英文自我介绍。</span></p>",
+              "defaultColor": "#111827",
+              "defaultFontName": "Noto Sans SC",
+              "height": 104,
+              "id": "0fbe4e84-e3ba-4e16-9b22-03df2266cfc3_question",
+              "left": 136,
+              "lineHeight": 1.45,
+              "rotate": 0,
+              "top": 240,
+              "type": "text",
+              "width": 728
+            },
+            {
+              "content": "<p><span style=\"font-size: 18px; color: #6B7280;\">请思考后回答，课堂互动结束后将继续播放。</span></p>",
+              "defaultColor": "#6B7280",
+              "defaultFontName": "Noto Sans SC",
+              "height": 28,
+              "id": "0fbe4e84-e3ba-4e16-9b22-03df2266cfc3_hint",
+              "left": 136,
+              "lineHeight": 1.3,
+              "rotate": 0,
+              "top": 382,
+              "type": "text",
+              "width": 728
+            }
+          ],
+          "id": "0fbe4e84-e3ba-4e16-9b22-03df2266cfc3_canvas",
+          "theme": {
+            "backgroundColor": "#FFFFFF",
+            "fontColor": "#1F2A44",
+            "fontName": "Noto Sans SC",
+            "themeColors": [
+              "#3B82F6"
+            ]
+          },
+          "viewportRatio": 0.5625,
+          "viewportSize": 1000
+        },
+        "type": "slide"
+      },
+      "id": "0fbe4e84-e3ba-4e16-9b22-03df2266cfc3",
+      "metadata": {
+        "interaction": {
+          "chapterId": "0fbe4e84-e3ba-4e16-9b22-03df2266cfc3",
+          "chapterTitle": "课堂互动",
+          "kind": "chapter_summary",
+          "sourceSceneIds": []
+        }
+      },
+      "order": 3,
+      "stageId": "acceptance",
+      "title": "课堂互动",
+      "type": "slide"
+    }
+  ],
+  "stage": {
+    "canvas": {
+      "preset": "WIDE_16_9",
+      "viewportRatio": 0.5625,
+      "viewportSize": 1000
+    },
+    "createdAt": 1,
+    "id": "acceptance",
+    "name": "Greetings",
+    "updatedAt": 1
+  }
+}

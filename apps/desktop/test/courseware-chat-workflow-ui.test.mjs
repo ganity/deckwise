@@ -12,7 +12,7 @@ const plan = { title: "Shapes", sha256: "a".repeat(64), approvedSha256: null, pa
   { pageId: "scene-001", title: "Circle", visibleText: ["Circle"], visualIntent: "A circle", narration: "Good!" },
 ] };
 
-async function fixture(t, component, props, overrides = {}) {
+async function fixture(t, component, props, overrides = {}, translate = key => key) {
   const state = [], effects = [], pending = [], calls = [];
   const store = { workPanelTabs: [], activeSessionId: "chat", runningSessions: {}, messages: [], sessions: [{ id: "chat", projectPath: "/workspace" }],
     newSession: async (...args) => { calls.push(["create", ...args]); },
@@ -92,14 +92,17 @@ async function fixture(t, component, props, overrides = {}) {
   new Function("require", "exports", compiled)(id => {
     if (id === "react") return react;
     if (id === "react/jsx-runtime") return { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) };
-    if (id === "react-i18next") return { useTranslation: () => ({ t: key => key }) };
+    if (id === "react-i18next") return { useTranslation: () => ({ t: translate }) };
     if (id === "lucide-react") return new Proxy({}, { get: (_target, key) => `icon-${key}` });
     if (id === "@pi-desktop/shared") return shared;
+    if (id === "@pi-desktop/courseware-runtime/player") return { MaicQuiz: "maic-quiz" };
+    if (id === "@pi-desktop/courseware-runtime/player.css") return {};
     if (id === "../../lib/api") return { api };
     if (id === "../../lib/ppt-master-project") return projectModule;
     if (id === "../../lib/tool-presentation") return toolModule;
     if (id === "../../lib/courseware-chat-candidates") return candidateModule;
     if (id === "../workpanel/PptEditorTab") return { PptEditorTab: "ppt-editor" };
+    if (id === "../workpanel/CoursewareClassroomEditor") return { CoursewareClassroomEditor: "classroom-editor" };
     if (id === "../workpanel/CoursewareImportDialog") return { CoursewareImportDialog: "publish-dialog" };
     if (id === "../workpanel/CoursewareSourceVisuals") return { CoursewareSourceVisuals: "source-visuals" };
     if (id === "../workpanel/CoursewarePptxCandidateReview") return { CoursewarePptxCandidateReview: "pptx-review" };
@@ -138,6 +141,15 @@ const narrationReceipt = (patch = {}) => ({ role: "tool", toolName: "ppt_propose
   toolResult: { details: { kind: "page-narration", applied: true, saved: true, pageNumber: 1,
     teachingRevision: "T2", baseline: { sessionId: "office-mount-1", pageId: "page-1" } } }, ...patch });
 const showNarration = async (f, rows = [narrationReceipt()]) => { f.store.messages = rows; f.render(); await f.flush(); };
+
+test("generated PPT delegates current-page Quiz and checkpoint editing to the native editor toolbar", async t => {
+  const f = await fixture(t, "CoursewareChatWorkflow", { sessionId: "chat" });
+  f.attached("scene");
+  await f.click("refresh");
+  const entrance = f.nodes().find(node => node.type === "button" && node.props.children === "Quiz / 互动编辑");
+  assert(!entrance, "Current-page editing belongs to the mounted PPT toolbar");
+  assert(f.nodes().some(node => node.type === "ppt-editor"));
+});
 
 test("narration shows successful saves and refreshes teaching without review or adoption controls", async t => {
   const f = await fixture(t, "CoursewareChatNarration", { sessionId: "chat", disabled: false });
@@ -385,6 +397,18 @@ test("PPT import can be cancelled and retried in the same Chat without the workb
   f.picker({ token: "picked" }); await f.click("selectPpt");
   assert.deepEqual(f.calls.find(call => call[0] === "import"), ["import", "chat", "picked"]);
   assert(f.nodes().some(node => node.type === "ppt-editor" && node.props.path === "/workspace/import.pptx"));
+});
+
+test("preview labels keep body image counts separate from independent assessments", async t => {
+  const mixed = { ...plan, approvedSha256: plan.sha256, pages: [...plan.pages,
+    { pageId: "quiz", title: "Quiz", quiz: { type: "quiz", questions: [] } },
+    { pageId: "checkpoint", title: "Discuss", teaching: { question: { text: "Why?" } } },
+  ] };
+  const f = await fixture(t, "CoursewareChatImages", { sessionId: "chat", plan: mixed, disabled: false, onContinue: async () => {} }, {},
+    (key, values) => values ? `${key}:${JSON.stringify(values)}` : key);
+  const heading = f.nodes().find(node => node.props?.className === "courseware-scene-section-heading");
+  assert.deepEqual(heading.props.children, ['coursewareWorkflow.pages:{"count":1}', ' · coursewareWorkflow.quizPages:{"count":1}', ' · coursewareWorkflow.interactionPages:{"count":1}']);
+  assert(f.nodes().some(node => node.props?.children === 'coursewareWorkflow.pageProgress:{"count":0,"total":1,"assets":0}'));
 });
 
 test("resuming uses the existing task and fences stale clicks without direct media submission", async t => {
@@ -972,4 +996,65 @@ test("a failed image status stays with its task while other pages continue refre
   previous.props.onClick(); await f.flush();
   assert(!f.nodes().some(node => node.props?.["data-scene-image-error"] === "broken"), "Successful refresh clears the task's error");
   assert(!f.calls.some(call => ["generate", "paid"].includes(call[0])));
+});
+
+const teachingStory = { schemaVersion: 1, revision: 1, sha256: "c".repeat(64), approvedSha256: null, bound: false, educationContext: {}, draft: {
+  title: "Rainbow rescue", summary: "Find the colors", setting: "A garden", objectives: ["Name red"], characters: [{ name: "Robin", description: "A round robot" }],
+  beats: [{ id: "find", title: "Find red", event: "Find the ball", objective: "Name red", activity: "Sort colors" }], assumptions: [] } };
+for (const taskType of ["plain", "scene"]) test(`story review confirms the exact version and resumes the selected ${taskType} route`, async t => {
+  let story = structuredClone(teachingStory);
+  const f = await fixture(t, "CoursewareChatWorkflow", { sessionId: "chat" }, {
+    async coursewareWorkflowGet() { return { task: { taskType, generated: false, imported: false, storyFirst: true }, story: structuredClone(story), plan: null }; },
+    async coursewareStoryDecision(...args) { assert.deepEqual(args, ["chat", 1, teachingStory.sha256, "approve"]); story.approvedSha256 = story.sha256; return { story: structuredClone(story) }; },
+  });
+  assert(f.nodes().some(n => n.props?.children === "Rainbow rescue"));
+  assert(!f.nodes().some(n => n.type === "plain-presentation" || n.type === "scene-images"));
+  const approve = () => f.nodes().find(n => n.type === "button" && n.props.children === "coursewareStory.approve");
+  f.store.runningSessions.chat = true; f.render(); assert.equal(approve().props.disabled, true);
+  f.store.runningSessions.chat = false; f.render(); approve().props.onClick(); await f.flush();
+  assert(f.calls.some(call => call[0] === "prompt" && call[1] === "coursewareStory.continuePrompt"));
+  assert(!f.nodes().some(n => n.type === "button" && n.props.children === "coursewareStory.approve"));
+});
+test("new task keeps direct generation by default and preserves story selection only for supported routes", async t => {
+  for (const taskType of ["plain", "scene", "import"]) {
+    const f = await fixture(t, "CoursewareTaskDialog", { projectPath: "/workspace", onClose() {} });
+    const story = f.nodes().find(n => n.type === "input" && n.props.name === "creation-mode" && !n.props.checked);
+    assert(story); story.props.onChange(); f.render();
+    f.nodes().find(n => n.type === "input" && n.props.name === "courseware-task-type" && n.props.value === taskType).props.onChange(); f.render();
+    f.nodes().find(n => n.type === "form").props.onSubmit({ preventDefault() {} }); await f.flush();
+    const setup = f.calls.find(call => call[0] === "create")[1].courseware;
+    assert.equal(setup.taskType, taskType); assert.equal(setup.storyFirst, taskType === "import" ? undefined : true);
+    f.unmount();
+  }
+});
+
+test("a confirmed story survives failed continuation and resumes without another approval", async t => {
+  const story = structuredClone(teachingStory);
+  let confirmations = 0;
+  const f = await fixture(t,"CoursewareChatWorkflow",{sessionId:"chat"},{
+    async coursewareWorkflowGet() { return { task:{taskType:"plain",generated:false,imported:false,storyFirst:true},story:structuredClone(story),plan:null }; },
+    async coursewareStoryDecision() { confirmations++; story.approvedSha256=story.sha256; return {story:structuredClone(story)}; },
+  });
+  f.store.sendPrompt=async()=>false;
+  f.nodes().find(node=>node.type==="button"&&node.props.children==="coursewareStory.approve").props.onClick(); await f.flush();
+  assert(f.nodes().some(node=>node.props?.role==="alert"&&String(node.props.children).includes("sendFailed")));
+  assert(!f.nodes().some(node=>node.type==="button"&&node.props.children==="coursewareStory.approve"));
+  let resumed=false;
+  f.store.sendPrompt=async()=>{resumed=true;return true;};
+  await f.click("resume");
+  assert(resumed); assert.equal(confirmations,1);
+  story.bound=true; await f.click("refresh");
+  assert(!f.nodes().some(node=>node.type==="button"&&node.props.children==="coursewareStory.disable"));
+});
+
+
+test("saved story belongs to the editor sidebar instead of a block above the PPT", async t => {
+  const story={...structuredClone(teachingStory),bound:true,approvedSha256:teachingStory.sha256};
+  const f=await fixture(t,'CoursewareChatWorkflow',{sessionId:'chat'},{
+    async coursewareWorkflowGet(){return {task:{taskType:'scene',generated:true,sourcePath:'/workspace/story.pptx',storyFirst:true},story,plan:null};},
+  });
+  const editor=f.nodes().find(node=>node.type==='ppt-editor');
+  assert(editor?.props.storyPanel);
+  assert(JSON.stringify(editor.props.storyPanel).includes('Rainbow rescue'));
+  assert(!f.nodes().some(node=>node.type==='summary'&&node.props.children==='coursewareStory.saved'));
 });

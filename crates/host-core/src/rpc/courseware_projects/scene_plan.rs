@@ -16,6 +16,10 @@ struct ApproveParams {
 #[serde(deny_unknown_fields)]
 pub(super) struct Plan {
     pub(super) title: String,
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "storySha256")]
+    pub(super) story_sha256: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "bodyPageLimit")]
+    pub(super) body_page_limit: Option<usize>,
     pub(super) pages: Vec<Page>,
     #[serde(
         default,
@@ -150,16 +154,27 @@ pub(super) fn read_plan(
                     .sum::<usize>()
                     > 1000
         })
+        || plan.body_page_limit.is_some_and(|limit| !(1..=30).contains(&limit))
         || plan.pages.is_empty()
-        || plan.pages.len() > 30
+        || plan.pages.len() > 100
+        || {
+            let body: Vec<_> = plan.pages.iter().enumerate().filter(|(_, page)| page.quiz.is_none() && !page.teaching.as_ref().is_some_and(|t| t.question.is_some())).map(|(index, _)| index).collect();
+            body.len() > 1 && plan.pages.iter().enumerate().any(|(index, page)| page.quiz.is_some() && (index < body[0] || index > *body.last().unwrap()))
+        }
+        || plan.pages.iter().filter(|page| page.quiz.is_none() && !page.teaching.as_ref().is_some_and(|teaching| teaching.question.is_some())).count() > plan.body_page_limit.unwrap_or(30)
         || plan.pages.iter().any(|page| {
             !bounded(&page.title, 200)
                 || (page.teaching.as_ref().is_some_and(|t| t.page_type == "quiz") != page.quiz.is_some())
+                || page.teaching.as_ref().is_some_and(|teaching| teaching.question.as_ref().is_some_and(|question|
+                    teaching.page_type == "quiz" || teaching.page_type == "slide" || matches!(question.response.kind.as_str(), "single" | "multiple" | "judge")))
                 || page.quiz.as_ref().is_some_and(|quiz| {
-                    crate::db::courseware_projects::classroom::validate_classroom(&json!({"id":"plan","createdAt":"plan","stage":{"id":"plan","name":"plan","createdAt":0,"updatedAt":0},"scenes":[{"id":"quiz","stageId":"plan","type":"quiz","title":"quiz","order":0,"content":quiz}]})).is_err()
+                    quiz["questions"].as_array().is_none_or(|questions| questions.len() != 1) || crate::db::courseware_projects::classroom::validate_classroom(&json!({"id":"plan","createdAt":"plan","stage":{"id":"plan","name":"plan","createdAt":0,"updatedAt":0},"scenes":[{"id":"quiz","stageId":"plan","type":"quiz","title":"quiz","order":0,"content":quiz}]})).is_err()
                 })
                 || !bounded(&page.visual_intent, 1000)
-                || !bounded(&page.narration, 2500)
+                || if page.quiz.is_some() || page.teaching.as_ref().is_some_and(|t| t.question.is_some()) {
+                    !page.narration.is_empty() || !page.visible_text.is_empty() || page.teaching.as_ref().is_some_and(|t|
+                        !t.required_objects.is_empty() || t.music.is_some() || t.video.is_some())
+                } else { !bounded(&page.narration, 2500) }
                 || page.teaching.as_ref().is_some_and(|t| !t.valid())
                 || page.visible_text.len() > 6
                 || page.visible_text.iter().any(|text| !bounded(text, 160))
@@ -226,6 +241,13 @@ pub(super) async fn handle(
         return Ok(json!({"approval":current}));
     };
     let plan = read_plan(&root, &session_id, &sha256)?;
+    if let Some(limit) = task["educationContext"]["bodyPageLimit"].as_u64() {
+        if plan.body_page_limit != Some(limit as usize) {
+            return Err(invalid(format!("Plan bodyPageLimit must match the saved body-page requirement {limit}; Quiz and checkpoint pages are additional, not deducted")));
+        }
+    }
+    let tx = state.db.conn().unchecked_transaction().map_err(|e| error(e.into()))?;
+    story::bind(&state, &session_id, plan.story_sha256.as_deref())?;
     let next = json!({"sha256":sha256, "plan":plan, "educationContext":task["educationContext"]});
     if current.as_ref() != Some(&next) {
         state.db.kv_set(NAMESPACE, &key, &next).map_err(error)?;
@@ -233,6 +255,7 @@ pub(super) async fn handle(
             return Err(rpc_err(1000, "Scene approval was not stored", "INTERNAL"));
         }
     }
+    tx.commit().map_err(|e| error(e.into()))?;
     Ok(json!({"approval":next}))
 }
 
@@ -271,13 +294,13 @@ mod tests {
                 .kv_set(
                     TASK_NAMESPACE,
                     id,
-                    &json!({"taskType":"scene", "educationContext":null}),
+                    &json!({"taskType":"scene", "educationContext":{"bodyPageLimit":8}}),
                 )
                 .unwrap();
         }
         let path = root.join(format!(".deckwise-ppt/scenes/{}/plan.json", session.id));
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-        let plan = json!({"title":"Shapes", "pages":[{"title":"Circle", "visibleText":["Circle"],
+        let plan = json!({"title":"Shapes", "bodyPageLimit":8, "pages":[{"title":"Circle", "visibleText":["Circle"],
             "visualIntent":"A round flower", "narration":"A circle. Good!"}]});
         let bytes = serde_json::to_vec(&plan).unwrap();
         let sha256 = hex::encode(sha2::Sha256::digest(&bytes));
@@ -285,6 +308,23 @@ mod tests {
         let state = Arc::new(Mutex::new(app));
         let (tx, _rx) = mpsc::unbounded_channel();
         let approve = json!({"sessionId":session.id, "sha256":sha256});
+        for limit in [Some(6), None] {
+            let mut wrong = plan.clone();
+            if let Some(limit) = limit {
+                wrong["bodyPageLimit"] = json!(limit);
+            } else {
+                wrong.as_object_mut().unwrap().remove("bodyPageLimit");
+            }
+            let wrong_bytes = serde_json::to_vec(&wrong).unwrap();
+            std::fs::write(&path, &wrong_bytes).unwrap();
+            let rejected = crate::rpc::handle_request(
+                state.clone(), "courseware.scenePlan.approve",
+                json!({"sessionId":session.id, "sha256":hash(&wrong_bytes)}), tx.clone(),
+            ).await.unwrap_err();
+            assert!(rejected.message.contains("saved body-page requirement 8"));
+            assert!(!has_approval(&*state.lock().await, &root.to_string_lossy(), &session.id).unwrap());
+        }
+        std::fs::write(&path, &bytes).unwrap();
         let saved = crate::rpc::handle_request(
             state.clone(),
             "courseware.scenePlan.approve",
@@ -337,7 +377,7 @@ mod tests {
         crate::rpc::handle_request(
             state.clone(),
             "courseware.task.set",
-            json!({"sessionId":session.id, "taskType":"scene"}),
+            json!({"sessionId":session.id, "taskType":"scene", "educationContext":{"bodyPageLimit":8}}),
             tx.clone(),
         )
         .await
@@ -473,10 +513,10 @@ mod tests {
 
     #[test]
     fn independent_quiz_plan_hash_and_interaction_reference_fields_match_main() {
-        let quiz = json!({"title":"Question","visibleText":["Practice"],"visualIntent":"A class","narration":"Choose.","quiz":{"questions":[{"answer":["A"],"id":"q","options":[{"label":"Hello","value":"A"},{"label":"Bye","value":"B"}],"question":"Greeting?","type":"single"}],"type":"quiz"},"teaching":{"pageType":"quiz","phase":"practice","objective":"Greet","durationSeconds":30,"requiredObjects":[]}});
+        let quiz = json!({"title":"Question","visibleText":[],"visualIntent":"A class","narration":"","quiz":{"questions":[{"answer":["A"],"id":"q","options":[{"label":"Hello","value":"A"},{"label":"Bye","value":"B"}],"question":"Greeting?","type":"single"}],"type":"quiz"},"teaching":{"pageType":"quiz","phase":"practice","objective":"Greet","durationSeconds":30,"requiredObjects":[]}});
         let page: Page = serde_json::from_value(quiz.clone()).unwrap();
-        assert_eq!(page.source_hash().unwrap(), "sha256:4fa644f27a2cd2b050955929684b48fbea8955b906682557d6bf7a736acc4497");
-        let interaction = json!({"title":"Discuss","visibleText":["Practice"],"visualIntent":"A class","narration":"Listen.","teaching":{"pageType":"interactive","phase":"practice","objective":"Greet","durationSeconds":30,"requiredObjects":[],"question":{"text":"Say hello","response":{"kind":"discussion","options":[],"answerIndices":[]},"referenceAnswer":{"summary":"Hello","keyPoints":["greeting"]},"constraintPrompt":"Only greetings"}}});
+        assert_eq!(page.source_hash().unwrap(), "sha256:3cbe5084391199b114451d8ded7e5ff76d26f702ca210fabda3d09a3cfd25a21");
+        let interaction = json!({"title":"Discuss","visibleText":[],"visualIntent":"A class","narration":"","teaching":{"pageType":"interactive","phase":"practice","objective":"Greet","durationSeconds":30,"requiredObjects":[],"question":{"text":"Say hello","response":{"kind":"discussion","options":[],"answerIndices":[]},"referenceAnswer":{"summary":"Hello","keyPoints":["greeting"]},"constraintPrompt":"Only greetings"}}});
         let root = tempfile::tempdir().unwrap();
         let path = root.path().join(".deckwise-ppt/scenes/chat-a/plan.json");
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -485,6 +525,63 @@ mod tests {
         let plan = read_plan(root.path().to_str().unwrap(),"chat-a",&hex::encode(sha2::Sha256::digest(&bytes))).unwrap();
         assert!(plan.pages[0].teaching.as_ref().unwrap().question.is_none());
         assert_eq!(plan.pages[1].teaching.as_ref().unwrap().question.as_ref().unwrap().reference_answer.as_ref().unwrap().summary,"Hello");
+    }
+
+    #[test]
+    fn planned_quiz_rejects_multiple_questions_in_review_mode() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join(".deckwise-ppt/scenes/chat-a/plan.json");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let question = json!({"id":"q", "type":"single", "question":"Choose", "options":[{"value":"A","label":"Hello"},{"value":"B","label":"Bye"}],"answer":["A"]});
+        let mut second = question.clone(); second["id"] = json!("second");
+        let plan = json!({"title":"Mixed", "pages":[{"title":"Quiz","visibleText":[],"visualIntent":"Question cards","narration":"",
+            "quiz":{"type":"quiz","interactionMode":"assessment_review","questions":[question,second]},
+            "teaching":{"pageType":"quiz","phase":"practice","objective":"Choose","durationSeconds":30,"requiredObjects":[]}}]});
+        let bytes = serde_json::to_vec(&plan).unwrap();
+        std::fs::write(path, &bytes).unwrap();
+        assert!(read_plan(root.path().to_str().unwrap(), "chat-a", &hex::encode(sha2::Sha256::digest(&bytes))).is_err());
+    }
+
+    #[test]
+    fn planned_quiz_must_be_between_body_pages() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join(".deckwise-ppt/scenes/chat-a/plan.json");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let body = json!({"title":"Body","visibleText":[],"visualIntent":"Teaching","narration":"Explain"});
+        let quiz = json!({"title":"Quiz","visibleText":[],"visualIntent":"Cards","narration":"",
+            "quiz":{"type":"quiz","questions":[{"id":"q","type":"single","question":"Choose","options":[{"value":"A","label":"Hello"},{"value":"B","label":"Bye"}],"answer":["A"]}]},
+            "teaching":{"pageType":"quiz","phase":"practice","objective":"Choose","durationSeconds":30,"requiredObjects":[]}});
+        for (pages, valid) in [(json!([body, quiz, body]), true), (json!([body, body, quiz]), false), (json!([quiz, body, body]), false)] {
+            let bytes = serde_json::to_vec(&json!({"title":"Lesson","pages":pages})).unwrap();
+            std::fs::write(&path, &bytes).unwrap();
+            assert_eq!(read_plan(root.path().to_str().unwrap(), "chat-a", &hex::encode(sha2::Sha256::digest(&bytes))).is_ok(), valid);
+        }
+    }
+
+    #[test]
+    fn objective_questions_require_independent_quiz_content() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join(".deckwise-ppt/scenes/chat-a/plan.json");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let mut page = json!({"title":"Family game","visibleText":[],"visualIntent":"Choose a family member","narration":"Choose brother.",
+            "teaching":{"pageType":"interactive","phase":"practice","objective":"Identify brother","durationSeconds":40,"requiredObjects":[],
+                "question":{"text":"Which one is brother?","response":{"kind":"single","options":["mum","dad","brother","sister"],"answerIndices":[2]}}}});
+        for kind in ["single", "multiple", "judge"] {
+            page["teaching"]["question"]["response"] = if kind == "judge" {
+                json!({"kind":kind,"options":["True","False"],"answerIndices":[0]})
+            } else { json!({"kind":kind,"options":["mum","dad","brother","sister"],"answerIndices":[2]}) };
+            let bytes = serde_json::to_vec(&json!({"title":"Family","pages":[page]})).unwrap();
+            std::fs::write(&path, &bytes).unwrap();
+            assert!(read_plan(root.path().to_str().unwrap(), "chat-a", &hex::encode(sha2::Sha256::digest(&bytes))).is_err());
+        }
+        page["narration"] = json!("");
+        page["teaching"]["pageType"] = json!("quiz");
+        page["quiz"] = json!({"type":"quiz","questions":[{"id":"family","type":"single","question":"Which one is brother?",
+            "options":[{"value":"A","label":"mum"},{"value":"B","label":"dad"},{"value":"C","label":"brother"},{"value":"D","label":"sister"}],"answer":["C"]}]});
+        page["teaching"].as_object_mut().unwrap().remove("question");
+        let bytes = serde_json::to_vec(&json!({"title":"Family","pages":[page]})).unwrap();
+        std::fs::write(&path, &bytes).unwrap();
+        assert!(read_plan(root.path().to_str().unwrap(), "chat-a", &hex::encode(sha2::Sha256::digest(&bytes))).is_ok());
     }
 
     #[cfg(unix)]

@@ -141,6 +141,7 @@ export class PlaybackCore {
   private speechCueScheduler: SpeechCueScheduler | null = null;
   // Browser-native TTS state (Web Speech API)
   private browserTTSActive: boolean = false;
+  private browserTTSFallback: (() => void) | undefined;
   private browserTTSAttempt = 0;
   private browserTTSChunks: string[] = []; // sentence-level chunks for sequential playback
   private browserTTSChunkIndex: number = 0; // current chunk being spoken
@@ -183,7 +184,7 @@ export class PlaybackCore {
     const text = correct ? config?.successSpeechText ?? '回答正确！非常棒！' : config?.failureSpeechText ?? '很遗憾，你选错了，再试一次吧！';
     const epoch = this.executionEpoch;
     this.setMode('playing');
-    if (text) await this.executeSpeechAction({ id: `${scene.id}:feedback`, type: 'speech', text });
+    if (text) await this.executeSpeechAction({ id: `${scene.id}:feedback`, type: 'speech', text }, true);
     if (this.executionEpoch !== epoch || this.getMode() !== 'playing') return;
     if (correct) {
       this.completedQuizzes.add(scene.id); void this.processNext();
@@ -1054,7 +1055,7 @@ export class PlaybackCore {
     ]);
   }
 
-  private executeSpeechAction(speechAction: SpeechAction | AudioClipAction): Promise<void> {
+  private executeSpeechAction(speechAction: SpeechAction | AudioClipAction, feedbackOnly = false): Promise<void> {
     const isSpeech = speechAction.type === "speech";
     this.currentAudioIsClip = !isSpeech;
     this.currentSpeechId = speechAction.id;
@@ -1130,7 +1131,7 @@ export class PlaybackCore {
 
       const failSource = (error: Error) => {
         if (!isActive()) return;
-        if (isSpeech && this.runtime.speechFallback !== "pause" && this.runtime.speechFallback !== 'browser') {
+        if (isSpeech && (feedbackOnly || this.runtime.speechFallback !== "pause" && this.runtime.speechFallback !== 'browser')) {
           scheduleReadingTimer();
           return;
         }
@@ -1181,7 +1182,7 @@ export class PlaybackCore {
               typeof window !== "undefined" &&
               window.speechSynthesis
             )
-              this.playBrowserTTS(speechAction);
+              this.playBrowserTTS(speechAction, feedbackOnly ? scheduleReadingTimer : undefined);
             else if (this.runtime.speechFallback === 'browser') failSource(new Error('No stored narration or browser speech voice is available.'));
             else scheduleReadingTimer();
           })
@@ -1369,7 +1370,8 @@ export class PlaybackCore {
    * Splits text into sentence-level chunks to avoid Chrome's ~15s cutoff.
    * Uses cancel+re-speak for pause/resume (Firefox compatibility).
    */
-  private playBrowserTTS(speechAction: SpeechAction): void {
+  private playBrowserTTS(speechAction: SpeechAction, fallback?: () => void): void {
+    this.browserTTSFallback = fallback;
     this.browserTTSChunks = this.splitIntoChunks(speechAction.text);
     this.browserTTSChunkIndex = 0;
     this.browserTTSPausedChunks = [];
@@ -1433,6 +1435,15 @@ export class PlaybackCore {
       // 'canceled' is expected when stop/pause is called — not a real error
       if (event.error !== "canceled") {
         log.warn("Browser TTS chunk error:", event.error);
+        if (this.browserTTSFallback) {
+          // Quiz feedback is also visible; an unavailable system voice must not block answering.
+          this.browserTTSActive = false;
+          this.browserTTSChunks = [];
+          const fallback = this.browserTTSFallback;
+          this.browserTTSFallback = undefined;
+          fallback();
+          return;
+        }
         if (this.runtime.speechFallback === 'browser') {
           this.pause();
           this.retrySpeech = () => {
@@ -1501,6 +1512,7 @@ export class PlaybackCore {
   /** Cancel any active browser-native TTS */
   private cancelBrowserTTS(): void {
     this.browserTTSAttempt += 1;
+    this.browserTTSFallback = undefined;
     if (this.browserTTSActive) {
       this.browserTTSActive = false;
       this.browserTTSChunks = [];

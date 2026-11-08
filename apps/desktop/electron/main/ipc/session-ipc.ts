@@ -141,7 +141,7 @@ export function registerSessionIpc({
     if (!host) throw new Error("host unavailable");
     return host.call("courseware.task.get", input);
   });
-  handle(IPC.invoke.coursewareTaskSet, async (input: { sessionId: string; taskType: string; educationContext?: unknown }) => {
+  handle(IPC.invoke.coursewareTaskSet, async (input: { sessionId: string; taskType: string; educationContext?: unknown; storyFirst?: boolean }) => {
     if (!host) throw new Error("host unavailable");
     return host.call("courseware.task.set", input);
   });

@@ -12,6 +12,7 @@ export type CoursewareEducationContext = {
   chapter?: string;
   lessonType?: string;
   visualStyle?: string;
+  bodyPageLimit?: number;
   fullEnglishTeaching?: boolean;
 };
 export type CoursewarePage = {
@@ -124,9 +125,10 @@ export function isCoursewareNativeAnimation(value: unknown): value is Courseware
 
 function educationContext(value: unknown): value is CoursewareEducationContext {
   const texts = ["schoolStage", "grade", "subject", "customSubjectName", "textbookVersion", "chapter", "lessonType", "visualStyle"];
-  return fields(value, [], [...texts, "fullEnglishTeaching"]) &&
+  return fields(value, [], [...texts, "fullEnglishTeaching", "bodyPageLimit"]) &&
     texts.every((key) => !Object.hasOwn(value, key) || (typeof value[key] === "string" && value[key].length <= 500)) &&
-    (!Object.hasOwn(value, "fullEnglishTeaching") || typeof value.fullEnglishTeaching === "boolean");
+    (!Object.hasOwn(value, "fullEnglishTeaching") || typeof value.fullEnglishTeaching === "boolean") &&
+    (!Object.hasOwn(value, "bodyPageLimit") || Number.isInteger(value.bodyPageLimit) && Number(value.bodyPageLimit) >= 1 && Number(value.bodyPageLimit) <= 30);
 }
 
 export function isCoursewareProject(value: unknown): value is CoursewareProject {

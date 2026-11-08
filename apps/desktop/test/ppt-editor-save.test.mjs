@@ -82,7 +82,7 @@ async function fixture(t, { contextErrors = [], contextPatch = {}, onContext = (
     return committed;
   };
   const ack = (save, dirty, success = true) => reply({ type: "message", message: { type: "document:save-committed", id: save.id, payload: { dirty, success } } });
-  return { root, source, controller, commands, states, reply, start, exported, ack, dirty, window, viewOptions, throttling };
+  return { root, source, controller, commands, states, reply, start, exported, ack, dirty, window, viewOptions, throttling, sent };
 }
 
 test("detached Office initialization runs without background timer throttling", async t => {
@@ -541,4 +541,33 @@ test("late native progress cannot replace a newer response", async t => {
   pending[1]({ project: newer }); await new Promise(resolve => setImmediate(resolve));
   pending[0]({ project }); await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(f.states.at(-1).teachingProgress, { total: 2, audio: 1, ready: 1 });
+});
+
+
+test("live Quiz edit keeps the editor open and retains its canonical draft across a failed save retry", async t => {
+  const f = await fixture(t);
+  const snapshot = f.controller.teachingSnapshot(f.root);
+  const binding = {projectId:snapshot.projectId,documentId:snapshot.documentId,sessionId:snapshot.sessionId};
+  const draft = {expectedRevision:'classroom-r1',classroom:{id:'course'}};
+  const received=[];
+  f.controller.nativeSave = async input => {
+    received.push(input.classroomSave);
+    if(received.length===1) throw Error('Host unavailable before source replacement');
+    return {commit:async()=>{},cancel:async()=>{}};
+  };
+  f.sent.on('document:apply-quiz-page',command=>queueMicrotask(()=>f.reply({type:'message',message:{type:'document:command-result',
+    id:command.id,payload:{...binding,page:1,editGeneration:1,applied:true}}})));
+  const saving = new Promise(resolve=>f.sent.once('document:save',resolve));
+  const applying = f.controller.applyClassroomPage(f.root,snapshot,{binding,page:1,editGeneration:1},draft);
+  const failed = assert.rejects(applying,/Host unavailable/);
+  const first = await saving;
+  assert.throws(()=>f.controller.close(),/Finish the current save/);
+  assert.equal((await f.exported(first)).payload.success,false);
+  f.ack(first,true,false); await failed;
+  const retry=f.start(); assert.equal((await f.exported(retry)).payload.success,true); f.ack(retry,false);
+  assert.deepEqual(received,[draft,draft]);
+  assert.equal(f.commands.filter(c=>c.type==='document:open-buffer').length,1,'saving Quiz must not reopen the document');
+  assert(!f.states.some(s=>s.status==='closed'));
+  const ordinary=f.start();await f.exported(ordinary);f.ack(ordinary,false);
+  assert.equal(received[2],undefined,'canonical draft cannot leak to later ordinary saves');
 });

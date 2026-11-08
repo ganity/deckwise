@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { CoursewareWorkflowView } from "@pi-desktop/shared";
+import { storyNeedsApproval, coursewareSceneBodyPageCount, type CoursewareWorkflowView } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
 import { CoursewareSourceVisuals } from "../workpanel/CoursewareSourceVisuals";
@@ -96,6 +96,46 @@ function Workflow({ sessionId, panelBlocked = false, maximized, onToggleMaximize
   const firstLessonPlan = messages.filter(message => message.role === "user").flatMap(message => message.attachments ?? [])
     .find(attachment => attachment.kind === "file" && /\.(pdf|docx?)$/i.test(attachment.name));
 
+  const story = view?.story;
+  const storyDecision = (action: "approve" | "disable") => run(async valid => {
+    if (!story) return;
+    const result = await api.coursewareStoryDecision(sessionId, story.revision, story.sha256, action);
+    if (!valid()) return;
+    setView(value => value ? { ...value, story: result.story } : value);
+    if (!await useAppStore.getState().sendPrompt(t(action === "approve" ? "coursewareStory.continuePrompt" : "coursewareStory.directPrompt"), undefined, sessionId))
+      throw new Error(t("coursewareWorkflow.sendFailed"));
+  });
+  const storyReview = story && <div className="courseware-plan-review">
+    <h2>{t("coursewareStory.title")}</h2>
+    {story.draft ? <div className="courseware-plan-scroll">
+      <h3>{story.draft.title}</h3><p>{story.draft.summary}</p>
+      <h4>{t("coursewareStory.objectives")}</h4><ul>{story.draft.objectives.map(item => <li key={item}>{item}</li>)}</ul>
+      <h4>{t("coursewareStory.setting")}</h4><p>{story.draft.setting}</p>
+      <ul>{story.draft.characters.map((character, index) => <li key={index}><strong>{character.name}</strong> · {character.description}</li>)}</ul>
+      <ol>{story.draft.beats.map(beat => <li key={beat.id}>
+        <h4>{beat.title}</h4><p>{beat.event}</p><dl>
+          <dt>{t("coursewareStory.objective")}</dt><dd>{beat.objective}</dd>
+          <dt>{t("coursewareStory.activity")}</dt><dd>{beat.activity}</dd>
+          {beat.assessment && <><dt>{t(beat.assessment.kind === "quiz" ? "coursewareWorkflow.quizTemplate" : "coursewareStory.checkpoint")}</dt>
+            <dd>{beat.assessment.question}</dd><dt>{t("coursewareStory.reference")}</dt><dd>{beat.assessment.referenceAnswer}</dd></>}
+        </dl>
+      </li>)}</ol>
+      {(story.draft.durationMinutes || story.draft.bodyPageLimit) && <p>{story.draft.durationMinutes ? t("coursewareStory.duration", { count: story.draft.durationMinutes }) : ""} {story.draft.bodyPageLimit ? t("coursewareStory.pages", { count: story.draft.bodyPageLimit }) : ""}</p>}
+      {!!story.draft.assumptions.length && <><h4>{t("coursewareStory.assumptions")}</h4><ul>{story.draft.assumptions.map(item => <li key={item}>{item}</li>)}</ul></>}
+    </div> : <p>{t("coursewareStory.empty")}</p>}
+    <p>{t(story.bound ? "coursewareStory.bound" : "coursewareStory.revise")}</p>
+    {!story.bound && <footer className="courseware-plan-footer">
+      {storyNeedsApproval(story) && <button type="button" disabled={blocked || !story.draft} onClick={() => void storyDecision("approve")}>{t("coursewareStory.approve")}</button>}
+      <button type="button" disabled={blocked} onClick={() => void storyDecision("disable")}>{t("coursewareStory.disable")}</button>
+    </footer>}
+    {!storyNeedsApproval(story) && <button type="button" disabled={blocked} onClick={() => void run(async () => {
+      if (!await useAppStore.getState().sendPrompt(t("coursewareStory.continuePrompt"), undefined, sessionId)) throw new Error(t("coursewareWorkflow.sendFailed"));
+    })}>{t("coursewareWorkflow.resume")}</button>}
+  </div>;
+  if (storyNeedsApproval(story)) return <section className="courseware-chat-workflow courseware-workspace" aria-label={t("coursewareStory.title")}>
+    {(error || readError) && <p role="alert">{error || readError}</p>}{storyReview}
+  </section>;
+
   if (classroomOpen) return <section className="courseware-chat-workflow courseware-workspace has-editor">
     <button type="button" onClick={() => setClassroomOpen(false)}>返回课程工作区</button>
     <CoursewareClassroomEditor sessionId={sessionId} readOnly={blocked} />
@@ -114,13 +154,14 @@ function Workflow({ sessionId, panelBlocked = false, maximized, onToggleMaximize
     {!view && !readError && <p role="status">{t("coursewareWorkflow.loadingWorkspace")}</p>}
     {view && !view.task && <p>{t("coursewareWorkflow.briefHint")}</p>}
     {view?.task && <>
+      {story && !path && <details><summary>{t("coursewareStory.saved")}</summary>{storyReview}</details>}
       {!path && !ordinary && !plan && <p role="status">{t(view.task.taskType === "import" ? "coursewareWorkflow.importHint" : "coursewareWorkflow.briefHint")}</p>}
       {!path && plan && !approved && <div className="courseware-plan-review">
         <div className="courseware-plan-scroll">
           <div className="courseware-plan-heading">
             <span className="courseware-plan-status">{t("coursewareWorkflow.reviewPlan")}</span>
             <h2>{plan.title}</h2>
-            <p>{t("coursewareWorkflow.pages", { count: plan.pages.length })}</p>
+            <p>{t("coursewareWorkflow.pages", { count: coursewareSceneBodyPageCount(plan.pages) })}{plan.pages.some(page => page.quiz) ? ` · ${t("coursewareWorkflow.quizPages", { count: plan.pages.filter(page => page.quiz).length })}` : ""}{plan.pages.some(page => page.teaching?.question) ? ` · ${t("coursewareWorkflow.interactionPages", { count: plan.pages.filter(page => page.teaching?.question).length })}` : ""}</p>
           </div>
           {plan.visualBible && <details className="courseware-plan-guide">
             <summary>{t("coursewareWorkflow.visualBible")}</summary>
@@ -166,6 +207,7 @@ function Workflow({ sessionId, panelBlocked = false, maximized, onToggleMaximize
           <button type="button" disabled={blocked} onClick={() => setImportOpen(true)}>{t("coursewareWorkflow.publish")}</button>
           <button type="button" disabled={busy} onClick={() => setRefresh(value => value + 1)}>{t("coursewareWorkflow.refresh")}</button>
         </>}
+        storyPanel={storyReview}
         reviewPanel={<>
           {!ordinary && sourceVisuals}
           <CoursewareChatNarration sessionId={sessionId} disabled={blocked} />

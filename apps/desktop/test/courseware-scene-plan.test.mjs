@@ -45,10 +45,56 @@ test("initial planning corrects invalid JSON with bounded feedback instead of hu
   assert.equal(calls, 1);
 });
 
+test("正文 page limits exclude independent quiz and checkpoint scenes while retaining both", () => {
+  const page = JSON.parse(answer).pages[0];
+  const quiz = { ...page, visibleText: [], narration: "", title: "Quiz", teaching: { pageType: "quiz", phase: "review", objective: "Check", durationSeconds: 30, requiredObjects: [] },
+    quiz: { type: "quiz", questions: [{ id: "q", type: "single", question: "Pick", options: [{ value: "A", label: "A" }, { value: "B", label: "B" }], answer: ["A"] }] } };
+  const interaction = { ...page, visibleText: [], narration: "", title: "Discussion", teaching: { pageType: "interactive", phase: "practice", objective: "Discuss", durationSeconds: 30, requiredObjects: [], question: { text: "Why?", response: { kind: "discussion", options: [], answerIndices: [] } } } };
+  const plan = parseSceneCoursePlan(JSON.stringify({ title: "Mixed", bodyPageLimit: 1, pages: [page, quiz, interaction] }));
+  assert.equal(plan.bodyPageLimit, 1);
+  assert.equal(plan.pages.length, 3);
+  assert.throws(() => parseSceneCoursePlan(JSON.stringify({ title: "Grouped", pages: [page, page, quiz] })), /between related body pages/);
+  assert.equal(parseSceneCoursePlan(JSON.stringify({ title: "Inserted", pages: [page, quiz, page] })).pages.length, 3);
+  assert.equal(plan.pages.filter(value => !value.quiz && !value.teaching?.question).length, 1);
+  assert.equal(parseSceneCoursePlan(JSON.stringify({ title: "Full lesson", pages: [page, quiz, ...Array.from({ length: 29 }, () => page), interaction] })).pages.length, 32);
+  assert.throws(() => parseSceneCoursePlan(JSON.stringify({ title: "Too many body pages", pages: Array.from({ length: 31 }, () => page) })), /正文 pages exceed/);
+  assert.throws(() => parseSceneCoursePlan(JSON.stringify({ title: "Too many", bodyPageLimit: 1, pages: [page, { ...page, title: "Second" }] })), /正文 pages exceed/);
+  const merged = { ...page, teaching: { ...interaction.teaching, pageType: "slide" } };
+  assert.throws(() => parseSceneCoursePlan(JSON.stringify({ title: "Merged", pages: [merged] })), /checkpoint pages must use pageType=interactive or pbl/);
+});
+
+test("an explicit eight-page request remains eight body pages, without subtracting assessments", async () => {
+  const page = JSON.parse(answer).pages[0];
+  const quiz = { ...page, title: "Quiz", visibleText: [], narration: "", teaching: {
+    pageType: "quiz", phase: "review", objective: "Check", durationSeconds: 30, requiredObjects: [],
+  }, quiz: { type: "quiz", questions: [{ id: "q", type: "single", question: "Pick", options: [
+    { value: "A", label: "A" }, { value: "B", label: "B" },
+  ], answer: ["A"] }] } };
+  const checkpoint = { ...page, title: "Checkpoint", visibleText: [], narration: "", teaching: {
+    pageType: "interactive", phase: "practice", objective: "Discuss", durationSeconds: 30, requiredObjects: [],
+    question: { text: "Why?", response: { kind: "discussion", options: [], answerIndices: [] } },
+  } };
+  // Reproduce the captured draft: seven body pages plus two assessments, but a model-invented limit of six.
+  const output = JSON.stringify({ title: "Family", bodyPageLimit: 6, pages: [
+    page, quiz, ...Array.from({ length: 6 }, () => page), checkpoint,
+  ] });
+  for (const brief of ["根据附件中的教案生成8页教学课件", "请制作 8 页课件", "正文8页，另加Quiz和交互", "Create 8 pages of courseware", "最多8页"]) {
+    const result = await createSceneCoursePlan({ ...input, brief }, async () => ({ text: output }));
+    assert.equal(result.bodyPageLimit, 8, brief);
+    assert.equal(result.pages.length, 9);
+    assert.throws(() => parseSceneCoursePlan(JSON.stringify({ title: "Too many", pages: Array.from({ length: 9 }, () => page) }), result.bodyPageLimit), /正文 pages exceed/);
+  }
+  const resumed = await createSceneCoursePlan({ ...input, brief: "继续，额外加两页互动", education: {
+    ...input.education, bodyPageLimit: 8,
+  } }, async () => ({ text: output }));
+  assert.equal(resumed.bodyPageLimit, 8);
+});
+
 test("Chat draft errors expose the format while interaction questions remain separate editable text", () => {
   const plan = JSON.parse(answer);
   plan.pages[0].teaching = { pageType: "invalid" };
   assert.throws(() => parseSceneCoursePlan(JSON.stringify(plan)), /teaching\.pageType:.*slide\|quiz\|interactive\|pbl/);
+  plan.pages[0].visibleText = []; plan.pages[0].narration = "";
   plan.pages[0].teaching = { pageType: "interactive", phase: "practice", objective: "Greet", durationSeconds: 120,
     requiredObjects: [], question: { text: "Wave hello", response: { kind: "practice", options: [], answerIndices: [] } } };
   assert.equal(parseSceneCoursePlan(JSON.stringify(plan)).pages[0].teaching.question.text, "Wave hello");
@@ -127,8 +173,10 @@ test("completion requests reuse MAIC age, subject and language rules without cha
 const attachments = await loadSource("../electron/main/prompt-attachments.ts", { "@pi-desktop/shared": shared });
 const sessionInput = await loadSource("../electron/main/session-message-input.ts", { "@pi-desktop/shared": shared });
 const sceneSkill = (await readFile(new URL("../resources/skills/scene-courseware/SKILL.md", import.meta.url), "utf8")).replace(/^---\n[\s\S]*?\n---\n/, "");
+const story = await loadSource("../electron/main/courseware-story.ts");
 const { registerAgentIpc } = await loadSource("../electron/main/ipc/agent-ipc.ts", {
   "@pi-desktop/shared": shared, "@pi-desktop/agent-runtime": runtime,
+  "../courseware-story": story,
   "../oauth": {}, "../prompt-attachments": attachments, "../plan-execution": {},
   "../session-message-input": sessionInput, "../courseware-scene-plan": planning,
   "../courseware-llm-auth": { resolveCoursewareLlmAuth: async () => ({}) },
@@ -136,12 +184,18 @@ const { registerAgentIpc } = await loadSource("../electron/main/ipc/agent-ipc.ts
     ? { id, name: "scene-courseware", body: sceneSkill } : null },
 });
 
-async function dispatchChat(educationContext, { taskType = "scene", nativeEditing = false, importPath, generatedPath } = {}) {
+async function dispatchChat(educationContext, { taskType = "scene", nativeEditing = false, importPath, generatedPath, storyState, storyFailure } = {}) {
   const handlers = new Map(), requests = [], persisted = [];
+  const activeTurns = new Map(), methods = [];
   const host = { async call(method, params) {
+    methods.push(method);
     if (method === "settings.get") return {};
     if (method === "session.get") return { session: { id: input.sessionId, projectPath: "/workspace", messages: [] } };
-    if (method === "courseware.task.get") return { task: { taskType, educationContext, importPath, generatedPath } };
+    if (method === "courseware.task.get") return { task: { taskType, educationContext, importPath, generatedPath, ...(storyState || storyFailure ? { storyFirst: true } : {}) } };
+    if (method === "courseware.story.get") {
+      if (storyFailure) throw new Error("Story storage unavailable");
+      return { story: storyState };
+    }
     if (method === "session.beginTurn") return { turnId: "turn-1" };
     if (method === "session.appendMessage") { persisted.push(params.message); return {}; }
     assert.fail(`Unexpected RPC ${method}`);
@@ -152,20 +206,47 @@ async function dispatchChat(educationContext, { taskType = "scene", nativeEditin
       assert.equal(method, "agent.prompt"); requests.push(params); return { accepted: true, turnId: "turn-1" };
     } }), getAgentHostBridge: () => null, logger: { app() {} }, vendorOAuth: {}, agentExtensions: {},
     cancelSessionTools() {}, persistenceOutbox: {}, dataDir: "/unused-no-attachments",
-    activeTurns: new Map(), activeTurnUsages: new Map(), approvedExecutionIdsBySession: new Map(), claimedExecutionSessions: new Map(),
+    activeTurns, activeTurnUsages: new Map(), approvedExecutionIdsBySession: new Map(), claimedExecutionSessions: new Map(),
     resolveAgentRuntimeLaunch: async () => ({ providerId: "provider", modelId: "model", projectPath: "/workspace",
       sidecarParams: { sessionId: input.sessionId, provider: { id: "provider", modelId: "model", modelConfig: { input: ["text"] } },
         ...(nativeEditing ? { pptEditorBinding: { projectId: "office", documentId: "deck", sessionId: "native" } } : {}) } }),
     acquireSessionOperation: async () => () => {}, finishTurn: async () => assert.fail("Prompt should succeed"),
     emitAgentEvent() {}, setNotificationViewingSessionId() {},
   });
-  const result = await handlers.get(shared.IPC.invoke.agentPrompt)({ sessionId: input.sessionId, content: "Plan a greetings lesson" });
+  const prompt = () => handlers.get(shared.IPC.invoke.agentPrompt)({ sessionId: input.sessionId, content: "Plan a greetings lesson" });
+  if (storyFailure) {
+    await assert.rejects(prompt(), /Story storage unavailable/);
+    assert(!methods.includes("session.beginTurn"));
+    assert.equal(activeTurns.size, 0);
+    assert.equal(requests.length, 0);
+    return;
+  }
+  const result = await prompt();
   assert.equal(result.accepted, true);
   assert.equal(requests.length, 1);
   assert.equal(requests[0].provider.modelId, "model");
   assert.equal(persisted[0].content, "Plan a greetings lesson");
   return requests[0].content;
 }
+
+test("story storage failure does not open a durable turn or start production", async () => {
+  await dispatchChat({}, { storyFailure: true });
+});
+
+test("both Chat routes design the story first and inject its approved snapshot into their original production prompt", async () => {
+  const draft = { title: "Greetings rescue", objectives: ["Say hello"], beats: [{ id: "hello", event: "Help Robin greet a friend" }] };
+  const pending = { schemaVersion: 1, revision: 1, draft, sha256: "a".repeat(64), approvedSha256: null, educationContext: input.education, bound: false };
+  for (const taskType of ["plain", "scene"]) {
+    const designing = await dispatchChat(input.education, { taskType, storyState: pending });
+    assert.match(designing, /user need not supply a lesson plan/);
+    assert.match(designing, /courseware_story_save/);
+    assert.doesNotMatch(designing, /Current scene-courseware skill instructions|Official PPT Master/);
+    const producing = await dispatchChat(input.education, { taskType, storyState: { ...pending, approvedSha256: pending.sha256 } });
+    assert(producing.includes(draft.title));
+    assert(producing.includes(pending.sha256));
+    assert.match(producing, taskType === "plain" ? /full existing PPT Master/ : /storySha256/);
+  }
+});
 
 test("generated scene teaching can resume without an active Office binding", async () => {
   const content = await dispatchChat(input.education, { generatedPath: "/workspace/generated.pptx" });
@@ -295,6 +376,15 @@ test("both planning entrances require concrete original identities without chang
 });
 
 
+test("scene planning counts every illustrated opening and activity page within the saved body budget", async () => {
+  const education = { ...input.education, bodyPageLimit: 4 };
+  for (const content of [planning.sceneCourseTeachingPolicy(education), await dispatchChat(education)]) {
+    assert.match(content, /saved maximum is 4 body pages/);
+    assert.match(content, /including every cover, opening, illustrated activity setup and review/);
+    assert.match(content, /never add a body page to repair an assessment when the budget is full/);
+  }
+});
+
 test("scene planning preserves required groups and names while excluding unrequested clutter", async () => {
   const policy = planning.sceneCourseTeachingPolicy(input.education);
   for (const content of [policy, sceneSkill]) {
@@ -306,22 +396,21 @@ test("scene planning preserves required groups and names while excluding unreque
 });
 
 test("typed teaching questions and hash order survive reordered JSON fields", () => {
-  const teaching = { pageType: "quiz", phase: "practice", objective: "Identify a greeting", durationSeconds: 40, requiredObjects: ["Monkey"],
-    question: { text: "Which greeting?", response: { kind: "single", options: ["Hello", "Goodbye"], answerIndices: [0] } },
-    music: { purpose: "Listening", prompt: "Hello song" } };
+  const teaching = { pageType: "quiz", phase: "practice", objective: "Identify a greeting", durationSeconds: 40, requiredObjects: [] };
   const quiz = { type: "quiz", questions: [{ id: "greeting", type: "single", question: "Which greeting?", options: [{ value: "A", label: "Hello" }, { value: "B", label: "Goodbye" }], answer: ["A"] }] };
-  const page = { quiz, title: "Choose", visibleText: ["Which greeting?", "Hello", "Goodbye"], visualIntent: "Monkey asks the visible question", narration: "Which greeting?", teaching };
+  const page = { quiz, title: "Choose", visibleText: [], visualIntent: "Quiz template", narration: "", teaching };
   const plan = p => parseSceneCoursePlan(JSON.stringify({ title: "Greetings", pages: [p] }));
   const reversed = value => Array.isArray(value) ? value.map(reversed) : value && typeof value === "object" ? Object.fromEntries(Object.entries(value).reverse().map(([k,v]) => [k, reversed(v)])) : value;
   assert.equal(plan(page).pages[0].sourceHash, plan(reversed(page)).pages[0].sourceHash);
   assert.deepEqual(plan(page).pages[0].quiz.questions[0].answer, ["A"]);
   assert.throws(() => { const { quiz, ...withoutQuiz } = page; plan(withoutQuiz); }, /independent MAIC quiz/);
   assert.deepEqual(plan(page).pages[0].teaching, teaching);
+  const multiple = { ...quiz, interactionMode: "classroom_instant_feedback", questions: [...quiz.questions, { ...quiz.questions[0], id: "second" }] };
+  assert.throws(() => plan({ ...page, quiz: multiple }), /exactly one question/);
+  assert.throws(() => plan({ ...page, quiz: { ...multiple, interactionMode: "assessment_review" } }), /exactly one question/);
   const withVideo = { ...page, teaching: { ...teaching, video: { purpose: "Wave", prompt: "A five-second silent wave" } } };
-  assert.deepEqual(plan(withVideo).pages[0].teaching.video, withVideo.teaching.video);
-  assert.notEqual(plan(withVideo).pages[0].sourceHash, plan(page).pages[0].sourceHash);
-  assert.equal(plan(withVideo).pages[0].sourceHash, plan(reversed(withVideo)).pages[0].sourceHash);
-  assert.throws(() => plan({ ...page, visibleText: ["Which greeting?"] }), /must be visible/);
+  assert.throws(() => plan(withVideo), /separate body activity/);
+  assert.throws(() => plan({ ...page, teaching: { ...teaching, question: { text: "Which greeting?", response: { kind: "single", options: ["Hello", "Goodbye"], answerIndices: [0] } } } }), /Quiz questions belong only in page.quiz/);
   assert.throws(() => plan({ ...page, teaching: null }));
 });
 
@@ -329,7 +418,77 @@ test("the skill planning example passes the actual parser and retains question a
   const example = sceneSkill.match(/```json\s*([\s\S]*?)```/u)?.[1];
   assert(example, "The planning skill needs an executable JSON example");
   const plan = parseSceneCoursePlan(example);
-  assert.equal(plan.pages[0].teaching?.question?.response.kind, "practice");
+  assert.equal(plan.pages[1].teaching?.question?.response.kind, "practice");
+  assert.equal(plan.pages[0].teaching.pageType, "slide");
   assert(plan.pages[0].teaching?.music?.prompt);
   assert(plan.pages[0].teaching?.video?.prompt);
+});
+
+test("production Chat planning example separates MAIC quiz content from editable checkpoints", async () => {
+  const content = await dispatchChat(input.education);
+  const example = content.match(/```json\s*([\s\S]*?)```/u)?.[1];
+  assert(example, "Main Chat must receive an executable mixed-lesson example");
+  const plan = parseSceneCoursePlan(example);
+  const quizPage = plan.pages.find(page => page.teaching?.pageType === "quiz");
+  assert(quizPage?.quiz, "The mixed-lesson example must include independent MAIC quiz content");
+  assert.equal(quizPage.teaching.question, undefined);
+  assert.equal(quizPage.quiz.type, "quiz");
+  assert.deepEqual(quizPage.quiz.questions[0].answer, ["A"]);
+  const checkpoint = plan.pages.find(page => page.teaching?.pageType === "interactive");
+  assert.equal(checkpoint.quiz, undefined);
+  assert(checkpoint.teaching.question.referenceAnswer?.summary);
+  assert(checkpoint.teaching.question.constraintPrompt);
+  assert(!checkpoint.visibleText.includes(checkpoint.teaching.question.text));
+});
+
+test("both planning entrances specify independent MAIC quizzes and repair missing quiz content", async () => {
+  const check = content => assert.match(content, /Quiz pages MUST include quiz:/);
+  check(await dispatchChat(input.education));
+  const page = JSON.parse(answer).pages[0];
+  page.teaching = { pageType: "quiz", phase: "review", objective: "Greet", durationSeconds: 30, requiredObjects: [] };
+  const quiz = { type: "quiz", questions: [{ id: "greeting", type: "single", question: "Which greeting?",
+    options: [{ value: "A", label: "Hello" }, { value: "B", label: "Goodbye" }], answer: ["A"] }] };
+  const slides = Array.from({ length: 4 }, () => JSON.parse(answer).pages[0]);
+  const invalid = JSON.stringify({ title: "Greetings", pages: [...slides, page] });
+  const requests = [];
+  const result = await createSceneCoursePlan(input, async request => {
+    check(request.system);
+    requests.push(JSON.parse(request.messages[0].content));
+    return { text: requests.length === 1 ? invalid : JSON.stringify({ title: "Greetings", pages: [slides[0], { ...page, visibleText: [], narration: "", quiz }, ...slides.slice(1)] }) };
+  });
+  assert.equal(requests.length, 2);
+  assert.match(requests[1].repair.error, /Invalid scene course page 5 \(pages\[4\]\)\.quiz: quiz pageType requires independent MAIC quiz content/);
+  assert.doesNotMatch(requests[1].repair.error, /teaching\.question: required/);
+  assert.equal(requests[1].repair.previousOutput, invalid);
+  assert.deepEqual(result.pages[1].quiz, quiz);
+  assert.equal(result.pages[1].teaching.question, undefined);
+});
+
+test("stray quiz content does not suppress the required checkpoint question", () => {
+  const page = JSON.parse(answer).pages[0];
+  page.teaching = { pageType: "interactive", phase: "practice", objective: "Greet", durationSeconds: 30, requiredObjects: [] };
+  page.quiz = { type: "quiz", questions: [{ id: "greeting", type: "short_answer", question: "Greet a friend", answer: ["Hello"] }] };
+  assert.throws(() => parseSceneCoursePlan(JSON.stringify({ title: "Greetings", pages: [page] })), /teaching\.question: required/);
+});
+
+test("objective assessment cannot be planned as a custom checkpoint instead of MAIC Quiz", () => {
+  const page = { ...JSON.parse(answer).pages[0], teaching: { pageType: "interactive", phase: "practice", objective: "Identify brother",
+    durationSeconds: 40, requiredObjects: [], question: { text: "Which one is brother?", response: {
+      kind: "single", options: ["mum", "dad", "brother", "sister"], answerIndices: [2],
+    }, referenceAnswer: { summary: "brother", keyPoints: ["brother"] } } } };
+  assert.throws(() => parseSceneCoursePlan(JSON.stringify({ title: "My Family", pages: [page] })), /objective.*pageType=quiz.*page\.quiz/i);
+});
+
+test("a Freeze activity cannot be silently replaced by a checkpoint template", async () => {
+  const body = { title: "Freeze game", visibleText: ["Freeze!", "I love my mum."], visualIntent: "Family on four colored mats; Freeze sign", narration: "Music plays. Freeze, then say I love my mum.", teaching: { pageType: "slide", phase: "practice", objective: "Speak a full sentence", durationSeconds: 200, requiredObjects: ["mum", "dad", "mats"] } };
+  const question = { text: "Say a complete sentence about mum.", response: { kind: "practice", options: [], answerIndices: [] } };
+  const hybrid = { ...body, teaching: { ...body.teaching, pageType: "interactive", question } };
+  assert.throws(() => parseSceneCoursePlan(JSON.stringify({ title: "Family", pages: [hybrid] })), /separate body activity/);
+  const checkpoint = { title: "Your turn", visibleText: [], visualIntent: "MAIC checkpoint template", narration: "", teaching: { ...body.teaching, pageType: "interactive", durationSeconds: 40, requiredObjects: [], question } };
+  const outputs = [JSON.stringify({ title: "Family", pages: [hybrid] }), JSON.stringify({ title: "Family", bodyPageLimit: 1, pages: [body, checkpoint] })];
+  const plan = await createSceneCoursePlan(input, async () => ({ text: outputs.shift() }));
+  assert.equal(plan.pages.length, 2);
+  assert.deepEqual(plan.pages[0].visibleText, body.visibleText);
+  assert.equal(plan.pages[0].narration, body.narration);
+  assert.equal(plan.pages[1].narration, "");
 });

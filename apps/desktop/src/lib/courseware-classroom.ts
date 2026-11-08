@@ -1,4 +1,4 @@
-import type { MaicClassroom } from "@pi-desktop/courseware-runtime/player";
+import { createMaicInteractionCanvas, type MaicClassroom } from "@pi-desktop/courseware-runtime/player";
 
 type MaicQuizContent = Extract<MaicClassroom["scenes"][number]["content"], { type: "quiz" }>;
 export type QuizQuestion = MaicQuizContent["questions"][number];
@@ -19,6 +19,21 @@ export const initialPlayback = { introSpeechMode: "page_enter_only", attemptPoli
 export const question = (): QuizQuestion => ({ id: crypto.randomUUID(), type: "single", question: "新题目", options: [{ value: "A", label: "选项一" }, { value: "B", label: "选项二" }], answer: [], hasAnswer: true, points: 1 });
 export const clone = <T,>(value: T): T => structuredClone(value);
 
+/** Replace text nodes while retaining the authored paragraph/run formatting. */
+export function replaceQuestionText(html: string, text: string): string {
+  const escaped = text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll("\n", "<br>");
+  let inserted = false;
+  const result = html.replace(/<br\s*\/?>/giu, "").replace(/(^|>)([^<]+)(?=<|$)/gu, (whole, prefix, value) => {
+    if (!String(value).trim()) return whole;
+    const replacement = inserted ? "" : escaped;
+    inserted = true;
+    return prefix + replacement;
+  });
+  if (inserted) return result;
+  const empty = result.replace(/(<(?:span|p)\b[^>]*>)(?=\s*<\/(?:span|p)>)/iu, (_whole, opening) => opening + escaped);
+  return empty !== result ? empty : `<p>${escaped}</p>`;
+}
+
 /** Stable option values are the MAIC answer and image identity, independent of display order. */
 export function removeQuestionOption(q: QuizQuestion, value: string): QuizQuestion {
   return { ...q, options: q.options?.filter(option => option.value !== value), answer: q.answer?.filter(answer => answer !== value) };
@@ -38,11 +53,10 @@ export function updateCheckpointQuestion(scene: ClassroomScene, actionId: string
     throw new Error("请重新选择问题对应的画布文本框");
   if (!scene.actions?.some(action => action.id === actionId && action.type === "interaction_checkpoint" && action.checkpointKind === "chapter_summary"))
     throw new Error("课堂互动动作已改变");
-  const escaped = questionText.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
   return { ...scene,
     metadata: { ...scene.metadata, nativeQuestionElementId: elementId },
     actions: scene.actions.map(action => action.id === actionId ? { ...action, question: questionText } : action),
-    content: { ...scene.content, canvas: { ...scene.content.canvas, elements: elements.map(element => element.id === elementId ? { ...element, content: `<p>${escaped}</p>` } : element) } },
+    content: { ...scene.content, canvas: { ...scene.content.canvas, elements: elements.map(element => element.id === elementId ? { ...element, content: replaceQuestionText(String(element.content), questionText) } : element) } },
   };
 }
 
@@ -60,28 +74,14 @@ export function pruneQuizImageBindings(document: ClassroomDocument): ClassroomDo
       bindings.has(`${entry.sceneId}:${entry.elementId}`)) };
 }
 
-export async function saveBeforeImageAttachment(input: {
-  save(): Promise<ClassroomEditorView>; attach(saved: ClassroomEditorView): Promise<ClassroomEditorView>;
-  current(): boolean; saved(view: ClassroomEditorView): void;
-}): Promise<ClassroomEditorView | null> {
-  const saved = await input.save();
-  if (!input.current()) return null;
-  // The content write already advanced the CAS fence even when asset attachment later fails.
-  input.saved(saved);
-  return input.attach(saved);
-}
-
 type MaicSlideCanvas = Extract<MaicClassroom["scenes"][number]["content"], { type: "slide" }>["canvas"];
 /** New interaction pages inherit course dimensions, including kindergarten 16:10. */
 export function createInteractionCanvas(document: ClassroomDocument, id: string): MaicSlideCanvas {
   const stageCanvas = document.stage.canvas as { viewportSize?: number; viewportRatio?: number } | undefined;
   const existing = document.scenes.find(scene => scene.content.type === "slide")?.content.canvas;
-  return {
-    id, viewportSize: Number(stageCanvas?.viewportSize ?? existing?.viewportSize ?? 1000),
-    viewportRatio: Number(stageCanvas?.viewportRatio ?? existing?.viewportRatio ?? 9 / 16),
-    theme: { backgroundColor: "#FFFFFF", themeColors: ["#3B82F6"], fontColor: "#111827", fontName: "Arial" },
-    elements: [],
-  };
+  return createMaicInteractionCanvas(id, "课堂互动", "请描述你的想法",
+    Number(stageCanvas?.viewportSize ?? existing?.viewportSize ?? 1000),
+    Number(stageCanvas?.viewportRatio ?? existing?.viewportRatio ?? 9 / 16));
 }
 
 /** cloud-web reads the short-answer reference from answer[0]; MAIC grading also accepts referenceAnswer. */
@@ -116,8 +116,47 @@ export function pruneRemovedSceneBindings(next: ClassroomDocument, previous: Cla
 export interface ClassroomTtsSelection {
   sessionId: string; projectId: string; expectedRevision: string; expectedSourceRevision: string;
   sceneId: string; actionId: string; model: string; voice: string | null;
+  regenerate?: boolean;
 }
 export interface ClassroomTtsResult {
   key: string; state: string; task?: { state: string; errorCode?: string; feeState?: string };
   quote?: { quoteId: string; maxPoints: number; expiresAt: string }; view?: ClassroomEditorView;
+}
+
+export interface ClassroomImageSelection {
+  sessionId: string; projectId: string; expectedRevision: string; expectedSourceRevision: string;
+  sceneId: string; questionId: string; optionValue: string; model: string;
+}
+export type ClassroomImageResult = ClassroomTtsResult;
+
+/** Copy keeps image ownership and its source-page binding, while narration audio is regenerated. */
+export function copyClassroomScene(document: ClassroomDocument, sceneId: string, id: string): ClassroomDocument {
+  const index = document.scenes.findIndex(scene => scene.id === sceneId);
+  if (index < 0) throw new Error("Scene is missing");
+  const original = document.scenes[index], copied = clone(original);
+  copied.id = id; copied.title = `${original.title}（副本）`;
+  copied.metadata = { ...copied.metadata };
+  if (typeof copied.metadata.nativePageId === "string") copied.metadata.copiedFromNativePageId = copied.metadata.nativePageId;
+  delete copied.metadata.nativePageId;
+  delete copied.metadata.nativeAudioBindings;
+  const anchor = typeof original.metadata?.nativeQuestionElementId === "string" ? original.metadata.nativeQuestionElementId : `${original.id}_question`;
+  if (Array.isArray(original.content.canvas?.elements) && original.content.canvas.elements.some(element => element.id === anchor))
+    copied.metadata.nativeQuestionElementId = anchor;
+  copied.actions = copied.actions?.map((action, i) => {
+    const next: Record<string, unknown> = { ...action, id: `${id}-action-${i}` };
+    delete next.audioId; delete next.audioUrl; delete next.audioDuration;
+    if (next.type === "interaction_checkpoint") next.checkpointId = `${id}-checkpoint-${i}`;
+    return next;
+  });
+  const speechBindings = original.metadata?.assessmentSpeechIds;
+  if (speechBindings && typeof speechBindings === "object" && !Array.isArray(speechBindings)) {
+    copied.metadata.assessmentSpeechIds = Object.fromEntries(Object.entries(speechBindings).flatMap(([key, speechId]) => {
+      const speechIndex = original.actions?.findIndex(action => action.id === speechId) ?? -1;
+      const targetIndex = original.actions?.findIndex(action => action.id === key) ?? -1;
+      return speechIndex < 0 ? [] : [[key === original.id ? id : targetIndex >= 0 ? `${id}-action-${targetIndex}` : key, `${id}-action-${speechIndex}`]];
+    }));
+  }
+  const scenes = [...document.scenes]; scenes.splice(index + 1, 0, copied);
+  return { ...document, scenes: scenes.map((scene, order) => ({ ...scene, order })),
+    mediaManifest: [...document.mediaManifest ?? [], ...(document.mediaManifest ?? []).filter(entry => entry.sceneId === sceneId).map(entry => ({ ...entry, sceneId: id }))] };
 }

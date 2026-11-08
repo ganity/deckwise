@@ -73,6 +73,20 @@ test("identical retry finds durable relay task without a second submission", asy
   await f.coordinator.submit({ ...f.args, quoteId: second.quote.quoteId });
   assert.equal(first.key, second.key); assert.equal(f.calls.filter(call => call.method === "submit").length, 1);
 });
+test("manual regeneration creates a fresh task for the saved version and keeps retries idempotent", async () => {
+  const f = fixture(), original = await f.coordinator.quote(f.args);
+  await f.coordinator.submit({ ...f.args, quoteId: original.quote.quoteId });
+  const input = { ...f.args, regenerate: true }, first = await f.coordinator.quote(input);
+  await f.coordinator.submit({ ...input, quoteId: first.quote.quoteId });
+  const retry = await f.coordinator.quote(input);
+  await f.coordinator.submit({ ...input, quoteId: retry.quote.quoteId });
+  assert.notEqual(original.key, first.key); assert.equal(first.key, retry.key);
+  f.setRevision('adopted-revision');
+  const next = await f.coordinator.quote({...input,expectedRevision:'adopted-revision'});
+  assert.notEqual(next.key, first.key);
+  assert.equal(f.calls.filter(call => call.method === 'submit').length, 2);
+  await assert.rejects(f.coordinator.quote({...input,regenerate:'yes'}),/Invalid classroom TTS selection/);
+});
 test("quote binds principal and current canonical revision", async () => {
   const f = fixture(), quote = await f.coordinator.quote(f.args);
   f.setPrincipal("principal-2"); await assert.rejects(f.coordinator.submit({ ...f.args, quoteId: quote.quote.quoteId }), /Confirm a current narration quote/);

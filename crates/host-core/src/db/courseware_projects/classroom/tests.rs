@@ -1,5 +1,27 @@
 use super::*;
 
+#[test]
+fn native_sync_baseline_follows_host_audio_invalidation() {
+    use sha2::Digest;
+    let hash = |actions: &Value| hex::encode(sha2::Sha256::digest(serde_json::to_vec(actions).unwrap()));
+    let old = json!({"scenes":[{"id":"body","actions":[{"id":"speech","type":"speech","text":"Old"}]}]});
+    let actions = json!([
+        {"id":"speech","type":"speech","text":"New"},
+        {"id":"motion","type":"element_animation","speechCue":{"speechActionId":"speech","atMs":10}}
+    ]);
+    let mut next = json!({"scenes":[{"id":"body","actions":actions,"metadata":{
+        "nativeTeachingActionIds":["speech","motion"],"nativeTeachingActionsHash":hash(&actions)
+    }}]});
+    validation::invalidate_edited_audio(&old, &mut next);
+    assert!(next["scenes"][0]["actions"][1].get("speechCue").is_none());
+    assert_eq!(next["scenes"][0]["metadata"]["nativeTeachingActionsHash"], hash(&next["scenes"][0]["actions"]));
+    let mut edited = json!({"scenes":[{"id":"body","actions":actions,"metadata":{
+        "nativeTeachingActionIds":["speech","motion"],"nativeTeachingActionsHash":"unchanged-editor-baseline"
+    }}]});
+    validation::invalidate_edited_audio(&old, &mut edited);
+    assert_eq!(edited["scenes"][0]["metadata"]["nativeTeachingActionsHash"], "unchanged-editor-baseline");
+}
+
 fn fixture() -> Value {
     json!({"id":"course", "stage":{"id":"stage","name":"Greetings","createdAt":1,"updatedAt":1},"createdAt":"2026-11-04T00:00:00Z","scenes":[
         {"id":"quiz","stageId":"stage","type":"quiz","title":"Question","order":1,"content":{"type":"quiz","questions":[{"id":"question","type":"single","question":"Greeting?","options":[{"value":"B","label":"Bye","image":{"src":"data:image/png;base64,aGVsbG8=","assetId":"picture","mimeType":"image/png"}},{"value":"A","label":"Hello"}],"answer":["A"]}]}},
@@ -18,6 +40,20 @@ fn setup(db: &Database, root: &str) -> CoursewareProject {
     }
     db.create_courseware_project(root, &project).unwrap();
     project
+}
+#[test]
+fn embedded_questions_do_not_skip_body_narration_or_media() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_str().unwrap();
+    let db = Database::open_in_dir(dir.path()).unwrap();
+    let project = setup(&db, root);
+    let mut document = fixture();
+    document["scenes"][1]["metadata"] = json!({"nativePageId": project.pages[0].page_id});
+    let saved = db.write_courseware_classroom(root, &project.project_id, None, &project.source.revision, &document).unwrap();
+    assert!(db.courseware_assessment_page_ids(root, &project).unwrap().contains(&project.pages[0].page_id));
+    document["scenes"][1]["metadata"]["nativeEmbeddedAssessments"] = json!(true);
+    db.write_courseware_classroom(root, &project.project_id, saved["revision"].as_str(), &project.source.revision, &document).unwrap();
+    assert!(db.courseware_assessment_page_ids(root, &project).unwrap().is_empty());
 }
 #[test]
 fn canonical_classroom_cas_restart_and_immutable_revisions() {
@@ -59,6 +95,14 @@ fn canonical_classroom_cas_restart_and_immutable_revisions() {
                 &fixture()
             )
             .is_err());
+        let unchanged = db.write_courseware_classroom(
+            root, &project.project_id, first["revision"].as_str(), &project.source.revision, &fixture(),
+        ).unwrap();
+        assert_eq!(unchanged, first, "unchanged saves retain the preview revision");
+        let refreshed = db.refresh_courseware_classroom(
+            root, &project.project_id, first["revision"].as_str(), &project.source.revision, &fixture(),
+        ).unwrap();
+        assert_eq!(refreshed, first);
         let mut next = fixture();
         next["scenes"][0]["content"]["questions"][0]["question"] = json!("Updated");
         db.write_courseware_classroom(
@@ -129,6 +173,19 @@ fn chapter_checkpoint_draft_accepts_empty_summaries_but_requires_strings() {
             .remove(field);
         assert!(validate_classroom(&missing).is_err());
     }
+}
+
+#[test]
+fn instant_quiz_rejects_multiple_questions_but_review_preserves_them() {
+    let mut document = fixture();
+    document["scenes"][0]["content"]["interactionMode"] = json!("classroom_instant_feedback");
+    validate_classroom(&document).unwrap();
+    let mut second = document["scenes"][0]["content"]["questions"][0].clone();
+    second["id"] = json!("second-question");
+    document["scenes"][0]["content"]["questions"].as_array_mut().unwrap().push(second);
+    assert!(validate_classroom(&document).unwrap_err().to_string().contains("Instant Quiz accepts one question"));
+    document["scenes"][0]["content"]["interactionMode"] = json!("assessment_review");
+    validate_classroom(&document).unwrap();
 }
 
 #[test]

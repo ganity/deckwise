@@ -1592,7 +1592,9 @@ async fn execute_plugin_tool(
             }
         } => None,
     };
-    if !matches!(&outcome, Some(Ok(Ok(_)))) && tools::is_ppt_editor_tool(&p.tool_name) {
+    if !matches!(&outcome, Some(Ok(Ok(_))))
+        && (tools::is_ppt_editor_tool(&p.tool_name) || p.tool_name == "courseware_media_assessments")
+    {
         emit_notification(
             tx,
             "ppt.cancelExecution",
@@ -1985,6 +1987,7 @@ async fn handle_request(
         | "courseware.snapshot.get"
         | "courseware.snapshot.onlineOrigin"
         | "courseware.teaching.confirm"
+        | "courseware.story.get" | "courseware.story.begin" | "courseware.story.save" | "courseware.story.decide"
         | "courseware.teaching.setLock" => courseware_projects::handle(state, method, params).await,
         "courseware.parseStart" => {
             let p: crate::courseware::StartParams = serde_json::from_value(params)
@@ -4003,6 +4006,10 @@ async fn handle_request(
             let call_started = std::time::Instant::now();
             let p: ToolsExecuteParams = serde_json::from_value(params.clone())
                 .map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
+            {
+                let st = state.lock().await;
+                courseware_projects::story::guard_tool(&st, &p.session_id, &p.tool_name)?;
+            }
             let execution_timeout_ms = tools::effective_timeout_ms(&p.tool_name, p.timeout_ms);
 
             let remote_workspace = {
@@ -4076,6 +4083,7 @@ async fn handle_request(
             let cancellation_receiver = if remote_workspace.is_some()
                 || matches!(p.tool_name.as_str(), "Bash" | "GenerateImages")
                 || tools::is_ppt_editor_tool(&p.tool_name)
+                || p.tool_name == "courseware_media_assessments"
             {
                 let mut st = state.lock().await;
                 match st.register_bash_cancellation(&p.session_id, &p.tool_call_id) {
@@ -4440,6 +4448,10 @@ async fn handle_request(
                     }
                 };
 
+                {
+                    let st = state.lock().await;
+                    courseware_projects::story::admit_tool(&st, &p.session_id, &p.tool_name)?;
+                }
                 let ws_path = workspace_path.map(PathBuf::from);
                 let (data_dir, hashline_store, worktree_env) = {
                     let st = state.lock().await;

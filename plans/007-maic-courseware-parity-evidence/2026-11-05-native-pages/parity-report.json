@@ -1,0 +1,363 @@
+{
+  "status": "PASS",
+  "revisions": {
+    "deckwise": "e46d2870e311d1106c6fe0afb600dfbe198dff92",
+    "maic": "d8cde962d01d6722b710b32c11b161c54732c6e0",
+    "cloudWeb": "9cea9d86a0fc8286a6fbe548eab580d6e3352ac2"
+  },
+  "checks": [
+    "Actual Electron/Main/Host editing, uploads, undo, restart and export",
+    "Actual MAIC asset normalization and package projection preserve the exported mixed course",
+    "Bundle actual cloud-web consumer and retained grading helpers",
+    "Actual cloud-web consumer accepts exported image questions and stable answers",
+    "Actual cloud-web assessment consumes multiple/judge answers and edited short-answer guidance",
+    "Reference and runtime card geometry agree at 1844x908",
+    "Reference and runtime card geometry agree at 1280x800"
+  ],
+  "workingSource": {
+    "dirty": true,
+    "sha256": "029b122dee7086513fdd24c0c6ae897e7dcbaffbba9d1e2c957f05f2398df0bb",
+    "files": [
+      {
+        "path": "apps/desktop/electron/main/courseware-chat-workflow.ts",
+        "sha256": "9bedfb0ebf124521c16d9675915baa2757c2df2292f221d341629c61a81a4bbe"
+      },
+      {
+        "path": "apps/desktop/electron/main/courseware-classroom-native.ts",
+        "sha256": "d84a748a7b331e85db20aa19fe34c75ad698896a68462ca25b6d50b807215a47"
+      },
+      {
+        "path": "apps/desktop/electron/main/courseware-classroom-save.ts",
+        "sha256": "2ccfe5b8e3e257078188de3fe628bcb6d6b89c7cda4b34682621b0630dee2101"
+      },
+      {
+        "path": "apps/desktop/electron/main/courseware-classroom.ts",
+        "sha256": "f0faff5825e9a9fc97b1cec9aa7685346db8fbddd8116e0071438d1ca13fe3b3"
+      },
+      {
+        "path": "apps/desktop/electron/main/courseware-scene-deck.ts",
+        "sha256": "12b3b9afbe3b2c4d66ef91f0dc976c0b2e990bc692584c1e128a18bff002858a"
+      },
+      {
+        "path": "apps/desktop/electron/main/courseware-scene-generation.ts",
+        "sha256": "24f826031da8d13fac1d4e6b121ed7151708ba122245792cbb47c8b27c456be6"
+      },
+      {
+        "path": "apps/desktop/electron/main/courseware-scene-image-pipeline.ts",
+        "sha256": "fe9f0dcead2edf989014d950b34a9f6583f671ff58c5649bdd5fbb0e2cfbd327"
+      },
+      {
+        "path": "apps/desktop/electron/main/courseware-scene-images.ts",
+        "sha256": "b6fab8e4e4b2b01725a389308d862a6d345c34cba9d7ee8f9a39f003a4651abf"
+      },
+      {
+        "path": "apps/desktop/electron/main/courseware-scene-plan.ts",
+        "sha256": "9fe874eb83c08f708e1b9dcf2ddb6502a9428f10099e944d3c49d60e0d9fd053"
+      },
+      {
+        "path": "apps/desktop/electron/main/courseware-scene-staging.ts",
+        "sha256": "e2ae6f3527a94ccf699794f533200ebf7cb3627d810f6eef51ec4bce7c289b2b"
+      },
+      {
+        "path": "apps/desktop/electron/main/courseware-scene-workflow.ts",
+        "sha256": "69ff910311da74b7100e953cdff2085444aba51f6d3ef659ca96512cef8432e9"
+      },
+      {
+        "path": "apps/desktop/electron/main/ipc/ppt-editor-ipc.ts",
+        "sha256": "28fd012b3ffd8bf7050548932a82978eda878409dd699be5243120befbaf435e"
+      },
+      {
+        "path": "apps/desktop/src/components/courseware/CoursewareChatImages.tsx",
+        "sha256": "e42dc6251ba5186e475055a2c38312336a2e2bd4343276c68a24d183bca21da3"
+      },
+      {
+        "path": "apps/desktop/src/components/courseware/CoursewareChatWorkflow.tsx",
+        "sha256": "e7a3d07cf771f4887925006f1db91d7e063543c4db5c54beb7714403d620b061"
+      },
+      {
+        "path": "apps/desktop/src/components/workpanel/CoursewareClassroomEditor.tsx",
+        "sha256": "0429c205189e6c6485706f1baa5944ab5792d95f8840dd2b23920f1fd1bc4b1c"
+      },
+      {
+        "path": "apps/desktop/src/components/workpanel/PptEditorTab.tsx",
+        "sha256": "99f43a75acacbe0f9808f01deb9f8d30dce0a3da804692cf9404ac66142e89ae"
+      },
+      {
+        "path": "apps/desktop/src/lib/courseware-classroom.ts",
+        "sha256": "6a7a6100e79ebe4dc42c9f09a53881258a2f7a3fb7a0647e8a374199eb4a4c0c"
+      },
+      {
+        "path": "apps/desktop/test/courseware-chat-workflow-ui.test.mjs",
+        "sha256": "9fceb9cc3070108ac4c270b1db15480f1553de4a4071a18a3b2784d891ce38fb"
+      },
+      {
+        "path": "apps/desktop/test/courseware-classroom-editor.browser.mjs",
+        "sha256": "363e4d756a585ac67f0db8d055d5edb178953d5d030ab20ed3ce0e3d0fe845b5"
+      },
+      {
+        "path": "apps/desktop/test/courseware-classroom-editor.test.mjs",
+        "sha256": "3974ea6899a933390b6a14af7e259074a9e6ca58b72dbb2809355236052ebcb7"
+      },
+      {
+        "path": "apps/desktop/test/courseware-classroom-native.test.mjs",
+        "sha256": "884e8527a141cc8b52d4827ddba737f233b2b42c8c2c9ccffd4f9a39672045a2"
+      },
+      {
+        "path": "apps/desktop/test/courseware-classroom-save.test.mjs",
+        "sha256": "381f979d9a3c58fb24b075685855cc08d33749c9bff9650db9a78d63017b8856"
+      },
+      {
+        "path": "apps/desktop/test/courseware-scene-deck.test.mjs",
+        "sha256": "e042a89020fc33e52414c81715b1ebb0cce1ef2b08b8bbbcf522b3d900615423"
+      },
+      {
+        "path": "apps/desktop/test/courseware-scene-image-pipeline.test.mjs",
+        "sha256": "32e2983fcc2d6ec1e9623b437a5bed20a12506996283f7139c8f4913c19c53ba"
+      },
+      {
+        "path": "apps/desktop/test/courseware-scene-plan.test.mjs",
+        "sha256": "a7682092b8987e5630d0bb8606225d902c22adfc3fa3c7c71f2cadaab0a910fe"
+      },
+      {
+        "path": "apps/desktop/test/courseware-scene-workflow.test.mjs",
+        "sha256": "34c43da3df0fec046f7ffdc9f4c8b5f35e7a1ed13d444a83d8073e6799e3618d"
+      },
+      {
+        "path": "apps/desktop/test/courseware-workflow-contract.test.mjs",
+        "sha256": "2fd7344bd426c7c2275af3b3e095f8ad2b5f966be8b507ed7b8cf945443ef9bf"
+      },
+      {
+        "path": "apps/desktop/test/wiseoffice-maic-sidebar.browser.mjs",
+        "sha256": "1e8259521370e34ee8e29eeeb1858478e42fab8274556448f8cefb8247b04ab9"
+      },
+      {
+        "path": "apps/desktop/test/wiseoffice-maic-sidebar.test.mjs",
+        "sha256": "730f5a7a16769b64f4cfe18e541d113c64f903054fc50fd4c210cced4c7170b1"
+      },
+      {
+        "path": "apps/desktop/test/wiseoffice-maic-staging.test.mjs",
+        "sha256": "529c26879100e611ca04dba2847fca864e14fb6880f258e55f27854a163db3d2"
+      },
+      {
+        "path": "crates/host-core/src/db/courseware_projects/classroom.rs",
+        "sha256": "4b3cdb369c45c17c54bcaec23e0062cde1806fcef3c6b7f13b2d8d6a82873f07"
+      },
+      {
+        "path": "crates/host-core/src/db/courseware_projects/native_save.rs",
+        "sha256": "23a54f29b93d3799c487a3a2c8ee7a564af1ad5a19fba05cb1df2e0f6fabb573"
+      },
+      {
+        "path": "crates/host-core/src/db/courseware_projects/native_save/tests.rs",
+        "sha256": "1b72abc784c1873bf97f6ba16bbaf416a632cf43af540e2c3d4c626dc4b7c708"
+      },
+      {
+        "path": "crates/host-core/src/rpc/courseware_projects.rs",
+        "sha256": "d9fba6807f4f86be55643a517a18348be875154b688217881d8b3ce21fba1625"
+      },
+      {
+        "path": "crates/host-core/src/rpc/courseware_projects/classroom.rs",
+        "sha256": "60b22c0d38adca9c9b036ab0c7c0c7e1effa50cc0a6f1b7cf9a108fb4ff36a4c"
+      },
+      {
+        "path": "crates/host-core/src/rpc/courseware_projects/native_save.rs",
+        "sha256": "c81b85766302ae96a2b2401a81c5940744b8fc1beab581ddbca3b9b9d8a37083"
+      },
+      {
+        "path": "crates/host-core/src/rpc/courseware_projects/scene_images.rs",
+        "sha256": "c15aadd06822cdd5d39158ef6aa35bd4aad4fb37ec6c460ea7ec457032abdbce"
+      },
+      {
+        "path": "crates/host-core/src/rpc/courseware_projects/scene_images/tests.rs",
+        "sha256": "46c8ae5741111ab6cb0eb47586976d52736fb208987b365216f1b475c0e614fa"
+      },
+      {
+        "path": "crates/host-core/src/rpc/courseware_projects/scene_plan.rs",
+        "sha256": "71196886e8269a513cf826f4628cdc1443af0ed39b4074383d4e0ebb0f30210c"
+      },
+      {
+        "path": "packages/courseware-runtime/authoring-provenance.json",
+        "sha256": "55f867871d04932f930a9fa6981d2ec4bc9e4fe9d5fa83672d6f71da75402679"
+      },
+      {
+        "path": "packages/courseware-runtime/src/authoring.ts",
+        "sha256": "c05a8f433d168490f0e4641ae0b033f170846ccd1cfd330e2c822649c3b2aa2f"
+      },
+      {
+        "path": "packages/courseware-runtime/src/authoring/classroom-pptx.ts",
+        "sha256": "f1512968c0ddd4f7bcd63b2abc8b4142b241b132ec0baa326e8d646d829d942f"
+      },
+      {
+        "path": "packages/courseware-runtime/src/authoring/page-pptx-candidate.ts",
+        "sha256": "5e6513d56f2c1c87a391682ef0db93b20f7a949c3604949eb2e83d4db4ae5cdc"
+      },
+      {
+        "path": "packages/courseware-runtime/src/authoring/tests/classroom-pptx.test.ts",
+        "sha256": "16c649d1d474c3145663871251c7ad891485877453a300d8aedfcc9d6034afe4"
+      },
+      {
+        "path": "packages/courseware-runtime/src/conversion/lib/courseware/export-maic-classroom.ts",
+        "sha256": "b8316a3c6c4ddecd3628a90ca0957e5f68478325a426eac56385a68e8910498e"
+      },
+      {
+        "path": "packages/courseware-runtime/src/maic-classroom.test.ts",
+        "sha256": "c29f304c5258dfee35f12dce85a0c8880538cbe5e7d85fcfc1af4473697c8214"
+      },
+      {
+        "path": "packages/courseware-runtime/src/maic-interaction-canvas.ts",
+        "sha256": "b0dbe81bec1f93847ba8a2f7c48b6587eaf13e8378d00c3b5fe0e4adcd1feeb7"
+      },
+      {
+        "path": "packages/courseware-runtime/src/player.ts",
+        "sha256": "3a79ffc8ec4018eb84b64fdafc1aa57997c7e642882e5163c2e1b0742be199b3"
+      },
+      {
+        "path": "packages/courseware-runtime/src/player/components/courseware/MaicSlidePreview.tsx",
+        "sha256": "bf1ee77418a7e31efc902a20e9be2247e2d1dd99f2753b3df9a68be48bac74f6"
+      },
+      {
+        "path": "packages/i18n/src/locales/de/index.ts",
+        "sha256": "7f383fa6106a20ed4f22f223ac5bd49a4c6b681f11f00f89bc3b3bc37d873f70"
+      },
+      {
+        "path": "packages/i18n/src/locales/en/index.ts",
+        "sha256": "340ae50ba3f0e813be62954fc3873de4d8093c0abac8682a1a953326a4dbcdf1"
+      },
+      {
+        "path": "packages/i18n/src/locales/es/index.ts",
+        "sha256": "e44b7d9d709b9f876071d63c2406dbd8a6a9742a4e6552d4fe7e05fd4bd80016"
+      },
+      {
+        "path": "packages/i18n/src/locales/fr/index.ts",
+        "sha256": "890045b30f7acf6f13bcf8ca64d83ca96cd6d218ddb17da6d3d4d785aecf702a"
+      },
+      {
+        "path": "packages/i18n/src/locales/ko/index.ts",
+        "sha256": "3aa9dadbcedadd8ef8284a1df38c6f2c46a43b628cd2dd62f5cc38eefd1b0fa6"
+      },
+      {
+        "path": "packages/i18n/src/locales/tr/index.ts",
+        "sha256": "44b34c5f0a30121d7618739b3acd9dea5f49306e853523fd97a95f5ee382defb"
+      },
+      {
+        "path": "packages/i18n/src/locales/zh-CN/index.ts",
+        "sha256": "a83d7835ea7cf476721983679deb0abadda7405e222b3e80931e214b34078688"
+      },
+      {
+        "path": "packages/i18n/src/locales/zh-TW/index.ts",
+        "sha256": "5e6f1d487d267897f412af6a46e2f09a964177893d3d9460bb0578bcdc7a5d50"
+      },
+      {
+        "path": "packages/shared/src/courseware-scene-plan.ts",
+        "sha256": "346309fdfb55106edd369bcfbc02aa63ff2c3f3fcd8bf214474af766744f362f"
+      },
+      {
+        "path": "packages/shared/src/courseware-workflow.test.ts",
+        "sha256": "11250310bd2587e67c087127eed42f87bbde5a6dacdc06935bfce0d12d46d0aa"
+      },
+      {
+        "path": "packages/shared/src/courseware-workflow.ts",
+        "sha256": "3e2d685f90d9f1423fee6955a5b23fa92d0c0405881257a64b2d48f42908b9f5"
+      },
+      {
+        "path": "plans/007-maic-courseware-parity-baseline.json",
+        "sha256": "2820d801ba5e63b09e9a01f676313a294db961f9acbfd071e53e7f7ba14dfffa"
+      },
+      {
+        "path": "plans/007-maic-courseware-parity-evidence/electron/report.json",
+        "sha256": "04653d1c8b3f988598ce684e7947ffd95a1d821301ed96f5289f96fb7e134bc5"
+      },
+      {
+        "path": "plans/007-maic-courseware-parity-evidence/final-build-supplement.json",
+        "sha256": "f23b97d99ca56f886e40a83632db3889964efc96cc0ee99572fbb2c7918c78a2"
+      },
+      {
+        "path": "plans/007-maic-courseware-parity-evidence/host-style-reference/report.json",
+        "sha256": "79c100300ca5b7691e5a4dfa3376540504f8999e9dee0f16b6266fde295d77e4"
+      },
+      {
+        "path": "plans/007-maic-courseware-parity-evidence/maic-consumer-projection.json",
+        "sha256": "46eb22c35f73d0746e4d9a980722217be3b4f9a132c85450eddcc19d64a27fda"
+      },
+      {
+        "path": "plans/007-maic-courseware-parity-evidence/parity-report.json",
+        "sha256": "5b9cb65aac12ec6df14255e73482ed7678d1cc9f88ad6e2fb15c074697bf08c1"
+      },
+      {
+        "path": "scripts/build-wiseoffice-maic.mjs",
+        "sha256": "a0b99c75289011bc95e1eb1ca3a08344183c9050e5ecbddd6c1a8599fc64a909"
+      },
+      {
+        "path": "scripts/stage-wiseoffice.mjs",
+        "sha256": "9c3f44de88569771a1edd53634beda0c874dc269fcd1e0613a57bae5628766b1"
+      },
+      {
+        "path": "scripts/wiseoffice-maic-sidebar.mjs",
+        "sha256": "d64fb7b804812925036da5431a029520d1248a446b5c94270b78a5c609e84b88"
+      }
+    ]
+  },
+  "artifacts": [
+    "/tmp/maic-parity-C4qBxC/maic-consumer-projection.json",
+    "/tmp/maic-parity-C4qBxC/cloud-1844.png",
+    "/tmp/maic-parity-C4qBxC/runtime-1844.png",
+    "/tmp/maic-parity-C4qBxC/cloud-1280.png",
+    "/tmp/maic-parity-C4qBxC/runtime-1280.png"
+  ],
+  "limitations": [
+    "Publication signatures require the MAIC server publisher; this test exports unsigned local content.",
+    "Native-backed PPT generation/save/reorder is tested by the separate generator integration gate."
+  ],
+  "electron": {
+    "status": "PASS",
+    "checks": [
+      "Real Main/Host create an independent all-Quiz course",
+      "Question, stable options, correct answers and image uploads survive autosave",
+      "Undo and redo restore Quiz text without losing image associations",
+      "Shared Quiz preview shows image options and supports retry then correct completion",
+      "Interaction is a distinct editable slide checkpoint in a mixed course",
+      "Assessment multiple, judge and short-answer guidance are authored through the real editor",
+      "The actual assessment player reviews objective answers, marks short answers ungraded and resets on retry",
+      "The actual course player waits for Quiz completion and then pauses at the interaction",
+      "A fresh Electron and Host process reopens the exact saved mixed content",
+      "Blank MAIC display fields save and reopen through real Main and Host without relaxing identities"
+    ],
+    "sourceRevision": "e46d2870e311d1106c6fe0afb600dfbe198dff92",
+    "directory": "/tmp/maic-electron-W9Gxzl",
+    "realElectron": true,
+    "realMain": true,
+    "realHost": true,
+    "identityFixture": true,
+    "paidCalls": false,
+    "artifacts": [
+      "/tmp/maic-parity-C4qBxC/electron/all-quiz.zip",
+      "/tmp/maic-parity-C4qBxC/electron/quiz-image-options.png",
+      "/tmp/maic-parity-C4qBxC/electron/interaction-editor.png",
+      "/tmp/maic-parity-C4qBxC/electron/mixed.zip",
+      "/tmp/maic-parity-C4qBxC/electron/mixed.zip",
+      "/tmp/maic-parity-C4qBxC/electron/assessment-player-review.png",
+      "/tmp/maic-parity-C4qBxC/electron/mixed-playback.zip",
+      "/tmp/maic-parity-C4qBxC/electron/interaction-player.png",
+      "/tmp/maic-parity-C4qBxC/electron/mixed-reopened.zip"
+    ],
+    "excluded": [
+      "paid provider generation",
+      "production signing/publication",
+      "native PPT edit/reorder (separate integration gate)"
+    ],
+    "instantPreviewStyle": {
+      "background": "rgb(255, 255, 255)",
+      "radius": "28px"
+    },
+    "assessmentEditor": {
+      "selected": "2. Quiz · 课堂测验",
+      "questionForms": 1,
+      "selectLabels": [
+        "测验模式课堂即时反馈（每页一题）测验与复盘",
+        "题型单选多选判断简答"
+      ]
+    },
+    "offlineFeedback": "Unavailable system speech voice was explicitly skipped through the player control; no speech events were fabricated.",
+    "pageErrors": []
+  },
+  "referenceQuizSha256": "454f8378092a115a3737dab90e2f94fe93be68c87b0590bf7ee94d9848397f52"
+}

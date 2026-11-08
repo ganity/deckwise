@@ -1,4 +1,5 @@
 import { expect, it, vi } from "vitest";
+import { createHash } from "node:crypto";
 import type { AgentTurnContext } from "@earendil-works/pi-agent-core";
 import type { CoursewareWorkflowCheckpoint } from "@pi-desktop/shared";
 import { CoursewareTurnContinuation } from "./courseware-turn-continuation.js";
@@ -9,6 +10,28 @@ const message: AgentTurnContext["message"] = { role: "assistant", api: "openai-c
   content: [{ type: "text", text: "Done" }], stopReason: "stop", usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0,
     totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } };
 const closing: AgentTurnContext = { context: { messages: [] }, newMessages: [], toolResults: [], message };
+
+it.each([false, true])("bounds planning recovery by corrected drafts and unchanged submissions (unchanged=%s)", async unchanged => {
+  const continuation = new CoursewareTurnContinuation();
+  const controls = { canWait: () => true, execute: vi.fn(async () => {
+    throw new CoursewareWorkflowError("COURSEWARE_WORKFLOW_REJECTED", "Body pages exceed limit: 6 > 4");
+  }) };
+  const write = (version: number): AgentTurnContext => ({ ...closing,
+    message: { ...message, stopReason: "toolUse", content: [{ type: "toolCall", id: "write", name: "Write",
+      arguments: { path: ".deckwise-ppt/scenes/chat/plan.json", content: JSON.stringify({ version }) } }] },
+    toolResults: [{ role: "toolResult", toolCallId: "write", toolName: "Write", timestamp: 0, isError: false, content: [] }],
+  });
+  await continuation.finish(write(0), controls);
+  expect(continuation.reportOnly).toBe(false);
+  await continuation.finish(write(unchanged ? 0 : 1), controls);
+  expect(continuation.reportOnly).toBe(false);
+  const report = await continuation.finish(write(unchanged ? 0 : 2), controls);
+  expect(continuation.reportOnly).toBe(true);
+  expect(report).toContain(unchanged ? "repeated submission" : "two corrections");
+  expect(report).toContain("6 > 4");
+  await continuation.finish(closing, controls);
+  expect(controls.execute).toHaveBeenCalledTimes(3);
+});
 function activation(): AgentTurnContext { return { ...closing, message: { ...message, stopReason: "toolUse", content: [
   { type: "toolCall", id: "activate", name: "courseware_media_context", arguments: { continueTeaching: true } } ] }, toolResults: [
   { role: "toolResult", toolCallId: "activate", toolName: "courseware_media_context", timestamp: 0, content: [], isError: false, details: { sourceSha256: sha } } ] }; }
@@ -54,6 +77,29 @@ it("continues only a Host-verified native source transition and rejects unrelate
     else await expect(continuation.finish(closing, f.controls)).rejects.toThrow();
     expect(f.writes.at(-1)?.sourceSha256).toBe(verified ? nextSha : sha);
   }
+});
+
+it.each(["legacy budget", "checkpoint capacity"])("stops advisory repair at %s without an invalid checkpoint", async limit => {
+  const f = fixture(), continuation = new CoursewareTurnContinuation();
+  const legacy = createHash("sha256").update(JSON.stringify([["page", "FOCUS_MISSING", "narration"]])).digest("hex");
+  if (limit === "checkpoint capacity") f.snapshot.quality.issues = Array.from({ length: 101 }, (_, index) => ({
+    pageId: `page-${index}`, code: "FOCUS_MISSING", repair: "narration", repairable: true,
+  }));
+  let checkpoint: CoursewareWorkflowCheckpoint | null = limit === "legacy budget" ? {
+    revision: 1, projectId: "project", sourceSha256: sha, status: "running", repairAttempts: { [legacy]: 2 }, lastResume: null,
+  } : null;
+  const controls = { ...f.controls, checkpoints: {
+    read: async () => ({ ...(await f.controls.checkpoints.read()), checkpoint }),
+    write: async (next: CoursewareWorkflowCheckpoint, expected: number) => {
+      expect(expected).toBe(checkpoint?.revision ?? 0);
+      checkpoint = structuredClone(next); f.writes.push(checkpoint);
+    },
+  } };
+  await continuation.finish(activation(), controls);
+  expect(await continuation.finish(closing, controls)).toContain("unresolved teaching diagnostics");
+  expect(f.writes.at(-1)?.status).toBe("completed");
+  expect(Object.keys(f.writes.at(-1)!.repairAttempts).length).toBeLessThanOrEqual(100);
+  expect(f.controls.execute).toHaveBeenCalledExactlyOnceWith("courseware_media_context", {}, undefined);
 });
 
 it("retains the complete-course goal after a tool failure and checks actual saved state", async () => {
@@ -119,18 +165,22 @@ it.each([false, true])("rechecks actual state after a missing repair receipt (sa
   } };
   await continuation.finish(activation(), controls);
   const result = await continuation.finish(closing, controls);
-  expect(calls).toBe(actuallySaved ? 1 : 2);
+  expect(calls).toBe(1);
   if (actuallySaved) {
     expect(result).toContain("completed");
     expect(continuation.reportOnly).toBe(true);
     expect(f.writes.at(-1)?.status).toBe("completed");
   } else {
-    expect(result).toContain("unfinished");
+    expect(result).toContain("Required teaching repair failed");
     expect(result).toContain("Save receipt missing");
     expect(f.writes.at(-1)?.status).toBe("blocked");
     const restarted = new CoursewareTurnContinuation();
     await restarted.finish(activation(), controls);
-    expect(await restarted.finish(closing, controls)).toContain("two repairs");
+    expect(await restarted.finish(closing, controls)).toContain("Required teaching repair failed");
+    expect(calls).toBe(2);
+    const exhausted = new CoursewareTurnContinuation();
+    await exhausted.finish(activation(), controls);
+    expect(await exhausted.finish(closing, controls)).toContain("two repairs");
     expect(calls).toBe(2);
   }
 });

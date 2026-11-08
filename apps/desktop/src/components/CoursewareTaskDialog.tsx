@@ -17,6 +17,7 @@ function TaskForm({ projectPath, onClose }: { projectPath: string; onClose: () =
   const { t } = useTranslation();
   const [taskType, setTaskType] = useState<CoursewareTaskType>("plain");
   const [education, setEducation] = useState<CoursewareEducationContext>({});
+  const [storyFirst, setStoryFirst] = useState(false);
   const [brief, setBrief] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +64,7 @@ function TaskForm({ projectPath, onClose }: { projectPath: string; onClose: () =
     try {
       const { visualStyle, ...teaching } = education;
       await useAppStore.getState().newSession({ projectPath, courseware: { taskType,
+        ...(taskType !== "import" && storyFirst ? { storyFirst: true } : {}),
         educationContext: { ...teaching, ...(taskType === "scene" && visualStyle?.trim() ? { visualStyle } : {}) },
         ...(brief.trim() ? { initialPrompt: brief } : {}) } });
       onClose();
@@ -107,6 +109,12 @@ function TaskForm({ projectPath, onClose }: { projectPath: string; onClose: () =
                 </label>
               ))}
             </fieldset>
+            {taskType !== "import" && <fieldset disabled={busy} className="courseware-task-education">
+              <legend>{t("coursewareStory.creationMode")}</legend>
+              <label><input type="radio" name="creation-mode" checked={!storyFirst} onChange={() => setStoryFirst(false)} />{t("coursewareStory.direct")}</label>
+              <label><input type="radio" name="creation-mode" checked={storyFirst} onChange={() => setStoryFirst(true)} />{t("coursewareStory.first")}</label>
+              <p>{t("coursewareStory.modeHint")}</p>
+            </fieldset>}
             <label className="courseware-task-field courseware-task-brief">
               <span>{t("coursewareTask.brief")}</span>
               <textarea className="field-input" value={brief} rows={3} maxLength={4000} disabled={busy}

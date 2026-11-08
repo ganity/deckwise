@@ -10,7 +10,7 @@ import { resolveRealPathForCreateWithinRoot } from "./fs-panel";
 
 type Host = { call<T>(method: string, params: unknown): Promise<T> };
 type Selection = { sessionId: string; projectId: string; expectedRevision: string; expectedSourceRevision: string;
-  sceneId: string; actionId: string; model: string; voice: string | null };
+  sceneId: string; actionId: string; model: string; voice: string | null; regenerate?: boolean };
 type Quote = { quote: CoursewareTtsQuote; key: string; principalKey: string; revision: string; sourceRevision: string };
 const hash = (value: string | Uint8Array) => createHash("sha256").update(value).digest("hex");
 const string = (value: unknown): value is string => typeof value === "string" && !!value.trim() && value.length <= 512;
@@ -18,7 +18,7 @@ function selection(value: unknown): Selection {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid classroom TTS request");
   const input = value as Record<string, unknown>;
   if (["sessionId", "projectId", "expectedRevision", "expectedSourceRevision", "sceneId", "actionId", "model"].some(key => !string(input[key])) ||
-      input.voice !== null && !string(input.voice) || Object.keys(input).some(key => !["sessionId", "projectId", "expectedRevision", "expectedSourceRevision", "sceneId", "actionId", "model", "voice", "quoteId"].includes(key)))
+      input.voice !== null && !string(input.voice) || input.regenerate !== undefined && typeof input.regenerate !== "boolean" || Object.keys(input).some(key => !["sessionId", "projectId", "expectedRevision", "expectedSourceRevision", "sceneId", "actionId", "model", "voice", "quoteId", "regenerate"].includes(key)))
     throw new Error("Invalid classroom TTS selection");
   return input as Selection;
 }
@@ -60,7 +60,9 @@ export class CoursewareClassroomTts {
     const request: CoursewareTtsRequest = { kind: "tts", model: args.model, input: speech.text, voice: args.voice };
     const fields = [request.kind, request.model, request.input, request.voice ?? null];
     const requestHash = hash(fields.reduce<string>((text, field) => `${text}:${field === null ? -1 : field.length}:${field ?? ""}`, "courseware-media-v1"));
-    const key = `maic-${hash(JSON.stringify([principal.key, args.projectId, args.sceneId, args.actionId, requestHash]))}`;
+    // A manual regeneration is fresh after adoption; retries of that saved version still find the same task.
+    const key = `maic-${hash(JSON.stringify([principal.key, args.projectId, args.sceneId, args.actionId, requestHash,
+      ...(args.regenerate ? [args.expectedRevision, args.expectedSourceRevision] : [])]))}`;
     return { args, host, workspace, principal, classroom, speech, request, key, requestHash, check };
   }
   async quote(value: unknown) {

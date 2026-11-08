@@ -242,13 +242,11 @@ impl Database {
                 ).collect::<Vec<_>>()
             })).collect::<Vec<_>>()
         });
-        let native_saved = self
-            .kv_get(
-                "coursewareNativeSaveWarnings.v1",
-                &storage_key(workspace, &project.project_id)?,
-            )?
-            .is_some_and(|value| value["sourceSha256"] == project.source.sha256);
+        let native_saved = self.has_native_save_receipt(workspace, &project)?;
         let mut context = serde_json::json!({ "project": project, "mapping": mapping, "savedObjects": saved_objects, "nativeSaved": native_saved, "saveWarnings": self.native_save_warnings(workspace, &project)? });
+        let mut assessments: Vec<_> = self.courseware_assessment_page_ids(workspace, &project)?.into_iter().collect();
+        assessments.sort();
+        context["assessmentPageIds"] = serde_json::json!(assessments);
         context["completion"] = self.courseware_completion(workspace, &project)?;
         let chat_changes = self.courseware_chat_change_context(workspace, &project)?;
         if !chat_changes.is_empty() {

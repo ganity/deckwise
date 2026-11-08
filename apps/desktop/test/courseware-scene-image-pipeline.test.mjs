@@ -209,3 +209,11 @@ test("decomposition policy failure preserves the original while other pages reac
   assert(result.blockers.every(row => row.pageId === "scene-002"));
   assert(f.rows.some(row => row.pageId === "scene-003" && row.target.kind === "cleanPlate" && row.selected));
 });
+
+test("Quiz and checkpoint pages never enter image generation queues", async () => {
+  const f = fixture(2);
+  f.plan.pages.unshift({ pageId: 'quiz', quiz: { type: 'quiz' } }, { pageId: 'checkpoint', teaching: { question: { text: 'Why?' } } });
+  assert.equal((await f.run()).ready, true);
+  assert(f.posts.length > 0);
+  assert(f.posts.every(row => !['quiz', 'checkpoint'].includes(row.pageId)));
+});

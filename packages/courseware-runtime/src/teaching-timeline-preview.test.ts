@@ -222,18 +222,30 @@ it('rejects stale native bindings before playback and fences failure or completi
   expect(callbacks.onError).not.toHaveBeenCalled(); expect(callbacks.onComplete).not.toHaveBeenCalled(); expect(media.plays).toEqual([]);
 });
 
-it('preserves teacher-led questions and waits for explicit continuation', async () => {
+it.each([{ sourceSceneIds: [] }, { sourceSceneIds: ['source-lesson-page'] }])('preserves teacher-led context with source scene IDs $sourceSceneIds and waits for continuation', async ({ sourceSceneIds }) => {
   const question = { id: 'question', type: 'interaction_checkpoint' as const, checkpointId: 'question', checkpointKind: 'chapter_summary' as const,
     chapterId: 'page', chapterTitle: 'Practice', question: 'Who says Hello?', referenceAnswer: { summary: 'Monkey', keyPoints: ['Monkey waves'] },
-    context: { chapterSummary: 'Greetings', sourceSceneIds: ['page'] } };
+    context: { chapterSummary: 'Greetings', sourceSceneIds } };
+  const expected = structuredClone(question);
   const onInteraction = vi.fn();
+  const onMode = vi.fn(), onError = vi.fn(), onComplete = vi.fn();
   current = createTeachingTimelinePreview({ pageId: 'page', nodes: [question, speech('after')], onInteraction,
-    onMode: vi.fn(), onProgress: vi.fn(), onNode: vi.fn(), onError: vi.fn(), onComplete: vi.fn() });
+    onMode, onProgress: vi.fn(), onNode: vi.fn(), onError, onComplete });
   current.start(); await vi.advanceTimersByTimeAsync(0);
-  expect(onInteraction).toHaveBeenCalledWith(expect.objectContaining({ question: question.question, referenceAnswer: question.referenceAnswer }));
+  expect(onInteraction).toHaveBeenCalledExactlyOnceWith(expected);
+  expect(question).toEqual(expected);
+  expect(onMode).toHaveBeenLastCalledWith('waiting_interaction');
   expect(media.plays).toEqual([]);
+  await vi.advanceTimersByTimeAsync(60000);
+  expect(media.plays).toEqual([]);
+  expect(onComplete).not.toHaveBeenCalled();
   current.continueTeacher(); await vi.advanceTimersByTimeAsync(0);
   expect(media.plays).toEqual(['blob:after']);
+  media.ended(); await vi.advanceTimersByTimeAsync(0);
+  expect(onComplete).toHaveBeenCalledOnce();
+  expect(onError).not.toHaveBeenCalled();
+  expect(() => setup([{ ...question, context: { ...question.context, sourceSceneIds: [''] } }])).toThrow();
+  expect(() => setup([{ ...question, context: { ...question.context, sourceSceneIds: Array(101).fill('page') } }])).toThrow();
 });
 it('starts native motion on the audio clock and waits for both audio and native completion', async () => {
   let finish!: () => void;

@@ -56,12 +56,18 @@ it("teaching readiness follows saved media and unresolved slots, not legacy page
 });
 
 
-it("Quiz scenes bypass native image gates and mixed courses choose their first slide for style review", () => {
+it("Quiz and checkpoint scenes bypass image gates; mixed courses choose their first body slide for style review", () => {
   const quiz = { ...plan.pages[0], pageId: "quiz", quiz: { type: "quiz" as const, questions: [{ id: "q", type: "short_answer" as const, question: "Name?" }] } };
   const allQuiz = { ...plan, pages: [quiz] };
   expect(sceneAssetBlockers(allQuiz, [])).toEqual([]);
   expect(sceneWorkspaceProgress(allQuiz, [], false).phase).toBe("queued");
-  const mixed = { ...plan, pages: [quiz, ...plan.pages] };
+  expect(sceneWorkspaceProgress(allQuiz, [], false)).toMatchObject({ imageCount: 0, assetPages: 0, total: 0 });
+  const checkpoint = { ...plan.pages[0], pageId: "checkpoint", teaching: { pageType: "interactive" as const, phase: "practice" as const, objective: "Explain", durationSeconds: 30, requiredObjects: [], question: { text: "Why?", response: { kind: "discussion" as const, options: [], answerIndices: [] } } } };
+  expect(sceneAssetBlockers({ ...plan, pages: [quiz, checkpoint] }, [])).toEqual([]);
+  expect(sceneWorkspaceProgress({ ...plan, pages: [quiz, checkpoint] }, [], false).phase).toBe("queued");
+  const mixed = { ...plan, pages: [quiz, checkpoint, ...plan.pages] };
   expect(sceneAssetBlockers(mixed, []).every(blocker => blocker.pageId === "scene-001")).toBe(true);
   expect(sceneWorkspaceProgress(mixed, [image("visualMaster", "b")], false).phase).toBe("layers");
+  expect(sceneWorkspaceProgress(mixed, [image("visualMaster", "b"), image("cleanPlate", "c"), image("layer", "d")], false))
+    .toMatchObject({ imageCount: 1, assetPages: 1, total: 1, phase: "queued" });
 });

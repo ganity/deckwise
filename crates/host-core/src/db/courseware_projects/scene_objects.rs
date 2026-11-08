@@ -61,7 +61,8 @@ impl GeneratedSceneMapping {
             .ok_or_else(|| anyhow!("COURSEWARE_INVALID: scene identity pages are missing"))?;
         anyhow::ensure!(
             self.pages.len() == pages.len(),
-            "COURSEWARE_INVALID: scene page count differs"
+            "COURSEWARE_INVALID: scene page count differs (exported {}, parsed {})",
+            self.pages.len(), pages.len()
         );
         let mut page_ids = HashSet::new();
         for (index, (page, saved)) in self.pages.iter().zip(pages).enumerate() {
@@ -77,18 +78,24 @@ impl GeneratedSceneMapping {
                         .strip_prefix("sha256:")
                         .is_some_and(valid_hash)
                     && page.slide_part == format!("ppt/slides/slide{}.xml", index + 1)
-                    && (1..=200).contains(&page.elements.len())
-                    && page.elements.len() == objects.len(),
-                "COURSEWARE_INVALID: scene pages or object counts differ"
+                    && (1..=200).contains(&page.elements.len()),
+                "COURSEWARE_INVALID: invalid scene page metadata at page {} ({})",
+                index + 1, page.slide_id
+            );
+            anyhow::ensure!(
+                page.elements.len() == objects.len(),
+                "COURSEWARE_INVALID: scene object count differs at page {} ({}): exported {}, parsed {}",
+                index + 1, page.slide_id, page.elements.len(), objects.len()
             );
             let mut element_ids = HashSet::new();
             let mut shape_ids = HashSet::new();
             for element in &page.elements {
-                let expected_type = match element.kind.as_str() {
-                    // The trusted PPTX parser represents text boxes as shapes with text.
-                    "native_text" | "native_shape" => "shape",
-                    "image_layer" => "image",
-                    "connector" => "line",
+                let expected_types: &[&str] = match element.kind.as_str() {
+                    // Explicit textboxes import as text; older exports used shapes with text.
+                    "native_text" => &["text", "shape"],
+                    "native_shape" => &["shape"],
+                    "image_layer" => &["image"],
+                    "connector" => &["line"],
                     _ => return Err(anyhow!("COURSEWARE_INVALID: unsupported scene object type")),
                 };
                 let matches: Vec<_> = objects
@@ -107,7 +114,9 @@ impl GeneratedSceneMapping {
                             .parse::<u32>()
                             .is_ok_and(|id| id > 0)
                         && matches.len() == 1
-                        && matches[0]["type"] == expected_type
+                        && matches[0]["type"]
+                            .as_str()
+                            .is_some_and(|kind| expected_types.contains(&kind))
                         && element.spoken_aliases.len() <= 50
                         && element
                             .spoken_aliases
@@ -133,7 +142,8 @@ impl GeneratedSceneMapping {
                             value.as_str(),
                             "person" | "animal" | "prop" | "unknown"
                         )),
-                    "COURSEWARE_INVALID: scene object does not match saved source"
+                    "COURSEWARE_INVALID: scene object does not match saved source at page {} ({}), object {}",
+                    index + 1, page.slide_id, element.element_id
                 );
             }
         }
@@ -211,21 +221,28 @@ impl Database {
         anyhow::ensure!(project.task_type == "scene" && evidence.len() <= 200, "COURSEWARE_INVALID: invalid semantic evidence scope");
         let projection = self.courseware_scene_objects(workspace, project)?
             .ok_or_else(|| anyhow!("COURSEWARE_INVALID: generated scene mapping missing"))?;
-        let page = projection["pages"].as_array().into_iter().flatten().find(|p| p["pageId"] == page_id)
-            .ok_or_else(|| anyhow!("COURSEWARE_PAGE_NOT_FOUND: semantic page missing"))?;
+        let page = projection["pages"].as_array().into_iter().flatten().find(|p| p["pageId"] == page_id);
+        let native_saved = self.has_native_save_receipt(workspace, project)?;
+        let identity = self.scene_object_identity(workspace, &project.project_id, &project.source.sha256)?;
+        let current_page = identity.value()["pages"].as_array().into_iter().flatten().find(|p| p["logicalId"] == page_id);
         let key = storage_key(workspace, &project.project_id)?;
         let saved = self.kv_get(SCENE_OBJECTS_NAMESPACE, &key)?.ok_or_else(|| anyhow!("COURSEWARE_INVALID: semantic mapping missing"))?;
         let mut record: SceneObjectsRecord = serde_json::from_value(saved)?;
-        let target = record.mapping.pages.iter_mut().find(|p| p.slide_id == page["planPageId"])
-            .ok_or_else(|| anyhow!("COURSEWARE_INVALID: semantic source page missing"))?;
+        let mut target = record.mapping.pages.iter_mut().find(|p| page.is_some_and(|page| p.slide_id == page["planPageId"]));
         let mut seen = HashSet::new();
         for annotation in evidence {
             anyhow::ensure!(seen.insert(&annotation.object_id) && bounded_text(&annotation.role, 1000)
                 && annotation.aliases.len() <= 50 && annotation.aliases.iter().all(|a| bounded_text(a, 500))
                 && annotation.text.encode_utf16().count() <= 4000, "COURSEWARE_INVALID: invalid semantic annotation");
-            let object = page["objects"].as_array().into_iter().flatten().find(|o| o["objectId"] == annotation.object_id && o["status"] == "mapped")
-                .ok_or_else(|| anyhow!("COURSEWARE_CONFLICT: semantic object changed or is unknown"))?;
-            let element = target.elements.iter_mut().find(|e| e.element_id == object["element"]["elementId"])
+            let object = page.and_then(|p| p["objects"].as_array()).into_iter().flatten().find(|o| o["objectId"] == annotation.object_id && o["status"] == "mapped");
+            let Some(object) = object else {
+                anyhow::ensure!(native_saved && current_page.and_then(|p| p["objects"].as_array()).into_iter().flatten()
+                    .any(|o| o["logicalId"] == annotation.object_id),
+                    "COURSEWARE_CONFLICT: semantic object changed or is unknown");
+                // Fresh vision evidence can authorize this narration, but cannot relabel an original layer with a different UUID.
+                continue;
+            };
+            let element = target.as_mut().and_then(|t| t.elements.iter_mut().find(|e| e.element_id == object["element"]["elementId"]))
                 .ok_or_else(|| anyhow!("COURSEWARE_INVALID: semantic element missing"))?;
             element.observed_semantic_role = Some(annotation.role.clone());
             element.semantic_role = Some(annotation.role.clone());

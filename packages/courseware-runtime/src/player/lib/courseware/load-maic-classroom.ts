@@ -6,6 +6,8 @@ import { visitMaicResources } from '../../../maic-resources';
 export type MaicResourceResolver = (resource: { assetId: string; url: string; mimeType: string }, signal?: AbortSignal) => Promise<string>;
 export async function loadMaicClassroom(raw: unknown, buildId: string, resolve: MaicResourceResolver, signal?: AbortSignal): Promise<LoadedFixedBuild> {
   const classroom = parseMaicClassroom(raw);
+  const pending = classroom.scenes.find(scene => scene.metadata?.nativeTeachingSyncPending === true);
+  if (pending) throw new Error(`Native teaching is not fully synchronized: ${pending.title}: ${pending.metadata?.nativeTeachingSyncReason ?? "unsupported native teaching action"}`);
   const scenes = structuredClone(classroom.scenes);
   const resources = new Map<string, string>();
   const resourceIds = new Map<string, string>();

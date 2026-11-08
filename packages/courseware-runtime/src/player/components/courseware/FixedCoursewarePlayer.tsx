@@ -137,6 +137,26 @@ export function FixedCoursewarePlayer({
           events.current.onInteractionComplete?.(id);
         },
         onPlaybackError: resourceError,
+        onElementAnimationReconcile: (completed, scope) => {
+          if (!build.classroom) return;
+          const ids = new Set(scope.map(action => action.elementId));
+          nativeHandles.current = nativeHandles.current.filter(handle => {
+            const target = handle.effect instanceof KeyframeEffect ? handle.effect.target : null;
+            if (target instanceof HTMLElement && ids.has(target.dataset.slideRenderElementId ?? "")) { handle.cancel(); return false; }
+            return true;
+          });
+          const entering = new Set(scope.filter(action => action.animationType === "in").map(action => action.elementId));
+          const visible = new Set(completed.filter(action => action.animationType === "in").map(action => action.elementId));
+          for (const action of completed) if (action.animationType === "out") visible.delete(action.elementId);
+          setNativeVisible(previous => new Set([...previous].filter(id => !entering.has(id)).concat([...visible])));
+          for (const action of completed) {
+            const target = [...(surface.current?.querySelectorAll<HTMLElement>("[data-slide-render-element-id]") ?? [])].find(element => element.dataset.slideRenderElementId === action.elementId);
+            if (target) {
+              const finalFrame = maicAnimationFrames(action).at(-1)!;
+              nativeHandles.current.push(target.animate([finalFrame, finalFrame], { duration: 0, fill: "forwards" }));
+            }
+          }
+        },
         onElementAnimation: async (action) => {
           if (build.classroom) await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
           const target = [...(surface.current?.querySelectorAll<HTMLElement>("[data-slide-render-element-id]") ?? [])]
@@ -212,7 +232,10 @@ export function FixedCoursewarePlayer({
   const scene = build.scenes[pageIndex];
   const mediaProgress = progress ?? clipProgress;
   const native = scene && build.nativeAnimations?.get(scene.id);
-  const nativeTargets = new Set(native?.steps.map(step => step.elementId));
+  const nativeTargets = new Set([
+    ...(native?.steps.map(step => step.elementId) ?? []),
+    ...(build.classroom ? (scene?.actions ?? []).flatMap(action => action.type === "element_animation" && action.animationType === "in" ? [action.elementId] : []) : []),
+  ]);
   const nativeWaitIndex = waiting && native?.version === 1 ? scene.actions?.slice(0, native.steps.length * 2).findIndex(action =>
     action.type === "interaction_checkpoint" && action.checkpointId === waiting.checkpointId) ?? -1 : -1;
   const speechIds = (scene?.actions ?? [])

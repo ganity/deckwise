@@ -5,7 +5,6 @@ import { api, type PptEditorState } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
 import { IconCheck, IconClose, IconExternal, IconFileText, IconPanelMaximize, IconPanelRestore, IconRefresh } from "../icons";
 import { WorkTabEmpty } from "./WorkTabEmpty";
-import { CoursewareClassroomEditor } from "./CoursewareClassroomEditor";
 import { PptxInspectionPanel } from "./PptxInspectionPanel";
 
 export function PptEditorTab({
@@ -17,6 +16,7 @@ export function PptEditorTab({
   onToggleMaximize,
   actions,
   reviewPanel,
+  storyPanel,
 }: {
   path: string;
   mimeType?: string;
@@ -26,12 +26,12 @@ export function PptEditorTab({
   onToggleMaximize?: () => void;
   actions?: ReactNode;
   reviewPanel?: ReactNode;
+  storyPanel?: ReactNode;
 }) {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const openRequest = useRef(0);
   const [state, setState] = useState<PptEditorState>({ status: "opening", path });
-  const [courseEditorOpen, setCourseEditorOpen] = useState(false);
-  const [inspectionOpen, setInspectionOpen] = useState(false);
+  const [sidebar, setSidebar] = useState<"inspection" | "story" | null>(null);
   const closeTab = useAppStore((store) => store.closeWorkPanelTab);
   const sessionId = useAppStore((store) => store.activeSessionId);
   const { t } = useTranslation();
@@ -54,8 +54,8 @@ export function PptEditorTab({
 
   useEffect(() => {
     // Native views composite above renderer dialogs, regardless of CSS z-index.
-    void api.pptEditorSetVisible(!blocked && !courseEditorOpen && ["ready", "saved", "saving"].includes(state.status));
-  }, [blocked, courseEditorOpen, state.status]);
+    void api.pptEditorSetVisible(!blocked && ["ready", "saved", "saving"].includes(state.status));
+  }, [blocked, state.status]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -119,7 +119,7 @@ export function PptEditorTab({
   const busy = state.status === "opening" || state.status === "saving";
 
   return (
-    <div className={`ppt-editor-tab${inspectionOpen && extension === "pptx" ? " has-inspection" : ""}`}>
+    <div className={`ppt-editor-tab${sidebar && extension === "pptx" ? " has-inspection" : ""}`}>
       <div className="ppt-editor-toolbar">
         <div className="ppt-editor-document">
           <span role="status" title={state.savedPath}>{state.status === "error" ? state.message || t("panel.pptEditor.error") : state.status === "opening" ? t("panel.pptEditor.loading") : state.status === "saving" ? t("panel.pptEditor.saving") : state.dirty ? t("panel.pptEditor.unsaved") : state.status === "saved" ? t("panel.pptEditor.savedToFile") : t("panel.pptEditor.opened")}{state.status === "saved" && saveCopy && state.savedPath ? ` · ${state.savedPath}` : ""}</span>
@@ -128,10 +128,10 @@ export function PptEditorTab({
           {t("coursewareWorkflow.teachingProgress", state.teachingProgress)}
         </span>}
         {extension === "pptx" && state.module && <button type="button" aria-pressed={state.teachingOpen !== false}
-          disabled={!state.nativeTeaching} onClick={() => void api.pptEditorConfigureUi({ teachingOpen: state.teachingOpen === false })
-            .catch(error => useAppStore.getState().showToast(String(error)))}>{t("panel.pptEditor.teachingFlow")}</button>}
-        {extension === "pptx" && <button type="button" aria-expanded={inspectionOpen} onClick={() => setInspectionOpen(value => !value)}>{t("panel.pptEditor.inspection")}</button>}
-        {extension === "pptx" && sessionId && <button type="button" aria-pressed={courseEditorOpen} disabled={busy} onClick={() => setCourseEditorOpen(value => !value)}>{courseEditorOpen ? "返回 PPT" : "Quiz / 互动编辑"}</button>}
+          disabled={!state.nativeTeaching} onClick={() => { void api.pptEditorConfigureUi({ teachingOpen: state.teachingOpen === false })
+            .catch(error => useAppStore.getState().showToast(String(error))); }}>{t("panel.pptEditor.teachingFlow")}</button>}
+        {extension === "pptx" && storyPanel && <button type="button" aria-expanded={sidebar === "story"} onClick={() => setSidebar(value => value === "story" ? null : "story")}>{t("coursewareStory.title")}</button>}
+        {extension === "pptx" && <button type="button" aria-expanded={sidebar === "inspection"} onClick={() => setSidebar(value => value === "inspection" ? null : "inspection")}>{t("panel.pptEditor.inspection")}</button>}
         {actions}
         <button type="button" aria-pressed={maximized} disabled={!onToggleMaximize} onClick={() => onToggleMaximize?.()}>
           {maximized ? <IconPanelRestore size={13} /> : <IconPanelMaximize size={13} />}
@@ -144,19 +144,20 @@ export function PptEditorTab({
           <IconClose size={14} />
         </button>}
       </div>
-      {extension === "pptx" && inspectionOpen && <aside className="ppt-editor-review" aria-label={t("panel.pptEditor.inspection")}>
+      {extension === "pptx" && sidebar && <aside className="ppt-editor-review" aria-label={t(sidebar === "story" ? "coursewareStory.title" : "panel.pptEditor.inspection")}>
         <header className="ppt-editor-review-heading">
-          <strong>{t("panel.pptEditor.inspection")}</strong>
-          <button type="button" className="btn btn-ghost" aria-label={t("common.close")} onClick={() => setInspectionOpen(false)}><IconClose size={16} /></button>
+          <strong>{t(sidebar === "story" ? "coursewareStory.title" : "panel.pptEditor.inspection")}</strong>
+          <button type="button" className="btn btn-ghost" aria-label={t("common.close")} onClick={() => setSidebar(null)}><IconClose size={16} /></button>
         </header>
         <div className="ppt-editor-review-content">
+        {sidebar === "story" ? storyPanel : <>
         <PptxInspectionPanel key={path} revision={state.revision} enabled={!busy && !state.readOnly && (state.status === "ready" || state.status === "saved")} />
         {reviewPanel}
+        </>}
         </div>
       </aside>}
       <div className="ppt-editor-body">
-      {courseEditorOpen && sessionId && <div style={{ flex: 1, minWidth: 0 }}><CoursewareClassroomEditor sessionId={sessionId} readOnly={state.readOnly} /></div>}
-      <div style={courseEditorOpen ? { display: "none" } : undefined} ref={surfaceRef} className="ppt-editor-surface" aria-busy={state.status === "opening"}>
+      <div ref={surfaceRef} className="ppt-editor-surface" aria-busy={state.status === "opening"}>
         {state.status === "opening" && <WorkTabEmpty icon={IconFileText} title={t("panel.pptEditor.loading")}>
           <span className="ppt-editor-loading-dots" aria-hidden="true"><i /><i /><i /></span>
         </WorkTabEmpty>}

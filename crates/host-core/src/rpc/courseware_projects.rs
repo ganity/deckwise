@@ -12,6 +12,7 @@ mod online_source_review;
 mod portable;
 mod scene_images;
 mod scene_plan;
+pub(super) mod story;
 mod snapshots;
 mod source_adoption;
 mod source_candidates;
@@ -40,6 +41,8 @@ struct GetParams {
 struct TaskSetParams {
     session_id: String,
     task_type: String,
+    #[serde(default)]
+    story_first: bool,
     #[serde(default)]
     education_context: Option<crate::db::courseware_projects::CoursewareEducationContext>,
 }
@@ -182,6 +185,7 @@ pub(super) async fn handle(
 ) -> Result<Value, JsonRpcError> {
     let invalid = |error: serde_json::Error| rpc_err(1002, error.to_string(), "INVALID_PARAMS");
     match method {
+        "courseware.story.get" | "courseware.story.begin" | "courseware.story.save" | "courseware.story.decide" => story::handle(state, method, params).await,
         "courseware.classroom.mediaScope" | "courseware.classroom.refresh" | "courseware.classroom.source" | "courseware.classroom.create" | "courseware.classroom.get" | "courseware.classroom.write" | "courseware.classroom.snapshot" => classroom::handle(state, method, params).await,
         "courseware.workflow.get" | "courseware.workflow.checkpoint" => {
             workflow::handle(state, method, params).await
@@ -282,6 +286,10 @@ pub(super) async fn handle(
                     "COURSEWARE_INVALID",
                 ));
             }
+            if p.story_first {
+                if p.task_type == "import" { return Err(rpc_err(1002,"Import does not support story creation","COURSEWARE_INVALID")); }
+                task["storyFirst"] = json!(true);
+            }
             let session = crate::sessions::get_session(&state.db, &p.session_id)
                 .map_err(error)?
                 .ok_or_else(|| rpc_err(1007, "session not found", "SESSION_NOT_FOUND"))?;
@@ -348,6 +356,9 @@ pub(super) async fn handle(
                     "COURSEWARE_CONFLICT",
                 ));
             }
+            if task["storyFirst"] == true && story::read(&state,&p.session_id)?.is_some_and(|story| story["bound"] == true) {
+                return Err(rpc_err(1008,"Story-bound courseware requires a new task for requirement changes","COURSEWARE_CONFLICT"));
+            }
             let current: crate::db::courseware_projects::CoursewareEducationContext = match task
                 .get("educationContext")
                 .filter(|value| !value.is_null())
@@ -355,13 +366,20 @@ pub(super) async fn handle(
                 Some(value) => serde_json::from_value(value.clone()).map_err(invalid)?,
                 None => serde_json::from_value(json!({})).map_err(invalid)?,
             };
-            if serde_json::to_value(current).map_err(invalid)?
+            if serde_json::to_value(&current).map_err(invalid)?
                 != serde_json::to_value(p.expected_education_context).map_err(invalid)?
             {
                 return Err(rpc_err(
                     1008,
                     "Teaching requirements changed; read the task again",
                     "COURSEWARE_CONFLICT",
+                ));
+            }
+            if current.body_page_limit.is_some() && p.education_context.body_page_limit.is_none() {
+                return Err(rpc_err(
+                    1002,
+                    "Preserve the saved bodyPageLimit when updating other teaching requirements",
+                    "COURSEWARE_INVALID",
                 ));
             }
             if [
@@ -552,9 +570,10 @@ pub(super) async fn handle(
                 .ok_or_else(|| {
                     rpc_err(1007, "Generated project not found", "COURSEWARE_NOT_FOUND")
                 })?;
+            let assessments = state.db.courseware_assessment_page_ids(&root, &project).map_err(error)?;
             if project.task_type != "scene"
                 || project.source.sha256 != p.source_sha256
-                || project.pages.iter().any(|page| page.actions.is_empty())
+                || project.pages.iter().any(|page| page.actions.is_empty() && !assessments.contains(&page.page_id))
             {
                 return Err(rpc_err(
                     1008,
@@ -749,10 +768,10 @@ pub(super) async fn handle(
             if p.title.trim().is_empty()
                 || p.title.encode_utf16().count() > 500
                 || p.narrations.is_empty()
-                || p.narrations.len() > 30
+                || p.narrations.len() > 100
                 || p.narrations
                     .iter()
-                    .any(|text| text.trim().is_empty() || text.encode_utf16().count() > 2500)
+                    .any(|text| p.scene_proof.is_none() && text.trim().is_empty() || text.encode_utf16().count() > 2500)
             {
                 return Err(rpc_err(
                     1002,
@@ -787,7 +806,7 @@ pub(super) async fn handle(
                         "COURSEWARE_INVALID",
                     )
                 })?;
-                let native_pages: Vec<_> = plan.pages.iter().enumerate().filter(|(_, page)| page.teaching.as_ref().is_none_or(|t| t.page_type != "quiz")).collect();
+                let native_pages: Vec<_> = plan.pages.iter().enumerate().collect();
                 if task_type != "scene"
                     || plan.title != p.title
                     || native_pages

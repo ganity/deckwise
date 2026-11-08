@@ -11,6 +11,7 @@ export async function runSceneImagePipeline(plan: CoursewareScenePlanSnapshot, s
   check(): void;
 }) {
   const deadline = Date.now() + 15 * 60_000;
+  const pages = plan.pages.filter(page => !page.quiz && !page.teaching?.question);
   const failures: { pageId: string; kind: string; intentId?: string; error: string; upstreamResponse?: CoursewareUpstreamResponse }[] = [];
   const splits: Promise<PromiseSettledResult<unknown>>[] = [];
   const check = () => {
@@ -27,7 +28,7 @@ export async function runSceneImagePipeline(plan: CoursewareScenePlanSnapshot, s
     if (master && candidates.some(row => row.selected && (row.referenceImage?.intentId !== master.intentId || row.referenceImage?.sha256 !== master.asset?.sha256)))
       throw new Error("Selected decomposition belongs to another master; review this page before replacing it");
     const matching = candidates.filter(row => !master || row.referenceImage?.intentId === master.intentId && row.referenceImage?.sha256 === master.asset?.sha256);
-    let image = kind === "visualMaster" && pageId === plan.pages[0].pageId
+    let image = kind === "visualMaster" && pageId === pages[0]?.pageId
       ? matching.find(row => row.selected && row.asset) : matching.at(-1);
     if (kind === "visualMaster" && image?.selected && image.asset) return image;
     let result: ImageResult;
@@ -60,10 +61,10 @@ export async function runSceneImagePipeline(plan: CoursewareScenePlanSnapshot, s
     }
   };
   let next = 0;
-  const workers = Array.from({ length: Math.min(COURSEWARE_GENERATION_LIMITS.image, plan.pages.length) }, async () => {
-    while (next < plan.pages.length) {
+  const workers = Array.from({ length: Math.min(COURSEWARE_GENERATION_LIMITS.image, pages.length) }, async () => {
+    while (next < pages.length) {
       check();
-      const { pageId } = plan.pages[next++];
+      const { pageId } = pages[next++];
       const master = await attempt(pageId, "visualMaster");
       check();
       // Do not hold a master worker while the independent decomposition queue runs.

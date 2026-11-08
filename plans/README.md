@@ -138,3 +138,21 @@ receipts, overwriting order IDs or stripping required teaching metadata.
 Statuses: TODO, IN PROGRESS, DONE, BLOCKED (with reason), REJECTED (with rationale).
 Record actual verification and remaining coverage when changing a status.
 Do not mark DONE from edits alone or from a test that skipped its required case.
+
+## MAIC compatibility and authoring follow-up (2026-11-04)
+
+| Plan | Outcome | Priority | Effort | Dependency | Status |
+|---|---|---|---|---|---|
+| [007](007-maic-courseware-parity.md) | Canonical MAIC output, separate Quiz/interaction authoring and playback (legacy migration excluded) | P1 | L | Preserve 001–006 invariants; phases P0–P7 inside plan; P6 excluded | IN PROGRESS |
+
+Plan 007 establishes a new compatibility target and supersedes the earlier
+exclusion of MAIC Quiz/interaction parity within its explicit scope. It includes
+the editor requirement, a pinned multi-repository baseline and phase-level gates.
+Implementation is in the isolated `feat/maic-courseware-parity` worktree at
+`/home/jhz/code/train/deckwise-desktop-worktrees/maic-courseware-parity`.
+Local generation, canonical persistence, dedicated authoring, native sync,
+preview and MAIC ZIP export are implemented. Ten real desktop journeys and the
+strict actual MAIC/cloud-web consumer checks passed; the host-style visual gate
+also passed. See [the acceptance record](007-maic-courseware-parity-acceptance.md)
+for evidence and online publication boundaries. The overall index remains IN
+PROGRESS for authenticated signed publication; no deployment or merge is claimed.

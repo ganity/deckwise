@@ -108,6 +108,7 @@ export type CoursewareTaskSetup = {
   taskType: CoursewareTaskType;
   educationContext: CoursewareEducationContext;
   initialPrompt?: string;
+  storyFirst?: boolean;
 };
 
 export type AppState = {

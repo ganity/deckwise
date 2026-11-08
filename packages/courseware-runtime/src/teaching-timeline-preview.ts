@@ -13,7 +13,8 @@ const questionSchema = z.object({
   checkpointKind: z.literal('chapter_summary'), response: questionResponseSchema.optional(), chapterId: z.string().min(1).max(128), chapterTitle: z.string().min(1).max(1000),
   question: z.string().trim().min(1).max(4000),
   referenceAnswer: z.object({ summary: z.string().trim().min(1).max(4000), keyPoints: z.array(z.string().trim().min(1).max(1000)).min(1).max(8) }).strict(),
-  context: z.object({ chapterSummary: z.string().trim().min(1).max(4000), sourceSceneIds: z.array(z.string().min(1).max(128)).min(1).max(100) }).strict(),
+  // Canonical context can have no source scenes, including after native page reconciliation.
+  context: z.object({ chapterSummary: z.string().trim().min(1).max(4000), sourceSceneIds: z.array(z.string().min(1).max(128)).max(100) }).strict(),
 }).strict();
 export type TeachingQuestion = z.infer<typeof questionSchema>;
 export type TeachingPreviewNode = TeachingQuestion
@@ -92,7 +93,8 @@ export function createTeachingTimelinePreview(input: {
     }
     if (node.type === 'interaction_checkpoint' && node.checkpointKind === 'chapter_summary') {
       const question = questionSchema.parse(node);
-      if (checkpoints.has(question.checkpointId) || !question.context.sourceSceneIds.includes(input.pageId)) throw new Error('Invalid teaching question binding');
+      // These IDs identify lesson context, not the slide carrying this checkpoint.
+      if (checkpoints.has(question.checkpointId)) throw new Error('Invalid teaching question binding');
       checkpoints.add(question.checkpointId);
       return question;
     }

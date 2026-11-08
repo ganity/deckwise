@@ -983,8 +983,31 @@ test("supplier layer URLs download in Desktop without credentials and retain nat
   assert.equal(calls.length, 2);
   electron.net.fetch = async () => new Response("denied", { status: 403 });
   await assert.rejects(assetHelpers.downloadSceneImageBundle(bundle, taskRef), /INVALID_ASSET/);
-  electron.net.fetch = async () => new Response(Buffer.alloc(8 * 1024 * 1024 + 1), { headers: { "content-type": "image/png" } });
+  electron.net.fetch = async () => new Response(Buffer.alloc(32 * 1024 * 1024 + 1), { headers: { "content-type": "image/png" } });
   await assert.rejects(assetHelpers.downloadSceneImageBundle(bundle, taskRef), /BUNDLE_TOO_LARGE/);
+});
+
+test("oversized supplier PNG metadata is normalized before the eight MiB archive boundary", async () => {
+  const chunk = Buffer.alloc(9 * 1024 * 1024 + 12);
+  chunk.writeUInt32BE(chunk.length - 12); chunk.write("caBX", 4);
+  chunk.writeUInt32BE(crc32(chunk.subarray(4, -4)), chunk.length - 4);
+  const supplier = Buffer.concat([png.subarray(0, -12), chunk, png.subarray(-12)]);
+  electron.session = { defaultSession: { resolveHost: async () => ({ endpoints: [{ address: "8.8.8.8", family: "ipv4" }] }), resolveProxy: async () => "DIRECT" } };
+  electron.net = { fetch: async () => new Response(supplier, { headers: { "content-type": "image/png" } }) };
+  nativePixels = Buffer.alloc(16, 255);
+  const data = [{ z_index: 0, url: "https://ark-cdn.example/base.png" },
+    { z_index: 1, url: "https://ark-cdn.example/layer.png", bounding_box: { normalized: [100, 100, 900, 900] } }];
+  const staged = [];
+  const images = await assetHelpers.downloadSceneImageBundle(Buffer.from(JSON.stringify({ data })),
+    { taskId: "gw-metadata", idempotencyKey: randomUUID(), requestHash: "a".repeat(64) }, async image => staged.push(image));
+  assert.equal(images.length, 2);
+  for (const image of staged) {
+    assert.equal(image.bytesBase64, png.toString("base64"));
+    assert.equal(image.asset.byteLength, png.length);
+    assert.equal(image.asset.sha256, digest(png));
+  }
+  assert.deepEqual(await sharp(supplier).raw().toBuffer(), await sharp(png).raw().toBuffer());
+  assert.equal(assetHelpers.isSceneImageAsset({ ...staged[0].asset, byteLength: supplier.length }), false);
 });
 
 test("native layer bundles above 16 MiB retain every provider pixel within Host RPC bounds", () => {

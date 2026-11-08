@@ -464,7 +464,7 @@ fn invalid_or_unsupported_target_data_never_stages_or_discards_actions() {
         .stage_narration_candidate(root, &seed, "oversized", &oversized)
         .is_err());
     let mut effects = write.clone();
-    effects.actions[0]["visualCues"] = json!([]);
+    effects.actions[0]["visualCues"] = json!([{"id":"unsupported", "effect":{"type":"unknown"}}]);
     db.write_courseware_teaching(root, &effects).unwrap();
     let current = db
         .get_courseware_project(root, &seed.project_id)
@@ -664,4 +664,16 @@ fn direct_narration_drops_old_speech_audio_and_effects_but_preserves_music() {
         .iter()
         .filter(|action| action["type"] == "speech")
         .all(|action| action.get("audioAssetId").is_none() && action.get("visualCues").is_none()));
+}
+
+#[test]
+fn direct_narration_accepts_empty_saved_visual_cues() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_str().unwrap();
+    let db = Database::open_in_dir(dir.path()).unwrap();
+    let (mut project, seed, write) = fixture();
+    project.pages[0].actions = vec![json!({"id":"old", "type":"speech", "text":"Saved explanation", "visualCues":[]})];
+    db.create_courseware_project(root, &project).unwrap();
+    let saved = db.save_generated_narration(root, &seed, &project, &write).unwrap();
+    assert_eq!(saved.pages[0].actions, write.actions);
 }

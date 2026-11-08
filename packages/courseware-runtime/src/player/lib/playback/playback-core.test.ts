@@ -309,7 +309,8 @@ it('does not estimate completion when canonical browser narration is unavailable
   core.start(); await vi.advanceTimersByTimeAsync(60_000);
   expect(core.getMode()).toBe('paused'); expect(error).toHaveBeenCalledOnce(); expect(complete).not.toHaveBeenCalled(); core.stop();
 });
-it('retries failed browser Quiz feedback and allows an explicit skip to the next interaction', async () => {
+it.each([false, true])('keeps visible Quiz feedback usable when system speech fails (correct=%s)', async correct => {
+  vi.useFakeTimers();
   let utterance: SpeechSynthesisUtterance;
   const synthesis = { getVoices: () => [{ voiceURI: 'test', lang: 'en-US' }], cancel: vi.fn(), speak: vi.fn(value => { utterance = value; }) };
   vi.stubGlobal('window', { speechSynthesis: synthesis });
@@ -321,16 +322,18 @@ it('retries failed browser Quiz feedback and allows an explicit skip to the next
   const core = new PlaybackCore([quiz, interaction], actions, fixture(async () => false).audio, { onPlaybackError: error },
     { onQuizReady: vi.fn(), speechFallback: 'browser', getSpeechSettings: () => ({ ttsEnabled: true, ttsProviderId: 'browser-native-tts' }) });
   try {
-    core.start(); const feedback = core.answerInstantQuiz(true);
-    await vi.waitFor(() => expect(synthesis.speak).toHaveBeenCalledOnce());
+    core.start(); const feedback = core.answerInstantQuiz(correct);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(synthesis.speak).toHaveBeenCalledOnce();
     utterance!.onerror!({ error: 'synthesis-failed' } as SpeechSynthesisErrorEvent);
-    expect(core.getMode()).toBe('paused'); expect(core.canSkipFailedSpeech()).toBe(true);
-    core.resume(); await vi.waitFor(() => expect(synthesis.speak).toHaveBeenCalledTimes(2));
-    utterance!.onerror!({ error: 'synthesis-failed' } as SpeechSynthesisErrorEvent);
-    expect(core.skipCurrentPlaybackPoint()).toBe(true); await feedback;
-    expect(core.getSnapshot().sceneId).toBe('interaction'); expect(core.getMode()).toBe('waiting_interaction');
-    expect(error).toHaveBeenCalledTimes(2);
-  } finally { core.stop(); vi.unstubAllGlobals(); }
+    expect(core.getMode()).toBe('playing');
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(core.getSnapshot().sceneId).toBe('instant');
+    await vi.advanceTimersByTimeAsync(10000); await feedback;
+    expect(core.getSnapshot().sceneId).toBe(correct ? 'interaction' : 'instant');
+    expect(core.getMode()).toBe(correct ? 'waiting_interaction' : 'idle');
+    expect(error).not.toHaveBeenCalled();
+  } finally { core.stop(); vi.unstubAllGlobals(); vi.useRealTimers(); }
 });
 it("does not let stale narration errors pause a different page", async () => {
   const f = fixture(async () => true);

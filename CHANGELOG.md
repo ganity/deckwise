@@ -1,8 +1,57 @@
 # DeckWise changes
 
+- Move saved teaching stories into the PPT workspace right sidebar beside inspection, freeing vertical editing space.
+
+- Fix broken native Quiz option thumbnails when navigating between pages with the same classroom revision.
+
+- Update current Quiz questions and images directly in WiseOffice without reopening the PPT; preserve atomic classroom/PPT save and retry.
+
+- Fix Quiz image uploads interrupted by native document reopen, keep unchanged classroom revisions stable, and decode checkpoint HTML entities during native synchronization.
+
 ## Unreleased
 
+- Keep saved-teaching repairs local, preserve per-requirement retry budgets,
+  reconcile lost repair receipts, and stop unknown assessment submissions without
+  replacement orders. Align narration prompts and validation for independent
+  assessments, existing music and bounded waits. Expose automatic continuation
+  operations through normal tool progress and sanitized failure logs.
+
+- Preserve successful speech generation when an optional focus repair fails;
+  recheck saved acceptance and report remaining diagnostics. Keep speech-only
+  requests from enabling whole-course continuation.
+
+- Allow missing speech audio to be filled on verified native saves without
+  rewriting narration. Validate fresh semantic evidence against current object
+  IDs, accept empty cue lists, and preserve newer narration during unrelated
+  canonical edits.
+
+- Fix native interaction playback rejecting valid saved questions with an empty
+  source-scene context after native page reconciliation.
+
+- Add visible generate/regenerate audio controls below Quiz questions, classroom
+  interactions and native narration. Invalidate edited audio and automatically
+  apply confirmed TTS results while preserving paid-task retry safeguards.
+
+- Reuse the native Teaching Flow header and icon controls on Quiz and interaction
+  pages, with canonical undo/redo, autosave status and course preview.
+
+- Limit generated and natively authored Quiz slides to one question and insert
+  them among body slides. Simplify the native Quiz/checkpoint sidebar to the
+  cloud-web editing fields, autosave changes, and enable course preview without
+  unrelated native-timeline warnings on assessment pages.
+
+- Preserve teaching-story confirmation when saving the body-page budget, so
+  ordinary and scene generation can continue with the same approved story.
+
+- Add optional teaching-story design and review before ordinary or scene
+  courseware generation, with saved revisions and explicit confirmation.
+  Keep direct generation as the default and preserve the PPT import path.
+
 - Add readable native teaching playback controls with previous/next page, replay, progress seeking and five-second fast-forward.
+
+- Reconcile archived native speech, music, video, pauses, animations and timed
+  visual cues into standard MAIC actions. Retain an actionable pending reason
+  for native actions that have no faithful MAIC equivalent.
 
 - Disable timer throttling while the native Office view initializes offscreen.
   Optimize SHA-256 in development builds without skipping saved-source validation.
@@ -186,3 +235,13 @@
 - Configure the built-in AI context window in Settings → Models, using presets
   or a custom token count. The setting persists locally and applies to future
   requests without changing custom providers or platform credentials.
+
+### MAIC assessment sidebar
+
+- Edit the selected Quiz or classroom checkpoint beside its native PPT page.
+- Synchronize Quiz options and images to a fixed learner-facing PPT layout.
+- Preserve current page selection after atomic classroom/PPT saves.
+- Keep teaching readable after ordinary PPT saves while the canonical canvas
+  awaits reconciliation; retain existing narration and assessment bindings.
+- Reuse verified native course state when switching assessment pages, and load
+  only images used by the selected Quiz.

@@ -388,10 +388,12 @@ fn verify_reference(intents: &[Intent], intent: &Intent) -> Result<(), JsonRpcEr
         (&intent.reference_intent_id, intent.source_reference_image.as_ref().or(intent.request.reference_image.as_ref()))
     {
         let page = if matches!(intent.target, Target::VisualMaster {}) {
-            if intent.page_id == "scene-001" {
+            let reference = intents.iter().find(|item| item.intent_id == *id)
+                .ok_or_else(|| conflict("Selected course style reference changed"))?;
+            if intent.page_id == reference.page_id {
                 return Err(invalid("The representative page cannot reference itself"));
             }
-            "scene-001"
+            &reference.page_id
         } else {
             &intent.page_id
         };
@@ -471,7 +473,6 @@ pub(super) fn verify_generation(
     let key = storage_key(root, &scope)?;
     if !valid_hash(&proof.plan_sha256)
         || current_plan(state, root, &scope).as_deref() != Some(&proof.plan_sha256)
-        || proof.selected_intent_ids.is_empty()
         || proof.selected_intent_ids.len() > MAX_INTENTS
     {
         return Err(conflict("Reviewed scene generation inputs changed"));
@@ -488,7 +489,7 @@ pub(super) fn verify_generation(
         return Err(conflict("Reviewed scene asset selection changed"));
     }
     let pages: std::collections::HashSet<_> = plan.pages.iter().enumerate()
-        .filter(|(_, page)| page.teaching.as_ref().is_none_or(|t| t.page_type != "quiz"))
+        .filter(|(_, page)| page.quiz.is_none() && !page.teaching.as_ref().is_some_and(|teaching| teaching.question.is_some()))
         .map(|(index, _)| format!("scene-{:03}", index + 1))
         .collect();
     for page_id in &pages {
@@ -699,6 +700,12 @@ pub(super) async fn handle(
             .filter(|n| p.page_id == format!("scene-{n:03}") && *n > 0)
             .and_then(|n| plan.pages.get(n - 1))
             .ok_or_else(|| invalid("Invalid scene image page"))?;
+        if page.quiz.is_some() || page.teaching.as_ref().is_some_and(|teaching| teaching.question.is_some()) {
+            return Err(invalid("Quiz and checkpoint pages use native templates, not generated slide images"));
+        }
+        let first_visual_page = plan.pages.iter().position(|page| page.quiz.is_none() && !page.teaching.as_ref().is_some_and(|teaching| teaching.question.is_some()))
+            .map(|index| format!("scene-{:03}", index + 1))
+            .ok_or_else(|| invalid("This plan has no visual teaching pages"))?;
         if !p.target.valid()
             || (p.planning_required && !matches!(p.target, Target::VisualMaster {}))
             || (p.decomposition
@@ -711,7 +718,7 @@ pub(super) async fn handle(
             return Err(invalid("Invalid scene image target or instructions"));
         }
         if matches!(p.target, Target::VisualMaster {}) {
-            if p.page_id == "scene-001" {
+            if p.page_id == first_visual_page {
                 if p.reference_intent_id.is_some() {
                     return Err(invalid("The representative page cannot reference itself"));
                 }
@@ -720,7 +727,7 @@ pub(super) async fn handle(
                     .iter()
                     .find(|i| {
                         i.plan_sha256 == p.plan_sha256
-                            && i.page_id == "scene-001"
+                            && i.page_id == first_visual_page
                             && i.selected
                             && i.asset.is_some()
                             && matches!(i.target, Target::VisualMaster {})
@@ -758,7 +765,7 @@ pub(super) async fn handle(
             parameters: Some(ImageRequest::default_parameters(p.decomposition)),
             reference_image: if let Some(id) = &p.reference_intent_id {
                 let reference_page = if matches!(p.target, Target::VisualMaster {}) {
-                    "scene-001"
+                    &first_visual_page
                 } else {
                     &p.page_id
                 };

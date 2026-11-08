@@ -25,6 +25,7 @@ import { createPptChangePlanTool } from "./ppt-change-plan.js";
 import { createAuthorizedMediaCanvasTools } from "./courseware-media-canvas-tools.js";
 import { createCoursewareWorkflowTools } from "./courseware-workflow-tools.js";
 import { CoursewareTurnContinuation } from "./courseware-turn-continuation.js";
+import { CoursewareWorkflowError } from "./courseware-workflow-recovery.js";
 import type { PptEditorBinding } from "@pi-desktop/shared";
 import { mkdirSync } from "node:fs";
 import {
@@ -2329,8 +2330,22 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
             execute: async (name, args, signal) => {
               const tool = this.toolCatalog.get(name);
               if (!tool) throw new Error("Courseware workflow tool is unavailable");
-              this.setAgentActivity({ phase: "preparing", since: Date.now() });
-              return tool.execute(randomUUID(), args, signal);
+              const toolCallId = randomUUID();
+              await this.handleAgentEvent({ type: "tool_execution_start", toolCallId, toolName: name, args });
+              try {
+                const result = await tool.execute(toolCallId, args, signal);
+                await this.handleAgentEvent({ type: "tool_execution_end", toolCallId, toolName: name, result, isError: false });
+                return result;
+              } catch (cause) {
+                const code = isRecord(cause) && typeof cause.code === "string" &&
+                  ["COURSEWARE_CONFLICT", "COURSEWARE_INVALID", "COURSEWARE_INCOMPLETE", "COURSEWARE_NOT_FOUND", "COURSEWARE_WORKFLOW_REJECTED", "TOOL_FAILED", "PERMISSION_DENIED", "TASK_STATUS_UNAVAILABLE"].includes(cause.code)
+                  ? cause.code : "COURSEWARE_WORKFLOW_FAILED";
+                const text = name === "courseware_scene_plan_submit" && cause instanceof CoursewareWorkflowError
+                  ? cause.message.slice(0, 8000) : `Courseware workflow operation failed (${code}).`;
+                await this.handleAgentEvent({ type: "tool_execution_end", toolCallId, toolName: name, isError: true,
+                  result: { content: [{ type: "text", text }], details: { code } } });
+                throw cause;
+              }
             },
           }, signal).catch(cause => {
             // A local continuation failure must never restart a successful model response.
@@ -2338,7 +2353,8 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
           });
           if (!canWait()) this.coursewareTurn.reset();
           if (instruction && canWait()) {
-            this.agent.steer({ role: "system", content: "", sections: { courseware_workflow: instruction }, timestamp: Date.now() });
+            const snapshot = reportOnly ? getCurrentSystemMessage(this.agent.state.messages)?.sections?.courseware_workflow : undefined;
+            this.agent.steer({ role: "system", content: "", sections: { courseware_workflow: [snapshot, instruction].filter(Boolean).join("\n") }, timestamp: Date.now() });
             return { action: "continue" };
           }
           if (reportOnly || this.coursewareTurn.reportOnly) return { action: "end" };
@@ -2668,7 +2684,10 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     if (this.pendingSteering.size) return { block: true,
       reason: "Interrupted by new user input. Read it before starting any more tools from this earlier response. Unfinished subagents keep working." };
     if (this.coursewareTurn.reportOnly) return { block: true,
-      reason: "The courseware workflow has reached its final reporting pass. Report the actual completed or unfinished state using the supplied snapshot; no more tools or replacement submissions are allowed in this reporting pass. A new user request is required to resume." };
+      reason: "The courseware workflow has reached its final reporting pass; this attempted tool performed no work. " +
+        "This reporting restriction does not undo saved assets or imply unfinished generation. Report the latest saved acceptance below; " +
+        "do not infer missing media from this blocked call or request a new user message for already completed work.\n" +
+        (getCurrentSystemMessage(this.agent.state.messages)?.sections?.courseware_workflow ?? "No saved acceptance is available; report only verified results.") };
     if (this.deferredToolNames.has(context.toolCall.name) && !this.activeDeferredToolNames.has(context.toolCall.name)) {
       return { block: true, reason: `Call ${TOOL_SEARCH_NAME} to activate ${context.toolCall.name} before using it. A tool declaration does not grant execution permission.` };
     }
@@ -5854,8 +5873,8 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
 
   private activateDeferredTools(names: readonly string[]): string[] {
     const savedTeachingTools = ["courseware_narration_context", "courseware_narration_propose",
-      "courseware_media_context", "courseware_media_prepare", "courseware_media_refresh"];
-    const selectedNames = names.includes("courseware_workflow_get") ? [...names, "courseware_scene_plan_submit"] : names;
+      "courseware_media_context", "courseware_media_prepare", "courseware_media_refresh", "courseware_media_assessments"];
+    const selectedNames = names.includes("courseware_workflow_get") ? [...names, "courseware_scene_plan_submit", "courseware_story_begin", "courseware_story_save"] : names;
     const selected = selectedNames.some(name => name === "courseware_scene_compile" || savedTeachingTools.includes(name))
       ? [...new Set([...selectedNames, ...savedTeachingTools])] : selectedNames;
     const activated = selected.filter(name => this.deferredToolNames.has(name)

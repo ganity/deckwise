@@ -20,13 +20,21 @@ export type CoursewareScenePlanPage = {
 
 /** A validated generation draft, not the authoritative teaching of an open PPTX. */
 export type CoursewareScenePlanSnapshot = {
+  storySha256?: string;
   relativePath: string;
   sha256: string;
   approvedSha256: string | null;
+  /** Maximum number of正文 pages; MAIC quiz and checkpoint pages are interactive content. */
+  bodyPageLimit?: number;
   visualBible?: { artDirection: string; characters: string; setting: string };
   title: string;
   pages: CoursewareScenePlanPage[];
 };
+
+/** Quiz and standalone checkpoint scenes do not consume the illustrated正文 page budget. */
+export function coursewareSceneBodyPageCount(pages: readonly Pick<CoursewareScenePlanPage, "quiz" | "teaching">[]): number {
+  return pages.filter(page => !page.quiz && !page.teaching?.question).length;
+}
 
 /** A page visual request pinned to an approved draft, before Office page identity exists. */
 export type CoursewareSceneImageAsset = {

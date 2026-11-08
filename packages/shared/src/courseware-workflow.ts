@@ -2,14 +2,16 @@ import type { CoursewareEducationContext, CoursewareTaskType, CoursewareProject 
 import type { CoursewareSceneImageView, CoursewareScenePlanSnapshot } from "./courseware-scene-plan.js";
 
 export const COURSEWARE_WORKFLOW_TOOLS = [
-  "courseware_workflow_get", "courseware_scene_plan_submit", "courseware_requirements_update", "courseware_scene_image_prepare",
+  "courseware_story_begin", "courseware_story_save", "courseware_workflow_get", "courseware_scene_plan_submit", "courseware_requirements_update", "courseware_scene_image_prepare",
   "courseware_scene_image_refresh", "courseware_scene_compile",
   "courseware_narration_context", "courseware_narration_propose",
   "courseware_media_context", "courseware_media_prepare", "courseware_media_refresh",
+  "courseware_media_assessments",
 ] as const;
 
 export type CoursewareWorkflowView = {
-  task: { taskType: CoursewareTaskType; educationContext?: CoursewareEducationContext;
+  story?: import("./courseware-story.js").CoursewareStoryState | null;
+  task: { taskType: CoursewareTaskType; storyFirst?: boolean; educationContext?: CoursewareEducationContext;
     imported: boolean; generated: boolean; sourcePath?: string; canonicalProjectId?: string } | null;
   plan: CoursewareScenePlanSnapshot | null;
   compilation?: { planSha256: string; state: "running" | "failed" | "stopped"; message?: string };
@@ -24,7 +26,7 @@ export type CoursewareSceneAssetBlocker = {
 export function sceneAssetBlockers(plan: CoursewareScenePlanSnapshot, images: readonly CoursewareSceneImageView[]): CoursewareSceneAssetBlocker[] {
   const selected = images.filter(row => row.current && row.selected && row.planSha256 === plan.sha256);
   const blockers: CoursewareSceneAssetBlocker[] = [];
-  for (const page of plan.pages.filter(page => !page.quiz)) {
+  for (const page of plan.pages.filter(page => !page.quiz && !page.teaching?.question)) {
     const rows = selected.filter(row => row.pageId === page.pageId && row.asset);
     const masters = rows.filter(row => row.target.kind === "visualMaster");
     const backgrounds = rows.filter(row => row.target.kind === "cleanPlate");
@@ -45,7 +47,7 @@ export function sceneAssetBlockers(plan: CoursewareScenePlanSnapshot, images: re
     if (masters.length === 1 && backgrounds.length === 1 && masters[0].asset!.sha256 === backgrounds[0].asset!.sha256)
       blockers.push({ pageId: page.pageId, kind: "distinctBackground" });
   }
-  if (selected.some(row => !row.asset || !plan.pages.some(page => page.pageId === row.pageId)))
+  if (selected.some(row => !row.asset || !plan.pages.some(page => page.pageId === row.pageId && !page.quiz && !page.teaching?.question)))
     blockers.push({ pageId: "", kind: "incomplete" });
   return blockers;
 }
@@ -54,11 +56,11 @@ export function sceneAssetBlockers(plan: CoursewareScenePlanSnapshot, images: re
 export function sceneWorkspaceProgress(plan: CoursewareScenePlanSnapshot, images: readonly CoursewareSceneImageView[],
   running: boolean, compilation?: CoursewareWorkflowView["compilation"]) {
   const rows = images.filter(row => row.current && row.planSha256 === plan.sha256);
+  const slidePages = plan.pages.filter(page => !page.quiz && !page.teaching?.question);
   const masters = rows.filter(row => row.target.kind === "visualMaster" && row.asset);
-  const imageCount = new Set(masters.map(row => row.pageId).filter(id => plan.pages.some(page => page.pageId === id))).size;
+  const imageCount = new Set(masters.map(row => row.pageId).filter(id => slidePages.some(page => page.pageId === id))).size;
   const blockers = sceneAssetBlockers(plan, rows);
-  const assetPages = plan.pages.filter(page => !blockers.some(blocker => !blocker.pageId || blocker.pageId === page.pageId)).length;
-  const slidePages = plan.pages.filter(page => !page.quiz);
+  const assetPages = slidePages.filter(page => !blockers.some(blocker => !blocker.pageId || blocker.pageId === page.pageId)).length;
   const firstSlide = slidePages[0];
   const cover = masters.find(row => row.pageId === firstSlide?.pageId && row.selected);
   const compiling = compilation?.planSha256 === plan.sha256 ? compilation : undefined;
@@ -71,7 +73,7 @@ export function sceneWorkspaceProgress(plan: CoursewareScenePlanSnapshot, images
   const waiting = unresolved.some(row => row.phase === "submitted" && !["failed", "cancelled", "archive_failed", "ready"].includes(row.task?.state ?? ""));
   const activity = compiling?.state === "failed" ? "failed" : compiling?.state === "stopped" ? "paused" : unknown ? "unknown" :
     failed ? "failed" : phase === "style" ? "review" : waiting ? "waiting" : running || compiling?.state === "running" ? "running" : "paused";
-  return { phase, activity, imageCount, assetPages, total: plan.pages.length };
+  return { phase, activity, imageCount, assetPages, total: slidePages.length };
 }
 
 export type CoursewareTeachingProgress = { total: number; audio: number; ready: number };

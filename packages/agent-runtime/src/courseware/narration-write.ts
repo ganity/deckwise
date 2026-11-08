@@ -90,7 +90,8 @@ export async function generateNarrationWrite(input: Omit<Parameters<typeof gener
     const actions = page.actions.flatMap(a => {
       const target = a.type === "speech" && a.attention === undefined &&
         (!Array.isArray(a.visualCues) || !a.visualCues.length) ? sceneSpeechTarget(String(a.text), input.evidence?.objects ?? []) : undefined;
-      return [target ? { ...a, attention: { type: target.kind === "image" && !target.text.trim() ? "spotlight" : "highlight", objectIds: [target.objectId] } } : a,
+      const { visualCues: _, ...withoutEmptyCues } = a;
+      return [target ? { ...withoutEmptyCues, attention: { type: target.kind === "image" && !target.text.trim() ? "spotlight" : "highlight", objectIds: [target.objectId] } } : a,
         ...(additions.get(String(a.id)) ?? [])];
     });
     const write = { projectId: project.projectId, pageId: page.pageId, expectedSourceRevision: project.source.revision, expectedTeachingRevision: project.teachingRevision, actions };
@@ -100,7 +101,10 @@ export async function generateNarrationWrite(input: Omit<Parameters<typeof gener
   const educationContext = project.educationContext ? { ...project.educationContext,
     schoolStage: project.educationContext.schoolStage?.trim().toUpperCase(), subject: project.educationContext.subject?.trim().toUpperCase() } : undefined;
   const candidate = await generatePageNarrationCandidate({ ...input, educationContext, sceneTeaching: project.taskType === "scene", existingNarration: page.actions.filter((action) => action.type === "speech").map((action) => action.text).join("\n") });
-  if (isCoursewareSceneTeaching(teaching) && !teaching.music && candidate.narration.blocks.some(block => block.type === "music"))
+  if (input.independentAssessmentPages && candidate.narration.blocks.some(block => block.type === "interaction" || block.type === "wait" && block.mode === "teacher_continue"))
+    throw new PageCandidateError("INVALID_OUTPUT", "Use separate assessment pages for questions and teacher continuation; body lecture must retain speech, focus, music and video only");
+  if (isCoursewareSceneTeaching(teaching) && !teaching.music && !page.actions.some(action => action.type === "music_slot" || action.type === "audio_clip") &&
+      candidate.narration.blocks.some(block => block.type === "music"))
     throw new PageCandidateError("INVALID_OUTPUT", "Music is not approved on this logical page; remove the music block and retain its speech and questions");
   if (isCoursewareSceneTeaching(teaching) && teaching.question &&
       candidate.narration.blocks.some(b => b.type === "interaction") &&

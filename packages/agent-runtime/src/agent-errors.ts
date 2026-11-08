@@ -499,6 +499,10 @@ export function classifyAgentError(err: unknown): ClassifiedAgentError {
   // The adapter itself refuses how the request was built, so re-sending it
   // produces the identical failure. Probed before the status table so a status
   // some layer attached to the same message cannot re-arm the retry budget.
+  if (/^Response incomplete: (?:length|max_output_tokens)$/i.test(rawMessage.trim())) {
+    return result("PROVIDER_ERROR", false, { outputTruncated: true });
+  }
+
   if (UNSUPPORTED_ADAPTER_OPTION_PATTERN.test(rawMessage)) {
     return result("PROVIDER_ERROR", false);
   }

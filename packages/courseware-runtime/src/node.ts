@@ -7,3 +7,7 @@ export { exportMaicClassroom } from './conversion/lib/courseware/export-maic-cla
 export { mapSlideIrToScenes as mapMaicSlideIrToScenes } from './conversion/lib/import/mappers/import-ir-to-classroom';
 export type { SlideIR as MaicSlideIR } from './conversion/lib/import/types';
 export { sniffMaicMime } from './maic-resources';
+export { decodeHtmlEntities } from './conversion/lib/import/narration/text-normalizer';
+export { nativeMotionPreset } from "./generated-native-motion";
+export { detachLinkedSpeechAnimations } from "./conversion/lib/courseware/native-click-animations";
+export { prepareMaicAssessmentSpeech } from './maic-assessment-speech';

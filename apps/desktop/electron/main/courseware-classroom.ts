@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import { exportMaicClassroom, parseMaicClassroom, type MaicClassroom } from "@pi-desktop/courseware-runtime/node";
+import { exportMaicClassroom, parseMaicClassroom, prepareMaicAssessmentSpeech, type MaicClassroom } from "@pi-desktop/courseware-runtime/node";
 import { resolveRealPathForCreateWithinRoot } from "./fs-panel";
 import { readClassroomAsset } from "./courseware-classroom-assets";
+import type { CoursewareTeachingView } from "@pi-desktop/shared";
 
 type Host = { call<T>(method: string, args: unknown): Promise<T> };
 export type ClassroomView = { projectId: string; revision: string | null; sourceRevision: string; classroom: MaicClassroom | null; resourceUrls?: Record<string, string> };
@@ -50,6 +51,7 @@ export class CoursewareClassroomCoordinator {
     assertOwned: (sessionId: string) => void;
     openProject: (sessionId: string) => Promise<{ project: { projectId: string } }>;
     refreshNative?: (sessionId: string, projectId: string) => Promise<ClassroomView>;
+    writeNative?: (args: Request & { classroom: MaicClassroom }) => Promise<ClassroomView>;
     completeReference?: (sessionId: string, data: string, signal: AbortSignal) => Promise<string>;
   }) {}
 
@@ -58,7 +60,7 @@ export class CoursewareClassroomCoordinator {
     const host = this.input.getHost();
     if (!host || this.input.getSessionId() !== sessionId) throw new Error("Classroom session changed");
     const workspace = await this.input.getWorkspace();
-    const { session } = await host.call<{ session?: { projectPath?: string; mode?: string } }>("session.get", { id: sessionId });
+    const { session } = await host.call<{ session?: { projectPath?: string; mode?: string } }>("session.get", { id: sessionId, messageLimit: 1, contentLimit: 1 });
     const check = async () => {
       this.input.assertOwned(sessionId);
       if (this.input.getHost() !== host || this.input.getSessionId() !== sessionId || await this.input.getWorkspace() !== workspace) throw new Error("Classroom session or workspace changed");
@@ -86,32 +88,55 @@ export class CoursewareClassroomCoordinator {
 
   async create(value: unknown): Promise<ClassroomView> {
     const input = fields(value, ["sessionId", "classroom"]), sessionId = text(input.sessionId);
-    const classroom = parseMaicClassroom(input.classroom), captured = await this.capture(sessionId);
+    const classroom = prepareMaicAssessmentSpeech(parseMaicClassroom(input.classroom)), captured = await this.capture(sessionId);
     await captured.check();
     const result = await captured.host.call<ClassroomView>("courseware.classroom.create", { sessionId, classroom });
     await captured.check();
     return this.display(this.validateView(result, result.projectId), captured);
   }
 
+  /** The native panel has already verified these saved bytes and current teaching. */
+  async openNative(sessionId: string, native: CoursewareTeachingView): Promise<ClassroomView> {
+    const captured = await this.capture(sessionId), project = native.project;
+    let result: ClassroomView | undefined;
+    try { result = this.validateView(await captured.host.call<ClassroomView>("courseware.classroom.get", {sessionId, projectId: project.projectId}), project.projectId); }
+    catch (error) { if (!String(error).includes("COURSEWARE_CONFLICT: native source changed")) throw error; }
+    await captured.check();
+    if (!result || result.sourceRevision !== project.source.revision || result.classroom?.scenes.length !== project.pages.length ||
+        result.classroom.scenes.some((scene, index) => scene.metadata?.nativeTeachingRevision !== project.teachingRevision || scene.metadata?.nativePageId !== project.pages[index].pageId)) {
+      if (!this.input.refreshNative) throw new Error("Native teaching changed; synchronize before editing assessments");
+      result = await this.input.refreshNative(sessionId, project.projectId);
+      await captured.check();
+      this.validateView(result, project.projectId);
+    }
+    if (result.sourceRevision !== project.source.revision) throw new Error("Native source changed; reopen teaching");
+    const currentScene = result.classroom?.scenes.find(scene => scene.metadata?.nativePageId === native.pageId);
+    if (!currentScene) throw new Error("Native assessment page binding changed; reopen teaching");
+    return this.display(result, captured, currentScene.content.type === "quiz" ? new Set([currentScene.id]) : new Set());
+  }
+
   async write(value: unknown): Promise<ClassroomView> {
     const input = fields(value, ["sessionId", "projectId", "expectedRevision", "expectedSourceRevision", "classroom"]);
-    const args = request(input), classroom = parseMaicClassroom(input.classroom);
+    const args = request(input), parsed = parseMaicClassroom(input.classroom);
     const captured = await this.capture(args.sessionId);
-    await this.current(captured, args);
+    const current = await this.current(captured, args);
+    if (JSON.stringify(current.classroom) === JSON.stringify(parsed)) return this.display(current, captured);
+    const classroom = prepareMaicAssessmentSpeech(parsed);
     await captured.check();
-    const result = await captured.host.call<ClassroomView>("courseware.classroom.write", { ...args, classroom });
+    const result = await this.persist(captured, args, classroom);
     await captured.check();
     return this.display(this.validateView(result, args.projectId), captured);
   }
 
   async image(value: unknown): Promise<ClassroomView> {
-    const input = fields(value, ["sessionId", "projectId", "expectedRevision", "expectedSourceRevision", "sceneId", "questionId", "dataUrl"], ["optionValue"]);
+    const input = fields(value, ["sessionId", "projectId", "expectedRevision", "expectedSourceRevision", "sceneId", "questionId", "dataUrl"], ["optionValue", "classroom"]);
     const args = request(input), sceneId = text(input.sceneId), questionId = text(input.questionId);
     const optionValue = input.optionValue === undefined ? undefined : text(input.optionValue);
     const image = imageBytes(input.dataUrl), captured = await this.capture(args.sessionId);
     const view = await this.current(captured, args);
     if (!view.classroom) throw new Error("Create or generate the canonical classroom first");
-    const classroom = parseMaicClassroom(view.classroom), scene = classroom.scenes.find(item => item.id === sceneId);
+    // Carry unsaved question edits into the same native save; a separate save destroys the upload's iframe.
+    const classroom = parseMaicClassroom(input.classroom ?? view.classroom), scene = classroom.scenes.find(item => item.id === sceneId);
     if (!scene || scene.content.type !== "quiz") throw new Error("Quiz scene is missing");
     const question = scene.content.questions.find(item => item.id === questionId);
     if (!question) throw new Error("Quiz question is missing");
@@ -134,9 +159,22 @@ export class CoursewareClassroomCoordinator {
       if (!(await readFile(destination)).equals(image.bytes)) throw new Error("Quiz image archive is corrupt");
     }
     await captured.check();
-    const result = await captured.host.call<ClassroomView>("courseware.classroom.write", { ...args, classroom: parseMaicClassroom(classroom) });
+    const result = await this.persist(captured, args, prepareMaicAssessmentSpeech(parseMaicClassroom(classroom), false));
     await captured.check();
     return this.display(this.validateView(result, args.projectId), captured);
+  }
+
+  async previewAudio(value: unknown) {
+    const input = fields(value, ["sessionId", "projectId", "expectedRevision", "expectedSourceRevision", "sceneId", "actionId"]);
+    const args = request(input), captured = await this.capture(args.sessionId), view = await this.current(captured, args);
+    const sceneId = text(input.sceneId), actionId = text(input.actionId);
+    const speech = view.classroom?.scenes.find(scene => scene.id === sceneId)?.actions?.find(action => action.id === actionId && action.type === "speech");
+    const asset = view.classroom?.audioManifest?.find(entry => entry.sceneId === sceneId && entry.actionId === actionId && speech?.type === "speech" && entry.audioId === speech.audioId);
+    if (!asset || !["audio/wav", "audio/mpeg"].includes(asset.mimeType)) throw new Error("Generate the question audio before previewing");
+    const bytes = await readClassroomAsset(captured.workspace, { assetId: asset.assetId, url: asset.url, mimeType: asset.mimeType });
+    if (!bytes.length || bytes.length > 16 * 1024 * 1024) throw new Error("Question audio exceeds preview size limit");
+    await captured.check(); await this.current(captured, args);
+    return { bytes, mimeType: asset.mimeType };
   }
 
   async reference(value: unknown): Promise<ClassroomView> {
@@ -159,7 +197,7 @@ export class CoursewareClassroomCoordinator {
       action.referenceAnswer = { ...action.referenceAnswer, summary: result.summary, keyPoints: result.keyPoints as string[] };
       if (result.constraintPrompt !== undefined) action.constraintPrompt = result.constraintPrompt as string;
       await this.current(captured, args); await captured.check();
-      const saved = await captured.host.call<ClassroomView>("courseware.classroom.write", { ...args, classroom: parseMaicClassroom(classroom) });
+      const saved = await this.persist(captured, args, parseMaicClassroom(classroom));
       await captured.check();
       return this.display(this.validateView(saved, args.projectId), captured);
     } finally { clearTimeout(timeout); }
@@ -181,15 +219,24 @@ export class CoursewareClassroomCoordinator {
     return { fileName: `${title}.zip`, bytes: Array.from(bytes) };
   }
 
+  private persist(captured: Awaited<ReturnType<CoursewareClassroomCoordinator["capture"]>>, args: Request, classroom: MaicClassroom) {
+    return this.input.writeNative && args.projectId.startsWith("office-")
+      ? this.input.writeNative({ ...args, classroom })
+      : captured.host.call<ClassroomView>("courseware.classroom.write", { ...args, classroom });
+  }
+
   private validateView(value: ClassroomView, projectId: string): ClassroomView {
     if (value.projectId !== projectId || (value.revision !== null && typeof value.revision !== "string") || typeof value.sourceRevision !== "string") throw new Error("Invalid classroom document");
     if (value.classroom !== null) parseMaicClassroom(value.classroom);
     return value;
   }
-  private async display(view: ClassroomView, captured: Awaited<ReturnType<CoursewareClassroomCoordinator["capture"]>>): Promise<ClassroomView> {
+  private async display(view: ClassroomView, captured: Awaited<ReturnType<CoursewareClassroomCoordinator["capture"]>>, imageScenes?: ReadonlySet<string>): Promise<ClassroomView> {
     const resourceUrls: Record<string, string> = {};
+    const questionImages = new Set(view.classroom?.scenes.flatMap(scene => scene.content.type === "quiz"
+      && (!imageScenes || imageScenes.has(scene.id))
+      ? scene.content.questions.flatMap(question => [question.image?.src, ...(question.options ?? []).map(option => option.image?.src)]) : []));
     for (const asset of view.classroom?.mediaManifest ?? []) {
-      if (asset.assetType !== "image" || !asset.src.startsWith(".deckwise-ppt/")) continue;
+      if (asset.assetType !== "image" || !asset.src.startsWith(".deckwise-ppt/") || !questionImages.has(asset.src) || resourceUrls[asset.src]) continue;
       const bytes = Buffer.from(await readClassroomAsset(captured.workspace, { assetId: asset.assetId, url: asset.src, mimeType: asset.mimeType }));
       if (bytes.length > MAX_IMAGE_BYTES) throw new Error("Quiz image exceeds 5 MiB");
       if (!["image/png", "image/jpeg", "image/webp", "image/svg+xml", "image/gif"].includes(asset.mimeType)) throw new Error("Unsupported classroom image MIME");

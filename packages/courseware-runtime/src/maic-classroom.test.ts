@@ -14,7 +14,7 @@ const fixture = () => ({ id: 'class', createdAt: '2026-11-04', stage: { id: 'sta
   mediaManifest: [{ sceneId: 'quiz', elementId: 'quiz-option:q:A', assetId: 'image', assetType: 'image', mimeType: 'image/png', src: 'local:image', originalSrc: 'local:image' }], metadata: { custom: { preserved: true } } });
 describe('MAIC content through export and preview', () => {
   it('retains structured Quiz image/answer and optional data through the archive', async () => {
-    const original = { ...fixture(), scenes: fixture().scenes.map(scene => ({ ...scene, metadata: { nativePageId: 'private-page', nativeNarrationText: 'private narration baseline', nativeQuestionText: 'private question baseline', nativeQuestionElementId: 'selected-frame', interaction: { kind: 'chapter_summary', extra: 'preserve' }, custom: true } })) };
+    const original = { ...fixture(), scenes: fixture().scenes.map(scene => ({ ...scene, metadata: { nativePageId: 'private-page', nativeNarrationText: 'private narration baseline', nativeQuestionText: 'private question baseline', nativeQuestionElementId: 'selected-frame', nativeTeachingRevision: 'private-teaching-revision', interaction: { kind: 'chapter_summary', extra: 'preserve' }, custom: true } })) };
     const bytes = await exportMaicClassroom(original, async () => png);
     const zip = await JSZip.loadAsync(bytes); const meta = JSON.parse(await zip.file('meta.json')!.async('string'));
     const classroom = parseMaicClassroom(meta.classroom);
@@ -98,4 +98,13 @@ describe('MAIC content through export and preview', () => {
     expect(JSON.stringify(loaded.scenes[0].content)).toContain('blob:');
     loaded.dispose(); expect(revoke).toHaveBeenCalledOnce(); revoke.mockRestore();
   });
+});
+
+it('refuses incomplete native teaching exports instead of silently dropping music or cues', async () => {
+  const c = fixture();
+  c.scenes[0].metadata = { nativeTeachingSyncPending: true };
+  await expect(exportMaicClassroom(c, async () => png)).rejects.toThrow('Native teaching is not fully synchronized: Hello: media, pauses or cues');
+  const resolve = vi.fn(async () => 'blob:unused');
+  await expect(loadMaicClassroom(c, 'pending', resolve)).rejects.toThrow('Native teaching is not fully synchronized: Hello: unsupported native teaching action');
+  expect(resolve).not.toHaveBeenCalled();
 });

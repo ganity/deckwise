@@ -83,7 +83,7 @@ fn replaceable_narration(actions: &[Value]) -> Result<Vec<Value>> {
                 if let Some(cues) = action.get("visualCues") {
                     let cues = cues
                         .as_array()
-                        .filter(|c| !c.is_empty() && c.len() <= 200)
+                        .filter(|c| c.len() <= 200)
                         .ok_or_else(|| {
                             anyhow!("COURSEWARE_INVALID: unsupported previous effects")
                         })?;
@@ -341,6 +341,15 @@ impl Database {
             .iter()
             .find(|page| page.page_id == write.page_id)
             .ok_or_else(|| anyhow!("COURSEWARE_PAGE_NOT_FOUND: logical page not found"))?;
+        anyhow::ensure!(
+            !self.courseware_assessment_page_ids(workspace, &current)?.contains(&write.page_id),
+            "COURSEWARE_INVALID: independent Quiz/checkpoint pages use the question editor, not generated lecture"
+        );
+        anyhow::ensure!(
+            current.task_type != "scene" || !write.actions.iter().any(|a| a["type"] == "interaction_checkpoint")
+                || self.courseware_classroom(workspace, &current.project_id, None)?["classroom"].is_null(),
+            "COURSEWARE_INVALID: questions require separate assessment pages, not body lecture actions"
+        );
         narration(&replaceable_narration(&page.actions)?)?;
         self.validate_narration_attention(workspace, &current, &write.page_id, &write.actions)?;
         let mut write = write.clone();

@@ -42,3 +42,14 @@ it('counts repeated diagnostics from saved actions rather than estimated report 
     { pageType: 'slide', phase: 'opening', objective: 'Greet', durationSeconds: 30, requiredObjects: ['Monkey'] }]]));
   expect(report.counts).toEqual({ FOCUS_MISSING: 20 });
 });
+
+it('reports seeded outline speech as missing detailed narration, matching the TTS admission rule', () => {
+  if (!isCoursewareProject(fixture.project)) throw new Error('Invalid fixture');
+  const project = structuredClone(fixture.project);
+  project.taskType = 'scene';
+  project.pages[0].actions = [{ id: 'narration-0', type: 'speech', text: 'Already split planning speech.' }];
+  expect(inspectCoursewareTeaching(project).issues).toContainEqual(expect.objectContaining({ pageId: project.pages[0].pageId, code: 'NARRATION_MISSING' }));
+  expect(inspectCoursewareTeaching(project, undefined, new Set(), true).issues.filter(issue => issue.pageId === project.pages[0].pageId && issue.code === 'NARRATION_MISSING')).toEqual([]);
+  project.pages[0].actions[0].source = 'generated';
+  expect(inspectCoursewareTeaching(project).issues.filter(issue => issue.pageId === project.pages[0].pageId && issue.code === 'NARRATION_MISSING')).toEqual([]);
+});

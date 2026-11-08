@@ -10,6 +10,7 @@ import { captureCoursewareSceneImages } from "./courseware-scene-context";
 // Keep Base64 plus metadata below the existing 64 MiB Host RPC frame.
 const MAX_LAYER_BYTES = 44 * 1024 * 1024;
 const MAX_LAYER_JSON_BYTES = 60 * 1024 * 1024;
+const MAX_SUPPLIER_IMAGE_BYTES = 32 * 1024 * 1024;
 
 const invalid = () => new Error("COURSEWARE_SCENE_IMAGE_INVALID_ASSET");
 
@@ -121,7 +122,8 @@ export async function downloadSceneImageBundle(bytes: Buffer, taskRef: Coursewar
           if (next.done) break;
           size += next.value.byteLength;
           total += next.value.byteLength;
-          if (size > 8 * 1024 * 1024 || !stageImage && total > MAX_LAYER_BYTES) throw new Error("COURSEWARE_SCENE_IMAGE_LAYER_BUNDLE_TOO_LARGE");
+          if (size > MAX_SUPPLIER_IMAGE_BYTES || !stageImage && total > MAX_LAYER_BYTES)
+            throw new Error(`COURSEWARE_SCENE_IMAGE_LAYER_BUNDLE_TOO_LARGE: layer ${item.z_index}, image ${size} bytes, bundle ${total} bytes`);
           chunks.push(Buffer.from(next.value));
         }
         item.b64_json = Buffer.concat(chunks, size).toString("base64");
@@ -162,9 +164,18 @@ function decodeSceneImageItems(data: Record<string, unknown>[], taskRef: Coursew
         Number(item.z_index) > 1_000_000 || typeof item.b64_json !== "string" || item.url !== undefined) throw invalid();
     indexes.add(Number(item.z_index));
     let png: Buffer = Buffer.from(item.b64_json, "base64");
-    if (png.length < 33 || png.length > 8 * 1024 * 1024 || png.toString("base64") !== item.b64_json) throw invalid();
+    if (png.length < 33 || png.length > MAX_SUPPLIER_IMAGE_BYTES || png.toString("base64") !== item.b64_json) throw invalid();
     total += png.length;
     if (total > MAX_LAYER_BYTES) throw new Error("COURSEWARE_SCENE_IMAGE_LAYER_BUNDLE_TOO_LARGE");
+    // Supplier provenance can exceed the archive cap; re-encode without resizing pixels.
+    if (png.length > 8 * 1024 * 1024 && png.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex"))) {
+      const width = png.readUInt32BE(16), height = png.readUInt32BE(20);
+      if (width < 1 || width > 4096 || height < 1 || height > 4096) throw invalid();
+      const image = nativeImage.createFromBuffer(png);
+      if (image.isEmpty() || image.getSize().width !== width || image.getSize().height !== height) throw invalid();
+      png = image.toPNG();
+      if (png.length < 33) throw invalid();
+    }
     // MAIC normalizes the base to PNG; native Seedream may return a JPEG base and PNG foregrounds.
     if (item.z_index === 0 && png.subarray(0, 3).equals(Buffer.from([255, 216, 255]))) {
       const [width, height] = jpegSize(png);

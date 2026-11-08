@@ -41,6 +41,17 @@ test("task creation persists teaching settings before handing the exact unsent b
   assert.deepEqual(f.state.runningSessions, {});
 });
 
+test("story-first creation persists the opt-in before activation and keeps its brief unsent", async t => {
+  for (const taskType of ["plain","scene"]) {
+    const f = fixture(t);
+    await f.slice.newSession({projectPath:"/workspace",courseware:{...courseware,taskType,storyFirst:true}});
+    assert.deepEqual(f.calls[1],["task","created",taskType,courseware.educationContext,true]);
+    assert.equal(f.state.composerPrefill.text,courseware.initialPrompt);
+    assert.deepEqual(f.state.messages,[]);
+    assert.deepEqual(f.state.runningSessions,{});
+  }
+});
+
 test("an initial brief preserves home attachments and other text rather than discarding them", async t => {
   const f = fixture(t);
   const file = { path: "/workspace/material.pdf", name: "material.pdf", kind: "file" };

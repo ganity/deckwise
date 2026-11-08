@@ -170,39 +170,30 @@ pub(super) async fn handle(
             source[key] = value.clone();
         }
         source["currentSourceRevision"] = json!(project.source.revision);
-        source["mapping"] = if context["sceneObjects"]["pages"].is_array() {
-            context["sceneObjects"].clone()
-        } else {
-            context["mapping"].clone()
-        };
+        // The current saved identity owns page order; generation mappings become stale after edits.
+        source["mapping"] = context["mapping"].clone();
+        if let Some(pages) = source["mapping"]["pages"].as_array_mut() {
+            for page in pages {
+                if let Some(original) = context["sceneObjects"]["pages"].as_array().and_then(|items|
+                    items.iter().find(|item| item["pageId"] == page["pageId"])) {
+                    if original["planPageId"].is_string() { page["planPageId"] = original["planPageId"].clone(); }
+                }
+            }
+        }
         source["project"] = json!(project);
         let mut assets = source["assets"].as_array().cloned().unwrap_or_default();
-        let media = state
-            .db
-            .portable_courseware_media_entries(&root, &project)
-            .map_err(error)?;
-        for ((page_id, action_id), asset) in media {
-            if let Some(id) = project
-                .pages
-                .iter()
-                .find(|p| p.page_id == page_id)
-                .and_then(|p| p.actions.iter().find(|a| a["id"] == action_id))
-                .and_then(|a| {
-                    a["audioAssetId"]
-                        .as_str()
-                        .or_else(|| a["videoAssetId"].as_str())
-                })
-            {
-                let (path, size) =
-                    crate::courseware::snapshot_assets::verify(&state.data_dir, &asset.sha256)
-                        .map_err(error)?;
-                if size != asset.byte_length {
-                    return Err(rpc_err(1008, "Native audio changed", "COURSEWARE_CONFLICT"));
-                }
-                assets.push(
-                    json!({"id":id,"path":path,"sha256":asset.sha256,"mimeType":asset.mime_type}),
-                );
+        // Use the same provenance checks as editable-course export, including generated media.
+        let media = state.db.portable_courseware_content(
+            &root, &seed, &project.source.revision, &project.teaching_revision,
+        ).map_err(error)?.media;
+        for asset in media {
+            let (path, size) = crate::courseware::snapshot_assets::verify(&state.data_dir, &asset.sha256)
+                .map_err(error)?;
+            if size != asset.byte_length {
+                return Err(rpc_err(1008, "Native media changed", "COURSEWARE_CONFLICT"));
             }
+            assets.push(json!({"id":asset.id,"path":path,"sha256":asset.sha256,
+                "mimeType":asset.mime_type,"durationMs":asset.duration_ms}));
         }
         source["assets"] = json!(assets);
         Ok(source)
@@ -341,6 +332,7 @@ mod tests {
         .await
         .is_err());
         write["expectedRevision"] = result["revision"].clone();
+        write["classroom"]["scenes"][0]["content"]["questions"][0]["question"] = json!("Updated question");
         let saved = crate::rpc::handle_request(
             state.clone(),
             "courseware.classroom.write",

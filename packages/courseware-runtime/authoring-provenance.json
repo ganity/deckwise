@@ -3,13 +3,13 @@
   "origin": "B54 source-size single-page PPTX candidates",
   "maicTree": "61e2ca028078a8689c1c6c65d28fac8c3520b15d",
   "pptxgenjsSourceTree": "a29a4d3702bcf14c984d317f1845502c061083bf",
-  "note": "Frozen source origins with recorded Desktop adaptations: import paths, scene compiler extraction of actual exported OOXML object IDs, corresponding mapping assertions, Desktop-authored compiler edge evidence, and verified locked-image preservation through redo/style batch. sourceSha256 retains each original input; sha256 records the current Desktop file. PPTXGenJS is the matching locally built 4.0.1 fork distribution; its original declarations use a .d.cts extension to type the CommonJS entry. No runtime MAIC checkout is required.",
+  "note": "Frozen source origins with recorded Desktop adaptations: import paths, scene compiler extraction of actual exported OOXML object IDs, corresponding mapping assertions, Desktop-authored compiler edge evidence, and verified locked-image preservation through redo/style batch. sourceSha256 retains each original input; sha256 records the current Desktop file. PPTXGenJS is the matching locally built 4.0.1 fork distribution; its original declarations use a .d.cts extension to type the CommonJS entry. No runtime MAIC checkout is required. The independent assessment-page save path reuses the existing PPTX package helpers through an exported namespace; original source hashes are retained. The canonical contract fingerprint is corrected to the already committed Desktop file (unchanged by this assessment work).",
   "files": [
     {
       "source": "lib/generation/page-pptx-candidate.ts",
       "sourceSha256": "5cb6b36b56fcdb228c252f4810c2581080ba24040019cc998fe0c0f164354519",
       "path": "src/authoring/page-pptx-candidate.ts",
-      "sha256": "b506935176fb29d54bf3bbfca4c034db73c28dd6563b23ec6ecb25f6a6adf505"
+      "sha256": "5e6513d56f2c1c87a391682ef0db93b20f7a949c3604949eb2e83d4db4ae5cdc"
     },
     {
       "source": "lib/generation/page-candidate-baseline.ts",
@@ -21,7 +21,7 @@
       "source": "lib/generation/kindergarten/scene-to-pptx.ts",
       "sourceSha256": "a66706ba7323852e84a4872fe7b531bba272c122cdb9ad2ba1fba50c2ecd89aa",
       "path": "src/authoring/kindergarten/scene-to-pptx.ts",
-      "sha256": "8250aa5334d3d29e3d8009c56a649b7463c5e7127372c2d8a8cd014a171b0036"
+      "sha256": "5bd29de7246b4ecc28b510c862f09183a5c449ba34f95d92a7a8f5600a478b4a"
     },
     {
       "source": "lib/generation/kindergarten/image2-pptist/contracts.ts",
@@ -51,7 +51,7 @@
       "source": "tests/generation/kindergarten/scene-to-pptx.test.ts",
       "sourceSha256": "b54d7062cec99a65f4d43a78e4a4634836a9ec8feba3421b8a58616f028c97f8",
       "path": "src/authoring/tests/kindergarten/scene-to-pptx.test.ts",
-      "sha256": "8ed98eb355032db5612f047c26147c0335cff1e84f15bf9401d3cb004c4f1836"
+      "sha256": "4944d0fed1d1f8ac5c8d460fc7d612c860c115dac2c1ccca15cb5257ac3c46fa"
     },
     {
       "source": "tests/generation/kindergarten/scenes-to-pptx.test.ts",
@@ -108,7 +108,7 @@
       "source": "lib/courseware/canonical/courseware-contract.ts",
       "sourceSha256": "dd16a1562e64cb4010f461d1c4b4bb2389e9ac2c9c9059b01421ccbc491de297",
       "path": "src/conversion/lib/courseware/canonical/courseware-contract.ts",
-      "sha256": "dd16a1562e64cb4010f461d1c4b4bb2389e9ac2c9c9059b01421ccbc491de297"
+      "sha256": "90f29bf2ee5684d7be952cf5c75ff387faf63a65dc1dce6b0c4b012f75e7ffb6"
     }
   ],
   "batchOrigin": "B72 isolated confirmed-style batch; no server model or teaching runner",

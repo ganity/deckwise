@@ -97,6 +97,16 @@ pub struct CoursewareEducationContext {
         deserialize_with = "present_option"
     )]
     pub full_english_teaching: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "read_body_page_limit")]
+    pub body_page_limit: Option<u8>,
+}
+
+fn read_body_page_limit<'de, D: serde::Deserializer<'de>>(deserializer: D) -> std::result::Result<Option<u8>, D::Error> {
+    let value = u8::deserialize(deserializer)?;
+    if !(1..=30).contains(&value) {
+        return Err(serde::de::Error::custom("bodyPageLimit must be between 1 and 30"));
+    }
+    Ok(Some(value))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -498,7 +508,7 @@ impl Database {
             || title.encode_utf16().count() > 500
             || narrations
                 .iter()
-                .any(|text| text.trim().is_empty() || text.encode_utf16().count() > 2500)
+                .any(|text| project.task_type != "scene" && text.trim().is_empty() || text.encode_utf16().count() > 2500)
         {
             return Err(anyhow!(
                 "COURSEWARE_INVALID: generated narration does not match source"

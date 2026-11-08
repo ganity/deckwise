@@ -18,7 +18,8 @@ before(async () => {
         return new Promise((resolve, reject) => { f.pending = { resolve, reject, path }; });
       },
       async pptEditorSetVisible(visible) { window.fixture.calls.push(["visible", visible]); },
-      async pptEditorSetBounds() {},
+      async pptEditorSetBounds(bounds) { window.fixture.calls.push(["bounds", bounds]); },
+      async pptEditorGetContext() { return {page:window.fixture.page ?? 1}; },
       async pptEditorConfigureUi(ui) { window.fixture.calls.push(["ui", ui]); },
       async pptEditorClose() { window.fixture.calls.push(["close"]); },
       onPptEditorState(listener) { window.fixture.listeners.add(listener); return () => window.fixture.listeners.delete(listener); }
@@ -27,6 +28,7 @@ before(async () => {
       useAppStore.getState = () => window.fixture.store;`,
     "react-i18next": `export const useTranslation = () => ({ t: key => key });`,
     "./PptxInspectionPanel": "export const PptxInspectionPanel = () => null;",
+    "./CoursewareClassroomEditor": `import {useEffect} from 'react'; export function CoursewareClassroomEditor({initialPageIndex,onAssessmentChange}) { useEffect(()=>onAssessmentChange?.(initialPageIndex===1),[initialPageIndex,onAssessmentChange]); return 'Assessment fixture'; }`,
     "./CoursewareTeachingPanel": "export const CoursewareTeachingPanel = () => null;",
   };
   const bundle = await build({
@@ -37,9 +39,9 @@ before(async () => {
         import { PptEditorTab } from "./src/components/workpanel/PptEditorTab";
         let root;
         const f = window.fixture = {
-          calls: [], listeners: new Set(), pending: null, blocked: false,
+          calls: [], listeners: new Set(), pending: null, blocked: false, story: false,
           store: { activeSessionId: "chat", workPanelTabs: [{ id: "ppt" }], closeWorkPanelTab() {}, showToast() {} },
-          render() { flushSync(() => root.render(<StrictMode><PptEditorTab path="uploaded.pptx" tabId="ppt" blocked={this.blocked} onToggleMaximize={() => this.calls.push(["focus"])} /></StrictMode>)); },
+          render() { flushSync(() => root.render(<StrictMode><PptEditorTab path="uploaded.pptx" tabId="ppt" blocked={this.blocked} onToggleMaximize={() => this.calls.push(["focus"])} storyPanel={this.story ? <p>Saved teaching story</p> : undefined} /></StrictMode>)); },
           mount() { root = createRoot(document.getElementById("root")); this.render(); },
           unmount() { this.store.workPanelTabs = []; flushSync(() => root.unmount()); },
           finish(error) {
@@ -56,7 +58,7 @@ before(async () => {
     define: { "process.env.NODE_ENV": '"development"' },
     plugins: [{ name: "editor-fixture", setup(build) {
       build.onResolve({ filter: /.*/ }, args => Object.hasOwn(mocks, args.path) ? { path: args.path, namespace: "fixture" } : undefined);
-      build.onLoad({ filter: /.*/, namespace: "fixture" }, args => ({ contents: mocks[args.path], loader: "js" }));
+      build.onLoad({ filter: /.*/, namespace: "fixture" }, args => ({ contents: mocks[args.path], loader: "js", resolveDir: fileURLToPath(new URL("..", import.meta.url)) }));
     } }],
   });
   server = createServer((request, response) => {
@@ -207,4 +209,37 @@ test("the task dialog blocks Office through both workflow and direct-file work p
   assert.match(panel, /<CoursewareChatWorkflow panelBlocked=\{exiting \|\| panelBlocked\}/);
   assert.match(panel, /<PptEditorTab\s+blocked=\{exiting \|\| panelBlocked\}/);
   assert.match(workflow, /<PptEditorTab[^>]+blocked=\{panelBlocked \|\| importOpen\}/);
+});
+
+
+test("assessment editing stays in native teaching with no external button, panel or duplicate open", async t => {
+  const page = await fixture(t);
+  await page.evaluate(() => window.fixture.finish());
+  await page.evaluate(() => { for (const listener of window.fixture.listeners) listener({status:'ready', path:'uploaded.pptx', module:true, nativeTeaching:true, teachingOpen:true, canSave:true}); });
+  assert.equal(await page.locator('.ppt-assessment-sidebar').count(), 0);
+  assert.equal(await page.getByRole('button', {name:/编辑当前页题目|编辑当前题目|返回 PPT/}).count(), 0);
+  assert.equal(await page.evaluate(() => window.fixture.calls.filter(([name]) => name === 'open').length), 1);
+});
+
+
+test("saved teaching story shares the review sidebar without reducing editor height or reopening Office", async t => {
+  const page = await fixture(t);
+  await page.addStyleTag({content:(await readFile(new URL('../src/styles/work-panel.css',import.meta.url),'utf8'))+'\nhtml,body,#root{height:100%;margin:0}'});
+  await page.evaluate(()=>{window.fixture.finish();window.fixture.story=true;window.fixture.render();});
+  const surface = await page.locator('.ppt-editor-body').boundingBox();
+  const story=page.getByRole('button',{name:'coursewareStory.title',exact:true});
+  await story.click({timeout:2000});
+  assert.equal(await story.getAttribute('aria-expanded'),'true');
+  const aside=page.getByRole('complementary',{name:'coursewareStory.title',exact:true});
+  await aside.getByText('Saved teaching story',{exact:true}).waitFor();
+  const opened=await page.locator('.ppt-editor-body').boundingBox(), side=await aside.boundingBox();
+  assert.equal(opened.y,surface.y);assert.equal(opened.height,surface.height);
+  assert(side.x>=opened.x+opened.width-1,'story sits beside the document');
+  await page.getByRole('button',{name:'panel.pptEditor.inspection',exact:true}).click();
+  assert.equal(await page.locator('.ppt-editor-review').count(),1);
+  assert.equal(await page.getByText('Saved teaching story',{exact:true}).count(),0);
+  await story.click();
+  await page.getByRole('button',{name:'common.close',exact:true}).click();
+  assert.equal(await page.locator('.ppt-editor-review').count(),0);
+  assert.equal(await page.evaluate(()=>window.fixture.calls.filter(([name])=>name==='open').length),1);
 });

@@ -4,11 +4,16 @@ const record = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 const text = (value: unknown, max: number): value is string =>
   typeof value === "string" && value.trim().length > 0 && value.length <= max;
+const sameProjectRevision = (raw: unknown, project: CoursewareProject): boolean =>
+  isCoursewareProject(raw) && raw.projectId === project.projectId && raw.taskType === project.taskType &&
+  raw.source.sha256 === project.source.sha256 && raw.source.revision === project.source.revision &&
+  raw.teachingRevision === project.teachingRevision && raw.pages.length === project.pages.length &&
+  raw.pages.every((page, index) => page.pageId === project.pages[index].pageId);
 
 /** All task types use current Host-bound UUIDs; display order is never an identity. */
 export function objectsForTeaching(raw: unknown, project: CoursewareProject, pageId: string): CoursewareTeachingView["teachingObjects"] {
   const semantic = project.taskType === "scene" ? sceneObjectsForTeaching(raw, project, pageId) : undefined;
-  if (!record(raw) || !isCoursewareProject(raw.project) || JSON.stringify(raw.project) !== JSON.stringify(project))
+  if (!record(raw) || !sameProjectRevision(raw.project, project))
     throw new Error("Saved object context changed; reload teaching");
   if (raw.savedObjects === undefined) return semantic;
   const saved = raw.savedObjects, mapping = raw.mapping;
@@ -67,12 +72,12 @@ export function objectsForTeaching(raw: unknown, project: CoursewareProject, pag
 
 /** Project only Host-validated semantics for this saved page, never prompts or authority. */
 export function sceneObjectsForTeaching(raw: unknown, project: CoursewareProject, pageId: string): CoursewareTeachingView["teachingObjects"] {
-  if (!record(raw) || !isCoursewareProject(raw.project) || JSON.stringify(raw.project) !== JSON.stringify(project))
+  if (!record(raw) || !sameProjectRevision(raw.project, project))
     throw new Error("Scene object context changed; reload teaching");
   if (raw.sceneObjects === undefined) return undefined;
   const scene = raw.sceneObjects;
   if (!record(scene) || scene.schemaVersion !== "deckwise-scene-objects/1" || scene.sourceSha256 !== project.source.sha256 ||
-      scene.requiresReview !== true || !Array.isArray(scene.pages) || scene.pages.length > 30)
+      scene.requiresReview !== true || !Array.isArray(scene.pages) || scene.pages.length > 100)
     throw new Error("Invalid saved scene object context");
   const pages = scene.pages.filter(page => record(page) && page.pageId === pageId);
   if (pages.length > 1) throw new Error("Duplicate saved scene page");
@@ -107,4 +112,17 @@ export function sceneTeachingForPage(raw: unknown, project: CoursewareProject, p
   if (!record(page) || page.teaching == null) return undefined;
   if (!isCoursewareSceneTeaching(page.teaching)) throw new Error("Invalid saved teaching page metadata");
   return page.teaching;
+}
+
+/** Current Host-validated canonical assessment bindings, independent of display order. */
+export function assessmentPageIds(raw: unknown, project: CoursewareProject): ReadonlySet<string> {
+  if (raw === undefined) return new Set();
+  if (!record(raw) || !sameProjectRevision(raw.project, project))
+    throw new Error("Assessment context changed; reload teaching");
+  if (raw.assessmentPageIds === undefined) return new Set();
+  if (!Array.isArray(raw.assessmentPageIds) || raw.assessmentPageIds.length > project.pages.length ||
+      raw.assessmentPageIds.some(id => typeof id !== "string" || !project.pages.some(page => page.pageId === id)) ||
+      new Set(raw.assessmentPageIds).size !== raw.assessmentPageIds.length)
+    throw new Error("Invalid saved assessment bindings");
+  return new Set(raw.assessmentPageIds as string[]);
 }

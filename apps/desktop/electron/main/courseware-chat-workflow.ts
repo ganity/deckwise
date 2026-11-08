@@ -8,7 +8,7 @@ import { runSceneImagePipeline } from "./courseware-scene-image-pipeline";
 import { CoursewareSceneGeneration, type SceneCourseGenerationServices } from "./courseware-scene-generation";
 
 type Host = { call<T>(method: string, params: unknown): Promise<T> };
-type Task = { taskType: "plain" | "scene" | "import"; educationContext?: CoursewareEducationContext;
+type Task = { storyFirst?: boolean; taskType: "plain" | "scene" | "import"; educationContext?: CoursewareEducationContext;
   importPath?: string; generatedPath?: string; canonicalProjectId?: string };
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
 
@@ -25,6 +25,7 @@ export class CoursewareChatWorkflow {
   private compilation?: { sessionId: string } & NonNullable<CoursewareWorkflowView["compilation"]>;
   narration?: { execute(sessionId: string, name: string, args: unknown, canDispatch: () => boolean): Promise<unknown> };
   media?: { execute(sessionId: string, name: string, args: unknown, canDispatch: () => boolean): Promise<unknown> };
+  assessments?: Pick<import("./courseware-assessment-media").CoursewareAssessmentMedia, "execute">;
   constructor(private getHost: () => Host | null, private getViewingSession: () => string | null,
     private auth: Pick<DesktopAuthSession, "getCoursewarePrincipal" | "coursewareMedia">,
     private generation: SceneCourseGenerationServices) {}
@@ -41,12 +42,16 @@ export class CoursewareChatWorkflow {
     if (!session?.projectPath) throw new Error("Courseware requires a saved workspace");
     const { task } = await host.call<{ task: Task | null }>("courseware.task.get", { sessionId });
     check();
-    const { plan } = task?.taskType === "scene" && !task.generatedPath && !task.canonicalProjectId
+    const { story } = task?.storyFirst
+      ? await host.call<{ story: CoursewareWorkflowView["story"] }>("courseware.story.get", { sessionId }) : { story: null };
+    check();
+    const storyPending = !!story && (!story.sha256 || story.sha256 !== story.approvedSha256);
+    const { plan } = !storyPending && task?.taskType === "scene" && !task.generatedPath && !task.canonicalProjectId
       ? await readSceneCourseDraft(host, { sessionId }) : { plan: null };
     check();
     const compilation = this.compilation?.sessionId === sessionId && this.compilation.planSha256 === plan?.sha256
       ? { planSha256: this.compilation.planSha256, state: this.compilation.state, ...(this.compilation.message ? { message: this.compilation.message } : {}) } : undefined;
-    return { ...(compilation ? { compilation } : {}), task: task ? { taskType: task.taskType, ...(task.educationContext ? { educationContext: task.educationContext } : {}),
+    return { ...(task?.storyFirst ? { story } : {}), ...(compilation ? { compilation } : {}), task: task ? { taskType: task.taskType, ...(task.storyFirst ? { storyFirst: true } : {}), ...(task.educationContext ? { educationContext: task.educationContext } : {}),
       imported: !!task.importPath, generated: !!task.generatedPath || !!task.canonicalProjectId,
       ...(task.canonicalProjectId ? { canonicalProjectId: task.canonicalProjectId } : {}),
       ...((task.generatedPath ?? task.importPath) ? { sourcePath: task.generatedPath ?? task.importPath } : {}) } : null, plan };
@@ -62,14 +67,41 @@ export class CoursewareChatWorkflow {
     const { session } = await host.call<{ session?: { mode?: string } }>("session.get", { id: sessionId, messageLimit: 1 });
     check();
     if (session?.mode !== "agent") throw new Error("Courseware workflow tools require Agent mode");
+    if (name === "courseware_story_begin" || name === "courseware_story_save") {
+      const method = name === "courseware_story_begin" ? "courseware.story.begin" : "courseware.story.save";
+      if (Object.hasOwn(input, "sessionId")) throw new Error("Story session is Host-owned");
+      const result = await host.call(method, { ...input, sessionId }); check(); return result;
+    }
+    if (view.story && (!view.story.sha256 || view.story.sha256 !== view.story.approvedSha256) &&
+        !["courseware_workflow_get", "courseware_requirements_update"].includes(name))
+      throw new Error("Review and confirm the teaching story before courseware generation");
     if (name === "courseware_scene_plan_submit") {
       if (Object.keys(input).length || view.task?.taskType !== "scene" || view.task.generated || !view.plan)
         throw new Error("Write a valid scene plan for this ungenerated Chat before submitting it");
       return { validated: true, awaitingPlanApproval: view.plan.approvedSha256 !== view.plan.sha256, ...view };
     }
     if (name.startsWith("courseware_media_")) {
+      if (name === "courseware_media_assessments") {
+        if (!this.assessments) throw new Error("Assessment media is unavailable");
+        return this.assessments.execute(sessionId, input, canDispatch);
+      }
       if (!this.media) throw new Error("Saved courseware media is unavailable");
-      return this.media.execute(sessionId, name, input, canDispatch);
+      if (name === "courseware_media_context" && view.task?.canonicalProjectId && this.assessments) {
+        if (Object.keys(input).some(key => !["kind", "continueTeaching"].includes(key)) ||
+            input.continueTeaching !== undefined && typeof input.continueTeaching !== "boolean" ||
+            input.kind !== undefined && !["tts", "image", "music", "video"].includes(String(input.kind))) throw new Error("Invalid canonical media context");
+        const assessmentMedia = await this.assessments.execute(sessionId, { mode: "context", ...(["tts", "image"].includes(String(input.kind)) ? { kind: input.kind } : {}) }, canDispatch);
+        if (!("ready" in assessmentMedia)) throw new Error("Invalid assessment media context");
+        return { canonicalOnly: true, projectId: assessmentMedia.projectId, teachingRevision: assessmentMedia.expectedRevision,
+          sourceSha256: assessmentMedia.expectedSourceRevision.replace(/^sha256:/u, ""), pages: [], jobs: [],
+          narrationReady: true, audioReady: assessmentMedia.ready, teachingReady: assessmentMedia.ready, videoReady: true, assessmentMedia };
+      }
+      const result = await this.media.execute(sessionId, name, input, canDispatch);
+      if (name === "courseware_media_context" && this.assessments && record(result)) {
+        const assessments = await this.assessments.execute(sessionId, { mode: "context" }, canDispatch);
+        return { ...result, assessmentMedia: assessments, teachingReady: result.teachingReady === true && "ready" in assessments && assessments.ready };
+      }
+      return result;
     }
     if (["courseware_narration_context", "courseware_narration_propose"].includes(name)) {
       if (!this.narration) throw new Error("Saved courseware narration is unavailable");
@@ -88,17 +120,18 @@ export class CoursewareChatWorkflow {
       if (!view.plan || view.plan.approvedSha256 !== view.plan.sha256) return { ...view, images: [], models: [], blockers: [] };
       const rows = await images.list({ sessionId }); check();
       const models = await images.models({ sessionId }); check();
+      const firstVisualPage = view.plan.pages.find(page => !page.quiz && !page.teaching?.question);
       const cover = rows.find(row => row.current && row.planSha256 === view.plan!.sha256 &&
-        row.pageId === view.plan!.pages[0].pageId && row.target.kind === "visualMaster" && row.selected && row.asset);
+        row.pageId === firstVisualPage?.pageId && row.target.kind === "visualMaster" && row.selected && row.asset);
       return { ...view, images: rows, models, blockers: sceneAssetBlockers(view.plan, rows),
-        styleConfirmed: !!cover, requiresHumanSelection: !cover && rows.some(row => row.current &&
-          row.planSha256 === view.plan!.sha256 && row.pageId === view.plan!.pages[0].pageId && row.target.kind === "visualMaster" && row.asset) };
+        styleConfirmed: !firstVisualPage || !!cover, requiresHumanSelection: !cover && rows.some(row => row.current &&
+          row.planSha256 === view.plan!.sha256 && row.pageId === firstVisualPage?.pageId && row.target.kind === "visualMaster" && row.asset) };
     }
     if (view.task?.taskType !== "scene" || view.task.generated || !view.plan || view.plan.sha256 !== view.plan.approvedSha256)
       throw new Error("Review and approve the current scene plan in Chat before preparing assets or compiling");
     const rows = await images.list({ sessionId }); check();
-    const firstPage = view.plan.pages[0].pageId;
-    const styleConfirmed = rows.some(row => row.current && row.planSha256 === view.plan!.sha256 &&
+    const firstPage = view.plan.pages.find(page => !page.quiz && !page.teaching?.question)?.pageId;
+    const styleConfirmed = !firstPage || rows.some(row => row.current && row.planSha256 === view.plan!.sha256 &&
       row.pageId === firstPage && row.target.kind === "visualMaster" && row.selected && row.asset);
     const canGenerate = (pageId: unknown, target: unknown) => {
       if (!styleConfirmed && (pageId !== firstPage || !record(target) || target.kind !== "visualMaster"))

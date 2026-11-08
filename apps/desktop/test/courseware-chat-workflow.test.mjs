@@ -151,6 +151,31 @@ test("background narration and media receive the owning session and live turn gu
   assert(calls.every(call => !call.canDispatch()), "Delegated work must still observe cancellation");
 });
 
+test("shared assessment readiness blocks whole-course completion and dispatches through the owning workflow", async () => {
+  const f = fixture(), calls = [];
+  f.coordinator.media = { execute: async () => ({ teachingReady: true, audioReady: true }) };
+  f.coordinator.assessments = { execute: async (sessionId, args, canDispatch) => {
+    assert.equal(sessionId, 'chat'); assert(canDispatch()); calls.push(args);
+    return args.mode === 'context' ? { ready: false, targets: [{ kind: 'image', sceneId: 'quiz', questionId: 'q', optionValue: 'B' }] } : { state: 'queued' };
+  } };
+  const context = await f.execute('courseware_media_context');
+  assert.equal(context.teachingReady, false); assert.equal(context.assessmentMedia.targets[0].optionValue, 'B');
+  assert.deepEqual(await f.execute('courseware_media_assessments', { mode: 'prepare', kind: 'image' }), { state: 'queued' });
+  assert.deepEqual(calls, [{ mode: 'context' }, { mode: 'prepare', kind: 'image' }]);
+});
+
+test("canonical-only Quiz media never enters the saved-PPTX reader", async () => {
+  const f = fixture({ quizOnly: true });
+  f.plan.pages = [{ pageId: 'scene-001', title: 'Quiz', quiz: { questions: [] } }];
+  await f.execute('courseware_scene_compile', { planSha256: f.plan.sha256 });
+  f.coordinator.media = { execute: async () => { throw Error('No fake PPTX'); } };
+  f.coordinator.assessments = { execute: async () => ({ ready: false, targets: [{ kind: 'tts' }], projectId: 'canonical-project',
+    expectedRevision: 'r1', expectedSourceRevision: 'sha256:' + 'a'.repeat(64) }) };
+  const context = await f.execute('courseware_media_context', { continueTeaching: true });
+  assert.equal(context.sourceSha256, 'a'.repeat(64)); assert.equal(context.canonicalOnly, true);
+  assert.equal(context.teachingReady, false); assert.equal(context.audioReady, false);
+});
+
 test("main Chat reads actual readiness and can prepare assets during its active turn without a mounted panel", async () => {
   const f = fixture();
   const view = await f.execute("courseware_workflow_get");

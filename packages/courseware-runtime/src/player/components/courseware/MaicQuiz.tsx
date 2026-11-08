@@ -37,6 +37,10 @@ export function MaicQuiz({ content, onComplete, onInstantAnswer, disabled = fals
           const nextScore = scoreMaicQuiz(question, [value]);
           if (nextScore !== null) onInstantAnswer?.(nextScore);
         }} />
+      {checked && score !== null && <div className="maic-quiz-feedback" role="status" aria-live="polite">
+        {score ? content.playbackConfig?.successSpeechText || '回答正确！非常棒！'
+          : content.playbackConfig?.failureSpeechText || '很遗憾，你选错了，再试一次吧！'}
+      </div>}
       {checked && score === null && <div className="maic-quiz-feedback" role="status">
         本题需要教师或在线评价，当前尚未评分。
         <button type="button" disabled={disabled} onClick={onComplete}>完成测验</button>

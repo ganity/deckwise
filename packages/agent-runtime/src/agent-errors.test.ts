@@ -659,3 +659,9 @@ describe("classifyAgentError", () => {
   });
 
 });
+
+it.each(["length", "max_output_tokens"])("does not retry deterministic Responses truncation: %s", reason => {
+  expect(classifyProviderError(new Error(`Response incomplete: ${reason}`), 200)).toMatchObject({
+    code: "PROVIDER_ERROR", retriable: false, details: { outputTruncated: true },
+  });
+});

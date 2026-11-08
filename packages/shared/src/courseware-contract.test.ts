@@ -87,6 +87,9 @@ describe("courseware contract v1", () => {
     expect(isCoursewareProject({ ...project, educationContext: { visualStyle: "Matte clay 3D" } })).toBe(true);
     for (const visualStyle of [null, 3, "x".repeat(501), "🖌".repeat(251)])
       expect(isCoursewareProject({ ...project, educationContext: { visualStyle } })).toBe(false);
+    expect(isCoursewareProject({ ...project, educationContext: { bodyPageLimit: 8 } })).toBe(true);
+    for (const bodyPageLimit of [null, 0, 31, 1.5, "8"])
+      expect(isCoursewareProject({ ...project, educationContext: { bodyPageLimit } })).toBe(false);
     expect(isTeachingWrite({ ...write, actions: [{ id: "a", type: "speech", text: "x".repeat(2 * 1024 * 1024) }] })).toBe(false);
   });
 

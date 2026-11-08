@@ -78,6 +78,7 @@ describe('scene to native PPTX prototype', () => {
     expect(xml).toContain('<p:bg>');
     expect(xml).toContain('Apple &lt; 苹果');
     expect(xml).toContain('sz="3000"');
+    expect(xml).toContain('<p:cNvSpPr txBox="1"/>');
     expect(xml).toContain('<a:off x="914400" y="365760"/>');
     expect(xml).toContain('<a:prstGeom prst="roundRect">');
     expect(xml).toContain('<a:prstGeom prst="line">');

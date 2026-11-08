@@ -167,8 +167,17 @@ export function createMainCompletion({
   };
   const createSceneGenerator = (input: CoursewareSceneGeneratorInput) =>
     createCoursewareSceneGenerator(input, completeScene);
-  const planSceneCourseware = (input: Parameters<typeof createSceneCoursePlan>[0]) =>
-    createSceneCoursePlan(input, complete);
+  const planSceneCourseware = async (input: Parameters<typeof createSceneCoursePlan>[0]) => {
+    const host = getHost();
+    if (!host) throw new Error("Host unavailable during scene planning");
+    const { task } = await host.call<{ task: { storyFirst?: boolean } | null }>("courseware.task.get", { sessionId: input.sessionId });
+    const { story } = task?.storyFirst
+      ? await host.call<{ story: import("@pi-desktop/shared").CoursewareStoryState | null }>("courseware.story.get", { sessionId: input.sessionId })
+      : { story: null };
+    if (getHost() !== host) throw new Error("Host changed during scene planning");
+    if (task?.storyFirst && (!story?.draft || !story.sha256 || story.sha256 !== story.approvedSha256)) throw new Error("Confirm the teaching story first");
+    return createSceneCoursePlan({ ...input, story: story ?? undefined }, complete);
+  };
   const buildSceneCourseware = async (input: Parameters<typeof buildSceneCourseDeck>[0]) => {
     const url = coursewareAuthoringUrl();
     if (!url) throw new Error("Installed courseware compiler is unavailable");
