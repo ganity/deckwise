@@ -913,3 +913,26 @@ it.each([
     });
   } finally { await f.runtime.abort(); await f.runtime.dispose(); vi.useRealTimers(); }
 });
+
+it("retains the failed workflow operation after successful PPT adoption without a model retry", async () => {
+  vi.useFakeTimers();
+  const f = fixture("cleanPlate", "courseware_presentation_adopt");
+  f.saved.fullMedia = true;
+  const runtimeHost = f.runtime['host'];
+  const call = runtimeHost.call.bind(runtimeHost);
+  runtimeHost.call = async <T>(method: string, params: unknown): Promise<T> => {
+    if (method === "tools.execute" && (params as { toolName: string }).toolName === "courseware_media_context")
+      return { ok: false, errorCode: "COURSEWARE_WORKFLOW_REJECTED", content: { error: "private payload must not reach error UI" } } as T;
+    return call(method, params) as Promise<T>;
+  };
+  try {
+    const run = f.runtime.prompt("Finish this course", "user", "turn").catch(error => error);
+    await vi.advanceTimersByTimeAsync(10000); await run;
+    expect(f.saved.generated).toBe(true);
+    expect(f.requests()).toBe(2);
+    const error = f.events.find(e => e.event.type === "error")?.event;
+    expect(error).toMatchObject({ error: { code: "COURSEWARE_WORKFLOW_REJECTED", retriable: false,
+      details: { origin: "local", phase: "courseware-continuation", operation: "courseware_media_context" } } });
+    expect(JSON.stringify(error)).not.toContain("private payload");
+  } finally { await f.runtime.abort(); await f.runtime.dispose(); vi.useRealTimers(); }
+});

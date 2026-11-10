@@ -33,7 +33,7 @@ function setup() {
   };
   const make = () => new exports.CoursewareNativeVideo({ getCoursewarePrincipal: () => ({ key: "principal", assertCurrent() {} }), coursewareMedia: { video: client } },
     () => host, () => "chat", route, async () => { if (late) view.project.teachingRevision = "changed"; return { durationMs: 1200, width: 640, height: 480 }; });
-  return { view: () => structuredClone(view), make, posts: () => posts, adopted: () => adopted, calls, late: () => { late = true; }, fail: () => { fail = true; }, records };
+  return { view: () => structuredClone(view), readOnly: () => { view.readOnly = true; }, make, posts: () => posts, adopted: () => adopted, calls, late: () => { late = true; }, fail: () => { fail = true; }, records };
 }
 test("native video verifies bytes and adopts through document CAS without a Host teaching write", async () => {
   const f = setup();
@@ -54,4 +54,11 @@ test("native video rejects a late decoded result and recovers an uncertain submi
   f.late();
   await assert.rejects(f.make().execute({ intentId: intent.id }, false, 1, f.view(), () => true), /changed/);
   assert.equal(f.posts(), 1); assert.equal(f.adopted(), undefined);
+});
+
+test("native video rejects a read-only document before paid submission", async () => {
+  const f = setup(); f.readOnly(); const view = f.view();
+  await assert.rejects(f.make().execute({ actionId: "slot", model: "model" }, true, 1, view, () => true), /locked/);
+  assert.equal(f.posts(), 0); assert.equal(f.adopted(), undefined);
+  assert(!f.calls.includes("courseware.mediaRelay.write"));
 });

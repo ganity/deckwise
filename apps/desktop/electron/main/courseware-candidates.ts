@@ -1,3 +1,4 @@
+import { generateNativeNarration } from "./courseware-native-narration";
 import { generateNarrationWrite, candidateHash, pageNarrationOutputSchema, type PptCandidateBaseline, type PptCandidateContext } from "@pi-desktop/agent-runtime";
 import { COURSEWARE_STYLE_BATCH_TIMEOUT_MS, isCoursewareSceneTeaching, isCoursewareProject } from "@pi-desktop/shared";
 import type { PluginCompleteInput, PluginCompleteResult } from "@pi-desktop/plugin-sdk";
@@ -15,6 +16,7 @@ export type CandidateModelResolver = (sessionId: string) => Promise<{ modelKey: 
 
 /** Main pins source/project/policy; model and renderer cannot choose paths or target pages. */
 export class CoursewareCandidateCoordinator {
+  private nativeNarrationFailures = new Map<string, string>();
   constructor(private teaching: CoursewareTeachingCoordinator, private complete: NarrationComplete,
     private redo?: { visuals: CoursewareVisualReview; completeScene: SceneComplete; style?: CoursewareStyleReviewCoordinator; render: Parameters<typeof stagePageStyleBatchCandidate>[0]["render"] },
     private resolveModel?: CandidateModelResolver) {}
@@ -26,6 +28,15 @@ export class CoursewareCandidateCoordinator {
   async proposeNativeNarration(sessionId: string, pageNumber: number, instruction: string, canDispatch: () => boolean, repairRequiredTeaching = false) {
     const context = await this.run(sessionId, "ppt_get_narration_context", {}, canDispatch, undefined, pageNumber) as PptCandidateContext;
     return this.run(sessionId, "ppt_propose_page_narration", { kind: "page-narration", baseline: context.baseline, instruction }, canDispatch, undefined, pageNumber, repairRequiredTeaching);
+  }
+
+  async proposeNativeNarrationBatch(sessionId: string, selected: number[], instruction: string, canDispatch: () => boolean, repairRequiredTeaching = false) {
+    if (!this.resolveModel) throw new Error("Select a narration model first");
+    const model = await this.resolveModel(sessionId);
+    return generateNativeNarration({ teaching: this.teaching, sessionId, selected, instruction, canDispatch, repairRequiredTeaching,
+      contentFailures: this.nativeNarrationFailures,
+      model, complete: this.complete, completeVision: this.redo?.completeScene,
+      assertModel: async () => { if (JSON.stringify(await this.resolveModel!(sessionId)) !== JSON.stringify(model)) throw new Error("Narration model changed"); } });
   }
 
   /** Trusted Host entry only; source text must be explicitly bound to this saved logical page. */
@@ -72,14 +83,23 @@ export class CoursewareCandidateCoordinator {
           if (!args || typeof args !== "object" || Array.isArray(args) || Object.keys(args).length !== 3 ||
               Reflect.get(args, "kind") !== "page-narration" || JSON.stringify(Reflect.get(args, "baseline")) !== JSON.stringify(baseline)) throw new Error("Native narration baseline changed");
           if (!this.resolveModel && !selectedNarration) throw new Error("Select a narration model first");
+          if (!selectedNarration) {
+            const result = await this.proposeNativeNarrationBatch(sessionId, [view.pageNumber], String(Reflect.get(args, "instruction")), canDispatch, repairRequiredTeaching);
+            if (result.failures.length) throw new Error(result.failures.map(f => f.error).join("; "));
+            return { ...result, kind: "page-narration", baseline, pageNumber: view.pageNumber, saved: false };
+          }
           const model = !selectedNarration ? await this.resolveModel!(sessionId) : null;
           const before = await current();
           // Native actions retain measured duration; the authoring contract derives timing from adopted media.
           const authoringProject = structuredClone(project);
-          for (const action of authoringProject.pages.flatMap(p => p.actions)) delete action.durationMs;
+          for (const current of authoringProject.pages) {
+            current.actions = current.actions.filter(action => action.type !== "native_animation");
+            for (const action of current.actions) delete action.durationMs;
+          }
           const generated = await generateNarrationWrite({ project: authoringProject, pageId: page.pageId, baseline: before, pageText: text,
             instruction: Reflect.get(args, "instruction"), getCurrentBaseline: current, signal: controller.signal,
             repairRequiredTeaching, evidence: captured.evidence,
+            independentAssessmentPages: isCoursewareSceneTeaching(view.teaching),
             ...(isCoursewareSceneTeaching(view.teaching) ? { coursePlan: { teaching: view.teaching } } : {}),
             generate: async ({ system, data }) => {
               if (selectedNarration) return selectedNarration;

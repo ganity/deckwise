@@ -5,8 +5,31 @@ import {
   describeNetworkFailure,
 } from "./agent-errors.js";
 import { classifyProviderError } from "./provider-retry.js";
+import { CoursewareWorkflowError } from "./courseware-workflow-recovery.js";
 
 describe("classifyAgentError", () => {
+  it("reports a continuation operation without exposing the original workflow payload", () => {
+    const error = new CoursewareWorkflowError("COURSEWARE_WORKFLOW_REJECTED", "private course api_key=secret",
+      "courseware_media_context", { cause: new Error("private prompt") });
+    const classified = classifyAgentError(error);
+    expect(classified).toMatchObject({ code: "COURSEWARE_WORKFLOW_REJECTED", retriable: false,
+      details: { origin: "local", phase: "courseware-continuation", operation: "courseware_media_context" } });
+    expect(classified.message).toContain("media status check failed");
+    expect(classified.cause).toBe(error);
+    expect(JSON.stringify(classified)).not.toMatch(/private|secret|api_key/);
+  });
+
+  it("limits workflow diagnostics to known codes and operations", () => {
+    const error = new CoursewareWorkflowError("private code", "private message", "private operation");
+    const classified = classifyAgentError(error);
+    expect(classified).toMatchObject({ code: "COURSEWARE_WORKFLOW_FAILED", retriable: false,
+      details: { origin: "local", phase: "courseware-continuation" } });
+    expect(classified.details).not.toHaveProperty("operation");
+    expect(JSON.stringify(classified)).not.toContain("private");
+    error.name = "AbortError";
+    expect(classifyAgentError(error).code).toBe("TURN_ABORTED");
+  });
+
   it("distinguishes a terminal team refusal from provider credentials", () => {
     for (const error of [
       'OpenAI API error (403): {"message":"TEAM_LLM_PERMISSION_DENIED"}',

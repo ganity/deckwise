@@ -79,13 +79,14 @@ const action = z.object({ id, type: id }).passthrough().superRefine((a, ctx) => 
     } else ctx.addIssue({ code: 'custom', message: 'Unsupported checkpoint kind' });
   }
 });
+export const maicQuizSchema = z.object({ type: z.literal('quiz'), questions: z.array(question), interactionMode: z.enum(['assessment_review', 'classroom_instant_feedback']).optional(),
+    playbackConfig: z.object({ introSpeechMode: z.literal('page_enter_only'), attemptPolicy: z.literal('until_correct'), successSpeechText: z.string(),
+      failureSpeechText: z.string(), cueUserOnEnter: z.boolean(), cueUserOnRetry: z.boolean() }).passthrough().optional() }).passthrough();
 const content = z.discriminatedUnion('type', [
   z.object({ type: z.literal('slide'), canvas: z.object({ id, viewportSize: number.positive(), viewportRatio: number.positive(),
     theme: z.object({ backgroundColor: z.string(), themeColors: z.array(z.string()), fontColor: z.string(), fontName: z.string() }).passthrough(),
     elements: z.array(z.object({ id, type: z.enum(['text', 'image', 'shape', 'line', 'chart', 'table', 'latex', 'video', 'audio']), left: number, top: number, width: number }).passthrough()) }).passthrough() }).passthrough(),
-  z.object({ type: z.literal('quiz'), questions: z.array(question), interactionMode: z.enum(['assessment_review', 'classroom_instant_feedback']).optional(),
-    playbackConfig: z.object({ introSpeechMode: z.literal('page_enter_only'), attemptPolicy: z.literal('until_correct'), successSpeechText: z.string(),
-      failureSpeechText: z.string(), cueUserOnEnter: z.boolean(), cueUserOnRetry: z.boolean() }).passthrough().optional() }).passthrough(),
+  maicQuizSchema,
   z.object({ type: z.literal('interactive'), url: z.string() }).passthrough(),
   z.object({ type: z.literal('pbl'), projectConfig: z.object({}).passthrough() }).passthrough(),
 ]);

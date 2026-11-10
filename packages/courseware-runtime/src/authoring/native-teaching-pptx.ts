@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { SaxesParser } from 'saxes';
+import { maicQuizSchema } from '../maic-classroom';
 import { pptxPackage as pkg } from './page-pptx-candidate';
 
 type Page = { pageId: string; narration?: string; questionText?: string; actions: Array<Record<string, unknown>> };
@@ -21,7 +22,7 @@ export async function packNativeTeachingPptx(input: {
     if ((await file.async('string')).includes(namespace)) throw new Error('Generated source already contains native teaching');
   }
   const identity: { pages: Array<{ pageId: string; objects: Array<{ logicalId: string; sourceShapeId: string; sourceObjectName: string }> }> } = { pages: [] };
-  const pages = [];
+  const pages: Array<{ pageId: string; locked: boolean; reviewState: string; actions: Array<Record<string, unknown>> }> = [];
   const sourceHash = hash(input.source);
   for (const [index, page] of input.pages.entries()) {
     const slidePart = slideParts[index], slide = await pkg.xml(zip, slidePart);
@@ -84,7 +85,9 @@ export async function packNativeTeachingPptx(input: {
     pages.push({ pageId: page.pageId, locked: false, reviewState: 'review', actions });
   }
   const revision = 'revision-' + hash(JSON.stringify([sourceHash, input.title, pages, input.generation])).slice(0, 40);
-  const teaching = { schemaVersion: 'deckwise-native-teaching/1', documentId: 'native-' + hash(revision).slice(0, 40),
+  const generated = input.generation as { pages?: Array<{ pageId: string; quiz?: unknown }> } | undefined;
+  const assessments = Object.fromEntries((generated?.pages ?? []).filter(p => p.quiz !== undefined && pages.some(page => page.pageId === p.pageId)).map(p => [p.pageId, maicQuizSchema.parse(p.quiz)]));
+  const teaching = { ...(Object.keys(assessments).length ? { assessments } : {}), schemaVersion: 'deckwise-native-teaching/1', documentId: 'native-' + hash(revision).slice(0, 40),
     revision, title: input.title, pages, identity, media: [], generation: input.generation };
   const part = 'customXml/deckwise-native.xml';
   if (zip.file(part)) throw new Error('Generated native teaching part is occupied');

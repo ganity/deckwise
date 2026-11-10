@@ -60,9 +60,10 @@ async function setup(t) {
 test("mixed scene generation publishes native teaching, Quiz answers and media slots before opening an editor", async t => {
   const f = await setup(t), result = await stageGeneratedSceneCourse(f.input);
   const bytes = await readFile(result.path), native = await readNativeTeachingPackage(bytes);
+  assert.deepEqual(native.assessments["scene-002"], pages[1].quiz);
   assert.equal(native.pages.length, 3); assert.equal(native.documentId, result.project.projectId);
-  assert.deepEqual(native.pages[0].actions.map(a => a.type), ["speech", "music_slot", "video_slot"]);
-  assert.equal(native.pages[0].actions[0].text, pages[0].narration);
+  assert.deepEqual(native.pages[0].actions.map(a => a.type), ["music_slot", "video_slot"]);
+  assert.equal(native.generation.pages[0].narration, pages[0].narration, "the plan remains evidence, not completed narration");
   assert.deepEqual(native.pages[1].actions[1].response, { kind: "single", options: ["Bye", "Hello"], answerIndices: [1] });
   assert.equal(native.pages[1].actions[0].text, "Choose the greeting\nA. Bye\nB. Hello");
   assert.equal(native.pages[2].actions[1].response.kind, "practice");

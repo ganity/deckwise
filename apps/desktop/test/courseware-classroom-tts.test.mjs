@@ -21,10 +21,10 @@ new Function("require", "exports", ts.transpileModule(await readFile(new URL("..
   throw new Error(id);
 }, exports);
 const { CoursewareClassroomTts } = exports;
-function fixture(root = "/unused") {
+function fixture(root = "/unused", nativeTeaching = false) {
   const args = { sessionId: "session", projectId: "project", expectedRevision: "revision-1", expectedSourceRevision: "source-1",
     sceneId: "quiz", actionId: "speech", model: "model", voice: "voice" };
-  let view = { projectId: "project", revision: "revision-1", sourceRevision: "source-1", classroom: { id: "classroom", createdAt: "2026-01-01",
+  let view = { nativeTeaching, projectId: "project", revision: "revision-1", sourceRevision: "source-1", classroom: { id: "classroom", createdAt: "2026-01-01",
     stage: { id: "stage", name: "Lesson", createdAt: 1, updatedAt: 1 }, scenes: [{ id: "quiz", stageId: "stage", type: "quiz", title: "Quiz", order: 0,
       content: { type: "quiz", questions: [{ id: "q", type: "single", question: "Hello?", options: [{ value: "A", label: "Hello" }, { value: "B", label: "Bye" }], answer: ["A"] }] },
       actions: [{ id: "speech", type: "speech", text: "Choose a greeting" }] }] } };
@@ -33,7 +33,7 @@ function fixture(root = "/unused") {
   const host = { async call(method, payload) {
     calls.push({ method, payload });
     if (method === "courseware.classroom.get") return structuredClone(view);
-    if (method === "courseware.classroom.mediaScope") return { sessionId: "session", teamProjectId: "team-project" };
+    if (method === (nativeTeaching ? "courseware.mediaRelay.scope" : "courseware.classroom.mediaScope")) return { sessionId: "session", teamProjectId: "team-project" };
     if (method === "courseware.classroom.write") {
       assert.equal(payload.expectedRevision, view.revision); assert.equal(payload.expectedSourceRevision, view.sourceRevision);
       view = { ...view, revision: "revision-2", classroom: payload.classroom }; return structuredClone(view);
@@ -55,7 +55,12 @@ function fixture(root = "/unused") {
       async get(ref) { return tasks.get(ref.idempotencyKey); },
       async download(ref) { return { task: tasks.get(ref.idempotencyKey), bytes: corrupt ? Buffer.from("corrupt") : bytes }; },
     } };
-  const coordinator = new CoursewareClassroomTts({ auth, open: async () => structuredClone(view), getHost: () => host, getWorkspace: async () => root,
+  const coordinator = new CoursewareClassroomTts({ auth, ...(nativeTeaching ? { adoptNative: async (args, asset) => {
+    calls.push({ method: 'native-adopt' });
+    view.classroom.scenes[0].actions[0].audioId = 'tts-' + asset.sha256;
+    view.revision = 'revision-2'; view.sourceRevision = 'source-2';
+    return structuredClone(view);
+  } } : {}), open: async () => structuredClone(view), getHost: () => host, getWorkspace: async () => root,
     assertOwned() { assert(sessionOwned, "session changed"); }, decodeAudio: async () => 1000 });
   return { coordinator, args, calls, tasks, bytes, setPrincipal: value => { principal = value; }, setOwned: value => { sessionOwned = value; },
     setCorrupt: () => { corrupt = true; }, setRevision: value => { view.revision = value; }, getView: () => view };
@@ -156,4 +161,19 @@ test("refresh never applies an original task to edited question text or a differ
   await assert.rejects(f.coordinator.refresh(f.args), /Classroom changed/);
   assert.equal(f.calls.filter(call => call.method === "courseware.classroom.write").length, 0);
   assert.equal(f.calls.filter(call => call.method === "submit").length, 1);
+});
+
+
+test('native question TTS uses scoped admission and adopts once without a classroom mirror', async () => {
+  const f = fixture('/unused', true), quote = await f.coordinator.quote(f.args);
+  await f.coordinator.submit({ ...f.args, quoteId: quote.quote.quoteId });
+  const task = f.tasks.get(quote.key);
+  task.state = 'ready'; task.assetRef = { sha256: createHash('sha256').update(f.bytes).digest('hex'), mime: 'audio/wav' };
+  const adopted = await f.coordinator.refresh(f.args);
+  assert.equal(adopted.state, 'adopted');
+  const again = await f.coordinator.refresh({ ...f.args, expectedRevision: adopted.view.revision, expectedSourceRevision: adopted.view.sourceRevision });
+  assert.equal(again.state, 'adopted');
+  assert.equal(f.calls.filter(c => c.method === 'native-adopt').length, 1);
+  assert(f.calls.some(c => c.method === 'courseware.mediaRelay.scope'));
+  assert(!f.calls.some(c => c.method.startsWith('courseware.classroom.')));
 });

@@ -1,3 +1,4 @@
+import { routeNativeMediaLibrary } from "../courseware-native-library";
 import { readNativeTeachingPackage } from "../courseware-native-package";
 import { readLiveSource } from "../courseware-source-files";
 import { CoursewareNativeMusic } from "../courseware-native-music";
@@ -97,7 +98,7 @@ export function registerPptEditorIpc(input: {
   const assertClassroomOwner = (sessionId: string) => {
     if (!getHost() || input.getViewingSessionId() !== sessionId) throw new Error("Classroom is no longer active in this Chat");
   };
-  const classroom = new CoursewareClassroomCoordinator({ getHost, getWorkspace: getWorkspaceRoot,
+  const classroom = new CoursewareClassroomCoordinator({ native: (operation, args) => teaching.native(operation, args, typeof args.pageNumber === "number" ? args.pageNumber : undefined), getHost, getWorkspace: getWorkspaceRoot,
     getSessionId: input.getViewingSessionId, assertOwned: assertClassroomOwner,
     openProject: async sessionId => { await editor.ensureSaved(await getWorkspaceRoot()); return teaching.open(sessionId); },
     writeNative: createClassroomNativeWriter({ teaching, editor, getWorkspace: getWorkspaceRoot, assertOwned: assertClassroomOwner,
@@ -125,7 +126,14 @@ export function registerPptEditorIpc(input: {
       return result.text;
     } });
   input.onClassroomReady?.(classroom);
-  const classroomTts = new CoursewareClassroomTts({ auth: input.authSession, open: sessionId => classroom.open({ sessionId }),
+  const classroomTts = new CoursewareClassroomTts({ adoptNative: async (args, asset, bytes, durationMs) => {
+      const view = (await teaching.native("open"))!.value as import("@pi-desktop/shared").CoursewareTeachingView;
+      const page = view.project.pages.findIndex(p => p.pageId === args.sceneId) + 1;
+      if (!page || view.project.projectId !== args.projectId || view.project.teachingRevision !== args.expectedRevision) throw new Error("Native assessment changed");
+      await teaching.native("adopt-audio", { viewId: args.projectId + "." + args.sceneId, expectedTeachingRevision: args.expectedRevision,
+        command: { actionId: args.actionId, assetId: "tts-" + asset.sha256, sha256: asset.sha256, mimeType: asset.mime, bytes: Uint8Array.from(bytes).buffer, durationMs } }, page);
+      return classroom.open({ sessionId: args.sessionId });
+    }, auth: input.authSession, open: sessionId => classroom.open({ sessionId }),
     getHost, getWorkspace: getWorkspaceRoot, assertOwned: assertClassroomOwner, decodeAudio: decodeCoursewareAudio });
   const classroomImages = new CoursewareClassroomImages({ auth: input.authSession, classroom,
     getHost, getWorkspace: getWorkspaceRoot, assertOwned: assertClassroomOwner });
@@ -223,10 +231,12 @@ export function registerPptEditorIpc(input: {
     async (operation, args, page) => editor.routeNativeTeaching(await getWorkspaceRoot(), operation, args, page), decodeCoursewareAudio);
   const routeNative = async (operation: string, args: Record<string, unknown>, page: number) => {
     const result = await editor.routeNativeTeaching(await getWorkspaceRoot(), operation, args, page);
+    const library = await routeNativeMediaLibrary({ operation, args, page, result, music: nativeMusic, video: nativeVideo,
+      open: async () => editor.routeNativeTeaching(await getWorkspaceRoot(), "open", {}, page) });
+    if (library) return library;
     if (result && result.value && typeof result.value === "object" && Reflect.get(result.value, "nativeService") === true) {
+      if (operation.startsWith("classroom:")) return undefined;
       const current = await editor.routeNativeTeaching(await getWorkspaceRoot(), "open", {}, page);
-      if (operation === "media:adopt" && args.kind === "music") return { value: await music.adopt({ sessionId: input.getViewingSessionId(),
-        intentId: args.intentId, viewId: args.viewId, expectedTeachingRevision: args.expectedTeachingRevision }) };
       return { value: await nativeAudio.execute(operation, args, page, current!.value as import("@pi-desktop/shared").CoursewareTeachingView) };
     }
     return result;
@@ -256,7 +266,7 @@ export function registerPptEditorIpc(input: {
       await editor.ensureSaved(await getWorkspaceRoot());
       chat.assertActive(sessionId);
       if (!canDispatch()) throw new Error("Native teaching turn ended during save");
-    }));
+    }, assessmentMedia));
   editor.nativeTeaching = createNativeTeachingHandler({ teaching, tts, classroom, classroomTts, classroomImages,
     nativeRoute: routeNative,
     assessmentContext: async view => {

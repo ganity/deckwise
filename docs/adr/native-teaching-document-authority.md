@@ -75,6 +75,20 @@ This is export adaptation only, and does not rewrite the native document.
 
 See [generation-loop implementation and evidence](../design/2026-11-10-native-generation-loop.md).
 
+## Native authoring capability adapters
+
+Native narration supplies live PNG/text/UUID evidence to the shared vision and
+whole-course planning pipeline. Validated semantics persist in the document,
+alongside speech, using the same revision and Office-generation fences.
+
+The assessment editor receives an ephemeral MAIC-shaped projection. Rich Quiz
+content and embedded image data remain in the native carrier (`assessments`),
+with grading/reference fields in strict checkpoint actions and discussion editor
+details in `checkpointDetails`. Native history/save/reopen own these writes.
+Fixed export reads the hash-verified snapshot carrier and archives Quiz images;
+it never consults a mutable Host classroom. The media sidebar reads existing
+private jobs and adopts through the native service only on an explicit request.
+
 ## Bounds and verification
 
 The package reader bounds compressed/expanded ZIP size, XML size, media counts,

@@ -40,6 +40,7 @@ import {
   type AgentMessage,
   type AgentTool,
   type AgentToolResult,
+  type AgentTurnContext,
   type AfterToolCallContext,
   type AfterToolCallResult,
   type BeforeToolCallContext,
@@ -1926,6 +1927,7 @@ export class DesktopAgentRuntime {
   private readonly providerTransportHealth: ProviderTransportHealth =
     createProviderTransportHealth();
   private pendingProviderRetry?: ReturnType<typeof classifyAgentError>;
+  private coursewareContinuationError?: CoursewareWorkflowError;
   /** Non-429 setup + stream failures since the last successful response. */
   private providerTransientRetryAttempt = 0;
   /** Shared OpenCode-style 429 retry count across setup and stream phases. */
@@ -1974,6 +1976,8 @@ export class DesktopAgentRuntime {
   private failedHostToolCalls = new Set<string>();
   /** Per-prompt mutation failures provide one recovery attempt, then stop. */
   private mutationFailureCounts = new Map<string, number>();
+  private toolValidationFailures = new Map<string, number>();
+  private toolValidationStop?: { toolName: string; attempts: number; issues: string };
   /** `<failure key> <error code>` pairs that already spent their free retry. */
   private mutationRecoveryGraces = new Set<string>();
   /** Last consecutive malformed Edit payload per path, used to stop unchanged retries. */
@@ -2312,6 +2316,8 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       // without treating an error or abort as a graceful stop.
       finishTurn: async (turn, signal) => {
         const { message } = turn;
+        this.observeToolValidation(turn);
+        if (this.toolValidationStop) return { action: "end" };
         if (message.stopReason === "error" || message.stopReason === "aborted") return;
         if (!this.gracefulStopRequested) {
           const reportOnly = this.coursewareTurn.reportOnly;
@@ -2349,6 +2355,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
             },
           }, signal).catch(cause => {
             // A local continuation failure must never restart a successful model response.
+            if (cause instanceof CoursewareWorkflowError && cause.operation) this.coursewareContinuationError = cause;
             throw readLocalRequestErrorDetails(cause) ? cause : new LocalRequestError("request-preparation", { cause });
           });
           if (!canWait()) this.coursewareTurn.reset();
@@ -2578,6 +2585,24 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     };
   }
 
+  /** Schema rejections bypass both execution hooks in pi; bound recovery at the completed batch. */
+  private observeToolValidation(turn: AgentTurnContext): void {
+    for (const result of turn.toolResults) {
+      if (!result.isError) { this.toolValidationFailures.delete(result.toolName); continue; }
+      const text = result.content.filter(block => block.type === "text").map(block => block.text).join("\n");
+      if (!text.startsWith(`Validation failed for tool "${result.toolName}":`)) continue;
+      const issues = text.replace(/\\n/g, "\n").split("\n\nReceived arguments:")[0].split("\n").slice(1)
+        .filter(line => /^\s*- /.test(line)).slice(0, 6).map(line => line.trim().slice(0, 500)).join("\n");
+      const attempts = (this.toolValidationFailures.get(result.toolName) ?? 0) + 1;
+      this.toolValidationFailures.set(result.toolName, attempts);
+      // Never echo the malformed payload back into the correction context.
+      result.content = [{ type: "text", text: `Invalid arguments for ${result.toolName}; no work was performed.\n${issues}\n` +
+        (attempts < 2 ? "Correct these fields once using the tool schema and current context. Do not include tool-call markup inside argument values."
+          : "Argument correction failed twice. This turn is stopped; report this validation error rather than retrying or changing unrelated content.") }];
+      if (attempts >= 2) this.toolValidationStop ??= { toolName: result.toolName, attempts, issues };
+    }
+  }
+
   private async afterToolCall(
     context: AfterToolCallContext,
   ): Promise<AfterToolCallResult | undefined> {
@@ -2679,6 +2704,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
   private async beforeToolCall(
     context: BeforeToolCallContext,
   ): Promise<BeforeToolCallResult | undefined> {
+    if (this.toolValidationStop) return { block: true, terminate: true, reason: "Tool argument correction budget exhausted; this turn is stopped." };
     if (this.gracefulStopRequested) return { block: true,
       reason: "The user stopped this turn. Do not start another tool; retain results of work already submitted." };
     if (this.pendingSteering.size) return { block: true,
@@ -6471,6 +6497,8 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
    */
   private resetRunRecoveryState(): void {
     this.coursewareTurn.reset();
+    this.toolValidationFailures.clear();
+    this.toolValidationStop = undefined;
     if (getCurrentSystemMessage(this.agent.state.messages)?.sections?.courseware_workflow) {
       this.agent.state.messages.push({ role: "system", content: "", sections: { courseware_workflow: null }, timestamp: Date.now() });
     }
@@ -6479,6 +6507,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     this.overflowRecoveryInProgress = false;
     this.suppressOverflowRunEnd = false;
     this.pendingProviderRetry = undefined;
+    this.coursewareContinuationError = undefined;
     this.providerTransientRetryAttempt = 0;
     this.providerRateLimitRetryAttempt = 0;
     this.providerRetryHeaders = undefined;
@@ -8235,7 +8264,12 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
               : failed
                 ? "provider stream failed"
                 : undefined;
-          let classifiedError = overflow
+          // pi-agent-core preserves only local-request metadata when finishTurn throws.
+          const continuationError = this.coursewareContinuationError;
+          this.coursewareContinuationError = undefined;
+          let classifiedError = continuationError && localError && !aborted
+            ? classifyAgentError(continuationError)
+            : overflow
             ? errorMessage
               ? classifyAgentError(errorMessage)
               : {
@@ -8641,6 +8675,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
         this.retainPendingSteering();
         this.autonomousExecution = false;
         this.clearAgentActivity();
+        this.reportToolValidationTermination();
         this.reportMutationTermination();
         this.emit({
           type: "agent_end",
@@ -8650,6 +8685,17 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       default:
         break;
     }
+  }
+
+  private reportToolValidationTermination(): void {
+    const failure = this.toolValidationStop;
+    if (!failure) return;
+    const error = { code: "TOOL_ARGUMENT_RETRY_EXHAUSTED", retriable: true,
+      message: `Stopped after two argument validation failures for ${failure.toolName}. No work was performed by these rejected calls.\n${failure.issues}`,
+      details: failure };
+    this.terminateParentTurn();
+    this.finalizeCurrentAssistant("error", error);
+    this.emit({ type: "error", error });
   }
 
   /**

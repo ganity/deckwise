@@ -1,3 +1,4 @@
+import { maicQuizSchema } from "../../../maic-classroom";
 import { projectNativeGroups } from './native-groups';
 import { projectNativeTimeline } from './native-timeline';
 import type { NativeTimeline } from '../../../native-timeline';
@@ -207,7 +208,7 @@ export function validateFixedMapping(input: FixedBuildInput, ir: SlideIR) {
 /** Builds only caller-owned fixed bytes. Never changes a source file or a previous valid build. */
 export async function buildFixedCourseware(
   raw: unknown,
-  options: { workerDirectory: string; outputDirectory: string; signal?: AbortSignal },
+  options: { workerDirectory: string; outputDirectory: string; signal?: AbortSignal; nativeAssessments?: Record<string, unknown> },
 ) {
   checkCancelled(options.signal);
   const parsed = fixedBuildInputSchema.safeParse(raw);
@@ -325,6 +326,7 @@ export async function buildFixedCourseware(
       'DUPLICATE_ASSET_ID',
     );
     const scenes = mapSlideIrToScenes('fixed-build', ir);
+    const quizImages: Array<{ id: string; path: string; sha256: string; mimeType: string; bytes: Buffer }> = [];
     const pages = ir.pages.map((page, index) => {
       const mapping = input.mapping.pages.find((p) => p.importPageId === page.id)!;
       const scene = scenes[index];
@@ -387,7 +389,19 @@ export async function buildFixedCourseware(
             'NATIVE_ANIMATION_CUE_CONFLICT');
         }
       }
+      const quiz = options.nativeAssessments?.[mapping.pageId] ? maicQuizSchema.parse(options.nativeAssessments[mapping.pageId]) : undefined;
+      if (quiz) {
+        for (const q of quiz.questions) for (const image of [q.image, ...(q.options ?? []).map(o => o.image)]) if (image) {
+          const match = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/]+={0,2})$/.exec(image.src);
+          requireBuild(match && match[2].length <= 7 * 1024 * 1024, 'INVALID_QUIZ_IMAGE');
+          const bytes = Buffer.from(match[2], 'base64');
+          requireBuild(bytes.length > 0 && bytes.toString('base64') === match[2], 'INVALID_QUIZ_IMAGE');
+          const digest = sha256(bytes), id = `quiz-${digest}`, destination = `assets/${digest}.${match[1].slice(6)}`;
+          quizImages.push({ id, path: destination, sha256: digest, mimeType: match[1], bytes }); image.src = id;
+        }
+      }
       return {
+        ...(quiz ? { quiz } : {}),
         pageId: mapping.pageId,
         title: scene.title,
         slide: canvas,
@@ -397,6 +411,11 @@ export async function buildFixedCourseware(
         ...(nativeTimeline ? { nativeTimeline } : {}),
       };
     });
+    for (const image of new Map(quizImages.map(i => [i.id, i])).values()) {
+      totalAssetBytes += image.bytes.length; requireBuild(totalAssetBytes <= 256 * 1024 * 1024, 'ASSET_BUDGET_EXCEEDED');
+      await writeFile(path.join(staging, image.path), image.bytes);
+      const { bytes: _bytes, ...asset } = image; assets.push(asset);
+    }
     // Every runtime resource must be archived; arbitrary URLs/placeholders never reach playback.
     const refs = new Set(assets.map((a) => a.id));
     function validateResources(value: unknown): void {

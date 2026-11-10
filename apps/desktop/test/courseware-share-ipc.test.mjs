@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
 import ts from "typescript";
+import * as runtime from "../../../packages/courseware-runtime/dist/node.mjs";
 const protocol = {};
 new Function("exports", ts.transpileModule(await readFile(new URL("../../../packages/shared/src/protocol.ts", import.meta.url), "utf8"), {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
@@ -56,6 +57,8 @@ function setup(options = {}) {
   currentHost = host;
   const exports = {};
   new Function("require", "exports", outputText)((id) => {
+    if (id === "@pi-desktop/courseware-runtime/node") return runtime;
+    if (id === "../courseware-classroom-assets") return { readClassroomAsset() { throw Error("Unexpected classroom read in share test"); } };
     if (id === "node:path") return { dirname, join };
     if (id === "@pi-desktop/shared") return { IPC };
     if (id === "../courseware-fixed-build") return { CoursewareFixedBuildCoordinator: class {

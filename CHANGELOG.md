@@ -1,5 +1,13 @@
 # DeckWise changes
 
+- Restore structured scene narration, independent assessment constraints and native
+  animation retention during rewrites. Reject changed music prompts before paid
+  submission. Persist speech animation timing and keep fixed playback ownership
+  consistent after native edits.
+
+- Keep PPT Master speaker notes as generation evidence instead of adopting the
+  whole note as completed speech. Generate structured teaching moves before TTS.
+
 - Persist speech-linked animations into the actual PPTX after shared TTS completion
   for PPT Master, scene and import workflows. Preserve logical object identities,
   archived audio and unrelated native timing through the existing save journal.
@@ -22,6 +30,11 @@
 - Fix Quiz image uploads interrupted by native document reopen, keep unchanged classroom revisions stable, and decode checkpoint HTML entities during native synchronization.
 
 ## Unreleased
+
+- Reconnect native PPT narration to visual semantic grounding and whole-course
+  planning. Enable assessment image/reference/question-audio editing from native
+  document data, preserve Quiz images in fixed exports, and expose pending media
+  jobs for explicit sidebar adoption.
 
 - Publish new scene and ordinary PPT Master lessons with native teaching already
   embedded in PPTX, including notes, logical object identities, Quiz answers,

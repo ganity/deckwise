@@ -1,7 +1,9 @@
 const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object";
 
 export class CoursewareWorkflowError extends Error {
-  constructor(readonly code: string, message: string) { super(message); this.name = "CoursewareWorkflowError"; }
+  constructor(readonly code: string, message: string, readonly operation?: string, options?: ErrorOptions) {
+    super(message, options); this.name = "CoursewareWorkflowError";
+  }
 }
 
 /** Retry only explicit transient codes; unknown paid outcomes never authorize a replacement. */

@@ -1,9 +1,12 @@
+import { parseMaicClassroom } from "@pi-desktop/courseware-runtime/node";
 import { createHash } from "node:crypto";
 import JSZip from "jszip";
 import { isCoursewareProject, type CoursewareProject } from "@pi-desktop/shared";
 
 type Media = { id: string; sha256: string; mimeType: string; byteLength: number; durationMs: number; data: string };
 export type NativeTeachingPackage = { schemaVersion: "deckwise-native-teaching/1"; documentId: string; revision: string;
+  assessments?: Record<string, unknown>;
+  generation?: { pages?: Array<{ pageId: string; quiz?: unknown }> };
   pages: CoursewareProject["pages"]; media: Media[]; identity: { pages: Array<{ pageId: string; objects: unknown[] }> } };
 const namespace = "urn:deckwise:native-teaching:1";
 const invalid = () => new Error("Invalid native teaching package");
@@ -67,6 +70,16 @@ export async function readNativeTeachingPackage(bytes: Uint8Array): Promise<Nati
           teachingRevision: value.revision, pages: value.pages }) || !Array.isArray(value.media) || value.media.length > 1000 ||
         new Set(value.media.map(m => m?.id)).size !== value.media.length || !value.identity || !Array.isArray(value.identity.pages) ||
         value.identity.pages.length !== value.pages.length) throw invalid();
+    // Older generated carriers kept full Quiz content in generation evidence only.
+    const generatedQuizzes = (Array.isArray(value.generation?.pages) ? value.generation.pages : []).filter(p =>
+      p && typeof p.pageId === "string" && p.quiz !== undefined && value.pages.some(page => page.pageId === p.pageId));
+    if (generatedQuizzes.length) value.assessments = { ...Object.fromEntries(generatedQuizzes.map(p => [p.pageId, p.quiz])), ...value.assessments };
+    if (value.assessments !== undefined) {
+      if (!value.assessments || typeof value.assessments !== "object" || Array.isArray(value.assessments) ||
+          Object.keys(value.assessments).some(id => !value.pages.some(page => page.pageId === id))) throw invalid();
+      const scenes = Object.entries(value.assessments).map(([id, content], order) => ({ id, stageId: value.documentId, type: "quiz", title: id, order, content, actions: [] }));
+      parseMaicClassroom({ id: value.documentId, stage: { id: value.documentId, name: "Teaching", createdAt: 0, updatedAt: 0 }, createdAt: new Date(0).toISOString(), scenes });
+    }
     let total = 0;
     for (const media of value.media) {
       if (media && media.data === undefined) {

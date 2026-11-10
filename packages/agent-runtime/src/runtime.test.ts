@@ -496,9 +496,9 @@ describe("DesktopAgentRuntime configuration matching", () => {
     agent.state.isStreaming = true;
 
     expect(runtime.requestGracefulStop()).toEqual({ requested: true });
-    expect(await agent.finishTurn({ message: { stopReason: "error" } })).toBeUndefined();
-    expect(await agent.finishTurn({ message: { stopReason: "aborted" } })).toBeUndefined();
-    expect(await agent.finishTurn({ message: { stopReason: "stop" } })).toEqual({ action: "end" });
+    expect(await agent.finishTurn({ message: { stopReason: "error" }, toolResults: [] })).toBeUndefined();
+    expect(await agent.finishTurn({ message: { stopReason: "aborted" }, toolResults: [] })).toBeUndefined();
+    expect(await agent.finishTurn({ message: { stopReason: "stop" }, toolResults: [] })).toEqual({ action: "end" });
     expect(await agent.finishTurn({ message: { stopReason: "stop", content: [] }, toolResults: [] })).toBeUndefined();
 
     agent.state.isStreaming = false;
@@ -12339,5 +12339,71 @@ describe("isolated-session subagent worktrees (ADR 0329)", () => {
     expect(delegateWorktreeNote({ result: "noChanges" }, resume)).toContain("no file changes");
     expect(delegateWorktreeNote({ result: "notMerged", reason: "busy" }, resume)).toContain("busy");
     expect(delegateWorktreeNote({ result: "none" }, resume)).toBe("");
+  });
+});
+
+describe("tool argument validation recovery", () => {
+  it("stops repeated malformed narration hashes across wording changes and intervening reads", async () => {
+    const events: any[] = [], requests: string[] = [];
+    const host = { call: vi.fn(async () => ({ ok: true, content: {} })) };
+    const runtime = createRuntime({ host, onEvent: value => events.push((value as any).event) });
+    const internal = runtime as any;
+    for (const name of ["courseware_narration_propose", "courseware_narration_context"]) internal.activeDeferredToolNames.add(name);
+    internal.models = { streamSimple: (_model: unknown, context: unknown) => {
+      requests.push(JSON.stringify(context));
+      const round = requests.length;
+      const message = assistantMessage({ content: round <= 5 ? [{ type: "toolCall", id: "validation-" + round,
+        name: round === 2 ? "courseware_narration_context" : "courseware_narration_propose",
+        arguments: round === 2 ? { pageNumbers: [8] } : { pageNumbers: [8], instruction: "Changed wording " + round,
+          sourceSha256: "a".repeat(64) + "</sourceSha256>\\n</courseware_narration_propose>" },
+      }] : [{ type: "text", text: "Unbounded retry fallback" }], stopReason: round <= 5 ? "toolUse" : "stop" }) as AssistantMessage;
+      const stream = createAssistantMessageEventStream();
+      queueMicrotask(() => { stream.push({ type: "start", partial: message }); stream.push({ type: "done", reason: round <= 5 ? "toolUse" : "stop", message }); stream.end(message); });
+      return stream;
+    } };
+    try {
+      await runtime.prompt("Generate page 8", "validation-user", "validation-turn");
+      expect(requests).toHaveLength(3);
+      expect(requests[1]).toContain("sourceSha256");
+      expect(requests[1]).not.toContain("Received arguments:");
+      expect(host.call.mock.calls.filter((call: any) => call[0] === "tools.execute" && call[1].toolName === "courseware_narration_propose")).toHaveLength(0);
+      expect(events.find(event => event.type === "error")?.error).toMatchObject({ code: "TOOL_ARGUMENT_RETRY_EXHAUSTED", details: { toolName: "courseware_narration_propose", attempts: 2, issues: expect.stringContaining("sourceSha256") } });
+    } finally { await runtime.dispose(); }
+  });
+});
+
+describe("tool validation budget boundaries", () => {
+  const batch = (toolName: string, text: string, isError = true) => ({ toolResults: [{ toolName, isError, content: [{ type: "text", text }] }] });
+  const invalid = (toolName: string, field = "sourceSha256") => batch(toolName,
+    `Validation failed for tool "${toolName}":\n  - ${field}: must match schema\n\nReceived arguments:\nprivate malformed payload`);
+
+  it("allows a corrected call and resets only that tool's budget on success", async () => {
+    const runtime = createRuntime(), internal = runtime as any;
+    try {
+      internal.observeToolValidation(invalid("courseware_narration_propose"));
+      internal.observeToolValidation(batch("courseware_narration_propose", "saved", false));
+      internal.observeToolValidation(invalid("courseware_narration_propose"));
+      expect(internal.toolValidationStop).toBeUndefined();
+      internal.observeToolValidation(invalid("courseware_narration_propose", "pageNumbers"));
+      expect(internal.toolValidationStop).toMatchObject({ toolName: "courseware_narration_propose", attempts: 2 });
+      expect(internal.toolValidationStop.issues).not.toContain("private malformed payload");
+      internal.resetRunRecoveryState();
+      internal.observeToolValidation(invalid("courseware_narration_propose"));
+      expect(internal.toolValidationStop).toBeUndefined();
+    } finally { await runtime.dispose(); }
+  });
+
+  it("keeps different tools independent and leaves service failures to their existing recovery", async () => {
+    const runtime = createRuntime(), internal = runtime as any;
+    try {
+      internal.observeToolValidation(invalid("courseware_narration_propose"));
+      internal.observeToolValidation(invalid("Bash", "command"));
+      for (let n = 0; n < 10; n++) internal.observeToolValidation(batch("courseware_media_refresh", "HTTP 503 Service Unavailable"));
+      expect(internal.toolValidationStop).toBeUndefined();
+      expect(internal.toolValidationFailures.has("courseware_media_refresh")).toBe(false);
+      internal.observeToolValidation(invalid("courseware_narration_propose"));
+      expect(internal.toolValidationStop).toMatchObject({ toolName: "courseware_narration_propose", attempts: 2 });
+      await expect(internal.beforeToolCall({ toolCall: { name: "Bash" } })).resolves.toMatchObject({ block: true, terminate: true });
+    } finally { await runtime.dispose(); }
   });
 });

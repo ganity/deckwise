@@ -3,11 +3,12 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { exportMaicClassroom, parseMaicClassroom, prepareMaicAssessmentSpeech, type MaicClassroom } from "@pi-desktop/courseware-runtime/node";
 import { resolveRealPathForCreateWithinRoot } from "./fs-panel";
+import { coursewareAuthoringUrl } from "./courseware-runtime";
 import { readClassroomAsset } from "./courseware-classroom-assets";
 import type { CoursewareTeachingView } from "@pi-desktop/shared";
 
 type Host = { call<T>(method: string, args: unknown): Promise<T> };
-export type ClassroomView = { projectId: string; revision: string | null; sourceRevision: string; classroom: MaicClassroom | null; resourceUrls?: Record<string, string> };
+export type ClassroomView = { nativeTeaching?: boolean; readOnly?: boolean; sourceSha256?: string; canvas?: { width: number; height: number }; projectId: string; revision: string | null; sourceRevision: string; classroom: MaicClassroom | null; resourceUrls?: Record<string, string> };
 type Request = { sessionId: string; projectId: string; expectedRevision: string | null; expectedSourceRevision: string };
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
@@ -45,6 +46,7 @@ function imageBytes(value: unknown): { bytes: Buffer; mimeType: string; suffix: 
 /** Owns the canonical document boundary; native PPT authoring remains a separate source. */
 export class CoursewareClassroomCoordinator {
   constructor(private readonly input: {
+    native?(operation: string, args: Record<string, unknown>): Promise<{ value: unknown } | undefined>;
     getHost: () => Host | null;
     getSessionId: () => string | null;
     getWorkspace: () => Promise<string | null>;
@@ -75,6 +77,8 @@ export class CoursewareClassroomCoordinator {
   async open(value: unknown): Promise<ClassroomView> {
     const input = fields(value, ["sessionId"]), sessionId = text(input.sessionId);
     const captured = await this.capture(sessionId);
+    const native = await this.input.native?.("assessment-context", {});
+    if (native) return this.display(this.validateView(native.value as ClassroomView, (native.value as ClassroomView).projectId), captured);
     const { task } = await captured.host.call<{ task?: { canonicalProjectId?: string } }>("courseware.task.get", { sessionId });
     await captured.check();
     const { project } = task?.canonicalProjectId ? { project: { projectId: task.canonicalProjectId } } : await this.input.openProject(sessionId);
@@ -119,7 +123,7 @@ export class CoursewareClassroomCoordinator {
     const input = fields(value, ["sessionId", "projectId", "expectedRevision", "expectedSourceRevision", "classroom"]);
     const args = request(input), parsed = parseMaicClassroom(input.classroom);
     const captured = await this.capture(args.sessionId);
-    const current = await this.current(captured, args);
+    const current = await this.current(captured, args, true);
     if (JSON.stringify(current.classroom) === JSON.stringify(parsed)) return this.display(current, captured);
     const classroom = prepareMaicAssessmentSpeech(parsed);
     await captured.check();
@@ -133,7 +137,7 @@ export class CoursewareClassroomCoordinator {
     const args = request(input), sceneId = text(input.sceneId), questionId = text(input.questionId);
     const optionValue = input.optionValue === undefined ? undefined : text(input.optionValue);
     const image = imageBytes(input.dataUrl), captured = await this.capture(args.sessionId);
-    const view = await this.current(captured, args);
+    const view = await this.current(captured, args, true);
     if (!view.classroom) throw new Error("Create or generate the canonical classroom first");
     // Carry unsaved question edits into the same native save; a separate save destroys the upload's iframe.
     const classroom = parseMaicClassroom(input.classroom ?? view.classroom), scene = classroom.scenes.find(item => item.id === sceneId);
@@ -168,6 +172,12 @@ export class CoursewareClassroomCoordinator {
     const input = fields(value, ["sessionId", "projectId", "expectedRevision", "expectedSourceRevision", "sceneId", "actionId"]);
     const args = request(input), captured = await this.capture(args.sessionId), view = await this.current(captured, args);
     const sceneId = text(input.sceneId), actionId = text(input.actionId);
+    if (view.nativeTeaching && view.classroom) {
+      const page = view.classroom.scenes.findIndex(s => s.id === sceneId) + 1;
+      const result = await this.input.native!("tts:preview", { viewId: view.projectId + "." + sceneId, expectedTeachingRevision: view.revision, actionId, pageNumber: page });
+      if (!result) throw new Error("Native question audio unavailable");
+      return result.value as { bytes: Uint8Array; mimeType: string };
+    }
     const speech = view.classroom?.scenes.find(scene => scene.id === sceneId)?.actions?.find(action => action.id === actionId && action.type === "speech");
     const asset = view.classroom?.audioManifest?.find(entry => entry.sceneId === sceneId && entry.actionId === actionId && speech?.type === "speech" && entry.audioId === speech.audioId);
     if (!asset || !["audio/wav", "audio/mpeg"].includes(asset.mimeType)) throw new Error("Generate the question audio before previewing");
@@ -179,7 +189,7 @@ export class CoursewareClassroomCoordinator {
 
   async reference(value: unknown): Promise<ClassroomView> {
     const input = fields(value, ["sessionId", "projectId", "expectedRevision", "expectedSourceRevision", "sceneId", "actionId"]);
-    const args = request(input), captured = await this.capture(args.sessionId), view = await this.current(captured, args);
+    const args = request(input), captured = await this.capture(args.sessionId), view = await this.current(captured, args, true);
     if (!this.input.completeReference || !view.classroom) throw new Error("Reference generation is unavailable");
     const classroom = parseMaicClassroom(view.classroom), scene = classroom.scenes.find(item => item.id === text(input.sceneId));
     const action = scene?.actions?.find(item => item.id === text(input.actionId));
@@ -219,7 +229,41 @@ export class CoursewareClassroomCoordinator {
     return { fileName: `${title}.zip`, bytes: Array.from(bytes) };
   }
 
-  private persist(captured: Awaited<ReturnType<CoursewareClassroomCoordinator["capture"]>>, args: Request, classroom: MaicClassroom) {
+  private async persist(captured: Awaited<ReturnType<CoursewareClassroomCoordinator["capture"]>>, args: Request, classroom: MaicClassroom) {
+    const native = await this.input.native?.("assessment-context", {});
+    if (native) {
+      if ((native.value as ClassroomView).readOnly) throw new Error("Classroom document is read-only");
+      // Embed validated local image bytes so copying the PPTX keeps the assessment complete.
+      const embedded = structuredClone(classroom);
+      for (const scene of embedded.scenes) if (scene.content.type === "quiz") for (const q of scene.content.questions) {
+        for (const image of [q.image, ...(q.options ?? []).map(o => o.image)]) if (image) {
+          if (image.src.startsWith("data:")) { imageBytes(image.src); continue; }
+          const bytes = await readClassroomAsset(captured.workspace, { url: image.src, assetId: image.assetId ?? image.src, mimeType: image.mimeType ?? "image/*" });
+          const dataUrl = `data:${image.mimeType};base64,${Buffer.from(bytes).toString("base64")}`;
+          imageBytes(dataUrl); image.src = dataUrl;
+        }
+      }
+      embedded.mediaManifest = [];
+      await captured.check();
+      const previous = (native.value as ClassroomView).classroom;
+      const changedPageIds = embedded.scenes.filter((scene, index) => JSON.stringify(scene.content) !== JSON.stringify(previous?.scenes[index]?.content) || JSON.stringify(scene.actions) !== JSON.stringify(previous?.scenes[index]?.actions)).map(scene => scene.id);
+      const projections = [];
+      const context = native.value as ClassroomView;
+      for (const [index, scene] of embedded.scenes.entries()) {
+        const old = previous?.scenes[index];
+        if (!changedPageIds.includes(scene.id) || scene.content.type !== "quiz" || old?.content.type !== "quiz") continue;
+        const url = coursewareAuthoringUrl();
+        if (!url) throw new Error("Installed assessment compiler is unavailable");
+        const { assessmentPptxScene, prepareAssessmentPage } = await import(/* @vite-ignore */ url) as typeof import("@pi-desktop/courseware-runtime/authoring");
+        const canvas = context.canvas ?? { width: 1000, height: 562.5 }, source = "sha256:" + context.sourceSha256;
+        const previousProjection = assessmentPptxScene(old, source, canvas);
+        if (JSON.stringify(previousProjection) === JSON.stringify(assessmentPptxScene(scene, source, canvas))) continue;
+        const { projected, assets } = await prepareAssessmentPage(scene, source, canvas, async src => imageBytes(src).bytes);
+        projections.push({ page: index + 1, previous: previousProjection, next: projected, assets });
+      }
+      await this.current(captured, args, true);
+      return (await this.input.native!("assessment-write", { ...args, classroom: embedded, changedPageIds, projections }))!.value as ClassroomView;
+    }
     return this.input.writeNative && args.projectId.startsWith("office-")
       ? this.input.writeNative({ ...args, classroom })
       : captured.host.call<ClassroomView>("courseware.classroom.write", { ...args, classroom });
@@ -246,10 +290,12 @@ export class CoursewareClassroomCoordinator {
     }
     return { ...view, resourceUrls };
   }
-  private async current(captured: Awaited<ReturnType<CoursewareClassroomCoordinator["capture"]>>, args: Request): Promise<ClassroomView> {
-    const view = this.validateView(await captured.host.call<ClassroomView>("courseware.classroom.get", { sessionId: args.sessionId, projectId: args.projectId }), args.projectId);
+  private async current(captured: Awaited<ReturnType<CoursewareClassroomCoordinator["capture"]>>, args: Request, writable = false): Promise<ClassroomView> {
+    const native = await this.input.native?.("assessment-context", {});
+    const view = this.validateView(native ? native.value as ClassroomView : await captured.host.call<ClassroomView>("courseware.classroom.get", { sessionId: args.sessionId, projectId: args.projectId }), args.projectId);
     await captured.check();
     if (view.revision !== args.expectedRevision || view.sourceRevision !== args.expectedSourceRevision) throw new Error("Classroom or source changed; reopen before saving");
+    if (writable && view.readOnly) throw new Error("Classroom document is read-only");
     return view;
   }
 }

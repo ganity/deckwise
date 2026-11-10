@@ -84,3 +84,21 @@ This qualifies Linux development builds. Paid providers and an installed release
 are not exercised. Old-data migration and server-owned classroom generation are
 outside this local-generation change. Fixed visual fidelity retains its existing
 `NOT_VERIFIED` status and explicit notes-master review warning.
+
+## PPT Master narration correction
+
+PPT Master body pages start without speech actions. Their speaker notes remain in
+Office notes and feed the existing structured narration generator with live page
+evidence. Only assessment pages receive ready question-reading speech during
+packaging. Treating a whole note as generated speech incorrectly marked narration
+ready and skipped the structured generation step; commit c2173081 introduced that
+regression. The adoption integration test now covers missing narration acceptance,
+notes evidence and multiple generated speech blocks through the native tools.
+
+## Parity audit correction
+
+The validation above did not prove native animation persistence or full legacy
+workflow parity. See `2026-11-10-native-teaching-parity-audit.md` for reproduced
+regressions, the scoped corrections, and the remaining visual-grounding,
+whole-course planning and assessment/media UI differences. Scene planning speech
+also remains generation evidence; it is not marked completed during packaging.

@@ -27,6 +27,7 @@ export class CoursewareClassroomTts {
   private active = new Set<string>();
   constructor(private input: {
     auth: Pick<DesktopAuthSession, "getCoursewarePrincipal" | "coursewareMedia">;
+    adoptNative?(args: Selection, asset: { sha256: string; mime: "audio/wav" | "audio/mpeg" }, bytes: Buffer, durationMs: number): Promise<ClassroomView>;
     open: (sessionId: string) => Promise<ClassroomView>;
     getHost: () => Host | null; getWorkspace: () => Promise<string | null>;
     assertOwned: (sessionId: string) => void;
@@ -48,8 +49,8 @@ export class CoursewareClassroomTts {
     const check = async () => {
       this.input.assertOwned(args.sessionId); principal.assertCurrent();
       if (host !== this.input.getHost() || workspace !== await this.input.getWorkspace()) throw new Error("Classroom TTS owner changed");
-      const current = await host.call<ClassroomView>("courseware.classroom.get", { sessionId: args.sessionId, projectId: args.projectId });
-      if (current.revision !== args.expectedRevision || current.sourceRevision !== args.expectedSourceRevision)
+      const current = await this.input.open(args.sessionId);
+      if (current.readOnly || current.revision !== args.expectedRevision || current.sourceRevision !== args.expectedSourceRevision)
         throw new Error("Classroom changed; reopen narration generation");
     };
     const view = await this.input.open(args.sessionId);
@@ -89,8 +90,7 @@ export class CoursewareClassroomTts {
       const previous = await this.input.auth.coursewareMedia.findTts({ idempotencyKey: context.key, requestHash: context.requestHash });
       await context.check();
       const task = previous ?? await this.input.auth.coursewareMedia.submitConfirmedTts(context.key, context.request, saved.quote, undefined, undefined, context.check, async () => {
-        const scope = await context.host.call("courseware.classroom.mediaScope", { sessionId: context.args.sessionId, projectId: context.args.projectId,
-          expectedRevision: context.args.expectedRevision, expectedSourceRevision: context.args.expectedSourceRevision });
+        const scope = await context.host.call(context.view.nativeTeaching ? "courseware.mediaRelay.scope" : "courseware.classroom.mediaScope", { sessionId: context.args.sessionId, ...(context.view.nativeTeaching ? {} : { projectId: context.args.projectId, expectedRevision: context.args.expectedRevision, expectedSourceRevision: context.args.expectedSourceRevision }) });
         await context.check(); return coursewareMediaSubmissionProject(scope, context.args.sessionId);
       });
       await context.check(); this.quotes.delete(String(quoteId));
@@ -106,8 +106,8 @@ export class CoursewareClassroomTts {
     const task = await this.input.auth.coursewareMedia.get(ref); await context.check();
     if (task.state !== "ready") return { key: context.key, state: task.state, task };
     const audioId = task.assetRef && `tts-${task.assetRef.sha256}`;
-    if (audioId && context.speech.audioId === audioId && context.classroom.audioManifest?.some(entry =>
-        entry.sceneId === context.args.sceneId && entry.actionId === context.args.actionId && entry.audioId === audioId))
+    if (audioId && context.speech.audioId === audioId && (context.view.nativeTeaching || context.classroom.audioManifest?.some(entry =>
+        entry.sceneId === context.args.sceneId && entry.actionId === context.args.actionId && entry.audioId === audioId)))
       return { key: context.key, state: "adopted", task, view: context.view };
     const downloaded = await this.input.auth.coursewareMedia.download(ref); await context.check();
     const asset = downloaded.task.assetRef, bytes = downloaded.bytes;
@@ -116,6 +116,11 @@ export class CoursewareClassroomTts {
     const duration = await this.input.decodeAudio(bytes, asset.mime);
     if (!Number.isFinite(duration) || duration <= 0 || duration > 86_400_000) throw new Error("Invalid classroom narration audio duration");
     await context.check();
+    if (context.view.nativeTeaching) {
+      if (!this.input.adoptNative) throw new Error("Native assessment audio service unavailable");
+      const view = await this.input.adoptNative(context.args, asset, bytes, duration);
+      return { key: context.key, state: "adopted", task, view };
+    }
     const url = `.deckwise-ppt/classroom-assets/${asset.sha256}.${asset.mime === "audio/wav" ? "wav" : "mp3"}`;
     const destination = await resolveRealPathForCreateWithinRoot(context.workspace, url);
     if (!destination) throw new Error("Classroom narration directory escaped workspace");

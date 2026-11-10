@@ -7,6 +7,7 @@ import { join } from "node:path";
 import test from "node:test";
 import ts from "typescript";
 import JSZip from "jszip";
+import * as authoring from "../../../packages/courseware-runtime/dist/authoring.mjs";
 import * as runtime from "../../../packages/courseware-runtime/dist/node.mjs";
 
 const require = createRequire(import.meta.url);
@@ -20,10 +21,10 @@ async function load(path, dependencies = {}) {
 const fsPanel = await load("../electron/main/fs-panel.ts");
 const assetReader = await load("../electron/main/courseware-classroom-assets.ts", { "./fs-panel": fsPanel });
 const { CoursewareClassroomCoordinator } = await load("../electron/main/courseware-classroom.ts", {
-  "@pi-desktop/courseware-runtime/node": runtime, "./fs-panel": fsPanel, "./courseware-classroom-assets": assetReader,
+  "@pi-desktop/courseware-runtime/node": runtime, "./fs-panel": fsPanel, "./courseware-classroom-assets": assetReader, "./courseware-runtime": { coursewareAuthoringUrl: () => "test-authoring" }, "test-authoring": authoring,
 });
 const { buildMaicCourseware } = await load("../electron/main/courseware-classroom-build.ts", {
-  "@pi-desktop/courseware-runtime/node": runtime, "./courseware-classroom-assets": assetReader, jszip: { default: JSZip },
+  "@pi-desktop/courseware-runtime/node": runtime, "./courseware-classroom-assets": assetReader, "./courseware-runtime": { coursewareAuthoringUrl: () => "test-authoring" }, "test-authoring": authoring, jszip: { default: JSZip },
 });
 const { openCoursewareBuildFiles, openCoursewareBuildUpload } = await load("../electron/main/courseware-build-files.ts");
 const png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=";
@@ -233,4 +234,37 @@ test("canonical build archives edited MAIC content and supports a Quiz-only sour
   assert.deepEqual(Buffer.from(await files.assetBytes(image.assetId)), Buffer.from(png.split(",")[1], "base64"));
   await assert.rejects(openCoursewareBuildUpload(built.directory, built.buildId), /Invalid fixed build file list|Incomplete/);
   await assert.rejects(readFile(join(built.directory, "source.pptx")), /ENOENT/);
+});
+
+test('native assessment upload and reference editing use the live carrier without a classroom mirror', async t => {
+  let native = { nativeTeaching: true, projectId: 'project', revision: 'r1', sourceRevision: 'source', classroom: classroom() };
+  const writes = [];
+  const f = await setup(t, { native: async (operation, args) => {
+    if (operation === 'assessment-context') return { value: structuredClone(native) };
+    assert.equal(operation, 'assessment-write');
+    assert.equal(args.expectedRevision, native.revision);
+    writes.push(args);
+    native = { ...native, revision: 'r' + (writes.length + 1), sourceRevision: 'source' + writes.length, classroom: args.classroom };
+    return { value: structuredClone(native) };
+  } });
+  const opened = await f.coordinator.open({ sessionId: 'session' });
+  assert.equal(opened.nativeTeaching, true);
+  const saved = await f.coordinator.image({ ...fence, sceneId: 'quiz', questionId: 'q', optionValue: 'B', dataUrl: png });
+  assert.equal(saved.classroom.scenes[0].content.questions[0].options[1].image.src, png);
+  assert.deepEqual(writes[0].changedPageIds, ['quiz']);
+  assert.deepEqual(saved.classroom.mediaManifest, []);
+  await assert.rejects(f.coordinator.write({ ...fence, classroom: opened.classroom }), /changed/);
+  const next = await f.coordinator.open({ sessionId: 'session' });
+  assert.equal(next.classroom.scenes[0].content.questions[0].options[1].image.src, png);
+});
+
+test("read-only assessments reject question, image and reference writes before paid work", async t => {
+  let references = 0;
+  const f = await setup(t, { completeReference: async () => { references++; throw Error("Unexpected model request"); } });
+  f.change({ readOnly: true });
+  const next = structuredClone(f.view.classroom); next.scenes[0].content.questions[0].question = "Changed";
+  await assert.rejects(f.coordinator.write({ ...fence, classroom: next }), /read-only/);
+  await assert.rejects(f.coordinator.image({ ...fence, sceneId: "quiz", questionId: "q", dataUrl: png }), /read-only/);
+  await assert.rejects(f.coordinator.reference({ ...fence, sceneId: "slide", actionId: "checkpoint" }), /read-only/);
+  assert.equal(references, 0); assert(!f.calls.some(([method]) => method === "courseware.classroom.write"));
 });

@@ -6,7 +6,7 @@ import { assessmentPageIds, objectsForTeaching, sceneTeachingForPage } from "./c
 import { createNarrationVisuals, type NarrationEvidence } from "./courseware-narration-visuals";
 
 type Host = { call<T>(method: string, params: unknown): Promise<T> };
-type SemanticEvidence = { objectId: string; role: string; aliases: string[]; text: string; teachingTarget: boolean };
+export type SemanticEvidence = { objectId: string; role: string; aliases: string[]; text: string; teachingTarget: boolean };
 type Page = { semantics?: SemanticEvidence[]; pageNumber: number; evidence: NarrationEvidence; summary: string; objects: Array<{ objectId: string; kind: string; text: string; bbox: number[]; name?: string; role?: string; aliases?: string[] }> };
 export type NarrationPageCache = Map<string, { pages: Page[]; plan?: { key: string; value: NarrationPlan } }>;
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
@@ -78,6 +78,14 @@ function sceneVisualEvidence(raw: string, objects: Page["objects"]) {
   return { summary: value.summary, objects: annotated, semantics, issues };
 }
 
+/** Native documents supply live evidence and atomic writes without a Host teaching mirror. */
+export type NativeNarrationSource = {
+  context: { mapping: { sourceSha256: string; revision: string; pages: Array<{ pageId: string; objects: Array<{ objectId: string; importElementId: string }> }> }; project: CoursewareProject; teachingRequirements: unknown[]; assessmentPageIds: string[] };
+  evidence(pageNumber: number): Promise<NarrationEvidence>;
+  visuals: Pick<Awaited<ReturnType<typeof createNarrationVisuals>>, "page" | "dispose">;
+  save(expected: CoursewareProject, pageNumber: number, actions: CoursewareProject["pages"][number]["actions"], semantics?: SemanticEvidence[]): Promise<CoursewareProject>;
+};
+
 /** Saved evidence -> whole-deck arc -> saved per-page teaching. */
 export async function generateSavedNarrationBatch(input: {
   host: Host; sessionId: string; jobId: string; project: CoursewareProject; bytes: Uint8Array;
@@ -85,7 +93,7 @@ export async function generateSavedNarrationBatch(input: {
   selected: number[]; instruction: string; repairRequiredTeaching?: boolean; model: { modelKey: string; thinkingLevel?: string };
   complete: NarrationComplete; completeVision?: (input: CoursewareSceneCompleteInput) => Promise<{ text: string }>;
   current(expected: CoursewareProject): Promise<void>; canDispatch(): boolean;
-  cache?: NarrationPageCache;
+  cache?: NarrationPageCache; native?: NativeNarrationSource;
 }) {
   const { host, sessionId, jobId, project, model } = input;
   const controller = new AbortController();
@@ -103,7 +111,7 @@ export async function generateSavedNarrationBatch(input: {
     return result;
   };
   const current = () => exclusive(() => input.current(expected));
-  let visuals: Awaited<ReturnType<typeof createNarrationVisuals>> | undefined;
+  let visuals: Pick<Awaited<ReturnType<typeof createNarrationVisuals>>, "page" | "dispose"> | undefined;
   const call = async (system: string, data: unknown, images: CoursewareSceneCompleteInput["images"] = []) => {
     signal.throwIfAborted(); await current();
     const bounded = AbortSignal.any([signal, AbortSignal.timeout(180_000)]);
@@ -116,7 +124,7 @@ export async function generateSavedNarrationBatch(input: {
   };
   try {
     await current();
-    const context = await host.call<{ mapping: { sourceSha256: string; revision: string; pages: Array<{ pageId: string; objects: Array<{ objectId: string; importElementId: string }> }> } }>("courseware.project.context", { sessionId, projectId: project.projectId });
+    const context = input.native?.context ?? await host.call<{ mapping: { sourceSha256: string; revision: string; pages: Array<{ pageId: string; objects: Array<{ objectId: string; importElementId: string }> }> } }>("courseware.project.context", { sessionId, projectId: project.projectId });
     if (context.mapping.sourceSha256 !== project.source.sha256) throw new Error("Narration mapping source changed");
     const teachingByPage = new Map(project.pages.map(page => [page.pageId, sceneTeachingForPage(context, project, page.pageId)]));
     const assessments = assessmentPageIds(context, project);
@@ -126,11 +134,11 @@ export async function generateSavedNarrationBatch(input: {
     const allNumbers = project.pages.flatMap((page, index) => assessments.has(page.pageId) ||
       input.repairRequiredTeaching && !input.selected.includes(index + 1) ? [] : [index + 1]);
     const missing = allNumbers.filter(pageNumber => !pages.has(pageNumber));
-    if (missing.length && input.completeVision) visuals = await createNarrationVisuals(input.bytes, signal);
+    if (missing.length && input.completeVision) visuals = input.native ? { ...input.native.visuals } : await createNarrationVisuals(input.bytes, signal);
     await parallel(missing, signal, async pageNumber => {
       try {
         signal.throwIfAborted(); await current();
-        const evidence = await host.call<NarrationEvidence>("courseware.pageEvidence", { sessionId, jobId, pageNumber });
+        const evidence = input.native ? await input.native.evidence(pageNumber) : await host.call<NarrationEvidence>("courseware.pageEvidence", { sessionId, jobId, pageNumber });
         const binding = context.mapping.pages.find(p => p.pageId === project.pages[pageNumber - 1].pageId);
         if (!binding) throw new Error("Missing saved-page object mapping");
         const semantics = project.taskType === "scene" ? objectsForTeaching(context, project, project.pages[pageNumber - 1].pageId) ?? [] : [];
@@ -143,7 +151,9 @@ export async function generateSavedNarrationBatch(input: {
         });
         let summary = "";
         let semanticEvidence: SemanticEvidence[] | undefined;
-        if (visuals) {
+        // Native peers supply course context; only requested pages need paid visual grounding.
+        const groundVisual = !input.native || input.selected.includes(pageNumber);
+        if (visuals && groundVisual) {
           const visual = await visuals.page(pageNumber, evidence);
           if (visual.diagnostic) diagnostics.push({ pageNumber, message: visual.diagnostic });
           if (visual.images.length) {
@@ -179,8 +189,8 @@ export async function generateSavedNarrationBatch(input: {
             }
           }
         }
-        if (!summary.trim() && !evidence.text.trim() && !evidence.notes.trim()) throw new Error("No readable page evidence; choose a vision-capable model and check page rasterization or embedded images");
-        if (!summary.trim()) diagnostics.push({ pageNumber, message: "Visual grounding unavailable; narration uses text/notes only and visual completeness has not been verified" });
+        if (groundVisual && !summary.trim() && !evidence.text.trim() && !evidence.notes.trim()) throw new Error("No readable page evidence; choose a vision-capable model and check page rasterization or embedded images");
+        if (!summary.trim() && groundVisual) diagnostics.push({ pageNumber, message: "Visual grounding unavailable; narration uses text/notes only and visual completeness has not been verified" });
         if (summary.length > 4000) throw new Error("Visual page summary exceeds limit");
         for (const element of evidence.elements) delete element.imageBase64;
         pages.set(pageNumber, { pageNumber, evidence, summary, objects, semantics: semanticEvidence });
@@ -278,7 +288,7 @@ export async function generateSavedNarrationBatch(input: {
           diagnostics.push({ pageNumber, message: `Narration pacing review: fixed learner waits total ${pauses}s, exceeding the ${teaching.durationSeconds}s classroom activity budget before speech or media. Actual speech duration requires decoded TTS; do not pad or truncate the lesson.` });
         await exclusive(async () => {
           await input.current(expected); signal.throwIfAborted();
-          const { project: saved } = await host.call<{ project: unknown }>("courseware.narration.save", { sessionId, jobId,
+          const { project: saved } = input.native ? { project: await input.native.save(expected, pageNumber, write.actions, prepared.semantics) } : await host.call<{ project: unknown }>("courseware.narration.save", { sessionId, jobId,
             baseline: expected, ...(input.repairRequiredTeaching ? { repairRequiredTeaching: true } : {}), ...(project.taskType === "scene" && prepared.semantics ? { semantics: prepared.semantics } : {}), write: { ...write, expectedTeachingRevision: expected.teachingRevision,
               actions: input.repairRequiredTeaching ? write.actions : write.actions.map(action => action.type === "speech" ? { ...action, source: "generated" } : action) } });
           if (!isCoursewareProject(saved) || saved.projectId !== project.projectId || saved.source.sha256 !== project.source.sha256)

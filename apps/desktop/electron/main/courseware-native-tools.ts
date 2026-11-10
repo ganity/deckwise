@@ -10,7 +10,8 @@ export class CoursewareNativeTools {
   constructor(private teaching: CoursewareTeachingCoordinator, private candidates: CoursewareCandidateCoordinator,
     private audio: CoursewareNativeAudio, private route: Route, private session: () => string | null, private video?: import("./courseware-native-video").CoursewareNativeVideo,
     private music?: import("./courseware-native-music").CoursewareNativeMusic, private ensureOpen?: (sessionId: string, canDispatch: () => boolean) => Promise<void>,
-    private ensureSaved?: (sessionId: string, canDispatch: () => boolean) => Promise<void>) {}
+    private ensureSaved?: (sessionId: string, canDispatch: () => boolean) => Promise<void>,
+    private assessmentMedia?: Pick<import("./courseware-assessment-media").CoursewareAssessmentMedia, "execute">) {}
 
   async execute(sessionId: string, name: string, args: unknown, canDispatch: () => boolean): Promise<{ value: unknown } | undefined> {
     const result = await this.executeUnsaved(sessionId, name, args, canDispatch);
@@ -21,7 +22,10 @@ export class CoursewareNativeTools {
       if (sessionId !== this.session() || !canDispatch()) throw new Error("Native teaching owner changed before save");
       await this.ensureSaved(sessionId, canDispatch);
       if (sessionId !== this.session() || !canDispatch()) throw new Error("Native teaching owner changed during save");
-      return { value: { ...value, saved: true } };
+      const complete = name !== "courseware_narration_propose" || !Array.isArray(Reflect.get(value, "failures")) || Reflect.get(value, "failures").length === 0;
+      const pages = Reflect.get(value, "pages");
+      return { value: { ...value, saved: complete, ...(name === "courseware_narration_propose" && Array.isArray(pages)
+        ? { pages: pages.map(page => ({ ...page, saved: page.applied === true })) } : {}) } };
     }
     return result;
   }
@@ -85,14 +89,8 @@ export class CoursewareNativeTools {
     if (input.sourceSha256 !== project.source.sha256) throw new Error("Native source changed; read teaching context again");
     if (name === "courseware_narration_propose") {
       if (typeof input.instruction !== "string" || !input.instruction.trim() || input.instruction.length > 8000) throw new Error("Invalid narration instruction");
-      const results = [];
-      for (const pageNumber of numbers) {
-        check();
-        const current = (await this.route("open", {}, pageNumber))!.value as CoursewareTeachingView;
-        if (current.teaching?.pageType && current.teaching.pageType !== "slide") continue;
-        results.push(await this.candidates.proposeNativeNarration(sessionId, pageNumber, input.instruction, canDispatch, input.repairRequiredTeaching === true));
-      }
-      return { value: { applied: true, saved: false, pages: results } };
+      const result = await this.candidates.proposeNativeNarrationBatch(sessionId, numbers, input.instruction, canDispatch, input.repairRequiredTeaching === true);
+      return { value: { ...result, saved: false, pages: result.savedPages.map(page => ({ ...page, applied: true, saved: false })) } };
     }
     if (!["courseware_media_prepare", "courseware_media_refresh"].includes(name) || !["tts", "video", "music"].includes(String(input.kind)) ||
         !Number.isInteger(input.pageNumber) || Number(input.pageNumber) < 1 || Number(input.pageNumber) > project.pages.length) throw new Error("Unsupported native media command");
@@ -137,6 +135,7 @@ export class CoursewareNativeTools {
   }
 
   private async assessments(input: Record<string, unknown>, view: CoursewareTeachingView, check: () => void) {
+    if (this.assessmentMedia) return this.assessmentMedia.execute(this.session()!, input, () => { check(); return true; });
     const project = view.project;
     const questionSpeech = (checkpoint: Record<string, unknown>) => "assessment-speech-" + createHash("sha256").update(String(checkpoint.id)).digest("hex").slice(0, 32);
     const readings = project.pages.flatMap((page, index) => page.actions.flatMap((action, actionIndex) => {

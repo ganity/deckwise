@@ -30,7 +30,7 @@ export class CoursewareNativeVideo {
     principal.assertCurrent();
     if (this.host() !== host || this.session() !== sessionId) throw new Error("Native video owner changed");
     const page = view.project.pages[pageNumber - 1];
-    return (journal?.value.intents ?? []).filter(i => i.pageId === page.pageId && page.actions.some(a => a.id === i.actionId && a.type === "video_slot" && a.prompt === i.request.input))
+    return (journal?.value.intents ?? []).filter(i => i.phase !== "prepared" && i.pageId === page.pageId && page.actions.some(a => a.id === i.actionId && a.type === "video_slot" && a.prompt === i.request.input))
       .map(i => ({ kind: "video", intentId: i.id, actionId: i.actionId, pageNumber, sourceSha256: view.project.source.sha256 }));
   }
 
@@ -51,7 +51,7 @@ export class CoursewareNativeVideo {
     const save = async () => { principal.assertCurrent(); journal = await host.call<Journal>("courseware.mediaRelay.write", {
       principalKey: principal.key, key, expectedRevision: journal?.revision ?? 0, value: { intents } }); };
     const page = view.project.pages[pageNumber - 1];
-    if (!page || page.locked) throw new Error("Native video page locked");
+    if (view.readOnly || !page || page.locked) throw new Error("Native video page locked");
     let intent: Intent | undefined;
     if (prepare) {
       const slot = page.actions.find(a => a.id === input.actionId && ["video_slot", "video_clip"].includes(String(a.type)));
@@ -65,6 +65,7 @@ export class CoursewareNativeVideo {
         intents.push(intent); await save();
       }
     } else intent = intents.find(i => i.id === input.intentId && i.pageId === page.pageId);
+    if (!prepare && intent?.phase === "prepared") throw new Error("Video task has not been submitted");
     if (!intent || !page.actions.some(a => a.id === intent!.actionId && a.prompt === intent!.request.input)) throw new Error("Native video task is stale");
     const job = { kind: "video", intentId: intent.id, pageNumber, sourceSha256: view.project.source.sha256 };
     if (this.running.has(intent.id)) throw new Error("Native video operation already in progress");

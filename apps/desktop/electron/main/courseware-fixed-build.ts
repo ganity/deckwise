@@ -1,3 +1,4 @@
+import { readNativeTeachingPackage } from "./courseware-native-package";
 import { createHash, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -131,8 +132,17 @@ export class CoursewareFixedBuildCoordinator {
         reviewedWarningCodes: codes,
       }, { nativeTeaching });
       try {
+        let nativeAssessments: Record<string, unknown> | undefined;
+        if (nativeTeaching) {
+          const sourcePath = Reflect.get(raw, "sourcePath");
+          if (typeof sourcePath !== "string") throw new Error("Native snapshot source unavailable");
+          const bytes = await readFile(sourcePath);
+          if (createHash("sha256").update(bytes).digest("hex") !== snapshot.source.sha256) throw new Error("Native snapshot source changed");
+          nativeAssessments = (await readNativeTeachingPackage(bytes))?.assessments;
+        }
         const build = await buildFixedCourseware(input, {
           workerDirectory: this.workerDirectory, outputDirectory: this.outputDirectory, signal: owner.abort.signal,
+          ...(nativeAssessments ? { nativeAssessments } : {}),
         });
         await this.assertOwner(owner);
         const previewId = randomUUID();

@@ -27,6 +27,14 @@ describe('generated native PPTX', () => {
     await expect(packNativeTeachingPptx({ ...input, source: bytes })).rejects.toThrow('already contains');
     await expect(packNativeTeachingPptx({ ...input, pages: [] })).rejects.toThrow('physical');
   });
+  it('embeds complete generated Quiz content for export before the first edit', async () => {
+    const quiz = { type: 'quiz', interactionMode: 'assessment_review', questions: [{ id: 'q', type: 'single', question: 'Choose',
+      options: [{ value: 'A', label: 'Hello' }, { value: 'B', label: 'Bye' }], answer: ['B'], explanation: 'Greeting', referenceAnswer: 'Hello' }] };
+    const bytes = await packNativeTeachingPptx({ source: await source(), title: 'Quiz', pages: [{ pageId: 'page', actions: [] }], generation: { pages: [{ pageId: 'page', quiz }] } });
+    const xml = await (await JSZip.loadAsync(bytes)).file('customXml/deckwise-native.xml')!.async('string');
+    const teaching = JSON.parse(xml.slice(xml.indexOf('>') + 1, xml.lastIndexOf('<')).replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&amp;', '&'));
+    expect(teaching.assessments.page).toEqual(quiz);
+  });
   it('reads only speaker-note content for ordinary PPT exports', async () => {
     const zip = await JSZip.loadAsync(await source());
     const rel = 'ppt/slides/_rels/slide1.xml.rels';

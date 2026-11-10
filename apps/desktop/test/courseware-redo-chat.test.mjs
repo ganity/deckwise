@@ -23,6 +23,7 @@ function setup() {
   const teaching = { async withSaved(_session, run) { return run(host, "job", { path: "/private/source.pptx", sha256: project.source.sha256 }, { ...editor }); },
     async assertCurrent(_snapshot, pinned) { assert.deepEqual(pinned, editor); } };
   const imports = {
+    "./courseware-native-narration": { generateNativeNarration() { throw new Error("Unexpected native narration"); } },
     "@pi-desktop/shared": shared, "@pi-desktop/agent-runtime": runtime,
     "./courseware-runtime": { coursewareAuthoringUrl: () => installed ? "file:///private/authoring.mjs" : undefined },
     "./courseware-style-batch-candidate": { stagePageStyleBatchCandidate() { assert.fail("Unexpected batch"); } },

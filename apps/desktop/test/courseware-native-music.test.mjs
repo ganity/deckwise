@@ -38,7 +38,7 @@ function setup() {
   } };
   const route = async (op, args) => { if (op === "open") return { value: structuredClone(current) }; assert.equal(op, "adopt-audio"); adopted = args.command; return { value: view }; };
   const music = new exports.CoursewareNativeMusic({ getCoursewarePrincipal: () => ({ assertCurrent() {} }) }, () => host, () => "chat", route, async () => 1500);
-  return { music, view, calls, bytes, adopted: () => adopted, stale: () => { current.project.teachingRevision = "changed"; } };
+  return { music, view, calls, bytes, adopted: () => adopted, readOnly: () => { view.readOnly = true; current.readOnly = true; }, stale: () => { current.project.teachingRevision = "changed"; } };
 }
 test("native music generation/export adopts verified bytes into the intended slot without a Host teaching mirror", async () => {
   const f = setup();
@@ -46,4 +46,16 @@ test("native music generation/export adopts verified bytes into the intended slo
   assert.equal(result.audioReady, true); assert.equal(f.adopted().actionId, "music.slot"); assert.equal(f.adopted().bytes.byteLength, f.bytes.length);
   assert.equal(f.adopted().kind, "music"); assert(f.calls.every(call => call.startsWith("courseware.mediaCanvas.")));
   f.stale(); await assert.rejects(f.music.execute({ intentId: result.job.intentId }, false, 1, f.view, () => true), /changed/);
+});
+
+test("native music rejects a changed approved prompt before creating or submitting a paid task", async () => {
+  const f = setup();
+  await assert.rejects(f.music.execute({ actionId: "music.slot", model: "model", prompt: "Different song", music: { title: "Family" } }, true, 1, f.view, () => true), /prompt changed/);
+  assert.deepEqual(f.calls, []);
+});
+
+test("native music rejects a read-only document before media storage or dispatch", async () => {
+  const f = setup(); f.readOnly();
+  await assert.rejects(f.music.execute({ actionId: "music.slot", model: "model", prompt: "Family song", music: { title: "Family" } }, true, 1, f.view, () => true), /locked/);
+  assert.deepEqual(f.calls, []);
 });

@@ -18,7 +18,8 @@ function nativePages(pages: NativeGenerationPage[]) {
   return pages.map(page => {
     if (page.teaching && !isCoursewareSceneTeaching(page.teaching)) throw new Error("Invalid generated teaching requirements");
     const question = page.teaching?.question, actions: Array<Record<string, unknown>> = [];
-    let narration = page.narration;
+    // Planning narration is evidence for the structured generator, never a completed speech.
+    let narration = "";
     const title = page.title ?? page.teaching?.objective ?? "Teaching";
     if (page.quiz) {
       const classroom = parseMaicClassroom({ id: "generation", stage: { id: "generation", name: title, createdAt: 0, updatedAt: 0 },
@@ -63,7 +64,7 @@ export async function publishNativeGeneratedCourse(input: {
   const authoring = await import(/* @vite-ignore */ url) as typeof import("@pi-desktop/courseware-runtime/authoring");
   if (typeof authoring.packNativeTeachingPptx !== "function") throw new Error("Installed courseware compiler requires the native generation update");
   const bytes = await authoring.packNativeTeachingPptx({ source: input.pptx, title: input.title, pages: nativePages(input.pages),
-    generation: { ...(educationContext ? { educationContext } : {}), sourceSha256: hash(input.pptx), pages: input.pages.map(({ pageId, title, teaching, quiz }) => ({ pageId, title, teaching, quiz })) } });
+    generation: { ...(educationContext ? { educationContext } : {}), sourceSha256: hash(input.pptx), pages: input.pages.map(({ pageId, title, narration, teaching, quiz }) => ({ pageId, title, narration, teaching, quiz })) } });
   await check();
   const native = await readNativeTeachingPackage(bytes);
   if (!native || native.pages.length !== input.pages.length) throw new Error("Generated native package validation failed");

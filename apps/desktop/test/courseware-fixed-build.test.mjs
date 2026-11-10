@@ -25,7 +25,8 @@ function setup() {
   const module = { exports: {} };
   new Function("require", "exports", outputText)((id) => {
     if (id === "@pi-desktop/shared") return shared;
-    if (id === "node:crypto") return { randomUUID: () => crypto.randomUUID(), createHash: () => ({ update: () => ({ digest: () => "c".repeat(64) }) }) };
+    if (id === "./courseware-native-package") return { readNativeTeachingPackage: async () => undefined };
+    if (id === "node:crypto") return { randomUUID: () => crypto.randomUUID(), createHash: () => ({ update: () => ({ digest: () => "a".repeat(64) }) }) };
     if (id === "node:fs/promises") return { readFile: async () => Buffer.from("worker manifest") };
     if (id === "node:path") return { join: (...parts) => parts.join("/") };
     if (id === "@pi-desktop/courseware-runtime/node") return { FixedBuildError,

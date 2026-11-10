@@ -53,3 +53,25 @@ it("claims linked native effects once and follows native preset and duration edi
   source.pptxAnimation!.steps[0].items.push({ ...item, id: "another" });
   expect(() => detachLinkedSpeechAnimations(source, actions, mapping)).toThrow("NATIVE_ANIMATION_LINK_STALE");
 });
+
+it('gives persisted speech cues one animation owner across separate native groups and audio triggers', () => {
+  const source = page(), first = source.pptxAnimation!.steps[0];
+  first.items[0].nativePreset!.verifiedSpeechMotion = true;
+  const second = structuredClone(first); second.id = 'click-2'; second.items[0].id = 'second';
+  second.items[0].nativePreset = { version: 1, class: 'emph', id: 26, verifiedSpeechMotion: true };
+  second.items[0].durationMs = 400;
+  const unrelated = structuredClone(first); unrelated.id = 'click-3'; unrelated.items[0].id = 'unrelated';
+  unrelated.items[0].target!.shapeId = '99';
+  source.pptxAnimation!.steps.push(second, unrelated);
+  const before = structuredClone(source);
+  const actions = [{ type: 'speech', visualCues: [
+    { atMs: 0, endMs: 500, effect: { type: 'element_animation', elementId: 'logical', effect: 'fadeIn' } },
+    { atMs: 100, endMs: 500, trigger: { version: 1, kind: 'end' }, effect: { type: 'element_animation', elementId: 'logical', effect: 'pulse' } },
+  ] }];
+  const mapping = [{ objectId: 'logical', importElementId: 'target' }];
+  expect(detachLinkedSpeechAnimations(source, actions, mapping).pptxAnimation?.steps).toEqual([unrelated]);
+  expect(source).toEqual(before);
+  expect(detachLinkedSpeechAnimations(source, [...actions, { type: 'native_animation', visualCues: [] }], mapping)).toBe(source);
+  first.items[0].nativePreset!.verifiedSpeechMotion = false;
+  expect(detachLinkedSpeechAnimations(source, actions, mapping).pptxAnimation?.steps).toEqual([first, unrelated]);
+});

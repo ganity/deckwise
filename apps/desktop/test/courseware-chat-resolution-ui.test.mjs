@@ -29,27 +29,19 @@ function setup() {
   render(); return { props, change, calls, nodes, render, button, input };
 }
 
-test("closing requires explicit note and confirmation; preserves missing-step display", () => {
-  const f = setup(); f.button("chatResolutionReview").props.onClick(); f.render();
-  assert(f.button("chatResolutionConfirm").props.disabled);
-  f.input("textarea").props.onChange({ target: { value: "Retain narration; cancel remaining request." } }); f.render();
-  assert(f.button("chatResolutionConfirm").props.disabled);
-  f.input("input").props.onChange({ target: { checked: true } }); f.render();
-  assert.equal(f.button("chatResolutionConfirm").props.disabled, false);
-  f.button("chatResolutionConfirm").props.onClick();
-  assert.deepEqual(f.calls, [{ changeGroupId: "group", receiptSha256: "a".repeat(64), note: "Retain narration; cancel remaining request." }]);
-  f.input("textarea").props.onChange({ target: { value: "Changed disposition" } }); f.render();
-  assert(f.button("chatResolutionConfirm").props.disabled);
-  f.change.resolution = { note: "Reviewed" }; f.render();
-  assert.equal(f.button("chatResolutionConfirm"), undefined);
-  assert(JSON.stringify(f.nodes()).includes("Missing narration"));
+test("chat changes retain failed, omitted and native-unsaved results without a resolution gate", () => {
+  const f = setup();
+  f.change.plan.items.push({ label: "Native response", status: "native-unsaved" });
+  f.change.candidates = [{ candidateId: "failed-call", status: "rejected" }]; f.render();
+  const rendered = JSON.stringify(f.nodes());
+  for (const text of ["Missing narration", "chatPlanNotRecorded", "Native response", "chatPlanNativeResponse", "failed-call", "chatCandidateRejected"]) assert(rendered.includes(text));
+  assert(!f.nodes().some(node => ["button", "textarea", "input"].includes(node.type)));
+  assert.deepEqual(f.calls, []);
+  f.change.resolution = { note: "Previously reviewed" }; f.render();
+  assert(JSON.stringify(f.nodes()).includes("chatResolutionClosed"));
   assert.equal(f.change.plan.items[0].status, "not-recorded");
 });
 
-test("disabled and foreign-page reviews cannot close; removed targets need all remaining pages confirmed", () => {
-  const f = setup(); f.props.disabled = true; f.render(); assert(f.button("chatResolutionReview").props.disabled);
-  f.props.disabled = false; f.props.view.pageId = "other"; f.render(); assert(f.button("chatResolutionReview").props.disabled);
-  f.props.view.project.pages = [{ pageId: "other", reviewState: "review" }]; f.render(); assert(f.button("chatResolutionReview").props.disabled);
-  f.props.view.project.pages[0].reviewState = "ready"; f.render(); assert.equal(f.button("chatResolutionReview").props.disabled, false);
-  delete f.change.receiptSha256; f.render(); assert.equal(f.button("chatResolutionReview"), undefined);
+test("empty change history has no panel", () => {
+  const f = setup(); f.props.view.chatChanges = []; f.render(); assert.deepEqual(f.nodes(), []);
 });

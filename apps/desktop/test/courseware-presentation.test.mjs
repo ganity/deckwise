@@ -189,11 +189,54 @@ test("ordinary export publishes complete native teaching and saved generation su
   assert.deepEqual(await readFile(f.args.path), original);
   const bytes = await readFile(result.path), native = await readNativeTeachingPackage(bytes);
   assert.equal(native.pages.length, 3);
-  assert.equal(native.pages[0].actions[0].text, "Look at father. Say father.");
+  assert.equal(native.pages[0].actions.some(a => a.type === "speech"), false, "PPT Master notes must remain evidence until structured narration is generated");
+  assert.match(await (await JSZip.loadAsync(bytes)).file("ppt/notesSlides/notesSlide1.xml").async("string"), /Look at father\. Say father\./);
   assert.deepEqual(native.pages[1].actions[1].response, { kind: "single", options: ["father", "mother", "brother", "sister"], answerIndices: [0] });
   assert.deepEqual(native.pages[2].actions[1].response, pages[2].teaching.question.response);
   assert.deepEqual(native.pages[2].actions[1].referenceAnswer, pages[2].teaching.question.referenceAnswer);
   assert.equal((await f.workflow.execute(f.sessionId, "courseware_presentation_adopt", f.args, () => true)).path, result.path);
+
+  // Drive the adopted document through the real native narration coordinator.
+  const project = structuredClone(result.project);
+  const view = () => ({ nativeTeaching: true, viewId: "native.page-1", pageId: "page-1", pageNumber: 1,
+    project: structuredClone(project), teaching: pages[0].teaching,
+    teachingRequirements: pages.map((p, i) => ({ pageId: `page-${i + 1}`, teaching: p.teaching })) });
+  const route = async (operation, args) => {
+    if (operation === "narration-visual") {
+      const png = Buffer.alloc(24); png.writeUInt32BE(0x89504e47); png.writeUInt32BE(1280, 16); png.writeUInt32BE(720, 20);
+      return { value: { dataUrl: "data:image/png;base64," + png.toString("base64") } };
+    }
+    if (operation === "write") { project.pages[0].actions = structuredClone(args.actions); project.teachingRevision += "-authored"; }
+    else assert.equal(operation, "open");
+    return { value: view() };
+  };
+  const target = native.identity.pages[0].objects[0].logicalId;
+  const teachingBridge = { native: async (operation, args) => operation === "narration-context" ? { value: {
+    view: view(), text: "father", editor: { projectId: "workspace", documentId: "ppt", sessionId: f.sessionId, editGeneration: 1, readOnly: false },
+    evidence: { notes: "Look at father. Say father.", visualSummary: "father", objects: [{ objectId: target, name: "father", aliases: ["father"], kind: "text", text: "father", bbox: [80, 80, 900, 200] }] },
+  } } : route(operation, args) };
+  const { CoursewareCandidateCoordinator } = load("./courseware-candidates");
+  const { CoursewareNativeTools } = load("./courseware-native-tools");
+  const segments = ["Look at father.", "Say father."];
+  const candidates = new CoursewareCandidateCoordinator(teachingBridge, async ({ messages, system }) => {
+    const data = JSON.parse(messages[0].content);
+    if (data.outline) {
+      assert.equal(data.outline[0].notes, "Look at father. Say father.");
+      return { text: JSON.stringify({ goal: "Teach father", pages: data.requestedPageNumbers.map(pageNumber => ({ pageNumber, purpose: "Name father", bridge: "Practice next", focus: "father" })) }), modelKey: "local/test" };
+    }
+    assert.equal(data.evidence.notes, "Look at father. Say father.");
+    assert.match(system, /split when the focus changes/);
+    assert.match(system, /omit interaction blocks and teacher_continue waits/);
+    return { text: JSON.stringify({ blocks: segments.map(text => ({ type: "speech", text, attention: { type: "highlight", objectIds: [target], animation: "pulse" } })) }), modelKey: "local/test" };
+  }, undefined, async () => ({ modelKey: "local/test" }));
+  const tools = new CoursewareNativeTools(teachingBridge, candidates, {}, route, () => f.sessionId);
+  const context = () => tools.execute(f.sessionId, "courseware_narration_context", {}, () => true);
+  assert.equal((await context()).value.pages[0].narrationReady, false);
+  assert((await context()).value.completion.issues.some(i => i.code === "NARRATION_MISSING" && i.pageNumber === 1));
+  await tools.execute(f.sessionId, "courseware_narration_propose", { sourceSha256: project.source.sha256, pageNumbers: [1], instruction: "Explain each teaching move separately" }, () => true);
+  assert.deepEqual(project.pages[0].actions.filter(a => a.type === "speech").map(a => a.text), segments);
+  assert.equal((await context()).value.pages[0].narrationReady, true);
+
   await assert.rejects(f.host.call("courseware.project.context", { sessionId: f.sessionId, projectId: native.documentId }), /not found|NOT_FOUND/i);
   const restarted = await f.restart();
   assert.equal((await restarted.call("courseware.task.get", { sessionId: f.sessionId })).task.generatedPath, result.path);

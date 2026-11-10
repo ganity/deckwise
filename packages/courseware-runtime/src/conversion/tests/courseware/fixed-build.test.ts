@@ -578,3 +578,17 @@ it('builds saved WiseOffice motion groups with exactly one speech animation owne
     } finally { loaded.dispose(); }
   } finally { await rm(temporary, { recursive: true, force: true }); }
 }, 30_000);
+
+it('archives edited native quiz images and loads the result as a quiz with the saved answer', async () => {
+  const pageId = input.teaching.pages[0].pageId;
+  const quiz = { type: 'quiz', interactionMode: 'classroom_instant_feedback', questions: [{ id: 'edited', type: 'single', question: 'Choose two',
+    options: [{ value: 'A', label: 'One' }, { value: 'B', label: 'Two', image: { src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=', mimeType: 'image/png' } }], answer: ['B'], referenceAnswer: 'Two' }] };
+  const build = await buildFixedCourseware(input, { workerDirectory, outputDirectory, nativeAssessments: { [pageId]: quiz } });
+  const bytes = await readFile(path.join(build.directory, 'package.json'));
+  const loaded = await loadFixedBuild(bytes, build.packageHash, async asset => new Uint8Array(await readFile(path.join(build.directory, asset.path))));
+  expect(loaded.scenes[0].content.type).toBe('quiz');
+  const content: any = loaded.scenes[0].content;
+  expect(content.questions[0].answer).toEqual(['B']);
+  expect(content.questions[0].options[1].image.src).toMatch(/^blob:/);
+  loaded.dispose();
+}, 30000);

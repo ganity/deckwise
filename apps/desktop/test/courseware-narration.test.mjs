@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { readFile } from "node:fs/promises";
 import { setTimeout as delay } from "node:timers/promises";
 import test from "node:test";
@@ -6,11 +8,22 @@ import ts from "typescript";
 import * as shared from "../../../packages/shared/dist/index.js";
 import * as runtime from "../../../packages/agent-runtime/dist/index.js";
 
+const require = createRequire(import.meta.url);
+function loadNative(id) {
+  if (id === "@pi-desktop/shared") return shared;
+  if (id === "@pi-desktop/agent-runtime") return runtime;
+  if (id === "./courseware-narration-visuals") return {};
+  if (!id.startsWith("./")) return require(id);
+  const exports = {};
+  new Function("require", "exports", ts.transpileModule(readFileSync(new URL(`../electron/main/${id.slice(2)}.ts`, import.meta.url), "utf8"), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText)(loadNative, exports);
+  return exports;
+}
 const source = await readFile(new URL("../electron/main/courseware-candidates.ts", import.meta.url), "utf8");
 const { outputText } = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } });
 let authoringUrl;
 const module = { exports: {} };
 new Function("require", "exports", outputText)((id) => {
+  if (id === "./courseware-native-narration") return loadNative(id);
   if (id === "./courseware-source-candidate") return { stagePageFadeCandidate() { throw new Error("Unexpected fade call in narration test"); } };
   if (id === "./courseware-style-batch-candidate") return { stagePageStyleBatchCandidate() { throw new Error("Unexpected batch in narration test"); } };
   if (id === "./courseware-redo-candidate") return { stagePageRedoCandidate() { throw new Error("Unexpected redo call in narration test"); } };
@@ -320,18 +333,26 @@ test("fade, redo and confirmed batch keep their existing dedicated delegates", a
 
 test("native generated narration keeps page requirements, live targets and adopted clips through rewrite and repair", async () => {
   const f = setup(async () => ({ modelKey: "provider/model" })), page = f.project.pages[0];
+  page.actions.push({ id: "bound", type: "native_animation", version: 1, sourceSha256: f.project.source.sha256, stepIndex: 0 });
   page.actions.push({ id: "song", type: "audio_clip", audioAssetId: "music-" + "b".repeat(64), durationMs: 1500 });
+  f.project.taskType = "plain";
   const teaching = { pageType: "slide", phase: "explore", objective: "Name the apple", durationSeconds: 30, requiredObjects: ["apple"] };
-  const captured = () => ({ view: { nativeTeaching: true, viewId: "native-page", pageId: page.pageId, pageNumber: 1, project: structuredClone(f.project), teaching },
-    text: "A red apple.", editor: { ...f.editor, readOnly: false }, evidence: { notes: "Point at the apple.", visualSummary: "A red apple.",
+  const captured = () => ({ view: { nativeTeaching: true, viewId: "native-page", pageId: page.pageId, pageNumber: 1, project: structuredClone(f.project), teaching, teachingRequirements: [{ pageId: page.pageId, teaching }] },
+    text: "A red apple.", editor: { ...f.editor, readOnly: false }, evidence: { width: 1280, height: 720, notes: "Point at the apple.", visualSummary: "A red apple.",
       objects: [{ objectId: "apple", name: "apple", kind: "shape", text: "", bbox: [10, 20, 80, 80], aliases: ["apple"] }] } });
   const writes = [];
   f.teaching.native = async (operation, args) => {
+    if (operation === "narration-visual") {
+      const png = Buffer.alloc(24); png.writeUInt32BE(0x89504e47); png.writeUInt32BE(1280, 16); png.writeUInt32BE(720, 20);
+      return { value: { dataUrl: "data:image/png;base64," + png.toString("base64") } };
+    }
     if (operation === "narration-context") return { value: captured() };
     assert.equal(operation, "write"); writes.push(args);
     page.actions = structuredClone(args.actions); f.project.teachingRevision += "saved";
     return { value: captured().view };
   };
+  const originalComplete = f.coordinator.complete;
+  f.coordinator.complete = async args => args.system.startsWith('Plan a coherent course') ? { text: JSON.stringify({ goal: 'Name the apple', pages: [{ pageNumber: 1, purpose: 'Name', bridge: 'Practice', focus: 'apple' }] }) } : originalComplete(args);
   await f.coordinator.proposeNativeNarration("chat", 1, "Explain the apple", () => true);
   const input = JSON.parse(f.requests[0].messages[0].content);
   assert.deepEqual(input.coursePlan.teaching, teaching);
@@ -339,6 +360,7 @@ test("native generated narration keeps page requirements, live targets and adopt
   assert.equal(input.evidence.notes, "Point at the apple.");
   assert.equal(writes[0].actions.find(action => action.id === "song").audioAssetId, "music-" + "b".repeat(64));
   assert.equal(writes[0].actions.find(action => action.id === "song").durationMs, 1500);
+  assert.deepEqual(writes[0].actions.find(action => action.id === "bound"), { id: "bound", type: "native_animation", version: 1, sourceSha256: f.project.source.sha256, stepIndex: 0 });
   const before = page.actions.filter(action => action.type === "speech").map(action => action.text);
   await f.coordinator.proposeNativeNarration("chat", 1, "Preserve speech", () => true, true);
   assert.deepEqual(page.actions.filter(action => action.type === "speech").map(action => action.text), before);

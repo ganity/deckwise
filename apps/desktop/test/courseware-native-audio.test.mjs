@@ -61,3 +61,14 @@ test("native paid speech retains durable task identity and adopts only through n
   f.view.project.pages[0].actions[0].text = "Changed after submission";
   await assert.rejects(restarted.execute("tts:adopt", { ...f.args(), intentId: prepared.intentId }, 1, f.view), /stale/);
 });
+test('read-only native speech rejects preparation and late submission before provider dispatch', async () => {
+  const f = setup(), service = f.make();
+  f.view.readOnly = true;
+  await assert.rejects(service.execute('tts:prepare', { ...f.args(), actionId: 'speech', model: 'voice-model', voice: null }, 1, f.view), /read.only|changed/i);
+  f.view.readOnly = false;
+  const intent = await service.execute('tts:prepare', { ...f.args(), actionId: 'speech', model: 'voice-model', voice: null }, 1, f.view);
+  const quote = await service.execute('tts:quote', { ...f.args(), intentId: intent.intentId }, 1, f.view);
+  f.view.readOnly = true;
+  await assert.rejects(service.execute('tts:submit', { ...f.args(), intentId: intent.intentId, quoteId: quote.quoteId }, 1, f.view), /read.only|changed/i);
+  assert.equal(f.submits(), 0);
+});

@@ -15,6 +15,7 @@ const load = async file => {
     if (id === 'node:crypto') return crypto;
     if (id === 'node:fs/promises') return fs;
     if (id === 'node:path') return path;
+    if (id === './courseware-runtime') return { coursewareAuthoringUrl: () => { throw Error('Unexpected native compiler'); } };
     if (id === '@pi-desktop/courseware-runtime/node') return runtime;
     if (id === './fs-panel') return { resolveRealPathForCreateWithinRoot: async (root, value) => path.join(root, value) };
     if (id === './courseware-classroom-assets') return { readClassroomAsset: async (root, asset) => fs.readFile(path.join(root, asset.url)) };

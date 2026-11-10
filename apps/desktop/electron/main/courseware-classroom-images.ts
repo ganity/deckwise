@@ -46,8 +46,8 @@ export class CoursewareClassroomImages {
     const check = async () => {
       this.input.assertOwned(args.sessionId); principal.assertCurrent();
       if (host !== this.input.getHost() || workspace !== await this.input.getWorkspace()) throw new Error("Classroom image owner changed");
-      const current = await host.call<{ revision: string; sourceRevision: string }>("courseware.classroom.get", { sessionId: args.sessionId, projectId: args.projectId });
-      if (current.revision !== args.expectedRevision || current.sourceRevision !== args.expectedSourceRevision) throw new Error("Classroom changed; reopen image generation");
+      const current = await this.input.classroom.open({ sessionId: args.sessionId });
+      if (current.readOnly || current.revision !== args.expectedRevision || current.sourceRevision !== args.expectedSourceRevision) throw new Error("Classroom changed; reopen image generation");
     };
     const view = await this.input.classroom.open({ sessionId: args.sessionId }); await check();
     if (view.projectId !== args.projectId || !view.classroom) throw new Error("Canonical classroom not found");
@@ -83,8 +83,7 @@ export class CoursewareClassroomImages {
       const previous = await this.input.auth.coursewareMedia.findImage({ idempotencyKey: context.key, requestHash: context.requestHash });
       await context.check();
       const task = previous ?? await this.input.auth.coursewareMedia.submitConfirmedImage(context.key, context.request, saved.quote, undefined, undefined, context.check, async () => {
-        const scope = await context.host.call("courseware.classroom.mediaScope", { sessionId: context.args.sessionId, projectId: context.args.projectId,
-          expectedRevision: context.args.expectedRevision, expectedSourceRevision: context.args.expectedSourceRevision });
+        const scope = await context.host.call(context.view.nativeTeaching ? "courseware.mediaRelay.scope" : "courseware.classroom.mediaScope", { sessionId: context.args.sessionId, ...(context.view.nativeTeaching ? {} : { projectId: context.args.projectId, expectedRevision: context.args.expectedRevision, expectedSourceRevision: context.args.expectedSourceRevision }) });
         await context.check(); return coursewareMediaSubmissionProject(scope, context.args.sessionId);
       });
       await context.check(); this.quotes.delete(String(quoteId));

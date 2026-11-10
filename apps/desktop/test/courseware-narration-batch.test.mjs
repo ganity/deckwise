@@ -362,3 +362,165 @@ test("readable peer pages cannot trigger planning when the selected page has no 
   assert.equal(f.writes.length, 0);
   assert.match(result.failures[0].error, /Selected page evidence unavailable/);
 });
+
+test('native batch grounds image UUIDs, plans peer-page bridges once, and writes every selected page', async () => {
+  const { generateNativeNarration } = load('./courseware-native-narration');
+  let project = { schemaVersion: shared.COURSEWARE_CONTRACT_VERSION, projectId: 'native', taskType: 'plain', title: 'Family',
+    source: { revision: 'r1', sha256: 'a'.repeat(64) }, teachingRevision: 'r1',
+    pages: [1, 2].map(n => ({ pageId: 'p' + n, locked: false, reviewState: 'review', actions: [] })) };
+  const calls = [], writes = [];
+  const evidence = n => ({ width: 1280, height: 720, notes: '', objects: [{ objectId: 'portrait' + n, kind: 'image', text: '', bbox: [10, 10, 100, 100] }] });
+  const png = Buffer.alloc(24); png.writeUInt32BE(0x89504e47); png.writeUInt32BE(1280, 16); png.writeUInt32BE(720, 20);
+  const teaching = { native: async (operation, args, n) => {
+    if (operation === 'narration-visual') return { value: { dataUrl: 'data:image/png;base64,' + png.toString('base64') } };
+    if (operation === 'write') {
+      assert.equal(args.expectedTeachingRevision, project.teachingRevision);
+      assert.equal(args.semantics[0].objectId, 'portrait' + n);
+      writes.push(n); project.pages[n - 1].actions = args.actions;
+      project.teachingRevision = 'r' + (writes.length + 1); project.source.revision = project.teachingRevision;
+      return { value: { project: structuredClone(project) } };
+    }
+    assert.equal(operation, 'narration-context');
+    return { value: { view: { pageNumber: n, pageId: 'p' + n, viewId: 'native.p' + n, project: structuredClone(project) }, editor: { projectId: 'native', documentId: 'deck', sessionId: 'chat', editGeneration: writes.length + 1, readOnly: false }, text: '', evidence: evidence(n) } };
+  } };
+  const result = await generateNativeNarration({ teaching, sessionId: 'chat', selected: [1, 2], instruction: 'Explain each portrait', model: { modelKey: 'fixture' }, canDispatch: () => true, assertModel: async () => {},
+    completeVision: async request => { const data = JSON.parse(request.data); calls.push('vision'); return { text: JSON.stringify({ summary: 'Father portrait', issues: [], objects: data.objects.map(o => ({ objectId: o.objectId, role: 'father portrait', aliases: ['father'], text: '', teachingTarget: true })) }) }; },
+    complete: async request => {
+      const data = JSON.parse(request.messages[0].content);
+      if (data.outline) { calls.push('plan'); assert.equal(data.outline.length, 2); return { text: JSON.stringify({ goal: 'Family', pages: [1, 2].map(n => ({ pageNumber: n, purpose: 'Name father', focus: 'father', bridge: n === 1 ? 'Next portrait' : 'Recap' })) }) }; }
+      calls.push('speech'); assert.match(data.evidence.objects[0].objectId, /^portrait/);
+      return { text: JSON.stringify({ blocks: [{ type: 'speech', text: 'Look at father.', attention: { type: 'spotlight', objectIds: [data.evidence.objects[0].objectId] } }, { type: 'speech', text: 'Say father.' }] }) };
+    } });
+  assert.deepEqual(result.failures, []); assert.equal(result.applied, true);
+  assert.equal(calls.filter(c => c === 'plan').length, 1); assert.equal(writes.length, 2);
+  assert(project.pages.every(p => p.actions.filter(a => a.type === 'speech').length === 2));
+});
+
+
+
+function nativeRecoveryFixture(pageCount = 1) {
+  const { generateNativeNarration } = load('./courseware-native-narration');
+  let project = { schemaVersion: shared.COURSEWARE_CONTRACT_VERSION, projectId: 'native', taskType: 'plain', title: 'Words',
+    source: { revision: 'r1', sha256: 'a'.repeat(64) }, teachingRevision: 'r1',
+    pages: Array.from({ length: pageCount }, (_, i) => ({ pageId: 'p' + (i + 1), locked: false, reviewState: 'review', actions: [] })) };
+  const state = { generation: 1, documentId: 'deck', readOnly: false, words: Array(pageCount).fill('father'), pixels: Array(pageCount).fill(0), mutate: undefined };
+  const writes = [], visions = [], plans = [];
+  const teaching = { native: async (operation, args, n) => {
+    if (operation === 'narration-visual') {
+      const png = Buffer.alloc(25); png.writeUInt32BE(0x89504e47); png.writeUInt32BE(1280, 16); png.writeUInt32BE(720, 20); png[24] = state.pixels[n - 1];
+      return { value: { dataUrl: 'data:image/png;base64,' + png.toString('base64') } };
+    }
+    if (operation === 'write') {
+      assert.equal(args.expectedTeachingRevision, project.teachingRevision);
+      writes.push({ pageNumber: n, actions: structuredClone(args.actions) });
+      project.pages[n - 1].actions = args.actions; project.teachingRevision = 'r' + (writes.length + 1); project.source.revision = project.teachingRevision;
+      state.generation++; state.afterWrite?.(n, project);
+      return { value: { project: structuredClone(project) } };
+    }
+    assert.equal(operation, 'narration-context');
+    return { value: { view: { pageNumber: n, pageId: 'p' + n, viewId: 'native.p' + n, project: structuredClone(project) },
+      editor: { projectId: 'native', documentId: state.documentId, sessionId: 'chat', editGeneration: state.generation, readOnly: state.readOnly },
+      text: state.words[n - 1], evidence: { width: 1280, height: 720, notes: '', objects: [{ objectId: 'word' + n, kind: 'text', text: state.words[n - 1], bbox: [0, 0, 100, 30] }] } } };
+  } };
+  const input = { teaching, sessionId: 'chat', selected: [1], instruction: 'Explain the current words', model: { modelKey: 'fixture' }, canDispatch: () => true, assertModel: async () => {},
+    completeVision: async request => {
+      const data = JSON.parse(request.data); visions.push(data.pageNumber);
+      const output = { text: JSON.stringify({ summary: data.pageText, issues: [], objects: data.objects.map(o => ({ objectId: o.objectId, role: 'Word', aliases: [o.text], text: o.text, teachingTarget: true })) }) };
+      state.mutate?.('vision', data.pageNumber); return output;
+    },
+    complete: async request => {
+      const data = JSON.parse(request.messages[0].content);
+      if (data.outline) { plans.push(data); return { text: JSON.stringify({ goal: 'Words', pages: data.requestedPageNumbers.map(pageNumber => ({ pageNumber, purpose: 'Read words', focus: 'Word', bridge: 'Continue' })) }) }; }
+      const output = { text: JSON.stringify({ blocks: [{ type: 'speech', text: 'Read ' + data.evidence.objects.map(o => o.text).join(' ') + '.' }] }) };
+      state.mutate?.('speech', data.pageNumber); return output;
+    } };
+  return { state, writes, visions, plans, input, run: () => generateNativeNarration(input) };
+}
+
+test('native narration rereads harmless selection generations without discarding valid output', async () => {
+  const f = nativeRecoveryFixture(); f.state.mutate = () => { f.state.generation++; };
+  const result = await f.run();
+  assert.equal(result.saved, true, JSON.stringify(result.failures)); assert.equal(f.writes.length, 1); assert.equal(f.visions.length, 1);
+});
+
+for (const change of ['text', 'pixels']) test(`native narration regenerates from fresh ${change} after a real edit`, async () => {
+  const f = nativeRecoveryFixture(); let changed = false;
+  f.state.mutate = phase => { if (phase === 'vision' && !changed) { changed = true; f.state.generation++; if (change === 'text') f.state.words[0] = 'mother'; else f.state.pixels[0]++; } };
+  const result = await f.run();
+  assert.equal(result.saved, true, JSON.stringify(result.failures)); assert.equal(f.writes.length, 1); assert.equal(f.visions.length, 2);
+  assert.match(f.writes[0].actions[0].text, change === 'text' ? /mother/ : /father/);
+  assert(result.diagnostics.some(d => /re-read|reread|refresh/i.test(d.message)));
+});
+
+test('native single-page narration uses peer text for the outline without reobserving every slide', async () => {
+  const f = nativeRecoveryFixture(10); f.input.selected = [8];
+  const result = await f.run();
+  assert.equal(result.saved, true); assert.deepEqual(f.visions, [8]); assert.equal(f.plans[0].outline.length, 10); assert.deepEqual(f.writes.map(w => w.pageNumber), [8]);
+});
+
+for (const change of ['readOnly', 'documentId']) test(`native narration never resumes across ${change} changes`, async () => {
+  const f = nativeRecoveryFixture(); f.state.mutate = () => { f.state[change] = change === 'readOnly' ? true : 'different-document'; f.state.generation++; };
+  try { const result = await f.run(); assert.equal(result.saved, false); } catch (error) { assert.match(String(error), /owner|read.only|document/i); }
+  assert.equal(f.writes.length, 0); assert.equal(f.visions.length, 1);
+});
+
+test('native narration bounds rereads when slide content keeps changing', async () => {
+  const f = nativeRecoveryFixture(); f.state.mutate = () => { f.state.generation++; f.state.pixels[0]++; };
+  const result = await f.run();
+  assert.equal(result.saved, false); assert.equal(f.writes.length, 0); assert(f.visions.length >= 2 && f.visions.length <= 3);
+  assert(result.failures.some(f => /chang|unstable/i.test(f.error)));
+});
+
+test('native narration keeps acknowledged pages when a later page needs fresh content', async () => {
+  const f = nativeRecoveryFixture(2); f.input.selected = [1, 2];
+  f.state.afterWrite = n => { if (n === 1) { f.state.words[1] = 'mother'; f.state.generation++; } };
+  const result = await f.run();
+  assert.equal(result.saved, true, JSON.stringify(result.failures)); assert.deepEqual(f.writes.map(w => w.pageNumber), [1, 2]);
+  assert.match(f.writes[1].actions[0].text, /mother/);
+});
+
+test('native narration does not repeat visual-content mismatches until live content changes', async () => {
+  const f = nativeRecoveryFixture(); f.input.contentFailures = new Map();
+  const vision = f.input.completeVision;
+  f.input.completeVision = async request => {
+    const output = JSON.parse((await vision(request)).text);
+    output.issues = [{ kind: 'missing_required_content', message: 'Page 8 has word cards but its plan requires two questions.' }];
+    return { text: JSON.stringify(output) };
+  };
+  const first = await f.run(); assert.equal(first.failures[0].code, 'COURSEWARE_PAGE_CONTENT_MISMATCH');
+  assert.equal(f.visions.length, 1); assert.equal(f.plans.length, 0);
+  f.input.instruction = 'Please try different wording';
+  const second = await f.run(); assert.equal(second.saved, false); assert.equal(f.visions.length, 1);
+  assert(second.diagnostics.some(d => /SVG-only edits/.test(d.message)));
+  f.state.words[0] = 'two questions'; f.state.generation++;
+  f.input.completeVision = vision;
+  const third = await f.run(); assert.equal(third.saved, true); assert.equal(f.visions.length, 2); assert.equal(f.writes.length, 1);
+});
+
+test('native narration refreshes a selection conflict at the atomic write without recalling the model', async () => {
+  const f = nativeRecoveryFixture(); const native = f.input.teaching.native; let attempts = 0;
+  f.input.teaching.native = async (op, args, n) => {
+    if (op === 'write' && ++attempts === 1) { f.state.generation++; throw new Error('Native editor generation changed before narration write'); }
+    return native(op, args, n);
+  };
+  const result = await f.run();
+  assert.equal(result.saved, true); assert.equal(attempts, 2); assert.equal(f.visions.length, 1); assert.equal(f.writes.length, 1);
+});
+
+test('native narration rereads an acknowledged-lost write without replaying it', async () => {
+  const f = nativeRecoveryFixture(); const native = f.input.teaching.native;
+  f.input.teaching.native = async (op, args, n) => {
+    const result = await native(op, args, n);
+    if (op === 'write') throw new Error('Reply lost after successful native write');
+    return result;
+  };
+  const result = await f.run();
+  assert.equal(result.saved, true); assert.equal(f.writes.length, 1); assert.equal(f.visions.length, 1);
+});
+
+test('native narration never overwrites teaching edited while the model was running', async () => {
+  const f = nativeRecoveryFixture(); const native = f.input.teaching.native; let edited = false;
+  f.state.mutate = phase => { if (phase === 'vision' && !edited) { edited = true; void native('write', { expectedTeachingRevision: 'r1', actions: [{ id: 'manual', type: 'speech', text: 'My own wording' }] }, 1); } };
+  const result = await f.run();
+  assert.equal(result.saved, false); assert.equal(f.writes.length, 1); assert.equal(f.writes[0].actions[0].text, 'My own wording'); assert.equal(f.visions.length, 1);
+});

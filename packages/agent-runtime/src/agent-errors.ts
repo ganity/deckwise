@@ -11,6 +11,7 @@
 import { isContextOverflow, type AssistantMessage } from "@earendil-works/pi-ai";
 import { ErrorCodes, isCertificateVerificationError } from "@pi-desktop/shared";
 import { readLocalRequestErrorDetails } from "./local-request-errors.js";
+import { CoursewareWorkflowError } from "./courseware-workflow-recovery.js";
 
 export type ClassifiedAgentError = {
   code: string;
@@ -396,6 +397,22 @@ export function classifyAgentError(err: unknown): ClassifiedAgentError {
     (err instanceof Error && err.name === "AbortError") ||
     envelope?.stopReason === "aborted" ||
     local?.causeName === "AbortError";
+  if (err instanceof CoursewareWorkflowError && err.operation && !explicitlyAborted) {
+    const operation = ["courseware_workflow_get", "courseware_media_context", "courseware_scene_image_refresh",
+      "courseware_narration_propose", "courseware_media_assessments", "courseware_media_refresh"].includes(err.operation)
+      ? err.operation : undefined;
+    const code = ["COURSEWARE_CONFLICT", "COURSEWARE_INVALID", "COURSEWARE_INCOMPLETE", "COURSEWARE_NOT_FOUND",
+      "COURSEWARE_WORKFLOW_REJECTED", "TOOL_FAILED", "PERMISSION_DENIED", "TASK_STATUS_UNAVAILABLE"].includes(err.code)
+      ? err.code : "COURSEWARE_WORKFLOW_FAILED";
+    const classified: ClassifiedAgentError = {
+      code, retriable: false,
+      message: operation === "courseware_media_context"
+        ? "Courseware media status check failed. Teaching completion is unfinished."
+        : "Courseware automatic continuation failed. Check the saved course state before continuing.",
+      details: { origin: "local", phase: "courseware-continuation", ...(operation ? { operation } : {}) },
+    };
+    return Object.defineProperty(classified, "cause", { value: err });
+  }
   if (local && !explicitlyAborted) {
     // Local preparation cannot be repaired by provider retries. Keep the
     // original chain in-process, but never copy its payload/message/stack to UI.

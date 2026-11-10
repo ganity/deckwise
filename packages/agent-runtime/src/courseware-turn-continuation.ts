@@ -3,7 +3,7 @@ import type { AgentToolResult, AgentTurnContext } from "@earendil-works/pi-agent
 import { LocalRequestError } from "@earendil-works/pi-ai";
 import { createHash } from "node:crypto";
 import type { CoursewareWorkflowCheckpoint } from "@pi-desktop/shared";
-import { coursewareFailureRecovery } from "./courseware-workflow-recovery.js";
+import { CoursewareWorkflowError, coursewareFailureRecovery } from "./courseware-workflow-recovery.js";
 import { coursewareStatusSummary } from "./courseware-workflow-tools.js";
 import { delayWithAbort } from "./provider-retry.js";
 
@@ -229,6 +229,8 @@ export class CoursewareTurnContinuation {
             if (!controls.canWait()) throw new LocalRequestError("request-preparation", { cause });
             continue;
           }
+          if (cause instanceof CoursewareWorkflowError)
+            throw new CoursewareWorkflowError(cause.code, "Courseware automatic continuation failed.", name, { cause });
           throw new LocalRequestError("request-preparation", { cause });
         }
       }

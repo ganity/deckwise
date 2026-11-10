@@ -1,3 +1,4 @@
+import * as runtime from "../../../packages/courseware-runtime/dist/node.mjs";
 import assert from "node:assert/strict";
 import { readFileSync, promises as fs } from "node:fs";
 import { createRequire } from "node:module";
@@ -13,7 +14,7 @@ function load(file) {
   const result = {}; cache.set(file, result);
   new Function("require", "exports", ts.transpileModule(readFileSync(file, "utf8"), { compilerOptions: {
     target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true,
-  } }).outputText)(id => id === "@pi-desktop/shared" ? shared : id.startsWith(".") ? load(join(dirname(file), id + ".ts")) : require(id), result);
+  } }).outputText)(id => id === "@pi-desktop/shared" ? shared : id === "@pi-desktop/courseware-runtime/node" ? runtime : id.startsWith(".") ? load(join(dirname(file), id + ".ts")) : require(id), result);
   return result;
 }
 const { readNativeTeachingPackage } = load(new URL("../electron/main/courseware-native-package.ts", import.meta.url).pathname);

@@ -14,8 +14,8 @@ export class CoursewareAssessmentMedia {
     for (const scene of view.classroom?.scenes ?? []) {
       const ids = Object.values(scene.metadata?.assessmentSpeechIds ?? {});
       for (const action of scene.actions ?? []) if (action.type === "speech" && ids.includes(action.id)) {
-        const audioReady = !!action.audioId && !!view.classroom?.audioManifest?.some(entry =>
-          entry.sceneId === scene.id && entry.actionId === action.id && entry.audioId === action.audioId);
+        const audioReady = !!action.audioId && (view.nativeTeaching || !!view.classroom?.audioManifest?.some(entry =>
+          entry.sceneId === scene.id && entry.actionId === action.id && entry.audioId === action.audioId));
         if (!audioReady) targets.push({ kind: "tts", sceneId: scene.id, actionId: action.id });
       }
       if (scene.content.type === "quiz") for (const question of scene.content.questions) {

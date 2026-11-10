@@ -29,7 +29,7 @@ export class CoursewareNativeAudio {
       const latest = await this.route("open", {}, page);
       const current = latest?.value as CoursewareTeachingView | undefined;
       if (!current || current.viewId !== view.viewId || current.project.teachingRevision !== view.project.teachingRevision ||
-          (!["tts:models", "tts:list", "tts:status", "tts:archive"].includes(operation) && current.project.pages.find(p => p.pageId === view.pageId)?.locked)) throw new Error("Native teaching changed; read the current page");
+          (!["tts:models", "tts:list", "tts:status", "tts:archive"].includes(operation) && (current.readOnly || current.project.pages.find(p => p.pageId === view.pageId)?.locked))) throw new Error("Native teaching changed; read the current page");
       principal.assertCurrent();
     };
     await check();

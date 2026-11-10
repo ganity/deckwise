@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import test from "node:test";
 import ts from "typescript";
+import * as runtime from "../../../packages/courseware-runtime/dist/node.mjs";
 import * as shared from "../../../packages/shared/dist/index.js";
 const require = createRequire(import.meta.url), exports = {};
 new Function("require", "exports", ts.transpileModule(readFileSync(new URL("../electron/main/courseware-native-tools.ts", import.meta.url), "utf8"), {
@@ -26,7 +27,7 @@ function setup() {
     if (op === "tts:adopt") { project.teachingRevision += "a"; return view; }
     assert.equal(op, "tts:submit"); return {};
   } };
-  const candidates = { async proposeNativeNarration(session, n) { calls.push(["narration", n]); return { pageNumber: n, applied: true }; } };
+  const candidates = { async proposeNativeNarrationBatch(session, numbers) { for (const n of numbers) calls.push(["narration", n]); return { applied: true, savedPages: numbers.map(pageNumber => ({ pageNumber })) }; } };
   const tools = new CoursewareNativeTools({ native: () => route("open", {}, 1) }, candidates, audio, route, () => "chat");
   return { tools, project, calls, active: () => active, cancel: () => { active = false; } };
 }
@@ -132,4 +133,32 @@ test("native media context exposes configured models and reports pending attenti
   const result = (await tools.execute("chat", "courseware_media_context", { kind: "tts" }, () => true)).value;
   assert.equal(result.nativeTeaching, true); assert.deepEqual(result.models, [{ model: "voice" }]);
   assert.equal(result.teachingReady, false); assert.equal(result.completion.ready, false);
+});
+
+
+test('native Chat assessment images reuse the classroom target enumeration and generation service', async () => {
+  const serviceExports = {};
+  new Function('require', 'exports', ts.transpileModule(readFileSync(new URL('../electron/main/courseware-assessment-media.ts', import.meta.url), 'utf8'), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText)(id => id === '@pi-desktop/courseware-runtime/node' ? runtime : require(id), serviceExports);
+  const view = { nativeTeaching: true, projectId: 'native', revision: 'rev', sourceRevision: 'rev', classroom: { id: 'native', createdAt: new Date(0).toISOString(), stage: { id: 'native', name: 'Quiz', createdAt: 0, updatedAt: 0 }, scenes: [{ id: 'page1', stageId: 'native', title: 'Quiz', order: 0, type: 'quiz', content: { type: 'quiz', questions: [{ id: 'q', type: 'single', question: 'Choose', options: [{ value: 'A', label: 'One' }, { value: 'B', label: 'Two' }], answer: ['A'] }] }, actions: [{ id: 'speech', type: 'speech', text: 'Choose\nA. One\nB. Two', audioId: 'tts-adopted' }], metadata: { assessmentSpeechIds: { page1: 'speech' } } }] } };
+  let quotes = 0, submits = 0;
+  const classroom = { open: async () => structuredClone(view), write: async args => { view.classroom = args.classroom; return structuredClone(view); } };
+  const images = { models: async () => [{ model: 'image' }], quote: async () => { quotes++; return { quote: { quoteId: 'quote' } }; }, submit: async args => { assert.equal(args.optionValue, 'B'); submits++; return { state: 'running' }; }, refresh: async () => ({ state: 'running' }) };
+  const assessment = new serviceExports.CoursewareAssessmentMedia(classroom, {}, images);
+  const f = setup(), tools = new CoursewareNativeTools({ native: () => Promise.resolve({ value: { ...f.project, project: f.project } }) }, {}, {}, async () => {}, () => 'chat', undefined, undefined, undefined, undefined, assessment);
+  const context = (await tools.execute('chat', 'courseware_media_assessments', { mode: 'context', kind: 'image' }, () => true)).value;
+  assert.equal(context.ready, false); assert.equal(context.targets.length, 2); assert(context.targets.every(t => t.kind === 'image')); assert.equal(context.models[0].model, 'image');
+  await tools.execute('chat', 'courseware_media_assessments', { mode: 'prepare', kind: 'image', projectId: 'native', expectedRevision: 'rev', expectedSourceRevision: 'rev', sceneId: 'page1', questionId: 'q', optionValue: 'B', model: 'image' }, () => true);
+  assert.equal(quotes, 1); assert.equal(submits, 1);
+});
+
+test('saving successful native pages does not mark a partially failed narration batch complete', async () => {
+  const f = setup(); let saves = 0;
+  const current = { value: { viewId: 'native.page1', pageId: 'page1', pageNumber: 1, project: f.project } };
+  const tools = new CoursewareNativeTools({ native: async () => current }, {
+    proposeNativeNarrationBatch: async () => ({ applied: true, savedPages: [{ pageNumber: 1 }],
+      failures: [{ pageNumber: 2, code: 'COURSEWARE_PAGE_CONTENT_MISMATCH', error: 'Required source content is missing' }] }),
+  }, {}, async () => current, () => 'chat', undefined, undefined, undefined, async () => { saves++; });
+  const result = await tools.execute('chat', 'courseware_narration_propose', { pageNumbers: [1, 2], sourceSha256: f.project.source.sha256, instruction: 'Explain both pages' }, () => true);
+  assert.equal(saves, 1); assert.equal(result.value.saved, false); assert.equal(result.value.pages[0].applied, true); assert.equal(result.value.pages[0].saved, true);
+  assert.equal(result.value.failures[0].pageNumber, 2);
 });

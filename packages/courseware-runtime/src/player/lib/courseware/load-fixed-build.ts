@@ -1,3 +1,4 @@
+import { maicQuizSchema } from "../../../maic-classroom";
 import { nativeTimelineSchema } from '../../../native-timeline';
 import { speechAnimationTriggerSchema } from '../../../speech-animation-trigger';
 import { questionResponseSchema } from '../../../question-response';
@@ -167,6 +168,7 @@ const payloadSchema = z
       .array(
         z
           .object({
+            quiz: maicQuizSchema.optional(),
             pageId: id,
             title: z.string(),
             slide: z
@@ -575,6 +577,14 @@ export async function loadFixedBuild(
         }
         return generated;
       });
+      if (page.quiz) {
+        const quiz = structuredClone(page.quiz);
+        for (const q of quiz.questions) for (const image of [q.image, ...(q.options ?? []).map(o => o.image)]) if (image) {
+          const url = urls.get(image.src); check(url, "ASSET_MISSING"); image.src = url;
+        }
+        return { id: page.pageId, stageId: 'fixed-build', title: page.title, type: 'quiz', order: index, content: quiz,
+          actions: actions.filter(a => a.type !== 'interaction_checkpoint') } as Scene;
+      }
       return {
         id: page.pageId,
         stageId: expectedBuildId,

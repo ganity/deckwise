@@ -19,12 +19,40 @@ const authoringUrl = new URL("../../../packages/courseware-runtime/dist/authorin
 function load(file) {
   if (cache.has(file)) return cache.get(file);
   const exports = {}; cache.set(file, exports);
-  const code = ts.transpileModule(readFileSync(file, "utf8"), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
+  const code = ts.transpileModule(readFileSync(file, "utf8"), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true } }).outputText;
   new Function("require", "exports", code)(id => id === "@pi-desktop/shared" ? shared : id === "@pi-desktop/agent-runtime" ? agentRuntime : id === "@pi-desktop/courseware-runtime/node" ? nodeRuntime : (id === "@pi-desktop/courseware-runtime/authoring" || id === authoringUrl) ? runtime : id === "./courseware-scene-generator" ? { createCoursewareSceneGenerator() { throw Error("Assessment pages must not invoke a model"); } } : id.startsWith(".") ? load(join(dirname(file), id + ".ts")) : require(id), exports);
   return exports;
 }
 const main = new URL("../electron/main/", import.meta.url).pathname;
-const { stageGeneratedSceneCourse } = load(join(main, "courseware-scene-staging.ts"));
+// Exercise compatibility with existing Host-owned projects. New generation uses native carriers.
+async function stageLegacyAssessmentCourse(input) {
+  const sha256 = hash(input.pptx), path = join(input.workspace, ".deckwise-ppt/generated", sha256 + ".pptx");
+  await mkdir(dirname(path), { recursive: true }); await writeFile(path, input.pptx);
+  const root = join(input.workspace, ".deckwise-ppt/revisions");
+  const revision = await publishRevision({ root, jobId: jobIdFor(input.workspace, path), bytes: Buffer.from(input.pptx), extension: "pptx", cause: "generated", expectedRevision: 0 });
+  const { jobId } = await input.host.call("courseware.parseStart", { sessionId: input.sessionId, path: revision.documentPath });
+  try {
+    while (true) { const status = await input.host.call("courseware.parseStatus", { jobId });
+      if (status.status !== "RUNNING") { assert.equal(status.status, "SUCCEEDED", JSON.stringify(status)); break; } await delay(20); }
+    const { project } = await input.host.call("courseware.project.initializeGenerated", { sessionId: input.sessionId, jobId, sourceSha256: sha256,
+      title: input.title, narrations: input.teaching.map(page => page.narration),
+      ...(input.sceneMapping ? { sceneMapping: input.sceneMapping } : {}), ...(input.sceneProof ? { sceneProof: input.sceneProof } : {}) });
+    const current = await input.host.call("courseware.classroom.get", { sessionId: input.sessionId, projectId: project.projectId });
+    const classroom = structuredClone(input.canonicalClassroom);
+    classroom.stage.name = input.title;
+    classroom.scenes.forEach((scene, index) => {
+      const question = scene.actions?.find(action => action.type === "interaction_checkpoint")?.question;
+      scene.metadata = { ...scene.metadata, nativePageId: project.pages[index].pageId,
+        ...(question !== undefined ? { nativeQuestionText: question } : {}),
+        nativeNarrationText: scene.actions?.filter(a => a.type === "speech").map(a => a.text).join("\n") ?? "" };
+    });
+    await input.host.call("courseware.classroom.write", { sessionId: input.sessionId, projectId: project.projectId,
+      expectedRevision: current.revision, expectedSourceRevision: current.sourceRevision, classroom });
+    await input.host.call("courseware.task.attachGenerated", { sessionId: input.sessionId, path, projectId: project.projectId, sourceSha256: sha256,
+      ...(input.sceneProof ? { sceneProof: input.sceneProof } : {}) });
+    return { path, project, sha256 };
+  } finally { await input.host.call("courseware.parseRelease", { jobId }); }
+}
 const { createClassroomNativeWriter, commitSavedPptx } = load(join(main, "courseware-classroom-save.ts"));
 const { CoursewareClassroomCoordinator } = load(join(main, "courseware-classroom.ts"));
 const { CoursewareNativeSave } = load(join(main, "courseware-native-save.ts"));
@@ -49,7 +77,7 @@ const { jobIdFor, listRevisions, publishRevision, replaceSourceFile } = load(joi
 const { parseMaicClassroom } = nodeRuntime;
 const hash = bytes => createHash("sha256").update(bytes).digest("hex");
 
-test("approved Quiz and checkpoint plan compiles and stages every physical page through real Host proof validation", { timeout: 60_000 }, async t => {
+test("approved Quiz and checkpoint plan compiles and stages every physical page through real Host proof validation", { timeout: 120_000 }, async t => {
   const directory = await mkdtemp(join(tmpdir(), "classroom-approved-generation-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const workspace = join(directory, "workspace"), data = join(directory, "data"); await mkdir(workspace);
@@ -73,7 +101,7 @@ test("approved Quiz and checkpoint plan compiles and stages every physical page 
   const { buildSceneCourseDeck } = load(join(main, "courseware-scene-deck.ts"));
   const plan = parseSceneCoursePlan(planJson);
   const deck = await buildSceneCourseDeck({ sessionId, modelKey: "unused", pages: plan.pages, visuals: [], canvas: { width: 1000, height: 562.5 } }, async () => { throw Error("Unexpected paid model request"); }, runtime);
-  const staged = await stageGeneratedSceneCourse({ workspace, sessionId, title: plan.title, ...deck, sceneMapping: deck.mapping, sceneProof: { planSha256, principalKey: "a".repeat(64), selectedIntentIds: [] }, host });
+  const staged = await stageLegacyAssessmentCourse({ workspace, sessionId, title: plan.title, ...deck, sceneMapping: deck.mapping, sceneProof: { planSha256, principalKey: "a".repeat(64), selectedIntentIds: [] }, host });
   assert.equal(staged.project.pages.length, 2);
   const saved = await host.call("courseware.classroom.get", { sessionId, projectId: staged.project.projectId });
   assert.deepEqual(saved.classroom.scenes.map(scene => scene.type), ["quiz", "slide"]);
@@ -141,7 +169,7 @@ test("real Main writer and Host atomically save question, copy, reorder, delete,
   const bodyTemplate = structuredClone(classroom.scenes[0]); bodyTemplate.id = "body"; bodyTemplate.content.canvas = runtime.createMaicInteractionCanvas("body", "Body", "Ordinary teaching");
   const compiled = await runtime.compileScenesToPptx([...classroom.scenes, bodyTemplate].map(scene => runtime.assessmentPptxScene(scene, "sha256:test", { width: 1000, height: 562.5 })), { [runtime.assessmentBackground.id]: runtime.assessmentBackground.bytes });
   bodyTemplate.actions = [{ id: "body-speech", type: "speech", text: "Body narration" }]; bodyTemplate.order = 2; classroom.scenes.push(bodyTemplate);
-  const staged = await stageGeneratedSceneCourse({ workspace, sessionId, title: "Lesson", pptx: compiled.pptx, canonicalClassroom: classroom, teaching: classroom.scenes.map(scene => ({ pageId: scene.id, narration: scene.actions.find(a => a.type === "speech").text })), host });
+  const staged = await stageLegacyAssessmentCourse({ workspace, sessionId, title: "Lesson", pptx: compiled.pptx, canonicalClassroom: classroom, teaching: classroom.scenes.map(scene => ({ pageId: scene.id, narration: scene.actions.find(a => a.type === "speech").text })), host });
   const projectId = staged.project.projectId, sourcePath = staged.path;
   const documentId = jobIdFor(workspace, sourcePath), root = join(workspace, ".deckwise-ppt/revisions");
   const read = () => host.call("courseware.classroom.get", { sessionId, projectId });

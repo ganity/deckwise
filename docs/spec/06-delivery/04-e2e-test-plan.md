@@ -18115,6 +18115,16 @@ without creating an empty runtime. Export/reopen must preserve checkpoint data.
 
 ## E2E-COURSEWARE-native-generated-loop (2026-11-10)
 
+- Body notes and scene planning narration remain source evidence, not completed
+  speech. Run the structured native proposal before TTS; assessment reading
+  speech and answer contracts remain intact. Reject body assessment insertions
+  and preserve explicit native animation nodes across narration rewrites.
+- Assert actual SDK pulse timing after media adoption. Add a manual speech-end
+  animation through the native write route, Undo/Redo both timing and metadata,
+  then save/reopen. Verify fixed publication claims these exact persisted mirrors
+  once instead of reporting a second animation owner.
+- Reject changed approved music-slot prompts before preparing a provider order.
+
 - Start from each local generation entry: scene, assessment-only scene, and
   validated ordinary PPT Master export. Publish a physical PPTX carrying native
   page/action/object identities before opening Office; preserve the original
@@ -18144,3 +18154,20 @@ without creating an empty runtime. Export/reopen must preserve checkpoint data.
   `scripts/native-teaching/verify-generated-playback.mjs`.
 - Providers are deterministic local/fake responses. These tests authorize no paid
   API call, legacy migration, installed-app replacement or remote publication.
+
+
+Native authoring parity continuation:
+
+- Ground image-only native pages from live PNGs and object UUIDs, generate one
+  ordered whole-course plan and write segmented speech/semantics per page. Reject
+  a changed Office generation even when page text and bounds are unchanged.
+- Open the existing assessment editor from a native Quiz or discussion. Persist
+  option images, answers, references and question speech without a Host teaching
+  mirror. Check CAS, locks, principal changes, native history and save/reopen.
+- Build a fixed lesson from verified carrier Quiz metadata, archive embedded
+  images and load resolved image URLs. A copied discussion retains prompt/label.
+- List embedded/pending music/video without a provider submission. Adopt the
+  original ready task into its original slot; keep pending tasks unadopted.
+- Tests: Desktop `courseware-narration-batch`, `courseware-classroom`,
+  `courseware-classroom-tts`, `courseware-native-library`; runtime `fixed-build`
+  and `load-fixed-build`; document `deckwise-native-teaching-parity.spec.ts`.

@@ -22,7 +22,7 @@ export class CoursewareNativeMusic {
     const prefix = "native-" + createHash("sha256").update(view.project.projectId + ":" + page.pageId).digest("hex").slice(0, 32) + "-";
     const music = new CoursewareCanvasMusic(this.host, this.session, () => false, this.auth);
     const rows = await music.list({ sessionId });
-    return rows.filter(r => r.operation === "music" && r.draft.id.startsWith(prefix) && r.phase !== "rejected" &&
+    return rows.filter(r => r.operation === "music" && r.draft.id.startsWith(prefix) && !["rejected", "prepared"].includes(r.phase) &&
       !page.actions.some(a => a.id === r.draft.id.slice(prefix.length, -21) && a.type === "audio_clip" && a.audioAssetId))
       .map(r => ({ kind: "music", intentId: r.intentId, actionId: r.draft.id.slice(prefix.length, -21), pageNumber, sourceSha256: view.project.source.sha256 }));
   }
@@ -37,7 +37,7 @@ export class CoursewareNativeMusic {
     };
     await check();
     const page = view.project.pages[pageNumber - 1];
-    if (!page || page.locked) throw new Error("Native music page locked");
+    if (view.readOnly || !page || page.locked) throw new Error("Native music page locked");
     const prefix = "native-" + createHash("sha256").update(view.project.projectId + ":" + page.pageId).digest("hex").slice(0, 32) + "-";
     const music = new CoursewareCanvasMusic(this.host, this.session, () => !canDispatch(), this.auth, { decodeAudio: this.decode,
       teaching: { musicAdoptionContext: async args => {
@@ -65,6 +65,7 @@ export class CoursewareNativeMusic {
           !input.music || typeof input.music !== "object" || Array.isArray(input.music)) throw new Error("Invalid native music request");
       const slot = input.actionId === undefined ? undefined : page.actions.find(a => a.id === input.actionId && ["music_slot", "audio_clip"].includes(String(a.type)));
       if (input.actionId !== undefined && !slot) throw new Error("Native music slot changed");
+      if (slot?.type === "music_slot" && slot.prompt !== input.prompt) throw new Error("Native music prompt changed; use the exact saved prompt");
       const hash = musicRequestHash({ kind: "music", model: input.model, input: input.prompt, music: input.music as MusicOptions });
       const actionId = slot?.id as string | undefined;
       const draftId = prefix + (actionId ?? "music-" + hash.slice(0, 20)) + "." + hash.slice(0, 20);
@@ -85,6 +86,7 @@ export class CoursewareNativeMusic {
       const selected = rows.find(r => r.intentId === input.intentId);
       row = (selected?.operation === "music-export" ? rows.find(r => r.intentId === selected.sourceIntentId) : selected)!;
       if (!row || !row.draft.id.startsWith(prefix)) throw new Error("Native music task belongs to another page");
+      if (row.phase === "prepared") throw new Error("Music task has not been submitted");
       row = await music.status({ sessionId, intentId: row.intentId });
     }
     await check();
