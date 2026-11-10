@@ -24,13 +24,13 @@ function load(name) {
   if (!name.startsWith("./")) return require(name);
   const file = new URL(`../electron/main/${name.slice(2)}.ts`, import.meta.url);
   const exports = {}; cache.set(name, exports);
-  const code = ts.transpileModule(readFileSync(file, "utf8"), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
+  const code = ts.transpileModule(readFileSync(file, "utf8"), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true } }).outputText;
   new Function("require", "exports", code)(load, exports); return exports;
 }
 const { CoursewareChatWorkflow } = load("./courseware-chat-workflow");
 const { CoursewareSavedNarration } = load("./courseware-saved-narration");
 const { CoursewareAssessmentMedia } = load("./courseware-assessment-media");
-const { refreshNativeMaicClassroom } = load("./courseware-classroom-native");
+const { readNativeTeachingPackage } = load("./courseware-native-package");
 const hash = bytes => createHash("sha256").update(bytes).digest("hex");
 const teaching = { pageType: "slide", phase: "explore", objective: "Name the family", durationSeconds: 30, requiredObjects: ["father"] };
 const pages = [
@@ -56,7 +56,7 @@ async function fixture(t, fixed = false) {
   for (let i = 1; i <= 3; i++) {
     if (i > 1) { if (!fixed) await writeFile(join(project, `svg_output/page-${i}.svg`), "<svg/>"); continue; }
     const rel = `ppt/slides/_rels/slide${i}.xml.rels`;
-    zip.file(rel, (await zip.file(rel).async("string")).replace("</Relationships>", `<Relationship Id="notes" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide" Target="../notesSlides/notesSlide${i}.xml"/></Relationships>`));
+    zip.file(rel, (await zip.file(rel).async("string")).replace(/<Relationship\b[^>]*Type="[^"]*\/notesSlide"[^>]*\/>/g, "").replace("</Relationships>", `<Relationship Id="notes" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide" Target="../notesSlides/notesSlide${i}.xml"/></Relationships>`));
     zip.file(`ppt/notesSlides/notesSlide${i}.xml`, `<p:notes xmlns:p="${p}" xmlns:a="${a}"><p:cSld><p:spTree><p:sp><p:nvSpPr><p:cNvPr id="1" name="Notes"/><p:cNvSpPr/><p:nvPr><p:ph type="body"/></p:nvPr></p:nvSpPr><p:spPr/><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>Look at father. Say father.</a:t></a:r></a:p></p:txBody></p:sp></p:spTree></p:cSld></p:notes>`);
     if (!fixed) await writeFile(join(project, `svg_output/page-${i}.svg`), "<svg/>");
   }
@@ -168,68 +168,36 @@ test("fixed assessment SVGs pass official validation/export and bind real export
   assert.equal((await f.host.call("courseware.task.get", { sessionId: f.sessionId })).task.generatedPath, undefined);
   await utimes(planPath, new Date(0), new Date(0));
   const receipt = await f.workflow.execute(f.sessionId, "courseware_presentation_adopt", { ...f.args, sourceSha256: hash(bytes), pages: planned }, () => true);
-  const classroom = (await f.host.call("courseware.classroom.get", { sessionId: f.sessionId, projectId: receipt.projectId })).classroom;
-  assert.equal(classroom.scenes.length, 3);
-  assert.equal(classroom.scenes[1].type, "quiz");
-  assert.equal(classroom.scenes[2].actions.find(action => action.type === "interaction_checkpoint").question, planned[2].teaching.question.text);
+  const native = await readNativeTeachingPackage(await readFile(receipt.path));
+  assert.equal(native.pages.length, 3);
+  assert.equal(native.pages[1].actions.find(a => a.type === "interaction_checkpoint").response.kind, "single");
+  assert.equal(native.pages[2].actions.find(a => a.type === "interaction_checkpoint").question, planned[2].teaching.question.text);
+  const generated = await JSZip.loadAsync(await readFile(receipt.path));
+  assert.equal(await generated.file("ppt/slides/slide1.xml").async("string"), nativeBody);
   assert.equal(prepared.files.filter(file => file.generated).length, 2);
   await assert.rejects(f.workflow.execute(f.sessionId, "courseware_presentation_prepare", {
     projectPath: ".deckwise-ppt/projects/family", canvas: { width: 1280, height: 720 }, pages: planned,
   }, () => true), /saved teaching/);
 });
 
-test("ordinary export adopts real Quiz/interaction and saved teaching survives restart without Office", { skip: !process.env.DECKWISE_E2E_WORKFLOW_HOST, timeout: 90000 }, async t => {
+test("ordinary export publishes complete native teaching and saved generation survives restart", { skip: !process.env.DECKWISE_E2E_WORKFLOW_HOST, timeout: 90000 }, async t => {
   const f = await fixture(t);
+  const original = await readFile(f.args.path);
   const result = await f.workflow.execute(f.sessionId, "courseware_presentation_adopt", f.args, () => true);
-  assert.equal(result.generated, true);
-  assert.equal((await f.workflow.read(f.sessionId)).task.sourcePath, f.args.path);
-  const scope = { sessionId: f.sessionId, projectId: result.projectId };
-  const context = await f.host.call("courseware.project.context", scope);
-  assert.equal(context.teachingRequirements.length, 3);
-  assert(context.completion.issues.some(issue => issue.code === "NARRATION_MISSING" && issue.pageNumber === 1));
-  assert(context.completion.issues.some(issue => issue.code === "EFFECT_MISSING"));
-  assert.equal(context.assessmentPageIds.length, 2);
-  const saved = await f.host.call("courseware.classroom.get", scope);
-  assert.equal(saved.classroom.scenes[1].type, "quiz");
-  const checkpoint = saved.classroom.scenes[2].actions.find(a => a.type === "interaction_checkpoint");
-  assert.deepEqual(checkpoint.context.sourceSceneIds, [context.project.pages[2].pageId]);
-  assert.deepEqual(saved.classroom.scenes[2].metadata.teachingRequirements.question.response, pages[2].teaching.question.response);
-  assert.equal(checkpoint.response, undefined, "Local response fields must not leak into the MAIC action contract");
-  assert(saved.classroom.scenes[2].actions.some(a => a.type === "speech" && a.text === pages[2].teaching.question.text));
-  const targets = await new CoursewareAssessmentMedia({ open: async () => saved }, {}, {}).execute(f.sessionId, { mode: "context" }, () => true);
-  assert.equal(targets.targets.filter(target => target.kind === "tts").length, 2);
-  assert.equal(targets.targets.filter(target => target.kind === "image").length, 4);
-  await f.workflow.execute(f.sessionId, "courseware_presentation_adopt", f.args, () => true);
-  assert.equal((await f.host.call("courseware.classroom.get", scope)).revision, saved.revision);
-  const source = new CoursewareSavedNarration(() => f.host, () => null, async () => assert.fail("Context must not call a model"));
-  const read = await source.execute(f.sessionId, "courseware_narration_context", {}, () => true);
-  assert.equal(read.pages.length, 3); assert.equal(read.narrationReady, false);
-  const label = context.mapping.pages[0].objects[0].objectId;
-  const generator = new CoursewareSavedNarration(() => f.host, () => null, async input => {
-    const data = JSON.parse(input.messages[0].content);
-    if (data.outline) return { text: JSON.stringify({ goal: "Name family", pages: data.outline.map(page => ({
-      pageNumber: page.pageNumber, purpose: "Name father", bridge: "Practice", focus: "father",
-    })) }) };
-    return { text: JSON.stringify({ blocks: [{ type: "speech", text: "Look at father.",
-      attention: { type: "highlight", objectIds: [label], animation: "pulse" } }, { type: "speech", text: "Say father." }] }) };
-  }, async () => ({ modelKey: "fixture/narration" }));
-  const generated = await generator.execute(f.sessionId, "courseware_narration_propose", {
-    sourceSha256: f.args.sourceSha256, pageNumbers: [1, 2, 3], instruction: "Finish detailed narration with highlight and animation.",
-  }, () => true);
-  assert.equal(generated.saved, true, JSON.stringify(generated.failures));
-  assert.deepEqual(generated.savedPages.map(page => page.pageNumber), [1]);
-  const after = await f.host.call("courseware.project.context", scope);
-  assert.equal(after.completion.issues.some(issue => ["NARRATION_MISSING", "EFFECT_MISSING"].includes(issue.code)), false);
-  assert(after.completion.issues.some(issue => issue.code === "AUDIO_MISSING"));
-  assert(after.project.pages[0].actions.some(action => action.attention?.animation === "pulse"));
-  await source.withSaved(f.sessionId, () => true, async live => {
-    const refreshed = await refreshNativeMaicClassroom({ host: f.host, sessionId: f.sessionId, projectId: result.projectId, jobId: live.jobId, workspace: f.workspace });
-    assert.equal(refreshed.classroom.scenes[1].type, "quiz");
-    assert.deepEqual(refreshed.classroom.scenes[0].metadata.teachingRequirements, pages[0].teaching);
-  });
+  assert.equal(result.generated, true); assert.equal(result.nativeTeaching, true);
+  assert.notEqual(result.path, f.args.path, "Original validated export is preserved");
+  assert.deepEqual(await readFile(f.args.path), original);
+  const bytes = await readFile(result.path), native = await readNativeTeachingPackage(bytes);
+  assert.equal(native.pages.length, 3);
+  assert.equal(native.pages[0].actions[0].text, "Look at father. Say father.");
+  assert.deepEqual(native.pages[1].actions[1].response, { kind: "single", options: ["father", "mother", "brother", "sister"], answerIndices: [0] });
+  assert.deepEqual(native.pages[2].actions[1].response, pages[2].teaching.question.response);
+  assert.deepEqual(native.pages[2].actions[1].referenceAnswer, pages[2].teaching.question.referenceAnswer);
+  assert.equal((await f.workflow.execute(f.sessionId, "courseware_presentation_adopt", f.args, () => true)).path, result.path);
+  await assert.rejects(f.host.call("courseware.project.context", { sessionId: f.sessionId, projectId: native.documentId }), /not found|NOT_FOUND/i);
   const restarted = await f.restart();
-  assert.equal((await restarted.call("courseware.task.get", { sessionId: f.sessionId })).task.generatedPath, f.args.path);
-  assert.deepEqual((await restarted.call("courseware.project.context", scope)).teachingRequirements, context.teachingRequirements);
+  assert.equal((await restarted.call("courseware.task.get", { sessionId: f.sessionId })).task.generatedPath, result.path);
+  assert.deepEqual((await readNativeTeachingPackage(await readFile(result.path))).pages, native.pages);
 });
 
 test("ordinary handoff rejects stale validation, wrong page budgets and changed source without attachment", { skip: !process.env.DECKWISE_E2E_WORKFLOW_HOST, timeout: 90000 }, async t => {
@@ -244,11 +212,11 @@ test("ordinary handoff rejects stale validation, wrong page budgets and changed 
   await assert.rejects(f.workflow.execute(f.sessionId, "courseware_presentation_adopt", f.args, () => true), /validation|changed after/);
   assert.equal((await f.host.call("courseware.task.get", { sessionId: f.sessionId })).task.generatedPath, undefined);
   await assert.rejects(f.workflow.execute(f.sessionId, "courseware_presentation_adopt", { ...f.args, sourceSha256: "f".repeat(64) }, () => true), /changed/);
-  await assert.rejects(f.workflow.execute(f.sessionId, "courseware_presentation_adopt", { ...f.args, pages: f.args.pages.slice(0, 2) }, () => true), /physical pages/);
+  await assert.rejects(f.workflow.execute(f.sessionId, "courseware_presentation_adopt", { ...f.args, pages: f.args.pages.slice(0, 2) }, () => true), /physical.*pages/);
   await utimes(report, new Date(), new Date());
   const overBudget = structuredClone(f.args);
   overBudget.pages[2].teaching = { ...teaching };
-  await assert.rejects(f.workflow.execute(f.sessionId, "courseware_presentation_adopt", overBudget, () => true), /page budget/);
+  await assert.rejects(f.workflow.execute(f.sessionId, "courseware_presentation_adopt", overBudget, () => true), /page limit|page budget/);
   const wrongQuestion = structuredClone(f.args);
   wrongQuestion.pages[2].teaching.question.text = "A question absent from this page.";
   await assert.rejects(f.workflow.execute(f.sessionId, "courseware_presentation_adopt", wrongQuestion, () => true), /exact interaction question/);

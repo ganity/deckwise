@@ -317,3 +317,30 @@ test("fade, redo and confirmed batch keep their existing dedicated delegates", a
     assert(!f.calls.some(([method]) => method === "courseware.narration.save"));
   } finally { authoringUrl = undefined; }
 });
+
+test("native generated narration keeps page requirements, live targets and adopted clips through rewrite and repair", async () => {
+  const f = setup(async () => ({ modelKey: "provider/model" })), page = f.project.pages[0];
+  page.actions.push({ id: "song", type: "audio_clip", audioAssetId: "music-" + "b".repeat(64), durationMs: 1500 });
+  const teaching = { pageType: "slide", phase: "explore", objective: "Name the apple", durationSeconds: 30, requiredObjects: ["apple"] };
+  const captured = () => ({ view: { nativeTeaching: true, viewId: "native-page", pageId: page.pageId, pageNumber: 1, project: structuredClone(f.project), teaching },
+    text: "A red apple.", editor: { ...f.editor, readOnly: false }, evidence: { notes: "Point at the apple.", visualSummary: "A red apple.",
+      objects: [{ objectId: "apple", name: "apple", kind: "shape", text: "", bbox: [10, 20, 80, 80], aliases: ["apple"] }] } });
+  const writes = [];
+  f.teaching.native = async (operation, args) => {
+    if (operation === "narration-context") return { value: captured() };
+    assert.equal(operation, "write"); writes.push(args);
+    page.actions = structuredClone(args.actions); f.project.teachingRevision += "saved";
+    return { value: captured().view };
+  };
+  await f.coordinator.proposeNativeNarration("chat", 1, "Explain the apple", () => true);
+  const input = JSON.parse(f.requests[0].messages[0].content);
+  assert.deepEqual(input.coursePlan.teaching, teaching);
+  assert.equal(input.evidence.objects[0].objectId, "apple");
+  assert.equal(input.evidence.notes, "Point at the apple.");
+  assert.equal(writes[0].actions.find(action => action.id === "song").audioAssetId, "music-" + "b".repeat(64));
+  assert.equal(writes[0].actions.find(action => action.id === "song").durationMs, 1500);
+  const before = page.actions.filter(action => action.type === "speech").map(action => action.text);
+  await f.coordinator.proposeNativeNarration("chat", 1, "Preserve speech", () => true, true);
+  assert.deepEqual(page.actions.filter(action => action.type === "speech").map(action => action.text), before);
+  assert.equal(f.requests.length, 1, "a satisfied repair never regenerates speech or buys replacement media");
+});

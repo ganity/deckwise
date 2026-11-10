@@ -45,7 +45,7 @@ test("planned scene pages compile as one editable PPTX and keep page narration s
   calls.length = 0;
   const deck = await buildSceneCourseDeck(input, async () => ({ text: "" }), authoring);
   assert.equal(deck.mapping.pages.length, 2);
-  assert.deepEqual(deck.teaching, pages.map(({ pageId, narration }) => ({ pageId, narration })));
+  assert.deepEqual(deck.teaching, pages.map(({ pageId, title, narration, teaching, quiz }) => ({ pageId, title, narration, teaching, quiz })));
   assert.equal(calls.length, 2);
   assert.match(calls[0].request.instruction, /teacher narration is separate/i);
   assert.equal(calls[0].request.pageText, "Hello");

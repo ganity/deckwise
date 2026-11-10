@@ -312,7 +312,7 @@ export class CoursewareTurnContinuation {
     let lastSavedRefresh: string | undefined;
     const assessmentRefreshFailures = new Set<string>();
     const save = async (status: CoursewareWorkflowCheckpoint["status"]) => {
-      if (!checkpoints || !snapshot || snapshot.canonicalOnly === true || !canWait()) return;
+      if (!checkpoints || !snapshot || snapshot.canonicalOnly === true || snapshot.nativeTeaching === true || !canWait()) return;
       const next: CoursewareWorkflowCheckpoint = { revision: (checkpoint?.revision ?? 0) + 1,
         projectId: String(snapshot.projectId), sourceSha256: String(snapshot.sourceSha256), status,
         repairAttempts: Object.fromEntries([...this.qualityRepairs].sort(([a], [b]) => a.localeCompare(b))), lastResume: this.lastResume ?? null };
@@ -328,7 +328,7 @@ export class CoursewareTurnContinuation {
         if (!canWait()) return;
         if (typeof snapshot.sourceSha256 !== "string" || !Array.isArray(snapshot.jobs)) throw new LocalRequestError("context-validation");
         const jobs = this.mediaRetries.size ? snapshot.jobs.filter(job => record(job) && this.mediaRetries.has(String(job.intentId))) : snapshot.jobs;
-        if (checkpoints && snapshot.canonicalOnly !== true) {
+        if (checkpoints && snapshot.canonicalOnly !== true && snapshot.nativeTeaching !== true) {
           if (typeof snapshot.projectId !== "string") throw new LocalRequestError("context-validation");
           const durable = await checkpoints.read(snapshot.projectId);
           if (!canWait()) return;
@@ -344,8 +344,8 @@ export class CoursewareTurnContinuation {
             this.restored = true;
           }
         }
-        if (checkpoint && checkpoint.sourceSha256 !== snapshot.sourceSha256 ||
-            this.sourceSha256 && snapshot.sourceSha256 !== this.sourceSha256 && checkpoint?.sourceSha256 !== snapshot.sourceSha256) {
+        if (snapshot.nativeTeaching !== true && (checkpoint && checkpoint.sourceSha256 !== snapshot.sourceSha256 ||
+            this.sourceSha256 && snapshot.sourceSha256 !== this.sourceSha256 && checkpoint?.sourceSha256 !== snapshot.sourceSha256)) {
           this.stop();
           return "COURSEWARE_CONFLICT: source changed without verified native-save continuation. The course remains unfinished. Preserve saved teaching and original media; read the current source and reconcile its bindings before resuming.\n" + JSON.stringify(coursewareStatusSummary(snapshot));
         }

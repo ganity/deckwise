@@ -1,5 +1,5 @@
 import { generateNarrationWrite, candidateHash, pageNarrationOutputSchema, type PptCandidateBaseline, type PptCandidateContext } from "@pi-desktop/agent-runtime";
-import { COURSEWARE_STYLE_BATCH_TIMEOUT_MS, isCoursewareProject } from "@pi-desktop/shared";
+import { COURSEWARE_STYLE_BATCH_TIMEOUT_MS, isCoursewareSceneTeaching, isCoursewareProject } from "@pi-desktop/shared";
 import type { PluginCompleteInput, PluginCompleteResult } from "@pi-desktop/plugin-sdk";
 import { stagePageFadeCandidate } from "./courseware-source-candidate";
 import type { CoursewareTeachingCoordinator } from "./courseware-teaching";
@@ -23,9 +23,9 @@ export class CoursewareCandidateCoordinator {
     return this.run(sessionId, name, args, canDispatch);
   }
 
-  async proposeNativeNarration(sessionId: string, pageNumber: number, instruction: string, canDispatch: () => boolean) {
+  async proposeNativeNarration(sessionId: string, pageNumber: number, instruction: string, canDispatch: () => boolean, repairRequiredTeaching = false) {
     const context = await this.run(sessionId, "ppt_get_narration_context", {}, canDispatch, undefined, pageNumber) as PptCandidateContext;
-    return this.run(sessionId, "ppt_propose_page_narration", { kind: "page-narration", baseline: context.baseline, instruction }, canDispatch, undefined, pageNumber);
+    return this.run(sessionId, "ppt_propose_page_narration", { kind: "page-narration", baseline: context.baseline, instruction }, canDispatch, undefined, pageNumber, repairRequiredTeaching);
   }
 
   /** Trusted Host entry only; source text must be explicitly bound to this saved logical page. */
@@ -40,7 +40,7 @@ export class CoursewareCandidateCoordinator {
   }
 
   private async run(sessionId: string, name: string, args: unknown, canDispatch: () => boolean,
-    selectedNarration?: ReturnType<typeof pageNarrationOutputSchema.parse>, nativePageNumber?: number): Promise<unknown> {
+    selectedNarration?: ReturnType<typeof pageNarrationOutputSchema.parse>, nativePageNumber?: number, repairRequiredTeaching = false): Promise<unknown> {
     args = structuredClone(args);
     const controller = new AbortController();
     const checkTurn = () => { if (!canDispatch()) controller.abort(new Error("Chat turn cancelled or editor owner changed")); controller.signal.throwIfAborted(); };
@@ -51,7 +51,7 @@ export class CoursewareCandidateCoordinator {
       if (["ppt_get_narration_context", "ppt_propose_page_narration"].includes(name)) {
         const native = await this.teaching.native?.("narration-context", {}, nativePageNumber);
         if (native) {
-          const captured = native.value as { view: import("@pi-desktop/shared").CoursewareTeachingView; text: string; editor: import("@pi-desktop/shared").PptEditorContext };
+          const captured = native.value as { view: import("@pi-desktop/shared").CoursewareTeachingView; text: string; editor: import("@pi-desktop/shared").PptEditorContext; evidence?: Parameters<typeof generateNarrationWrite>[0]["evidence"] };
           const { view, text, editor } = captured, project = view.project;
           const page = project.pages.find(p => p.pageId === view.pageId);
           if (!page || page.locked || editor.readOnly) throw new Error("Native teaching page is locked or read-only");
@@ -74,8 +74,13 @@ export class CoursewareCandidateCoordinator {
           if (!this.resolveModel && !selectedNarration) throw new Error("Select a narration model first");
           const model = !selectedNarration ? await this.resolveModel!(sessionId) : null;
           const before = await current();
-          const generated = await generateNarrationWrite({ project, pageId: page.pageId, baseline: before, pageText: text,
+          // Native actions retain measured duration; the authoring contract derives timing from adopted media.
+          const authoringProject = structuredClone(project);
+          for (const action of authoringProject.pages.flatMap(p => p.actions)) delete action.durationMs;
+          const generated = await generateNarrationWrite({ project: authoringProject, pageId: page.pageId, baseline: before, pageText: text,
             instruction: Reflect.get(args, "instruction"), getCurrentBaseline: current, signal: controller.signal,
+            repairRequiredTeaching, evidence: captured.evidence,
+            ...(isCoursewareSceneTeaching(view.teaching) ? { coursePlan: { teaching: view.teaching } } : {}),
             generate: async ({ system, data }) => {
               if (selectedNarration) return selectedNarration;
               const output = await this.complete({ sessionId, ...model!, system, messages: [{ role: "user", content: data }],
@@ -83,6 +88,16 @@ export class CoursewareCandidateCoordinator {
               if (output.text.length > 1024 * 1024) throw new Error("Narration exceeds output budget");
               return pageNarrationOutputSchema.parse(JSON.parse(output.text));
             } });
+          for (const [index, original] of page.actions.entries()) {
+            if (!["music_slot", "audio_clip", "video_slot", "video_clip", "native_animation"].includes(String(original.type))) continue;
+            const position = generated.write.actions.findIndex(action => action.id === original.id);
+            if (position >= 0) generated.write.actions[position] = structuredClone(original);
+            else generated.write.actions.splice(Math.min(index, generated.write.actions.length), 0, structuredClone(original));
+          }
+          for (const action of generated.write.actions) {
+            const original = page.actions.find(a => a.id === action.id);
+            if (original?.durationMs !== undefined && (action.audioAssetId && action.audioAssetId === original.audioAssetId || action.videoAssetId && action.videoAssetId === original.videoAssetId)) action.durationMs = original.durationMs;
+          }
           await current();
           if (model && JSON.stringify(await this.resolveModel!(sessionId)) !== JSON.stringify(model)) throw new Error("Narration model changed");
           checkTurn();

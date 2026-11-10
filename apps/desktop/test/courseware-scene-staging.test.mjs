@@ -1,183 +1,125 @@
 import assert from "node:assert/strict";
-import { createHash, randomUUID } from "node:crypto";
-import { constants, promises as fs } from "node:fs";
-import { readFile } from "node:fs/promises";
-import { mkdtemp } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { mkdtemp, readFile, rm, mkdir, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { dirname, join, resolve } from "node:path";
-import { setTimeout } from "node:timers/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import test from "node:test";
 import ts from "typescript";
+import * as shared from "@pi-desktop/shared";
+import * as runtime from "@pi-desktop/courseware-runtime/node";
+import * as authoring from "../../../packages/courseware-runtime/dist/authoring.mjs";
+import { Host } from "../../../scripts/e2e/host.mjs";
 
-const nativeRequire = createRequire(import.meta.url);
-const office = { validateOfficeBytes: (bytes) => {
-  const value = Buffer.from(bytes);
-  if (!value.subarray(0, 2).equals(Buffer.from("PK"))) throw new Error("Invalid PPTX");
-  return value;
-} };
-const revisions = {};
-const revisionSource = await readFile(new URL("../electron/main/ppt-editor-files.ts", import.meta.url), "utf8");
-new Function("require", "exports", ts.transpileModule(revisionSource, {
-  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
-}).outputText)((id) => id === "./office-file" ? office : nativeRequire(id), revisions);
-
-const source = await readFile(new URL("../electron/main/courseware-scene-staging.ts", import.meta.url), "utf8");
-const { outputText } = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } });
-const exports = {};
-new Function("require", "exports", outputText)((id) => {
-  if (id === "node:crypto") return { createHash };
-  if (id === "node:fs") return { constants, promises: fs };
-  if (id === "node:path") return { dirname, join };
-  if (id === "node:timers/promises") return { setTimeout };
-  if (id === "./fs-panel") return {
-    resolveRealPathForCreateWithinRoot: async (root, relative) => resolve(root, relative),
-    resolveRealOpenablePath: async (path) => path,
-  };
-  if (id === "./office-file") return office;
-  if (id === "./ppt-editor-files") return revisions;
-  throw new Error(`Unexpected dependency: ${id}`);
-}, exports);
-const { stageGeneratedSceneCourse } = exports;
-const pptx = Buffer.from("PK generated ppt/presentation.xml [Content_Types].xml");
-const sha256 = createHash("sha256").update(pptx).digest("hex");
-
-test("generated source survives parsing and initializes narration before attaching the task", async () => {
-  const workspace = await mkdtemp(join(tmpdir(), `deckwise-scene-stage-${randomUUID()}-`));
-  const path = join(workspace, ".deckwise-ppt", "generated", `${sha256}.pptx`);
-  const documentId = revisions.jobIdFor(workspace, path);
-  const revisionRoot = join(workspace, ".deckwise-ppt", "revisions");
-  const calls = [];
+const require = createRequire(import.meta.url), cache = new Map([[new URL("../../../packages/courseware-runtime/dist/authoring.mjs", import.meta.url).href, authoring], ["@pi-desktop/shared", shared], ["@pi-desktop/courseware-runtime/node", runtime],
+  ["./courseware-runtime", { coursewareAuthoringUrl: () => new URL("../../../packages/courseware-runtime/dist/authoring.mjs", import.meta.url).href }]]);
+function load(name) {
+  if (cache.has(name)) return cache.get(name);
+  if (!name.startsWith("./")) return require(name);
+  const exports = {}; cache.set(name, exports);
+  const code = ts.transpileModule(readFileSync(new URL(`../electron/main/${name.slice(2)}.ts`, import.meta.url), "utf8"), {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true },
+  }).outputText;
+  new Function("require", "exports", code)(load, exports); return exports;
+}
+const { stageGeneratedSceneCourse } = load("./courseware-scene-staging");
+const { readNativeTeachingPackage } = load("./courseware-native-package");
+const hash = b => createHash("sha256").update(b).digest("hex");
+const teaching = { pageType: "slide", phase: "explore", objective: "Say Hello", durationSeconds: 30, requiredObjects: [] };
+const pages = [
+  { pageId: "scene-001", title: "Greeting", narration: "Look at the teacher. Say hello.", teaching: { ...teaching,
+    music: { purpose: "Greeting song", prompt: "A short greeting song" }, video: { purpose: "Greeting clip", prompt: "Teacher waves" } } },
+  { pageId: "scene-002", title: "Quiz", narration: "", teaching: { ...teaching, pageType: "quiz" },
+    quiz: { type: "quiz", questions: [{ id: "quiz1", type: "single", question: "Choose the greeting", options: [{ value: "A", label: "Bye" }, { value: "B", label: "Hello" }], answer: ["B"] }] } },
+  { pageId: "scene-003", title: "Practice", narration: "", teaching: { ...teaching, pageType: "interactive",
+    question: { text: "Greet your friend.", response: { kind: "practice", options: [], answerIndices: [] },
+      referenceAnswer: { summary: "Say Hello", keyPoints: ["Hello"] }, constraintPrompt: "Wait for the teacher" } } },
+];
+async function compiled() {
+  const canvas = { width: 1280, height: 800 }, png = authoring.assessmentBackground;
+  return authoring.compileScenesToPptx(pages.map((p, i) => ({ version: 1, slideId: p.pageId, sourceHash: "sha256:" + "a".repeat(64), canvas,
+    visualMasterAssetId: png.id, cleanPlateAssetId: png.id, elements: [{ id: `text-${i}`, type: "native_text", bboxPx: [40, 40, 1000, 200], zIndex: 1,
+      content: p.teaching.question?.text ?? p.title, style: { fontFace: "Arial", fontSizePt: 28, color: "#111111" } }] })), { [png.id]: png.bytes });
+}
+async function setup(t) {
+  const workspace = await mkdtemp(join(tmpdir(), "native-generation-"));
+  t.after(() => rm(workspace, { recursive: true, force: true }));
+  const deck = await compiled(), calls = []; let observed;
   const host = { async call(method, params) {
     calls.push(method);
-    if (method === "courseware.parseStart") {
-      assert.equal(params.path, join(revisionRoot, documentId, "r0001", "document.pptx"));
-      assert.equal(createHash("sha256").update(await fs.readFile(params.path)).digest("hex"), sha256);
-      return { jobId: "job" };
-    }
-    if (method === "courseware.parseStatus") return { status: "SUCCEEDED", summary: { sourceSha256: sha256 } };
-    if (method === "courseware.project.initializeGenerated") {
-      assert.equal(params.sourceSha256, sha256);
-      assert.deepEqual(params.narrations, ["第一句讲解"]);
-      return { project: { projectId: `office-${documentId}`, source: { sha256 }, pages: [{}] } };
-    }
-    if (method === "courseware.task.attachGenerated") return { task: { generatedPath: params.path } };
-    if (method === "courseware.parseRelease") return {};
-    throw new Error(method);
+    if (method === "courseware.task.get") return { task: {} };
+    if (method === "courseware.parseStart") { observed = await readFile(params.path); return { jobId: "job" }; }
+    if (method === "courseware.parseStatus") return { status: "SUCCEEDED", summary: { sourceSha256: hash(observed) } };
+    if (method === "courseware.task.attachNativeGenerated") { assert.equal(params.project.source.sha256, hash(observed)); return { task: { generatedPath: params.path } }; }
+    if (["courseware.parseRelease", "courseware.parseCancel"].includes(method)) return {};
+    assert.fail(`Unexpected mutable teaching route: ${method}`);
   } };
-  const input = { workspace, sessionId: "session", title: "问候课", pptx, teaching: [{ pageId: "scene-001", narration: "第一句讲解" }], host };
-  try {
-    const result = await stageGeneratedSceneCourse(input);
-    assert.equal(result.path, join(workspace, ".deckwise-ppt", "generated", `${sha256}.pptx`));
-    assert.deepEqual(calls, ["courseware.parseStart", "courseware.parseStatus", "courseware.project.initializeGenerated", "courseware.task.attachGenerated", "courseware.parseRelease"]);
-    assert.deepEqual(await fs.readFile(result.path), pptx);
-    await stageGeneratedSceneCourse(input);
-    assert.deepEqual(await fs.readFile(result.path), pptx);
-    const saved = await revisions.listRevisions(revisionRoot, documentId);
-    assert.equal(saved.length, 1, "A retry reuses the same saved editor revision");
-    assert.equal(saved[0].cause, "generated");
-    assert.equal(result.project.projectId, `office-${documentId}`);
-  } finally { await fs.rm(workspace, { recursive: true, force: true }); }
+  return { workspace, deck, calls, host, input: { workspace, sessionId: "session", title: "Greeting course", pptx: deck.pptx, teaching: pages, host } };
+}
+test("mixed scene generation publishes native teaching, Quiz answers and media slots before opening an editor", async t => {
+  const f = await setup(t), result = await stageGeneratedSceneCourse(f.input);
+  const bytes = await readFile(result.path), native = await readNativeTeachingPackage(bytes);
+  assert.equal(native.pages.length, 3); assert.equal(native.documentId, result.project.projectId);
+  assert.deepEqual(native.pages[0].actions.map(a => a.type), ["speech", "music_slot", "video_slot"]);
+  assert.equal(native.pages[0].actions[0].text, pages[0].narration);
+  assert.deepEqual(native.pages[1].actions[1].response, { kind: "single", options: ["Bye", "Hello"], answerIndices: [1] });
+  assert.equal(native.pages[1].actions[0].text, "Choose the greeting\nA. Bye\nB. Hello");
+  assert.equal(native.pages[2].actions[1].response.kind, "practice");
+  assert.match(native.pages[2].actions[1].context.chapterSummary, /Wait for the teacher/);
+  assert.equal(native.identity.pages.every(p => p.objects.length === 1), true);
+  assert.deepEqual(f.calls, ["courseware.task.get", "courseware.parseStart", "courseware.parseStatus", "courseware.task.attachNativeGenerated", "courseware.parseRelease"]);
+  assert.equal((await stageGeneratedSceneCourse(f.input)).path, result.path, "retry keeps the same native file and IDs");
+  assert.deepEqual(await readFile(result.path), bytes);
 });
-
-test("a parse failure keeps the content-addressed PPTX for recovery and releases the job", async () => {
-  const workspace = await mkdtemp(join(tmpdir(), `deckwise-scene-failed-${randomUUID()}-`));
-  const calls = [];
-  const host = { async call(method) {
-    calls.push(method);
+test("Quiz-only generation still creates a physical native PPTX with its answer key", async t => {
+  const f = await setup(t), png = authoring.assessmentBackground;
+  const q = pages[1], scene = authoring.assessmentPptxScene({ id: q.pageId, stageId: "q", title: q.title, order: 0, type: "quiz", content: q.quiz, actions: [] }, "sha256:" + "a".repeat(64), { width: 1280, height: 800 });
+  const deck = await authoring.compileScenesToPptx([scene], { [png.id]: png.bytes });
+  const result = await stageGeneratedSceneCourse({ ...f.input, pptx: deck.pptx, teaching: [q] });
+  assert(result.path.endsWith(".pptx"));
+  assert.equal((await readNativeTeachingPackage(await readFile(result.path))).pages[0].actions[1].response.answerIndices[0], 1);
+});
+test("cancelled owners, missing physical question bindings and failed parsers cannot attach generated teaching", async t => {
+  const f = await setup(t);
+  await assert.rejects(stageGeneratedSceneCourse({ ...f.input, assertCurrent: async () => { throw Error("OWNER_CHANGED"); } }), /OWNER_CHANGED/);
+  assert.deepEqual(f.calls, []);
+  const bad = structuredClone(pages); bad[2].teaching.question.text = "Absent from the PPT";
+  await assert.rejects(stageGeneratedSceneCourse({ ...f.input, teaching: bad }), /exact interaction question/);
+  assert.deepEqual(f.calls, ["courseware.task.get"]);
+  await assert.rejects(stageGeneratedSceneCourse({ ...f.input, host: { async call(method) {
+    f.calls.push(method);
+    if (method === "courseware.task.get") return { task: {} };
     if (method === "courseware.parseStart") return { jobId: "job" };
     if (method === "courseware.parseStatus") return { status: "FAILED", message: "Parser rejected source" };
     if (method === "courseware.parseRelease") return {};
-    throw new Error(method);
-  } };
-  try {
-    await assert.rejects(stageGeneratedSceneCourse({ workspace, sessionId: "session", title: "问候课", pptx,
-      teaching: [{ pageId: "scene-001", narration: "第一句讲解" }], host }), /Parser rejected source/);
-    assert.deepEqual(calls, ["courseware.parseStart", "courseware.parseStatus", "courseware.parseRelease"]);
-    assert.deepEqual(await fs.readFile(join(workspace, ".deckwise-ppt", "generated", `${sha256}.pptx`)), pptx);
-  } finally { await fs.rm(workspace, { recursive: true, force: true }); }
+    assert.fail(method);
+  } } }), /Parser rejected source/);
+  assert(!f.calls.includes("courseware.task.attachNativeGenerated"));
+  assert.equal(f.calls.at(-1), "courseware.parseRelease");
 });
-
-test("staging refuses to replace a different saved editor revision", async () => {
-  const workspace = await mkdtemp(join(tmpdir(), "deckwise-scene-revision-"));
-  const calls = [];
-  const host = { async call(method) {
-    calls.push(method);
-    if (method === "courseware.parseStart") return { jobId: "job" };
-    if (method === "courseware.parseStatus") return { status: "FAILED", message: "Parser rejected source" };
-    if (method === "courseware.parseRelease") return {};
-    throw new Error(method);
-  } };
-  const input = { workspace, sessionId: "session", title: "Shapes", pptx, teaching: [{ pageId: "scene-001", narration: "Good!" }], host };
-  try {
-    await assert.rejects(stageGeneratedSceneCourse(input), /Parser rejected source/);
-    const path = join(workspace, ".deckwise-ppt", "generated", `${sha256}.pptx`);
-    const root = join(workspace, ".deckwise-ppt", "revisions");
-    const jobId = revisions.jobIdFor(workspace, path);
-    const edited = Buffer.from("PK edited document");
-    const saved = await revisions.publishRevision({ root, jobId, bytes: edited, extension: "pptx", cause: "edited", expectedRevision: 1 });
-    calls.length = 0;
-    await assert.rejects(stageGeneratedSceneCourse(input), /different saved revision/);
-    assert.deepEqual(calls, []);
-    assert.deepEqual(await fs.readFile(saved.documentPath), edited);
-    assert.equal((await revisions.listRevisions(root, jobId)).length, 2);
-    assert.deepEqual(await fs.readFile(path), pptx);
-  } finally { await fs.rm(workspace, { recursive: true, force: true }); }
-});
-
-test("reviewed scene proof reaches both Host writes and a changed selection stops each write boundary", async t => {
-  for (const failAt of [0, 1, 2]) await t.test(`scope check ${failAt}`, async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "deckwise-scene-proof-"));
-    let checks = 0; const calls = [];
-    const sceneProof = { planSha256: "a".repeat(64), principalKey: "b".repeat(64), selectedIntentIds: ["intent-a"] };
-    const host = { async call(method, params) {
-      calls.push(method);
-      if (method === "courseware.parseStart") return { jobId: "job" };
-      if (method === "courseware.parseStatus") return { status: "SUCCEEDED", summary: { sourceSha256: sha256 } };
-      if (method === "courseware.project.initializeGenerated") {
-        assert.deepEqual(params.sceneProof, sceneProof);
-        assert.deepEqual(params.sceneMapping, { pages: [] });
-        return { project: { projectId: "office-lesson", source: { sha256 }, pages: [{}] } };
-      }
-      if (method === "courseware.task.attachGenerated") { assert.deepEqual(params.sceneProof, sceneProof); return {}; }
-      if (method === "courseware.parseRelease") return {};
-      throw new Error(method);
-    } };
-    const request = { workspace, sessionId: "session", title: "Shapes", pptx, teaching: [{ pageId: "scene-001", narration: "Good!" }], host,
-      sceneProof, sceneMapping: { pages: [] }, async assertCurrent() { if (++checks === failAt) throw new Error("SCENE_INPUT_CHANGED"); } };
-    try {
-      if (failAt) await assert.rejects(stageGeneratedSceneCourse(request), /SCENE_INPUT_CHANGED/);
-      else await stageGeneratedSceneCourse(request);
-      assert.equal(calls.includes("courseware.project.initializeGenerated"), failAt !== 1);
-      assert.equal(calls.includes("courseware.task.attachGenerated"), failAt === 0);
-      assert.equal(calls.at(-1), "courseware.parseRelease");
-    } finally { await fs.rm(workspace, { recursive: true, force: true }); }
-  });
-});
-
-test("canonical-only Quiz staging creates no fake PPT and archives resource pixels once", async () => {
-  const workspace = await mkdtemp(join(tmpdir(), "maic-quiz-stage-"));
-  const image = Buffer.from("verified image pixels");
-  const src = `data:image/png;base64,${image.toString("base64")}`;
-  const document = { stage: { name: "draft" }, scenes: [{ type: "quiz", content: { type: "quiz", questions: [{ id: "q", image: { src } }] } }], mediaManifest: [{ src, originalSrc: src, mimeType: "image/png" }] };
-  const calls = [];
-  try {
-    const result = await stageGeneratedSceneCourse({ workspace, sessionId: "s", title: "Final lesson", pptx: new Uint8Array(), teaching: [], canonicalClassroom: document,
-      host: { async call(method, params) {
-        calls.push(method);
-        assert.equal(method, "courseware.classroom.create");
-        assert.equal(params.classroom.stage.name, "Final lesson");
-        const asset = params.classroom.mediaManifest[0];
-        assert.match(asset.src, /^\.deckwise-ppt\/classroom-assets\/[a-f0-9]{64}\.png$/);
-        assert.equal(asset.src, asset.originalSrc);
-        assert.equal(params.classroom.scenes[0].content.questions[0].image.src, asset.src);
-        assert.deepEqual(await fs.readFile(join(workspace, asset.src)), image);
-        return { projectId: "canonical-only", sourceRevision: "sha256", revision: "1" };
-      } } });
-    assert.equal(result.path, "");
-    assert.equal(result.project.projectId, "canonical-only");
-    assert.deepEqual(calls, ["courseware.classroom.create"]);
-    assert.equal(document.mediaManifest[0].src, src, "Staging doesn't mutate the caller's document");
-    assert(!await fs.stat(join(workspace, ".deckwise-ppt", "generated")).catch(() => false));
-  } finally { await fs.rm(workspace, { recursive: true, force: true }); }
+test("generated native lesson attaches to real Host and survives restart without mutable teaching records", {
+  skip: !process.env.DECKWISE_E2E_WORKFLOW_HOST, timeout: 120000,
+}, async t => {
+  const f = await setup(t), data = join(f.workspace, "profile");
+  await mkdir(join(data, "plugins/market"), { recursive: true });
+  await writeFile(join(data, "plugins/market/catalog.json"), JSON.stringify({ schemaVersion: 2, providerId: "official", plugins: [] }));
+  let host = new Host(process.env.DECKWISE_E2E_WORKFLOW_HOST, data); await host.start();
+  t.after(() => host.stop());
+  const sessionId = (await host.call("session.create", { projectPath: f.workspace, mode: "agent" })).session.id;
+  await host.call("courseware.task.set", { sessionId, taskType: "scene" });
+  const result = await stageGeneratedSceneCourse({ ...f.input, host, sessionId });
+  const native = await readNativeTeachingPackage(await readFile(result.path));
+  assert.equal((await host.call("courseware.task.get", { sessionId })).task.nativeDocumentId, native.documentId);
+  await assert.rejects(host.call("courseware.project.context", { sessionId, projectId: native.documentId }), /not found|NOT_FOUND/i);
+  await host.stop(); host = new Host(process.env.DECKWISE_E2E_WORKFLOW_HOST, data); await host.start();
+  assert.equal((await host.call("courseware.task.get", { sessionId })).task.generatedPath, result.path);
+  assert.deepEqual((await readNativeTeachingPackage(await readFile(result.path))).pages, native.pages);
+  const retry = await stageGeneratedSceneCourse({ ...f.input, host, sessionId });
+  assert.equal(retry.path, result.path);
+  if (process.env.DECKWISE_NATIVE_GENERATED_FIXTURE) {
+    await mkdir(process.env.DECKWISE_NATIVE_GENERATED_FIXTURE, { recursive: true });
+    await writeFile(join(process.env.DECKWISE_NATIVE_GENERATED_FIXTURE, "native.pptx"), await readFile(result.path));
+    await writeFile(join(process.env.DECKWISE_NATIVE_GENERATED_FIXTURE, "teaching.json"), JSON.stringify(native));
+  }
 });

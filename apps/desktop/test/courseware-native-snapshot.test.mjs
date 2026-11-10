@@ -46,9 +46,22 @@ test("real native PPTX supplies an immutable Host snapshot without an editable t
     source: { revision: carrier.revision, sha256: sourceSha256 }, teachingRevision: carrier.revision, pages: carrier.pages };
   for (const page of project.pages) for (const action of page.actions) if (action.type === "native_animation") action.sourceSha256 = sourceSha256;
   const snapshotId = randomUUID();
+  if (project.pages.some(page => page.actions.some(action => action.type === "video_clip"))) {
+    const wrong = structuredClone(assets), video = wrong.find(a => a.asset.mimeType.startsWith("video/"));
+    video.asset.mimeType = "audio/wav";
+    await assert.rejects(host.call("courseware.snapshot.importNative", { sessionId: session.id, jobId, snapshotId: randomUUID(), project, identity: carrier.identity, assets: wrong }), /clip asset type changed/);
+  }
   const result = await host.call("courseware.snapshot.importNative", { sessionId: session.id, jobId, snapshotId, project, identity: carrier.identity, assets });
-  assert.equal(result.nativeTeaching, true); assert.equal(result.snapshot.assetIds.length, carrier.media.length); assert.equal(result.project.pages.length, 6);
-  assert.deepEqual(result.project.pages, project.pages);
+  assert.equal(result.nativeTeaching, true); assert.equal(result.snapshot.assetIds.length, carrier.media.length); assert.equal(result.project.pages.length, carrier.pages.length);
+  const fixedPages = structuredClone(project.pages);
+  for (const action of fixedPages.flatMap(page => page.actions)) {
+    if (!["audio_clip", "video_clip"].includes(action.type)) continue;
+    const field = action.type === "audio_clip" ? "audioAssetId" : "videoAssetId";
+    const asset = carrier.media.find(asset => asset.id === action[field]);
+    action[field] = (action.type === "audio_clip" ? "music-" : "video-") + asset.sha256;
+    delete action.durationMs;
+  }
+  assert.deepEqual(result.project.pages, fixedPages);
   for (const stored of result.assets) {
     const bytes = await fs.readFile(stored.path); assert.equal(createHash("sha256").update(bytes).digest("hex"), stored.sha256);
   }

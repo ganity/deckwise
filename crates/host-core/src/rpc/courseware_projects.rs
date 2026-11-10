@@ -8,6 +8,7 @@ mod drafts;
 mod media_canvas;
 mod media_relay;
 mod native_save;
+mod native_generation;
 mod online_source_review;
 mod portable;
 mod presentation;
@@ -600,6 +601,7 @@ pub(super) async fn handle(
                 .map_err(error)?;
             Ok(json!({ "task": task }))
         }
+        "courseware.task.attachNativeGenerated" => native_generation::handle(state, params).await,
         "courseware.presentation.adopt" => presentation::handle(state, params).await,
         "courseware.assetLocks.context" | "courseware.assetLocks.set" => {
             asset_locks::handle(state, method, params).await

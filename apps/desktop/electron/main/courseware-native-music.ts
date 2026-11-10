@@ -10,6 +10,11 @@ type Route = (operation: string, args: Record<string, unknown>, page: number) =>
 export class CoursewareNativeMusic {
   constructor(private auth: Pick<DesktopAuthSession, "getCoursewarePrincipal" | "coursewareMedia">, private host: () => Host | null,
     private session: () => string | null, private route: Route, private decode: (bytes: Buffer, mime: "audio/mpeg") => Promise<number>) {}
+  async models() {
+    const sessionId = this.session();
+    if (!sessionId) throw new Error("Native music owner unavailable");
+    return new CoursewareCanvasMusic(this.host, this.session, () => false, this.auth).models({ sessionId });
+  }
   async jobs(pageNumber: number, view: CoursewareTeachingView) {
     const sessionId = this.session();
     if (!sessionId) throw new Error("Native music owner unavailable");

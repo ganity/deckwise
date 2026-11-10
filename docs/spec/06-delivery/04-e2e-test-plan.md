@@ -18111,3 +18111,36 @@ without creating an empty runtime. Export/reopen must preserve checkpoint data.
 - Automated: agent-runtime `courseware/narration-write.test.ts`; Desktop
   `courseware-narration-batch.test.mjs`, `courseware-saved-narration.test.mjs`,
   `courseware-narration.test.mjs` and `courseware-scene-object-view.test.mjs`.
+
+
+## E2E-COURSEWARE-native-generated-loop (2026-11-10)
+
+- Start from each local generation entry: scene, assessment-only scene, and
+  validated ordinary PPT Master export. Publish a physical PPTX carrying native
+  page/action/object identities before opening Office; preserve the original
+  export. Attach no mutable Host teaching project or canonical classroom.
+- Verify actual parser identity, official export/approved scene proof, saved body
+  budgets, cancellation, missing physical question text and idempotent retry.
+  Restart Host and read the same path, answers and teacher response contract.
+- Open generated body/Quiz/practice in the paired editor. Edit narration, undo,
+  redo, adopt verified local speech/music/video, resolve attention against decoded
+  audio duration, save, reopen and decode embedded audio. Play native attention,
+  select correct Quiz answer B and explicitly continue.
+- Continue generated native teaching without the legacy database-project
+  checkpoint API. Preserve original provider jobs and adopted clips through
+  repairs; report pending attention/media as incomplete and expose configured
+  model catalogs through the native services. Every applied Chat result must wait
+  for the native PPTX save before reporting durable success.
+- Import the reopened PPTX into an immutable native snapshot, verify clip MIME
+  and aliases, build a fixed package, restart Host and retrieve it. Play actual
+  speech, music, video, focus, Quiz grading and teacher practice in Chromium.
+- Automated entries: Desktop `courseware-scene-staging.test.mjs`,
+  `courseware-presentation.test.mjs`, `courseware-native-tools.test.mjs`,
+  `courseware-narration.test.mjs`, `courseware-native-snapshot.test.mjs`;
+  runtime `native-teaching-pptx.test.ts`; agent-runtime
+  `courseware-continuation-lineage.test.ts`; document
+  `deckwise-native-teaching.test.ts` and
+  `deckwise-native-teaching-generation.spec.ts`;
+  `scripts/native-teaching/verify-generated-playback.mjs`.
+- Providers are deterministic local/fake responses. These tests authorize no paid
+  API call, legacy migration, installed-app replacement or remote publication.

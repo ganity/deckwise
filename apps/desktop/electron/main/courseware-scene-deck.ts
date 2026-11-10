@@ -156,5 +156,5 @@ export async function buildSceneCourseDeck(input: {
     scenes: canonicalScenes, mediaManifest, audioManifest: [], createdAt: new Date(now).toISOString() };
   return { ...compiled, ...(compiled.mapping ? { mapping: { ...compiled.mapping,
     pages: compiled.mapping.pages.map((entry, index) => ({ ...entry, ...(pages[index].teaching ? { teaching: pages[index].teaching } : {}) })) } } : {}),
-    teaching: pages.map(({ pageId, narration }) => ({ pageId, narration })), canonicalClassroom };
+    teaching: pages.map(({ pageId, title, narration, teaching, quiz }) => ({ pageId, title, narration, teaching, quiz })), canonicalClassroom };
 }

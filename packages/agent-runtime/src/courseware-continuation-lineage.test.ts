@@ -42,3 +42,26 @@ it.each([true, false])("checkpoints adoption before native updates and preserves
     expect(state.checkpoint).toMatchObject({ status: "running", sourceSha256: "a".repeat(64) });
   }
 });
+
+it("continues native generated files across verified saves without opening a legacy database project", async () => {
+  const continuation = new CoursewareTurnContinuation();
+  let source = "a".repeat(64), ready = false;
+  const execute = async (): Promise<AgentToolResult<unknown>> => ({ content: [], details: {
+    nativeTeaching: true, projectId: "native", sourceSha256: source, teachingRevision: source, jobs: [],
+    narrationReady: true, audioReady: ready, teachingReady: ready, assessmentMedia: { ready },
+    completion: { sourceSha256: source, teachingRevision: source, ready, issues: ready ? [] : [{ code: "AUDIO_MISSING", repairable: true, pageNumber: 1 }] },
+  } });
+  const controls = { canWait: () => true, execute, checkpoints: {
+    read: async (): Promise<never> => { throw new Error("Unexpected legacy project read"); },
+    write: async (): Promise<never> => { throw new Error("Unexpected legacy checkpoint write"); },
+  } };
+  const message = { role: "assistant" as const, content: [], stopReason: "stop" as const, timestamp: 0, api: "openai-completions" as const,
+    provider: "fixture", model: "fixture", usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } };
+  const adopted: AgentTurnContext = { context: { messages: [] }, newMessages: [], message: { ...message, stopReason: "toolUse",
+    content: [{ type: "toolCall", id: "adopt-native", name: "courseware_presentation_adopt", arguments: {} }] }, toolResults: [
+    { role: "toolResult", timestamp: 0, toolName: "courseware_presentation_adopt", toolCallId: "adopt-native", isError: false, content: [], details: { generated: true, sourceSha256: source } },
+  ] };
+  await continuation.finish(adopted, controls);
+  source = "b".repeat(64); ready = true;
+  expect(await continuation.finish({ ...adopted, message, toolResults: [] }, controls)).toContain("completed");
+});

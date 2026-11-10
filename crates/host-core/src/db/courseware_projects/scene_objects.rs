@@ -53,7 +53,7 @@ impl GeneratedSceneMapping {
     /// Object IDs must come from the trusted parser, never a scene's array position.
     pub fn validate_source(&self, identity: &SavedSourceIdentity) -> Result<()> {
         anyhow::ensure!(
-            serde_json::to_vec(self)?.len() <= MAX_BYTES && (1..=30).contains(&self.pages.len()),
+            serde_json::to_vec(self)?.len() <= MAX_BYTES && (1..=100).contains(&self.pages.len()),
             "COURSEWARE_INVALID: scene mapping exceeds limits"
         );
         let pages = identity.value()["pages"]

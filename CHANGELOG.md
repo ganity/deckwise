@@ -23,6 +23,13 @@
 
 ## Unreleased
 
+- Publish new scene and ordinary PPT Master lessons with native teaching already
+  embedded in PPTX, including notes, logical object identities, Quiz answers,
+  teacher interactions and music/video requirements. Chat adoption saves the
+  complete native document; continuation uses native readiness and original media
+  journals rather than an editable database teaching mirror.
+
+
 - Preserve native teaching object associations through rename and same-name
   copies using captured package IDs and verified save receipts; resolve live
   attention and animation preflight through the same identity proof.

@@ -39,5 +39,5 @@ export async function assembleSceneCourse(input: {
   await check();
   return services.stage({ workspace: captured.workspace, sessionId: captured.sessionId,
     title: captured.plan.title, pptx: deck.pptx, teaching: deck.teaching, canonicalClassroom: deck.canonicalClassroom,
-    ...(captured.sceneProof ? { sceneMapping: deck.mapping, sceneProof: captured.sceneProof } : {}), signal });
+    ...(captured.sceneProof ? { sceneMapping: deck.mapping, sceneProof: captured.sceneProof } : {}), signal, assertCurrent: check });
 }

@@ -4,11 +4,11 @@ use sha2::{Digest, Sha256};
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct Page {
-    page_number: usize,
-    teaching: Teaching,
+pub(super) struct Page {
+    pub(super) page_number: usize,
+    pub(super) teaching: Teaching,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    quiz: Option<Value>,
+    pub(super) quiz: Option<Value>,
 }
 
 #[derive(Deserialize)]
@@ -23,7 +23,7 @@ struct Adopt {
     classroom: Value,
 }
 
-fn verify_export(
+pub(super) fn verify_export(
     root: &str,
     source: &str,
     sha256: &str,

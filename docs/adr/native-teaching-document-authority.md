@@ -48,6 +48,33 @@ source and logical mapping and archives referenced bytes; its snapshot survives
 restart and carries an internal `nativeTeaching` marker. The native snapshot
 adapter uses the existing fixed builder and its capability diagnostics.
 
+## New local generation
+
+Scene compilation (including assessment-only lessons) and official ordinary
+PPT Master adoption now package native teaching before publishing their source.
+The immutable original Office export is retained. Generated page/object IDs and
+package bytes are deterministic for the same input; retries cannot reinitialize
+an already native document or replace a different saved revision.
+
+The Host attaches a verified generated path and document identity to the task,
+not an editable teaching project/classroom. It verifies actual parser identities,
+reviewed scene proofs or official export gates, saved budgets and teacher/Quiz
+requirements. The document carries public logical page requirements and education
+settings; private provider receipts remain in Host journals.
+
+Chat edits and media adoption wait for normal native save before reporting
+`saved:true`. Continuation reads native completion and verified current source;
+it does not call the legacy workflow checkpoint API, which requires a mutable
+Host teaching project. Original paid-job recovery remains in Host. Native course
+state is resumed from its saved PPTX; repair budgets remain scoped to the current
+Chat continuation, rather than a legacy database checkpoint.
+
+Immutable fixed snapshots normalize document-local clip asset IDs to the fixed
+content-addressed contract and derive media duration from the verified asset.
+This is export adaptation only, and does not rewrite the native document.
+
+See [generation-loop implementation and evidence](../design/2026-11-10-native-generation-loop.md).
+
 ## Bounds and verification
 
 The package reader bounds compressed/expanded ZIP size, XML size, media counts,

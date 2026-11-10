@@ -11,3 +11,4 @@ export { prepareAssessmentPage, assessmentPptxScene, assessmentBackground, syncC
 export { createMaicInteractionCanvas } from './maic-interaction-canvas';
 export { assessmentSvg } from './authoring/assessment-svg';
 export { syncSpeechAnimations, type SpeechMotionPage } from './authoring/speech-animations';
+export { packNativeTeachingPptx } from './authoring/native-teaching-pptx';

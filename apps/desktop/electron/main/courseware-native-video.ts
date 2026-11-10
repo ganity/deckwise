@@ -15,6 +15,13 @@ export class CoursewareNativeVideo {
     private session: () => string | null, private route: Route,
     private decode: (bytes: Buffer) => Promise<{ durationMs: number; width: number; height: number }>) {}
 
+  async models() {
+    const principal = this.auth.getCoursewarePrincipal(), sessionId = this.session(), host = this.host();
+    const models = await this.auth.coursewareMedia.video.models();
+    principal.assertCurrent();
+    if (host !== this.host() || sessionId !== this.session()) throw new Error("Native video owner changed");
+    return models;
+  }
   async jobs(pageNumber: number, view: CoursewareTeachingView) {
     const host = this.host(), sessionId = this.session(), principal = this.auth.getCoursewarePrincipal();
     if (!host || !sessionId) throw new Error("Native video owner unavailable");

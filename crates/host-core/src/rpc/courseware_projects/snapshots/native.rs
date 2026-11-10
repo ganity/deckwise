@@ -13,10 +13,42 @@ struct Import {
 
 // An immutable export snapshot never becomes a second editable teaching project.
 pub(super) async fn handle(state: Arc<Mutex<AppState>>, params: Value) -> Result<Value, JsonRpcError> {
-    let p: Import = serde_json::from_value(params).map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
+    let mut p: Import = serde_json::from_value(params).map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
     if p.assets.len() > 1000 || p.assets.iter().any(|a| a.path.len() > 4096) {
         return Err(rpc_err(1002, "Invalid native snapshot assets", "COURSEWARE_INVALID"));
     }
+    // Native media IDs are document-local. The immutable fixed contract uses content-addressed clip IDs.
+    let mut aliases = std::collections::HashMap::new();
+    for action in p.project.pages.iter_mut().flat_map(|page| &mut page.actions) {
+        let (field, prefix, mime) = match action["type"].as_str() {
+            Some("audio_clip") => ("audioAssetId", "music-", "audio/"),
+            Some("video_clip") => ("videoAssetId", "video-", "video/"),
+            _ => continue,
+        };
+        let id = action[field].as_str().ok_or_else(|| rpc_err(1002, "Native clip asset missing", "COURSEWARE_INVALID"))?;
+        let asset = p.assets.iter().find(|a| a.asset.id == id && a.asset.mime_type.starts_with(mime))
+            .ok_or_else(|| rpc_err(1002, "Native clip asset type changed", "COURSEWARE_INVALID"))?;
+        aliases.insert(id.to_owned(), format!("{prefix}{}", asset.asset.sha256));
+        // Measured duration remains in the verified media payload, not the fixed action envelope.
+        action.as_object_mut().unwrap().remove("durationMs");
+    }
+    for action in p.project.pages.iter_mut().flat_map(|page| &mut page.actions) {
+        for field in ["audioAssetId", "videoAssetId"] {
+            if let Some(id) = action[field].as_str().and_then(|id| aliases.get(id)) { action[field] = json!(id); }
+        }
+    }
+    for asset in &mut p.assets {
+        if let Some(id) = aliases.get(&asset.asset.id) { asset.asset.id = id.clone(); }
+    }
+    let mut unique = std::collections::HashMap::new();
+    for input in &p.assets {
+        let value = (input.asset.sha256.clone(), input.asset.mime_type.clone());
+        if unique.insert(input.asset.id.clone(), value.clone()).is_some_and(|previous| previous != value) {
+            return Err(rpc_err(1002, "Native media aliases conflict", "COURSEWARE_INVALID"));
+        }
+    }
+    let mut seen = std::collections::HashSet::new();
+    p.assets.retain(|asset| seen.insert(asset.asset.id.clone()));
     let state = state.lock().await;
     let root = workspace(&state, &p.session_id)?;
     let parsed = state.courseware.archive_candidate(&p.job_id, Path::new(&root), &state.data_dir, &p.project.source.sha256).map_err(error)?;

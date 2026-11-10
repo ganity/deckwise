@@ -250,6 +250,12 @@ export function registerPptEditorIpc(input: {
       if (!window) throw new Error("Native teaching window unavailable");
       await editor.ensureSaved(workspace); check();
       await editor.open(window, workspace, path); check(); chat.setOwner(sessionId);
+    }, async (sessionId, canDispatch) => {
+      chat.assertActive(sessionId);
+      if (!canDispatch()) throw new Error("Native teaching turn ended before save");
+      await editor.ensureSaved(await getWorkspaceRoot());
+      chat.assertActive(sessionId);
+      if (!canDispatch()) throw new Error("Native teaching turn ended during save");
     }));
   editor.nativeTeaching = createNativeTeachingHandler({ teaching, tts, classroom, classroomTts, classroomImages,
     nativeRoute: routeNative,

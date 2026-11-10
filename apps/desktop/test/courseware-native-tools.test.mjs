@@ -96,3 +96,40 @@ test("native assessment context, question speech and recovery use document comma
   assert.equal((await context()).ready, true);
   assert.equal(calls.filter(op => op === "tts:prepare").length, 1);
 });
+
+
+test("Chat native audio adoption saves the complete PPTX before reporting durable completion", async () => {
+  const f = setup(); let saves = 0;
+  const route = async (op, args, n) => ({ value: { viewId: "native.page" + n, pageId: "page" + n, pageNumber: n, project: f.project } });
+  const audio = { async execute(op) {
+    if (op === "tts:status") return { task: { state: "ready" } };
+    assert.equal(op, "tts:adopt"); return {};
+  } };
+  const tools = new CoursewareNativeTools({ native: () => route("open", {}, 1) }, {}, audio, route, () => "chat", undefined, undefined, undefined,
+    async () => { saves++; });
+  const result = await tools.execute("chat", "courseware_media_refresh", { kind: "tts", pageNumber: 1, sourceSha256: f.project.source.sha256, intentId: "ready" }, () => true);
+  assert.equal(result.value.saved, true); assert.equal(saves, 1);
+  const failed = new CoursewareNativeTools({ native: () => route("open", {}, 1) }, {}, audio, route, () => "chat", undefined, undefined, undefined,
+    async () => { throw Error("Save failed"); });
+  await assert.rejects(failed.execute("chat", "courseware_media_refresh", { kind: "tts", pageNumber: 1, sourceSha256: f.project.source.sha256, intentId: "ready" }, () => true), /Save failed/);
+});
+
+test("generated Quiz readings retain their existing options and adopted audio without adding another speech", async () => {
+  const f = setup(), checkpoint = { id: "quiz", type: "interaction_checkpoint", checkpointKind: "chapter_summary", checkpointId: "quiz", chapterId: "q", chapterTitle: "Quiz", question: "Greeting?", response: { kind: "single", options: ["Bye", "Hello"], answerIndices: [1] }, referenceAnswer: { summary: "", keyPoints: [] }, context: { chapterSummary: "Quiz", sourceSceneIds: ["page2"] } };
+  f.project.pages[1].actions = [{ id: "generated-question-speech", type: "speech", text: "Greeting?\nA. Bye\nB. Hello", audioAssetId: "tts-original" }, checkpoint];
+  const value = (await f.tools.execute("chat", "courseware_media_assessments", { mode: "context" }, f.active)).value;
+  assert.equal(value.ready, true); assert.deepEqual(value.targets, []);
+  assert.equal(f.project.pages[1].actions.length, 2);
+});
+
+test("native media context exposes configured models and reports pending attention as unfinished", async () => {
+  const f = setup(); f.project.pages[0].actions[0].audioAssetId = "voice";
+  f.project.pages[0].actions[0].attention = { type: "highlight", objectIds: ["label"] };
+  const view = { viewId: "native.page1", pageId: "page1", pageNumber: 1, project: f.project,
+    teachingRequirements: [{ pageId: "page1", teaching: { pageType: "slide", phase: "opening", objective: "Greet", durationSeconds: 30, requiredObjects: [] } }] };
+  const audio = { async execute(op) { if (op === "tts:models") return [{ model: "voice" }]; assert.equal(op, "tts:list"); return []; } };
+  const tools = new CoursewareNativeTools({ native: async () => ({ value: view }) }, {}, audio, async () => ({ value: view }), () => "chat");
+  const result = (await tools.execute("chat", "courseware_media_context", { kind: "tts" }, () => true)).value;
+  assert.equal(result.nativeTeaching, true); assert.deepEqual(result.models, [{ model: "voice" }]);
+  assert.equal(result.teachingReady, false); assert.equal(result.completion.ready, false);
+});
