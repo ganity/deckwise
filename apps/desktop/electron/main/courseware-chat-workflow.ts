@@ -20,6 +20,7 @@ function assertWorkflowScope(host: Host | null, currentHost: Host | null, sessio
 
 /** Main Chat and panel reuse the same durable jobs; image generation keeps billing internal and preserves first-page style review. */
 export class CoursewareChatWorkflow {
+  nativeTeaching?: { execute(sessionId: string, name: string, args: unknown, canDispatch: () => boolean): Promise<{ value: unknown } | undefined> };
   private compiling = false;
   private readonly imagePipelines = new Set<string>();
   private compilation?: { sessionId: string } & NonNullable<CoursewareWorkflowView["compilation"]>;
@@ -67,6 +68,8 @@ export class CoursewareChatWorkflow {
     const { session } = await host.call<{ session?: { mode?: string } }>("session.get", { id: sessionId, messageLimit: 1 });
     check();
     if (session?.mode !== "agent") throw new Error("Courseware workflow tools require Agent mode");
+    const native = await this.nativeTeaching?.execute(sessionId, name, input, canDispatch);
+    if (native) { check(); return native.value; }
     if (name === "courseware_story_begin" || name === "courseware_story_save") {
       const method = name === "courseware_story_begin" ? "courseware.story.begin" : "courseware.story.save";
       if (Object.hasOwn(input, "sessionId")) throw new Error("Story session is Host-owned");

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertPptEditorCommand, assertPptEditorContext, assertPptEditorCommandResult, assertPptEditorCommandResponse } from "./ppt-editor-bridge.js";
+import { assertPptEditorCommand, assertPptEditorContext, assertPptEditorCommandResult, assertPptEditorCommandResponse, assertPptEditorPageLineageReceipt } from "./ppt-editor-bridge.js";
 import { IPC, IPC_WHITELIST } from "./protocol.js";
 
 const owner = { projectId: "project", documentId: "document", sessionId: "session" };
@@ -280,4 +280,13 @@ it("validates explicit italic booleans, selection capability and correlated nati
   assertPptEditorContext(context);
   for (const patch of [{ readOnly: true }, { selectedText: "", selectionCharacters: 0 }])
     expect(() => assertPptEditorContext({ ...context, ...patch })).toThrow();
+});
+
+it("validates native object lineage separately from legacy name receipts", () => {
+  const receipt = { ...owner, protocol: "deckwise-office-page-lineage/2", saveRequestId: "save", sourceSha256: "a".repeat(64), outputSha256: "b".repeat(64),
+    openedPageTokens: ["page"], pageTokens: ["page"], objects: [[{ shapeId: "42", sourceShapeId: "2" }]] };
+  expect(() => assertPptEditorPageLineageReceipt(receipt)).not.toThrow();
+  for (const objects of [[], [[{ shapeId: "invalid" }]], [[{ shapeId: "42", sourceShapeId: "invalid" }]], [[{ shapeId: "42" }, { shapeId: "42" }]]])
+    expect(() => assertPptEditorPageLineageReceipt({ ...receipt, objects })).toThrow();
+  expect(() => assertPptEditorPageLineageReceipt({ ...receipt, protocol: "deckwise-office-page-lineage/1", objects: undefined })).not.toThrow();
 });

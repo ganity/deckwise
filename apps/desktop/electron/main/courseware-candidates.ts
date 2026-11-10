@@ -23,6 +23,11 @@ export class CoursewareCandidateCoordinator {
     return this.run(sessionId, name, args, canDispatch);
   }
 
+  async proposeNativeNarration(sessionId: string, pageNumber: number, instruction: string, canDispatch: () => boolean) {
+    const context = await this.run(sessionId, "ppt_get_narration_context", {}, canDispatch, undefined, pageNumber) as PptCandidateContext;
+    return this.run(sessionId, "ppt_propose_page_narration", { kind: "page-narration", baseline: context.baseline, instruction }, canDispatch, undefined, pageNumber);
+  }
+
   /** Trusted Host entry only; source text must be explicitly bound to this saved logical page. */
   async selectNarrationSource(sessionId: string, selection: unknown, canDispatch: () => boolean): Promise<unknown> {
     if (!selection || typeof selection !== "object" || Array.isArray(selection) ||
@@ -35,7 +40,7 @@ export class CoursewareCandidateCoordinator {
   }
 
   private async run(sessionId: string, name: string, args: unknown, canDispatch: () => boolean,
-    selectedNarration?: ReturnType<typeof pageNarrationOutputSchema.parse>): Promise<unknown> {
+    selectedNarration?: ReturnType<typeof pageNarrationOutputSchema.parse>, nativePageNumber?: number): Promise<unknown> {
     args = structuredClone(args);
     const controller = new AbortController();
     const checkTurn = () => { if (!canDispatch()) controller.abort(new Error("Chat turn cancelled or editor owner changed")); controller.signal.throwIfAborted(); };
@@ -43,6 +48,50 @@ export class CoursewareCandidateCoordinator {
     const timer = setInterval(() => { if (!canDispatch()) controller.abort(new Error("Chat turn cancelled or editor owner changed")); }, 100);
     const timeout = setTimeout(() => controller.abort(new Error("Candidate generation timed out")), name === "ppt_propose_page_style_batch" ? COURSEWARE_STYLE_BATCH_TIMEOUT_MS - 60_000 : 180_000);
     try {
+      if (["ppt_get_narration_context", "ppt_propose_page_narration"].includes(name)) {
+        const native = await this.teaching.native?.("narration-context", {}, nativePageNumber);
+        if (native) {
+          const captured = native.value as { view: import("@pi-desktop/shared").CoursewareTeachingView; text: string; editor: import("@pi-desktop/shared").PptEditorContext };
+          const { view, text, editor } = captured, project = view.project;
+          const page = project.pages.find(p => p.pageId === view.pageId);
+          if (!page || page.locked || editor.readOnly) throw new Error("Native teaching page is locked or read-only");
+          const baseline: PptCandidateBaseline = { projectId: editor.projectId, documentId: editor.documentId, sessionId: editor.sessionId,
+            editGeneration: editor.editGeneration, coursewareProjectId: project.projectId, pageId: page.pageId,
+            sourceRevision: project.source.revision, sourceSha256: project.source.sha256, teachingRevision: project.teachingRevision,
+            contentSha256: candidateHash(text).slice(7) };
+          const current = async () => {
+            checkTurn();
+            const latest = await this.teaching.native("narration-context", {}, nativePageNumber);
+            if (!latest || JSON.stringify(latest.value) !== JSON.stringify(captured)) throw new Error("Native teaching changed during generation");
+            return { projectId: project.projectId, documentId: editor.documentId, pageId: page.pageId, sourceRevision: project.source.revision,
+              sourceHash: `sha256:${project.source.sha256}`, teachingRevision: project.teachingRevision, contentHash: candidateHash(text),
+              clean: true, readOnly: false, manualLocked: false };
+          };
+          if (name === "ppt_get_narration_context") return { editor, baseline, clean: true, manualLocked: false,
+            capabilities: text.trim() ? ["page-narration"] : [] } satisfies PptCandidateContext;
+          if (!args || typeof args !== "object" || Array.isArray(args) || Object.keys(args).length !== 3 ||
+              Reflect.get(args, "kind") !== "page-narration" || JSON.stringify(Reflect.get(args, "baseline")) !== JSON.stringify(baseline)) throw new Error("Native narration baseline changed");
+          if (!this.resolveModel && !selectedNarration) throw new Error("Select a narration model first");
+          const model = !selectedNarration ? await this.resolveModel!(sessionId) : null;
+          const before = await current();
+          const generated = await generateNarrationWrite({ project, pageId: page.pageId, baseline: before, pageText: text,
+            instruction: Reflect.get(args, "instruction"), getCurrentBaseline: current, signal: controller.signal,
+            generate: async ({ system, data }) => {
+              if (selectedNarration) return selectedNarration;
+              const output = await this.complete({ sessionId, ...model!, system, messages: [{ role: "user", content: data }],
+                includeSessionContext: false, signal: controller.signal });
+              if (output.text.length > 1024 * 1024) throw new Error("Narration exceeds output budget");
+              return pageNarrationOutputSchema.parse(JSON.parse(output.text));
+            } });
+          await current();
+          if (model && JSON.stringify(await this.resolveModel!(sessionId)) !== JSON.stringify(model)) throw new Error("Narration model changed");
+          checkTurn();
+          const saved = await this.teaching.native("write", { viewId: view.viewId, expectedTeachingRevision: project.teachingRevision,
+            actions: generated.write.actions }, nativePageNumber);
+          return { kind: "page-narration", baseline, teachingRevision: (saved!.value as typeof view).project.teachingRevision,
+            pageNumber: view.pageNumber, applied: true, saved: false, audioReady: false };
+        }
+      }
       return await this.teaching.withSaved(sessionId, async (host, jobId, snapshot, editor, _sessionId, parseOutput) => {
         checkTurn();
         const { project } = await host.call<{ project: unknown }>("courseware.project.openSaved", { sessionId, jobId });

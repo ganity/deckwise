@@ -8,7 +8,7 @@ export function requestPptEditor(
   ipc: IpcSource,
   senderId: number,
   requestId: string,
-  responseType: "document:context" | "document:command-result" | "document:page-preview" | "document:image-target-reviewed",
+  responseType: "document:native-teaching-result" | "document:context" | "document:command-result" | "document:page-preview" | "document:image-target-reviewed",
   send: () => void,
   signal: AbortSignal,
   timeoutMs = 30_000,

@@ -19,6 +19,10 @@ pub struct ObjectLineage {
     pub name: String,
     pub source_name: Option<String>,
     pub source_page_token: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shape_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_shape_id: Option<String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -142,8 +146,10 @@ impl Database {
             values.iter().all(|id| valid_id(id))
                 && values.iter().collect::<HashSet<_>>().len() == values.len()
         };
+        let native_identity = proof.protocol == "deckwise-office-page-lineage/2";
+        let shape_id_valid = |id: &str| !id.is_empty() && id.len() <= 10 && id.bytes().all(|b| b.is_ascii_digit());
         anyhow::ensure!(
-            proof.protocol == "deckwise-office-page-lineage/1"
+            (proof.protocol == "deckwise-office-page-lineage/1" || native_identity)
                 && valid_id(&proof.save_request_id)
                 && valid_id(&proof.document_id)
                 && valid_id(&proof.session_id)
@@ -162,6 +168,11 @@ impl Database {
                     .iter()
                     .flatten()
                     .all(|item| item.name.len() <= 200
+                        && (if native_identity {
+                            item.shape_id.as_deref().is_some_and(&shape_id_valid)
+                                && item.source_shape_id.as_deref().is_none_or(&shape_id_valid)
+                                && (item.source_shape_id.is_none() || item.source_page_token.is_some())
+                        } else { item.shape_id.is_none() && item.source_shape_id.is_none() })
                         && item
                             .source_name
                             .as_ref()
@@ -172,6 +183,12 @@ impl Database {
                             .is_none_or(|token| tokens_valid(token))),
             "COURSEWARE_INVALID: native save lineage differs from saved source"
         );
+        if native_identity {
+            for objects in &proof.objects {
+                let ids: HashSet<_> = objects.iter().map(|item| item.shape_id.as_deref()).collect();
+                anyhow::ensure!(ids.len() == objects.len(), "COURSEWARE_INVALID: duplicate native output identity");
+            }
+        }
         let old_pages = old["pages"]
             .as_array()
             .ok_or_else(|| anyhow!("COURSEWARE_INVALID: saved pages missing"))?;
@@ -211,7 +228,9 @@ impl Database {
                 let name = object["sourceObjectName"].as_str().unwrap_or("");
                 let matches: Vec<_> = proof.objects[index]
                     .iter()
-                    .filter(|item| !name.is_empty() && item.name == name)
+                    .filter(|item| if native_identity {
+                        item.shape_id.as_deref().is_some_and(|id| object["sourceShapeId"] == id)
+                    } else { !name.is_empty() && item.name == name })
                     .collect();
                 let candidate = if matches.len() == 1 {
                     let item = matches[0];
@@ -223,10 +242,11 @@ impl Database {
                             let found: Vec<_> = objects
                                 .iter()
                                 .filter(|old| {
-                                    item.source_name
-                                        .as_deref()
-                                        .is_some_and(|name| old["sourceObjectName"] == name)
-                                        && old["type"] == object["type"]
+                                    (if native_identity {
+                                        item.source_shape_id.as_deref().is_some_and(|id| old["sourceShapeId"] == id)
+                                    } else {
+                                        item.source_name.as_deref().is_some_and(|name| old["sourceObjectName"] == name)
+                                    }) && old["type"] == object["type"]
                                 })
                                 .collect();
                             (found.len() == 1).then(|| found[0])

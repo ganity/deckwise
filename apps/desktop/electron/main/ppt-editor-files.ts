@@ -67,7 +67,7 @@ export async function publishRevision(input: {
   await fs.mkdir(tempDirectory, { recursive: true });
   try {
     const documentPath = join(tempDirectory, `document.${input.extension}`);
-    await fs.writeFile(documentPath, bytes, { flag: "wx" });
+    await fs.writeFile(documentPath, bytes, { flag: "wx", flush: true });
     const manifest = {
       revision,
       cause: input.cause,
@@ -79,9 +79,11 @@ export async function publishRevision(input: {
     await fs.writeFile(
       join(tempDirectory, "revision.json"),
       `${JSON.stringify(manifest, null, 2)}\n`,
-      { flag: "wx" },
+      { flag: "wx", flush: true },
     );
+    await syncDirectory(tempDirectory);
     await fs.rename(tempDirectory, finalDirectory);
+    await syncDirectory(jobRoot);
     return { ...manifest, documentPath: join(finalDirectory, manifest.file) };
   } catch (error) {
     await fs.rm(tempDirectory, { recursive: true, force: true });
@@ -95,20 +97,22 @@ export async function replaceSourceFile(sourcePath: string, bytes: Uint8Array, e
     dirname(sourcePath),
     `.${basename(sourcePath)}.${randomUUID()}.tmp`,
   );
-  await fs.writeFile(temporaryPath, validated, { flag: "wx" });
+  await fs.writeFile(temporaryPath, validated, { flag: "wx", flush: true });
   try {
     if (createHash("sha256").update(await fs.readFile(sourcePath)).digest("hex") !== expectedHash) {
       throw new Error("Source file changed while saving; preserve both versions before retrying");
     }
-    if (process.platform === "win32") {
-      await fs.copyFile(temporaryPath, sourcePath);
-      await fs.rm(temporaryPath, { force: true });
-    } else {
-      await fs.rename(temporaryPath, sourcePath);
-    }
+    await fs.rename(temporaryPath, sourcePath);
+    await syncDirectory(dirname(sourcePath));
   } catch (error) {
     await fs.rm(temporaryPath, { force: true }).catch(() => undefined);
     throw error;
   }
 }
 
+
+async function syncDirectory(path: string): Promise<void> {
+  if (process.platform === "win32") return;
+  const directory = await fs.open(path, "r");
+  try { await directory.sync(); } finally { await directory.close(); }
+}

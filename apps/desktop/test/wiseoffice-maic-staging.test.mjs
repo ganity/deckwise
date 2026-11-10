@@ -24,7 +24,7 @@ test("plain upstream builds cannot bring back the legacy checkpoint form", async
 });
 test("MAIC staging pins the transformed editor provenance and every bundled file", async t => {
   const f = await fixture(t);
-  const marker = { version: 1, contentEditor: "maic", nativeCheckpointEditor: false, commit: "a".repeat(40), dirty: false };
+  const marker = { version: 1, contentEditor: "maic", nativeCheckpointEditor: "native-teaching", commit: "a".repeat(40), dirty: false };
   await writeFile(join(f.source, "deckwise-maic-integration.json"), JSON.stringify(marker));
   f.stage();
   const receipt = JSON.parse(await readFile(join(f.output, "deckwise-bundle.json"), "utf8"));

@@ -28,6 +28,18 @@ export function nativeSpeechComposite(effect: TimingNode): AnimationComposite | 
   const key = `${effect.attrs.presetClass}/${effect.attrs.presetID}/${effect.attrs.presetSubtype ?? '0'}`;
   let expected: Pattern[], name: string;
   switch (key) {
+    case 'entr/22/4': expected = [visibility(true), n('animEffect', { transition: 'in', filter: 'wipe(down)' }, [behavior(time(duration))])]; name = 'wipe(down)'; break;
+    case 'entr/23/16': expected = [visibility(true), property('ppt_w', '0', '#ppt_w'), property('ppt_h', '0', '#ppt_h')]; name = 'zoom'; break;
+    case 'entr/37/0': {
+      const animated = (name: string, from: string, to: string, timing: Pattern) => n('anim', { calcmode: 'lin', valueType: 'num' }, [behavior(timing, name),
+        n('tavLst', {}, [n('tav', { tm: '0' }, [n('val', {}, [n('strVal', { val: from })])]), n('tav', { tm: '100000' }, [n('val', {}, [n('strVal', { val: to })])])])]);
+      expected = [visibility(true), fade('in'), animated('ppt_x', '#ppt_x', '#ppt_x', time(duration, { fill: 'hold' })),
+        animated('ppt_y', '#ppt_y+1', '#ppt_y-.03', time(duration*.9, { decel: '100000', fill: 'hold' })),
+        animated('ppt_y', '#ppt_y-.03', '#ppt_y', time(duration*.1, { accel: '100000', fill: 'hold' }, duration*.9))];
+      name = 'bounceInBottom'; break;
+    }
+    case 'entr/1/0': expected = [visibility(true)]; name = 'appear'; break;
+    case 'emph/6/0': expected = [n('animScale', {}, [behavior(time(duration, { fill: 'hold' })), n('by', { x: '150000', y: '150000' })])]; name = 'grow150'; break;
     case 'entr/10/0': expected = [visibility(true), fade('in')]; name = 'fade'; break;
     case 'exit/10/0': expected = [fade('out'), visibility(false)]; name = 'fade'; break;
     case 'entr/53/16': expected = [visibility(true), property('ppt_w', '0', '#ppt_w'), property('ppt_h', '0', '#ppt_h'), fade('in')]; name = 'zoom'; break;

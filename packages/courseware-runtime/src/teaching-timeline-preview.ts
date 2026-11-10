@@ -12,7 +12,8 @@ const questionSchema = z.object({
   id: z.string().min(1).max(128), type: z.literal('interaction_checkpoint'), checkpointId: z.string().min(1).max(128),
   checkpointKind: z.literal('chapter_summary'), response: questionResponseSchema.optional(), chapterId: z.string().min(1).max(128), chapterTitle: z.string().min(1).max(1000),
   question: z.string().trim().min(1).max(4000),
-  referenceAnswer: z.object({ summary: z.string().trim().min(1).max(4000), keyPoints: z.array(z.string().trim().min(1).max(1000)).min(1).max(8) }).strict(),
+  // Explanatory text is optional in saved quizzes; response validates the structured answer key separately.
+  referenceAnswer: z.object({ summary: z.string().trim().max(4000), keyPoints: z.array(z.string().trim().min(1).max(1000)).max(8) }).strict(),
   // Canonical context can have no source scenes, including after native page reconciliation.
   context: z.object({ chapterSummary: z.string().trim().min(1).max(4000), sourceSceneIds: z.array(z.string().min(1).max(128)).max(100) }).strict(),
 }).strict();

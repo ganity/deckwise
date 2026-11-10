@@ -1,3 +1,11 @@
+import { readNativeTeachingPackage } from "../courseware-native-package";
+import { readLiveSource } from "../courseware-source-files";
+import { CoursewareNativeMusic } from "../courseware-native-music";
+import { CoursewareNativeVideo } from "../courseware-native-video";
+import { decodeCoursewareVideo } from "../courseware-audio-decode";
+import { CoursewareNativeTools } from "../courseware-native-tools";
+import { captureNativeTeachingSnapshot, copyNativeTeaching } from "../courseware-native-snapshot";
+import { CoursewareNativeAudio } from "../courseware-native-audio";
 import { CoursewareNativeSave } from "../courseware-native-save";
 import { CoursewareNativeMedia } from "../courseware-native-media";
 import { createNativeTeachingHandler } from "../courseware-native-sidebar";
@@ -48,6 +56,7 @@ export function registerPptEditorIpc(input: {
   onChatBridgeReady: (bridge: PptEditorChatBridge) => void;
   onOnlinePreparationReady?: (preparation: CoursewareOnlinePreparation) => void;
   onClassroomReady?: (classroom: CoursewareClassroomCoordinator) => void;
+  onNativeTeachingReady?: (tools: CoursewareNativeTools) => void;
   onAssessmentMediaReady?: (media: Pick<CoursewareAssessmentMedia, "execute">) => void;
   onDeactivate?: () => void;
   getWorkspaceRoot: () => Promise<string | null>;
@@ -167,6 +176,13 @@ export function registerPptEditorIpc(input: {
     assertSender(event);
     if (extra.length || !payload || typeof payload !== "object" || Array.isArray(payload) ||
         Object.keys(payload).length !== 1 || !("sessionId" in payload)) throw new Error("Invalid project copy request");
+    if (payload.sessionId !== input.getViewingSessionId() || typeof payload.sessionId !== "string") throw new Error("Teaching session changed");
+    const workspace = await getWorkspaceRoot();
+    if (workspace) {
+      const copied = await copyNativeTeaching({ editor, teaching, workspace, sessionId: payload.sessionId,
+        assertOwner: () => chat.assertActive(payload.sessionId as string) });
+      if (copied) return copied;
+    }
     return teaching.copyProject(payload.sessionId);
   });
   const music = registerCoursewareCanvasMusicIpc({ registrar, getHost, getViewingSessionId: input.getViewingSessionId,
@@ -203,7 +219,40 @@ export function registerPptEditorIpc(input: {
     render: request => renderCoursewareSourceVisuals({ ...request, ipcMain: registrar.ipcMain }) }, input.resolveModel);
   const localMedia = new CoursewarePortableMedia(teaching, decodeCoursewarePortableMedia);
   const tts = new CoursewareTtsCoordinator(teaching, input.authSession, decodeCoursewareAudio, localMedia);
+  const nativeAudio = new CoursewareNativeAudio(input.authSession, getHost, input.getViewingSessionId,
+    async (operation, args, page) => editor.routeNativeTeaching(await getWorkspaceRoot(), operation, args, page), decodeCoursewareAudio);
+  const routeNative = async (operation: string, args: Record<string, unknown>, page: number) => {
+    const result = await editor.routeNativeTeaching(await getWorkspaceRoot(), operation, args, page);
+    if (result && result.value && typeof result.value === "object" && Reflect.get(result.value, "nativeService") === true) {
+      const current = await editor.routeNativeTeaching(await getWorkspaceRoot(), "open", {}, page);
+      if (operation === "media:adopt" && args.kind === "music") return { value: await music.adopt({ sessionId: input.getViewingSessionId(),
+        intentId: args.intentId, viewId: args.viewId, expectedTeachingRevision: args.expectedTeachingRevision }) };
+      return { value: await nativeAudio.execute(operation, args, page, current!.value as import("@pi-desktop/shared").CoursewareTeachingView) };
+    }
+    return result;
+  };
+  const nativeMusic = new CoursewareNativeMusic(input.authSession, getHost, input.getViewingSessionId,
+    async (operation, args, page) => editor.routeNativeTeaching(await getWorkspaceRoot(), operation, args, page), decodeCoursewareAudio);
+  const nativeVideo = new CoursewareNativeVideo(input.authSession, getHost, input.getViewingSessionId,
+    async (operation, args, page) => editor.routeNativeTeaching(await getWorkspaceRoot(), operation, args, page), decodeCoursewareVideo);
+  input.onNativeTeachingReady?.(new CoursewareNativeTools(teaching, candidates, nativeAudio,
+    async (operation, args, page) => editor.routeNativeTeaching(await getWorkspaceRoot(), operation, args, page), input.getViewingSessionId, nativeVideo, nativeMusic, async (sessionId, canDispatch) => {
+      const check = () => { if (!canDispatch() || input.getViewingSessionId() !== sessionId) throw new Error("Native teaching owner changed"); };
+      check();
+      const host = getHost(), workspace = await getWorkspaceRoot();
+      if (!host || !workspace || editor.hasTeachingEditor(workspace)) return;
+      const result = await host.call<{ task?: { importPath?: string; generatedPath?: string } }>("courseware.task.get", { sessionId });
+      check();
+      const path = result.task?.importPath ?? result.task?.generatedPath;
+      if (!path || !await readNativeTeachingPackage(await readLiveSource(workspace, path))) return;
+      check();
+      const window = getMainWindow();
+      if (!window) throw new Error("Native teaching window unavailable");
+      await editor.ensureSaved(workspace); check();
+      await editor.open(window, workspace, path); check(); chat.setOwner(sessionId);
+    }));
   editor.nativeTeaching = createNativeTeachingHandler({ teaching, tts, classroom, classroomTts, classroomImages,
+    nativeRoute: routeNative,
     assessmentContext: async view => {
       const host = getHost(), sessionId = input.getViewingSessionId();
       if (!host || !sessionId) throw new Error("Teaching owner changed");
@@ -223,6 +272,9 @@ export function registerPptEditorIpc(input: {
     registrar.handleWithEvent(channel, async (event, payload: unknown, ...extra: unknown[]) => {
       assertSender(event);
       if (extra.length) throw new Error("Unexpected TTS parameters");
+      const context = await editor.getContext(await getWorkspaceRoot());
+      const native = await routeNative("tts:" + (method === "submitConfirmed" ? "submit" : method), payload as Record<string, unknown>, context.page ?? 1);
+      if (native) return native.value;
       return tts[method](payload);
     });
   }
@@ -231,6 +283,11 @@ export function registerPptEditorIpc(input: {
   registrar.handleWithEvent(IPC.invoke.pptEditorSnapshotCapture, async (event, payload: unknown, ...extra: unknown[]) => {
     assertSender(event);
     if (extra.length) throw new Error("Unexpected snapshot parameters");
+    const workspace = await getWorkspaceRoot(), sessionId = input.getViewingSessionId();
+    if (workspace && sessionId) {
+      const native = await captureNativeTeachingSnapshot({ editor, teaching, workspace, sessionId, payload, assertOwner: () => chat.assertActive(sessionId) });
+      if (native) return native.value;
+    }
     return tts.captureSnapshot(payload);
   });
   chat.nativeFade = new CoursewareNativeFadeCoordinator(teaching, editor, getWorkspaceRoot);
@@ -239,6 +296,14 @@ export function registerPptEditorIpc(input: {
     assertSender(event);
     if (extra.length || !payload || typeof payload !== "object" || Array.isArray(payload) ||
         Object.keys(payload).length !== 1 || !("sessionId" in payload)) throw new Error("Invalid teaching request");
+    if (payload.sessionId !== input.getViewingSessionId()) throw new Error("Teaching session changed");
+    const workspace = await getWorkspaceRoot();
+    const context = await editor.getContext(workspace);
+    const native = await editor.routeNativeTeaching(workspace, "open", {}, context.page ?? 1);
+    if (native) {
+      if (review) throw new Error("Native teaching review uses the live document");
+      return native.value;
+    }
     return review ? teaching.prepareReview(payload.sessionId) : teaching.open(payload.sessionId);
   });
   registrar.handleWithEvent(IPC.invoke.pptEditorImportNotesPreview, async (event, payload: unknown, ...extra: unknown[]) => {
@@ -269,6 +334,10 @@ export function registerPptEditorIpc(input: {
     registrar.handleWithEvent(channel, async (event, payload: unknown, ...extra: unknown[]) => {
       assertSender(event);
       if (extra.length) throw new Error("Unexpected teaching parameters");
+      const workspace = await getWorkspaceRoot();
+      const context = await editor.getContext(workspace);
+      const native = await editor.routeNativeTeaching(workspace, lock === false ? "write" : lock === true ? "lock" : "confirm", payload as Record<string, unknown>, context.page ?? 1);
+      if (native) return native.value;
       return teaching.update(payload, lock);
     });
   }

@@ -10,6 +10,15 @@
 
 ## Unreleased
 
+- Preserve native teaching object associations through rename and same-name
+  copies using captured package IDs and verified save receipts; resolve live
+  attention and animation preflight through the same identity proof.
+
+- Keep slow native teaching model/catalog/media reads from holding later page
+  loads or draft writes, with bounded read admission and unchanged mutation fences.
+- Reject stale teaching object contexts when page locks change before an effect
+  write, retaining the current Host-bound target validation.
+
 - Keep saved-teaching repairs local, preserve per-requirement retry budgets,
   reconcile lost repair receipts, and stop unknown assessment submissions without
   replacement orders. Align narration prompts and validation for independent

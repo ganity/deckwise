@@ -38,6 +38,7 @@ fn proof() -> NativeLineage {
                 name: format!("Shape {index}"),
                 source_name: Some(format!("Shape {index}")),
                 source_page_token: Some("page-token".into()),
+                shape_id: None, source_shape_id: None,
             })
             .collect()],
         animation_unchanged: vec![true],
@@ -915,5 +916,59 @@ fn native_save_preserves_pending_music_and_video_originals() {
             assert_eq!(records[0]["request"], music[0]["request"]);
             assert_eq!(records[0]["draft"], music[0]["draft"]);
         }
+    }
+}
+
+#[test]
+fn native_save_v2_preserves_objects_through_rename_duplicate_names_and_reorder() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_str().unwrap();
+    let db = Database::open_in_dir(dir.path()).unwrap();
+    let old_seed = seed(&"a".repeat(64));
+    let opened = db.open_identified_courseware_project_with_metadata(root, &old_seed, "scene", None).unwrap();
+    let before = db.courseware_project_context(root, &opened.project_id).unwrap();
+    let mut value = seed(&"b".repeat(64)).identity.unwrap().value().clone();
+    let objects = value["pages"][0]["objects"].as_array_mut().unwrap();
+    let mut lineage = proof();
+    lineage.protocol = "deckwise-office-page-lineage/2".into();
+    for (index, (object, item)) in objects.iter_mut().zip(&mut lineage.objects[0]).enumerate() {
+        item.source_shape_id = object["sourceShapeId"].as_str().map(str::to_owned);
+        item.shape_id = Some((100 + index).to_string());
+        item.source_name = None;
+        item.name = "Same renamed object".into();
+        object["sourceShapeId"] = item.shape_id.clone().unwrap().into();
+        object["sourceObjectName"] = item.name.clone().into();
+    }
+    objects.reverse();
+    lineage.objects[0].reverse();
+    let new_seed = SavedProjectSeed {
+        identity: Some(SavedSourceIdentity::parse(&serde_json::to_vec(&value).unwrap()).unwrap()),
+        ..seed(&"b".repeat(64))
+    };
+    let receipt = db.prepare_native_save(root, "/lesson.pptx", &new_seed, &lineage).unwrap();
+    db.resolve_native_save(root, receipt["saveId"].as_str().unwrap(), &new_seed.sha256).unwrap();
+    let after = db.courseware_project_context(root, &opened.project_id).unwrap();
+    let ids = |context: &Value| context["savedObjects"]["pages"][0]["objects"].as_array().unwrap()
+        .iter().map(|object| object["objectId"].clone()).collect::<Vec<_>>();
+    let mut expected = ids(&before);
+    expected.reverse();
+    assert_eq!(ids(&after), expected);
+}
+
+#[test]
+fn native_save_v2_rejects_invalid_and_duplicate_output_ids_without_a_pending_save() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_str().unwrap();
+    let db = Database::open_in_dir(dir.path()).unwrap();
+    db.open_identified_courseware_project_with_metadata(root, &seed(&"a".repeat(64)), "scene", None).unwrap();
+    for invalid in [None, Some("invalid"), Some("12345678901"), Some("42")] {
+        let mut lineage = proof();
+        lineage.protocol = "deckwise-office-page-lineage/2".into();
+        for (index, item) in lineage.objects[0].iter_mut().enumerate() {
+            item.shape_id = Some((42 + index).to_string());
+        }
+        lineage.objects[0][1].shape_id = invalid.map(str::to_owned);
+        assert!(db.prepare_native_save(root, "/lesson.pptx", &seed(&"b".repeat(64)), &lineage).is_err());
+        assert!(db.native_save_for_path(root, "/lesson.pptx").unwrap().is_none());
     }
 }

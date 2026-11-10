@@ -156,3 +156,46 @@ test("native page loads wait for assessment saves and revalidate the renewed doc
   assert.deepEqual(await result,{value:'view'});
   assert.deepEqual(calls,['save','saved','open']);
 });
+
+test('slow model reads do not hold later teaching loads or draft writes', async () => {
+  let release;
+  const started = Promise.withResolvers();
+  const handler = createNativeTeachingHandler({
+    context: async () => context, sessionId: () => 'conversation',
+    teaching: { open: async () => 'view', draft: async () => 'draft' },
+    tts: { models: async () => { started.resolve(); return new Promise(resolve => { release = resolve; }); } },
+  });
+  const models = handler(request('tts:models'));
+  await started.promise;
+  try {
+    const editing = Promise.all([handler(request('open')), handler(request('draft:set'))]);
+    const nextTurn = new Promise(resolve => setImmediate(() => resolve('blocked')));
+    assert.deepEqual(await Promise.race([editing, nextTurn]), ['view', 'draft']);
+  } finally { release([]); }
+  assert.deepEqual(await models, []);
+});
+
+test('read admission remains bounded and read fences are revalidated after a save', async () => {
+  const save = Promise.withResolvers(), started = Promise.withResolvers();
+  const releases = [];
+  const handler = createNativeTeachingHandler({
+    context: async () => context, sessionId: () => 'conversation',
+    teaching: { update: async () => { started.resolve(); await save.promise; return 'saved'; } },
+    tts: { models: () => new Promise(resolve => releases.push(resolve)) },
+  });
+  const writing = handler(request('write'));
+  await started.promise;
+  const stale = handler(request('tts:models'));
+  const rejected = assert.rejects(stale, /target changed/);
+  context.editGeneration++;
+  save.resolve();
+  await writing; await rejected;
+  context.editGeneration--;
+  const reads = Array.from({length:4}, () => handler(request('tts:models')));
+  try { await assert.rejects(handler(request('tts:models')), /READ_BUSY/); }
+  finally {
+    await new Promise(resolve => setImmediate(resolve));
+    releases.forEach(resolve => resolve([]));
+    await Promise.all(reads);
+  }
+});

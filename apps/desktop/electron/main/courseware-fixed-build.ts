@@ -88,18 +88,18 @@ export class CoursewareFixedBuildCoordinator {
     this.active = owner;
     try {
       await this.assertOwner(owner);
-      await this.refreshCanonical?.(owner.selection.sessionId, owner.selection.projectId);
-      await this.assertOwner(owner);
       const raw = await owner.host.call<unknown>("courseware.snapshot.get", owner.selection);
       await this.assertOwner(owner);
-      if (!this.fields(raw, ["snapshot", "project", "mapping", "sourcePath", "assets"])) throw new Error("Invalid Host snapshot export");
+      const nativeTeaching = !!raw && typeof raw === "object" && Reflect.get(raw, "nativeTeaching") === true;
+      if (!this.fields(raw, ["snapshot", "project", "mapping", "sourcePath", "assets", ...(nativeTeaching ? ["nativeTeaching"] : [])])) throw new Error("Invalid Host snapshot export");
       const snapshot: unknown = Reflect.get(raw, "snapshot");
       if (!isCoursewareSnapshot(snapshot) || snapshot.projectId !== owner.selection.projectId ||
           snapshot.snapshotId !== owner.selection.snapshotId || (expected && JSON.stringify(snapshot) !== JSON.stringify(expected)))
         throw new Error("Host snapshot differs from the selected immutable input");
       const manifest = await readFile(join(this.workerDirectory, "manifest.json"));
       await this.assertOwner(owner);
-      const canonical = await owner.host.call<ClassroomView>("courseware.classroom.get", {
+      if (!nativeTeaching) { await this.refreshCanonical?.(owner.selection.sessionId, owner.selection.projectId); await this.assertOwner(owner); }
+      const canonical: Partial<ClassroomView> = nativeTeaching ? {} : await owner.host.call<ClassroomView>("courseware.classroom.get", {
         sessionId: owner.selection.sessionId, projectId: owner.selection.projectId });
       await this.assertOwner(owner);
       if (canonical.classroom && canonical.revision) {
@@ -129,7 +129,7 @@ export class CoursewareFixedBuildCoordinator {
         sourcePath: Reflect.get(raw, "sourcePath"), mapping: Reflect.get(raw, "mapping"), assets: Reflect.get(raw, "assets"),
         converter: { version: "maic-pptx-import-ir/1", manifestSha256: createHash("sha256").update(manifest).digest("hex") },
         reviewedWarningCodes: codes,
-      });
+      }, { nativeTeaching });
       try {
         const build = await buildFixedCourseware(input, {
           workerDirectory: this.workerDirectory, outputDirectory: this.outputDirectory, signal: owner.abort.signal,

@@ -13,9 +13,13 @@ export function maicCheckpointSource(source) {
   const previous = source.slice(start, end);
   assert(previous.includes("'题型'") && previous.includes("action.referenceAnswer.keyPoints"), "Missing legacy checkpoint form");
   // Keep the timeline node, ordering and playback. Canonical content has one editor.
-  return source.slice(0, start) + `${startMarker}
+  return source.slice(0, start) + `      if (hasNativeTeaching()) {
+${previous}
+      } else {
+${startMarker}
         card.append(element('p', action.question),
           element('p', 'MAIC 课堂互动：请在右侧题目编辑面板中修改问题、参考答案和提示词。'));
+      }
       }
 ` + source.slice(end);
 }

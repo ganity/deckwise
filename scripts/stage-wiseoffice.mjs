@@ -73,7 +73,7 @@ const integration = await readFile(join(source, "deckwise-maic-integration.json"
   if (error.code !== "ENOENT") throw error;
   return null;
 });
-assert(integration?.version === 1 && integration.contentEditor === "maic" && integration.nativeCheckpointEditor === false &&
+assert(integration?.version === 1 && integration.contentEditor === "maic" && integration.nativeCheckpointEditor === "native-teaching" &&
   /^[a-f0-9]{40}$/.test(integration.commit) && typeof integration.dirty === "boolean",
   "Build the MAIC editor integration with scripts/build-wiseoffice-maic.mjs before staging");
 const { commit, dirty } = integration;

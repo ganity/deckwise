@@ -208,14 +208,14 @@ it.each([29_999, 30_000])(
 it("delivers question and reference answer while waiting for teacher continuation", async () => {
   const page = scene("question");
   const question = { id: "question", type: "interaction_checkpoint" as const, checkpointId: "question", checkpointKind: "chapter_summary" as const,
-    chapterId: "question", chapterTitle: "Shapes", question: "How many sides?", referenceAnswer: { summary: "Four", keyPoints: ["Four equal sides"] },
+    chapterId: "question", chapterTitle: "Shapes", question: "How many sides?", response: { kind: "single" as const, options: ["Three", "Four"], answerIndices: [1] }, referenceAnswer: { summary: "Four", keyPoints: ["Four equal sides"] },
     context: { chapterSummary: "A square has four equal sides", sourceSceneIds: ["question"] } };
   page.actions = [question];
   const checkpoint = vi.fn(), complete = vi.fn();
   const core = new PlaybackCore([page], actions, fixture(async () => true).audio, { onInteractionStart: checkpoint, onComplete: complete });
   core.start(); await Promise.resolve();
   expect(core.getMode()).toBe("waiting_interaction");
-  expect(checkpoint).toHaveBeenCalledWith(expect.objectContaining({ question: question.question, referenceAnswer: question.referenceAnswer }));
+  expect(checkpoint).toHaveBeenCalledWith(expect.objectContaining({ question: question.question, response: question.response, referenceAnswer: question.referenceAnswer }));
   expect(complete).not.toHaveBeenCalled();
   core.resumeInteraction("question");
   expect(complete).toHaveBeenCalledOnce();

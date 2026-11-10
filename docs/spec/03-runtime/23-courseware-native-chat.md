@@ -3,6 +3,24 @@
 Status: source Electron integration verified (A2, 2026-10-19); packaged acceptance
 pending. No new assistant or conversation UI.
 
+## Native teaching request scheduling
+
+Teaching writes, draft changes, generation operations and native reopening remain
+ordered. Read-only speech models, speech journals, media catalogs and adopted
+media previews wait for earlier mutations, but do not hold subsequent page loads
+or teaching edits. At most four such reads may be pending per editor handler;
+additional reads reject with `COURSEWARE_TEACHING_READ_BUSY`. Execution retains
+the existing document/page/generation, Host view/revision and media authorization
+checks. Unknown or malformed operations do not gain read access.
+
+Closing the document teaching sidebar suspends its optional context subscriptions
+and status polling. Reopening checks the current-page binding. Draft autosave and
+the underlying document lifecycle retain their existing ownership.
+
+Saved object context also checks page lock states against the pinned teaching
+project, even when a returned context incorrectly retains the same revision.
+Stale locks reject before effect-authoring writes.
+
 ## Recovery of older saved animation edits
 
 Opening a verified saved revision can recover an older native save that changed
@@ -565,3 +583,75 @@ Entrance animation belongs to the first resulting segment and a trailing wait
 belongs to the final segment. Legacy single-action initialization remains
 idempotent. Existing saved audio and manual teaching are never silently split or
 rewritten; regenerating narration uses the existing audio-invalidation workflow.
+
+### Native object identity during PPT saves
+
+The paired document bundle emits `deckwise-office-page-lineage/2` when it has
+captured the imported package IDs before the SDK regenerates native format IDs.
+The receipt binds each current exported `shapeId` to its optional
+`sourceShapeId` and original session page token. Host compares both IDs with the
+independently parsed old and new package inventories and preserves an object UUID
+only for a unique matching source object of the same type. Names are descriptive
+in this version. New objects have no source provenance and receive new UUIDs.
+Duplicate or malformed current shape IDs are rejected before preparing a save.
+
+Canvas attention and animation preflight use the pinned live-object provenance
+in these sessions. Rename and same-name copies do not change the original target;
+a deleted target is unresolved until restored or explicitly repaired. A copied
+object cannot inherit a source binding by sharing its name. After acknowledgement,
+only captured exported identities become the next saved baseline. Old clients
+continue using v1; ship the matching Host and editor bundle together for v2.
+This receipt is not an embedded teaching format and does not move teaching
+content authority out of Host. Group-child identity and durable native page/effect
+UUID carriers still require separate qualification.
+
+### Experimental embedded teaching carrier
+
+The implementation branch exposes `document:native-teaching` only to the bound
+DeckWise parent: `read`, `replace-page` and `audio`. An explicitly converted copy
+may carry `deckwise-native-teaching/1` JSON in
+`urn:deckwise:native-teaching:1` custom XML. Its content revision avoids the
+self-containing whole-file hash. Replace-page checks document identity, expected
+revision, read-only state and page lock, and records a native history action.
+Changing narration invalidates adopted speech audio and duration. Embedded audio
+is read with MIME, byte-length and SHA-256 verification. The temporary format
+stores audio as base64 in custom XML to exercise the proven converter carrier.
+
+This experimental API is not the shipping teaching authority. Full action schema
+validation, object/page reconciliation, all existing writers, sidebar, playback,
+media adoption and durable Host commit must be integrated before enabling it as
+an alternative to the existing mode. A copied real Part A fixture and browser
+round trip qualify only the carrier and the exposed command subset.
+
+
+### Native document teaching authority
+
+For a local presentation with `deckwise-native-teaching/1`, the live document is
+the editable teaching authority. `document:native-teaching` routes page reads,
+action writes, locks, confirmation, native history, preview and verified media
+adoption. A new local document initializes from loaded notes when teaching is
+enabled. Existing Host teaching records are not automatically migrated.
+
+The sidebar and desktop teaching panel write to this route. Chat narration and
+media tools use the same native page commands; generation checks document/turn
+ownership before application. Private paid-task journals remain in Host. Adopted
+speech, music and video bytes enter the document together with their references.
+Audio playback reads local embedded bytes with digest verification.
+
+The teaching part uses `urn:deckwise:native-teaching:1`; independent immutable
+media parts use `urn:deckwise:native-teaching-media:1`. The package includes all
+adopted bytes. Ordinary narration edits change the small teaching part and leave
+media parts alone. Save independently validates the package before publication.
+Selection/presence checks must use the SDK namespace index without serializing
+XML. Teaching reads, edits and save-metadata preparation must not enumerate or
+serialize unrelated adopted-media payloads.
+Native teaching targets may be nested inside a group. Resolve the exact logical
+object on the bound slide; do not substitute a parent group or a same-name peer.
+Native pages needing speech animations use the native slideshow from the first
+preview entry too. Audio completion retains its measured duration until the next
+playback or stop, allowing start/end/text animation triggers to finish correctly.
+
+Native immutable snapshots originate from that saved file through
+`courseware.snapshot.importNative`; they cannot create a second mutable teaching
+project. Fixed builds recognize the internal native marker and bypass mutable
+classroom refresh. See ADR `native-teaching-document-authority.md` for boundaries.

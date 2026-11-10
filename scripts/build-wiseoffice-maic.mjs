@@ -37,4 +37,4 @@ const html = join(outDir, "module.html");
 await writeFile(html, secureEditorHtml(await readFile(html, "utf8")));
 const commit = execFileSync("git", ["-C", root, "rev-parse", "HEAD"], { encoding: "utf8" }).trim();
 const dirty = execFileSync("git", ["-C", root, "status", "--porcelain", "--untracked-files=no"], { encoding: "utf8" }).trim().length > 0;
-await writeFile(join(outDir, "deckwise-maic-integration.json"), JSON.stringify({ version: 1, contentEditor: "maic", nativeCheckpointEditor: false, commit, dirty }));
+await writeFile(join(outDir, "deckwise-maic-integration.json"), JSON.stringify({ version: 1, contentEditor: "maic", nativeCheckpointEditor: "native-teaching", commit, dirty }));

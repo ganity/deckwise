@@ -1,3 +1,4 @@
+import { readNativeTeachingPackage } from "./courseware-native-package";
 import { createHash, randomUUID } from "node:crypto";
 import { promises as fs, type BigIntStats } from "node:fs";
 import { basename, dirname, extname, join, relative } from "node:path";
@@ -25,6 +26,7 @@ function sourceStamp(stat: BigIntStats): string {
 }
 
 export type NativeSaveInput = {
+  nativeTeaching?: { documentId: string; revision: string };
   workspace: string; sourcePath: string; sourceRevisionPath: string; sourceSha256: string;
   classroomSave?: { expectedRevision: string | null; classroom: import("@pi-desktop/courseware-runtime/node").MaicClassroom };
   outputPath: string; outputSha256: string; saveRequestId: string; binding: PptEditorBinding; lineage: unknown;
@@ -233,7 +235,7 @@ export class PptEditorController {
       this.opening = false;
       this.ready = true;
       if (this.nativeTeaching && this.editorUrl.protocol === "deckwise-editor:")
-        this.sendCommand("document:teaching-enable", { binding: this.bridgeBinding });
+        this.sendCommand("document:teaching-enable", { binding: this.bridgeBinding, nativeTeaching: true });
       if (this.visible) this.attach();
       view.webContents.setBackgroundThrottling(true);
       const state = this.state("ready");
@@ -387,7 +389,19 @@ export class PptEditorController {
     return this.bridgeBinding;
   }
 
-  private async bridgeRequest(type: string, responseType: "document:context" | "document:command-result" | "document:page-preview" | "document:image-target-reviewed", payload: Record<string, unknown>, id: string = randomUUID(), signal?: AbortSignal): Promise<unknown> {
+  hasTeachingEditor(workspace: string | null): boolean {
+    return !!this.view && this.current?.extension === "pptx" && this.current.workspaceRoot === workspace;
+  }
+
+  async routeNativeTeaching(workspace: string | null, operation: string, args: Record<string, unknown>, page: number) {
+    const binding = this.requireBridge(workspace);
+    const response = await this.bridgeRequest("document:native-teaching", "document:native-teaching-result",
+      { binding, operation: "route", routeOperation: operation, args, page });
+    if (!response || typeof response !== "object") throw new Error("Invalid native teaching response");
+    return Reflect.get(response, "routed") as { value: unknown } | undefined;
+  }
+
+  private async bridgeRequest(type: string, responseType: "document:native-teaching-result" | "document:context" | "document:command-result" | "document:page-preview" | "document:image-target-reviewed", payload: Record<string, unknown>, id: string = randomUUID(), signal?: AbortSignal): Promise<unknown> {
     const view = this.view!;
     this.activeBridgeRequests.add(id);
     try {
@@ -654,11 +668,15 @@ export class PptEditorController {
       let synchronized: NativeSaveCommit | undefined;
       let installed = false;
       try {
+        const nativeTeaching = current.extension === "pptx" ? await readNativeTeachingPackage(bytes) : undefined;
+        const baselineNative = current.extension === "pptx" ? await readNativeTeachingPackage(await fs.readFile(current.savedRevision.documentPath)) : undefined;
+        if (baselineNative && (!nativeTeaching || nativeTeaching.documentId !== baselineNative.documentId)) throw new Error("Native export lost or changed teaching identity");
         if (this.nativeSave && current.extension === "pptx") synchronized = await this.nativeSave({
           workspace: current.workspaceRoot, sourcePath: current.sourcePath,
           sourceRevisionPath: current.savedRevision.documentPath, sourceSha256: current.sourceHash,
           outputPath: revision.documentPath, outputSha256: revision.sha256,
           saveRequestId: pending.id, binding: this.bridgeBinding!, lineage: message.pageLineage, classroomSave: this.classroomSave,
+          ...(nativeTeaching ? { nativeTeaching: { documentId: nativeTeaching.documentId, revision: nativeTeaching.revision } } : {}),
         });
       if (this.classroomSave && !synchronized) throw new Error("Native classroom save owner changed");
       const extension = officeSaveExtension(current.extension);

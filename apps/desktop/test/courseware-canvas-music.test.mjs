@@ -137,7 +137,7 @@ test("explicit adoption decodes only the archived export and reauthorizes withou
   const f = await adoptableFixture(t), before = f.provider.length;
   assert.deepEqual(await f.main.adopt(f.input), { viewId: "view-2" });
   assert.deepEqual(f.adopted, [{ principalKey: f.state.principal, intentId: f.op.intentId,
-    assetId: `music-${hash(audio)}`, durationMs: 1400 }]);
+    assetId: `music-${hash(audio)}`, durationMs: 1400, sha256: hash(audio), bytes: audio }]);
   assert.deepEqual(f.decoded, [[audio, "audio/mpeg"]]);
   assert.deepEqual(f.provider.slice(before).map(v => v[0]), ["GET"]);
 });

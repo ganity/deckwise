@@ -654,3 +654,21 @@ it.each(['source', 'missing', 'duplicate', 'reordered', 'legacy-metadata', 'unbo
       kind === 'capability' ? 'NATIVE_ANIMATION_CAPABILITY_MISMATCH' : kind === 'hidden-target'
         ? 'NATIVE_ANIMATION_TARGET_NOT_REVEALED' : 'NATIVE_ANIMATION_BINDING_MISMATCH');
   });
+
+it('loads automatic native preset steps and keeps click waits and delays before narration', async () => {
+  const candidate: any = await nativePayload();
+  delete candidate.pages[0].nativeAnimations;
+  candidate.report.capabilities.nativeObjectAnimations = 'finite-presets/1';
+  candidate.pages[0].nativeTimeline = { version: 1, steps: [
+    { id: 'auto', trigger: 'auto', items: [{ elementId: 'target', effect: 'grow150', animationType: 'attention', durationMs: 600, startAtMs: 500 }] },
+    { id: 'click', trigger: 'click', items: [{ elementId: 'target', effect: 'fadeIn', animationType: 'in', durationMs: 500, startAtMs: 0 }] },
+  ] };
+  const load = async () => { const bytes = encode(candidate); return loadFixedBuild(bytes, await digestBytes(bytes), async () => audio); };
+  const loaded = await load();
+  expect(loaded.nativeTimeline).toBe(true);
+  expect(loaded.scenes[0].actions?.map(action => action.type)).toEqual(['element_animation', 'interaction_checkpoint', 'element_animation', 'speech']);
+  expect(loaded.scenes[0].actions?.[0]).toMatchObject({ effect: 'grow150', duration: 600, startAtMs: 500, pptistTrigger: 'auto' });
+  loaded.dispose();
+  candidate.pages[0].nativeTimeline.steps[0].items[0].elementId = 'missing';
+  await expect(load()).rejects.toThrow('NATIVE_ANIMATION_TARGET_UNSUPPORTED');
+});

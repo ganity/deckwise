@@ -8,7 +8,9 @@ import { isCoursewareProject, isCoursewareSnapshot, isTeachingWrite, samePptEdit
 type Host = { call<T>(method: string, params: unknown): Promise<T> };
 type Snapshot = PptEditorBinding & { path: string; sourcePath: string; revision: number; sha256: string };
 type Editor = {
+  hasTeachingEditor?(workspace: string | null): boolean;
   getContext(workspace: string | null): Promise<PptEditorContext>;
+  routeNativeTeaching?(workspace: string | null, operation: string, args: Record<string, unknown>, page: number): Promise<{ value: unknown } | undefined>;
   teachingSnapshot(workspace: string | null): Snapshot;
   verifyTeachingSource(workspace: string | null): Promise<void>;
 };
@@ -96,6 +98,19 @@ export class CoursewareTeachingCoordinator {
   constructor(private editor: Editor, private getHost: () => Host | null, private getWorkspace: () => Promise<string | null>, private getViewingSessionId: () => string | null, private assertCandidateOwner: (sessionId: string) => void,
     private assertMediaOwner: (sessionId: string) => void = assertCandidateOwner) {}
 
+  async native(operation: string, args: Record<string, unknown> = {}, pageNumber?: number): Promise<{ value: unknown } | undefined> {
+    if (!this.editor.routeNativeTeaching) return;
+    const sessionId = this.getViewingSessionId();
+    if (!sessionId) return;
+    const host = this.getHost(), workspace = await this.getWorkspace();
+    if (this.editor.hasTeachingEditor && !this.editor.hasTeachingEditor(workspace)) return;
+    const context = await this.editor.getContext(workspace);
+    if (this.getViewingSessionId() !== sessionId || this.getHost() !== host) throw new Error("Teaching owner changed");
+    const result = await this.editor.routeNativeTeaching(workspace, operation, args, pageNumber ?? context.page ?? 1);
+    if (result && operation === "narration-context") return { value: { ...(result.value as Record<string, unknown>), editor: context } };
+    return result;
+  }
+
   async duringNativeSave<T>(operation: () => Promise<T>): Promise<T> {
     while (this.opening) await delay(25);
     this.opening = true;
@@ -106,6 +121,8 @@ export class CoursewareTeachingCoordinator {
 
   async open(sessionId: unknown): Promise<CoursewareTeachingView> {
     if (typeof sessionId !== "string" || this.getViewingSessionId() !== sessionId) throw new Error("Invalid or inactive project session");
+    const native = await this.native("open");
+    if (native) return native.value as CoursewareTeachingView;
     if (this.opening) throw new Error("Teaching is already opening");
     const saved = this.savedRead;
     if (saved) {
@@ -167,6 +184,14 @@ export class CoursewareTeachingCoordinator {
   }
 
   async importCurrentPageNotes(sessionId: unknown): Promise<{ view: CoursewareTeachingView; text: string }> {
+    if (typeof sessionId !== "string" || sessionId !== this.getViewingSessionId()) throw new Error("Teaching session changed");
+    const native = await this.native("notes-context");
+    if (native) {
+      const result = native.value as { view: CoursewareTeachingView; text: string };
+      const page = result.view.project.pages.find(p => p.pageId === result.view.pageId);
+      if (!page || page.locked || page.actions.length || !result.text.trim() || result.text.length > 2500) throw new Error("Current page has no importable notes");
+      return result;
+    }
     const saved = await this.withSaved(sessionId, async (host, jobId, snapshot, context, sessionId) => {
       const { project } = await host.call<{ project: unknown }>("courseware.project.openSaved", { sessionId, jobId });
       if (!isCoursewareProject(project) || project.taskType !== "import" || !context.page ||
@@ -593,6 +618,32 @@ export class CoursewareTeachingCoordinator {
   }
 
   private async mediaContext(payload: { viewId: unknown; expectedTeachingRevision: unknown }, assertOwner: (sessionId: string) => void) {
+    const native = await this.native("open");
+    if (native) {
+      const view = native.value as CoursewareTeachingView, host = this.getHost(), sessionId = this.getViewingSessionId();
+      if (!host || !sessionId || payload.viewId !== view.viewId || payload.expectedTeachingRevision !== view.project.teachingRevision) throw new Error("Native media view changed");
+      const assertCurrent = async () => {
+        assertOwner(sessionId);
+        const current = await this.native("open");
+        if (this.getHost() !== host || this.getViewingSessionId() !== sessionId || JSON.stringify(current?.value) !== JSON.stringify(view)) throw new Error("Native media view changed");
+        assertOwner(sessionId);
+      };
+      await assertCurrent();
+      return { host, sessionId, projectId: view.project.projectId, pageId: view.pageId, project: view.project,
+        expectedSourceRevision: view.project.source.revision, expectedTeachingRevision: view.project.teachingRevision, assertCurrent,
+        adoptMusic: async (input: { principalKey: string; intentId: string; assetId: string; durationMs: number; bytes?: Buffer; sha256?: string }) => {
+          await assertCurrent();
+          if (!input.bytes || !input.sha256) throw new Error("Verified native music bytes required");
+          const result = await this.native("adopt-audio", { viewId: view.viewId, expectedTeachingRevision: view.project.teachingRevision,
+            command: { kind: "music", actionId: randomUUID(), assetId: input.assetId, sha256: input.sha256, mimeType: "audio/mpeg",
+              durationMs: input.durationMs, bytes: Uint8Array.from(input.bytes).buffer } });
+          return result!.value as CoursewareTeachingView;
+        },
+        adoptAudio: async (_input: { principalKey: string; intentId: string; actionId: string; assetId: string }): Promise<CoursewareTeachingView> => {
+          throw new Error("Native speech adoption requires verified bytes through the native audio service");
+        },
+      };
+    }
     const pin = this.pin;
     if (!pin || this.opening || payload.viewId !== pin.view.viewId || payload.expectedTeachingRevision !== pin.view.project.teachingRevision) throw new Error("Teaching view changed; reload current page");
     const assertCurrent = async () => {
@@ -606,7 +657,7 @@ export class CoursewareTeachingCoordinator {
       pageId: pin.view.pageId, expectedSourceRevision: pin.view.project.source.revision,
       expectedTeachingRevision: pin.view.project.teachingRevision, assertCurrent,
       project: pin.view.project,
-      adoptMusic: async (input: { principalKey: string; intentId: string; assetId: string; durationMs: number }) => {
+      adoptMusic: async (input: { principalKey: string; intentId: string; assetId: string; durationMs: number; bytes?: Buffer; sha256?: string }) => {
         await assertCurrent();
         const page = pin.view.project.pages.find((entry) => entry.pageId === pin.view.pageId);
         if (!page || page.locked) throw new Error("COURSEWARE_CANVAS_MUSIC_PAGE_LOCKED");
@@ -651,6 +702,8 @@ export class CoursewareTeachingCoordinator {
   }
 
   async history(payload: unknown): Promise<CoursewareTeachingHistory> {
+    const native = await this.native("history", payload as Record<string, unknown>);
+    if (native) return native.value as CoursewareTeachingHistory;
     const pin = this.pin;
     if (!pin || !payload || typeof payload !== "object" || Array.isArray(payload) ||
         Object.keys(payload).length !== 1 || Reflect.get(payload, "viewId") !== pin.view.viewId)
@@ -680,6 +733,9 @@ export class CoursewareTeachingCoordinator {
   }
 
   async draft(payload: unknown, changing: boolean): Promise<{ draft: CoursewareTeachingDraft | null }> {
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error("Invalid teaching draft");
+    const native = await this.native(changing ? "draft:set" : "draft:get", payload as Record<string, unknown>);
+    if (native) return native.value as { draft: CoursewareTeachingDraft | null };
     const pin = payload && typeof payload === "object" ? this.draftPins.get(Reflect.get(payload, "viewId")) : undefined;
     if (!pin || !payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error("Open current-page teaching first");
     const keys = changing ? ["viewId", "expectedRevision", "draft"] : ["viewId"];
@@ -760,6 +816,9 @@ export class CoursewareTeachingCoordinator {
   }
 
   async update(payload: unknown, lock: boolean | "confirm"): Promise<CoursewareTeachingView> {
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error("Invalid teaching request");
+    const native = await this.native(lock === "confirm" ? "confirm" : lock ? "lock" : "write", payload as Record<string, unknown>);
+    if (native) return native.value as CoursewareTeachingView;
     const pin = this.pin;
     if (!pin || !payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error("Open current-page teaching first");
     const resolution = structuredClone(Reflect.get(payload, "resolution"));

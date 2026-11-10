@@ -612,6 +612,15 @@ pub(super) async fn handle(
         | "courseware.video.bind"
         | "courseware.video.stage"
         | "courseware.video.adopt" => video::handle(state, method, params).await,
+        "courseware.mediaRelay.scope" => {
+            #[derive(Deserialize)]
+            #[serde(rename_all = "camelCase", deny_unknown_fields)]
+            struct ScopeParams { session_id: String }
+            let p: ScopeParams = serde_json::from_value(params).map_err(invalid)?;
+            let state = state.lock().await;
+            workspace(&state, &p.session_id)?;
+            serde_json::to_value(state.db.courseware_media_submission_scope(&p.session_id).map_err(error)?).map_err(|e| error(e.into()))
+        }
         "courseware.mediaRelay.read" | "courseware.mediaRelay.write" => {
             media_relay::handle(state, method, params).await
         }
@@ -632,6 +641,7 @@ pub(super) async fn handle(
         "courseware.snapshot.capture"
         | "courseware.snapshot.get"
         | "courseware.snapshot.onlineOrigin"
+        | "courseware.snapshot.importNative"
         | "courseware.snapshot.importOnline" => snapshots::handle(state, method, params).await,
         "courseware.sourceAdoption.prepare"
         | "courseware.sourceAdoption.get"

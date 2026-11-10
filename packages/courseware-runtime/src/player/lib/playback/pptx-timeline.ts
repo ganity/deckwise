@@ -177,7 +177,7 @@ function validateAnimation(
     return invalid("invalid paragraph indexes");
   }
   if (
-    (action.effect === "pptxMotion") !== Boolean(action.motion) ||
+    (["pptxMotion", "bounceInBottom"].includes(action.effect)) !== Boolean(action.motion) ||
     (action.motion &&
       (![action.motion.fromX, action.motion.fromY].every(Number.isFinite) ||
         Math.abs(action.motion.fromX) > 10_000 ||

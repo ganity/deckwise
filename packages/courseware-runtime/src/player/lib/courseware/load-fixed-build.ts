@@ -1,3 +1,4 @@
+import { nativeTimelineSchema } from '../../../native-timeline';
 import { speechAnimationTriggerSchema } from '../../../speech-animation-trigger';
 import { questionResponseSchema } from '../../../question-response';
 import { z } from "zod";
@@ -142,7 +143,7 @@ const payloadSchema = z
             teachingAudioClips: z.literal("sequential/1").optional(),
             transitions: z.literal(false),
             objectAnimations: z.literal(false),
-            nativeObjectAnimations: z.enum(["click-appear-fade/1", "click-appear-fade/2"]).optional(),
+            nativeObjectAnimations: z.enum(["click-appear-fade/1", "click-appear-fade/2", "finite-presets/1"]).optional(),
             spotlight: z.boolean(),
             speechVisualCues: z
               .enum(["fixed-audio/1", "fixed-audio/2"])
@@ -183,6 +184,7 @@ const payloadSchema = z
             ),
             actions: z.array(actionSchema),
             nativeAnimations: nativeClickAnimationsSchema.optional(),
+            nativeTimeline: nativeTimelineSchema.optional(),
           })
           .strict(),
       )
@@ -202,6 +204,8 @@ export interface FixedVisualCue {
     | { kind: "element_animation"; action: ElementAnimationAction };
 }
 export interface LoadedFixedBuild {
+  nativeTimeline?: true;
+  nativeGroups?: ReadonlyMap<string, NonNullable<import('../../../native-timeline').NativeTimeline['groups']>>;
   classroom?: import("../../../maic-classroom").MaicClassroom;
   buildId: string;
   report: FixedPayload["report"];
@@ -249,10 +253,11 @@ export async function loadFixedBuild(
   );
   check(parsed.success, "PACKAGE_SCHEMA_INVALID");
   const payload = parsed.data;
-  const nativeCapability = payload.pages.some(page => page.nativeAnimations?.version === 2) ? "click-appear-fade/2"
+  const nativeCapability = payload.pages.some(page => page.nativeTimeline) ? "finite-presets/1" : payload.pages.some(page => page.nativeAnimations?.version === 2) ? "click-appear-fade/2"
     : payload.pages.some(page => page.nativeAnimations) ? "click-appear-fade/1" : undefined;
   check(payload.report.capabilities.nativeObjectAnimations === nativeCapability, "NATIVE_ANIMATION_CAPABILITY_MISMATCH");
   for (const page of payload.pages) {
+    check(!(page.nativeTimeline && page.nativeAnimations), "NATIVE_ANIMATION_BINDING_MISMATCH");
     const bound = page.actions.some(action => action.type === "native_animation");
     check(bound === (page.nativeAnimations?.version === 2), "NATIVE_ANIMATION_BINDING_MISMATCH");
     if (bound) check(validateNativeAnimationBindings(page.actions, payload.report.sourceSha256,
@@ -373,6 +378,7 @@ export async function loadFixedBuild(
       return value;
     }
     const nativeAnimations = new Map<string, NativeClickAnimations>();
+    const nativeGroups = new Map<string, NonNullable<import('../../../native-timeline').NativeTimeline['groups']>>();
     const actionIds = new Set(payload.pages.flatMap(page => page.actions.map(action => action.id)));
     const checkpointIds = new Set(checkpoints.map(action => action.checkpointId));
     const scenes: Scene[] = payload.pages.map((page, index) => {
@@ -398,7 +404,29 @@ export async function loadFixedBuild(
         "OBJECT_BINDING_MISMATCH",
       );
       check(validSpeechAnimationSequence(page.actions), "ANIMATION_TARGET_CONFLICT");
-      const nativeTargets = new Set(page.nativeAnimations?.steps.map(step => step.elementId));
+      const nativeTargets = new Set([...(page.nativeAnimations?.steps.map(step => step.elementId) ?? []),
+        ...(page.nativeTimeline?.steps.flatMap(step => step.items.map(item => item.elementId)) ?? [])]);
+      for (const step of page.nativeTimeline?.steps ?? []) for (const item of step.items) {
+        const target = sourceElements.find(element => element.id === item.elementId);
+        check(target && ['text', 'shape', 'image'].includes(target.type) && target.width > 0 && target.height > 0,
+          "NATIVE_ANIMATION_TARGET_UNSUPPORTED");
+      }
+      const wrappers = page.nativeTimeline?.groups ?? [];
+      const children = new Map<string, string>();
+      check(unique(wrappers.map(group => group.elementId)), 'GROUP_BINDING_MISMATCH');
+      for (const group of wrappers) {
+        const anchor = sourceElements.find(element => element.id === group.elementId);
+        check(anchor?.type === 'shape' && anchor.opacity === 0 && anchor.fill === 'transparent', 'GROUP_BINDING_MISMATCH');
+        for (const child of group.children) {
+          check(child !== group.elementId && !children.has(child) && sourceElements.some(element => element.id === child), 'GROUP_BINDING_MISMATCH');
+          children.set(child, group.elementId);
+        }
+      }
+      for (const group of wrappers) {
+        const seen = new Set<string>(); let id: string | undefined = group.elementId;
+        while (id) { check(!seen.has(id), 'GROUP_BINDING_MISMATCH'); seen.add(id); id = children.get(id); }
+      }
+      if (wrappers.length) nativeGroups.set(page.pageId, wrappers);
       const revealed = new Set<string>();
       const nativeAction = (step: NativeClickAnimations["steps"][number], id: string): ElementAnimationAction => ({
         id, type: "element_animation", elementId: step.elementId,
@@ -528,6 +556,25 @@ export async function loadFixedBuild(
           checkpointId: ids[0], checkpointKind: "teacher_continue" as const },
         nativeAction(step, ids[1])];
       });
+      const timelineActions: Action[] = (page.nativeTimeline?.steps ?? []).flatMap((step, stepIndex) => {
+        const prefix = `fixed-native-timeline-${index + 1}-${stepIndex + 1}`;
+        const generated: Action[] = [];
+        if (step.trigger === 'click') generated.push({ id: prefix + '-wait', type: 'interaction_checkpoint',
+          checkpointId: prefix + '-wait', checkpointKind: 'teacher_continue' });
+        generated.push(...step.items.map((item, itemIndex): ElementAnimationAction => ({
+          id: prefix + '-' + itemIndex, type: 'element_animation', elementId: item.elementId,
+          effect: item.effect, ...(item.distance ? { motion: { fromX: 0, fromY: item.distance } } : {}), animationType: item.animationType, duration: item.durationMs, startAtMs: item.startAtMs,
+          pptistTrigger: itemIndex === 0 ? 'auto' : 'meantime', pptistAnimationId: prefix + '-' + itemIndex,
+          pptxTimeline: { version: 1, stepId: prefix },
+        })));
+        for (const action of generated) {
+          check(!actionIds.has(action.id), 'DUPLICATE_ACTION_ID'); actionIds.add(action.id);
+          if (action.type === 'interaction_checkpoint') {
+            check(!checkpointIds.has(action.checkpointId), 'DUPLICATE_CHECKPOINT_ID'); checkpointIds.add(action.checkpointId);
+          }
+        }
+        return generated;
+      });
       return {
         id: page.pageId,
         stageId: expectedBuildId,
@@ -538,7 +585,7 @@ export async function loadFixedBuild(
           type: "slide",
           canvas: resolveResources(page.slide) as unknown as Slide,
         },
-        actions: [...nativeActions, ...actions],
+        actions: [...nativeActions, ...timelineActions, ...actions],
       };
     });
     return {
@@ -547,6 +594,8 @@ export async function loadFixedBuild(
       scenes,
       speechVisualCues,
       nativeAnimations,
+      nativeGroups,
+      ...(payload.pages.some(page => page.nativeTimeline) ? { nativeTimeline: true as const } : {}),
       dispose,
     };
   } catch (error) {

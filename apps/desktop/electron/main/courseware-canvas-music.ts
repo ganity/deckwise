@@ -264,7 +264,8 @@ export class CoursewareCanvasMusic {
         task.assetRef.mime !== asset.mimeType || task.assetRef.byteLength !== asset.byteLength) throw invalid();
     await target.assertCurrent(); c.assertCurrent();
     const adopted = await target.adoptMusic({ principalKey: c.principal.key, intentId: p.intentId,
-      assetId: `music-${asset.sha256}`, durationMs });
+      assetId: `music-${asset.sha256}`, durationMs, sha256: asset.sha256,
+      bytes: Buffer.from(preview.dataUrl.slice(preview.dataUrl.indexOf(",") + 1), "base64") });
     c.assertCurrent();
     return adopted;
   }

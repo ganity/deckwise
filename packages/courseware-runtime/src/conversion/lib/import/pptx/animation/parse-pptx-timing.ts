@@ -99,7 +99,7 @@ export function parsePptxTiming(slideXml: string): PptxTimingParseResult {
     if (timingDepth > MAX_TIMING_DEPTH) failure = 'PPTX_TIMING_DEPTH_EXCEEDED';
     if (timingNodes > MAX_TIMING_NODES) failure = 'PPTX_TIMING_NODE_LIMIT_EXCEEDED';
     const attrs = Object.fromEntries(
-      Object.entries(tag.attributes).map(([name, value]) => [name, value.value]),
+      Object.entries(tag.attributes).filter(([name]) => name !== "xmlns" && !name.startsWith("xmlns:")).map(([name, value]) => [name, value.value]),
     );
     const node: TimingNode = { local, uri: tag.uri, attrs, children: [] };
     const parent = stack.at(-1);

@@ -58,6 +58,25 @@ describe("AudioPlayer", () => {
     vi.restoreAllMocks();
   });
 
+  it("reuses the element admitted by a user gesture after delayed animations and releases it on dispose", async () => {
+    const created: FakeAudio[] = [];
+    globalThis.Audio = class {
+      constructor() { const audio = new FakeAudio(); created.push(audio); return audio as unknown as HTMLAudioElement; }
+    } as unknown as typeof Audio;
+    const player = new AudioPlayer();
+    player.prime(); await Promise.resolve();
+    await player.play('first', 'blob:first');
+    player.stop();
+    await player.play('second', 'blob:second');
+    expect(created).toHaveLength(1);
+    expect(created[0].src).toBe('blob:second');
+    expect(created[0].paused).toBe(false);
+    player.destroy();
+    expect(created[0].paused).toBe(true);
+    expect(created[0].src).toBe('');
+    expect(created[0].listenerCount('ended')).toBe(0);
+  });
+
   it("ignores stale ended/error events from a previous audio element", async () => {
     const created: FakeAudio[] = [];
     class FakeAudioCtor extends FakeAudio {}
@@ -91,6 +110,26 @@ describe("AudioPlayer", () => {
 
     second.emit("ended");
     expect(onEnded).toHaveBeenCalledTimes(1);
+  });
+
+  it("retains measured duration for speech animation completion until the next playback or stop", async () => {
+    const created: FakeAudio[] = [];
+    globalThis.Audio = class {
+      constructor() { const audio = new FakeAudio(); created.push(audio); return audio as unknown as HTMLAudioElement; }
+    } as unknown as typeof Audio;
+    const player = new AudioPlayer();
+    const completedDurations: number[] = [];
+    player.onEnded(() => completedDurations.push(player.getDuration()));
+    await player.play('first', 'blob:first');
+    created[0].duration = 2.4;
+    created[0].emit('ended');
+    expect(completedDurations).toEqual([2400]);
+    expect(player.hasActiveAudio()).toBe(false);
+    expect(player.getDuration()).toBe(2400);
+    await player.play('second', 'blob:second');
+    expect(player.getDuration()).toBe(1000);
+    player.stop();
+    expect(player.getDuration()).toBe(0);
   });
 
   it("does not fall back to IndexedDB cached audio when no URL is available", async () => {

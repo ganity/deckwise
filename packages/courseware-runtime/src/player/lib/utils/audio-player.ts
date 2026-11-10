@@ -29,14 +29,27 @@ export function isExpectedAudioPlaybackInterruption(error: unknown): boolean {
  */
 export class AudioPlayer {
   private audio: HTMLAudioElement | null = null;
+  private primedAudio: HTMLAudioElement | null = null;
   private onEndedCallback: (() => void) | null = null;
   private onErrorCallback: ((error: Error) => void) | null = null;
   private muted: boolean = false;
   private volume: number = 1;
   private playbackRate: number = 1;
   private playbackToken: number = 0;
+  private completedDurationMs = 0;
   private cleanupTrim: (() => void) | null = null;
   private cleanupEvents: (() => void) | null = null;
+
+  /** Call from a user gesture before delayed native animations; reuse this admitted element. */
+  public prime(): void {
+    if (this.primedAudio) return;
+    const audio = new Audio();
+    this.primedAudio = audio;
+    audio.src = 'data:audio/wav;base64,UklGRsQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+    void audio.play().then(() => { if (this.audio !== audio) audio.pause(); }).catch(() => {
+      if (this.primedAudio === audio && this.audio !== audio) this.primedAudio = null;
+    });
+  }
 
   /**
    * Play audio from URL.
@@ -134,7 +147,7 @@ export class AudioPlayer {
   public getDuration(): number {
     return this.audio && !isNaN(this.audio.duration)
       ? this.audio.duration * 1000
-      : 0;
+      : this.completedDurationMs;
   }
 
   public seek(timeMs: number): void {
@@ -193,6 +206,10 @@ export class AudioPlayer {
    */
   public destroy(): void {
     this.stop();
+    this.primedAudio?.pause();
+    this.primedAudio?.removeAttribute("src");
+    this.primedAudio?.load();
+    this.primedAudio = null;
     this.onEndedCallback = null;
     this.onErrorCallback = null;
   }
@@ -200,7 +217,7 @@ export class AudioPlayer {
   private async playFromSource(src: string, trim: MediaTrim): Promise<boolean> {
     this.resetAudio();
     const token = this.playbackToken;
-    const audio = new Audio();
+    const audio = this.primedAudio ?? new Audio();
     this.audio = audio;
     audio.preload = "auto";
     audio.src = src;
@@ -219,6 +236,8 @@ export class AudioPlayer {
         log.debug("Ignored stale audio callback", { reason });
         return;
       }
+      // Speech animation completion still needs the measured duration after the audio ends.
+      this.completedDurationMs = Number.isFinite(audio.duration) ? audio.duration * 1000 : 0;
       this.audio = null;
       this.cleanupEvents?.();
       this.cleanupEvents = null;
@@ -277,6 +296,7 @@ export class AudioPlayer {
 
   private resetAudio(): void {
     this.playbackToken += 1;
+    this.completedDurationMs = 0;
     this.cleanupEvents?.();
     this.cleanupEvents = null;
     this.cleanupTrim?.();

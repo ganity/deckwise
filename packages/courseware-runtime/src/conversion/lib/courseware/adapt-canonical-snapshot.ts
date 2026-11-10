@@ -14,6 +14,7 @@ export function adaptCanonicalSnapshot(
   project: unknown,
   snapshot: unknown,
   rawFiles: unknown,
+  options: { nativeTeaching?: boolean } = {},
 ): FixedBuildInput {
   if (!isCoursewareProject(project) || !isCoursewareSnapshot(snapshot))
     throw new FixedBuildError('CANONICAL_SNAPSHOT_INVALID');
@@ -29,7 +30,9 @@ export function adaptCanonicalSnapshot(
     files.mapping.sourceSha256 !== snapshot.source.sha256.toLowerCase()
   )
     throw new FixedBuildError('SNAPSHOT_REVISION_MISMATCH');
-  if (project.pages.some((page) => page.reviewState !== 'ready'))
+  // Native capture explicitly exports the saved file; legacy review metadata
+  // does not gate this authority. All content and asset validation still runs.
+  if (!options.nativeTeaching && project.pages.some((page) => page.reviewState !== 'ready'))
     throw new FixedBuildError('TEACHING_REVIEW_REQUIRED');
   const assets = new Set(files.assets.map((asset) => asset.id));
   if (
@@ -56,9 +59,13 @@ export function adaptCanonicalSnapshot(
       revision: snapshot.teachingRevision,
       sourceSha256: snapshot.source.sha256.toLowerCase(),
       pages: project.pages.map(({ pageId, actions }) => ({ pageId, actions: actions.map(action => {
-        // Host provenance is edit metadata; unknown fields must still fail the strict player schema.
-        if (action.type === 'speech' && ['notes', 'external', 'original', 'light_rewrite', 'generated'].includes(String(action.source))) {
-          const { source: _source, ...playback } = action;
+        // Derived authoring duration and provenance do not belong to playback actions.
+        if (['speech', 'audio_clip', 'video_clip'].includes(String(action.type))) {
+          const { durationMs: _duration, ...playback } = action;
+          if (action.type === 'speech' && ['notes', 'external', 'original', 'light_rewrite', 'generated'].includes(String(action.source))) {
+            const { source: _source, ...speech } = playback;
+            return speech;
+          }
           return playback;
         }
         return action;

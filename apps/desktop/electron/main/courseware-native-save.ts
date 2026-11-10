@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { setTimeout as delay } from "node:timers/promises";
 import { createHash } from "node:crypto";
 import { jobIdFor } from "./ppt-editor-files";
@@ -34,12 +35,22 @@ export class CoursewareNativeSave {
       };
       await assertOwner();
       const proof = input.lineage as Record<string, unknown> | undefined;
-      if (!proof || proof.protocol !== "deckwise-office-page-lineage/1" || proof.projectId !== input.binding.projectId ||
+      if (!proof || !["deckwise-office-page-lineage/1", "deckwise-office-page-lineage/2"].includes(String(proof.protocol)) || proof.projectId !== input.binding.projectId ||
           proof.documentId !== input.binding.documentId || proof.sessionId !== input.binding.sessionId ||
           proof.saveRequestId !== input.saveRequestId || proof.sourceSha256 !== input.sourceSha256 || proof.outputSha256 !== input.outputSha256 ||
           input.binding.documentId !== jobIdFor(input.workspace, input.sourcePath) ||
           input.binding.projectId !== createHash("sha256").update(input.workspace).digest("hex"))
         throw new Error("PPT export identity is unavailable; retry saving after the editor finishes loading");
+      if (input.nativeTeaching) {
+        const outputBytes = await readFile(input.outputPath);
+        if (createHash("sha256").update(outputBytes).digest("hex") !== input.outputSha256) throw new Error("Native export changed before validation");
+        await assertOwner();
+        const verify = async (expected: string) => {
+          await assertOwner();
+          if (createHash("sha256").update(await readFile(input.sourcePath)).digest("hex") !== expected) throw new Error("Native teaching save needs recovery");
+        };
+        return { commit: () => verify(input.outputSha256), cancel: () => verify(input.sourceSha256) };
+      }
       let jobId: string | undefined, terminal = false;
       const release = async () => {
         if (!jobId) return;

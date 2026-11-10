@@ -118,6 +118,13 @@ test("real SDK files retain narration and object UUIDs across two real Host save
       } else {
         assert.equal(context.project.pages[0].pageId, firstContext.project.pages[0].pageId);
         assert.equal(context.savedObjects.pages[0].objects[0].objectId, firstContext.savedObjects.pages[0].objects[0].objectId);
+        if (lineage.protocol === "deckwise-office-page-lineage/2") {
+          const objects = context.savedObjects.pages[0].objects;
+          for (const [objectIndex, item] of lineage.objects[0].entries()) {
+            if (!item.sourcePageToken) assert.notEqual(objects[objectIndex].objectId, firstContext.savedObjects.pages[0].objects[0].objectId,
+              "a copied same-name object must receive its own identity");
+          }
+        }
         assert.deepEqual(context.project.pages[0].actions, firstContext.project.pages[0].actions);
         const workflow = await host.call("courseware.workflow.get", { sessionId: session.id, projectId: context.project.projectId });
         assert.equal(workflow.checkpoint.revision, 2);
@@ -159,4 +166,34 @@ test("real SDK files retain narration and object UUIDs across two real Host save
       expectedRevision: 2, checkpoint: next });
     assert.deepEqual((await host.call("courseware.workflow.get", scope)).checkpoint, next);
   } finally { await host.stop(); }
+});
+
+test("native carrier save publishes the complete file without parsing or Host teaching writes", {
+  skip: !process.env.DECKWISE_NATIVE_REAL_FIXTURE,
+}, async t => {
+  const { promises: fs } = await import("node:fs"), { tmpdir } = await import("node:os");
+  const workspace = await fs.mkdtemp(join(tmpdir(), "native-carrier-publish-"));
+  t.after(() => fs.rm(workspace, { recursive: true, force: true }));
+  const sourcePath = join(workspace, "lesson.pptx"), outputPath = join(workspace, "export.pptx");
+  const before = await fs.readFile(join(process.env.DECKWISE_NATIVE_REAL_FIXTURE, "original.pptx"));
+  const after = await fs.readFile(join(process.env.DECKWISE_NATIVE_REAL_FIXTURE, "native.pptx"));
+  await fs.writeFile(sourcePath, before); await fs.writeFile(outputPath, after);
+  const hash = bytes => createHash("sha256").update(bytes).digest("hex");
+  const binding = { projectId: hash(workspace), documentId: jobIdFor(workspace, sourcePath), sessionId: "editor" };
+  const input = { workspace, sourcePath, outputPath, sourceRevisionPath: sourcePath, sourceSha256: hash(before), outputSha256: hash(after),
+    binding, saveRequestId: "native-save", nativeTeaching: { documentId: "document", revision: "revision" } };
+  input.lineage = { ...binding, protocol: "deckwise-office-page-lineage/2", sourceSha256: input.sourceSha256, outputSha256: input.outputSha256, saveRequestId: input.saveRequestId };
+  const calls = [], host = { async call(method) { calls.push(method); throw new Error("Unexpected Host request"); } };
+  const service = new CoursewareNativeSave(() => host, () => "chat", async () => workspace, () => {}, async run => run());
+  const cancelled = await service.prepare(input); await cancelled.cancel();
+  const pending = await service.prepare(input);
+  const { publishRevision, replaceSourceFile } = load(join(main, "ppt-editor-files.ts"));
+  const root = join(workspace, "revisions"); await fs.mkdir(root);
+  const revision = await publishRevision({ root, jobId: binding.documentId, bytes: after, extension: "pptx", cause: "edited", expectedRevision: 0 });
+  assert.equal(revision.sha256, input.outputSha256);
+  await replaceSourceFile(sourcePath, after, "pptx", input.sourceSha256); await pending.commit();
+  assert.equal(hash(await fs.readFile(sourcePath)), input.outputSha256);
+  assert.deepEqual(calls, []);
+  await fs.writeFile(sourcePath, "external edit");
+  await assert.rejects(pending.commit(), /needs recovery/);
 });

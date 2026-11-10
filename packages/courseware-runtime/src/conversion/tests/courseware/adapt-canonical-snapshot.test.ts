@@ -256,3 +256,24 @@ it('preserves source-bound native steps in canonical snapshot adaptation without
   project.pages[0].actions[1] = { ...node(0), sourceSha256: 'f'.repeat(64) };
   expect(() => adaptCanonicalSnapshot(project, f.snapshot, f.files)).toThrow('CANONICAL_SNAPSHOT_INVALID');
 });
+
+it('native immutable exports do not require legacy per-page confirmation', () => {
+  const { project, snapshot, files } = fixture();
+  project.pages[0].reviewState = 'review';
+  expect(() => adaptCanonicalSnapshot(project, snapshot, files)).toThrow('TEACHING_REVIEW_REQUIRED');
+  const input = adaptCanonicalSnapshot(project, snapshot, files, { nativeTeaching: true });
+  expect(input.teaching.pages[0].actions).toEqual(project.pages[0].actions);
+  expect(project.pages[0].reviewState).toBe('review');
+  expect(() => adaptCanonicalSnapshot(project, { ...snapshot, teachingRevision: 'stale' }, files, { nativeTeaching: true })).toThrow('SNAPSHOT_REVISION_MISMATCH');
+});
+
+it('projects adopted media duration without relaxing other playback fields', () => {
+  const { project, snapshot, files } = fixture();
+  const speech = project.pages.flatMap(p => p.actions).find(a => a.type === 'speech')!;
+  Object.assign(speech, { durationMs: 1200, source: 'notes' });
+  const input = adaptCanonicalSnapshot(project, snapshot, files);
+  expect(input.teaching.pages.flatMap(p => p.actions).find(a => a.id === speech.id)).not.toHaveProperty('durationMs');
+  expect(speech).toHaveProperty('durationMs', 1200);
+  Object.assign(speech, { unexpected: true });
+  expect(() => adaptCanonicalSnapshot(project, snapshot, files)).toThrow('SNAPSHOT_SCHEMA_INVALID');
+});

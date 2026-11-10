@@ -1,3 +1,6 @@
+import { projectNativeGroups } from './native-groups';
+import { projectNativeTimeline } from './native-timeline';
+import type { NativeTimeline } from '../../../native-timeline';
 import { createHash, randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -96,7 +99,7 @@ export function validateFixedMapping(input: FixedBuildInput, ir: SlideIR) {
     'DUPLICATE_IMPORT_PAGE',
   );
   unique(
-    input.mapping.pages.flatMap((p) => p.objects.map((o) => o.objectId)),
+    input.mapping.pages.flatMap((p) => [...p.objects, ...(p.groups ?? [])].map((o) => o.objectId)),
     'DUPLICATE_OBJECT_ID',
   );
   unique(
@@ -120,6 +123,8 @@ export function validateFixedMapping(input: FixedBuildInput, ir: SlideIR) {
         mapping.objects.every((o) => page.elements.some((e) => e.id === o.importElementId)),
       'OBJECT_BINDING_MISMATCH',
     );
+    try { projectNativeGroups(page, mapping.groups ?? []); }
+    catch { throw new FixedBuildError('GROUP_BINDING_MISMATCH'); }
     requireBuild(
       input.teaching.pages.some((p) => p.pageId === mapping.pageId),
       'TEACHING_BINDING_MISMATCH',
@@ -159,11 +164,13 @@ export function validateFixedMapping(input: FixedBuildInput, ir: SlideIR) {
               ? [effect.elementId, ...(effect.elementIds ?? [])]
               : [effect.elementId];
         requireBuild(
-          targets.every((id) => mapping.objects.some((o) => o.objectId === id)),
+          targets.every((id) => mapping.objects.some((o) => o.objectId === id) ||
+            effect.type !== 'element_animation' && mapping.groups?.some(group => group.objectId === id)),
           'EFFECT_BINDING_MISMATCH',
         );
         const page = ir.pages.find((p) => p.id === mapping.importPageId)!;
         for (const id of targets) {
+          if (mapping.groups?.some(group => group.objectId === id)) continue;
           const element = page.elements.find(
             (e) => e.id === mapping.objects.find((o) => o.objectId === id)!.importElementId,
           )!;
@@ -322,15 +329,25 @@ export async function buildFixedCourseware(
       const mapping = input.mapping.pages.find((p) => p.importPageId === page.id)!;
       const scene = scenes[index];
       requireBuild(scene.content.type === 'slide', 'INVALID_SLIDE');
+      const canvas = scene.content.canvas;
+      const groups = projectNativeGroups(page, mapping.groups ?? []);
+      canvas.elements.push(...groups.map(group => group.element));
       const actions = input.teaching.pages.find((p) => p.pageId === mapping.pageId)!.actions;
       let nativeAnimations: NativeClickAnimations | undefined;
+      let nativeTimeline: NativeTimeline | undefined;
       try {
         const remaining = detachLinkedSpeechAnimations(page, actions, mapping.objects);
-        nativeAnimations = hasGeneratedNativeMotions(remaining, actions, mapping.objects) ? undefined : projectNativeClicks(remaining);
+        if (!hasGeneratedNativeMotions(remaining, actions, mapping.objects)) {
+          try { nativeAnimations = projectNativeClicks(remaining); }
+          catch (error) {
+            if (actions.some(action => action.type === 'native_animation')) throw error;
+            nativeTimeline = projectNativeTimeline(remaining, mapping.groups ?? []);
+          }
+        }
       }
       catch { throw new FixedBuildError('NATIVE_ANIMATION_UNSUPPORTED', [...diagnostics, {
         code: 'NATIVE_ANIMATION_UNSUPPORTED', severity: 'error', pageIndex: index,
-        message: 'Fixed playback supports only whole-object on-click entrance appear/fade.',
+        message: 'Fixed playback requires verified finite whole-object presets and unchanged animation bindings.',
       }]); }
       if (actions.some(action => action.type === 'native_animation')) {
         requireBuild(validateNativeAnimationBindings(actions, input.source.sha256, nativeAnimations?.steps.length ?? 0),
@@ -350,8 +367,18 @@ export async function buildFixedCourseware(
           }
         }
       }
-      if (nativeAnimations) {
-        const nativeTargets = new Set(nativeAnimations.steps.map(step => step.elementId));
+      if (nativeTimeline?.groups) {
+        const extraGroups = nativeTimeline.groups.filter(group => !canvas.elements.some(element => element.id === group.elementId));
+        for (const group of extraGroups) {
+          const sourceShapeId = group.elementId.slice('native_group_source_'.length);
+          const [derived] = projectNativeGroups(page, [{ objectId: `source_${sourceShapeId}`, sourceShapeId }]);
+          canvas.elements.push(derived.element);
+          groups.push(derived);
+        }
+      }
+      if (nativeAnimations || nativeTimeline) {
+        const nativeTargets = new Set([...(nativeAnimations?.steps.map(step => step.elementId) ?? []),
+          ...(nativeTimeline?.steps.flatMap(step => step.items.map(item => item.elementId)) ?? [])]);
         for (const action of actions) if (action.type === 'speech') for (const cue of action.visualCues ?? []) {
           const effect = cue.effect;
           // Attention overlays preserve the native object animation owner.
@@ -363,10 +390,11 @@ export async function buildFixedCourseware(
       return {
         pageId: mapping.pageId,
         title: scene.title,
-        slide: scene.content.canvas,
-        objects: mapping.objects,
+        slide: canvas,
+        objects: [...mapping.objects, ...groups.map(group => ({ objectId: group.objectId, importElementId: group.element.id }))],
         actions,
         ...(nativeAnimations ? { nativeAnimations } : {}),
+        ...(nativeTimeline ? { nativeTimeline } : {}),
       };
     });
     // Every runtime resource must be archived; arbitrary URLs/placeholders never reach playback.
@@ -396,8 +424,8 @@ export async function buildFixedCourseware(
         ...(pages.some(page => page.actions.some(action => action.type === 'audio_clip')) ? { teachingAudioClips: 'sequential/1' } : {}),
         transitions: false,
         objectAnimations: false,
-        ...(pages.some(page => page.nativeAnimations) ? { nativeObjectAnimations:
-          pages.some(page => page.nativeAnimations?.version === 2) ? 'click-appear-fade/2' : 'click-appear-fade/1' } : {}),
+        ...(pages.some(page => page.nativeTimeline || page.nativeAnimations) ? { nativeObjectAnimations:
+          pages.some(page => page.nativeTimeline) ? 'finite-presets/1' : pages.some(page => page.nativeAnimations?.version === 2) ? 'click-appear-fade/2' : 'click-appear-fade/1' } : {}),
         spotlight: visualCues.some((cue) => cue.effect.type === 'spotlight'),
         ...(visualCues.length
           ? { speechVisualCues: hasAnimations ? 'fixed-audio/2' : 'fixed-audio/1' }

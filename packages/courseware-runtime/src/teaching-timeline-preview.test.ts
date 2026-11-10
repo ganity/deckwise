@@ -15,6 +15,7 @@ vi.mock('./player/lib/utils/audio-player', () => ({ AudioPlayer: class {
   seek(ms: number) { media.position = ms; }
 } }));
 import { createTeachingTimelinePreview, type TeachingPreviewNode } from './teaching-timeline-preview';
+import { evaluateQuestionAnswer } from './question-response';
 let current: ReturnType<typeof createTeachingTimelinePreview> | undefined;
 beforeEach(() => { vi.useFakeTimers(); media.plays = []; media.available = true; media.position = 0; media.stop.mockClear(); });
 afterEach(() => { current?.dispose(); current = undefined; vi.useRealTimers(); });
@@ -246,6 +247,27 @@ it.each([{ sourceSceneIds: [] }, { sourceSceneIds: ['source-lesson-page'] }])('p
   expect(onError).not.toHaveBeenCalled();
   expect(() => setup([{ ...question, context: { ...question.context, sourceSceneIds: [''] } }])).toThrow();
   expect(() => setup([{ ...question, context: { ...question.context, sourceSceneIds: Array(101).fill('page') } }])).toThrow();
+});
+it.each(['single', 'multiple', 'judge'] as const)('plays a saved %s quiz without optional explanatory text and preserves its answer key', async kind => {
+  const question = { id: 'quiz', type: 'interaction_checkpoint' as const, checkpointId: 'quiz', checkpointKind: 'chapter_summary' as const,
+    chapterId: 'chapter', chapterTitle: 'Family', question: 'Which picture shows grandmother?',
+    response: { kind, options: ['Grandfather', 'Grandmother'], answerIndices: [1] },
+    referenceAnswer: { summary: '', keyPoints: [] }, context: { chapterSummary: 'Family', sourceSceneIds: [] } };
+  const onInteraction = vi.fn(), onComplete = vi.fn(), onError = vi.fn();
+  current = createTeachingTimelinePreview({ pageId: 'page', nodes: [question, speech('after')], onInteraction,
+    onMode: vi.fn(), onProgress: vi.fn(), onNode: vi.fn(), onComplete, onError });
+  current.start(); await vi.advanceTimersByTimeAsync(0);
+  expect(onInteraction).toHaveBeenCalledExactlyOnceWith(question);
+  expect(evaluateQuestionAnswer(onInteraction.mock.calls[0][0].response, [0])).toBe(false);
+  expect(evaluateQuestionAnswer(onInteraction.mock.calls[0][0].response, [1])).toBe(true);
+  await vi.advanceTimersByTimeAsync(60000);
+  expect(media.plays).toEqual([]);
+  current.continueTeacher(); await vi.advanceTimersByTimeAsync(0);
+  expect(media.plays).toEqual(['blob:after']);
+  media.ended(); await vi.advanceTimersByTimeAsync(0);
+  expect(onComplete).toHaveBeenCalledOnce();
+  expect(onError).not.toHaveBeenCalled();
+  expect(() => setup([{ ...question, response: { ...question.response, answerIndices: [2] } }])).toThrow();
 });
 it('starts native motion on the audio clock and waits for both audio and native completion', async () => {
   let finish!: () => void;

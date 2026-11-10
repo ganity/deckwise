@@ -254,7 +254,7 @@ export type PptEditorPageLineageContext = {
 };
 
 export type PptEditorPageLineageReceipt = PptEditorBinding & PptEditorPageLineageContext & {
-  protocol: "deckwise-office-page-lineage/1";
+  protocol: "deckwise-office-page-lineage/1" | "deckwise-office-page-lineage/2";
   saveRequestId: string;
   outputSha256: string;
 };
@@ -270,10 +270,20 @@ export function assertPptEditorPageLineageContext(value: unknown): asserts value
 
 export function assertPptEditorPageLineageReceipt(value: unknown): asserts value is PptEditorPageLineageReceipt {
   assertPptEditorPageLineageContext(value);
-  if (!isPptEditorBinding(value) || Reflect.get(value, "protocol") !== "deckwise-office-page-lineage/1" ||
+  if (!isPptEditorBinding(value) || !["deckwise-office-page-lineage/1", "deckwise-office-page-lineage/2"].includes(String(Reflect.get(value, "protocol"))) ||
     typeof Reflect.get(value, "saveRequestId") !== "string" || !/^[\w-]{1,128}$/.test(Reflect.get(value, "saveRequestId")) ||
     typeof Reflect.get(value, "outputSha256") !== "string" || !/^[a-f0-9]{64}$/.test(Reflect.get(value, "outputSha256"))) {
     throw new Error("Invalid editor page lineage receipt");
+  }
+  if (Reflect.get(value, "protocol") === "deckwise-office-page-lineage/2") {
+    const objects: unknown = Reflect.get(value, "objects");
+    const shapeId = (id: unknown) => typeof id === "string" && /^\d{1,10}$/.test(id);
+    if (!Array.isArray(objects) || objects.length !== value.pageTokens.length ||
+      objects.reduce((n, page) => n + (Array.isArray(page) ? page.length : 10001), 0) > 10000 ||
+      !objects.every(page => Array.isArray(page) && page.every(item => item && typeof item === "object" &&
+        shapeId(item.shapeId) && (item.sourceShapeId === undefined || shapeId(item.sourceShapeId))) &&
+        new Set(page.map(item => item.shapeId)).size === page.length))
+      throw new Error("Invalid native object lineage");
   }
 }
 

@@ -55,9 +55,9 @@ export function CoursewareTeachingPanel({ sessionId, enabled }: { sessionId?: st
     setNarrationInstruction({ viewId: next.viewId, text: "" });
     try {
       await draftQueue.current;
-      const { draft } = await api.pptEditorTeachingDraftGet(next.viewId);
+      const { draft } = next.nativeTeaching ? { draft: null } : await api.pptEditorTeachingDraftGet(next.viewId);
       if (id !== request.current) return;
-      draftScope.current = { viewId: next.viewId, revision: draft?.revision ?? null, serial: 0, failed: false };
+      draftScope.current = { viewId: next.viewId, revision: next.nativeTeaching ? next.project.teachingRevision : draft?.revision ?? null, serial: 0, failed: false };
       if (draft) {
         if (draft.pageId === next.pageId && JSON.stringify(draft.baseline) === JSON.stringify(next.project) &&
             !next.project.pages.find(entry => entry.pageId === next.pageId)!.locked) {
@@ -81,8 +81,15 @@ export function CoursewareTeachingPanel({ sessionId, enabled }: { sessionId?: st
         return;
       }
       try {
-        const result = await api.pptEditorTeachingDraftSet(scope.viewId, scope.revision, content);
-        scope.revision = result.draft?.revision ?? null;
+        if (view?.nativeTeaching) {
+          if (JSON.stringify(nextActions) === JSON.stringify(page.actions)) return;
+          const result = await api.pptEditorTeachingWrite(scope.viewId, scope.revision!, nextActions);
+          scope.revision = result.project.teachingRevision;
+          if (draftScope.current === scope) { setView(result); setSaved(true); }
+        } else {
+          const result = await api.pptEditorTeachingDraftSet(scope.viewId, scope.revision, content);
+          scope.revision = result.draft?.revision ?? null;
+        }
       } catch (failure) {
         scope.failed = true;
         if (draftScope.current === scope) setDraftError(String(failure));
@@ -104,7 +111,7 @@ export function CoursewareTeachingPanel({ sessionId, enabled }: { sessionId?: st
     void draftQueue.current.then(async () => {
       await api.pptEditorTeachingDraftSet(scope.viewId, scope.revision, null);
       if (id !== request.current) return;
-      scope.revision = null; scope.failed = false;
+      scope.revision = view.nativeTeaching ? view.project.teachingRevision : null; scope.failed = false;
       setActions(page.actions); setNarrationInstruction({ viewId: view.viewId, text: "" });
       setStaleDraft(null); setDraftError(""); setRecovered(false); setError(""); setSaved(false);
     }).catch(failure => { if (id === request.current) setDraftError(String(failure)); })
@@ -192,7 +199,7 @@ export function CoursewareTeachingPanel({ sessionId, enabled }: { sessionId?: st
     </div>
     <div hidden={activeTab !== "review"}>
     <details><summary>{t("panel.pptEditor.sidebarHelp")}</summary><p>{t("panel.pptEditor.teachingScope")}</p></details>
-    <button type="button" disabled={!enabled || !sessionId || busy || draftLoading || draftSaving || !!draftError || !!review || !!pptxCandidate} onClick={async () => {
+    <button type="button" hidden={view?.nativeTeaching} disabled={!enabled || !sessionId || busy || draftLoading || draftSaving || !!draftError || !!review || !!pptxCandidate} onClick={async () => {
       if (!sessionId) return;
       const id = ++request.current;
       setBusy(true); setError(""); setSaved(false);

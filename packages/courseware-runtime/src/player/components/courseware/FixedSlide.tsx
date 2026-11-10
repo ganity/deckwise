@@ -76,6 +76,7 @@ export function FixedSlide({
   onError,
   nativeTargets,
   nativeVisible,
+  nativeGroups,
 }: {
   slide: Slide;
   cues: readonly FixedVisualCue[];
@@ -86,6 +87,7 @@ export function FixedSlide({
   onError: (error: Error) => void;
   nativeTargets?: ReadonlySet<string>;
   nativeVisible?: ReadonlySet<string>;
+  nativeGroups?: readonly { elementId: string; children: readonly string[] }[];
 }) {
   const styles = fixedAnimationStyles(animations);
   const effectSlide = {
@@ -107,25 +109,19 @@ export function FixedSlide({
             };
       }),
   };
-  return (
-    <div
-      style={{
-        position: "relative",
-        width,
-        height: width * slide.viewportRatio,
-      }}
-      onErrorCapture={(event) => {
-        // Native media errors belong to the source effect's lifetime.
-        if (!(event.target instanceof HTMLMediaElement))
-          onError(new Error("Slide resource failed to load. Retry this page."));
-      }}
-    >
-      <SlideViewport
-        slide={slide}
-        scale={width / slide.viewportSize}
-        mode="preview"
-      >
-        {slide.elements.map((element, index) => (
+  const groupById = new Map(nativeGroups?.map(group => [group.elementId, group]));
+  const parentById = new Map(nativeGroups?.flatMap(group => group.children.map(id => [id, group.elementId] as const)));
+  const rootId = (id: string) => { let parent: string | undefined; while ((parent = parentById.get(id))) id = parent; return id; };
+  const orderOf = (id: string): number => {
+    const group = groupById.get(id);
+    return group ? Math.min(...group.children.map(orderOf)) : slide.elements.findIndex(element => element.id === id);
+  };
+  const roots = [...new Set(slide.elements.map(element => rootId(element.id)))].sort((a, b) => orderOf(a) - orderOf(b));
+  const renderElement = (id: string): import('react').ReactNode => {
+    const element = slide.elements.find(element => element.id === id)!;
+    const group = groupById.get(id);
+    const index = orderOf(id);
+    return (
           <div
             key={element.id}
             data-slide-render-element-id={element.id}
@@ -144,14 +140,34 @@ export function FixedSlide({
                   : `${element.left + element.width / 2}px ${element.top + element.height / 2}px`,
             }}
           >
-            <FixedElement
+            {group ? [...group.children].sort((a, b) => orderOf(a) - orderOf(b)).map(renderElement) : <FixedElement
               element={element}
               mode={mode}
               ducked={ducked}
               onError={onError}
-            />
+            />}
           </div>
-        ))}
+);
+  };
+  return (
+    <div
+      style={{
+        position: "relative",
+        width,
+        height: width * slide.viewportRatio,
+      }}
+      onErrorCapture={(event) => {
+        // Native media errors belong to the source effect's lifetime.
+        if (!(event.target instanceof HTMLMediaElement))
+          onError(new Error("Slide resource failed to load. Retry this page."));
+      }}
+    >
+      <SlideViewport
+        slide={slide}
+        scale={width / slide.viewportSize}
+        mode="preview"
+      >
+        {roots.map(renderElement)}
         <FixedVisualEffects slide={effectSlide} cues={cues} />
       </SlideViewport>
     </div>

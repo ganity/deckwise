@@ -829,6 +829,7 @@ export class PlaybackCore {
           chapterId: interactionAction.chapterId,
           chapterTitle: interactionAction.chapterTitle,
           question: interactionAction.question,
+          response: interactionAction.response,
           constraintPrompt: interactionAction.constraintPrompt,
           referenceAnswer: interactionAction.referenceAnswer,
           context: interactionAction.context,

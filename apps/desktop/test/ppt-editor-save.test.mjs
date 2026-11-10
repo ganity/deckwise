@@ -7,11 +7,15 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
 import ts from "typescript";
+import JSZip from "jszip";
 import * as shared from "../../../packages/shared/dist/index.js";
 
 const require = createRequire(import.meta.url);
-// Package signature only: native PPTX roundtrips are covered by the desktop E2E.
-const fixtureBytes = Buffer.from("PK\x03\x04ppt/presentation.xml[Content_Types].xml");
+// Real ZIP framing is required by the native-carrier validator; SDK roundtrips use E2E.
+const fixtureZip = new JSZip();
+fixtureZip.file('ppt/presentation.xml', '<presentation/>');
+fixtureZip.file('[Content_Types].xml', '<Types/>');
+const fixtureBytes = await fixtureZip.generateAsync({ type: 'nodebuffer' });
 
 async function fixture(t, { contextErrors = [], contextPatch = {}, onContext = () => {}, nativeTeaching } = {}) {
   const root = await fs.mkdtemp(join(tmpdir(), "ppt-save-test-"));
@@ -54,7 +58,7 @@ async function fixture(t, { contextErrors = [], contextPatch = {}, onContext = (
     if (cache.has(file)) return cache.get(file);
     const module = { exports: {} };
     cache.set(file, module.exports);
-    const { outputText } = ts.transpileModule(readFileSync(file, "utf8"), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } });
+    const { outputText } = ts.transpileModule(readFileSync(file, "utf8"), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true } });
     new Function("require", "exports", "module", "__dirname", outputText)((id) => {
       if (id === "electron") return electron;
       if (id === "@pi-desktop/shared") return shared;

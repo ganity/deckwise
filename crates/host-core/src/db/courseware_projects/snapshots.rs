@@ -27,7 +27,18 @@ pub struct Snapshot {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct NativeGroup { pub object_id: String, pub source_shape_id: String }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct NativeGroupPage { pub page_id: String, pub groups: Vec<NativeGroup> }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SnapshotRecord {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub native_groups: Vec<NativeGroupPage>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub native_teaching: bool,
     pub snapshot: Snapshot,
     pub project: CoursewareProject,
     pub identity: Value,
@@ -56,6 +67,20 @@ impl SnapshotRecord {
                     .all(|(page, bound)| page.page_id == bound["logicalId"]),
             "COURSEWARE_INVALID: inconsistent snapshot binding"
         );
+        let mut group_ids = std::collections::HashSet::new();
+        let mut group_pages = std::collections::HashSet::new();
+        for page in &self.native_groups {
+            anyhow::ensure!(self.native_teaching && group_pages.insert(&page.page_id)
+                && self.project.pages.iter().any(|p| p.page_id == page.page_id) && page.groups.len() <= 10000,
+                "COURSEWARE_INVALID: invalid native group page");
+            let mut source_ids = std::collections::HashSet::new();
+            for group in &page.groups {
+                anyhow::ensure!(valid_id(&group.object_id) && valid_id(&group.source_shape_id)
+                    && group_ids.insert(&group.object_id) && source_ids.insert(&group.source_shape_id)
+                    && !self.identity["pages"].as_array().unwrap().iter().any(|p| p["objects"].as_array().unwrap().iter().any(|o| o["logicalId"] == group.object_id)),
+                    "COURSEWARE_INVALID: invalid native group identity");
+            }
+        }
         let mut ids = std::collections::HashSet::new();
         anyhow::ensure!(
             self.assets.len() <= 1000,
@@ -136,12 +161,18 @@ impl SnapshotRecord {
         json!({
             "revision": self.snapshot.mapping_revision,
             "sourceSha256": self.snapshot.source.sha256,
-            "pages": self.identity["pages"].as_array().unwrap().iter().map(|page| json!({
+            "pages": self.identity["pages"].as_array().unwrap().iter().map(|page| {
+                let mut bound = json!({
                 "pageId": page["logicalId"], "importPageId": page["importPageId"],
                 "objects": page["objects"].as_array().unwrap().iter().map(|object| json!({
                     "objectId": object["logicalId"], "importElementId": object["importElementId"]
                 })).collect::<Vec<_>>()
-            })).collect::<Vec<_>>()
+            });
+                if let Some(groups) = self.native_groups.iter().find(|p| p.page_id == page["logicalId"]) {
+                    bound["groups"] = serde_json::to_value(&groups.groups).unwrap();
+                }
+                bound
+            }).collect::<Vec<_>>()
         })
     }
 }
@@ -165,8 +196,18 @@ impl Database {
         snapshot_id: &str,
         project: CoursewareProject,
         mapping: &Value,
-        mut assets: Vec<Asset>,
+        assets: Vec<Asset>,
     ) -> Result<SnapshotRecord> {
+        self.import_bound_courseware_snapshot(workspace, parsed, snapshot_id, project, mapping, assets, true)
+    }
+
+    pub fn import_native_courseware_snapshot(&self, workspace: &str, parsed: &crate::courseware::source_candidates::ParsedOutput,
+        snapshot_id: &str, project: CoursewareProject, mapping: &Value, assets: Vec<Asset>) -> Result<SnapshotRecord> {
+        self.import_bound_courseware_snapshot(workspace, parsed, snapshot_id, project, mapping, assets, false)
+    }
+
+    fn import_bound_courseware_snapshot(&self, workspace: &str, parsed: &crate::courseware::source_candidates::ParsedOutput,
+        snapshot_id: &str, project: CoursewareProject, mapping: &Value, mut assets: Vec<Asset>, online: bool) -> Result<SnapshotRecord> {
         project.validate_online()?;
         parsed.validate()?;
         anyhow::ensure!(
@@ -177,9 +218,20 @@ impl Database {
         );
         let fresh =
             SavedSourceIdentity::parse(&serde_json::to_vec(parsed.identity.as_ref().unwrap())?)?;
-        let identity = fresh.bind_mapping(mapping)?;
+        let mut leaf_mapping = mapping.clone();
+        let mut native_groups = Vec::new();
+        if !online {
+            for page in leaf_mapping["pages"].as_array_mut().unwrap() {
+                if let Some(groups) = page.as_object_mut().unwrap().remove("groups") {
+                    native_groups.push(NativeGroupPage { page_id: page["pageId"].as_str().unwrap_or("").into(), groups: serde_json::from_value(groups)? });
+                }
+            }
+        }
+        let identity = fresh.bind_mapping(&leaf_mapping)?;
         assets.sort_by(|a, b| a.id.cmp(&b.id));
         let record = SnapshotRecord {
+            native_groups,
+            native_teaching: !online,
             snapshot: Snapshot {
                 snapshot_id: snapshot_id.into(),
                 project_id: project.project_id.clone(),
@@ -195,6 +247,7 @@ impl Database {
         record.validate()?;
         let tx = self.conn.unchecked_transaction()?;
         self.persist_courseware_snapshot(workspace, &record)?;
+        if online {
         self.kv_set(
             ONLINE_SNAPSHOTS,
             &key(
@@ -204,6 +257,7 @@ impl Database {
             )?,
             &serde_json::to_value(&record.snapshot)?,
         )?;
+        }
         tx.commit()?;
         Ok(record)
     }
@@ -263,6 +317,8 @@ impl Database {
         );
         assets.sort_by(|a, b| a.id.cmp(&b.id));
         let record = SnapshotRecord {
+            native_groups: Vec::new(),
+            native_teaching: false,
             snapshot: Snapshot {
                 snapshot_id: snapshot_id.into(),
                 project_id: project.project_id.clone(),

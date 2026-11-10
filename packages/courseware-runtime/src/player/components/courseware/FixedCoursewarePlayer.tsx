@@ -66,8 +66,10 @@ export function FixedCoursewarePlayer({
     resolvedCues.current.set(actionId, cues); return cues;
   };
   const engine = useRef<PlaybackCore | null>(null);
+  const audioPlayer = useRef<AudioPlayer | null>(null);
   const surface = useRef<HTMLElement | null>(null);
   const nativeHandles = useRef<Animation[]>([]);
+  const nativeEffectGeneration = useRef(0);
   const events = useRef({ onState, onPageChange, ...presentationEvents });
   events.current = { onState, onPageChange, ...presentationEvents };
   const resourceError = useCallback((error: Error) => {
@@ -77,6 +79,7 @@ export function FixedCoursewarePlayer({
   }, []);
   useEffect(() => {
     const audio = new AudioPlayer();
+    audioPlayer.current = audio;
     const media = createMaicDomMedia(() => surface.current);
     let effectTimer: ReturnType<typeof setTimeout> | undefined;
     const playback = new PlaybackCore(
@@ -84,6 +87,7 @@ export function FixedCoursewarePlayer({
       {
         ...media,
         clearEffects: () => {
+          nativeEffectGeneration.current++;
           nativeHandles.current.forEach(handle => handle.cancel());
           nativeHandles.current = [];
           clearTimeout(effectTimer); setActionEffect(null);
@@ -138,7 +142,7 @@ export function FixedCoursewarePlayer({
         },
         onPlaybackError: resourceError,
         onElementAnimationReconcile: (completed, scope) => {
-          if (!build.classroom) return;
+          if (!build.classroom && !build.nativeTimeline) return;
           const ids = new Set(scope.map(action => action.elementId));
           nativeHandles.current = nativeHandles.current.filter(handle => {
             const target = handle.effect instanceof KeyframeEffect ? handle.effect.target : null;
@@ -158,19 +162,32 @@ export function FixedCoursewarePlayer({
           }
         },
         onElementAnimation: async (action) => {
-          if (build.classroom) await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
-          const target = [...(surface.current?.querySelectorAll<HTMLElement>("[data-slide-render-element-id]") ?? [])]
+          const generation = nativeEffectGeneration.current;
+          const currentScene = () => build.scenes[playback.getSnapshot().sceneIndex];
+          if (!currentScene()?.actions?.some(current => current.id === action.id)) return;
+          if (build.classroom || build.nativeTimeline) await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+          if (generation !== nativeEffectGeneration.current || !currentScene()?.actions?.some(current => current.id === action.id)) return;
+          const findTarget = () => [...(surface.current?.querySelectorAll<HTMLElement>("[data-slide-render-element-id]") ?? [])]
             .find(element => element.dataset.slideRenderElementId === action.elementId);
-          if (!target || (!build.classroom && (!action.pptxTimeline || !["fadeIn", "appear"].includes(action.effect)))) {
+          let target = findTarget();
+          const deadline = performance.now() + 15000;
+          // SlideViewport waits for fonts before mounting its children, including on later pages.
+          while (!target && performance.now() < deadline) {
+            await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+            if (generation !== nativeEffectGeneration.current || !currentScene()?.actions?.some(current => current.id === action.id)) return;
+            target = findTarget();
+          }
+          if (!target || (!build.classroom && !build.nativeTimeline && (!action.pptxTimeline || !["fadeIn", "appear"].includes(action.effect)))) {
             resourceError(new Error("Native animation target is unavailable. Retry this page."));
             return;
           }
           setNativeVisible(previous => new Set([...previous, action.elementId]));
-          if (build.classroom) {
+          if (build.classroom || build.nativeTimeline) {
             try {
-              const handle = target.animate(maicAnimationFrames(action), { duration: action.duration, fill: 'forwards', easing: 'linear' });
+              const handle = target.animate(maicAnimationFrames(action), { duration: action.duration, delay: action.startAtMs ?? 0, fill: 'forwards', easing: 'linear' });
               nativeHandles.current.push(handle);
-            } catch (error) { resourceError(error instanceof Error ? error : new Error(String(error))); }
+              await handle.finished;
+            } catch (error) { if (generation === nativeEffectGeneration.current) resourceError(error instanceof Error ? error : new Error(String(error))); }
             return;
           }
           if (action.effect === "fadeIn") {
@@ -207,6 +224,7 @@ export function FixedCoursewarePlayer({
     const playback = engine.current;
     if (!playback || index < 0 || index >= build.scenes.length) return;
     playback.stop();
+    if (build.nativeTimeline) audioPlayer.current?.prime();
     resolvedCues.current.clear();
     setNativeVisible(new Set());
     setPageIndex(index);
@@ -234,7 +252,7 @@ export function FixedCoursewarePlayer({
   const native = scene && build.nativeAnimations?.get(scene.id);
   const nativeTargets = new Set([
     ...(native?.steps.map(step => step.elementId) ?? []),
-    ...(build.classroom ? (scene?.actions ?? []).flatMap(action => action.type === "element_animation" && action.animationType === "in" ? [action.elementId] : []) : []),
+    ...((build.classroom || build.nativeTimeline) ? (scene?.actions ?? []).flatMap(action => action.type === "element_animation" && action.animationType === "in" ? [action.elementId] : []) : []),
   ]);
   const nativeWaitIndex = waiting && native?.version === 1 ? scene.actions?.slice(0, native.steps.length * 2).findIndex(action =>
     action.type === "interaction_checkpoint" && action.checkpointId === waiting.checkpointId) ?? -1 : -1;
@@ -286,6 +304,7 @@ export function FixedCoursewarePlayer({
           cues={actionEffect ? [...cues, { id: 'maic-action-effect', atMs: 0, endMs: Infinity, effect: actionEffect }] : cues}
           animations={animations}
           ducked={progress !== null && mode === "playing"}
+          nativeGroups={build.nativeGroups?.get(scene.id)}
           nativeTargets={nativeTargets}
           nativeVisible={nativeVisible}
         />

@@ -1,5 +1,21 @@
 # 04. E2E Test Plan
 
+## E2E-COURSEWARE-native-teaching-responsiveness
+
+- Hold a read-only TTS model response while reopening the teaching page and
+  saving a recovery draft. Those operations complete before the read is released.
+- Retain ordering through assessment saves; queued reads revalidate their native
+  context after the save. Reject excess reads without executing paid operations.
+- Hide the teaching panel, navigate to another page and trigger context updates.
+  Hidden UI starts no teaching reads; reopening shows the current page.
+- Run document's `deckwise-teaching-package-capability.spec.ts` against the real
+  bundled converter and retain its report/exported PPTX. This reports carrier
+  preservation and history evidence; passing the probe does not mean document
+  teaching authority is qualified. Missing UUID carriers block activation.
+
+Provider-free tests: Desktop `courseware-native-sidebar.test.mjs`; document
+`deckwise-teaching-sidebar.test.ts` and the capability probe above.
+
 
 ## E2E-COURSEWARE-maic-assessment-review
 
@@ -17880,3 +17896,35 @@ Automated by `ppt-editor-visibility.test.mjs` and
   to the built Host. These use isolated workspace/data directories, real
   compilation, parsing and persistence, and synthetic supplier output. They do
   not authorize paid provider calls or writes to the user's courseware database.
+
+Native identity qualification also covers import before full SDK initialization,
+the ID regeneration seam, rename, same-name copy and two saves against the real
+Host. Generate provider-free SDK bytes with document's
+`deckwise-autosave.spec.ts` and `DECKWISE_AUTOSAVE_FIXTURE`, then run the Desktop
+`courseware-native-save.test.mjs` with `DECKWISE_NATIVE_SAVE_FIXTURE`,
+`DECKWISE_PPTX_NODE` and the built `DECKWISE_PPTX_WORKER`. Do not count the
+conditional skip as evidence. The capability probe checks that native shape and
+custom XML edits undo/redo together and that reopened package IDs map to the new
+live objects; this is narrower than qualifying full native teaching history.
+
+Real carrier acceptance uses document's `deckwise-native-teaching-real.spec.ts`
+with `DECKWISE_NATIVE_REAL_FIXTURE` pointing to an explicitly copied local lesson.
+The test must run without its fixture skip and verify actual adopted audio,
+revision rejection, native undo/redo and export/reopen. It does not qualify legacy
+migration or complete command routing. Do not check real user media into Git.
+It must also navigate all six pages, including the third page with no teaching,
+and display each page's own teaching within 1,500 ms. Unit regression checks
+must reject metadata reads/edits that serialize embedded media, and repeated
+native-presence checks that serialize the teaching XML. Record actual Desktop
+main-thread gaps separately from the E2E navigation budget.
+Playback regression must exercise all three entry points with the real copied
+lesson's original cues before replacing those cues in a test. Verify the nested
+target's spotlight actually appears during the second narration, with no alert;
+starting the first narration alone is insufficient. Preserve exact object
+identity, reject a deleted or moved target, and retain measured audio duration
+through the ended callback so speech animation completion can resolve its timing.
+Quiz regression must play the copied question with its original empty explanation
+and nonempty structured answer key through all three entry points. Check empty,
+incorrect and correct selections, explicit continuation and the following
+teacher-led activity. Whole-lesson navigation must pass the page with no teaching
+without creating an empty runtime. Export/reopen must preserve checkpoint data.

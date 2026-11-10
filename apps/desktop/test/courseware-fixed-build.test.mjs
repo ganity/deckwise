@@ -142,3 +142,14 @@ test("cancel during workspace lookup prevents a late build from starting", async
   assert.equal(f.calls.length, 0);
   assert.equal(f.builds.length, 0);
 });
+
+test("native immutable exports build without reading or refreshing a mutable classroom", async () => {
+  const f = setup();
+  f.host({ async call(method, selection) {
+    assert.equal(method, "courseware.snapshot.get"); assert.deepEqual(selection, f.select);
+    return { snapshot: f.snapshot, project: { native: true }, mapping: {}, sourcePath: "/private/native.pptx", assets: [], nativeTeaching: true };
+  } });
+  const ready = await f.coordinator.build(f.select);
+  assert.equal(ready.status, "ready"); assert.equal(f.builds.length, 1); assert.equal(f.canonicalBuilds.length, 0);
+  await f.coordinator.selected(ready.previewId);
+});

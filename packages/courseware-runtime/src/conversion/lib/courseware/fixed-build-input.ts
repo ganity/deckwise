@@ -104,6 +104,7 @@ export const fixedBuildInputSchema = z
                 pageId: id,
                 importPageId: id,
                 objects: z.array(z.object({ objectId: id, importElementId: id }).strict()),
+                groups: z.array(z.object({ objectId: id, sourceShapeId: id }).strict()).max(10000).optional(),
               })
               .strict(),
           )

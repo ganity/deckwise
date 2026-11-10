@@ -15,13 +15,17 @@ test("native sidebar keeps the checkpoint step but delegates editing to MAIC con
       }
   }`;
   const code = maicCheckpointSource(before);
-  const render = new Function(code + ";return render")();
+  const render = new Function("hasNativeTeaching", code + ";return render")(() => false);
   const nodes = [], card = { append: (...items) => nodes.push(...items) }, element = (tag, text) => ({ tag, text });
   render({ type: "interaction_checkpoint", checkpointKind: "chapter_summary", question: "Say hello" }, card, element);
   assert.deepEqual(nodes.map(node => node.tag), ["p", "p"]);
   assert.equal(nodes[0].text, "Say hello");
   assert.match(nodes[1].text, /右侧题目编辑/);
-  assert.doesNotMatch(code, /textarea|select/);
+  const nativeNodes = [];
+  const nativeRender = new Function("hasNativeTeaching", code + ";return render")(() => true);
+  nativeRender({ type: "interaction_checkpoint", checkpointKind: "chapter_summary", referenceAnswer: { keyPoints: ["Native answer"] } },
+    { append: (...nodes) => nativeNodes.push(...nodes) }, element);
+  assert.deepEqual(nativeNodes.map(node => node.tag), ["textarea", "select"], "Native teaching keeps its own checkpoint editor");
   render({ type: "audio_clip" }, card, element);
   assert.deepEqual(nodes.at(-1), { tag: "button", text: "play" });
   assert.throws(() => maicSidebarSource("changed upstream source"), /rendering changed/);

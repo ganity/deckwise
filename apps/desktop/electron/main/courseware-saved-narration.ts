@@ -26,7 +26,8 @@ export class CoursewareSavedNarration {
   private reviews = new Map<string, { sessionId: string; view: CoursewareNarrationReview }>();
   constructor(private getHost: () => Host | null, private getSession: () => string | null,
     private complete: NarrationComplete, private resolveModel?: CandidateModelResolver,
-    private completeVision?: (input: CoursewareSceneCompleteInput) => Promise<{ text: string }>) {}
+    private completeVision?: (input: CoursewareSceneCompleteInput) => Promise<{ text: string }>,
+    private nativePackage?: (bytes: Uint8Array) => Promise<unknown>) {}
 
   // Agent work pins its own turn; UI reviews without a turn guard require the visible Chat.
   async withSaved<T>(sessionId: string, canDispatch: (() => boolean) | undefined, operation: (saved: SavedCourseware) => Promise<T>): Promise<T> {
@@ -49,6 +50,7 @@ export class CoursewareSavedNarration {
       const workspace = session?.projectPath, path = task?.importPath ?? task?.generatedPath;
       if (!workspace || session?.mode !== "agent" || !path) throw new Error("Import or generate a PPTX in this Chat first");
       const bytes = await readLiveSource(workspace, path);
+      if (await this.nativePackage?.(bytes)) throw new Error("Open this native PPTX in the editor before editing its teaching or media; Host teaching storage cannot replace the document");
       const sha256 = sourceHash(bytes);
       const revision = await adoptionRevision(workspace, path, bytes);
       if (revision.sha256 !== sha256) throw new Error("Saved PPTX changed while reading");

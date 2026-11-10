@@ -14,6 +14,7 @@ export function createNativeTeachingHandler(input: {
   sessionId(): string | null;
   context(): Promise<PptEditorContext>;
   ensureSaved?(): Promise<void>;
+  nativeRoute?(operation: string, args: Record<string, unknown>, page: number): Promise<{ value: unknown } | undefined>;
   classroom?: CoursewareClassroomCoordinator;
   classroomTts?: CoursewareClassroomTts;
   classroomImages?: CoursewareClassroomImages;
@@ -27,11 +28,14 @@ export function createNativeTeachingHandler(input: {
         !request.args || typeof request.args !== "object" || Array.isArray(request.args) ||
         JSON.stringify(request).length > (request.operation?.startsWith("classroom:") ? 24_000_000 : 2_000_000))
       throw new Error("Invalid teaching request");
-    if (request.operation === "open") await input.ensureSaved?.();
+
     const context = await input.context();
     const expected = request.context as PptEditorContext;
     if (!samePptEditorBinding(context, expected) || context.readOnly || (request.operation !== "draft:set" && (context.page !== expected.page ||
         request.operation !== "open" && context.editGeneration !== expected.editGeneration))) throw new Error("Teaching target changed; return to the original page before saving");
+    const native = await input.nativeRoute?.(request.operation, request.args as Record<string, unknown>, context.page ?? 1);
+    if (native) return native.value;
+    if (request.operation === "open") await input.ensureSaved?.();
     const sessionId = input.sessionId();
     if (!sessionId) throw new Error("Open a courseware conversation before editing teaching");
     const args = request.args;
@@ -83,9 +87,19 @@ export function createNativeTeachingHandler(input: {
       default: throw new Error("Unsupported native teaching operation");
     }
   };
-  // Reopening the PPT during an assessment save triggers another native load.
+  // Content mutations and reopening must remain ordered. Read-only media work
+  // waits for preceding mutations, but must not hold the next page or draft.
+  const independentReads = new Set(["tts:models", "tts:list", "tts:preview", "media:list", "media:preview"]);
+  let reads = 0;
   let queue: Promise<unknown> = Promise.resolve();
   return (payload: unknown): Promise<unknown> => {
+    if (payload && typeof payload === "object" && !Array.isArray(payload) &&
+        typeof (payload as Record<string, unknown>).operation === "string" &&
+        independentReads.has((payload as Record<string, unknown>).operation as string)) {
+      if (reads >= 4) return Promise.reject(new Error("COURSEWARE_TEACHING_READ_BUSY: retry after pending reads finish"));
+      reads++;
+      return queue.then(() => execute(payload)).finally(() => { reads--; });
+    }
     const result = queue.then(() => execute(payload));
     queue = result.catch(() => {});
     return result;

@@ -1,3 +1,4 @@
+import { readNativeTeachingPackage } from "../courseware-native-package";
 import { planSceneVisualMaster, type VisualMasterPlanningInput } from "../courseware-visual-master";
 import { planMagicLayers, magicLayersBundle, type MagicLayersFallback } from "../courseware-magic-layers";
 import { join } from "node:path";
@@ -258,7 +259,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     activeTurns, authSession, generation: sceneGeneration });
   const coursewareWorkflow = new CoursewareChatWorkflow(getHost, getNotificationViewingSessionId, authSession, sceneGeneration);
   const savedNarration = new CoursewareSavedNarration(getHost, getNotificationViewingSessionId,
-    dependencies.completeNarration, dependencies.sceneGeneration?.resolveModel, dependencies.completeScene);
+    dependencies.completeNarration, dependencies.sceneGeneration?.resolveModel, dependencies.completeScene, readNativeTeachingPackage);
   coursewareWorkflow.narration = savedNarration;
   coursewareWorkflow.media = new CoursewareSavedMedia(savedNarration, authSession, decodeCoursewareAudio, decodeCoursewareVideo);
   dependencies.onCoursewareWorkflowReady?.(coursewareWorkflow);
@@ -387,6 +388,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     onChatBridgeReady: dependencies.onPptEditorChatReady,
     onOnlinePreparationReady: preparation => { onlinePreparation = preparation; },
     onClassroomReady: classroom => { canonicalClassroom = classroom; },
+    onNativeTeachingReady: tools => { coursewareWorkflow.nativeTeaching = tools; },
     onAssessmentMediaReady: media => { coursewareWorkflow.assessments = media; },
     completeNarration: dependencies.completeNarration,
     completeScene: dependencies.completeScene,

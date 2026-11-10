@@ -9,7 +9,7 @@ import type { FixedBuildInput } from '../../lib/courseware/fixed-build-input';
 import { loadFixedBuild } from '../../../player/lib/courseware/load-fixed-build';
 
 const fixture = path.resolve('tests/fixtures/fixed-courseware');
-const workerDirectory = path.resolve('../../apps/desktop/resources/pptx-worker');
+const workerDirectory = path.resolve(process.env.DECKWISE_NATIVE_WORKER_DIRECTORY ?? '../../apps/desktop/resources/pptx-worker');
 let input: FixedBuildInput;
 let outputDirectory: string;
 let valid: Awaited<ReturnType<typeof buildFixedCourseware>>;

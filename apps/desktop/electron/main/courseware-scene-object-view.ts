@@ -8,7 +8,7 @@ const sameProjectRevision = (raw: unknown, project: CoursewareProject): boolean 
   isCoursewareProject(raw) && raw.projectId === project.projectId && raw.taskType === project.taskType &&
   raw.source.sha256 === project.source.sha256 && raw.source.revision === project.source.revision &&
   raw.teachingRevision === project.teachingRevision && raw.pages.length === project.pages.length &&
-  raw.pages.every((page, index) => page.pageId === project.pages[index].pageId);
+  raw.pages.every((page, index) => page.pageId === project.pages[index].pageId && page.locked === project.pages[index].locked);
 
 /** All task types use current Host-bound UUIDs; display order is never an identity. */
 export function objectsForTeaching(raw: unknown, project: CoursewareProject, pageId: string): CoursewareTeachingView["teachingObjects"] {
