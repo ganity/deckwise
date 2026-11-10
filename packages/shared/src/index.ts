@@ -97,3 +97,4 @@ export * from "./courseware-scene-teaching.js";
 export * from "./courseware-teaching-quality.js";
 
 export * from "./courseware-speech-trigger.js";
+export * from "./courseware-presentation.js";

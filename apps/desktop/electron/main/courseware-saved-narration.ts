@@ -156,7 +156,7 @@ export class CoursewareSavedNarration {
         .map(pageNumber => ({ pageNumber, pageId: project.pages[pageNumber - 1].pageId, reason: "independent-assessment" }));
       const bodySelected = selected.filter(n => !assessments.has(project.pages[n - 1].pageId));
       if (!bodySelected.length) return { savedPages: [], skippedPages, failures: [], diagnostics: [], applied: false, saved: true, audioReady: true };
-      if (input.repairRequiredTeaching && project.taskType === "scene") {
+      if (input.repairRequiredTeaching && (project.taskType === "scene" || project.taskType === "plain")) {
         const unfinished = bodySelected.filter(number => !hasDetailedNarration(project.pages[number - 1], nativeSaved));
         if (unfinished.length) throw new Error(`Detailed narration is missing on pages ${unfinished.join(", ")}; call courseware_narration_propose without repairRequiredTeaching to generate and save detailed narration before TTS. Repair mode preserves existing speech and cannot promote an outline.`);
       }

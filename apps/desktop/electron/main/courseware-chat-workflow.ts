@@ -1,4 +1,6 @@
 import { coursewareMediaRecovery } from "@pi-desktop/shared";
+import { adoptPresentation } from "./courseware-presentation";
+import { preparePresentation } from "./courseware-presentation-prepare";
 import { setTimeout as delay } from "node:timers/promises";
 import { sceneAssetBlockers, type CoursewareEducationContext, type CoursewareSceneImageView, type CoursewareWorkflowView } from "@pi-desktop/shared";
 import type { DesktopAuthSession } from "./auth-session";
@@ -79,6 +81,17 @@ export class CoursewareChatWorkflow {
       if (Object.keys(input).length || view.task?.taskType !== "scene" || view.task.generated || !view.plan)
         throw new Error("Write a valid scene plan for this ungenerated Chat before submitting it");
       return { validated: true, awaitingPlanApproval: view.plan.approvedSha256 !== view.plan.sha256, ...view };
+    }
+    if (name === "courseware_presentation_adopt" || name === "courseware_presentation_prepare") {
+      if (view.task?.taskType !== "plain") throw new Error("Presentation adoption requires the ordinary task");
+      const owner = await host.call<{ session?: { projectPath?: string } }>("session.get", { id: sessionId, messageLimit: 1 }); check();
+      if (!owner.session?.projectPath) throw new Error("Presentation workspace is unavailable");
+      if (name === "courseware_presentation_prepare") {
+        if (view.task.generated || view.task.imported) throw new Error("Resume saved teaching; do not replace adopted Office content with SVG");
+        return preparePresentation({ workspace: owner.session.projectPath, args: input,
+          bodyPageLimit: view.task.educationContext?.bodyPageLimit, check });
+      }
+      return adoptPresentation({ host, workspace: owner.session.projectPath, sessionId, args: input, check });
     }
     if (name.startsWith("courseware_media_")) {
       if (name === "courseware_media_assessments") {

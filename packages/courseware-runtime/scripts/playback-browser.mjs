@@ -7,7 +7,7 @@ import { chromium, _electron } from '@playwright/test';
 
 const args = [
   '--no-sandbox',
-  '--autoplay-policy=user-gesture-required',
+  '--autoplay-policy=document-user-activation-required',
   '--disable-features=MediaEngagementBypassAutoplayPolicies,PreloadMediaEngagementData',
 ];
 
@@ -45,7 +45,7 @@ export async function launchPlaybackBrowser(executablePath) {
             const window = new BrowserWindow({
               ...size, useContentSize: true, show: true,
               webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, webSecurity: true,
-                autoplayPolicy: 'user-gesture-required' },
+                autoplayPolicy: 'document-user-activation-required' },
             });
             void window.loadURL('about:blank');
           }, viewport);

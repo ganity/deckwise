@@ -30,7 +30,7 @@ async function fixture({ assessmentPageIds = [], nativeSaved = false, scene = fa
     if (method === "courseware.project.openSaved" || method === "courseware.project.get") return { project: structuredClone(project) };
     if (method === "courseware.pageText") return { text: `Page ${args.pageNumber}` };
     if (method === "courseware.pageEvidence") return { text: `Page ${args.pageNumber}`, notes: "Notes", width: 1000, height: 750,
-      elements: [{ id: "text-1", kind: "text", text: `Page ${args.pageNumber}`, bbox: [0,0,100,100] }] };
+      elements: [{ id: "text-1", kind: visionOutput ? "image" : "text", text: visionOutput ? "" : `Page ${args.pageNumber}`, bbox: [0,0,100,100] }] };
     if (method === "courseware.project.context") return { project: structuredClone(project), assessmentPageIds, nativeSaved,
       ...(teachingPages ? { sceneObjects: { schemaVersion: "deckwise-scene-objects/1", sourceSha256: project.source.sha256,
         requiresReview: true, pages: teachingPages.map(page => ({ ...page, objects: [] })) } } : {}),
@@ -76,7 +76,7 @@ async function fixture({ assessmentPageIds = [], nativeSaved = false, scene = fa
     if (data.outline) {
       if (planError) throw planError;
       if (data.repair && stopOnRepair) active = false;
-      return { text: planOutputs.length ? planOutputs.shift() : JSON.stringify({ goal: "Understand shadows", pages: data.outline.filter(p => !p.unavailable).map(p => ({ pageNumber: p.pageNumber, purpose: "Explain", bridge: "Continue", focus: "Shadow" })) }) };
+      return { text: planOutputs.length ? planOutputs.shift() : JSON.stringify({ goal: "Understand shadows", pages: data.requestedPageNumbers.map(pageNumber => ({ pageNumber, purpose: "Explain", bridge: "Continue", focus: "Shadow" })) }) };
     }
     if (data.pageText === `Page ${failPage}`) throw new Error("Model failed");
     if (sourceChange) changed = true;
@@ -153,12 +153,12 @@ test("repairs an invalid whole-deck plan inside the original narration request",
   assert.deepEqual(result.savedPages.map(page => page.pageNumber), [1, 2]);
   const plans = f.requests.filter(request => request.outline);
   assert.equal(plans.length, 2);
-  assert.match(plans[1].repair.error, /pages.*3/);
+  assert.match(plans[1].repair.error, /pages.*2/);
   assert.deepEqual(plans[1].outline, plans[0].outline);
 });
 
 test("bounds invalid-plan repair and reports the exact field without saving", async () => {
-  const invalid = JSON.stringify({ goal: "Lesson", pages: [1, 2, 3].map(pageNumber => ({ pageNumber, purpose: "Explain", bridge: "Continue", focus: [] })) });
+  const invalid = JSON.stringify({ goal: "Lesson", pages: [{ pageNumber: 1, purpose: "Explain", bridge: "Continue", focus: [] }] });
   const f = await fixture({ planOutputs: [invalid, invalid] });
   await assert.rejects(f.execute("courseware_narration_propose", { pageNumbers: [1], sourceSha256: f.project.source.sha256, instruction: "Explain page one" }), /whole-deck narration plan.*pages\[0\]\.focus/);
   assert.equal(f.requests.filter(request => request.outline).length, 2);
@@ -166,7 +166,7 @@ test("bounds invalid-plan repair and reports the exact field without saving", as
   assert(f.calls.some(([method]) => method === "courseware.parseRelease"));
 });
 
-test("repairs malformed planning JSON without narrowing a subset request", async () => {
+test("repairs malformed planning JSON with full outline context and only selected page briefs", async () => {
   const f = await fixture({ planOutputs: ["```json\n{}\n```"] });
   const result = await f.execute("courseware_narration_propose", { pageNumbers: [2], sourceSha256: f.project.source.sha256, instruction: "Explain page two" });
   assert.equal(result.saved, true);
@@ -174,6 +174,7 @@ test("repairs malformed planning JSON without narrowing a subset request", async
   const repair = f.requests.find(request => request.repair);
   assert.match(repair.repair.error, /valid JSON/);
   assert.deepEqual(repair.outline.map(page => page.pageNumber), [1, 2, 3]);
+  assert.deepEqual(repair.requestedPageNumbers, [2]);
 });
 
 test("planning transport failure is not replayed as a format repair", async () => {
@@ -361,7 +362,7 @@ test("reordered scene narration uses the saved logical page question and music r
 
 
 test("the existing scene vision pass binds observed names to saved UUIDs before narration", async () => {
-  const visionOutput = { summary: "A monkey waves next to a cloud.", objects: [{ objectId: "object-page-1", role: "Monkey Munchy", aliases: ["小猴", "Monkey Munchy"], text: "", teachingTarget: true }] };
+  const visionOutput = { summary: "A monkey waves next to a cloud.", issues: [], objects: [{ objectId: "object-page-1", role: "Monkey Munchy", aliases: ["小猴", "Monkey Munchy"], text: "", teachingTarget: true }] };
   const f = await fixture({ scene: true, pageCount: 1, visionOutput });
   const result = await f.execute("courseware_narration_propose", { pageNumbers: [1], sourceSha256: "a".repeat(64), instruction: "Explain" });
   assert.equal(result.saved, true);
@@ -388,7 +389,7 @@ test("repairs visual annotations once and reuses successful page observations wh
   const f = await fixture({ scene: true, pageCount: 2, visionOutput: input => {
     const data = JSON.parse(input.data);
     observations.push(data);
-    return { summary: "A teaching square.", objects: [{ objectId: !recover && data.pageNumber === 2 ? "invented" : `object-page-${data.pageNumber}`,
+    return { summary: "A teaching square.", issues: [], objects: [{ objectId: !recover && data.pageNumber === 2 ? "invented" : `object-page-${data.pageNumber}`,
       role: "Square", aliases: ["Square"], text: "Square", teachingTarget: true }] };
   } });
   const args = { sourceSha256: f.project.source.sha256, instruction: "Explain" };
@@ -410,7 +411,7 @@ test("a corrected visual annotation saves in the original request; transport err
     const data = JSON.parse(input.data);
     if (++attempts === 1) return { summary: "Square", objects: [] };
     assert.match(data.repair.error, /visual object evidence/);
-    return { summary: "Square", objects: [{ objectId: "object-page-1", role: "Square", aliases: ["Square"], text: "Square", teachingTarget: true }] };
+    return { summary: "Square", issues: [], objects: [{ objectId: "object-page-1", role: "Square", aliases: ["Square"], text: "Square", teachingTarget: true }] };
   } });
   const args = { pageNumbers: [1], sourceSha256: f.project.source.sha256, instruction: "Explain" };
   assert.equal((await f.execute("courseware_narration_propose", args)).saved, true);

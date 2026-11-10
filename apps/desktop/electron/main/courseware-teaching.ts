@@ -136,6 +136,8 @@ export class CoursewareTeachingCoordinator {
       const result = await host.call<{ project: unknown }>("courseware.project.openSaved", { sessionId, jobId });
       if (isCoursewareProject(result.project) && result.project.taskType === "plain" && result.project.pages.length <= 30 &&
           result.project.pages.every((page) => page.actions.length === 0 && !page.locked)) {
+        const saved = await host.call<{ teachingRequirements?: unknown[] }>("courseware.project.context", { sessionId, projectId: result.project.projectId });
+        if (saved.teachingRequirements?.length) return this.setView(result.project, snapshot, context, sessionId, host);
         const narrations: string[] = [];
         let missing = 0;
         for (let pageNumber = 1; pageNumber <= result.project.pages.length; pageNumber++) {

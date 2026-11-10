@@ -422,6 +422,26 @@ The shared package owns the TypeScript runtime validators and fixtures. Host sto
 
 ## Read-only canonical source context (B83 proposal)
 
+### Legacy fallback parser compatibility
+
+`courseware.project.openSaved` can migrate a Host-bound identity carrying
+`pptx_fallback_ooxml` to a verified primary-parser export of the exact same
+source SHA256. Ordered import page IDs, complete object counts, unique page-local
+native shape IDs and exact nonempty native object names must correspond. Object
+kinds must match except for the fallback's `shape` to primary `text` correction.
+Neither export may contain parser errors, and a still-fallback export is not an
+upgrade. Any other drift retains the existing explicit-review conflict.
+
+Migration archives the previous identity in `coursewareIdentityHistory.v1`,
+retains page/object UUIDs, and advances the mapping revision atomically. It does
+not write the PPTX or alter teaching revisions, locks, actions, TTS assets,
+classroom content or workflow authorization. Archive failure rolls back the
+operation; subsequent reopen/restart is idempotent. Pending source adoption
+continues to block the operation. `project.context` remains read-only and cannot
+perform this migration.
+
+### Context projection
+
 `courseware.project.context({ sessionId, projectId })` returns
 `{ project, mapping: { revision, sourceSha256, pages } }` from one SQLite read
 transaction. Each mapping page contains `pageId`, `importPageId` and

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { resolveSpeechAnimationCue } from "../../../speech-animation-trigger";
 
 import {
   AudioPlayer,
@@ -133,6 +134,35 @@ describe("AudioPlayer", () => {
 
     expect(onEnded).toHaveBeenCalledTimes(1);
     expect(player.hasActiveAudio()).toBe(false);
+  });
+
+  it("retains the completed audio duration for speech-tail animations until reset", async () => {
+    const created: FakeAudio[] = [];
+    globalThis.Audio = vi.fn(function () {
+      const audio = new FakeAudio();
+      created.push(audio);
+      return audio as unknown as HTMLAudioElement;
+    }) as unknown as typeof Audio;
+    const player = new AudioPlayer();
+    const cue = { atMs: 0, endMs: 600, trigger: { version: 1 as const, kind: "end" as const } };
+    let tail: typeof cue | undefined;
+    player.onEnded(() => {
+      expect(player.hasActiveAudio()).toBe(false);
+      tail = resolveSpeechAnimationCue(cue, "hello", "first", player.getDuration());
+    });
+    await player.play("first", "blob:first");
+    created[0]!.duration = 17.496;
+    created[0]!.emit("ended");
+    expect(tail).toMatchObject({ atMs: 17496, endMs: 18096 });
+    expect(player.getDuration()).toBe(17496);
+    await player.play("second", "blob:second");
+    expect(player.getDuration()).toBe(1000);
+    created[1]!.emit("error");
+    expect(player.getDuration()).toBe(0);
+    await player.play("third", "blob:third");
+    created[2]!.emit("ended");
+    player.stop();
+    expect(player.getDuration()).toBe(0);
   });
 
   it("treats play interrupted by pause as an active paused request", async () => {

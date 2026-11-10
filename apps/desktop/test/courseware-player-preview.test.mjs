@@ -52,6 +52,7 @@ test("preview admits only its own top frame, finite reads and a still-selected b
     await preview.open("ready", "en");
     const child = Window.windows.at(-1);
     assert.equal(child.options.webPreferences.sandbox, true);
+    assert.equal(child.options.webPreferences.autoplayPolicy, "document-user-activation-required");
     const event = { sender: child.webContents, senderFrame: child.webContents.mainFrame };
     await assert.rejects(read({ ...event, sender: parent.webContents }, { kind: "package" }), /sender denied/);
     await assert.rejects(read({ ...event, senderFrame: { url: event.senderFrame.url } }, { kind: "package" }), /sender denied/);

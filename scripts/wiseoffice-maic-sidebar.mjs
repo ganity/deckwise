@@ -57,7 +57,7 @@ function maicNativePanelSource(source) {
     assert(source.includes(before), `WiseOffice teaching integration changed: ${before.slice(0, 70)}`);
     source = source.replace(before, after);
   };
-  replace('  let startingSlideshow = false;', '  let startingSlideshow = false;\n  let previewPreparing = false;');
+  replace('  let startingSlideshow = false;', '  let startingSlideshow = false;\n  let previewPreparing = false;\n  let disposeAssessmentPlayback: (() => void) | undefined;');
   replace('      running = false;', '      running = false;\n      if (!teachingSlideshow && !timeline) previewPreparing = false;');
   replace('  function renderControls() {', `  function renderControls() {
     panel?.setAttribute('aria-busy', String(previewPreparing));
@@ -265,64 +265,24 @@ function maicNativePanelSource(source) {
             const title = element('h2', '课堂测验');
             title.style.cssText = 'margin:0 0 12px;font-size:20px;';
             card.append(title);
-            const questions = quiz.questions ?? [];
-            for (const question of questions) {
-              const fieldset = element('fieldset');
-              fieldset.style.cssText = 'margin:0 0 16px;padding:0;border:0;';
-              const legend = element('legend', question.question);
-              legend.style.cssText = 'font-weight:700;margin-bottom:10px;';
-              fieldset.append(legend);
-              const imageFor = value => typeof value === 'string' && /^(data:|blob:)/u.test(value) ? value : view.assessment.resourceUrls?.[value] ?? '';
-              if (question.image?.src) {
-                const image = element('img'); image.src = imageFor(question.image.src); image.alt = '题目图片';
-                image.style.cssText = 'display:block;max-width:100%;max-height:180px;object-fit:contain;margin:8px 0;'; fieldset.append(image);
-              }
-              const selected = new Set();
-              const answerField = question.type === 'short_answer' ? element('textarea') : null;
-              if (answerField) {
-                answerField.maxLength = 4000;
-                answerField.setAttribute('aria-label', '课堂回应');
-                answerField.style.cssText = 'box-sizing:border-box;width:100%;min-height:84px;padding:8px;';
-                fieldset.append(answerField);
-              }
-              for (const option of question.options ?? []) {
-                const label = element('label'), input = element('input');
-                input.type = question.type === 'multiple' ? 'checkbox' : 'radio';
-                input.name = 'quiz-' + quizScene.id + '-' + question.id;
-                input.addEventListener('change', () => {
-                  if (question.type !== 'multiple') selected.clear();
-                  if (input.checked) selected.add(option.value); else selected.delete(option.value);
-                });
-                label.style.cssText = 'display:flex;align-items:center;gap:8px;margin:8px 0;cursor:pointer;';
-                label.append(input, element('span', option.value + '. ' + option.label));
-                if (option.image?.src) {
-                  const image = element('img'); image.src = imageFor(option.image.src); image.alt = option.label;
-                  image.style.cssText = 'max-width:100px;max-height:72px;object-fit:contain;'; label.append(image);
-                }
-                fieldset.append(label);
-              }
-              const status = element('p'); status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
-              const check = button('检查答案', () => {
-                if (answerField) {
-                  status.textContent = answerField.value.trim() ? '本题由教师评价。' : '请先填写回答';
-                  if (answerField.value.trim()) continueButton.hidden = false;
-                  return;
-                }
-                if (!selected.size) { status.textContent = '请先选择答案'; return; }
-                const expected = question.answer ?? [];
-                const correct = expected.length > 0 && selected.size === expected.length && [...selected].every(value => expected.includes(value));
-                status.textContent = expected.length ? correct ? (question.analysis || '回答正确！') : '再想一想，可以重新选择。' : '本题由教师评价。';
-                if (!expected.length || correct) continueButton.hidden = false;
-              });
-              const continueButton = button('继续教学', () => {
-                card.remove(); stopAudio(preserveLesson); notice('Quiz 已完成'); preserveLesson?.finishPage?.();
-              });
-              continueButton.hidden = true;
-              fieldset.append(check, status, continueButton);
-              card.append(fieldset);
+            const content = structuredClone(quiz);
+            const imageFor = image => {
+              if (!image) return;
+              const url = image.src;
+              image.src = typeof url === 'string' && /^(data:|blob:)/u.test(url) ? url : assessmentView.resourceUrls?.[url] ?? '';
+              if (!image.src) throw new Error('Quiz image is not archived');
+            };
+            for (const question of content.questions) {
+              imageFor(question.image);
+              for (const option of question.options ?? []) imageFor(option.image);
             }
-            if (!questions.length) card.append(element('p', '本页尚未添加题目。'));
             parent.append(card);
+            disposeAssessmentPlayback?.();
+            disposeAssessmentPlayback = mountNativeTeachingQuestion(card, { quiz: content, complete: () => {
+              if (!isCurrent()) return;
+              const finish = preserveLesson?.finishPage;
+              stopAudio(preserveLesson); notice('Quiz 已完成'); finish?.();
+            } });
             previewMode = 'waiting_interaction';
             renderPreviewControls();
             };
@@ -339,7 +299,27 @@ function maicNativePanelSource(source) {
   replace('      disposed = true;', '      assessmentEditor?.dispose();\n      disposed = true;');
   replace('  const stopAudio = (preserveLesson?: LessonRun) => {', `  const stopAudio = (preserveLesson?: LessonRun) => {
     previewPreparing = false;
+    disposeAssessmentPlayback?.();
+    disposeAssessmentPlayback = undefined;
     panel?.querySelector('[data-teaching-quiz]')?.remove();
     teachingSlideshow?.surface.querySelector('[data-teaching-quiz]')?.remove();`);
-  return "import { mountNativeAssessment, nativeSpeechLabels, speechGenerationError } from 'deckwise-native-assessment';\n" + source;
+  const questionStart = source.indexOf('            onInteraction(question) {');
+  const questionEnd = source.indexOf('            onNode(id) {', questionStart);
+  assert(questionStart >= 0 && questionEnd > questionStart, 'Native teaching question presentation changed');
+  source = source.slice(0, questionStart) + `            onInteraction(question) {
+              disposeAssessmentPlayback?.(); disposeAssessmentPlayback = undefined;
+              const parent = teachingSlideshow?.controls ?? panel!;
+              parent.querySelector('[data-teaching-question]')?.remove();
+              if (!question || !isCurrent()) return;
+              const card = element('section');
+              card.dataset.teachingQuestion = question.checkpointId;
+              card.style.cssText = 'max-width:600px;max-height:60vh;overflow:auto;background:white;color:#222;padding:16px;';
+              if (teachingSlideshow) card.style.cssText += 'position:absolute;bottom:64px;right:12px;';
+              parent.append(card);
+              disposeAssessmentPlayback = mountNativeTeachingQuestion(card, { question, complete: () => {
+                if (isCurrent()) timeline?.continueTeacher();
+              } });
+            },
+` + source.slice(questionEnd);
+  return "import { mountNativeAssessment, mountNativeTeachingQuestion, nativeSpeechLabels, speechGenerationError } from 'deckwise-native-assessment';\n" + source;
 }

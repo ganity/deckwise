@@ -7,6 +7,8 @@ export { loadTeamFixedBuild } from './player/lib/courseware/load-team-fixed-buil
 export { parseMaicClassroom, maicClassroomSchema, type MaicClassroom } from './maic-classroom';
 export { loadMaicClassroom, type MaicResourceResolver } from './player/lib/courseware/load-maic-classroom';
 export { MaicQuiz, scoreMaicQuiz } from './player/components/courseware/MaicQuiz';
+export { TeachingQuestion } from './player/components/courseware/TeachingQuestion';
+export type { TeachingQuestion as TeachingQuestionPayload } from './teaching-timeline-preview';
 export { MaicInstantQuizCard } from './player/components/courseware/MaicInstantQuizCard';
 export { createMaicInteractionCanvas } from './maic-interaction-canvas';
 export { MaicSlidePreview } from './player/components/courseware/MaicSlidePreview';

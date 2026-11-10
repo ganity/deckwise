@@ -1,4 +1,5 @@
 import type { AgentTool } from "@earendil-works/pi-agent-core";
+import { coursewarePresentationDefinition, coursewarePresentationPrepareDefinition } from "./courseware-presentation-tool.js";
 import { Type } from "typebox";
 import { Check } from "typebox/value";
 import { isCoursewareStory, coursewareStorySchema } from "@pi-desktop/shared";
@@ -75,6 +76,8 @@ const definitions = [
     waitForUpdate: Type.Optional(Type.Boolean()),
   }, { additionalProperties: false })], { type: "object" }), description: "Check original saved media jobs; for TTS prefer intentIds from one page to refresh, download, decode and archive at most ten concurrently, with revision-safe adoption. Single intentId remains supported. Optionally poll every three seconds for up to 30 seconds per job. Verify, archive and adopt settled real output automatically. Music generation also completes its original export job. Prefer job.intentId for refresh; music also accepts media.intentId from an export result and resolves its original generation job. Returned job.intentId stays the generation ID. Unknown submissions remain query-only. When the latest user explicitly requests a retry/new request for a failed TTS/music/video job, set retryFailed:true with its single original intentId. Main verifies terminal failure and finalized accounting, preserves original receipts and content, and creates/reuses one fresh attempt. This scoped request is sufficient after a previous stop/no-new-requests instruction. Music-export failures retry the export, retaining successful music. Automatic continuation never sets retryFailed; it does not authorize unrelated work or replacement of unknown/running/successful jobs. Continue querying in the active Chat while waitingFor:service. Inspect batch results and failures. saved:true means bytes and adoption succeeded; terminal failures must be reported, never described as awaiting user confirmation." },
   assessmentMediaDefinition,
+  coursewarePresentationPrepareDefinition,
+  coursewarePresentationDefinition,
 ];
 
 const record = (value: unknown): value is Record<string, unknown> =>
@@ -122,7 +125,7 @@ export function createCoursewareWorkflowTools(host: Host, sessionId: string, get
       try {
         const result = await host.call<{ ok: boolean; content: unknown; errorCode?: string }>("tools.execute", {
           sessionId, turnId, toolCallId, toolName: definition.name, mode: "agent", args: structuredClone(input),
-          ...(["courseware_scene_image_prepare", "courseware_scene_image_refresh", "courseware_scene_compile", "courseware_narration_context", "courseware_narration_propose", "courseware_media_prepare", "courseware_media_refresh", "courseware_media_context", "courseware_media_assessments"].includes(definition.name) ? { timeoutMs: 16 * 60_000 } : {}),
+          ...(["courseware_presentation_adopt", "courseware_scene_image_prepare", "courseware_scene_image_refresh", "courseware_scene_compile", "courseware_narration_context", "courseware_narration_propose", "courseware_media_prepare", "courseware_media_refresh", "courseware_media_context", "courseware_media_assessments"].includes(definition.name) ? { timeoutMs: 16 * 60_000 } : {}),
         });
         signal?.throwIfAborted();
         if (getTurnId() !== turnId) throw new Error("Courseware Chat turn changed; read saved workflow before continuing");

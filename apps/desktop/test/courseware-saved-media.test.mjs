@@ -45,6 +45,7 @@ async function fixture(t) {
     calls.push([method, clone(p)]);
     if (method === "session.get") return { session: { mode: "agent", projectPath: directory } };
     if (method === "courseware.project.get") return { project: clone(project) };
+    if (method === "courseware.classroom.source" && state.onNativeAnimation) return state.onNativeAnimation();
     if (method === "courseware.project.context") return { project: clone(project), nativeSaved: state.nativeSaved === true, ...(state.teaching ? { sceneObjects: {
       schemaVersion: "deckwise-scene-objects/1", sourceSha256: sha, requiresReview: true,
       pages: project.pages.map(page => ({ pageId: page.pageId, objects: [], teaching: state.teaching })) } } : {}) };
@@ -152,6 +153,22 @@ test("native-saved narration fills only missing audio without rewriting other pa
   await f.prepare({ actionId: undefined, actionIds });
   assert.equal(f.posts.length, 8, "saved audio is reused on replay");
   assert(!f.calls.some(([method]) => method === "courseware.narration.save"));
+});
+
+test("final adopted TTS automatically exports native animations and keeps paid audio after an export failure", async t => {
+  const f = await fixture(t); f.state.ready = true;
+  f.project.pages[0].actions[0].visualCues = [{ atMs: 0, endMs: 600,
+    effect: { type: "element_animation", elementId: "logical-title", effect: "fadeIn" } }];
+  let entered = 0;
+  f.state.onNativeAnimation = () => { entered++; throw new Error("Native export boundary reached"); };
+  assert.equal((await f.prepare()).saved, true);
+  assert.equal(entered, 0, "do not change the source while another page still needs TTS");
+  await assert.rejects(f.prepare({ pageNumber: 2, actionId: "speech-2" }), /Native export boundary reached/);
+  assert.equal(entered, 1);
+  assert(f.project.pages.every(page => page.actions[0].audioAssetId));
+  assert.equal(f.posts.length, 2);
+  await assert.rejects(f.prepare({ pageNumber: 2, actionId: "speech-2" }), /Native export boundary reached/);
+  assert.equal(f.posts.length, 2, "retry native export without purchasing existing audio again");
 });
 
 test("explicit failed TTS retry retains content and receipts, submits once, and replaces the active failed job", async t => {

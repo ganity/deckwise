@@ -46,6 +46,10 @@ pub fn validate_classroom(value: &Value) -> Result<()> {
     invalid(scenes.len() <= 1000, "too many scenes")?;
     let mut ids = HashSet::new();
     for scene in scenes {
+        if let Some(teaching) = scene["metadata"].get("teachingRequirements") {
+            let teaching: scene_teaching::Teaching = serde_json::from_value(teaching.clone())?;
+            invalid(teaching.valid(), "invalid retained teaching requirements")?;
+        }
         invalid(
             text(&scene["id"])
                 && ids.insert(scene["id"].as_str().unwrap())
@@ -457,6 +461,21 @@ impl Database {
             .filter_map(|scene| scene["metadata"]["nativePageId"].as_str())
             .filter(|id| project.pages.iter().any(|page| page.page_id == *id))
             .map(str::to_owned).collect())
+    }
+
+    pub(super) fn courseware_teaching_requirements(&self, workspace: &str, project: &CoursewareProject) -> Result<Option<Value>> {
+        if project.task_type != "plain" { return self.courseware_scene_objects(workspace, project); }
+        let document = self.classroom_source_document(workspace, &project.project_id)?;
+        let mut pages = Vec::new();
+        for page in &project.pages {
+            let Some(scene) = document["classroom"]["scenes"].as_array().into_iter().flatten()
+                .find(|scene| scene["metadata"]["nativePageId"] == page.page_id) else { continue; };
+            let Some(teaching) = scene["metadata"].get("teachingRequirements") else { continue; };
+            let parsed: scene_teaching::Teaching = serde_json::from_value(teaching.clone())?;
+            anyhow::ensure!(parsed.valid(), "COURSEWARE_INVALID: invalid presentation teaching requirements");
+            pages.push(json!({"pageId":page.page_id,"teaching":teaching}));
+        }
+        Ok((!pages.is_empty()).then(|| json!({"pages":pages})))
     }
 
     pub fn write_courseware_classroom(

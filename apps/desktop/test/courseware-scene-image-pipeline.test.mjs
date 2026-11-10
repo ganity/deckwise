@@ -170,6 +170,8 @@ test("actual Main entry runs the pipeline through its scoped image actions and n
   }
   const { CoursewareChatWorkflow } = await load("courseware-chat-workflow", {
     "@pi-desktop/shared": shared,
+    "./courseware-presentation": { adoptPresentation: () => assert.fail("Scene tasks cannot adopt ordinary exports") },
+    "./courseware-presentation-prepare": { preparePresentation: () => assert.fail("Scene tasks cannot prepare ordinary pages") },
     "node:timers/promises": { setTimeout: async () => {} },
     "./courseware-scene-draft": { readSceneCourseDraft: async () => ({ plan: structuredClone(f.plan) }) },
     "./courseware-scene-images": { CoursewareSceneImages: Images },

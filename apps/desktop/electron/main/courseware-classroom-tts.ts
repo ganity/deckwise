@@ -41,8 +41,8 @@ export class CoursewareClassroomTts {
     this.input.assertOwned(sessionId); principal.assertCurrent();
     return models;
   }
-  private async context(value: unknown) {
-    const args = selection(value); this.input.assertOwned(args.sessionId);
+  private async context(value: unknown, refresh = false) {
+    const args = { ...selection(value) }; this.input.assertOwned(args.sessionId);
     const principal = this.input.auth.getCoursewarePrincipal(), host = this.input.getHost(), workspace = await this.input.getWorkspace();
     if (!host || !workspace) throw new Error("Classroom TTS workspace unavailable");
     const check = async () => {
@@ -52,7 +52,11 @@ export class CoursewareClassroomTts {
       if (current.revision !== args.expectedRevision || current.sourceRevision !== args.expectedSourceRevision)
         throw new Error("Classroom changed; reopen narration generation");
     };
-    const view = await this.input.open(args.sessionId); await check();
+    const view = await this.input.open(args.sessionId);
+    // Only recovery may rebase: the content-addressed key must still find the original text/model/voice order.
+    if (refresh && !args.regenerate && typeof view.revision === "string" && view.projectId === args.projectId && view.sourceRevision === args.expectedSourceRevision)
+      args.expectedRevision = view.revision;
+    await check();
     if (view.projectId !== args.projectId || !view.classroom) throw new Error("Canonical classroom not found");
     const classroom = parseMaicClassroom(view.classroom), scene = classroom.scenes.find(item => item.id === args.sceneId);
     const speech = scene?.actions?.find(item => item.id === args.actionId && item.type === "speech");
@@ -63,7 +67,7 @@ export class CoursewareClassroomTts {
     // A manual regeneration is fresh after adoption; retries of that saved version still find the same task.
     const key = `maic-${hash(JSON.stringify([principal.key, args.projectId, args.sceneId, args.actionId, requestHash,
       ...(args.regenerate ? [args.expectedRevision, args.expectedSourceRevision] : [])]))}`;
-    return { args, host, workspace, principal, classroom, speech, request, key, requestHash, check };
+    return { args, host, workspace, principal, classroom, speech, request, key, requestHash, check, view };
   }
   async quote(value: unknown) {
     const context = await this.context(value);
@@ -94,13 +98,17 @@ export class CoursewareClassroomTts {
     } finally { this.active.delete(context.key); }
   }
   async refresh(value: unknown) {
-    const context = await this.context(value);
+    const context = await this.context(value, true);
     const found = await this.input.auth.coursewareMedia.findTts({ idempotencyKey: context.key, requestHash: context.requestHash });
     await context.check();
     if (!found) return { key: context.key, state: "not_submitted" };
     const ref = { taskId: found.taskId, idempotencyKey: context.key, requestHash: context.requestHash };
     const task = await this.input.auth.coursewareMedia.get(ref); await context.check();
     if (task.state !== "ready") return { key: context.key, state: task.state, task };
+    const audioId = task.assetRef && `tts-${task.assetRef.sha256}`;
+    if (audioId && context.speech.audioId === audioId && context.classroom.audioManifest?.some(entry =>
+        entry.sceneId === context.args.sceneId && entry.actionId === context.args.actionId && entry.audioId === audioId))
+      return { key: context.key, state: "adopted", task, view: context.view };
     const downloaded = await this.input.auth.coursewareMedia.download(ref); await context.check();
     const asset = downloaded.task.assetRef, bytes = downloaded.bytes;
     if (!asset || !["audio/wav", "audio/mpeg"].includes(asset.mime) || bytes.length < 1 || bytes.length > 16 * 1024 * 1024 || hash(bytes) !== asset.sha256)
@@ -115,10 +123,10 @@ export class CoursewareClassroomTts {
     if (await resolveRealPathForCreateWithinRoot(context.workspace, url) !== destination) throw new Error("Classroom narration directory changed");
     try { await writeFile(destination, bytes, { flag: "wx", mode: 0o600 }); }
     catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST" || hash(await readFile(destination)) !== asset.sha256) throw error; }
-    const audioId = `tts-${asset.sha256}`;
-    context.speech.audioId = audioId; context.speech.audioUrl = url;
+    const adoptedAudioId = `tts-${asset.sha256}`;
+    context.speech.audioId = adoptedAudioId; context.speech.audioUrl = url;
     context.classroom.audioManifest = (context.classroom.audioManifest ?? []).filter(entry => entry.sceneId !== context.args.sceneId || entry.actionId !== context.args.actionId);
-    context.classroom.audioManifest.push({ sceneId: context.args.sceneId, actionId: context.args.actionId, assetId: audioId, audioId,
+    context.classroom.audioManifest.push({ sceneId: context.args.sceneId, actionId: context.args.actionId, assetId: adoptedAudioId, audioId: adoptedAudioId,
       mimeType: asset.mime, url, originalUrl: url });
     await context.check();
     const view = await context.host.call<ClassroomView>("courseware.classroom.write", { sessionId: context.args.sessionId, projectId: context.args.projectId,

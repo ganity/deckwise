@@ -25,6 +25,188 @@ fn identity(db: &Database) -> Value {
         .unwrap()
 }
 
+fn fallback_upgrade_seeds() -> (SavedProjectSeed, SavedProjectSeed) {
+    let mut old = fixture_seed();
+    let mut value = old.identity.as_ref().unwrap().value().clone();
+    value["diagnostics"] = json!([{ "code":"pptx_fallback_ooxml", "message":"Legacy fallback", "severity":"warning" }]);
+    for (index, object) in value["pages"][0]["objects"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .enumerate()
+    {
+        object["sourceObjectName"] = json!(format!("Native {index}"));
+    }
+    old.identity = Some(SavedSourceIdentity::parse(&serde_json::to_vec(&value).unwrap()).unwrap());
+    let mut fresh = SavedProjectSeed {
+        project_id: old.project_id.clone(),
+        sha256: old.sha256.clone(),
+        pages: old.pages,
+        identity: None,
+    };
+    value["diagnostics"] = json!([]);
+    value["pages"][0]["contentFingerprint"] = json!("c".repeat(64));
+    value["pages"][0]["objects"][0]["type"] = json!("text");
+    for (index, object) in value["pages"][0]["objects"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .enumerate()
+    {
+        object["importElementId"] = json!(format!("primary-{index}"));
+        object["contentFingerprint"] = json!("d".repeat(64));
+        object["geometryFingerprint"] = json!("e".repeat(64));
+    }
+    value["pages"][0]["objects"]
+        .as_array_mut()
+        .unwrap()
+        .reverse();
+    fresh.identity =
+        Some(SavedSourceIdentity::parse(&serde_json::to_vec(&value).unwrap()).unwrap());
+    (old, fresh)
+}
+
+#[test]
+fn same_source_fallback_upgrade_preserves_teaching_cues_locks_and_native_object_ids() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("pi.sqlite");
+    let workspace = dir.path().to_str().unwrap();
+    let db = Database::open(&path).unwrap();
+    let (old, fresh) = fallback_upgrade_seeds();
+    let project = db
+        .open_identified_courseware_project(workspace, &old)
+        .unwrap();
+    let previous = identity(&db);
+    let narrated = db.write_courseware_teaching(workspace, &TeachingWrite {
+        project_id: project.project_id.clone(), page_id: project.pages[0].page_id.clone(),
+        expected_source_revision: project.source.revision.clone(), expected_teaching_revision: project.teaching_revision,
+        actions: vec![json!({ "id":"speech", "type":"speech", "text":"Keep this narration", "pauseAfterMs":1000,
+            "visualCues":[{"id":"cue", "atMs":0, "endMs":1000, "effect":{"type":"spotlight",
+                "elementIds":[previous["pages"][0]["objects"][0]["logicalId"]], "dimOpacity":0.8}}] })],
+    }).unwrap();
+    let locked = db
+        .set_courseware_page_lock(
+            workspace,
+            &narrated.project_id,
+            &narrated.pages[0].page_id,
+            &narrated.source.revision,
+            &narrated.teaching_revision,
+            true,
+        )
+        .unwrap();
+    let reopened = db
+        .open_identified_courseware_project(workspace, &fresh)
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(&reopened).unwrap(),
+        serde_json::to_value(&locked).unwrap()
+    );
+    let upgraded = identity(&db);
+    assert!(
+        SavedSourceIdentity::parse(&serde_json::to_vec(&upgraded).unwrap())
+            .unwrap()
+            .same_export(fresh.identity.as_ref().unwrap())
+    );
+    assert_ne!(upgraded["mappingRevision"], previous["mappingRevision"]);
+    for object in upgraded["pages"][0]["objects"].as_array().unwrap() {
+        let old = previous["pages"][0]["objects"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|old| old["sourceShapeId"] == object["sourceShapeId"])
+            .unwrap();
+        assert_eq!(object["logicalId"], old["logicalId"]);
+    }
+    let history_key = serde_json::to_string(&(
+        identity_key(workspace, &old.project_id, &old.sha256).unwrap(),
+        &previous["mappingRevision"],
+    ))
+    .unwrap();
+    assert_eq!(
+        db.kv_get("coursewareIdentityHistory.v1", &history_key)
+            .unwrap(),
+        Some(previous)
+    );
+    drop(db);
+    let db = Database::open(&path).unwrap();
+    let again = db
+        .open_identified_courseware_project(workspace, &fresh)
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(again).unwrap(),
+        serde_json::to_value(locked).unwrap()
+    );
+    assert_eq!(identity(&db), upgraded);
+}
+
+#[test]
+fn fallback_upgrade_rejects_unverified_or_ambiguous_native_inventory_atomically() {
+    for case in [
+        "no-fallback",
+        "still-fallback",
+        "missing-name",
+        "renamed",
+        "duplicate-native-id",
+        "unknown-native-id",
+        "image-kind",
+        "page-id",
+        "missing-object",
+        "parse-error",
+        "archive-failure",
+        "archive-ignored",
+        "mapping-ignored",
+    ] {
+        let dir = tempfile::tempdir().unwrap();
+        let workspace = dir.path().to_str().unwrap();
+        let db = Database::open_in_dir(dir.path()).unwrap();
+        let (mut old, mut fresh) = fallback_upgrade_seeds();
+        if case == "no-fallback" {
+            let mut value = old.identity.as_ref().unwrap().value().clone();
+            value["diagnostics"] = json!([]);
+            old.identity =
+                Some(SavedSourceIdentity::parse(&serde_json::to_vec(&value).unwrap()).unwrap());
+        }
+        let project = db
+            .open_identified_courseware_project(workspace, &old)
+            .unwrap();
+        let previous = identity(&db);
+        let mut value = fresh.identity.as_ref().unwrap().value().clone();
+        match case {
+            "still-fallback" => value["diagnostics"] = old.identity.as_ref().unwrap().value()["diagnostics"].clone(),
+            "missing-name" => { value["pages"][0]["objects"][0].as_object_mut().unwrap().remove("sourceObjectName"); }
+            "renamed" => value["pages"][0]["objects"][0]["sourceObjectName"] = json!("Different"),
+            "duplicate-native-id" => value["pages"][0]["objects"][0]["sourceShapeId"] = value["pages"][0]["objects"][1]["sourceShapeId"].clone(),
+            "unknown-native-id" => value["pages"][0]["objects"][0]["sourceShapeId"] = json!("unknown"),
+            "image-kind" => value["pages"][0]["objects"][0]["type"] = json!("text"),
+            "page-id" => value["pages"][0]["importPageId"] = json!("other-page"),
+            "missing-object" => { value["pages"][0]["objects"].as_array_mut().unwrap().pop(); }
+            "parse-error" => value["diagnostics"] = json!([{ "code":"broken", "message":"Broken source", "severity":"error" }]),
+            "archive-failure" => db.conn.execute_batch("CREATE TRIGGER archive_failure BEFORE INSERT ON kv WHEN NEW.ns='coursewareIdentityHistory.v1' BEGIN SELECT RAISE(ABORT, 'fixture archive failure'); END;").unwrap(),
+            "archive-ignored" => db.conn.execute_batch("CREATE TRIGGER archive_ignored BEFORE INSERT ON kv WHEN NEW.ns='coursewareIdentityHistory.v1' BEGIN SELECT RAISE(IGNORE); END;").unwrap(),
+            "mapping-ignored" => db.conn.execute_batch("CREATE TRIGGER mapping_ignored BEFORE UPDATE ON kv WHEN NEW.ns='coursewareIdentities.v1' BEGIN SELECT RAISE(IGNORE); END;").unwrap(),
+            _ => (),
+        }
+        fresh.identity =
+            Some(SavedSourceIdentity::parse(&serde_json::to_vec(&value).unwrap()).unwrap());
+        assert!(
+            db.open_identified_courseware_project(workspace, &fresh)
+                .is_err(),
+            "{case}"
+        );
+        assert_eq!(identity(&db), previous, "{case}");
+        assert_eq!(
+            serde_json::to_value(
+                db.get_courseware_project(workspace, &project.project_id)
+                    .unwrap()
+                    .unwrap()
+            )
+            .unwrap(),
+            serde_json::to_value(project).unwrap(),
+            "{case}"
+        );
+    }
+}
+
 #[test]
 fn draft_recovery_retains_conflicting_edits_and_rebases_only_unchanged_pages() {
     let dir = tempfile::tempdir().unwrap();

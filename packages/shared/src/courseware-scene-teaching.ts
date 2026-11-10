@@ -6,6 +6,7 @@ export type CoursewareSceneTeaching = {
   objective: string;
   durationSeconds: number;
   requiredObjects: string[];
+  requiredEffects?: Array<"highlight" | "spotlight" | "animation">;
   question?: { text: string; response: CoursewareQuestionResponse; referenceAnswer?: { summary: string; keyPoints: string[] }; constraintPrompt?: string };
   music?: { purpose: string; prompt: string };
   video?: { purpose: string; prompt: string };
@@ -17,7 +18,7 @@ export function coursewareSceneTeachingIssues(value: unknown, path: string): str
   const issues: string[] = [];
   for (const key of ["pageType", "phase", "objective", "durationSeconds", "requiredObjects"])
     if (!Object.hasOwn(value, key)) issues.push(path + "." + key + ": required");
-  const allowed = ["pageType", "phase", "objective", "durationSeconds", "requiredObjects", "question", "music", "video"];
+  const allowed = ["pageType", "phase", "objective", "durationSeconds", "requiredObjects", "requiredEffects", "question", "music", "video"];
   const extras = Object.keys(value).filter(key => !allowed.includes(key));
   if (extras.length) issues.push(path + ": unexpected fields " + extras.join(", "));
   if (!["slide", "quiz", "interactive", "pbl"].includes(String(value.pageType)))
@@ -61,6 +62,10 @@ export function coursewareSceneTeachingIssues(value: unknown, path: string): str
     if (!text(media.purpose, 500)) issues.push(path + "." + kind + ".purpose: expected nonempty text of at most 500 characters");
     if (!text(media.prompt, 4000)) issues.push(path + "." + kind + ".prompt: expected nonempty text of at most 4000 characters");
   }
+  if (value.requiredEffects !== undefined && (!Array.isArray(value.requiredEffects) || value.requiredEffects.length > 3 ||
+      new Set(value.requiredEffects).size !== value.requiredEffects.length ||
+      value.requiredEffects.some(effect => typeof effect !== "string" || !["highlight", "spotlight", "animation"].includes(effect))))
+    issues.push(path + ".requiredEffects: expected unique highlight, spotlight or animation requirements");
   return issues;
 }
 export function isCoursewareSceneTeaching(value: unknown): value is CoursewareSceneTeaching {

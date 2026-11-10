@@ -12,6 +12,7 @@ import { COURSEWARE_GENERATION_LIMITS } from "./courseware-generation-queue";
 import { musicRequestHash, type MusicOptions } from "./courseware-music-request";
 import { savedVideo, type SavedVideoIntent } from "./courseware-saved-video";
 import { assertCoursewareRetryable, coursewareRetryIntentId, currentCoursewareAttempts } from "./courseware-retry";
+import { persistSavedSpeechAnimations } from "./courseware-saved-animations";
 
 type Auth = Pick<DesktopAuthSession, "getCoursewarePrincipal" | "coursewareMedia">;
 type Job = { actionId?: string; kind: "tts" | "music" | "video"; intentId: string; pageNumber: number; sourceSha256: string };
@@ -85,7 +86,8 @@ export class CoursewareSavedMedia {
         const models = input.kind === "video" ? await this.auth.coursewareMedia.video.models() : input.kind === "tts" ? await this.auth.coursewareMedia.getTtsModels()
           : input.kind === "music" ? await music.models({ sessionId }) : undefined;
         await saved.check(); principal.assertCurrent();
-        return { ...(record(narration) ? narration : {}), jobs, unresolvedOriginals, videoReady: !project.pages.some(page => page.actions.some(a => a.type === "video_slot")), ...(models ? { models } : {}) };
+        return this.finishAnimations(saved, sessionId, canDispatch, { ...(record(narration) ? narration : {}), jobs, unresolvedOriginals,
+          videoReady: !project.pages.some(page => page.actions.some(a => a.type === "video_slot")), ...(models ? { models } : {}) });
       });
     }
     if (!["courseware_media_prepare", "courseware_media_refresh"].includes(name) ||
@@ -115,11 +117,14 @@ export class CoursewareSavedMedia {
               !hasDetailedNarration(page, context.nativeSaved === true))
             throw new Error("Save detailed narration for this page before TTS; initial outline speech is not ready");
         }
-        if (prepare ? input.actionIds !== undefined : input.intentIds !== undefined) return this.ttsBatch(saved, sessionId, input, prepare);
+        if (prepare ? input.actionIds !== undefined : input.intentIds !== undefined) {
+          const result = await this.ttsBatch(saved, sessionId, input, prepare);
+          return result.saved ? this.finishAnimations(saved, sessionId, canDispatch, result) : result;
+        }
         if (prepare && page.actions.some(a => a.type === "speech" && a.id === input.actionId && a.audioAssetId))
-          return { saved: true, audioReady: true, pageNumber, actionId: input.actionId };
+          return this.finishAnimations(saved, sessionId, canDispatch, { saved: true, audioReady: true, pageNumber, actionId: input.actionId });
         const value = await this.tts(saved, sessionId, input, prepare);
-        if (value.archived) return this.adoptTts(saved, sessionId, value.job);
+        if (value.archived) return this.finishAnimations(saved, sessionId, canDispatch, await this.adoptTts(saved, sessionId, value.job));
         return { job: value.job, media: value.media, saved: false, waitingFor: waiting(value.media) ? "service" : null };
       }
       const bound = savedMediaPage(saved, sessionId, pageNumber);
@@ -259,6 +264,13 @@ export class CoursewareSavedMedia {
       }
       return { job, media: row, saved: false, waitingFor: waiting(row) ? "service" : null };
     });
+  }
+
+  private async finishAnimations(saved: SavedCourseware, sessionId: string, canDispatch: () => boolean, result: Record<string, unknown>) {
+    const project = await persistSavedSpeechAnimations(saved, sessionId, () => {
+      if (!canDispatch()) throw new Error("Courseware turn ended before native animation save");
+    });
+    return { ...result, sourceSha256: project.source.sha256, teachingRevision: project.teachingRevision };
   }
 
   private async tts(saved: SavedCourseware, sessionId: string, input: Record<string, unknown>, prepare: boolean) {

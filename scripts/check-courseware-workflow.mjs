@@ -11,8 +11,10 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), ".."), pnpm = proc
 const output = await mkdtemp(join(tmpdir(), "deckwise-workflow-gate-"));
 const binary = join(root, "target/debug", process.platform === "win32" ? "pi-desktop-host-core.exe" : "pi-desktop-host-core");
 const worker = join(root, "packages/courseware-runtime/dist/pptx-worker.mjs");
+const pptMaster = join(root, "apps/desktop/dist/ppt-master");
 const env = { ...process.env, DECKWISE_E2E_MEDIA_SCOPE_HOST: binary, DECKWISE_E2E_LOCAL_MEDIA_HOST: binary,
-  DECKWISE_E2E_MUSIC_HOST: binary, DECKWISE_E2E_WORKFLOW_HOST: binary, DECKWISE_PPTX_NODE: process.execPath, DECKWISE_PPTX_WORKER: worker };
+  DECKWISE_E2E_MUSIC_HOST: binary, DECKWISE_E2E_WORKFLOW_HOST: binary, DECKWISE_PPTX_NODE: process.execPath, DECKWISE_PPTX_WORKER: worker,
+  DECKWISE_PPT_MASTER_SKILL_ROOT: pptMaster };
 const report = { status: "RUNNING", providerCalls: 0, nativeEditor: "not-run", checks: [], metrics: [] };
 async function run(name, command, args, timeout = 240_000) {
   console.log(`Running ${name}`);
@@ -24,12 +26,12 @@ async function run(name, command, args, timeout = 240_000) {
   return log;
 }
 try {
-  for (const path of [worker, join(root, "packages/shared/dist/index.js"), join(root, "packages/agent-runtime/dist/index.js")])
+  for (const path of [worker, join(root, "packages/shared/dist/index.js"), join(root, "packages/agent-runtime/dist/index.js"), join(pptMaster, "scripts/svg_to_pptx.py")])
     assert(existsSync(path), `Missing current workspace build: ${path}`);
   await run("host-build", "cargo", ["build", "-p", "host-core", "--locked"]);
   assert(existsSync(binary), "The current checkout's Host binary is missing");
   const files = ["generation-queue", "media", "local-media", "magic-layers", "canvas-music", "canvas-images", "scene-images", "tts", "saved-media", "chat-workflow-ui",
-    "saved-narration", "narration", "scene-plan", "scene-deck", "chat-workflow", "scene-image-pipeline", "media-scope-integration", "local-media-host", "canvas-music-host", "workflow-contract", "sidecar-proxy"];
+    "saved-narration", "narration", "scene-plan", "scene-deck", "presentation", "chat-workflow", "scene-image-pipeline", "media-scope-integration", "local-media-host", "canvas-music-host", "workflow-contract", "sidecar-proxy"];
   const node = await run("main-host", process.execPath, ["--test", "--test-reporter=tap", ...files.map(name => `apps/desktop/test/courseware-${name}.test.mjs`)]);
   const count = key => Number(node.match(new RegExp(`^# ${key} (\\d+)$`, "m"))?.[1] ?? -1);
   assert(count("tests") > 0 && count("pass") === count("tests") && count("skipped") === 0 && count("cancelled") === 0, "Every mandatory Main/Host test must run");
@@ -39,7 +41,7 @@ try {
     if (json) report.metrics.push(JSON.parse(json));
   }
   for (const [pkg, tests] of [
-    ["shared", ["courseware-workflow", "courseware-scene-teaching", "courseware-teaching-quality"]],
+    ["shared", ["courseware-workflow", "courseware-presentation", "courseware-scene-teaching", "courseware-teaching-quality"]],
     ["agent-runtime", ["courseware/narration-write", "courseware-turn-continuation", "courseware-stalled-continuation", "courseware-quality-continuation", "courseware-workflow-recovery", "courseware-workflow-tools", "runtime"]],
   ]) {
     const resultFile = join(output, `${pkg}.json`);

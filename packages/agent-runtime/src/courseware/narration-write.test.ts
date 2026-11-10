@@ -3,9 +3,70 @@ import { describe, expect, it } from "vitest";
 import { COURSEWARE_CONTRACT_VERSION, type CoursewareProject } from "@pi-desktop/shared";
 import { candidateHash } from "./page-candidate-baseline.js";
 import { generateNarrationWrite } from "./narration-write.js";
-import { pageNarrationOutputSchema } from "./page-narration-candidate.js";
+import { pageNarrationOutputSchema, sceneSpeechTarget } from "./page-narration-candidate.js";
 
 describe("page narration source", () => {
+  it.each(["plain", "import", "scene"] as const)("keeps a named portrait eligible beside a full sentence carrier in %s", async taskType => {
+    const project: CoursewareProject = { schemaVersion: COURSEWARE_CONTRACT_VERSION, projectId: "project", taskType, title: "Family",
+      source: { revision: "R1", sha256: candidateHash("pptx") }, teachingRevision: "T1",
+      pages: [{ pageId: "page", locked: false, reviewState: "review", actions: [] }] };
+    const baseline = { projectId: "project", documentId: "doc", pageId: "page", sourceRevision: "R1", sourceHash: project.source.sha256,
+      teachingRevision: "T1", contentHash: candidateHash("This is my grandmother."), clean: true, readOnly: false, manualLocked: false };
+    const objects = [
+      { objectId: "portrait", kind: "image", text: "", bbox: [0, 0, 100, 100], aliases: ["grandmother", "奶奶"] },
+      { objectId: "word", kind: "text", text: "grandmother", bbox: [0, 100, 100, 20] },
+      { objectId: "sentence", kind: "text", text: "This is my grandmother.", bbox: [0, 120, 300, 20] },
+      { objectId: "other", kind: "image", text: "", bbox: [200, 0, 100, 100], aliases: ["grandfather", "爷爷"] },
+    ];
+    const input = { project, pageId: "page", baseline, pageText: "This is my grandmother.", instruction: "Model the family expression",
+      evidence: { notes: "", visualSummary: "Grandmother and grandfather", objects }, getCurrentBaseline: async () => baseline };
+    const generate = (objectIds: string[]) => async () => ({ blocks: [
+      { type: "speech", text: "This is my grandmother.", attention: { type: "spotlight", objectIds } },
+    ] });
+    const result = await generateNarrationWrite({ ...input, generate: generate(["portrait"]) });
+    expect(result.write.actions[0].attention).toMatchObject({ objectIds: ["portrait"] });
+    await expect(generateNarrationWrite({ ...input, generate: generate(["other"]) })).rejects.toThrow(/do not match this speech/);
+    expect(sceneSpeechTarget("This is my grandmother.", objects)?.objectId).toBe("portrait");
+    expect(sceneSpeechTarget("看这位 grandmother。", objects)?.objectId).toBe("portrait");
+  });
+  it.each(["plain", "import", "scene"] as const)("rejects a %s card backplate mixed into word animations before saving or TTS", async taskType => {
+    const project: CoursewareProject = { schemaVersion: COURSEWARE_CONTRACT_VERSION, projectId: "project", taskType, title: "字词闯关",
+      source: { revision: "R1", sha256: candidateHash("pptx") }, teachingRevision: "T1",
+      pages: [{ pageId: "page", locked: false, reviewState: "review", actions: [] }] };
+    const baseline = { projectId: "project", documentId: "doc", pageId: "page", sourceRevision: "R1", sourceHash: project.source.sha256,
+      teachingRevision: "T1", contentHash: candidateHash("痒痒 麻烦"), clean: true, readOnly: false, manualLocked: false };
+    const input = { project, pageId: "page", baseline, pageText: "痒痒 麻烦", instruction: "Explain the words",
+      evidence: { notes: "", visualSummary: "Words on a white card", objects: [
+        { objectId: "card", kind: "shape", text: "", bbox: [0, 0, 300, 300], role: "Word card", aliases: ["痒痒", "麻烦"] },
+        { objectId: "word-1", kind: "text", text: "痒痒", bbox: [20, 50, 70, 30] },
+        { objectId: "word-2", kind: "text", text: "麻烦", bbox: [120, 50, 70, 30] },
+      ] }, getCurrentBaseline: async () => baseline };
+    await expect(generateNarrationWrite({ ...input, generate: async () => ({ blocks: [
+        { type: "speech", text: "请读痒痒、麻烦。", attention: { type: "highlight", objectIds: ["card", "word-1", "word-2"], animation: "fadeIn" } },
+      ] }) })).rejects.toThrow(/card.*container|container.*card/u);
+    expect(project.pages[0].actions).toEqual([]);
+    for (const objectIds of [["word-2"], ["word-1", "word-2"]]) {
+      await expect(generateNarrationWrite({ ...input, generate: async () => ({ blocks: [
+        { type: "speech", text: "请读痒痒。", attention: { type: "highlight", objectIds, animation: "fadeIn" } },
+      ] }) })).rejects.toThrow(/do not match this speech.*word-2/u);
+    }
+    const corrected = await generateNarrationWrite({ ...input, generate: async () => ({ blocks: [
+      { type: "speech", text: "请读痒痒、麻烦。", attention: { type: "highlight", objectIds: ["word-1", "word-2"], animation: "fadeIn" } },
+    ] }) });
+    expect(corrected.write.actions[0].attention).toMatchObject({ objectIds: ["word-1", "word-2"], animation: "fadeIn" });
+  });
+  it("never lets a backplate's longer alias hide its independent text targets", () => {
+    const objects = [
+      { objectId: "card", kind: "shape", text: "", bbox: [0, 0, 300, 300], aliases: ["请读痒痒、麻烦"] },
+      { objectId: "word-1", kind: "text", text: "痒痒", bbox: [20, 50, 70, 30] },
+      { objectId: "word-2", kind: "text", text: "麻烦", bbox: [120, 50, 70, 30] },
+    ];
+    expect(sceneSpeechTarget("请读痒痒、麻烦。", objects)).toBeUndefined();
+    expect(sceneSpeechTarget("请读痒痒、麻烦。", objects, "word-1")?.objectId).toBe("word-1");
+    expect(sceneSpeechTarget("请读痒痒。", objects)?.objectId).toBe("word-1");
+    const circle = { objectId: "circle", kind: "shape", text: "", bbox: [400, 0, 100, 100], aliases: ["圆形"] };
+    expect(sceneSpeechTarget("看这个圆形。", [...objects, circle])?.objectId).toBe("circle");
+  });
   it("advertises the same fixed-wait limit that saved speech accepts", () => {
     const blocks = [{ type: "speech", text: "Listen." }, { type: "wait", durationMs: 30000 }];
     expect(pageNarrationOutputSchema.safeParse({ blocks }).success).toBe(true);
@@ -61,7 +122,7 @@ describe("page narration source", () => {
     expect(repeated.write.actions).toEqual(result.write.actions);
     expect(calls).toBe(1);
   });
-  it.each(["plain", "import", "scene"] as const)("keeps separate sentences on the same target in %s narration", async taskType => {
+  it.each(["plain", "import", "scene"] as const)("keeps a complete teaching move together on the same target in %s narration", async taskType => {
     const project: CoursewareProject = { schemaVersion: COURSEWARE_CONTRACT_VERSION, projectId: "project", taskType, title: "Lesson",
       source: { revision: "R1", sha256: candidateHash("pptx") }, teachingRevision: "T1",
       pages: [{ pageId: "page", locked: false, reviewState: "review", actions: [] }] };
@@ -75,7 +136,7 @@ describe("page narration source", () => {
         { type: "wait", durationMs: 1000 }, { type: "wait", mode: "teacher_continue" },
       ] }) });
     const speech = write.actions.filter(a => a.type === "speech");
-    expect(speech.map(a => a.text)).toEqual(sentences);
+    expect(speech.map(a => a.text)).toEqual([sentences.join("")]);
     expect(speech.every(a => (a.attention as { objectIds: string[] }).objectIds[0] === "cat")).toBe(true);
     expect(speech.filter(a => (a.attention as { animation?: string }).animation === "fadeIn")).toHaveLength(1);
     expect(speech.at(-1)?.pauseAfterMs).toBe(1000);
@@ -327,8 +388,8 @@ describe("page narration source", () => {
 });
 
 
-it("binds image aliases by teaching focus, preserves words and pauses, and repeats emphasis", async () => {
-  const project: CoursewareProject = { schemaVersion: COURSEWARE_CONTRACT_VERSION, projectId: "project", taskType: "scene", title: "Friends",
+it.each(["scene", "plain"] as const)("binds %s image aliases by teaching focus, preserves words and pauses, and repeats emphasis", async taskType => {
+  const project: CoursewareProject = { schemaVersion: COURSEWARE_CONTRACT_VERSION, projectId: "project", taskType, title: "Friends",
     source: { revision: "R1", sha256: candidateHash("pptx") }, teachingRevision: "T1",
     pages: [{ pageId: "page", locked: false, reviewState: "review", actions: [] }] };
   const baseline = { projectId: "project", documentId: "doc", pageId: "page", sourceRevision: "R1", sourceHash: project.source.sha256,
@@ -373,6 +434,81 @@ it("binds image aliases by teaching focus, preserves words and pauses, and repea
       generate: async () => ({ blocks: [{ type: "speech", text: "Monkey Munchy！", ...(attention ? { attention } : {}) }] }) });
     expect(repeated.write.actions[0].attention).toMatchObject({ objectIds: ["monkey"] });
   }
+});
+
+it.each(["plain", "import", "scene"] as const)("keeps %s reading cues and their expressions on one speech clock", async taskType => {
+  const project: CoursewareProject = { schemaVersion: COURSEWARE_CONTRACT_VERSION, projectId: "project", taskType, title: "Family",
+    source: { revision: "R1", sha256: candidateHash("pptx") }, teachingRevision: "T1",
+    pages: [{ pageId: "page", locked: false, reviewState: "review", actions: [] }] };
+  const baseline = { projectId: "project", documentId: "doc", pageId: "page", sourceRevision: "R1", sourceHash: project.source.sha256,
+    teachingRevision: "T1", contentHash: candidateHash(""), clean: true, readOnly: false, manualLocked: false };
+  const input = { project, pageId: "page", baseline, pageText: "", instruction: "Model the exact expression, then let learners repeat",
+    evidence: { notes: "", visualSummary: "A family word card", objects: [
+      { objectId: "family", kind: "text", text: "This is my family!", bbox: [0,0,100,100] },
+    ] }, getCurrentBaseline: async () => baseline };
+  for (const attention of [undefined, { type: "highlight", objectIds: ["family"], anchorText: "This is my family!" }]) {
+    const text = "先看上面这句话，跟老师说：This is my family!";
+    const { write } = await generateNarrationWrite({ ...input, generate: async () => ({ blocks: [
+      { type: "speech", text, ...(attention ? { attention } : {}) }, { type: "wait", durationMs: 4000 },
+    ] }) });
+    expect(write.actions).toEqual([expect.objectContaining({ type: "speech", text, pauseAfterMs: 4000,
+      attention: { type: "highlight", objectIds: ["family"] } })]);
+    expect(write.actions[0]).not.toHaveProperty("audioAssetId");
+    expect(project.pages[0].actions).toEqual([]);
+  }
+  const text = "跟着老师说：";
+  const expression = "This is my family!";
+  const { write } = await generateNarrationWrite({ ...input, generate: async () => ({ blocks: [
+    { type: "speech", text }, { type: "speech", text: expression, attention: { type: "highlight", objectIds: ["family"] } },
+    { type: "wait", durationMs: 4000 },
+  ] }) });
+  expect(write.actions).toEqual([expect.objectContaining({ text: text + expression, pauseAfterMs: 4000,
+    attention: { type: "highlight", objectIds: ["family"] } })]);
+  await expect(generateNarrationWrite({ ...input, generate: async () => ({ blocks: [
+    { type: "speech", text }, { type: "wait", durationMs: 4000 }, { type: "speech", text: expression },
+  ] }) })).rejects.toMatchObject({ code: "INVALID_OUTPUT", message: expect.stringContaining("Incomplete reading cue") });
+  const incompatible = { ...input.evidence.objects[0], objectId: "other", text: "Another card" };
+  await expect(generateNarrationWrite({ ...input, evidence: { ...input.evidence, objects: [...input.evidence.objects, incompatible] },
+    generate: async () => ({ blocks: [
+      { type: "speech", text, attention: { type: "highlight", objectIds: ["family"] } },
+      { type: "speech", text: expression, attention: { type: "highlight", objectIds: ["other"] } },
+    ] }) })).rejects.toMatchObject({ code: "INVALID_OUTPUT" });
+});
+
+it("checks source-backed spoken targets and incomplete cues before returning teaching for TTS", async () => {
+  const project: CoursewareProject = { schemaVersion: COURSEWARE_CONTRACT_VERSION, projectId: "project", taskType: "plain", title: "Family",
+    source: { revision: "R1", sha256: candidateHash("pptx") }, teachingRevision: "T1",
+    educationContext: { schoolStage: "KINDERGARTEN", subject: "ENGLISH" },
+    pages: [{ pageId: "page", locked: false, reviewState: "review", actions: [] }] };
+  const baseline = { projectId: "project", documentId: "doc", pageId: "page", sourceRevision: "R1", sourceHash: project.source.sha256,
+    teachingRevision: "T1", contentHash: candidateHash("father grandfather"), clean: true, readOnly: false, manualLocked: false };
+  const input = { project, pageId: "page", baseline, pageText: "father grandfather", instruction: "Teach father",
+    coursePlan: { page: { mustMention: ["father"] } }, getCurrentBaseline: async () => baseline };
+  for (const text of ["This is my grandfather.", "跟着老师说：", "你们都答对了，father 是爸爸。"])
+    await expect(generateNarrationWrite({ ...input, generate: async () => ({ blocks: [{ type: "speech", text }] }) }))
+      .rejects.toMatchObject({ code: "INVALID_OUTPUT" });
+  const { write } = await generateNarrationWrite({ ...input,
+    generate: async () => ({ blocks: [{ type: "speech", text: "这是爸爸。听老师说：This is my father." }] }) });
+  expect(write.actions.map(a => a.text).join("")).toBe("这是爸爸。听老师说：This is my father.");
+  expect(project.pages[0].actions).toEqual([]);
+  await expect(generateNarrationWrite({ ...input, coursePlan: { page: { mustMention: ["not on this page"] } },
+    generate: async () => ({ blocks: [{ type: "speech", text: "Father means 爸爸。" }] }) })).resolves.toHaveProperty("write");
+});
+
+it("rejects incomplete required ordinary effects before saving narration and accepts grounded animation", async () => {
+  const project: CoursewareProject = { schemaVersion: COURSEWARE_CONTRACT_VERSION, projectId: "project", taskType: "plain", title: "Family",
+    source: { revision: "R1", sha256: candidateHash("pptx") }, teachingRevision: "T1",
+    pages: [{ pageId: "page", locked: false, reviewState: "review", actions: [] }] };
+  const baseline = { projectId: "project", documentId: "doc", pageId: "page", sourceRevision: "R1", sourceHash: project.source.sha256,
+    teachingRevision: "T1", contentHash: candidateHash("father"), clean: true, readOnly: false, manualLocked: false };
+  const input = { project, pageId: "page", baseline, pageText: "father", instruction: "Explain with animation", getCurrentBaseline: async () => baseline,
+    coursePlan: { teaching: { pageType: "slide", phase: "explore", objective: "Name father", durationSeconds: 30, requiredObjects: ["father"], requiredEffects: ["animation"] } },
+    evidence: { notes: "father", visualSummary: "A text label", objects: [{ objectId: "label", kind: "text", text: "father", bbox: [0, 0, 100, 100] }] } };
+  await expect(generateNarrationWrite({ ...input, generate: async () => ({ blocks: [{ type: "speech", text: "father" }] }) }))
+    .rejects.toThrow("Missing required teaching effects: animation");
+  const result = await generateNarrationWrite({ ...input, generate: async () => ({ blocks: [{ type: "speech", text: "father",
+    attention: { type: "highlight", objectIds: ["label"], animation: "pulse" } }] }) });
+  expect(result.write.actions[0].attention).toMatchObject({ objectIds: ["label"], animation: "pulse" });
 });
 
 it("starts an explicit focus at its verified quote and never invents timing or replays an entrance", async () => {
@@ -451,6 +587,34 @@ it.each([{ visualCues: undefined }, { visualCues: [] }])("repairs focus with sav
   expect(project.pages[0].actions).toEqual([speech]);
 });
 
+
+it("adds missing highlight and animation while retaining existing spotlight and speech audio", async () => {
+  const speech = { id: "speech", type: "speech", text: "Look at grandfather.", source: "generated", audioAssetId: "tts-" + "b".repeat(64),
+    visualCues: [{ id: "focus-speech", atMs: 0, endMs: 1234, effect: { type: "spotlight", elementId: "portrait", elementIds: [] } }] };
+  const project: CoursewareProject = { schemaVersion: COURSEWARE_CONTRACT_VERSION, projectId: "project", taskType: "plain", title: "Family",
+    source: { revision: "R1", sha256: candidateHash("pptx") }, teachingRevision: "T1",
+    pages: [{ pageId: "page", locked: false, reviewState: "review", actions: [speech] }] };
+  const baseline = { projectId: "project", documentId: "doc", pageId: "page", sourceRevision: "R1", sourceHash: project.source.sha256,
+    teachingRevision: "T1", contentHash: candidateHash(""), clean: true, readOnly: false, manualLocked: false };
+  const input = { project, pageId: "page", baseline, pageText: "", instruction: "Repair required effects", repairRequiredTeaching: true,
+    evidence: { notes: "", visualSummary: "Grandfather portrait and word card", objects: [
+      { objectId: "portrait", kind: "image", text: "", aliases: ["grandfather"], bbox: [0,0,100,100] },
+      { objectId: "word", kind: "text", text: "grandfather", bbox: [0,100,100,20] },
+    ] }, coursePlan: { teaching: { pageType: "slide", phase: "explore", objective: "Name grandfather", durationSeconds: 30,
+      requiredObjects: [], requiredEffects: ["spotlight", "highlight", "animation"] } },
+    getCurrentBaseline: async () => baseline, generate: async () => { throw new Error("Retain existing speech and paid audio"); } };
+  const result = await generateNarrationWrite(input);
+  const { visualCues: _, ...preserved } = speech;
+  expect(result.write.actions).toEqual([{ ...preserved, attention: { type: "highlight", objectIds: ["word"], animation: "pulse" } }]);
+  expect(project.pages[0].actions).toEqual([speech]);
+  await expect(generateNarrationWrite({ ...input, evidence: { ...input.evidence, objects: [] } }))
+    .rejects.toMatchObject({ code: "INVALID_OUTPUT", message: expect.stringContaining("could not safely bind") });
+  project.pages[0].actions = [{ ...speech, visualCues: [...speech.visualCues,
+    { id: "highlight", atMs: 0, endMs: 1234, effect: { type: "highlight", elementIds: ["word"] } },
+    { id: "motion", atMs: 0, endMs: 600, effect: { type: "element_animation", elementId: "word", effect: "pulse" } },
+  ] }];
+  expect((await generateNarrationWrite(input)).write.actions).toEqual(project.pages[0].actions);
+});
 
 it("repairs all sixteen captured page-six focus omissions with the original speech audio", async () => {
   const captured = JSON.parse(await readFile(new URL("./fixtures/greetings-focus.json", import.meta.url), "utf8"));

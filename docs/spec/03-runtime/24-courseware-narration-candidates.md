@@ -1,5 +1,88 @@
 # Saved narration
 
+## Grounded teaching moves
+
+Teaching requirements and the education context determine the learning objective,
+audience and teaching move. Actual exported slide text and visual evidence constrain
+claims about the slide. Speaker notes and existing narration are reference drafts,
+not proof that a planned object exists and not a script to copy verbatim.
+
+All saved-deck paths use structured visual observations when vision is available.
+Observations retain current UUID and shape validation, with one JSON-format repair.
+Missing concrete visuals required by the teaching plan fail that page before saving
+narration or requesting its TTS; repair the source page instead of inventing content
+or changing the objective. Conflicting notes are excluded from the in-memory evidence
+and reported in diagnostics; original files remain intact. If vision is unavailable,
+the text/notes fallback explicitly reports that visual completeness was not verified.
+Cached evidence includes the current teaching requirements in its identity.
+
+Validated page briefs are cached with that evidence, the requested instruction,
+approved plan, model and education context. A failed-page retry may reuse the
+unchanged arc; otherwise planning receives the full outline as context but emits
+only the selected body-page briefs in their exact order. The strict JSON schema
+is supplied to the model and unexpected fields are named in repair feedback.
+Neither a partial save nor a cached plan certifies whole-course completion.
+
+A full sentence text carrier does not suppress matches for the word or character
+it names. Longer pictured identities still disambiguate shorter aliases; foreign
+UUIDs, unrelated targets and empty backplates remain invalid.
+
+A speech block represents a complete teaching move on one focus, keeping related
+sentences together. Focus changes or learner turns start new blocks; the canonical
+writer no longer mechanically splits every sentence into a new audio task. The
+existing 4000-character action bound and lossless long-text splitting remain.
+Kindergarten guidance prefers 2-4 concise moves, without truncating required content.
+Reading cues contain their exact target expressions; waits belong only to real
+learner turns. Whole-deck planning receives assessment-page context without generating
+body narration for those pages, so the final body bridge need not close the lesson
+prematurely. These guidance rules do not certify model-generated pedagogy without
+review of the actual output.
+
+Focus normalization splits at complete sentence boundaries, not commas or colons.
+Adjacent detached reading cues may join the following speech only without an
+intervening wait/media block or incompatible explicit focus. Mid-sentence anchors
+are validated but start focus with the intact sentence; sentence-boundary anchors
+can still leave preceding complete speech unfocused. Text, learner waits and
+entrance-once behavior remain intact. Existing saved speech/audio is not migrated.
+
+The deck plan may additionally carry bounded `mustMention`, `avoidRepeating` and
+`deliveryContract` lists per page. Planning receives logical-page teaching metadata
+and later assessment context. Exact visible target expressions inform modelling;
+prior explanations inform repetition avoidance, not a vocabulary blacklist.
+Older plan shapes remain accepted. Before a generated write is saved for TTS,
+detached reading cues, narrowly recognized unsupported classroom-result claims and
+omitted literal Latin target expressions backed by visible text reject with
+page-specific `INVALID_OUTPUT`. The existing at-most-two page corrections repair
+these failures without rewriting successful peers or retrying provider failures.
+This is not a general semantic validator: paraphrased objectives, Chinese target
+coverage and all possible unsupported-result phrasings still require review.
+
+`durationSeconds` is a classroom activity budget, not synthesized speech duration.
+Do not pad speech or silence to fill it or repeat a later assessment's independent
+task. More than four kindergarten speech moves and fixed waits exceeding the page
+budget produce advisory diagnostics only. Actual audio duration still comes from
+decoded TTS; pacing advice neither changes existing media nor purchases new TTS.
+
+## Native animation ownership
+
+Generated object-animation cues are attached to their speech action. Host audio
+adoption writes a version-one speech-start trigger using the decoded audio clock;
+the model never supplies an estimated duration. Existing cues without this marker
+remain playable without new TTS. Native teaching playback reuses an unambiguous
+saved effect on the mapped target or its nearest animated PPT group, preserving
+the saved preset and duration. It does not require every native effect to have a
+speech owner. Ambiguous effects stay unlinked and play automatically on page
+entry, in native order, before narration starts. Static elements gain no animation.
+Explicit links retain strict identity/ambiguity checks, and temporary playback
+timing is restored without rewriting the saved PPT or history.
+
+The audio player retains the completed clip's decoded duration after releasing
+its element, until stop or the next clip resets it. Speech-tail cue validation
+and end-triggered animation use that duration; valid completed audio must not
+fail with `SPEECH_TIMING_AUDIO_REQUIRED`. Editor mode keeps all objects visible.
+The native slideshow hides entrance targets until their speech trigger, and
+object location refreshes the native selection outline, including group members.
+
 ## Direct save (2026-10-26)
 
 Scene visual observations permit one validation repair within the original
@@ -510,3 +593,32 @@ generation diagnoses substitute questions before saving. Missing actions remain
 Host completion blockers. Re-reading saved requirements after a lost save reply
 makes repeated delta repair idempotent. Format correction remains bounded to two
 attempts; source conflicts or uncertain saves never cause a blind replay.
+
+Required-effect repair also checks existing focus and animation coverage. Missing
+effects bind only to unambiguous supplied objects named in saved speech; a missing
+highlight prefers a visible text object. Host retains existing cues and audio,
+appends newly timed cues using the verified saved audio duration and distinct cue
+IDs, and rejects duplicate focus repairs. An unbindable requirement fails explicitly
+instead of reporting a successful repair with missing effects.
+
+## Teaching-object ownership (2026-11-09)
+
+PPT Master/plain, imported and scene narration share object validation before
+saving and before TTS. Vision may annotate identities but may not move native
+shape/text lettering between UUIDs. Images may retain observed OCR; native objects
+retain their parsed text, allowing only whitespace/NFKC differences in observations.
+
+An empty shape enclosing multiple separately mapped text carriers must not stand
+in for those carriers when speech names their text. Check against all native
+layers before filtering visual targets, including when the vision model marks
+the child labels non-targets. Exclude such backplates before alias matching so a
+long copied alias cannot hide the independent words. Explicit single- and
+multi-object bindings must match named teaching objects when a literal match is
+available. Preserve unambiguous pictures and meaningful standalone vector shapes.
+
+Invalid visual ownership uses the existing single observation correction; invalid
+narration bindings use the existing maximum two output corrections. Persistent
+failure saves nothing for that page; successful pages and paid media remain
+untouched. Version the evidence cache to discard old cross-layer observations.
+These checks catch structural ownership and literal mismatches, not every possible
+visual misidentification. Existing saved bindings are not silently migrated.

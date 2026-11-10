@@ -11,7 +11,7 @@ const entry = (name, mtimeMs = 10) => ({ name, kind: "file", mtimeMs });
 
 function fixture() {
   const directories = {
-    project: [entry("design_spec.md"), entry("spec_lock.md")],
+    project: [entry("presentation-plan.json"), entry("animations.json"), entry("design_spec.md"), entry("spec_lock.md")],
     "project/svg_output": [entry("P01.svg")],
     "project/svg_final": [],
     "project/exports": [entry("lesson.pptx", 30)],
@@ -31,9 +31,16 @@ function fixture() {
     // No component is mounted: only the real filesystem inspection is invoked.
     return {};
   }, exports);
-  return { directories, inspect: () => exports.inspectProject("project"),
+  return { directories, inspect: () => exports.inspectProject("project"), referencedProject: exports.referencedProject,
     phase: exports.phaseLabel, setReport: (value) => { report = value; } };
 }
+
+test("a persisted source owns the SVG project after chat history is compacted or contains another project", () => {
+  const f = fixture();
+  assert.equal(f.referencedProject([], "/workspace/.deckwise-ppt/projects/family/exports/family.pptx"), ".deckwise-ppt/projects/family");
+  assert.equal(f.referencedProject([{ content: ".deckwise-ppt/projects/other/P01.svg" }], "/workspace/.deckwise-ppt/projects/family/exports/family.pptx"), ".deckwise-ppt/projects/family");
+  assert.equal(f.referencedProject([{ content: ".deckwise-ppt/projects/other/P01.svg" }]), ".deckwise-ppt/projects/other");
+});
 
 test("a current final report accepts the saved pages, planning and narration", async () => {
   const f = fixture();
@@ -45,6 +52,8 @@ test("a current final report accepts the saved pages, planning and narration", a
 
 for (const [directory, name] of [
   ["project", "design_spec.md"], ["project", "spec_lock.md"],
+  ["project", "presentation-plan.json"],
+  ["project", "animations.json"],
   ["project/notes", "total.md"], ["project/svg_output", "P01.svg"],
 ]) {
   test(`changing ${name} invalidates both the report and the exported PPTX`, async () => {

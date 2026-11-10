@@ -54,35 +54,53 @@ export async function writeSavedAssessmentClassroom(input: {
       return readClassroomAsset(workspace, { url: src, assetId: image.assetId ?? src, mimeType: image.mimeType ?? "image/*" });
     } });
   await check();
-  const bytes = Buffer.from(result.pptx), outputSha256 = sourceHash(bytes);
+  const bytes = Buffer.from(result.pptx);
+  await commitSavedPptx({ saved, workspace, sourcePath, sessionId: args.sessionId, assertCurrent: input.assertCurrent,
+    bytes, lineage: {
+      pageTokens: result.pages.map((page, index) => {
+        const id = args.classroom.scenes[index].metadata?.nativePageId;
+        return typeof id === 'string' ? id : `scene-${page.sceneId}`;
+      }),
+      objects: result.pages.map(page => page.objectNames.map(name => ({ name,
+        ...(page.sourcePageId && page.animationUnchanged ? { sourceName: name, sourcePageToken: page.sourcePageId } : {}),
+      }))), animationUnchanged: result.pages.map(page => page.animationUnchanged),
+    }, classroomSave: { expectedRevision: args.expectedRevision, classroom: args.classroom } });
+  return host.call<ClassroomView>("courseware.classroom.get", { sessionId: args.sessionId, projectId: args.projectId });
+}
+
+/** Shared durable transaction for compiler writes, including teaching-only native timing. */
+export async function commitSavedPptx(input: {
+  saved: SavedCourseware; workspace: string; sourcePath: string; sessionId: string; bytes: Buffer;
+  lineage: { pageTokens: string[]; objects: Array<Array<{ name: string; sourceName?: string; sourcePageToken?: string }>>; animationUnchanged: boolean[] };
+  classroomSave?: { expectedRevision: string | null; classroom: MaicClassroom }; assertCurrent(): void;
+}): Promise<void> {
+  const { saved, workspace, sourcePath, sessionId, bytes } = input, { host } = saved;
+  const outputSha256 = sourceHash(bytes);
+  const check = async () => { input.assertCurrent(); await saved.check(); input.assertCurrent(); };
+  await check();
   const original = await adoptionRevision(workspace, sourcePath, Buffer.from(saved.bytes));
   const output = await adoptionRevision(workspace, sourcePath, bytes);
-  const binding = { projectId: createHash("sha256").update(workspace).digest("hex"), documentId: jobIdFor(workspace, sourcePath), sessionId: `saved-${args.sessionId}` };
+  const binding = { projectId: createHash("sha256").update(workspace).digest("hex"), documentId: jobIdFor(workspace, sourcePath), sessionId: `saved-${sessionId}` };
   const saveRequestId = randomUUID();
   const lineage = { protocol: "deckwise-office-page-lineage/1", ...binding, saveRequestId,
-    sourceSha256: saved.project.source.sha256, outputSha256, openedPageTokens: seed.project.pages.map(page => page.pageId),
-    pageTokens: result.pages.map((page, index) => args.classroom.scenes[index].metadata?.nativePageId ?? `scene-${page.sceneId}`),
-    objects: result.pages.map(page => page.objectNames.map(name => ({ name,
-      ...(page.sourcePageId && page.animationUnchanged ? { sourceName: name, sourcePageToken: page.sourcePageId } : {}),
-    }))), animationUnchanged: result.pages.map(page => page.animationUnchanged) };
-  const saves = new CoursewareNativeSave(() => host, () => args.sessionId, async () => workspace,
+    sourceSha256: saved.project.source.sha256, outputSha256, openedPageTokens: saved.project.pages.map(page => page.pageId), ...input.lineage };
+  const saves = new CoursewareNativeSave(() => host, () => sessionId, async () => workspace,
     () => input.assertCurrent(), operation => operation());
   await saved.release();
   const receipt = await saves.prepare({ workspace, sourcePath, sourceRevisionPath: original.documentPath,
     sourceSha256: saved.project.source.sha256, outputPath: output.documentPath, outputSha256, binding, saveRequestId, lineage,
-    classroomSave: { expectedRevision: args.expectedRevision, classroom: args.classroom } });
+    ...(input.classroomSave ? { classroomSave: input.classroomSave } : {}) });
   try {
     await check();
     await replaceSourceFile(sourcePath, bytes, "pptx", saved.project.source.sha256);
     await receipt.commit();
   } catch (error) {
     // Resolve an uncertain replacement from actual bytes before allowing any later write.
-    const pending = await host.call<{ save: { saveId: string } | null }>("courseware.nativeSave.forPath", { sessionId: args.sessionId, sourcePath });
-    if (pending.save) await host.call("courseware.nativeSave.resolve", { sessionId: args.sessionId, saveId: pending.save.saveId });
+    const pending = await host.call<{ save: { saveId: string } | null }>("courseware.nativeSave.forPath", { sessionId, sourcePath });
+    if (pending.save) await host.call("courseware.nativeSave.resolve", { sessionId, saveId: pending.save.saveId });
     throw error;
   }
   input.assertCurrent();
-  return host.call<ClassroomView>("courseware.classroom.get", { sessionId: args.sessionId, projectId: args.projectId });
 }
 
 /** A single Host save receipt commits the PPT identity and canonical classroom together. */

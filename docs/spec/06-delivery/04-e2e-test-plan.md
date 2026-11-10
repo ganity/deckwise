@@ -1,5 +1,78 @@
 # 04. E2E Test Plan
 
+## E2E-COURSEWARE-fallback-identity-upgrade
+
+- Preconditions: saved teaching bound to a legacy `pptx_fallback_ooxml` identity
+  and a primary-parser export of the same immutable PPTX bytes.
+- Reopen through `courseware.project.openSaved`. Match native page/shape IDs and
+  object names rather than parser-generated IDs, fingerprints or object order.
+  Preserve the whole teaching project, adopted audio, logical UUIDs and locks;
+  archive the old mapping and update the parser mapping in one transaction.
+- Read the second page and its original speech/audio references, then restart
+  and reopen. No generation, repurchase or second mapping migration occurs.
+- Reject changed source bytes, unknown/missing/duplicate native IDs, renamed
+  objects, incompatible kinds, page changes, parser errors and unverified drift.
+  An injected archive failure must leave both project and mapping unchanged.
+- Coverage: Host `db::courseware_projects::identities` regression tests and an
+  isolated actual Host/parser replay against a read-only backup of the affected
+  profile. Specs: `22-courseware-contract-v1.md`, legacy parser compatibility.
+  Visible WiseOffice rendering and live-provider generation remain separate
+  acceptance checks; this scenario does not certify missing narration complete.
+
+## E2E-COURSEWARE-partial-generation-recovery
+
+- Preconditions: an adopted complete-course task with saved peer narration and
+  pending Quiz/checkpoint question audio; external model/media boundaries are
+  synthetic and no paid requests are allowed.
+- Generate selected narration through `CoursewareSavedNarration`: retain the
+  complete outline as context, return only selected briefs, correct invalid
+  output within the bounded budget, and reuse a validated arc for a failed-page
+  retry. Successful peer speech/audio must remain untouched.
+- Add a Quiz option image through the real assessment compiler and reimport the
+  resulting PPTX. Unchanged peer shape IDs, object names and text/shape types
+  must survive namespaced layout/master part names.
+- Prepare two question audio tasks, then adopt both original results with an
+  intermediate classroom revision change. Repeated refresh is idempotent;
+  changed text/source, principal switch, cancellation and corrupt bytes cannot
+  adopt old audio or submit another order.
+- Persist continuation at adoption, then simulate Host-verified native saves.
+  Completion may use the advanced checkpoint; an unrelated source change reports
+  an unfinished conflict without overwriting the checkpoint or claiming success.
+- Automated coverage: Main `courseware-narration-batch`, `courseware-saved-narration`
+  and `courseware-classroom-tts` suites; runtime `classroom-pptx`; Agent
+  `narration-write`, `courseware-continuation-lineage`, `courseware-workflow-recovery`
+  and `courseware-turn-continuation` suites. Native Desktop/provider acceptance is
+  separate and must not be inferred from these offline checks.
+
+## E2E-COURSEWARE-ppt-master-grounded-narration
+
+- Run `node --test apps/desktop/test/courseware-narration-batch.test.mjs`.
+  Plain, import and scene batches must stop a page with missing required visual
+  content before narration saving; notes contradicting the actual visual are
+  excluded from model evidence without changing the original evidence. Invalid
+  visual JSON gets one format repair, never a retry to disguise a missing image.
+  Text-only fallback reports that visual completeness has not been verified.
+- Run the shared presentation/teaching-quality and agent narration/workflow-tool
+  Vitest files. Keep related sentences together, preserve complete long text,
+  reject malformed interaction plans before Host dispatch, and report exact field
+  paths without substituting another assessment kind.
+- Run `node --test apps/desktop/test/courseware-presentation.test.mjs` with the
+  existing real Host, worker and official PPT Master test environment. The fixture
+  passes official SVG and animation validation and exports a real PPTX. Assert
+  native timing on the configured body page and no timing on fixed assessment
+  pages. Adoption retains Quiz and checkpoint metadata through Host restart;
+  answer response metadata belongs in teaching requirements, not the MAIC action.
+- Run `node --test apps/desktop/test/ppt-master-quality.test.mjs`. Editing
+  `animations.json` or the presentation plan invalidates older report/export
+  timestamps. The actual Host must also reject a stale animation sidecar.
+- Run runtime native-click and fixed-build regressions for existing motion
+  ownership, bound native steps, effect ordering and strict unsupported-motion
+  rejection. This is separate from clicking the native WiseOffice sidebar or
+  proving automatic unbound motion in a particular generated lesson.
+- A follow-up provider-backed generation must inspect actual page kinds, body
+  speech counts, visible content, native timing and speech-linked cues separately.
+  Ready audio and successful playback alone do not certify semantic completeness.
+
 
 ## E2E-COURSEWARE-maic-assessment-review
 
@@ -17567,6 +17640,12 @@ Run the editor-host protocol/visibility tests and the independent Electron
 media playback, save/reopen, and zero remote requests. The probe uses its own
 profile and does not attach to the user's running Desktop.
 
+The native fixture probe also rejects the first voice-model read with an expired
+teaching-view error. It must recover after one automatic reload, leave no error
+notice and never submit a paid task. Sidebar unit tests additionally cover
+persistent failures with their actual reasons and preserve narration edited while
+a media read is pending.
+
 ### E2E-COURSEWARE-maic-assessment-visibility (2026-11-04)
 
 - Submit a family-word single-choice assessment as an interactive checkpoint and
@@ -17751,6 +17830,26 @@ compilation and trusted parsing, not generation of narration, TTS or music.
 
 ## E2E-COURSEWARE-native-playback-preparation
 
+- Whole-course playback must automatically finish unlinked native click effects
+  and enter narration without teacher clicks. Test a page with only unlinked
+  effects, and a page mixing an unlinked effect with a speech-owned group effect.
+  The group effect must remain idle until its speech trigger and keep its saved
+  preset/duration. Cover old cues without triggers, new generated speech-start
+  cues and explicit native links. Pause must suspend automatic advancement; exit
+  must restore saved timing/history and must not write PPTX or buy new audio.
+  WiseOffice regression: `deckwise-teaching-slideshow.test.ts` and the real
+  `deckwise-speech-animation-schedule.spec.ts`. Host regression: speech attention
+  cue generation and TTS audio adoption tests.
+
+- Play a real audio-backed speech through its `ended` event and end-triggered
+  animation into the next speech. Retain decoded duration for tail validation;
+  stop, replacement and failure must not reuse a previous clip's duration.
+  Regression: runtime `audio-player.test.ts` and `teaching-timeline-audio.test.ts`.
+  In the real editor, assert entrance visibility before/after the speech trigger,
+  exit visibility and a later emphasis on the same object. Locate both a native
+  shape and a group member, verifying the selection outline and group selection.
+  Regression: WiseOffice `deckwise-speech-animation-schedule.spec.ts`.
+
 - Click the shared header's current-page slideshow button once on an interaction
   page. Hold the canonical-read and audio-read responses independently: show the
   appropriate preparation text, an indeterminate progress indicator and disabled
@@ -17842,6 +17941,55 @@ and must not reopen Office. Story approval before generation is unchanged.
 Automated by `ppt-editor-visibility.test.mjs` and
 `courseware-chat-workflow-ui.test.mjs`.
 
+## E2E-COURSEWARE-ordinary-teaching-handoff
+
+- Through saved narration generation, plan body-page target expressions and
+  delivery contracts with later Quiz/checkpoint context. Preserve a complete
+  reading cue plus target expression on one audio clock in plain/import/scene
+  tasks, including a mid-sentence animation anchor. Genuine object changes and
+  sentence-boundary anchors retain their focus ownership; learner waits stay on
+  the last speech and stale audio is never copied. Reject unfulfilled source-backed
+  targets and dangling reading cues before saving/TTS, repair only that page
+  within the existing limit, and preserve successful peers and assessment pages.
+  Excess kindergarten moves or waits above the classroom budget are advisory,
+  never an automatic rewrite or instruction to pad. Provider-free automation:
+  `courseware/narration-write.test.ts`, `courseware-narration-batch.test.mjs`,
+  `courseware-narration.test.mjs`, `courseware-saved-narration.test.mjs`.
+- Prepare one body page, one Quiz and one checkpoint from the complete plan.
+  Generate only the two fixed assessment SVGs; preserve body/native/manual files
+  and reject changed-plan, escaped-path and cancelled writes. Retry identical
+  input safely. Run the installed official project validator, final SVG checker
+  and converter on a long mixed-language question, then adopt its real PPTX and
+  verify the exact question binding. Fixed pages must not expose grading text.
+  Plan changes invalidate both the inspector and Host export freshness checks.
+  The real official-script test requires `DECKWISE_PPT_MASTER_SKILL_ROOT` and the
+  isolated Host/worker environment; it performs no supplier calls.
+- Export an ordinary three-page PPTX with one body slide, one real Quiz and one
+  bound interaction. Adopt the exact validated export, then read saved teaching
+  without Office. Notes remain incomplete until detailed narration is generated.
+  Generate only the body lecture with actual object-bound highlight/animation;
+  preserve both assessments and report missing speech audio, question TTS and
+  four Quiz option images through the common services.
+- Replay adoption without changing revisions, refresh native classroom content,
+  and restart Host. Keep Quiz/checkpoint types, nonempty source-scene context,
+  logical requirements and the saved task attachment.
+- Reject stale validation, changed source bytes, mismatched physical pages,
+  exceeded body budgets and cancellation without attaching a completed source.
+- Confirm export in an ordinary teaching-course task and keep the Agent turn
+  active through narration and original TTS adoption, including a successful
+  adoption that omits `continueTeaching`. The export button and every locale's
+  generated request describe narration, synchronized effects, speech, assessment
+  media and the existing credits policy. An explicit PPTX-only export passes
+  `continueTeaching:false` and must start neither narration nor paid media.
+  Preview-only, status-only and scene opt-in behavior remain unchanged.
+  Native focus uses supplied IDs; uncertain objects
+  never receive invented targets.
+- Automated: `courseware-presentation.test.mjs` (real isolated Host/parser),
+  shared `courseware-presentation.test.ts` and teaching-quality tests, and Agent
+  workflow-tool, narration-write and turn-continuation tests. Include the real
+  Host test in `pnpm test:courseware-workflow`. Supplier calls and the visible
+  WiseOffice journey require separate explicit live validation.
+
 ## E2E-COURSEWARE-repair-failure-boundaries
 
 - Generate a six-page lesson with four body pages and two assessments from an
@@ -17880,3 +18028,38 @@ Automated by `ppt-editor-visibility.test.mjs` and
   to the built Host. These use isolated workspace/data directories, real
   compilation, parsing and persistence, and synthetic supplier output. They do
   not authorize paid provider calls or writes to the user's courseware database.
+
+### Native teaching and persistent PPT Master SVG entry (2026-11-09)
+
+- Resume an adopted plain task without retained tool messages. Its persisted
+  PPT Master source must retain a manual SVG preview/editor entry.
+- During generation, open the first SVG once; refresh must not steal focus.
+  Change project/session during a pending preview and reject the obsolete reply.
+- Open the real six-page PPT Master export in the native SDK. Every page must
+  start/restart teaching. Unbound delays, zoom/stretch effects and click effects
+  execute without blocking narration; linked effects retain explicit ownership.
+- Quiz and checkpoint playback use the shared runtime components. Check a wrong
+  choice, correct retry, teacher continuation, source-less checkpoint context,
+  repeated start/stop and media-read error recovery in the actual native iframe.
+- Preserve sandboxed local/team preview authorization and portable playback.
+  Relevant checks: `courseware-svg-entry.test.mjs`, `ppt-master-quality.test.mjs`,
+  `wiseoffice-maic-sidebar.browser.mjs`, `courseware-player-preview.test.mjs`,
+  runtime `teaching-timeline-preview.test.ts` and WiseOffice teaching tests.
+
+### Teaching-object ownership (2026-11-09)
+
+- Reproduce a vocabulary card with a blank backplate and separate word UUIDs.
+  Reject the backplate mixed with words, a single wrong word, and an unrelated
+  word in a multi-object binding; accept the corrected independent word UUIDs.
+  Apply the same assertions to plain/PPT Master, import and scene generation.
+- Reject vision moving lettering onto an empty native card. Check all native
+  labels even when vision incorrectly classifies them as non-targets. Preserve
+  normal picture OCR and standalone meaningful vector targets.
+- Confirm a copied long container alias cannot mask shorter word identities;
+  ambiguous automatic selection remains unbound rather than choosing a UUID.
+- Exercise bounded correction through the desktop batch boundary: a corrected
+  candidate saves once; a persistent bad binding stops after three total narration
+  attempts with no save. No TTS purchase or user database mutation is required.
+- Automated: agent-runtime `courseware/narration-write.test.ts`; Desktop
+  `courseware-narration-batch.test.mjs`, `courseware-saved-narration.test.mjs`,
+  `courseware-narration.test.mjs` and `courseware-scene-object-view.test.mjs`.

@@ -37,6 +37,7 @@ export class AudioPlayer {
   private playbackToken: number = 0;
   private cleanupTrim: (() => void) | null = null;
   private cleanupEvents: (() => void) | null = null;
+  private endedDurationMs = 0;
 
   /**
    * Play audio from URL.
@@ -134,7 +135,7 @@ export class AudioPlayer {
   public getDuration(): number {
     return this.audio && !isNaN(this.audio.duration)
       ? this.audio.duration * 1000
-      : 0;
+      : this.endedDurationMs;
   }
 
   public seek(timeMs: number): void {
@@ -219,6 +220,8 @@ export class AudioPlayer {
         log.debug("Ignored stale audio callback", { reason });
         return;
       }
+      // Speech-tail timing still needs the completed clip after its element is released.
+      this.endedDurationMs = this.getDuration();
       this.audio = null;
       this.cleanupEvents?.();
       this.cleanupEvents = null;
@@ -277,6 +280,7 @@ export class AudioPlayer {
 
   private resetAudio(): void {
     this.playbackToken += 1;
+    this.endedDurationMs = 0;
     this.cleanupEvents?.();
     this.cleanupEvents = null;
     this.cleanupTrim?.();

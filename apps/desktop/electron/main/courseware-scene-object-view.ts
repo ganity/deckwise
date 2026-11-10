@@ -8,7 +8,7 @@ const sameProjectRevision = (raw: unknown, project: CoursewareProject): boolean 
   isCoursewareProject(raw) && raw.projectId === project.projectId && raw.taskType === project.taskType &&
   raw.source.sha256 === project.source.sha256 && raw.source.revision === project.source.revision &&
   raw.teachingRevision === project.teachingRevision && raw.pages.length === project.pages.length &&
-  raw.pages.every((page, index) => page.pageId === project.pages[index].pageId);
+  raw.pages.every((page, index) => page.pageId === project.pages[index].pageId && page.locked === project.pages[index].locked);
 
 /** All task types use current Host-bound UUIDs; display order is never an identity. */
 export function objectsForTeaching(raw: unknown, project: CoursewareProject, pageId: string): CoursewareTeachingView["teachingObjects"] {
@@ -105,6 +105,12 @@ export function sceneObjectsForTeaching(raw: unknown, project: CoursewareProject
 
 /** Metadata follows logical page identity across native reorder/save, never the current ordinal. */
 export function sceneTeachingForPage(raw: unknown, project: CoursewareProject, pageId: string): CoursewareTeachingView["teaching"] {
+  if (project.taskType === "plain" && record(raw) && sameProjectRevision(raw.project, project) && Array.isArray(raw.teachingRequirements)) {
+    const matches = raw.teachingRequirements.filter(page => record(page) && page.pageId === pageId);
+    if (matches.length > 1 || matches.some(page => !isCoursewareSceneTeaching(page.teaching)))
+      throw new Error("Invalid saved presentation teaching requirements");
+    return matches[0]?.teaching;
+  }
   if (project.taskType !== "scene") return undefined;
   sceneObjectsForTeaching(raw, project, pageId);
   if (!record(raw) || !record(raw.sceneObjects) || !Array.isArray(raw.sceneObjects.pages)) return undefined;

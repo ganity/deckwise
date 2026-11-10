@@ -9,6 +9,8 @@ pub struct Teaching {
     pub duration_seconds: u64,
     pub required_objects: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "present_option")]
+    pub required_effects: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "present_option")]
     pub question: Option<Question>,
     #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "present_option")]
     pub music: Option<Music>,
@@ -44,6 +46,9 @@ impl Teaching {
             && self.required_objects.len() <= 30
             && self.required_objects.iter().all(|s| text(s, 200))
             && self.required_objects.iter().collect::<std::collections::HashSet<_>>().len() == self.required_objects.len()
+            && self.required_effects.as_ref().is_none_or(|effects| effects.len() <= 3
+                && effects.iter().all(|s| matches!(s.as_str(), "highlight" | "spotlight" | "animation"))
+                && effects.iter().collect::<std::collections::HashSet<_>>().len() == effects.len())
             && (matches!(self.page_type.as_str(), "slide" | "quiz") || self.question.is_some())
             && self
                 .question
@@ -90,6 +95,15 @@ mod tests {
         let parsed: Teaching = serde_json::from_value(legacy.clone()).unwrap();
         assert!(parsed.valid());
         assert_eq!(serde_json::to_value(&parsed).unwrap(), legacy);
+        let mut effects = legacy.clone();
+        effects["requiredEffects"] = json!(["highlight", "spotlight", "animation"]);
+        let parsed: Teaching = serde_json::from_value(effects.clone()).unwrap();
+        assert!(parsed.valid());
+        assert_eq!(serde_json::to_value(parsed).unwrap(), effects);
+        for invalid in [json!(["animation", "animation"]), json!(["unknown"]), Value::Null] {
+            effects["requiredEffects"] = invalid;
+            assert!(!serde_json::from_value::<Teaching>(effects.clone()).is_ok_and(|t| t.valid()));
+        }
         let mut video = legacy.clone();
         video["video"] = json!({"purpose":"Show a wave","prompt":"A five-second silent wave"});
         assert!(serde_json::from_value::<Teaching>(video).unwrap().valid());

@@ -10,6 +10,72 @@ pub(super) fn identity_key(workspace: &str, project_id: &str, sha256: &str) -> R
     ))?)
 }
 
+fn upgrade_fallback_identity(
+    saved: &SavedSourceIdentity,
+    fresh: &SavedSourceIdentity,
+) -> Option<Value> {
+    let old = saved.value();
+    let mut next = fresh.value().clone();
+    let fallback = |value: &Value| {
+        value["diagnostics"].as_array().is_some_and(|items| {
+            items
+                .iter()
+                .any(|item| item["code"] == "pptx_fallback_ooxml")
+        })
+    };
+    if old["sourceSha256"] != next["sourceSha256"]
+        || !fallback(old)
+        || fallback(&next)
+        || [old, &next].iter().any(|value| {
+            value["diagnostics"]
+                .as_array()
+                .is_some_and(|items| items.iter().any(|item| item["severity"] == "error"))
+        })
+    {
+        return None;
+    }
+    let old_pages = old["pages"].as_array()?;
+    let pages = next["pages"].as_array_mut()?;
+    if pages.len() != old_pages.len() {
+        return None;
+    }
+    for (page, previous) in pages.iter_mut().zip(old_pages) {
+        if page["importPageId"] != previous["importPageId"] {
+            return None;
+        }
+        page["logicalId"] = previous["logicalId"].clone();
+        let old_objects = previous["objects"].as_array()?;
+        let objects = page["objects"].as_array_mut()?;
+        if objects.len() != old_objects.len() {
+            return None;
+        }
+        let mut by_native_id = std::collections::HashMap::new();
+        for object in old_objects {
+            if by_native_id
+                .insert(object["sourceShapeId"].as_str()?, object)
+                .is_some()
+            {
+                return None;
+            }
+        }
+        for object in objects {
+            let previous = by_native_id.remove(object["sourceShapeId"].as_str()?)?;
+            let name = previous["sourceObjectName"].as_str()?;
+            // Identical bytes and exact native identities, not changed parser fingerprints, prove correspondence.
+            if name.trim().is_empty()
+                || object["sourceObjectName"] != name
+                || !(previous["type"] == object["type"]
+                    || previous["type"] == "shape" && object["type"] == "text")
+            {
+                return None;
+            }
+            object["logicalId"] = previous["logicalId"].clone();
+        }
+    }
+    next["mappingRevision"] = uuid::Uuid::new_v4().to_string().into();
+    Some(next)
+}
+
 impl Database {
     /// Recovery buffers follow an unchanged page, never another page's revision alone.
     pub fn reconcile_courseware_draft(
@@ -244,10 +310,20 @@ impl Database {
         });
         let native_saved = self.has_native_save_receipt(workspace, &project)?;
         let mut context = serde_json::json!({ "project": project, "mapping": mapping, "savedObjects": saved_objects, "nativeSaved": native_saved, "saveWarnings": self.native_save_warnings(workspace, &project)? });
-        let mut assessments: Vec<_> = self.courseware_assessment_page_ids(workspace, &project)?.into_iter().collect();
+        let mut assessments: Vec<_> = self
+            .courseware_assessment_page_ids(workspace, &project)?
+            .into_iter()
+            .collect();
         assessments.sort();
         context["assessmentPageIds"] = serde_json::json!(assessments);
         context["completion"] = self.courseware_completion(workspace, &project)?;
+        if project.task_type == "plain" {
+            if let Some(requirements) =
+                self.courseware_teaching_requirements(workspace, &project)?
+            {
+                context["teachingRequirements"] = requirements["pages"].clone();
+            }
+        }
         let chat_changes = self.courseware_chat_change_context(workspace, &project)?;
         if !chat_changes.is_empty() {
             context["chatChanges"] = serde_json::json!(chat_changes);
@@ -336,7 +412,23 @@ impl Database {
             );
             let key = identity_key(workspace, &project.project_id, &project.source.sha256)?;
             if let Some(saved) = self.kv_get(IDENTITY_NAMESPACE, &key)? {
-                let saved = SavedSourceIdentity::parse(&serde_json::to_vec(&saved)?)?;
+                let mut saved = SavedSourceIdentity::parse(&serde_json::to_vec(&saved)?)?;
+                if !saved.same_export(identity) {
+                    self.courseware_mapping_revision(workspace, &project)?;
+                    if let Some(upgraded) = upgrade_fallback_identity(&saved, identity) {
+                        self.ensure_no_source_adoption(workspace)?;
+                        let history_key =
+                            serde_json::to_string(&(&key, &saved.value()["mappingRevision"]))?;
+                        self.kv_set("coursewareIdentityHistory.v1", &history_key, saved.value())?;
+                        anyhow::ensure!(
+                            self.kv_get("coursewareIdentityHistory.v1", &history_key)?
+                                .as_ref()
+                                == Some(saved.value()),
+                            "COURSEWARE_INVALID: previous identity archive was not saved"
+                        );
+                        saved = SavedSourceIdentity::parse(&serde_json::to_vec(&upgraded)?)?;
+                    }
+                }
                 let pages = saved.value()["pages"]
                     .as_array()
                     .ok_or_else(|| anyhow!("COURSEWARE_INVALID: missing saved identity pages"))?;
@@ -369,6 +461,10 @@ impl Database {
                     }
                 }
                 self.kv_set(IDENTITY_NAMESPACE, &key, &enriched)?;
+                anyhow::ensure!(
+                    self.kv_get(IDENTITY_NAMESPACE, &key)?.as_ref() == Some(&enriched),
+                    "COURSEWARE_INVALID: saved identity update was not committed"
+                );
             } else {
                 let ids: Vec<_> = project
                     .pages

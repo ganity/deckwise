@@ -287,6 +287,23 @@ test("PPTX actions fence switched tasks, running turns, disabled state and late 
   f.store.activeSessionId = "other"; complete(pptxView); await f.flush(); assert(!pptxReview(f));
 });
 
+for (const locale of ["en", "zh-CN", "zh-TW", "de", "es", "fr", "ko", "tr"]) {
+  test(`ordinary export action requests the complete teaching handoff in ${locale}`, async t => {
+    const translations = {};
+    new Function("exports", ts.transpileModule(await readFile(new URL(`../../../packages/i18n/src/locales/${locale}/index.ts`, import.meta.url), "utf8"), {
+      compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+    }).outputText)(translations);
+    const prompt = Object.values(translations)[0].coursewareWorkflow.exportPrompt;
+    assert.match(prompt, /TTS|语音/);
+    assert.match(prompt, /PPTX-only|仅导出 PPTX/);
+    assert.match(prompt, /original jobs|原有任务/);
+    const f = await fixture(t, "CoursewareChatPresentation", { sessionId: "chat", disabled: false, refreshKey: 0 }, {},
+      key => key === "coursewareWorkflow.exportPrompt" ? prompt : key);
+    await f.click("buildPpt");
+    assert.deepEqual(f.calls.at(-1), ["prompt", prompt, undefined, "chat"]);
+  });
+}
+
 test("ordinary Chat preview, repair and export use the current project without the workbench", async t => {
   const props = { sessionId: "chat", disabled: false, refreshKey: 0 };
   const f = await fixture(t, "CoursewareChatPresentation", props);
@@ -358,6 +375,7 @@ test("a referenced project without saved pages stays pending rather than asking 
 
 test("ordinary Chat actions reject stale-session clicks and failed sends remain retryable", async t => {
   const f = await fixture(t, "CoursewareChatPresentation", { sessionId: "chat", disabled: false, refreshKey: 0 });
+  f.calls.length = 0; // Automatic SVG preview is covered separately.
   const stale = f.button("buildPpt");
   f.store.activeSessionId = "other"; stale.props.onClick(); await f.flush();
   assert.equal(f.calls.length, 0);
@@ -857,7 +875,10 @@ test("ordinary inspection hands a validated PPT to the workspace during an activ
   const f = await fixture(t, "CoursewareChatPresentation", props);
   f.store.runningSessions.chat = true; f.project.exported = true; props.refreshKey++; f.render(); await f.flush();
   assert.equal(paths.at(-1), `${f.projectPath}/exports/lesson.pptx`);
-  assert(!f.button("openEditor"));
+  assert.equal(f.button("openEditor").props.disabled, true);
+  const before = f.calls.length;
+  f.button("openEditor").props.onClick(); await f.flush();
+  assert.equal(f.calls.length, before);
 });
 
 test("images, layers and compiler stages never expose PPT editor tools", async t => {

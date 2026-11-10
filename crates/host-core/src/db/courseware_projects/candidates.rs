@@ -172,7 +172,10 @@ fn repair_required_actions(
                     {
                         anyhow::ensure!(
                             existing["id"] == action["id"]
-                                && existing.get("visualCues").is_none_or(|c| c.as_array().is_some_and(Vec::is_empty)),
+                                && existing["visualCues"].as_array().is_none_or(|cues|
+                                    !cues.iter().any(|c| c["effect"]["type"] == attention["type"])
+                                        || attention.get("animation").is_some()
+                                            && !cues.iter().any(|c| c["effect"]["type"] == "element_animation")),
                             "COURSEWARE_INVALID: focus repair must preserve existing cues and speech identity"
                         );
                         attention::targets(attention)?;
@@ -223,7 +226,7 @@ impl Database {
             .find(|p| p.page_id == write.page_id)
             .ok_or_else(|| anyhow!("COURSEWARE_PAGE_NOT_FOUND: logical page not found"))?;
         let mut actions = page.actions.clone();
-        if let Some(scene) = self.courseware_scene_objects(workspace, project)? {
+        if let Some(scene) = self.courseware_teaching_requirements(workspace, project)? {
             let teaching = scene["pages"]
                 .as_array()
                 .into_iter()
@@ -355,7 +358,7 @@ impl Database {
         let mut write = write.clone();
         let retained = self.normalize_narration_music(workspace, &current, &mut write)?;
         if preserve_speech {
-            let scene = self.courseware_scene_objects(workspace, &current)?
+            let scene = self.courseware_teaching_requirements(workspace, &current)?
                 .ok_or_else(|| anyhow!("COURSEWARE_INVALID: required teaching repair needs retained scene requirements"))?;
             let teaching = scene["pages"]
                 .as_array()
@@ -381,9 +384,14 @@ impl Database {
                                 .map(|a| a.duration_ms)
                         })
                         .ok_or_else(|| anyhow!("COURSEWARE_INVALID: focus repair needs verified saved speech audio"))?;
-                    action["visualCues"] = serde_json::json!(attention::cues(
-                        &intent, action["id"].as_str().unwrap_or_default(), duration
-                    )?);
+                    let mut cues = action["visualCues"].as_array().cloned().unwrap_or_default();
+                    let anchor = if cues.is_empty() {
+                        action["id"].as_str().unwrap_or_default().to_owned()
+                    } else {
+                        format!("{}-repair-{}", action["id"].as_str().unwrap_or_default(), cues.len())
+                    };
+                    cues.extend(attention::cues(&intent, &anchor, duration)?);
+                    action["visualCues"] = serde_json::json!(cues);
                     action.as_object_mut().unwrap().remove("attention");
                 }
             }

@@ -11,6 +11,12 @@ quality, complex decks and release acceptance remain separate.
 
 ## Ownership
 
+PPT Master SVG inspection remains mounted after adoption. Resolve its project
+from the saved source path before falling back to chat tool history. Open the
+first available SVG once during generation, allow manual reopening after export,
+and fence asynchronous preview responses when the session/project changes.
+Preview reads do not share the model-turn mutation lock or authorize export.
+
 Scene planning counts cover, opening, illustrated setup and review pages within
 the saved body-page budget. Story beats map onto those pages; they do not create
 additional pages. Explicit total limits include the separate assessment pages.
@@ -111,15 +117,14 @@ the saved page; this is not automatic save or source association. Other native,
 teaching and publication operations retain their editor entrances. This does
 not certify production model quality.
 
-Ordinary tasks do not use the scene-specific `generatedPath` attachment. Their
-existing project inspector exposes the same single visual-review section after
-it finds a current exported PPTX. Scene/import retain their attachment flags.
+Before teaching adoption, ordinary tasks use the existing project inspector to
+expose the same single visual-review section after finding a current exported
+PPTX. After adoption, they use the shared saved-source `generatedPath` attachment.
 Refreshing an ordinary project, receiving new Chat messages or starting a turn
 keeps its last inspected result mounted while rechecking, so approval is not
 revoked before the proposal can use it. A changed project path resets inspection;
 a returned stale/missing export removes that entrance. Main remains authoritative
-for the actual clean Office source/page and all approval guards. This adds no
-attachment metadata, migration or alternate export logic.
+for the actual clean Office source/page and all approval guards.
 
 Native-textless preview validation accepts ordinary nested groups in the slide,
 layout and master when every descendant is a supported opaque shape or picture.
@@ -129,6 +134,61 @@ ordinary PPT Master's grouped native output to use Chat visual review without
 flattening its editable objects or changing the document. Raster image text still
 needs human review. The editor change requires the matching updated Office build;
 it is not supplied by updating Desktop alone.
+
+### Ordinary presentation teaching handoff
+
+The official SVG preview and explicit Generate PPTX gate remain required.
+Before SVG authoring, plan one teaching entry per physical page using
+`courseware_presentation_adopt`'s schema. Opening, setup and review consume the
+body-page budget; standalone Quiz and checkpoint pages must fit the requested
+total page budget. Each Quiz page contains one structured MAIC question, using
+A-D option keys (T/F for judge). Each classroom interaction has one exact,
+editable question text box and a reference answer. Assessment pages cannot also
+carry body narration, required objects, effects, music or video.
+
+For new projects, `courseware_presentation_prepare` saves that ordered plan in
+`presentation-plan.json` and renders assessment SVGs through the existing shared
+Quiz/checkpoint projection. Its file list reserves one `NN.svg` per physical page;
+the model authors only body entries. Fixed pages contain editable student-facing
+text and shapes, never reference answers, grading constraints or lecture/effects.
+Returned template font sizes must be declared as named assessment typography in
+the design spec and lock; the official quality gate still checks every SVG.
+Long questions wrap within one editable text box. Identical preparation is safe
+to replay; changed/manual artifacts are conflicts and are never overwritten.
+Preparation does not touch exported/native content, call suppliers or authorize
+export. Once a source is attached, resume saved teaching instead of preparing it
+again. Adoption must match the saved plan; plan changes invalidate previous
+validation and exports. Projects created before this manifest remain compatible.
+
+After the authorized official export, Main parses its actual bytes and creates
+canonical scenes using Host page UUIDs. The finite `courseware.presentation.adopt`
+RPC verifies the workspace export path, current final SVG quality report,
+planning/notes freshness, source hash, physical page count and body-page budget.
+Host saves page-bound `metadata.teachingRequirements` and attaches the source
+to the ordinary task. Detailed narration reads trusted parsed notes and page
+evidence; missing assessment notes never trigger legacy body-note initialization. Replays
+retain the same plan and saved teaching; they never reconstruct edited content.
+No new database schema or alternative presentation exporter is introduced.
+
+Saved narration, object-grounded highlight/spotlight/animation, speech TTS,
+question TTS and Quiz option images use the same services and editor/player as
+scene and imported courses. Outline notes do not count as detailed narration.
+Explicit `requiredEffects` remain incomplete until saved pending cues or timed
+cues satisfy them. Ordinary visual observations use actual parsed object IDs,
+without creating scene-only semantic storage. Requirements follow logical page
+identity during native save/reorder. Once Office editing starts, resume saved
+teaching instead of overwriting the deck from SVG.
+
+`courseware_presentation_adopt` continues the teaching-course turn by default,
+including when the model omits `continueTeaching`. Export confirmation in this
+courseware task is not a PPTX-only completion boundary. The export action names
+the teaching handoff and requests narration, synchronized effects, speech and
+assessment media under the existing credits policy. An explicit PPTX-only or
+no-audio request must pass `continueTeaching:false` and starts no additional
+media generation. Scene compilation and status-only media reads retain their
+existing explicit opt-in semantics. Completion includes missing question speech and
+option images, not merely successful PPTX export. Restart resumes the existing
+saved project and original media requests through the shared continuation tools.
 
 The main-window-only `deckwise/courseware/workflow/get` IPC accepts exactly
 `{sessionId}`. Main validates the active viewing Chat, stable Host and workspace.
@@ -961,6 +1021,20 @@ separate content review; fixture results establish orchestration and persistence
 
 ## Saved narration and bounded recovery context (2026-11-05)
 
+Complete-course continuation persists its first running checkpoint at the
+successful adoption/activation tool boundary, before later media writes can
+change the source. Only Host-verified native-save lineage advances that saved
+source identity. An unrelated source replacement stops with a specific
+`COURSEWARE_CONFLICT` unfinished report, retaining prior teaching and orders;
+it does not turn a known workflow conflict into a generic local LLM error.
+
+Assessment TTS recovery may reconcile an original content-addressed order against
+the latest classroom revision for the same source. The current text, model, voice,
+principal, scene and action must still locate that original order. Prepare/quote
+and manual regeneration remain revision-pinned, and each write still uses fresh
+CAS. Changed text cannot receive the previous audio; refresh never purchases a
+replacement. Already adopted audio returns idempotently without another write.
+
 Scene quality checks and saved TTS admission share the detailed-narration rule:
 nonempty speech with seeded `narration-N` IDs requires `source: generated` from
 normal detailed generation until a verified native save makes the current saved
@@ -1014,3 +1088,25 @@ header, status row and icon controls. Only the content below that header changes
 to the corresponding assessment form. Undo, redo, save, refresh and preview use
 the canonical draft on these pages; they must never write native body teaching
 actions. Autosave remains active. No duplicate assessment toolbar is rendered.
+
+## Persisted speech animations
+
+The shared saved-media completion path materializes speech animation cues into
+native PPTX timing after every saved speech has adopted its audio. This applies
+to PPT Master, scene generation and import; it does not depend on opening each
+page in Office. Reading media context also resumes an interrupted local export.
+The authoring runtime resolves logical objects through the verified import
+mapping, writes finite SDK-compatible behaviors, preserves unrelated native
+timing and reparses the result before adoption. Repeating completion is idempotent.
+
+Main adopts the bytes through the existing native-save journal and source CAS,
+retaining logical identities and archived audio. Export failure must retain
+successful TTS receipts; retrying local animation export must not repurchase audio.
+Missing/ambiguous objects, locked pages, unsupported source timing and stale source
+fail before replacement. Existing legacy native-step bindings require explicit
+reassociation before extending the native sequence.
+
+WiseOffice speech playback may schedule saved native effects against the speech
+clock, including different entrance/exit effects on one object. It must never
+create an effect absent from the saved native slide. Missing effects are an
+incomplete export, not successful animation playback.

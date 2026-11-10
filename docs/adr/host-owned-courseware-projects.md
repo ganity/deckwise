@@ -102,8 +102,18 @@ The D2f baseline stores a strict, digest-verified saved-source identity in the
 same SQLite transaction as initial project creation. It uses a separate
 `coursewareIdentities.v1` namespace keyed by workspace/project and source hash;
 Host binds canonical page UUIDs, object UUIDs and a mapping revision. It survives
-temporary-parser cleanup and restart. Identical-source worker/schema drift
-requires explicit review rather than overwriting these identities. This adds
+temporary-parser cleanup and restart. General identical-source worker/schema drift
+requires explicit review rather than overwriting these identities. A narrow
+legacy fallback-to-primary parser migration may replace parser metadata only
+for byte-identical source hashes, unchanged ordered native page IDs, and a
+complete one-to-one match of page-local native shape IDs and exact object names.
+Only equal object kinds or the fallback's shape-to-text correction are allowed;
+missing/duplicate native IDs, ambiguous names or parser errors reject intact.
+Host archives the previous identity in `coursewareIdentityHistory.v1`, preserves
+every logical UUID and the entire teaching project, and advances only the mapping
+revision in the same transaction. Unchanged UUIDs retain existing speech/audio
+and cue references; this does not restore previously deleted cues or missing
+narration, infer bindings across changed bytes, or authorize generation. This adds
 no renderer-supplied mapping authority and no cross-save adoption permission.
 
 The first module provides storage/RPC, not a completed editor workflow. The
@@ -316,3 +326,30 @@ media follows reviewed logical page/action IDs and unchanged speech text, withou
 fabricating provider receipts. Main validates bytes with its sandboxed decoder
 before local preview or fixed snapshot capture. Normal saves still do not update
 the exported backup sidecar, and no editing-authority switch is implied.
+
+### 2026-11-08: Fixed assessment SVGs in ordinary presentation drafts
+
+New PPT Master projects reuse the shared learner-facing assessment projection
+before body authoring. Main writes fixed Quiz/checkpoint SVGs and a draft plan;
+the model only designs body SVGs. Every physical slide still passes the official
+SVG preview, quality and explicit-export gates. This avoids a second mixed-page
+exporter while removing disposable model-designed assessment layouts. The draft
+manifest is not a teaching store: Host adoption, UUID mapping, canonical teaching
+and the existing media lifecycle remain authoritative. Conflicting drafts are
+preserved, adopted Office content is never regenerated, and old exports without
+a draft manifest remain supported.
+
+### 2026-11-09: Native rendering with shared teaching playback
+
+WiseOffice remains the desktop PPT rendering surface: native animation fidelity
+is not replaced by a DOM reconstruction. Its teaching timeline uses the shared
+PlaybackCore/AudioPlayer, and Quiz grading, question responses and reference
+answers now reuse the shared runtime views rather than a second handwritten
+native Quiz implementation. The native adapter owns PPT animation readiness,
+pause/resume and temporary schedule restoration. Page-entry effects can run
+beside narration; only explicit speech bindings wait on their owned effects.
+
+Keep the fixed player for portable courseware and team builds. Those callers
+cannot be removed until a portable native PPT renderer exists. This does not
+claim that arbitrary native effects can be published through the finite portable
+animation projection; unsupported publication remains an explicit limitation.

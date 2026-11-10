@@ -147,7 +147,7 @@ test("Chat submission does not open a workbench and workspace edits do not open 
 });
 
 test("a new task never inherits another task's courseware project", () => {
-  assert.match(presentation, /const path = referencedProject\(messages\)/);
+  assert.match(presentation, /const path = referencedProject\(messages, sourcePath\)/);
   assert.match(presentation, /if \(!path\) return;/);
   assert.doesNotMatch(panel, /listDir\("\.deckwise-ppt\/projects"\)/);
 });

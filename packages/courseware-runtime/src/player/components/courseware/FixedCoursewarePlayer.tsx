@@ -14,7 +14,7 @@ import type { LoadedFixedBuild } from "../../lib/courseware/load-fixed-build";
 import type { InteractionCheckpointPayload } from "../../lib/types/action";
 import { AudioPlayer } from "../../lib/utils/audio-player";
 import type { FixedPlayerLabels } from "../../labels";
-import { TeachingQuestionResponse } from './TeachingQuestionResponse';
+import { TeachingQuestion } from './TeachingQuestion';
 import { resolveSpeechAnimationCue } from '../../../speech-animation-trigger';
 import { MaicQuiz } from "./MaicQuiz";
 import { FixedSlide } from "./FixedSlide";
@@ -375,17 +375,9 @@ export function FixedCoursewarePlayer({
           className="border-l-4 border-amber-500 bg-amber-50 p-4 text-slate-900"
         >
           <strong>{labels.waitingForTeacher}</strong>
-          <p>
-            {waiting.checkpointKind === "chapter_summary"
-              ? waiting.question
-              : labels.continueWhenReady}
-          </p>
-          {waiting.checkpointKind === "chapter_summary" && waiting.response ? <TeachingQuestionResponse key={waiting.checkpointId} response={waiting.response} labels={labels} /> : null}
-          {waiting.checkpointKind === "chapter_summary" && <details key={waiting.checkpointId}>
-            <summary>{labels.referenceAnswer ?? englishPlayerLabels.referenceAnswer}</summary>
-            <p>{waiting.referenceAnswer.summary}</p>
-            <ul>{waiting.referenceAnswer.keyPoints.map((point, index) => <li key={index}>{point}</li>)}</ul>
-          </details>}
+          {waiting.checkpointKind === "chapter_summary"
+            ? <TeachingQuestion question={waiting} labels={labels} />
+            : <p>{labels.continueWhenReady}</p>}
           {waiting.checkpointKind === "media_playback" && waiting.videoUrl && waiting.mediaType === 'video' && <video key={waiting.checkpointId}
             controls playsInline preload="metadata" src={waiting.videoUrl}
             onEnded={() => engine.current?.resumeInteraction(waiting.checkpointId)}

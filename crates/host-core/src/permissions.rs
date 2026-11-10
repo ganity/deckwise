@@ -141,6 +141,8 @@ impl PermissionManager {
             | "courseware_requirements_update"
             | "courseware_scene_image_refresh"
             | "courseware_scene_compile"
+            | "courseware_presentation_adopt"
+            | "courseware_presentation_prepare"
             | "courseware_narration_propose"
             | "courseware_media_prepare"
             | "courseware_media_refresh"
@@ -908,6 +910,8 @@ mod ppt_format_permission_tests {
         for name in [
             "courseware_canvas_edit",
             "courseware_media_assessments",
+            "courseware_presentation_adopt",
+            "courseware_presentation_prepare",
             "ppt_record_change_plan",
             "ppt_replace_slide_image_from_asset",
             "ppt_set_slide_text_bold",
