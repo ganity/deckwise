@@ -56,3 +56,22 @@ editor and runtime, without skipping the copied fixture.
 Generated editor/worker bundles are validation artifacts outside Git. This
 integration does not certify other operating systems, arbitrary Office effects
 or external Office save compatibility, and makes no paid provider calls.
+
+## Local validation-resource incident
+
+After the historical checks passed, a temporary absolute symlink to Part A's
+ignored `.worker-desktop-02` directory was mistakenly included in the integration
+commit. Git replaced that ignored historical test cache when the target advanced.
+The link was immediately removed in `ff773e248`; no absolute worker link remains
+in the final source tree. The application's `apps/desktop/resources/pptx-worker`,
+the four pre-existing resource backups and the real courseware were untouched.
+
+The pinned cache's original manifest hash is
+`1eb6dd1479dffca96620281d74243bfab738d8115884dcdc633956c78247339a`.
+It could not be recovered byte-for-byte from local resource backups or historical
+source/compiler/dependency reconstruction. The 14 historical tests did pass
+before this incident; rerunning them now requires restoring that exact converter
+cache. The freshly built integration worker remains independently qualified by
+22 fixed-build tests at `/tmp/native-teaching-merged-worker-20261110`. Do not
+replace the historical hash assertion or rebaseline its fixtures to hide this
+limitation. No source or application data was discarded.
