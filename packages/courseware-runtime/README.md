@@ -10,6 +10,10 @@ only Agent; B supplies its finite tools and A owns registration/persistence.
 - `@pi-desktop/courseware-runtime/authoring`: strict editable-scene schema,
   local scene-to-PPTX compilation, single-page and confirmed-style batch candidates,
   canonical page baselines and byte-verified lineage.
+  `syncSpeechAnimations` writes verified native OOXML behaviors for saved speech
+  cues, preserves unrelated timing and resolves targets through logical-to-native
+  object names. Its output must be adopted through Host's native-save journal;
+  a teaching cue alone is not evidence that an animation exists in the PPTX.
   This is an isolated Node-only entry; conversion and playback do not load it.
 - `@pi-desktop/courseware-runtime/player`: fixed loader, player, labels,
   authenticated ready-media resolver and `mountFixedBuild`.

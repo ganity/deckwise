@@ -10,6 +10,7 @@ mod media_relay;
 mod native_save;
 mod online_source_review;
 mod portable;
+mod presentation;
 mod scene_images;
 mod scene_plan;
 pub(super) mod story;
@@ -599,6 +600,7 @@ pub(super) async fn handle(
                 .map_err(error)?;
             Ok(json!({ "task": task }))
         }
+        "courseware.presentation.adopt" => presentation::handle(state, params).await,
         "courseware.assetLocks.context" | "courseware.assetLocks.set" => {
             asset_locks::handle(state, method, params).await
         }

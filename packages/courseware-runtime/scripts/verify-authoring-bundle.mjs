@@ -17,7 +17,7 @@ for (const entry of provenance.files) {
 }
 const graphs = JSON.parse(await readFile(path.join(root, 'dist/graphs.json'), 'utf8'));
 const builtins = new Set(builtinModules.map(name => name.replace(/^node:/, '')));
-assert(graphs.authoring.external.every(name => name === 'sharp' || builtins.has(name.replace(/^node:/, ''))), 'Authoring has an undeclared runtime dependency');
+assert(graphs.authoring.external.every(name => ['sharp', '@napi-rs/canvas'].includes(name) || builtins.has(name.replace(/^node:/, ''))), 'Authoring has an undeclared runtime dependency');
 assert(graphs.authoring.inputs.every(name => !path.isAbsolute(name) && (!name.startsWith('../') || /^(?:\.\.\/)+node_modules\//.test(name))), 'Authoring imports another checkout');
 const directory = await mkdtemp(path.join(tmpdir(), 'deckwise-authoring-'));
 try {

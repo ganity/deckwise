@@ -767,11 +767,25 @@ fn missing_focus_repair_reuses_verified_audio_and_preserves_all_existing_actions
     assert!(db
         .repair_required_teaching(root, &seed, &repaired, &overwrite)
         .is_err());
+    let mut addition = repaired.pages[0].actions[0].clone();
+    addition.as_object_mut().unwrap().remove("visualCues");
+    addition["attention"] = json!({"type":"spotlight","objectIds":[target],"animation":"pulse"});
+    overwrite.actions = vec![addition];
+    let extended = db.repair_required_teaching(root, &seed, &repaired, &overwrite).unwrap();
+    let effects = extended.pages[0].actions[0]["visualCues"].as_array().unwrap();
+    assert_eq!(effects.len(), 3);
+    assert_eq!(effects[0], repaired.pages[0].actions[0]["visualCues"][0]);
+    assert_eq!(effects[1]["effect"]["type"], "element_animation");
+    assert_eq!(effects[2]["endMs"], 1234);
+    assert_ne!(effects[0]["id"], effects[2]["id"]);
+    let mut preserved = extended.pages[0].actions[0].clone();
+    preserved.as_object_mut().unwrap().remove("visualCues");
+    assert_eq!(preserved, original);
     assert_eq!(
         db.get_courseware_project(root, &project.project_id)
             .unwrap()
             .unwrap()
             .teaching_revision,
-        repaired.teaching_revision
+        extended.teaching_revision
     );
 }

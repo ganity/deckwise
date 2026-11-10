@@ -102,7 +102,7 @@ export class CoursewarePlayerPreview {
     const window = new BrowserWindow({ parent, width: 1100, height: 850, show: false,
       webPreferences: { preload: join(__dirname, "../preload/courseware-player.js"),
         contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true,
-        autoplayPolicy: "user-gesture-required", partition: `courseware-preview-${generation}` } });
+        autoplayPolicy: "document-user-activation-required", partition: `courseware-preview-${generation}` } });
     const playerUrl = process.env.ELECTRON_RENDERER_URL
       ? new URL("courseware-player.html", process.env.ELECTRON_RENDERER_URL).href
       : pathToFileURL(join(__dirname, "../renderer/courseware-player.html")).href;

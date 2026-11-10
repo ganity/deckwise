@@ -46,6 +46,20 @@ fn required_action_repair_keeps_existing_audio_effects_and_timeline_anchors() {
     assert_eq!(reused.last(), existing.last());
 }
 
+#[test]
+fn required_focus_repair_preserves_existing_cues_and_audio() {
+    let original = json!({"id":"speech","type":"speech","text":"Grandfather.",
+        "audioAssetId":format!("tts-{}", "a".repeat(64)),
+        "visualCues":[{"id":"focus-speech","atMs":0,"endMs":1234,
+            "effect":{"type":"spotlight","elementId":"portrait","elementIds":[]}}]});
+    let mut proposed = original.clone();
+    proposed["attention"] = json!({"type":"highlight","objectIds":["word"],"animation":"pulse"});
+    let repaired = repair_required_actions(&[original.clone()], &[proposed.clone()], &json!({})).unwrap();
+    assert_eq!(repaired, vec![proposed.clone()]);
+    proposed["id"] = json!("different-speech");
+    assert!(repair_required_actions(&[original], &[proposed], &json!({})).is_err());
+}
+
 fn fixture() -> (CoursewareProject, SavedProjectSeed, TeachingWrite) {
     let accepted: Value = serde_json::from_slice(include_bytes!(
         "../../../../../../packages/shared/src/courseware-contract.fixtures/accepted.json"

@@ -124,7 +124,7 @@ test("approved body media survives actual Main/Host repair, lost save reply and 
   project = await read();
   const completion = async () => (await host.call("courseware.workflow.get", { sessionId, projectId: project.projectId })).completion;
   assert((await completion()).issues.some(i => i.code === "VIDEO_MISSING"));
-  assert.equal(project.pages[0].actions[0].text, "Hello. ");
+  assert.equal(project.pages[0].actions[0].text, "Hello. Welcome!");
   const audio = await readFile(new URL("fixtures/courseware-tts-tone.mp3", import.meta.url));
   for (const page of project.pages) for (const speech of page.actions.filter(a => a.type === "speech")) {
     const intentId = randomUUID(), scope = { sessionId, projectId: project.projectId, principalKey, intentId };

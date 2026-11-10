@@ -1,5 +1,18 @@
 # DeckWise changes
 
+- Persist speech-linked animations into the actual PPTX after shared TTS completion
+  for PPT Master, scene and import workflows. Preserve logical object identities,
+  archived audio and unrelated native timing through the existing save journal.
+  Native teaching playback no longer invents missing animations at playback time.
+
+- Continue PPT Master course exports through saved narration, TTS and assessment
+  media even when the model omits the continuation flag. Explicit PPTX-only
+  requests use `continueTeaching:false`; export actions describe the full handoff.
+
+- Keep reading cues and their target expressions together when generating
+  narration and focus effects. Add per-page delivery briefs, bounded pre-TTS
+  corrections for incomplete speech, and advisory classroom pacing diagnostics.
+
 - Move saved teaching stories into the PPT workspace right sidebar beside inspection, freeing vertical editing space.
 
 - Fix broken native Quiz option thumbnails when navigating between pages with the same classroom revision.
@@ -18,6 +31,37 @@
   loads or draft writes, with bounded read admission and unchanged mutation fences.
 - Reject stale teaching object contexts when page locks change before an effect
   write, retaining the current Host-bound target validation.
+
+- Reopen byte-identical PPTX files after the legacy fallback parser is repaired.
+  Recover the current parser mapping through exact native object identities,
+  archive the previous mapping and preserve saved narration, audio, cues and
+  locks. Ambiguous or changed sources still require explicit review.
+
+- Preserve body object identities when assessment images import namespaced PPTX
+  layouts/masters. Recover original question audio across unrelated classroom
+  revisions without repurchasing, and checkpoint course continuation before
+  native saves. Reuse validated narration briefs on failed-page retries and keep
+  named portraits eligible beside sentence text carriers.
+
+- Keep SVG preview/editing available after PPT Master adoption and automatically
+  open the first SVG during generation. Reuse shared Quiz/checkpoint playback
+  views in the native PPT teaching surface; preserve portable and team playback.
+
+- Ground saved narration in actual slide evidence and teaching requirements,
+  using speaker notes as reference. Keep complete teaching moves together,
+  report contradictory notes and missing required visuals before TTS, and retain
+  source files. Clarify PPT Master assessment schemas without replacing classroom
+  interactions with short-answer Quizzes; invalidate exports after animation
+  configuration changes.
+
+- Generate PPT Master Quiz/checkpoint drafts with the shared fixed assessment
+  layouts. Models author only body SVGs; preserve editable questions, official
+  quality/export gates, existing drafts and the common TTS/option-image workflow.
+
+- Continue official PPT Master exports through the shared saved teaching workflow:
+  detailed narration, object-bound effects, speech/question audio and real Quiz
+  option images. Preserve logical page requirements and restart recovery; reject
+  stale exports and keep PPTX-only requests free of extra media generation.
 
 - Keep saved-teaching repairs local, preserve per-requirement retry budgets,
   reconcile lost repair receipts, and stop unknown assessment submissions without

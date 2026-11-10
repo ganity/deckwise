@@ -127,10 +127,13 @@ export class CoursewareTurnContinuation {
         else this.assessmentJobs.set(key, { ...call.arguments, mode: "refresh" });
       }
       if (result.toolName === "courseware_scene_plan_submit" && value.awaitingPlanApproval === true) this.planning = true;
-      if (result.toolName === "courseware_scene_compile" && value.generated === true) {
-        if (call?.type !== "toolCall" || call.arguments.continueTeaching !== true) { this.reset(); continue; }
+      if (["courseware_scene_compile", "courseware_presentation_adopt"].includes(result.toolName) && value.generated === true) {
+        const continueTeaching = call?.type === "toolCall" && (result.toolName === "courseware_presentation_adopt"
+          ? call.arguments.continueTeaching !== false : call.arguments.continueTeaching === true);
+        if (!continueTeaching) { this.reset(); continue; }
         this.active = true;
         this.savedGoal = "course";
+        if (typeof value.sourceSha256 === "string") this.sourceSha256 = value.sourceSha256;
       }
       if (result.toolName === "courseware_media_context" && call?.type === "toolCall" && call.arguments.continueTeaching === true) {
         this.active = true;
@@ -209,8 +212,7 @@ export class CoursewareTurnContinuation {
       !result.isError && result.toolName === "courseware_media_context" && record(result.details) &&
       Array.isArray(result.details.jobs) && !result.details.jobs.length &&
       record(result.details.completion) && result.details.completion.ready === true) : undefined;
-    if (!this.active || turn.message.stopReason === "error" || turn.message.stopReason === "aborted" ||
-        turn.message.content.some(block => block.type === "toolCall") && !readyResult || !controls.canWait()) return;
+    if (!this.active || turn.message.stopReason === "error" || turn.message.stopReason === "aborted" || !controls.canWait()) return;
     const execute = async (name: string, args: Record<string, unknown>) => {
       signal?.throwIfAborted();
       for (let attempt = 0; ; attempt++) {
@@ -231,6 +233,12 @@ export class CoursewareTurnContinuation {
         }
       }
     };
+    if (turn.message.content.some(block => block.type === "toolCall") && !readyResult) {
+      // Native-save transactions can only advance lineage for an already persisted checkpoint.
+      if (this.savedGoal === "course" && !this.restored && controls.checkpoints)
+        return this.finishSaved(execute, controls.canWait, signal, controls.checkpoints, undefined, true);
+      return;
+    }
     if (this.savedGoal) return this.finishSaved(execute, controls.canWait, signal, this.savedGoal === "course" ? controls.checkpoints : undefined, readyResult?.details as Record<string, unknown> | undefined);
     let snapshot = await execute("courseware_workflow_get", {});
     while (controls.canWait()) {
@@ -295,7 +303,7 @@ export class CoursewareTurnContinuation {
   }
 
   private async finishSaved(execute: (name: string, args: Record<string, unknown>) => Promise<Record<string, unknown>>,
-    canWait: () => boolean, signal?: AbortSignal, checkpoints?: Checkpoints, initial?: Record<string, unknown>): Promise<string | undefined> {
+    canWait: () => boolean, signal?: AbortSignal, checkpoints?: Checkpoints, initial?: Record<string, unknown>, initializeOnly = false): Promise<string | undefined> {
     let snapshot: Record<string, unknown> | undefined;
     let checkpoint: CoursewareWorkflowCheckpoint | null = null;
     let repairFailure: Record<string, unknown> | undefined;
@@ -336,8 +344,11 @@ export class CoursewareTurnContinuation {
             this.restored = true;
           }
         }
-        if (this.sourceSha256 && snapshot.sourceSha256 !== this.sourceSha256 && checkpoint?.sourceSha256 !== snapshot.sourceSha256)
-          throw new LocalRequestError("request-preparation", { cause: new Error("COURSEWARE_CONFLICT: source changed without verified native-save continuation") });
+        if (checkpoint && checkpoint.sourceSha256 !== snapshot.sourceSha256 ||
+            this.sourceSha256 && snapshot.sourceSha256 !== this.sourceSha256 && checkpoint?.sourceSha256 !== snapshot.sourceSha256) {
+          this.stop();
+          return "COURSEWARE_CONFLICT: source changed without verified native-save continuation. The course remains unfinished. Preserve saved teaching and original media; read the current source and reconcile its bindings before resuming.\n" + JSON.stringify(coursewareStatusSummary(snapshot));
+        }
         this.sourceSha256 = snapshot.sourceSha256;
         const key = progressKey(snapshot), changed = key !== this.progress;
         if (changed) { this.progress = key; this.progressedAt = Date.now(); }
@@ -346,6 +357,7 @@ export class CoursewareTurnContinuation {
           return "The authorized courseware request is unfinished: no progress for ten minutes. Preserve the original jobs and saved assets; report the pending work instead of polling indefinitely or submitting replacements.\n" + JSON.stringify(coursewareStatusSummary(snapshot));
         }
         await save("running");
+        if (initializeOnly) return;
         if (!jobs.length) {
           if (Array.isArray(snapshot.unresolvedOriginals) && snapshot.unresolvedOriginals.length) {
             await save("blocked"); this.stop();
@@ -369,7 +381,7 @@ export class CoursewareTurnContinuation {
             }
             await save("running");
             if (snapshot.narrationReady === true && issues.every(issue => record(issue) &&
-                ["QUESTION_MISSING", "QUESTION_TYPE_MISMATCH", "MUSIC_MISSING", "VIDEO_MISSING"].includes(String(issue.code)))) {
+                ["QUESTION_MISSING", "QUESTION_TYPE_MISMATCH", "MUSIC_MISSING", "VIDEO_MISSING", "EFFECT_MISSING"].includes(String(issue.code)))) {
               const pageNumbers = [...new Set(issues.flatMap(issue => record(issue) && Number.isInteger(issue.pageNumber) ? [issue.pageNumber] : []))];
               if (pageNumbers.length) {
                 try {

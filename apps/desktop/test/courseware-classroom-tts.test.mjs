@@ -119,3 +119,41 @@ test("corrupt provider bytes and stale owner cannot adopt narration", async () =
   f.setOwned(false); await assert.rejects(f.coordinator.refresh(f.args), /session changed/);
   assert.equal(f.calls.filter(call => call.method === "courseware.classroom.write").length, 0);
 });
+
+test("refresh reconciles two original question audios across an unrelated adoption without repurchasing", async () => {
+  const root = await mkdtemp(join(tmpdir(), "maic-tts-sequence-"));
+  try {
+    const f = fixture(root);
+    f.getView().classroom.scenes[0].actions.push({ id: "second-speech", type: "speech", text: "Name a family member" });
+    const second = { ...f.args, actionId: "second-speech" };
+    for (const args of [f.args, second]) {
+      const quote = await f.coordinator.quote(args);
+      await f.coordinator.submit({ ...args, quoteId: quote.quote.quoteId });
+      const task = f.tasks.get(quote.key);
+      task.state = "ready"; task.assetRef = { sha256: createHash("sha256").update(f.bytes).digest("hex"), mime: "audio/wav" };
+    }
+    await f.coordinator.refresh(f.args);
+    const result = await f.coordinator.refresh(second);
+    assert.equal(result.state, "adopted");
+    assert.equal(result.view.classroom.audioManifest.length, 2);
+    assert.equal(f.calls.filter(call => call.method === "submit").length, 2);
+    assert.equal(f.calls.filter(call => call.method === "courseware.classroom.write").length, 2);
+    await assert.rejects(f.coordinator.quote(second), /Classroom changed/);
+    await f.coordinator.refresh(second);
+    assert.equal(f.calls.filter(call => call.method === "courseware.classroom.write").length, 2, "Already adopted audio is idempotent");
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test("refresh never applies an original task to edited question text or a different source", async () => {
+  const f = fixture(), quote = await f.coordinator.quote(f.args);
+  await f.coordinator.submit({ ...f.args, quoteId: quote.quote.quoteId });
+  const task = f.tasks.get(quote.key);
+  task.state = "ready"; task.assetRef = { sha256: createHash("sha256").update(f.bytes).digest("hex"), mime: "audio/wav" };
+  f.setRevision("edited");
+  f.getView().classroom.scenes[0].actions[0].text = "Changed question";
+  assert.equal((await f.coordinator.refresh(f.args)).state, "not_submitted");
+  f.getView().sourceRevision = "different-source";
+  await assert.rejects(f.coordinator.refresh(f.args), /Classroom changed/);
+  assert.equal(f.calls.filter(call => call.method === "courseware.classroom.write").length, 0);
+  assert.equal(f.calls.filter(call => call.method === "submit").length, 1);
+});

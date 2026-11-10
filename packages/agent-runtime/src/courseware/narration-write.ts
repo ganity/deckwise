@@ -23,6 +23,7 @@ function requirementAction(block: z.infer<typeof requiredBlock>, id: string, pag
 }
 
 function speechParts(value: string): string[] {
+  if (value.length <= 4000) return [value];
   const parts: string[] = [];
   for (const sentence of new Intl.Segmenter(undefined, { granularity: "sentence" }).segment(value)) {
     let text = sentence.segment;
@@ -33,7 +34,8 @@ function speechParts(value: string): string[] {
       if (/[\uD800-\uDBFF]/u.test(text[end - 1])) end--;
       parts.push(text.slice(0, end)); text = text.slice(end);
     }
-    if (text.trim()) parts.push(text);
+    if (text.trim() && parts.length && parts.at(-1)!.length + text.length <= 4000) parts[parts.length - 1] += text;
+    else if (text.trim()) parts.push(text);
     else if (parts.length) parts[parts.length - 1] += text;
   }
   return parts;
@@ -87,20 +89,43 @@ export async function generateNarrationWrite(input: Omit<Parameters<typeof gener
     }
     if (missing.size) throw new PageCandidateError("INVALID_OUTPUT", `Repair omitted required actions: ${[...missing].join(", ")}`);
     await checkPageCandidateBaseline(baseline, input.getCurrentBaseline, input.signal);
+    const missingEffects = new Set<string>(teaching.requiredEffects ?? []);
+    for (const action of page.actions.filter(a => a.type === "speech")) {
+      if (isCoursewareAttentionIntent(action.attention)) {
+        missingEffects.delete(action.attention.type);
+        if (action.attention.animation) missingEffects.delete("animation");
+      }
+      if (Array.isArray(action.visualCues)) for (const cue of action.visualCues) {
+        const type = Reflect.get(Reflect.get(cue, "effect"), "type");
+        missingEffects.delete(type === "element_animation" ? "animation" : type);
+      }
+    }
     const actions = page.actions.flatMap(a => {
-      const target = a.type === "speech" && a.attention === undefined &&
-        (!Array.isArray(a.visualCues) || !a.visualCues.length) ? sceneSpeechTarget(String(a.text), input.evidence?.objects ?? []) : undefined;
-      const { visualCues: _, ...withoutEmptyCues } = a;
-      return [target ? { ...withoutEmptyCues, attention: { type: target.kind === "image" && !target.text.trim() ? "spotlight" : "highlight", objectIds: [target.objectId] } } : a,
+      const objects = input.evidence?.objects ?? [];
+      const focus = missingEffects.has("highlight") ? "highlight" : missingEffects.has("spotlight") ? "spotlight" : undefined;
+      const eligible = a.type === "speech" && a.attention === undefined &&
+        (missingEffects.size > 0 || !Array.isArray(a.visualCues) || !a.visualCues.length);
+      const target = eligible ? sceneSpeechTarget(String(a.text), focus === "highlight" ? objects.filter(o => !!o.text.trim()) : objects) : undefined;
+      const type = focus ?? (target?.kind === "image" && !target.text.trim() ? "spotlight" : "highlight");
+      const animation = missingEffects.has("animation");
+      if (target) {
+        missingEffects.delete(type);
+        if (animation) missingEffects.delete("animation");
+      }
+      // Host retains baseline cues and resolves the additional intent against verified audio.
+      const { visualCues: _, ...withoutCues } = a;
+      return [target ? { ...withoutCues,
+        attention: { type, objectIds: [target.objectId], ...(animation ? { animation: "pulse" } : {}) } } : a,
         ...(additions.get(String(a.id)) ?? [])];
     });
+    if (missingEffects.size) throw new PageCandidateError("INVALID_OUTPUT", `Repair could not safely bind required effects: ${[...missingEffects].join(", ")}; supply unambiguous objects mentioned in the saved speech`);
     const write = { projectId: project.projectId, pageId: page.pageId, expectedSourceRevision: project.source.revision, expectedTeachingRevision: project.teachingRevision, actions };
     if (!isTeachingWrite(write)) throw new PageCandidateError("INVALID_OUTPUT", "Invalid required teaching repair");
     return { candidateId, write };
   }
   const educationContext = project.educationContext ? { ...project.educationContext,
     schoolStage: project.educationContext.schoolStage?.trim().toUpperCase(), subject: project.educationContext.subject?.trim().toUpperCase() } : undefined;
-  const candidate = await generatePageNarrationCandidate({ ...input, educationContext, sceneTeaching: project.taskType === "scene", existingNarration: page.actions.filter((action) => action.type === "speech").map((action) => action.text).join("\n") });
+  const candidate = await generatePageNarrationCandidate({ ...input, educationContext, sceneTeaching: project.taskType === "scene" || project.taskType === "plain", existingNarration: page.actions.filter((action) => action.type === "speech").map((action) => action.text).join("\n") });
   if (input.independentAssessmentPages && candidate.narration.blocks.some(block => block.type === "interaction" || block.type === "wait" && block.mode === "teacher_continue"))
     throw new PageCandidateError("INVALID_OUTPUT", "Use separate assessment pages for questions and teacher continuation; body lecture must retain speech, focus, music and video only");
   if (isCoursewareSceneTeaching(teaching) && !teaching.music && !page.actions.some(action => action.type === "music_slot" || action.type === "audio_clip") &&
@@ -151,6 +176,13 @@ export async function generateNarrationWrite(input: Omit<Parameters<typeof gener
         { type: block.attention.type, objectIds: block.attention.objectIds } } : {}) });
   }
   const write = { projectId: project.projectId, pageId: page.pageId, expectedSourceRevision: project.source.revision, expectedTeachingRevision: project.teachingRevision, actions };
+  if (isCoursewareSceneTeaching(teaching)) {
+    const missing = teaching.requiredEffects?.filter(effect => !actions.some(action => {
+      const attention = action.attention;
+      return isCoursewareAttentionIntent(attention) && (attention.type === effect || effect === "animation" && !!attention.animation);
+    }));
+    if (missing?.length) throw new PageCandidateError("INVALID_OUTPUT", `Missing required teaching effects: ${missing.join(", ")}; use safe supplied object IDs`);
+  }
   if (!isTeachingWrite(write)) throw new PageCandidateError("INVALID_OUTPUT", "Invalid canonical teaching proposal");
   return { candidateId: candidate.candidateId, write };
 }

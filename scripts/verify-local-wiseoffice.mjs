@@ -6,6 +6,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { setTimeout as delay } from "node:timers/promises";
 import * as electron from "electron";
 
 const { app, BrowserWindow, ipcMain, session } = electron;
@@ -207,11 +208,19 @@ contextBridge.exposeInMainWorld('deckwiseEditorHost', {
     assert.equal(mediaPreview, true, "Production editor CSP blocked local teaching media");
     console.log("LOCAL_TEACHING_MEDIA_PLAYED", JSON.stringify({ speech: true, music: true }));
     let teachingRequests = 0;
+    let voiceModelReads = 0;
+    let voiceModelRecovered = false;
     const teachingListener = (_event, event) => {
       const message = event.message;
       if (message?.type !== "document:teaching-request") return;
       teachingRequests++;
       const operation = message.payload?.operation;
+      if (operation === "tts:models" && ++voiceModelReads === 1) {
+        window.webContents.send("command", { type: "document:teaching-response", id: message.id,
+          payload: { error: "Teaching view changed; reload current page" } });
+        return;
+      }
+      if (operation === "media:list" && voiceModelReads === 2) voiceModelRecovered = true;
       const result = operation === "open" ? {
         viewId: "probe-teaching", pageId: "probe-page", pageNumber: 1,
         project: { teachingRevision: "probe-revision", pages: [{ pageId: "probe-page", locked: false,
@@ -238,6 +247,15 @@ contextBridge.exposeInMainWorld('deckwiseEditorHost', {
       }; check();
     })`);
     console.log("LOCAL_TEACHING_LAYOUT_READY");
+    const recoveryDeadline = Date.now() + 15000;
+    while (!voiceModelRecovered && Date.now() < recoveryDeadline) await delay(50);
+    assert.equal(voiceModelRecovered, true, "Failed voice reads must recover without a paid request");
+    assert.equal(voiceModelReads, 2, "Recovery must be bounded to one retry");
+    assert.equal(await localFrame.executeJavaScript(`new Promise(resolve => setTimeout(() => {
+      const panel = document.querySelector('iframe[name="frameEditor"]')?.contentDocument?.querySelector('.deckwise-teaching-sidebar');
+      resolve(!!panel && !panel.querySelector('[role=alert]'));
+    }, 100))`), true, "A recovered read must not leave a service-unavailable warning");
+    console.log("LOCAL_TEACHING_VOICE_READ_RECOVERED");
     const exported = await request(
       "document:save",
       { targetExt: "PPTX", requireHostCommit: true },

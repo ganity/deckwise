@@ -9,3 +9,5 @@ export { compileSceneCoursewareCandidate } from './authoring/scene-courseware-ca
 export { inspectPageImageAssets, type PreservedPageImage } from './authoring/page-asset-locks';
 export { prepareAssessmentPage, assessmentPptxScene, assessmentBackground, syncClassroomPptx } from './authoring/classroom-pptx';
 export { createMaicInteractionCanvas } from './maic-interaction-canvas';
+export { assessmentSvg } from './authoring/assessment-svg';
+export { syncSpeechAnimations, type SpeechMotionPage } from './authoring/speech-animations';

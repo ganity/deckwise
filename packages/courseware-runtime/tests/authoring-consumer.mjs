@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import JSZip from 'jszip';
-import { candidateHash, coursewarePageBaseline, generatePageStyleBatchCandidate, compileScenesToPptx, createPageCandidateLineage, editablePptxSceneSchema, generatePagePptxCandidate } from './authoring.mjs';
+import { assessmentSvg, candidateHash, coursewarePageBaseline, generatePageStyleBatchCandidate, compileScenesToPptx, createPageCandidateLineage, editablePptxSceneSchema, generatePagePptxCandidate } from './authoring.mjs';
+
+const assessment = assessmentSvg({ id: 'quiz', stageId: 'stage', type: 'quiz', title: 'Family', order: 0,
+  content: { type: 'quiz', questions: [{ id: 'q', type: 'single', question: 'Who?',
+    options: [{ value: 'A', label: 'Father' }, { value: 'B', label: 'Mother' }], answer: ['A'], analysis: 'SECRET' }] }, actions: [],
+}, { width: 1280, height: 720 });
+assert(assessment.includes('Who?') && !assessment.includes('SECRET'));
 
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==', 'base64');
 const assets = { master: png, clean: png, picture: png };

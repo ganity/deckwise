@@ -11,7 +11,7 @@ export function hasDetailedCoursewareNarration(page: CoursewareProject["pages"][
 
 export type CoursewareTeachingIssue = {
   pageNumber: number; pageId: string; actionId?: string;
-  code: "NARRATION_MISSING" | "AUDIO_MISSING" | "FOCUS_MISSING" | "QUESTION_MISSING" | "QUESTION_TYPE_MISMATCH" | "MUSIC_MISSING" | "MUSIC_PENDING" | "VIDEO_MISSING" | "VIDEO_PENDING";
+  code: "NARRATION_MISSING" | "AUDIO_MISSING" | "FOCUS_MISSING" | "EFFECT_MISSING" | "QUESTION_MISSING" | "QUESTION_TYPE_MISMATCH" | "MUSIC_MISSING" | "MUSIC_PENDING" | "VIDEO_MISSING" | "VIDEO_PENDING";
   repair: "narration" | "tts" | "music" | "video";
   repairable: boolean;
 };
@@ -24,7 +24,15 @@ export function inspectCoursewareTeaching(project: CoursewareProject, teachingBy
       issues.push({ pageNumber: index + 1, pageId: page.pageId, ...(actionId ? { actionId } : {}), code, repair, repairable: !page.locked });
     const speeches = page.actions.filter(a => a.type === "speech" && typeof a.text === "string" && a.text.trim());
     const teaching = teachingByPage?.get(page.pageId);
-    if (project.taskType === "scene" ? !hasDetailedCoursewareNarration(page, nativeSaved) : !speeches.length) add("NARRATION_MISSING", "narration");
+    if (project.taskType === "scene" || teaching ? !hasDetailedCoursewareNarration(page, nativeSaved) : !speeches.length) add("NARRATION_MISSING", "narration");
+    for (const effect of teaching?.requiredEffects ?? []) {
+      if (!speeches.some(speech => {
+        const pending = speech.attention as { type?: string; animation?: string } | undefined;
+        return pending?.type === effect || effect === "animation" && !!pending?.animation ||
+          Array.isArray(speech.visualCues) && speech.visualCues.some(cue => cue && typeof cue === "object" &&
+            (Reflect.get(Reflect.get(cue, "effect") ?? {}, "type") === effect || effect === "animation" && Reflect.get(Reflect.get(cue, "effect") ?? {}, "type") === "element_animation"));
+      })) add("EFFECT_MISSING", "narration");
+    }
     for (const speech of speeches) {
       if (!speech.audioAssetId) add("AUDIO_MISSING", "tts", String(speech.id));
       if (speech.attention === undefined && (!Array.isArray(speech.visualCues) || !speech.visualCues.some(c => c && typeof c === "object" && !Array.isArray(c) && ["highlight", "spotlight"].includes(String(Reflect.get(Reflect.get(c, "effect") ?? {}, "type"))))) && teaching?.requiredObjects.some(name => name.length >= 2 && String(speech.text).includes(name)))

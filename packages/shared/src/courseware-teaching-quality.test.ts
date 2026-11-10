@@ -53,3 +53,22 @@ it('reports seeded outline speech as missing detailed narration, matching the TT
   project.pages[0].actions[0].source = 'generated';
   expect(inspectCoursewareTeaching(project).issues.filter(issue => issue.pageId === project.pages[0].pageId && issue.code === 'NARRATION_MISSING')).toEqual([]);
 });
+
+it('keeps adopted ordinary outlines incomplete and checks requested effects before and after audio timing', () => {
+  if (!isCoursewareProject(fixture.project)) throw new Error('Invalid fixture');
+  const project: CoursewareProject = structuredClone(fixture.project);
+  project.taskType = 'plain';
+  const page = project.pages[0];
+  const teaching: CoursewareSceneTeaching = { pageType: 'slide', phase: 'explore', objective: 'Name family',
+    durationSeconds: 30, requiredObjects: [], requiredEffects: ['highlight', 'animation'] };
+  const requirements = new Map([[page.pageId, teaching]]);
+  page.actions = [{ id: 'narration-0', type: 'speech', text: 'father' }];
+  expect(inspectCoursewareTeaching(project, requirements).issues.filter(i => i.pageId === page.pageId).map(i => i.code))
+    .toEqual(['NARRATION_MISSING', 'EFFECT_MISSING', 'EFFECT_MISSING', 'AUDIO_MISSING']);
+  page.actions = [{ id: 'speech', type: 'speech', text: 'father', attention: { type: 'highlight', objectIds: ['label'], animation: 'pulse' } }];
+  expect(inspectCoursewareTeaching(project, requirements).issues.filter(i => i.pageId === page.pageId).map(i => i.code)).toEqual(['AUDIO_MISSING']);
+  page.actions = [{ id: 'speech', type: 'speech', text: 'father', audioAssetId: 'audio', visualCues: [
+    { effect: { type: 'highlight' } }, { effect: { type: 'element_animation' } },
+  ] }];
+  expect(inspectCoursewareTeaching(project, requirements).issues.filter(i => i.pageId === page.pageId)).toEqual([]);
+});

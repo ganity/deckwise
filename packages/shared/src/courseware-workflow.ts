@@ -7,6 +7,7 @@ export const COURSEWARE_WORKFLOW_TOOLS = [
   "courseware_narration_context", "courseware_narration_propose",
   "courseware_media_context", "courseware_media_prepare", "courseware_media_refresh",
   "courseware_media_assessments",
+  "courseware_presentation_prepare", "courseware_presentation_adopt",
 ] as const;
 
 export type CoursewareWorkflowView = {

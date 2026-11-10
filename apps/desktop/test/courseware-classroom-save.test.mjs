@@ -25,7 +25,7 @@ function load(file) {
 }
 const main = new URL("../electron/main/", import.meta.url).pathname;
 const { stageGeneratedSceneCourse } = load(join(main, "courseware-scene-staging.ts"));
-const { createClassroomNativeWriter } = load(join(main, "courseware-classroom-save.ts"));
+const { createClassroomNativeWriter, commitSavedPptx } = load(join(main, "courseware-classroom-save.ts"));
 const { CoursewareClassroomCoordinator } = load(join(main, "courseware-classroom.ts"));
 const { CoursewareNativeSave } = load(join(main, "courseware-native-save.ts"));
 const { refreshNativeMaicClassroom } = load(join(main, "courseware-classroom-native.ts"));
@@ -313,4 +313,31 @@ test("real Main writer and Host atomically save question, copy, reorder, delete,
     assert.deepEqual(refreshed.classroom.scenes[0].content, result.classroom.scenes[0].content);
     assert.equal(refreshed.classroom.scenes.find(s => s.id === "body").actions[0].text, "Body narration");
   } finally { await host.call("courseware.parseRelease", { jobId }); }
+
+  // The same durable receipt must preserve logical targets when only native timing changes.
+  const beforeMotions = (await host.call("courseware.project.get", { sessionId, projectId })).project;
+  const motionSource = await readFile(sourcePath), motionJob = await parse(revision.documentPath);
+  const motionSeed = await host.call("courseware.classroom.source", { sessionId, projectId, jobId: motionJob });
+  const motionPages = motionSeed.project.pages.map((page, index) => ({ actions: [], objects: motionSeed.ir.pages[index].elements.map(element => ({
+    id: motionSeed.mapping.pages[index].objects.find(object => object.importElementId === element.id).objectId,
+    objectName: element.sourceObjectName,
+  })) }));
+  const bodyIndex = beforeMotions.pages.findIndex(page => page.pageId === bodyIdAfterUndo);
+  motionPages[bodyIndex].actions = [{ type: "speech", visualCues: [{ atMs: 0, endMs: 600,
+    effect: { type: "element_animation", elementId: motionPages[bodyIndex].objects[0].id, effect: "fadeIn" } }] }];
+  const motions = await runtime.syncSpeechAnimations({ source: motionSource, pages: motionPages });
+  assert.equal(motions.changedPages.filter(Boolean).length, 1);
+  await commitSavedPptx({ sessionId, workspace, sourcePath, bytes: Buffer.from(motions.pptx), assertCurrent() {},
+    saved: { host, jobId: motionJob, project: beforeMotions, bytes: motionSource, check: async () => {
+      assert.equal(hash(await readFile(sourcePath)), beforeMotions.source.sha256);
+    }, release: async () => host.call("courseware.parseRelease", { jobId: motionJob }) },
+    lineage: { pageTokens: beforeMotions.pages.map(page => page.pageId), animationUnchanged: motions.changedPages.map(changed => !changed),
+      objects: motionPages.map((page, index) => page.objects.map(object => ({ name: object.objectName, sourceName: object.objectName,
+        sourcePageToken: beforeMotions.pages[index].pageId }))) } });
+  await host.restart();
+  const afterMotions = await host.call("courseware.project.context", { sessionId, projectId });
+  assert.equal(afterMotions.project.source.sha256, hash(motions.pptx));
+  assert.deepEqual(afterMotions.project.pages.map(page => page.actions), beforeMotions.pages.map(page => page.actions));
+  assert.deepEqual(afterMotions.mapping.pages.map(page => page.objects.map(object => object.objectId)),
+    motionSeed.mapping.pages.map(page => page.objects.map(object => object.objectId)));
 });

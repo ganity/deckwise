@@ -9,13 +9,14 @@ import test from "node:test";
 import ts from "typescript";
 import * as shared from "@pi-desktop/shared";
 import * as runtime from "@pi-desktop/agent-runtime";
+import * as coursewareRuntime from "@pi-desktop/courseware-runtime/node";
 import { Host, resolveHostBinary } from "../../../scripts/e2e/host.mjs";
 const require = createRequire(import.meta.url), cache = new Map();
 function load(file) {
   if (cache.has(file)) return cache.get(file);
   const exports = {}; cache.set(file, exports);
   const code = ts.transpileModule(readFileSync(file, "utf8"), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
-  new Function("require", "exports", code)(id => id === "@pi-desktop/shared" ? shared : id === "@pi-desktop/agent-runtime" ? runtime : id.startsWith(".") ? load(join(dirname(file), id + ".ts")) : require(id), exports);
+  new Function("require", "exports", code)(id => id === "@pi-desktop/shared" ? shared : id === "@pi-desktop/agent-runtime" ? runtime : id === "@pi-desktop/courseware-runtime/node" ? coursewareRuntime : id.startsWith(".") ? load(join(dirname(file), id + ".ts")) : require(id), exports);
   return exports;
 }
 const main = new URL("../electron/main/", import.meta.url).pathname;

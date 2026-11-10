@@ -12,7 +12,7 @@ function fixture(target: "visualMaster" | "cleanPlate" = "cleanPlate", startTool
   const toolCounts: number[] = [];
   const saved = { completed: false, generated: false, failed: false, styleConfirmed: true,
     planSha256: sha256, phase: "submitted", queryError: false, ignoreReady: false, mediaUnknown: false, recoveryFailure: false, retryAfterBlock: false,
-    repeatReadyReads: false, readyCompletion: false,
+    repeatReadyReads: false, readyCompletion: false, omitContinuation: false,
     checkpointError: "", assessmentMissing: false, assessmentStarted: false, assessmentCompleted: false,
     checkpointAbort: false, explicitRetry: false, imagePipeline: false,
     qualityIssues: [] as Array<{ pageId: string; pageNumber?: number; code: string; repair: string; repairable: boolean }>, teachingMissing: false, fullMedia: false, narrationMissing: false, audioMissing: false, mediaStarted: false, audioCompleted: false };
@@ -22,7 +22,7 @@ function fixture(target: "visualMaster" | "cleanPlate" = "cleanPlate", startTool
     target: { kind: target }, current: true, phase: saved.phase, selected: saved.completed && saved.styleConfirmed,
     task: { state: saved.failed ? "failed" : saved.completed ? "ready" : "queued" },
     asset: saved.completed ? { sha256: "b".repeat(64) } : null });
-  const snapshot = () => ({ task: { taskType: "scene", generated: saved.generated },
+  const snapshot = () => ({ task: { taskType: startTool === "courseware_presentation_adopt" ? "plain" : "scene", generated: saved.generated },
     plan: { sha256: saved.planSha256, approvedSha256: saved.planSha256, pages: [{ pageId: "scene-001" }] },
     images: [image(), ...(saved.explicitRetry ? [{ ...image(), intentId: "unrelated-failure", phase: "submitted", selected: false, asset: null, task: { state: "failed" } }] : [])], styleConfirmed: saved.styleConfirmed, requiresHumanSelection: !saved.styleConfirmed && saved.completed,
     blockers: saved.completed ? [] : [{ pageId: "scene-001", kind: target }] });
@@ -53,7 +53,7 @@ function fixture(target: "visualMaster" | "cleanPlate" = "cleanPlate", startTool
         image: image(), styleConfirmed: saved.styleConfirmed, requiresHumanSelection: !saved.styleConfirmed && saved.completed,
         waitingFor: saved.completed || saved.failed ? null : "service",
       };
-      if (toolName === "courseware_scene_compile") { saved.generated = true; content = { generated: true }; }
+      if (["courseware_scene_compile", "courseware_presentation_adopt"].includes(toolName)) { saved.generated = true; content = { generated: true }; }
       if (toolName === "courseware_narration_propose") { saved.narrationMissing = false; content = { saved: true, failures: [] }; }
       if (toolName === "courseware_media_prepare") { saved.mediaStarted = true; content = { waitingFor: "service", job: { kind: mediaKind, intentId: "original-tts", pageNumber: 1, sourceSha256: sha256 } }; }
       if (toolName === "courseware_media_refresh") {
@@ -89,7 +89,11 @@ function fixture(target: "visualMaster" | "cleanPlate" = "cleanPlate", startTool
     const content: AssistantMessage["content"] = requests === 1
       ? [{ type: "toolCall", id: "search", name: "ToolSearch", arguments: { query: startTool + " courseware_scene_compile courseware_narration_propose courseware_media_prepare" } }]
       : requests === 2
-      ? [{ type: "toolCall", id: "start", name: startTool, arguments: startTool === "courseware_media_context" ? (saved.fullMedia ? { continueTeaching: true } : {}) : startTool === "courseware_scene_image_prepare"
+      ? [{ type: "toolCall", id: "start", name: startTool, arguments: startTool === "courseware_presentation_adopt"
+        ? { path: "/workspace/.deckwise-ppt/projects/lesson/exports/lesson.pptx", sourceSha256: sha256,
+          pages: [{ pageNumber: 1, teaching: { pageType: "slide", phase: "explore", objective: "Teach family", durationSeconds: 30, requiredObjects: [] } }],
+          ...(saved.omitContinuation ? {} : { continueTeaching: saved.fullMedia }) }
+        : startTool === "courseware_media_context" ? (saved.fullMedia ? { continueTeaching: true } : {}) : startTool === "courseware_scene_image_prepare"
         ? { planSha256: sha256, pageId: "scene-001", target: { kind: target } }
         : startTool === "courseware_scene_image_refresh" ? { intentId: "decomposition", ...(saved.imagePipeline ? { generateRemaining: true } : { waitForUpdate: true }), ...(saved.explicitRetry ? { retryFailed: true } : {}) }
         : startTool === "courseware_media_refresh" ? { kind: mediaKind, sourceSha256: sha256, pageNumber: 1, intentId: "original-tts", retryFailed: true } : {} }]
@@ -101,9 +105,9 @@ function fixture(target: "visualMaster" | "cleanPlate" = "cleanPlate", startTool
         ? [{ type: "toolCall", id: "compile", name: "courseware_scene_compile", arguments: { planSha256: sha256, ...(saved.fullMedia ? { continueTeaching: true } : {}) } }]
         : saved.assessmentMissing && !saved.assessmentStarted
           ? [{type:'toolCall',id:'assessment',name:'courseware_media_assessments',arguments:{mode:'prepare',kind:'image',projectId:'project',expectedRevision:'r1',expectedSourceRevision:'source',sceneId:'quiz',questionId:'q',optionValue:'A',model:'image-model'}}]
-        : saved.fullMedia && requests === (startTool === "courseware_media_context" ? 4 : 6)
+        : saved.fullMedia && requests === (["courseware_media_context", "courseware_presentation_adopt"].includes(startTool) ? 4 : 6)
           ? [{ type: "toolCall", id: "narration", name: "courseware_narration_propose", arguments: { sourceSha256: sha256, pageNumbers: [1], instruction: "Explain the whole lesson" } }]
-        : saved.fullMedia && requests === (startTool === "courseware_media_context" ? 6 : 8)
+        : saved.fullMedia && requests === (["courseware_media_context", "courseware_presentation_adopt"].includes(startTool) ? 6 : 8)
           ? [{ type: "toolCall", id: "tts", name: "courseware_media_prepare", arguments: { kind: "tts", sourceSha256: sha256, pageNumber: 1, actionId: "speech", model: "tts" } }]
         : [{ type: "text", text: saved.failed ? "The generation job failed." : saved.generated ? "Editable PPTX completed." :
           saved.completed && !saved.styleConfirmed ? "Please confirm the cover style." : "Tasks are processing; click Continue later." }];
@@ -313,6 +317,32 @@ it("preserves a PPTX-only request without starting narration or media", async ()
     expect(f.saved.generated).toBe(true);
     expect(f.calls.some(c => /^courseware_(?:media|narration)_/u.test(c.name))).toBe(false);
   } finally { await f.runtime.dispose(); }
+});
+
+it.each([
+  { complete: false, omitContinuation: false },
+  { complete: true, omitContinuation: false },
+  { complete: true, omitContinuation: true },
+])("continues ordinary course export unless explicitly PPTX-only: %j", async ({ complete, omitContinuation }) => {
+  vi.useFakeTimers();
+  const f = fixture("cleanPlate", "courseware_presentation_adopt");
+  Object.assign(f.saved, { fullMedia: complete, omitContinuation, narrationMissing: true, audioMissing: true });
+  try {
+    const running = f.runtime.prompt(complete ? "Finish this complete teaching course." : "Only export the PPTX.", "user", "turn");
+    await vi.advanceTimersByTimeAsync(31_000);
+    expect(f.saved.generated).toBe(true);
+    if (complete) {
+      expect(f.saved.narrationMissing).toBe(false);
+      expect(f.saved.mediaStarted).toBe(true);
+      expect(f.agent.state.isStreaming).toBe(true);
+      f.saved.audioCompleted = true;
+      await vi.advanceTimersByTimeAsync(3000);
+    }
+    await running;
+    expect(f.calls.some(c => c.name === "courseware_scene_compile")).toBe(false);
+    expect(f.calls.some(c => c.name === "courseware_media_prepare")).toBe(complete);
+    expect(f.events.filter(e => e.event.type === "agent_end")).toHaveLength(1);
+  } finally { await f.runtime.dispose(); vi.useRealTimers(); }
 });
 
 it("ends after one reporting pass and prevents the model restarting blocked generation", async () => {

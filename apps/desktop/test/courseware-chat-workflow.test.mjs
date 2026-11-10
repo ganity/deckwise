@@ -5,6 +5,22 @@ import ts from "typescript";
 import { coursewareMediaRecovery, sceneAssetBlockers } from "@pi-desktop/shared";
 
 const source = await readFile(new URL("../electron/main/courseware-chat-workflow.ts", import.meta.url), "utf8");
+test("Main routes new presentation preparation through workflow without an open editor", async () => {
+  const main = await readFile(new URL("../electron/main/index.ts", import.meta.url), "utf8");
+  const start = main.indexOf("executePptEditorTool: async") + "executePptEditorTool: ".length;
+  const route = main.slice(start, main.indexOf(",\n  runtimeState,", start));
+  const calls = [];
+  const execute = new Function("coursewareChatWorkflow", "pptEditorChat", "mediaCanvas", `return (${route})`)(
+    { execute: (...args) => { calls.push(args); return "workflow"; } },
+    { execute: () => { throw new Error("No PPT editor is bound to this Chat"); } }, {},
+  );
+  for (const name of ["courseware_presentation_prepare", "courseware_presentation_adopt"]) {
+    const args = ["chat", name, {}, () => true];
+    assert.equal(await execute(...args), "workflow");
+    assert.deepEqual(calls.at(-1), args);
+  }
+  await assert.rejects(execute("chat", "ppt_get_context", {}, () => true), /No PPT editor/);
+});
 test("Main dispatches saved narration through the durable courseware workflow", async () => {
   const main = await readFile(new URL("../electron/main/index.ts", import.meta.url), "utf8");
   const route = main.slice(main.indexOf("executePptEditorTool: async"), main.indexOf("executePptEditorTool: async") + 1000);
@@ -71,6 +87,8 @@ function fixture(options = {}) {
       return { ready: true, failures: [], blockers: [] };
     } };
     if (id === "./courseware-scene-generation") return { CoursewareSceneGeneration: Generation };
+    if (id === "./courseware-presentation") return { adoptPresentation: () => assert.fail("Scene tasks cannot adopt ordinary exports") };
+    if (id === "./courseware-presentation-prepare") return { preparePresentation: () => assert.fail("Scene tasks cannot prepare ordinary pages") };
     assert.fail(id);
   }, exports);
   let currentHost = host;

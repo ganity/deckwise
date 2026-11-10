@@ -24,6 +24,7 @@ impl Database {
     ) -> Result<Value> {
         let assessments = self.courseware_assessment_page_ids(workspace, project)?;
         let native_saved = self.has_native_save_receipt(workspace, project)?;
+        let requirements = self.courseware_teaching_requirements(workspace, project)?;
         let mut issues = Vec::new();
         let mut add = |page: &CoursewarePage,
                        number: usize,
@@ -47,7 +48,7 @@ impl Database {
             if speeches.is_empty()
                 || speeches.iter().any(|a| {
                     a["text"].as_str().is_none_or(|s| s.trim().is_empty())
-                        || project.task_type == "scene" && !native_saved && a["source"] != "generated"
+                        || (project.task_type == "scene" || requirements.is_some()) && !native_saved && a["source"] != "generated"
                             && a["id"].as_str().is_some_and(|id| {
                                 id.strip_prefix("narration-").is_some_and(|s| {
                                     !s.is_empty() && s.bytes().all(|c| c.is_ascii_digit())
@@ -69,8 +70,20 @@ impl Database {
                 };
                 add(page, i + 1, code, repair, Some(&action["id"]));
             }
+            if let Some(teaching) = requirements.as_ref().and_then(|r| r["pages"].as_array())
+                .and_then(|pages| pages.iter().find(|p| p["pageId"] == page.page_id)) {
+                for effect in teaching["teaching"]["requiredEffects"].as_array().into_iter().flatten() {
+                    let satisfied = page.actions.iter().any(|action| {
+                        let pending = &action["attention"];
+                        (effect == "animation" && pending["animation"].is_string() || pending["type"] == *effect)
+                            || action["visualCues"].as_array().into_iter().flatten().any(|cue|
+                                cue["effect"]["type"] == *effect || effect == "animation" && cue["effect"]["type"] == "element_animation")
+                    });
+                    if !satisfied { add(page, i + 1, "EFFECT_MISSING", "narration", None); }
+                }
+            }
         }
-        if let Some(scene) = self.courseware_scene_objects(workspace, project)? {
+        if let Some(scene) = requirements {
             for expected in scene["pages"].as_array().into_iter().flatten() {
                 let Some((i, page)) = project
                     .pages

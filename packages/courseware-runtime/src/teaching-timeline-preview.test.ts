@@ -20,6 +20,15 @@ let current: ReturnType<typeof createTeachingTimelinePreview> | undefined;
 beforeEach(() => { vi.useFakeTimers(); media.plays = []; media.available = true; media.position = 0; media.stop.mockClear(); });
 afterEach(() => { current?.dispose(); current = undefined; vi.useRealTimers(); });
 const speech = (id: string, pauseAfterMs = 0): TeachingPreviewNode => ({ id, type: 'speech', text: id, audioUrl: `blob:${id}`, pauseAfterMs });
+it('pauses and resumes page-entry native animation even when no speech owns a native step', async () => {
+  const native = { sourceSha256: 'a'.repeat(64), stepCount: 0, next: vi.fn(), pause: vi.fn(), resume: vi.fn() };
+  current = createTeachingTimelinePreview({ pageId: 'page', nodes: [speech('intro')], native,
+    onMode: vi.fn(), onProgress: vi.fn(), onNode: vi.fn(), onError: vi.fn(), onComplete: vi.fn() });
+  current.start(); await Promise.resolve();
+  current.pause(); expect(native.pause).toHaveBeenCalledOnce();
+  current.resume(); expect(native.resume).toHaveBeenCalledOnce();
+  expect(native.next).not.toHaveBeenCalled();
+});
 function setup(nodes: TeachingPreviewNode[], video?: HTMLVideoElement) {
   const callbacks = { onMode: vi.fn(), onProgress: vi.fn(), onNode: vi.fn(), onError: vi.fn(), onComplete: vi.fn(), onMediaProgress: vi.fn() };
   current = createTeachingTimelinePreview({ pageId: 'page', nodes, video, ...callbacks });

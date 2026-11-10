@@ -9,6 +9,9 @@ extraction does not replace upstream attribution.
 The patched pptxtojson 2.1.0 distribution is vendored with its MIT license and
 matching declarations. It is the exact distribution used by the verified D2f
 converter, not a fresh unpatched registry install. The worker bundles it locally.
+The local relationship-path fix resolves layout/master `.rels` beside the actual
+part filename, including imported `dw-*` parts, rather than assuming Office's
+conventional `slideLayout*`/`slideMaster*` names.
 
 The authoring bundle uses MAIC's matching private PPTXGenJS 4.0.1 fork, not the
 registry build. `vendor/pptxgenjs/` retains its built CommonJS distribution,

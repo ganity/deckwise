@@ -200,8 +200,8 @@ function Workflow({ sessionId, panelBlocked = false, maximized, onToggleMaximize
         const imported = await api.coursewareImportPptx(sessionId, picked.token);
         if (valid()) setView(value => value?.task ? { ...value, task: { ...value.task, imported: true, sourcePath: imported.path } } : value);
       })}>{t("coursewareWorkflow.selectPpt")}</button>}
-      {ordinary && <CoursewareChatPresentation sessionId={sessionId} disabled={blocked} refreshKey={refresh}
-        sourceVisuals={sourceVisuals} onReady={setPlainPath} />}
+      {view.task.taskType === "plain" && <CoursewareChatPresentation sessionId={sessionId} sourcePath={view.task.sourcePath} disabled={blocked} refreshKey={refresh}
+        sourceVisuals={ordinary ? sourceVisuals : undefined} onReady={setPlainPath} />}
       {path && <PptEditorTab key={path} path={path} tabId="ppt" blocked={panelBlocked || importOpen} maximized={maximized} onToggleMaximize={onToggleMaximize}
         actions={<>
           <button type="button" disabled={blocked} onClick={() => setImportOpen(true)}>{t("coursewareWorkflow.publish")}</button>

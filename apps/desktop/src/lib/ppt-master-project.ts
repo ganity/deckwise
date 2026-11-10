@@ -36,7 +36,9 @@ async function previewUrl(projectPath: string): Promise<string | null> {
   }
 }
 
-export function referencedProject(messages: UiMessage[]): string | null {
+export function referencedProject(messages: UiMessage[], sourcePath?: string): string | null {
+  const saved = sourcePath?.match(/\.deckwise-ppt[\\/]projects[\\/]([^\\/\s"'`]+)/);
+  if (saved?.[1]) return `.deckwise-ppt/projects/${saved[1]}`;
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     const message = messages[index];
     if (!message) continue;
@@ -75,7 +77,9 @@ export async function inspectProject(projectPath: string): Promise<PptProjectSta
   const latestSvgMtime = Math.max(0, ...sourceSvgs.map((entry) => entry.mtimeMs));
   const planning = projectFiles.filter((entry) => entry.kind === "file" && ["design_spec.md", "spec_lock.md"].includes(entry.name));
   const narration = notes.find((entry) => entry.kind === "file" && entry.name === "total.md");
-  const latestInputMtime = Math.max(latestSvgMtime, narration?.mtimeMs ?? 0, ...planning.map((entry) => entry.mtimeMs));
+  const assessmentPlan = projectFiles.find((entry) => entry.kind === "file" && entry.name === "presentation-plan.json");
+  const animations = projectFiles.find((entry) => entry.kind === "file" && entry.name === "animations.json");
+  const latestInputMtime = Math.max(latestSvgMtime, narration?.mtimeMs ?? 0, assessmentPlan?.mtimeMs ?? 0, animations?.mtimeMs ?? 0, ...planning.map((entry) => entry.mtimeMs));
   const reportFile = validation.find((entry) => entry.kind === "file" && entry.name === "svg_quality_report.json");
   let qualityIssue: string | null = null;
   let qualityFindings: string[] = [];

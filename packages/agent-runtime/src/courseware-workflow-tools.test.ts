@@ -25,6 +25,39 @@ it("advertises only finite sequential actions and pins every call to the owning 
     toolCallId: "read", toolName: "courseware_workflow_get", mode: "agent", args: {} } }]);
 });
 
+it("dispatches an ordinary export teaching plan with bounded native Quiz option keys", async () => {
+  const f = fixture();
+  const adopt = f.tools.find(tool => tool.name === "courseware_presentation_adopt")!;
+  const input = { path: "/workspace/.deckwise-ppt/projects/lesson/exports/lesson.pptx", sourceSha256: "a".repeat(64),
+    pages: [{ pageNumber: 1, teaching: { pageType: "quiz", phase: "practice", objective: "Name father", durationSeconds: 30, requiredObjects: [] },
+      quiz: { type: "quiz", questions: [{ id: "family", type: "single", question: "Who?", options: [{ value: "A", label: "father" }, { value: "B", label: "mother" }], answer: ["A"] }] } }], continueTeaching: true };
+  await adopt.execute("adopt", input);
+  expect(f.calls[0]).toMatchObject({ params: { toolName: "courseware_presentation_adopt", args: input, timeoutMs: 16 * 60_000 } });
+  input.pages[0]!.quiz.questions[0]!.options[0]!.value = "0";
+  await expect(adopt.execute("invalid", input)).rejects.toThrow("Invalid courseware workflow input");
+  expect(f.calls).toHaveLength(1);
+});
+
+it("prepares fixed assessment SVGs through the owning turn without exporting or generating media", async () => {
+  const f = fixture(), tool = f.tools.find(tool => tool.name === "courseware_presentation_prepare")!;
+  const args = { projectPath: ".deckwise-ppt/projects/lesson", canvas: { width: 1280, height: 720 },
+    pages: [{ pageNumber: 1, teaching: { pageType: "interactive", phase: "practice", objective: "Introduce family", durationSeconds: 30,
+      requiredObjects: [], question: { text: "Introduce your family", response: { kind: "discussion", options: [], answerIndices: [] } } } }] };
+  await tool.execute("prepare", args);
+  expect(f.calls[0]).toMatchObject({ params: { sessionId: "chat-1", turnId: "turn-1", toolName: "courseware_presentation_prepare", args } });
+  for (const invalid of [{ ...args, canvas: { width: 0, height: 720 } }, { ...args, sourceSha256: "a".repeat(64) }])
+    await expect(tool.execute("bad", invalid)).rejects.toThrow("Invalid courseware workflow input");
+  expect(f.calls).toHaveLength(1);
+});
+
+it("declares distinct body, Quiz and checkpoint shapes instead of optional interchangeable fields", async () => {
+  const f = fixture(), tool = f.tools.find(tool => tool.name === "courseware_presentation_prepare")!;
+  const args = { projectPath: ".deckwise-ppt/projects/lesson", canvas: { width: 1280, height: 720 }, pages: [{ pageNumber: 1,
+    teaching: { pageType: "interactive", phase: "practice", objective: "Share", durationSeconds: 30, requiredObjects: [] } }] };
+  await expect(tool.execute("missing-question", args)).rejects.toThrow("Invalid courseware workflow input");
+  expect(f.calls).toEqual([]);
+});
+
 it("dispatches bounded story drafts while rejecting invalid references and model-owned approval", async () => {
   const f = fixture();
   const save = f.tools.find(tool => tool.name === "courseware_story_save")!;

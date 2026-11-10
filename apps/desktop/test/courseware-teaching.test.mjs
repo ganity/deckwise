@@ -588,6 +588,19 @@ test("a plain deck with notes disabled still opens blank teaching, while partial
   }
 });
 
+test("adopted assessment-only presentations never enter legacy body-note initialization", async () => {
+  const f = setup(), original = f.host.call;
+  f.project().taskType = "plain";
+  for (const page of f.project().pages) { page.actions = []; page.locked = false; }
+  f.host.call = async (method, params) => {
+    if (["courseware.pageNotes", "courseware.project.initializeGenerated"].includes(method)) assert.fail("Assessment pages need no body notes");
+    const result = await original(method, params);
+    return method === "courseware.project.context" ? { ...result, teachingRequirements: [{ pageId: f.project().pages[0].pageId,
+      teaching: { pageType: "quiz", phase: "practice", objective: "Name family", durationSeconds: 30, requiredObjects: [] } }] } : result;
+  };
+  assert.deepEqual((await f.make().open("chat-1")).project.pages[0].actions, []);
+});
+
 test("imported PPT notes are a current-page preview and never silently write teaching", async () => {
   const f = setup();
   f.project().taskType = "import";

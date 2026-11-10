@@ -53,6 +53,7 @@ pub(super) fn cues(value: &Value, action_id: &str, duration_ms: u64) -> Result<V
         for (index, id) in targets(value)?.iter().enumerate() {
             cues.push(
                 json!({"id":format!("motion-{action_id}-{index}"),"atMs":0,"endMs":end,
+                "trigger":{"version":1,"kind":"start"},
                 "effect":{"type":"element_animation","elementId":id,"effect":effect}}),
             );
         }
@@ -201,6 +202,9 @@ mod tests {
                 assert!(cue["atMs"].as_u64().unwrap() < cue["endMs"].as_u64().unwrap());
                 assert!(cue["endMs"].as_u64().unwrap() <= duration);
                 reviews::effects::cue_targets(&cue).unwrap();
+                if cue["effect"]["type"] == "element_animation" {
+                    assert_eq!(cue["trigger"], json!({"version":1,"kind":"start"}));
+                }
             }
         }
     }

@@ -29,7 +29,7 @@ export * from "./speech/index.js";
 export { generateNarrationWrite } from "./courseware/narration-write.js";
 export { buildStagePromptContext, resolveGenerationProfile } from "./courseware/generation-profile-registry.js";
 export { candidateHash } from "./courseware/page-candidate-baseline.js";
-export { pageNarrationOutputSchema } from "./courseware/page-narration-candidate.js";
+export { pageNarrationOutputSchema, isNarrationTextContainer } from "./courseware/page-narration-candidate.js";
 export { narrationPreviewSource } from "./courseware/narration-preview-source.js";
 export { createAuthorizedPptCandidateTools } from "./ppt-candidate-host.js";
 export type { PptCandidateBaseline, PptCandidateContext } from "./ppt-candidate-tools.js";

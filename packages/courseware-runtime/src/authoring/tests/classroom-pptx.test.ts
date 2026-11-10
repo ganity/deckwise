@@ -100,6 +100,7 @@ describe('canonical classroom native pages', () => {
 
   it('projects options and images after option-only edits, with no answers or prompts on the learner page', async () => {
     const previous = fixture(), source = await compile(previous), next = structuredClone(previous);
+    const before = await importPptxFromBuffer({ arrayBuffer: Uint8Array.from(source.pptx).buffer, fileName: 'quiz.pptx' });
     const content = next.scenes[1].content;
     if (content.type !== 'quiz') throw new Error('fixture');
     content.questions[0].options![0].label = 'Updated option';
@@ -113,6 +114,8 @@ describe('canonical classroom native pages', () => {
     expect(xml).toContain('Updated option'); expect(xml).toContain('<p:pic>'); expect(xml).not.toContain('SECRET');
     expect(await zip.file('ppt/slides/slide1.xml')!.async('string')).toBe(await (await JSZip.loadAsync(source.pptx)).file('ppt/slides/slide1.xml')!.async('string'));
     const ir = await importPptxFromBuffer({ arrayBuffer: Uint8Array.from(result.pptx).buffer, fileName: 'quiz.pptx' });
+    expect(ir.pages[0].elements.map(element => [element.sourceShapeId, element.type, element.sourceObjectName]))
+      .toEqual(before.pages[0].elements.map(element => [element.sourceShapeId, element.type, element.sourceObjectName]));
     expect(ir.pages[1].elements.some(element => element.type === 'image')).toBe(true);
     expect(content).not.toHaveProperty('canvas');
     await expect(syncClassroomPptx({ previous, classroom: next, source: source.pptx, sourceHash: 'sha256:test', pages })).rejects.toThrow('image resolver');

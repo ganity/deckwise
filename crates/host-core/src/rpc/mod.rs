@@ -1871,6 +1871,7 @@ async fn handle_request(
         | "courseware.task.bindTeam"
         | "courseware.task.attachImport"
         | "courseware.task.attachGenerated"
+        | "courseware.presentation.adopt"
         | "courseware.scenePlan.get"
         | "courseware.scenePlan.approve"
         | "courseware.sceneImage.prepare"

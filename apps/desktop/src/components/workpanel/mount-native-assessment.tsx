@@ -6,6 +6,7 @@ import { CoursewareClassroomEditor, type ClassroomEditorToolbar } from "./Course
 import type { ClassroomEditorView } from "../../lib/courseware-classroom";
 import styles from "./courseware-classroom-editor.css?inline";
 export { speechGenerationError } from "../../lib/courseware-speech-error";
+export { mountNativeTeachingQuestion } from "./mount-native-teaching-question";
 
 const i18n = createInstance();
 export const nativeSpeechLabels = zhCN.panel.pptEditor;

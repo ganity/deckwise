@@ -113,6 +113,29 @@ const finishNarration = (page) =>
     a.currentTime = a.duration - 0.15;
   });
 try {
+  await test('successive-speech-after-user-activation', async page => {
+    const audio = await readFile(new URL('../tests/fixtures/fixed-courseware/page-1.wav', import.meta.url));
+    await page.goto('about:blank');
+    await page.setContent('<button>Play successive speech</button>');
+    await page.evaluate(src => {
+      window.__activationResult = {};
+      document.querySelector('button').onclick = async () => {
+        try {
+          await new Audio(src).play();
+          await new Promise(resolve => setTimeout(resolve, 6500));
+          window.__activationResult.transientExpired = !navigator.userActivation.isActive;
+          const second = new Audio(src);
+          await second.play();
+          window.__activationResult.playing = !second.paused;
+        } catch (error) { window.__activationResult.error = String(error); }
+      };
+    }, `data:audio/wav;base64,${audio.toString('base64')}`);
+    await page.getByRole('button', { name: 'Play successive speech' }).click();
+    await page.waitForFunction(() => window.__activationResult.playing || window.__activationResult.error);
+    const result = await page.evaluate(() => window.__activationResult);
+    assert.deepEqual(result, { transientExpired: true, playing: true });
+    return result;
+  });
   if (process.argv.includes('--bound-native')) await test('fixed-bound-native-timeline', async page => {
     await loaded(page);
     const target = id => page.locator(`[data-slide-render-element-id="${id}"]`);
@@ -2008,7 +2031,7 @@ try {
     );
   }
 }
-assert.equal(report.results.length, only ? 1 : (animations ? 37 : effects ? 35 : 33) + (electron ? 1 : 0));
+assert.equal(report.results.length, only ? 1 : (animations ? 38 : effects ? 36 : 34) + (electron ? 1 : 0));
 assert.ok(
   report.results.every((r) => r.status === "PASS"),
   JSON.stringify(report.results, null, 2),

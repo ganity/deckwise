@@ -208,13 +208,12 @@ try {
   await quizPlayback.waitFor();
   assert(await page.evaluate(() => window.__events.some(event => event.payload?.operation === 'classroom:audio:preview' && event.payload.args.sceneId === 'quiz')),
     'Native Quiz must load its managed question audio before showing the answer card');
-  await quizPlayback.locator('input').nth(1).check();
-  await quizPlayback.getByRole('button',{name:'检查答案',exact:true}).click();
-  await quizPlayback.getByRole('status').filter({hasText:'再想一想'}).waitFor();
-  await quizPlayback.locator('input').nth(0).check();
-  await quizPlayback.getByRole('button',{name:'检查答案',exact:true}).click();
+  await quizPlayback.getByRole('button').filter({hasText:'Bye'}).click();
+  await quizPlayback.getByRole('status').filter({hasText:'再试一次'}).waitFor();
+  assert.equal(await quizPlayback.getByRole('button',{name:'教师继续',exact:true}).count(), 0);
+  await quizPlayback.getByRole('button').filter({hasText:'Hello'}).click();
   await quizPlayback.getByRole('status').filter({hasText:'回答正确'}).waitFor();
-  await quizPlayback.getByRole('button',{name:'继续教学',exact:true}).click();
+  await quizPlayback.getByRole('button',{name:'教师继续',exact:true}).click();
   await quizPlayback.waitFor({state:'detached'});
   await native.getByLabel('问题',{exact:true}).fill('Updated native Quiz question');
   await panel.getByRole('button',{name:'撤销',exact:true}).waitFor({ state:'visible' });
@@ -274,7 +273,7 @@ try {
     'WiseOffice interaction playback must use the canonical MAIC checkpoint when native actions are empty');
   assert.deepEqual(await page.evaluate(() => window.__classroomWrites.at(-1).classroom.scenes[2].actions.find(action => action.checkpointKind === 'chapter_summary').context.sourceSceneIds), [],
     'An empty canonical source list must play without inventing a current-page source');
-  await interactionPlayback.getByRole('button',{name:'继续教学',exact:true}).click();
+  await interactionPlayback.getByRole('button',{name:'教师继续',exact:true}).click();
   await interactionPlayback.waitFor({state:'detached'});
   await page.keyboard.press('Escape');
   await page.evaluate(()=>{window.__failPreview=true;});
@@ -286,7 +285,7 @@ try {
   for (let attempt=0; attempt<3; attempt++) {
     await panel.locator('[data-preview-command="show"]').click();
     await interactionPlayback.waitFor({timeout:12000});
-    await interactionPlayback.getByRole('button',{name:'继续教学',exact:true}).click();
+    await interactionPlayback.getByRole('button',{name:'教师继续',exact:true}).click();
     await interactionPlayback.waitFor({state:'detached'});
     await page.keyboard.press('Escape');
   }
@@ -322,7 +321,7 @@ try {
   });
   assert(await page.evaluate(()=>window.__events.some(event=>event.payload?.operation==='classroom:audio:preview'&&event.payload.args.sceneId==='body')),
     'Embedded questions use canonical question audio within the ordinary native timeline');
-  await native.locator('[data-teaching-question]').getByRole('button',{name:'继续教学',exact:true}).click();
+  await native.locator('[data-teaching-question]').getByRole('button',{name:'教师继续',exact:true}).click();
   await native.locator('.teaching-flow article[data-action-id="speech"]').click();
   const narration = native.locator('[data-teaching-inspector][data-action-id="speech"]');
   assert(await narration.getByRole('button',{name:'重新生成语音',exact:true}).isVisible());

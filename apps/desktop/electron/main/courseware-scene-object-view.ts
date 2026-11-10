@@ -105,6 +105,12 @@ export function sceneObjectsForTeaching(raw: unknown, project: CoursewareProject
 
 /** Metadata follows logical page identity across native reorder/save, never the current ordinal. */
 export function sceneTeachingForPage(raw: unknown, project: CoursewareProject, pageId: string): CoursewareTeachingView["teaching"] {
+  if (project.taskType === "plain" && record(raw) && sameProjectRevision(raw.project, project) && Array.isArray(raw.teachingRequirements)) {
+    const matches = raw.teachingRequirements.filter(page => record(page) && page.pageId === pageId);
+    if (matches.length > 1 || matches.some(page => !isCoursewareSceneTeaching(page.teaching)))
+      throw new Error("Invalid saved presentation teaching requirements");
+    return matches[0]?.teaching;
+  }
   if (project.taskType !== "scene") return undefined;
   sceneObjectsForTeaching(raw, project, pageId);
   if (!record(raw) || !record(raw.sceneObjects) || !Array.isArray(raw.sceneObjects.pages)) return undefined;
