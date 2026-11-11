@@ -63,14 +63,15 @@ export async function generateNarrationWrite(input: Omit<Parameters<typeof gener
   })) throw new Error("Unsupported or locked teaching; retain current narration");
   const teaching = input.coursePlan && typeof input.coursePlan === "object" && "teaching" in input.coursePlan ? input.coursePlan.teaching : undefined;
   if (input.repairRequiredTeaching && page.actions.some(a => a.type === "speech")) {
-    if (!isCoursewareSceneTeaching(teaching)) throw new PageCandidateError("INVALID_SOURCE", "Required repair needs the approved logical page requirements");
+    if (teaching !== undefined && !isCoursewareSceneTeaching(teaching)) throw new PageCandidateError("INVALID_SOURCE", "Required repair needs the approved logical page requirements");
+    const requirements = isCoursewareSceneTeaching(teaching) ? teaching : undefined;
     const baseline = pageCandidateBaselineSchema.parse(input.baseline);
     if (candidateHash(input.pageText) !== baseline.contentHash) throw new PageCandidateError("INVALID_SOURCE", "Page text differs from its baseline");
     await checkPageCandidateBaseline(baseline, input.getCurrentBaseline, input.signal);
     const missing = new Set<string>();
-    if (teaching.question && !page.actions.some(a => a.type === "interaction_checkpoint" && a.checkpointKind === "chapter_summary" && coursewareQuestionMatches(a, teaching.question))) missing.add("interaction");
-    if (teaching.music && !page.actions.some(a => a.type === "music_slot" || a.type === "audio_clip")) missing.add("music");
-    if (teaching.video && !page.actions.some(a => a.type === "video_slot" || a.type === "video_clip")) missing.add("video");
+    if (requirements?.question && !page.actions.some(a => a.type === "interaction_checkpoint" && a.checkpointKind === "chapter_summary" && coursewareQuestionMatches(a, requirements?.question))) missing.add("interaction");
+    if (requirements?.music && !page.actions.some(a => a.type === "music_slot" || a.type === "audio_clip")) missing.add("music");
+    if (requirements?.video && !page.actions.some(a => a.type === "video_slot" || a.type === "video_clip")) missing.add("video");
     const candidateId = randomUUID();
     const anchors = page.actions.filter(a => a.type === "speech").map(a => a.id);
     const delta = missing.size ? requiredDelta.parse(await input.generate({
@@ -81,7 +82,7 @@ export async function generateNarrationWrite(input: Omit<Parameters<typeof gener
     const additions = new Map<string, TeachingWrite["actions"]>();
     for (const [index, insertion] of delta.insertions.entries()) {
       if (!anchors.includes(insertion.afterSpeechId) || !missing.delete(insertion.block.type) ||
-          insertion.block.type === "interaction" && !coursewareQuestionMatches(insertion.block, teaching.question))
+          insertion.block.type === "interaction" && !coursewareQuestionMatches(insertion.block, requirements?.question))
         throw new PageCandidateError("INVALID_OUTPUT", "Repair must use existing speech anchors and exactly the missing approved question, music or video");
       const actions = additions.get(insertion.afterSpeechId) ?? [];
       actions.push(requirementAction(insertion.block, `repair-${candidateId}-${index}`, page.pageId, input.pageText.trim() || project.title || page.pageId));
@@ -89,7 +90,7 @@ export async function generateNarrationWrite(input: Omit<Parameters<typeof gener
     }
     if (missing.size) throw new PageCandidateError("INVALID_OUTPUT", `Repair omitted required actions: ${[...missing].join(", ")}`);
     await checkPageCandidateBaseline(baseline, input.getCurrentBaseline, input.signal);
-    const missingEffects = new Set<string>(teaching.requiredEffects ?? []);
+    const missingEffects = new Set<string>(requirements?.requiredEffects ?? []);
     for (const action of page.actions.filter(a => a.type === "speech")) {
       if (isCoursewareAttentionIntent(action.attention)) {
         missingEffects.delete(action.attention.type);

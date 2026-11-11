@@ -39,7 +39,9 @@ test("real native PPTX supplies an immutable Host snapshot without an editable t
     if (n > 900) assert.fail("Native parser timed out"); await new Promise(resolve => setTimeout(resolve, 100));
   }
   const assets = [];
-  for (const media of carrier.media) {
+  const used = new Set(carrier.pages.flatMap(page => page.actions.flatMap(action =>
+    [action.audioAssetId, action.videoAssetId].filter(id => typeof id === "string"))));
+  for (const media of carrier.media.filter(media => used.has(media.id))) {
     const path = join(workspace, media.sha256 + ".bin"); await fs.writeFile(path, Buffer.from(media.data, "base64"));
     assets.push({ asset: { id: media.id, sha256: media.sha256, mimeType: media.mimeType }, path });
   }
@@ -53,7 +55,7 @@ test("real native PPTX supplies an immutable Host snapshot without an editable t
     await assert.rejects(host.call("courseware.snapshot.importNative", { sessionId: session.id, jobId, snapshotId: randomUUID(), project, identity: carrier.identity, assets: wrong }), /clip asset type changed/);
   }
   const result = await host.call("courseware.snapshot.importNative", { sessionId: session.id, jobId, snapshotId, project, identity: carrier.identity, assets });
-  assert.equal(result.nativeTeaching, true); assert.equal(result.snapshot.assetIds.length, carrier.media.length); assert.equal(result.project.pages.length, carrier.pages.length);
+  assert.equal(result.nativeTeaching, true); assert.equal(result.snapshot.assetIds.length, assets.length); assert.equal(result.project.pages.length, carrier.pages.length);
   const fixedPages = structuredClone(project.pages);
   for (const action of fixedPages.flatMap(page => page.actions)) {
     if (!["audio_clip", "video_clip"].includes(action.type)) continue;

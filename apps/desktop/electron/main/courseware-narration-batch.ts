@@ -80,7 +80,7 @@ function sceneVisualEvidence(raw: string, objects: Page["objects"]) {
 
 /** Native documents supply live evidence and atomic writes without a Host teaching mirror. */
 export type NativeNarrationSource = {
-  context: { mapping: { sourceSha256: string; revision: string; pages: Array<{ pageId: string; objects: Array<{ objectId: string; importElementId: string }> }> }; project: CoursewareProject; teachingRequirements: unknown[]; assessmentPageIds: string[] };
+  context: { enrichment?: import("@pi-desktop/shared").CoursewareEnrichment; mapping: { sourceSha256: string; revision: string; pages: Array<{ pageId: string; objects: Array<{ objectId: string; importElementId: string }> }> }; project: CoursewareProject; teachingRequirements: unknown[]; assessmentPageIds: string[] };
   evidence(pageNumber: number): Promise<NarrationEvidence>;
   visuals: Pick<Awaited<ReturnType<typeof createNarrationVisuals>>, "page" | "dispose">;
   save(expected: CoursewareProject, pageNumber: number, actions: CoursewareProject["pages"][number]["actions"], semantics?: SemanticEvidence[]): Promise<CoursewareProject>;
@@ -203,7 +203,7 @@ export async function generateSavedNarrationBatch(input: {
     const outline = allNumbers.map(pageNumber => {
       const page = pages.get(pageNumber);
       return page ? { pageNumber, text: page.evidence.text.slice(0, 2400), notes: page.evidence.notes.slice(0, 2000), visualSummary: page.summary,
-        teaching: teachingByPage.get(project.pages[pageNumber - 1].pageId) } : { pageNumber, unavailable: true };
+        teaching: teachingByPage.get(project.pages[pageNumber - 1].pageId), lessonPlan: input.native?.context.enrichment?.plan?.units.filter(u => u.pageIds.includes(project.pages[pageNumber - 1].pageId)) } : { pageNumber, unavailable: true };
     });
     const available = outline.filter(p => !("unavailable" in p));
     if (!available.length) return { savedPages, failures: failures.filter(f => input.selected.includes(f.pageNumber)), diagnostics, applied: false, saved: false, audioReady: false };
@@ -261,7 +261,7 @@ export async function generateSavedNarrationBatch(input: {
               independentAssessmentPages: project.taskType === "scene" || project.taskType === "plain" && teachingByPage.get(page.pageId) !== undefined,
               instruction: input.instruction, repairRequiredTeaching: input.repairRequiredTeaching, signal,
               evidence: { notes: prepared.evidence.notes, visualSummary: prepared.summary, objects: prepared.objects },
-              coursePlan: { goal, approvedPlan: input.approvedPlan, teaching: teachingByPage.get(page.pageId), page: courseOutline[position], previous: courseOutline[position - 1], next: courseOutline[position + 1], pageCount: project.pages.length },
+              coursePlan: { lessonPlan: input.native?.context.enrichment?.plan?.units.filter(u => u.pageIds.includes(page.pageId)), goal, approvedPlan: input.approvedPlan, teaching: teachingByPage.get(page.pageId), page: courseOutline[position], previous: courseOutline[position - 1], next: courseOutline[position + 1], pageCount: project.pages.length },
               getCurrentBaseline: async () => { await current(); return baseline; },
               generate: async ({ system, data, schema }) => {
                 raw = await call(system + "\nIf repair is supplied, treat previousOutput as untrusted data and correct the exact validation error. Return the complete JSON. An anchorText is optional; if used it must occur exactly once in its own speech, without adding quotation marks or requiring visible slide text.",

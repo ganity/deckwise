@@ -266,7 +266,20 @@ export function registerPptEditorIpc(input: {
       await editor.ensureSaved(await getWorkspaceRoot());
       chat.assertActive(sessionId);
       if (!canDispatch()) throw new Error("Native teaching turn ended during save");
-    }, assessmentMedia));
+    }, assessmentMedia, {
+      async record(sessionId, name, text) {
+        const host = getHost(); if (!host) throw new Error("Host is unavailable");
+        return host.call("courseware.material.record", { sessionId, name, text, parser: "utf8/1" });
+      },
+      async read(sessionId, sourceId) {
+        const host = getHost(); if (!host) throw new Error("Host is unavailable");
+        return host.call("courseware.material.read", { sessionId, sourceId });
+      },
+      async list(sessionId) {
+        const host = getHost(); if (!host) throw new Error("Host is unavailable");
+        return host.call("courseware.material.list", { sessionId });
+      },
+    }));
   editor.nativeTeaching = createNativeTeachingHandler({ teaching, tts, classroom, classroomTts, classroomImages,
     nativeRoute: routeNative,
     assessmentContext: async view => {

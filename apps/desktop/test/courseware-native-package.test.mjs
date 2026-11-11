@@ -52,3 +52,13 @@ test("pre-migration generated Quiz metadata is retained before any manual questi
   value.assessments = { page: { ...quiz, questions: [{ ...quiz.questions[0], question: "Manually edited" }] } };
   assert.deepEqual((await readNativeTeachingPackage(await pack(value))).assessments, value.assessments);
 });
+
+test("saved source bindings remain portable while unsupported versions and private material fields fail", async () => {
+  const value = fixture(); value.enrichment = { schemaVersion: "deckwise-teaching-enrichment/1", originalPages: [{ pageId: "page", pageNumber: 1 }],
+    script: { sha256: "b".repeat(64), policy: "preserve", silentPageIds: [], segments: [{ id: "segment-1", text: "Hello", sourceLine: 2, pageId: "page", actionId: "speech" }] } };
+  assert.deepEqual((await readNativeTeachingPackage(await pack(value))).enrichment, value.enrichment);
+  value.enrichment.path = "/private/script.docx";
+  await assert.rejects(readNativeTeachingPackage(await pack(value)));
+  delete value.enrichment.path; value.enrichment.schemaVersion = "future";
+  await assert.rejects(readNativeTeachingPackage(await pack(value)));
+});

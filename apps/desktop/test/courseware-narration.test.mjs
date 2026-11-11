@@ -366,3 +366,20 @@ test("native generated narration keeps page requirements, live targets and adopt
   assert.deepEqual(page.actions.filter(action => action.type === "speech").map(action => action.text), before);
   assert.equal(f.requests.length, 1, "a satisfied repair never regenerates speech or buys replacement media");
 });
+
+for (const policy of ["preserve", "generate-missing", "silent"]) test(`native selected narration respects ${policy} source policy before any write`, async () => {
+  const f = setup(), page = f.project.pages[0];
+  const enrichment = { schemaVersion: "deckwise-teaching-enrichment/1", originalPages: f.project.pages.map((p, i) => ({ pageId: p.pageId, pageNumber: i + 1 })),
+    script: { sha256: "a".repeat(64), policy: policy === "silent" ? "revise" : policy, segments: [{ id: "source", text: "Existing narration", sourceLine: 1,
+      pageId: policy === "silent" ? f.project.pages[1].pageId : page.pageId, actionId: page.actions[0].id }], silentPageIds: policy === "silent" ? [page.pageId] : [] } };
+  f.teaching.native = async operation => {
+    assert.equal(operation, "narration-context");
+    return { value: { view: { viewId: "native-page", pageId: page.pageId, pageNumber: 1, project: structuredClone(f.project), enrichment },
+      editor: f.editor, text: "A red apple." } };
+  };
+  const context = await f.context();
+  await assert.rejects(f.coordinator.selectNarrationSource("chat", { kind: "external", baseline: context.baseline, text: "Replacement" }, () => true),
+    policy === "silent" ? /intentionally silent/ : /policy prevents/);
+  assert.equal(f.requests.length, 0);
+  assert.equal(page.actions[0].text, "Existing narration");
+});

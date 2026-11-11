@@ -1908,6 +1908,12 @@ sklm: {
       approvalStale: "계획이 변경되었습니다. 다시 검토하고 확인하세요.", approvalHint: "확인은 현재 계획만 저장합니다. 자료를 생성하거나 미디어 비용을 발생시키지 않습니다.",
     },
     pptEditor: {
+      materialPolicy: "해설문 처리: {{policy}}",
+      materialCoverage: "미해결 자료 항목: {{count}}",
+      materialPreserve: "제공된 원문 유지",
+      materialRevise: "제공된 초안 수정",
+      materialGenerateMissing: "누락된 설명만 생성",
+      materialPlanOnly: "수업 계획만 사용",
       questionSpeech: "Question audio",
       updateQuestionSpeech: "Update spoken question text",
       createQuestionSpeech: "Create spoken question",

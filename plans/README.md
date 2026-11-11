@@ -5,6 +5,15 @@ These plans answer the 2026-10-31 systemic audit. Plans 001–006 are now
 and [machine-readable gate report](validation-report.json). Native editor/player
 and live-provider acceptance remain explicitly unperformed.
 
+## Shared teaching enrichment implementation
+
+[Plan 008](008-shared-teaching-enrichment.md) records the implemented shared teaching
+flow for scene generation, PPT Master and imported PPTs with optional lesson plans
+and narration scripts. It links the detailed design and implementation approach,
+with nine phases, 41 tasks and explicit acceptance gates. Its implementation and local qualification are documented in the
+[execution evidence](../docs/design/2026-11-10-shared-teaching-evidence.md). External
+provider/application qualification remains separate from local test results.
+
 ## Baseline and execution policy
 
 - Workspace: /home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A

@@ -268,6 +268,21 @@ restart. This is not a distributed or adversarial-filesystem transaction.
 
 ## Desktop fixed build and preview (A17)
 
+### Unsupported native animation degradation
+
+Unbound native effects that cannot use a verified finite playback preset degrade
+to a 500 ms whole-object fade when the parsed target is unique, visible and safe.
+Unresolved/media/paragraph targets and branches already skipped by the bounded
+timing parser remain skipped with warning diagnostics. Supported effects and
+speech-owned motion remain intact. These degradation warnings are accepted by the
+conversion policy and retained in the package report, including its accepted
+warning-code list; unrelated content warnings retain their existing review gate.
+Source PPTX bytes are never rewritten. Explicit source-bound native teaching steps,
+linked speech animation drift, malformed/oversized timing, ambiguous mappings and
+conflicting motion owners retain their rejection guards. A speech motion targeting
+a Master group with exactly one mapped visible child resolves to that child;
+multi-child groups are not guessed.
+
 Main consumes the imported D22 runtime module unchanged. The finite,
 main-window-only channels below use the existing generated preload whitelist:
 

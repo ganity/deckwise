@@ -1,3 +1,4 @@
+import { readFile, stat } from "node:fs/promises";
 import { coursewareStoryPrompt } from "../courseware-story";
 import { DECKWISE_MANAGED_PROVIDER_ID, IPC, ErrorCodes, isGlobalPermissionMode, type AgentEventEnvelope, type AgentPromptRequest, type AgentSteerRequest, type UiMessage, type AgentQueuePushRequest, type AgentStopRequest, type AskToolResolution, type GlobalPermissionMode, type MessageUsage, type PlanExecutionFinishStatus, type PlanResolutionResult, type PlanResolveRequest, type PromptEnhancementRequest, type SessionSummarizeTitleRequest } from "@pi-desktop/shared";
 import type { FinishTurn } from "../runtime/plans";
@@ -93,6 +94,7 @@ function deckWiseModelPrompt(content: string, nativeEditing = false, taskType: "
     : `- For a supported request, first call the \`Skill\` tool with id ${JSON.stringify(route.skill)} and follow the loaded instructions.`,
     `- Task authority: ${route.authority}. ${route.instruction}`,
     "- Drive the complete requested workflow in this main Chat. Read courseware_workflow_get for saved requirements and real stage state before continuation. Ask essential missing information with asktool, reuse supplied answers, and save confirmed teaching settings through courseware_requirements_update before plan approval/source attachment. Its latest saved settings override the initial prompt snapshot; revise an unapproved plan to match changed settings before requesting review. Never silently guess the audience. Preserve optional requirements and task type.",
+    "- For supplied final narration scripts or lesson plans use courseware_narration_import: preview with apply:false, preserve final script verbatim, bind original page IDs, then apply:true. Never turn supplied script into a regeneration instruction. Before applying, read actual page text/objects via courseware_narration_context with pageNumbers and compare every bound section against the page. Page labels establish placement, not semantic correctness. Report contradictions and leave affected sections unresolved; never silently relocate or rewrite them. Expose unmatched source sections and activity coverage before claiming completion.",
     "- For saved PPTX page reading and narration use courseware_narration_context and courseware_narration_propose. These work with the editor closed and accept explicit page numbers. Complete the requested page range without asking the user to navigate or continue page by page. Preview is for human inspection. For TTS, pass the current page's missing speech IDs as actionIds to courseware_media_prepare(kind:tts) for bounded parallel synthesis and archive, rather than one tool call per speech. Native selection editing still requires its own Office binding.",
     "- Quiz and interaction_checkpoint media are shared across import, scene and PPT-master paths. Read courseware_media_assessments(mode:context), then generate missing question TTS and each multiple-choice option image through its prepare/refresh modes. Use configured models/voices, current canonical revisions and the original saved target. Whole-course authorization includes these missing assets without per-question approval. Preserve successful assets and refresh pending/unknown originals. Re-read context after each adoption. courseware_media_context includes assessmentMedia readiness; do not report a complete teaching course while its targets remain. Canonical-only Quiz courses use this same tool without a fake PPTX.",
     "- Ordinary PPT Master generation keeps its official SVG preview and explicit PPTX-export gate. Before authoring a new project, use courseware_presentation_prepare to save the complete page plan and generate fixed Quiz/checkpoint SVGs; design only the returned body pages. Assessments retain editable question text without lecture, decoration, answers or animation. Keep them within the user's total-page budget. After authorized export, load courseware_presentation_adopt to bind the verified export and the same saved teaching entries. Course export continues teaching by default, including a simple export request in this teaching-course task. Use continueTeaching:true and finish the shared saved narration, synchronized object effects, TTS and assessment media without another Continue request. Only an explicit PPTX-only/no-audio request uses continueTeaching:false and forbids paid audio/image generation. After adoption or Office editing, resume saved teaching; never replace it with a stale SVG export.",
@@ -550,12 +552,27 @@ export function registerAgentIpc({
     try {
       for (const attachment of preparedAttachments) {
         if (attachment.message.kind !== "file") continue;
-        if (!/\.(pdf|docx?|pptx?)$/i.test(attachment.message.name)) continue;
-        const parsed = await parseDocument(attachment.absolutePath);
+        const plainMaterial = /\.(txt|md)$/i.test(attachment.message.name);
+        if (!plainMaterial && !/\.(pdf|docx?|pptx?)$/i.test(attachment.message.name)) continue;
+        if (plainMaterial && (await stat(attachment.absolutePath)).size > 2 * 1024 * 1024) throw new Error("Text material exceeds the 2 MiB limit");
+        const parsed = plainMaterial
+          ? { text: new TextDecoder("utf-8", { fatal: true }).decode(await readFile(attachment.absolutePath)), cleanupUrls: [] as string[] }
+          : await parseDocument(attachment.absolutePath);
         documentCleanupUrls.push(...(parsed.cleanupUrls ?? []));
-        const content = (parsed.semanticText || parsed.text || "").trim();
+        const content = parsed.text || parsed.semanticText || "";
+        let sourceId: string | undefined;
+        if (!isTurnDispatchable(req.sessionId, durableTurnId)) throw new Error("Material parsing turn ended");
+        const { task } = await host.call<{ task: unknown }>("courseware.task.get", { sessionId: req.sessionId });
+        if (task && !content.trim()) throw new Error("The teaching attachment has no readable text; provide a text-based script or lesson plan");
+        if (content.trim()) {
+          if (task) {
+            const saved = await host.call<{ sourceId: string }>("courseware.material.record", { sessionId: req.sessionId,
+              name: attachment.message.name, text: content, parser: plainMaterial ? "utf8/1" : "document-service/1" });
+            sourceId = saved.sourceId;
+          }
+        }
         if (content) {
-          documentContexts.push(`### 资料：${attachment.message.name}\n${content.slice(0, 120000)}`);
+          documentContexts.push(`### 资料：${attachment.message.name}${sourceId ? ` [teaching sourceId: ${sourceId}; use this ID to preserve exact source text]` : ""}\n${content.slice(0, 120000)}`);
         }
       }
     } catch (error) {

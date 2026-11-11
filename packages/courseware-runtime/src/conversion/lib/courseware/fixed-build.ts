@@ -1,6 +1,7 @@
 import { maicQuizSchema } from "../../../maic-classroom";
 import { projectNativeGroups } from './native-groups';
 import { projectNativeTimeline } from './native-timeline';
+import { fallbackNativeTimeline, resolveSingleChildSpeechAnimations } from './native-animation-fallback';
 import type { NativeTimeline } from '../../../native-timeline';
 import { createHash, randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
@@ -290,17 +291,23 @@ export async function buildFixedCourseware(
       await readFile(path.join(staging, 'conversion/slide-ir.json'), 'utf8'),
     );
     const diagnostics = ir.warnings ?? [];
-    if (diagnostics.some(warning => warning.code.startsWith('PPTX_TIMING_')))
+    const skippableTiming = new Set(['PPTX_TIMING_UNSUPPORTED_BEHAVIOR', 'PPTX_TIMING_UNSUPPORTED_STRUCTURE',
+      'PPTX_TIMING_TARGET_OR_DURATION_UNSUPPORTED', 'PPTX_TIMING_PARAGRAPH_TARGET_UNSUPPORTED',
+      'PPTX_TIMING_DEPENDENCY_UNSUPPORTED', 'PPTX_TIMING_DELAY_UNSUPPORTED']);
+    const boundNative = input.teaching.pages.some(page => page.actions.some(action => action.type === 'native_animation'));
+    if (diagnostics.some(warning => warning.code.startsWith('PPTX_TIMING_') &&
+        (boundNative || !skippableTiming.has(warning.code))))
       throw new FixedBuildError('NATIVE_ANIMATION_UNSUPPORTED', diagnostics);
     if (diagnostics.some((w) => w.severity === 'error'))
       throw new FixedBuildError('CONTENT_ERROR', diagnostics);
     if (
       diagnostics.some(
         (w) =>
-          (w.severity ?? 'warning') === 'warning' && !input.reviewedWarningCodes.includes(w.code),
+          (w.severity ?? 'warning') === 'warning' && !skippableTiming.has(w.code) && !input.reviewedWarningCodes.includes(w.code),
       )
     )
       throw new FixedBuildError('CONTENT_REVIEW_REQUIRED', diagnostics);
+    resolveSingleChildSpeechAnimations(input, ir.pages);
     validateFixedMapping(input, ir);
     const importedAssets = path.join(staging, 'conversion/assets');
     for (const file of await readdir(importedAssets).catch(() => [] as string[])) {
@@ -343,7 +350,16 @@ export async function buildFixedCourseware(
           try { nativeAnimations = projectNativeClicks(remaining); }
           catch (error) {
             if (actions.some(action => action.type === 'native_animation')) throw error;
-            nativeTimeline = projectNativeTimeline(remaining, mapping.groups ?? []);
+            try { nativeTimeline = projectNativeTimeline(remaining, mapping.groups ?? []); }
+            catch {
+              const speechTargets = new Set(actions.flatMap(action => action.type === 'speech'
+                ? (action.visualCues ?? []).flatMap(cue => {
+                  const effect = cue.effect;
+                  return effect.type === 'element_animation'
+                    ? mapping.objects.filter(object => object.objectId === effect.elementId).map(object => object.importElementId) : [];
+                }) : []));
+              nativeTimeline = fallbackNativeTimeline(remaining, mapping.groups ?? [], speechTargets, diagnostics, index);
+            }
           }
         }
       }
@@ -433,7 +449,8 @@ export async function buildFixedCourseware(
     const hasAnimations = visualCues.some((cue) => cue.effect.type === 'element_animation');
     const report = {
       ready: true,
-      reviewedWarningCodes: input.reviewedWarningCodes,
+      reviewedWarningCodes: [...new Set([...input.reviewedWarningCodes, ...diagnostics.filter(d =>
+        skippableTiming.has(d.code) || ['PPTX_ANIMATION_FALLBACK_FADE', 'PPTX_ANIMATION_SKIPPED'].includes(d.code)).map(d => d.code)])],
       visualFidelity: 'NOT_VERIFIED',
       diagnostics,
       capabilities: {

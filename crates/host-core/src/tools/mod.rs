@@ -1019,6 +1019,8 @@ pub fn is_desktop_dispatched(tool_name: &str) -> bool {
                 | "courseware_media_assessments"
                 | "courseware_narration_context"
                 | "courseware_narration_propose"
+                | "courseware_narration_import"
+                | "courseware_activity_insert"
                 | "courseware_requirements_update"
                 | "courseware_scene_image_prepare"
                 | "courseware_scene_image_refresh"

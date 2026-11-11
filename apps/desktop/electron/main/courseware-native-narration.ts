@@ -38,6 +38,16 @@ export async function generateNativeNarration(input: {
     };
     assertOwner(first);
     const initial = first.view.project;
+    const source = first.view.enrichment?.script;
+    if (source) {
+      if (selected.some(n => source.silentPageIds.includes(initial.pages[n - 1]?.pageId))) throw new Error("This page is intentionally silent; change its source policy before generating speech");
+      const originals = new Set(first.view.enrichment!.originalPages.map(p => p.pageId));
+      const protectedPages = selected.filter(n => originals.has(initial.pages[n - 1]?.pageId) &&
+        (source.policy === "preserve" || source.policy === "generate-missing" && initial.pages[n - 1]?.actions.some(a => a.type === "speech")));
+      if (protectedPages.length && !input.repairRequiredTeaching) throw new Error("Accepted script policy prevents regeneration; explicitly revise its source policy first");
+      if (input.repairRequiredTeaching && protectedPages.some(n => !initial.pages[n - 1].actions.some(a => a.type === "speech")))
+        throw new Error("Preserved script has missing or intentionally silent pages; repair cannot generate filler");
+    }
     const captures: Capture[] = [];
     let generation = first.editor?.editGeneration;
     let changed: string | undefined;
@@ -114,7 +124,7 @@ export async function generateNativeNarration(input: {
         repairRequiredTeaching: input.repairRequiredTeaching, canDispatch: () => input.canDispatch() && Date.now() < deadline,
         current: async () => current(live),
         native: {
-          context: { project, mapping: { sourceSha256: project.source.sha256, revision: project.teachingRevision,
+          context: { project, enrichment: first.view.enrichment, mapping: { sourceSha256: project.source.sha256, revision: project.teachingRevision,
             pages: captures.map(c => ({ pageId: c.view.pageId, objects: c.evidence.objects.map(o => ({ objectId: o.objectId, importElementId: o.objectId })) })) },
             teachingRequirements: captures[0].view.teachingRequirements ?? [],
             assessmentPageIds: captures.filter(c => c.view.teaching?.pageType && c.view.teaching.pageType !== "slide" ||
@@ -133,6 +143,10 @@ export async function generateNativeNarration(input: {
             for (const action of actions) {
               const old = original.actions.find(a => a.id === action.id);
               if (old?.durationMs !== undefined && action.audioAssetId && action.audioAssetId === old.audioAssetId) action.durationMs = old.durationMs;
+            }
+            if (source?.policy === "preserve") {
+              const speech = (items: typeof actions) => items.filter(a => a.type === "speech").map(a => [a.id, a.text]);
+              if (JSON.stringify(speech(actions)) !== JSON.stringify(speech(original.actions))) throw new Error("Source repair cannot change accepted script words or order");
             }
             let written;
             for (let writeAttempt = 0; ; writeAttempt++) {

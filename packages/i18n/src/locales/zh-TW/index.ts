@@ -1892,6 +1892,12 @@ sklm: {
       approvalStale: "規劃已修改，請重新審核並確認。", approvalHint: "確認只儲存目前規劃，不生成素材或產生媒體費用。",
     },
     pptEditor: {
+      materialPolicy: "講解詞處理方式：{{policy}}",
+      materialCoverage: "尚未匹配或待處理的資料項：{{count}}",
+      materialPreserve: "保留原文",
+      materialRevise: "允許改寫",
+      materialGenerateMissing: "僅補充缺失講解",
+      materialPlanOnly: "僅教案",
       questionSpeech: "Question audio",
       updateQuestionSpeech: "Update spoken question text",
       createQuestionSpeech: "Create spoken question",

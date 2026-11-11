@@ -5898,7 +5898,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
   }
 
   private activateDeferredTools(names: readonly string[]): string[] {
-    const savedTeachingTools = ["courseware_presentation_adopt", "courseware_narration_context", "courseware_narration_propose",
+    const savedTeachingTools = ["courseware_presentation_adopt", "courseware_narration_context", "courseware_narration_propose", "courseware_narration_import", "courseware_activity_insert",
       "courseware_media_context", "courseware_media_prepare", "courseware_media_refresh", "courseware_media_assessments"];
     const selectedNames = names.includes("courseware_workflow_get") ? [...names, "courseware_scene_plan_submit", "courseware_story_begin", "courseware_story_save"] : names;
     const selected = selectedNames.some(name => name === "courseware_scene_compile" || savedTeachingTools.includes(name))

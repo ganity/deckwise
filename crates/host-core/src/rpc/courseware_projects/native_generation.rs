@@ -156,7 +156,8 @@ fn verify_teaching(page: &crate::db::courseware_projects::CoursewarePage, teachi
             .into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join("\n");
         anyhow::ensure!(checkpoints[0]["referenceAnswer"] == reference && checkpoints[0]["context"]["chapterSummary"] == context, "Interaction guidance differs from plan");
     } else if let Some(narration) = narration {
-        anyhow::ensure!(checkpoints.is_empty() && (narration.trim().is_empty() && speeches.is_empty()
+        // A body-page planning draft remains generation evidence until detailed narration is authored.
+        anyhow::ensure!(checkpoints.is_empty() && (speeches.is_empty()
             || speeches.len() == 1 && speeches[0]["text"] == narration.trim()), "Generated narration differs from plan");
     }
     Ok(())
@@ -169,6 +170,15 @@ mod tests {
 
     fn page(actions: Value) -> CoursewarePage {
         serde_json::from_value(json!({"pageId":"page-1","actions":actions,"locked":false,"reviewState":"review"})).unwrap()
+    }
+
+    #[test]
+    fn scene_planning_narration_does_not_require_completed_speech() {
+        let planned = "Look at the circle. A circle is round.";
+        assert!(verify_teaching(&page(json!([])), None, None, Some(planned)).is_ok());
+        assert!(verify_teaching(&page(json!([{"type":"speech","text":planned}])), None, None, Some(planned)).is_ok());
+        assert!(verify_teaching(&page(json!([{"type":"speech","text":"An unrelated square."}])), None, None, Some(planned)).is_err());
+        assert!(verify_teaching(&page(json!([{"type":"interaction_checkpoint"}])), None, None, Some(planned)).is_err());
     }
 
     #[test]

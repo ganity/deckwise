@@ -130,9 +130,12 @@ Static slides remain limited. Native transitions remain unsupported. Fixed packa
 may preserve the finite `nativeObjectAnimations: "click-appear-fade/1"` capability:
 saved whole-object, one-target on-click entrance appear (preset 1) and fade
 (preset 10), duration 1–5000 ms, on ordinary text/shape/image targets. Every native
-step must fit; unknown presets, automatic/parallel/delayed steps, grouped/media
-or paragraph targets and conflicting speech cues block the build. Warning review
-cannot acknowledge unsupported timing away. Generic `objectAnimations` remains
+step uses the finite timeline when supported. Unbound unsupported whole-object
+effects degrade to a 500 ms fade; unresolved, media or paragraph effects are skipped
+with diagnostics. Recoverable parser timing warnings no longer block playback.
+Malformed/oversized timing and stale explicit teaching bindings still reject.
+Single-child Master groups resolve speech motion to their exact visible child;
+ambiguous groups and conflicting speech cues still reject. Generic `objectAnimations` remains
 false; bounded player fade/pulse and spotlight remain separate capabilities.
 
 Canonical teaching may also contain `{ id, type: "audio_clip", audioAssetId }`.

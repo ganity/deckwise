@@ -82,8 +82,9 @@ Provider-free tests: Desktop `courseware-native-sidebar.test.mjs`; document
   `animations.json` or the presentation plan invalidates older report/export
   timestamps. The actual Host must also reject a stale animation sidecar.
 - Run runtime native-click and fixed-build regressions for existing motion
-  ownership, bound native steps, effect ordering and strict unsupported-motion
-  rejection. This is separate from clicking the native WiseOffice sidebar or
+  ownership, bound native steps, effect ordering and unsupported-motion degradation
+  (safe unbound targets fade, unresolved branches skip; stale explicit bindings
+  still reject). This is separate from clicking the native WiseOffice sidebar or
   proving automatic unbound motion in a particular generated lesson.
 - A follow-up provider-backed generation must inspect actual page kinds, body
   speech counts, visible content, native timing and speech-linked cues separately.
@@ -18171,3 +18172,27 @@ Native authoring parity continuation:
 - Tests: Desktop `courseware-narration-batch`, `courseware-classroom`,
   `courseware-classroom-tts`, `courseware-native-library`; runtime `fixed-build`
   and `load-fixed-build`; document `deckwise-native-teaching-parity.spec.ts`.
+
+
+## Shared native teaching sources (Part A)
+
+- Attach a PPT alone, PPT + lesson plan, PPT + final script, and PPT + both. Use
+  existing scene/PPT Master output as additional entry fixtures, preserving their
+  media, question order, generated requirements and object mapping.
+- Preview material adoption without provider calls. Apply explicit page labels and
+  ambiguous unlabelled assignments; keep decimals, greetings and video references.
+  Verify source IDs survive Host restart and cannot cross task sessions.
+- Insert an authorized missing independent Quiz/checkpoint from a mapped plan unit.
+  Verify visible question and answer/reference share one native Undo/Redo step.
+  Repeat insertion and recover an uncertain acknowledgement without duplicates.
+- Save/reopen and verify all accepted script segments by logical page/action ID;
+  insert/reorder pages without shifting source anchors. Retain music/video/native
+  animations. Manual edits, missing source pages and unbound copies stay diagnostic.
+- Repair focus on existing script without speech generation, retain matching audio,
+  then use existing media adoption/native timing and fixed playback suites.
+- Current real browser regression: paired document
+  `test/e2e/deckwise-native-materials.spec.ts` (fixture and authoring URL required).
+  It must execute, not skip. Run in an isolated editor/port, never the user's app.
+  Source and activity contracts also run in the provider-free workflow gate.
+- External PowerPoint/WPS, live providers and cross-platform installers are separate
+  qualification. A local browser pass must not be presented as that qualification.

@@ -1891,6 +1891,12 @@ sklm: {
       approvalStale: "El plan cambió. Revísalo y confírmalo de nuevo.", approvalHint: "La confirmación solo guarda este plan. No genera recursos ni implica costes multimedia.",
     },
     pptEditor: {
+      materialPolicy: "Tratamiento del guion: {{policy}}",
+      materialCoverage: "Elementos pendientes: {{count}}",
+      materialPreserve: "Conservar el texto original",
+      materialRevise: "Revisar el borrador",
+      materialGenerateMissing: "Generar la narración que falta",
+      materialPlanOnly: "Solo plan de clase",
       questionSpeech: "Question audio",
       updateQuestionSpeech: "Update spoken question text",
       createQuestionSpeech: "Create spoken question",

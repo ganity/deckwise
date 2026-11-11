@@ -74,6 +74,7 @@ export * from "./pptx-inspection.js";
 export * from "./ppt-editor-bridge.js";
 export * from "./courseware-contract.js";
 export * from "./courseware-editor.js";
+export * from "./courseware-enrichment.js";
 export * from "./courseware-scene-plan.js";
 export * from "./courseware-workflow.js";
 export * from "./courseware-story.js";

@@ -5,6 +5,7 @@ mod asset_locks;
 mod candidates;
 mod classroom;
 mod drafts;
+mod materials;
 mod media_canvas;
 mod media_relay;
 mod native_save;
@@ -420,6 +421,9 @@ pub(super) async fn handle(
                 .kv_set(TASK_NAMESPACE, &p.session_id, &task)
                 .map_err(error)?;
             Ok(json!({ "task": task }))
+        }
+        "courseware.material.record" | "courseware.material.read" | "courseware.material.list" => {
+            materials::handle(state, method, params).await
         }
         "courseware.task.get" => {
             let p: TaskGetParams = serde_json::from_value(params).map_err(invalid)?;

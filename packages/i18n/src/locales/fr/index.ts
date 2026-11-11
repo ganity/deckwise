@@ -1891,6 +1891,12 @@ sklm: {
       approvalStale: "Le plan a changé. Vérifiez-le et confirmez-le à nouveau.", approvalHint: "La confirmation enregistre uniquement ce plan, sans générer de médias ni entraîner de frais multimédias.",
     },
     pptEditor: {
+      materialPolicy: "Traitement du texte : {{policy}}",
+      materialCoverage: "Éléments à résoudre : {{count}}",
+      materialPreserve: "Conserver le texte fourni",
+      materialRevise: "Réviser le brouillon",
+      materialGenerateMissing: "Générer la narration manquante",
+      materialPlanOnly: "Plan de cours uniquement",
       questionSpeech: "Question audio",
       updateQuestionSpeech: "Update spoken question text",
       createQuestionSpeech: "Create spoken question",

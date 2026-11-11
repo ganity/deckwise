@@ -82,6 +82,11 @@ export class CoursewareCandidateCoordinator {
             capabilities: text.trim() ? ["page-narration"] : [] } satisfies PptCandidateContext;
           if (!args || typeof args !== "object" || Array.isArray(args) || Object.keys(args).length !== 3 ||
               Reflect.get(args, "kind") !== "page-narration" || JSON.stringify(Reflect.get(args, "baseline")) !== JSON.stringify(baseline)) throw new Error("Native narration baseline changed");
+          if (view.enrichment?.script?.silentPageIds.includes(page.pageId))
+            throw new Error("This page is intentionally silent; change its source policy before generating speech");
+          if (view.enrichment?.script && !repairRequiredTeaching &&
+              (view.enrichment.script.policy === "preserve" || view.enrichment.script.policy === "generate-missing" && page.actions.some(a => a.type === "speech")))
+            throw new Error("Accepted source policy prevents replacing narration; explicitly revise its policy first");
           if (!this.resolveModel && !selectedNarration) throw new Error("Select a narration model first");
           if (!selectedNarration) {
             const result = await this.proposeNativeNarrationBatch(sessionId, [view.pageNumber], String(Reflect.get(args, "instruction")), canDispatch, repairRequiredTeaching);
@@ -122,7 +127,7 @@ export class CoursewareCandidateCoordinator {
           if (model && JSON.stringify(await this.resolveModel!(sessionId)) !== JSON.stringify(model)) throw new Error("Narration model changed");
           checkTurn();
           const saved = await this.teaching.native("write", { viewId: view.viewId, expectedTeachingRevision: project.teachingRevision,
-            actions: generated.write.actions }, nativePageNumber);
+            expectedEditGeneration: editor.editGeneration, actions: generated.write.actions }, nativePageNumber);
           return { kind: "page-narration", baseline, teachingRevision: (saved!.value as typeof view).project.teachingRevision,
             pageNumber: view.pageNumber, applied: true, saved: false, audioReady: false };
         }

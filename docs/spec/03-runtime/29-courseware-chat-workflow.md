@@ -1110,3 +1110,45 @@ WiseOffice speech playback may schedule saved native effects against the speech
 clock, including different entrance/exit effects on one object. It must never
 create an effect absent from the saved native slide. Missing effects are an
 incomplete export, not successful animation playback.
+
+## Optional native teaching materials
+
+The three preparation entries keep their generators and converge on the current
+native teaching context. Attach UTF-8 TXT/Markdown directly or Word/PDF through
+the existing authenticated document parser. Parsing itself never generates a
+lesson. Empty, invalid UTF-8 and oversized text fails visibly. Structured formats
+retain the document service's existing supported cases; scanned PDF has no local
+OCR fallback. Raw extraction uses `text` before semantic summaries for fixed
+scripts. Host stores exact extracted text immutably in a task/workspace-scoped KV
+record; `sourceId` survives restart and is not a local path.
+
+`courseware_narration_import` accepts optional script and/or lesson-plan roles.
+Use a source ID for attachments and text only for user inline material. Preview
+with `apply:false`; accept with `apply:true`. A final script chooses `preserve`;
+a draft requires an explicit treatment (`revise` or `generate-missing`). Page
+headings bind to original logical IDs, never later display ordinals. Unlabelled
+segments require explicit assignments unless the neighbouring range has exactly
+one original page. Text is not passed through a speech model in the preserve
+path. Unknown, missing and conflicting assignments remain visible; no filler is
+created. Explicit silent pages remain silent. Unique existing speech with exactly
+the same words retains its identity and adopted audio. Music/video/native
+animations and existing assessments are retained.
+
+Lesson-plan units carry exact source excerpts and many-to-many page bindings.
+Unmatched units and unverified activity identities block complete status.
+`courseware_activity_insert` creates one authorized missing independent Quiz or
+checkpoint through the existing assessment projection. The exact visible text,
+answer/reference, separate question speech and plan binding share native
+Undo/Redo and source save. Answer evidence must occur in the accepted plan or
+real page text; objective answer labels must be contained in it. Identical visible
+question candidates require explicit identity reconciliation instead of insertion.
+Confirmed existing activities are reused, including after an uncertain reply.
+
+Both tools retain current Chat/turn/source/teaching/editor-generation fences and
+require a capable editor. Partial script writes save successful pages and report
+failures. On resume, exact adopted speech/audio is reused. Coverage checks report
+manual divergence, missing/deleted anchors, unmatched copied speech and missing
+activities. They neither overwrite edits nor claim readiness from a parse receipt.
+Preserved script can use `repairRequiredTeaching:true` for focus/effects and
+required media without replacing words. Existing media services still own quotes,
+original provider orders, adoption, timing and native effect persistence.

@@ -622,3 +622,14 @@ failure saves nothing for that page; successful pages and paid media remain
 untouched. Version the evidence cache to discard old cross-layer observations.
 These checks catch structural ownership and literal mismatches, not every possible
 visual misidentification. Existing saved bindings are not silently migrated.
+
+### Supplied native narration
+
+Source-material adoption uses `courseware_narration_import`, not generated speech
+candidates. Accepted text, original-page identities and policy persist in the
+native enrichment extension. Automatic generation cannot replace preserved
+original pages or fill their missing/silent paragraphs. A focus-only repair is
+valid without generated scene requirements and never calls speech generation.
+The current live object evidence remains required for binding effects. Ordinary
+manual text editing is retained and reported as source divergence. Explicit source
+revision/policy changes are distinct from automatic repair.

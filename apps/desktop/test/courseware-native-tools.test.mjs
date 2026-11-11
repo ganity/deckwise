@@ -3,12 +3,20 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import test from "node:test";
 import ts from "typescript";
+import * as authoring from "../../../packages/courseware-runtime/dist/authoring.mjs";
 import * as runtime from "../../../packages/courseware-runtime/dist/node.mjs";
 import * as shared from "../../../packages/shared/dist/index.js";
-const require = createRequire(import.meta.url), exports = {};
+const require = createRequire(import.meta.url), exports = {}, materials = {}, activities = {};
+new Function("require", "exports", ts.transpileModule(readFileSync(new URL("../electron/main/courseware-native-activities.ts", import.meta.url), "utf8"), {
+  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+}).outputText)(id => id === "@pi-desktop/shared" ? shared : id === "@pi-desktop/courseware-runtime/node" ? runtime :
+  id.startsWith("file:") ? authoring : id === "./courseware-runtime" ? { coursewareAuthoringUrl: () => new URL("../../../packages/courseware-runtime/dist/authoring.mjs", import.meta.url).href } : require(id), activities);
+new Function("require", "exports", ts.transpileModule(readFileSync(new URL("../electron/main/courseware-native-materials.ts", import.meta.url), "utf8"), {
+  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+}).outputText)(id => id === "@pi-desktop/shared" ? shared : require(id), materials);
 new Function("require", "exports", ts.transpileModule(readFileSync(new URL("../electron/main/courseware-native-tools.ts", import.meta.url), "utf8"), {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
-}).outputText)(id => id === "@pi-desktop/shared" ? shared : require(id), exports);
+}).outputText)(id => id === "@pi-desktop/shared" ? shared : id === "./courseware-native-materials" ? materials : id === "./courseware-native-activities" ? activities : require(id), exports);
 const { CoursewareNativeTools } = exports;
 function setup() {
   const project = { schemaVersion: "deckwise-courseware/1", projectId: "native", taskType: "plain", title: "Native", source: { revision: "rev", sha256: "a".repeat(64) },
@@ -161,4 +169,173 @@ test('saving successful native pages does not mark a partially failed narration 
   const result = await tools.execute('chat', 'courseware_narration_propose', { pageNumbers: [1, 2], sourceSha256: f.project.source.sha256, instruction: 'Explain both pages' }, () => true);
   assert.equal(saves, 1); assert.equal(result.value.saved, false); assert.equal(result.value.pages[0].applied, true); assert.equal(result.value.pages[0].saved, true);
   assert.equal(result.value.failures[0].pageNumber, 2);
+});
+
+test("final scripts preview, adopt, retain media, survive reorder and cannot be regenerated", async () => {
+  const f = setup(); let enrichment, saves = 0, writes = 0;
+  f.project.pages[0].actions[0].text = "Hello class. 1.25 kg.";
+  f.project.pages[0].actions[0].audioAssetId = "already-adopted";
+  const originalSpeechId = f.project.pages[0].actions[0].id;
+  f.project.pages[0].actions.push({ id: "music", type: "audio_clip", audioAssetId: "song" });
+  const route = async (op, args, n) => {
+    if (op === "write") {
+      assert.equal(args.expectedTeachingRevision, f.project.teachingRevision);
+      assert.equal(args.expectedEditGeneration, 7);
+      f.project.pages[n - 1].actions = structuredClone(args.actions);
+      enrichment = structuredClone(args.enrichment);
+      f.project.teachingRevision += "w"; writes++;
+    }
+    const page = f.project.pages[n - 1];
+    const view = structuredClone({ viewId: "native." + page.pageId, pageId: page.pageId, pageNumber: n, project: f.project,
+      enrichment, enrichmentCapabilities: { version: 1 } });
+    return { value: op === "narration-context" ? { view, text: "Visible page " + n, evidence: {},
+      editor: { projectId: "native", documentId: "doc", sessionId: "chat", editGeneration: 7, readOnly: false } } : view };
+  };
+  const tools = new CoursewareNativeTools({ native: (op, args, n = 1) => route(op, args, n) },
+    { proposeNativeNarrationBatch() { assert.fail("Preserved script must not call a generator"); } }, {}, route, () => "chat",
+    undefined, undefined, undefined, async () => { saves++; });
+  const args = { sourceSha256: f.project.source.sha256, apply: false,
+    script: { text: "P1：Hello class. 1.25 kg.\nWatch the video!\nP2: Goodbye.", policy: "preserve" } };
+  const preview = (await tools.execute("chat", "courseware_narration_import", args, () => true)).value;
+  assert.equal(preview.preview, true); assert.equal(preview.coverage.ready, true); assert.equal(writes, 0);
+  assert.deepEqual(preview.enrichment.script.segments.map(s => s.text), ["Hello class. 1.25 kg.", "Watch the video!", "Goodbye."]);
+  const applied = (await tools.execute("chat", "courseware_narration_import", { ...args, apply: true }, () => true)).value;
+  assert.equal(applied.saved, true); assert.equal(writes, 2); assert.equal(saves, 1);
+  assert.equal(f.project.pages[0].actions.at(-1).id, "music");
+  assert.equal(f.project.pages[0].actions[0].id, originalSpeechId);
+  assert.equal(f.project.pages[0].actions[0].audioAssetId, "already-adopted");
+  f.project.pages[0].actions[0].audioAssetId = "retained";
+  await tools.execute("chat", "courseware_narration_import", { ...args, apply: true }, () => true);
+  assert.equal(f.project.pages[0].actions[0].audioAssetId, "retained");
+  f.project.pages.reverse();
+  const current = (await tools.execute("chat", "courseware_narration_context", {}, () => true)).value;
+  assert.equal(current.enrichment.ready, true);
+  await assert.rejects(tools.execute("chat", "courseware_narration_propose", { sourceSha256: f.project.source.sha256,
+    pageNumbers: [1], instruction: "Regenerate all" }, () => true), /protected/);
+  const before = JSON.stringify(f.project.pages);
+  const retry = (await tools.execute("chat", "courseware_narration_import", { ...args, apply: false }, () => true)).value;
+  assert.equal(retry.enrichment.script.segments[0].pageId, "page1");
+  assert.equal(JSON.stringify(f.project.pages), before);
+});
+
+test("unmatched script, absent pages, unknown editors and false plan evidence stay explicit", async () => {
+  const f = setup();
+  await assert.rejects(f.tools.execute("chat", "courseware_narration_import", { sourceSha256: f.project.source.sha256,
+    apply: true, script: { text: "Hello", policy: "preserve" } }, () => true), /editor/);
+  const view = { project: f.project, enrichmentCapabilities: { version: 1 } };
+  const preview = await materials.adoptNativeMaterials({ view, teaching: {}, check() {}, materials: { apply: false,
+    script: { text: "Hello, class!\nP2: Bye.", policy: "preserve" } } });
+  assert.equal(preview.coverage.ready, false);
+  assert(preview.coverage.issues.some(i => i.code === "SCRIPT_UNMATCHED"));
+  await assert.rejects(materials.adoptNativeMaterials({ view, teaching: {}, check() {}, materials: { apply: false,
+    script: { text: "P1: One\nP2: Two", policy: "preserve", assignments: [{ segmentId: "segment-1", pageId: "page2" }] } } }), /contradicts/);
+  await assert.rejects(materials.adoptNativeMaterials({ view, teaching: {}, check() {}, materials: { apply: false,
+    lessonPlan: { text: "Real plan", units: [{ id: "u", title: "Review", evidence: "Invented", pageIds: [], kind: "teaching" }] } } }), /exact source/);
+});
+
+test("partial source adoption saves acknowledged pages and resumes without replacing their audio", async () => {
+  const f = setup(); let enrichment, failSecond = true, saves = 0;
+  const route = async (op, args, n) => {
+    if (op === "write") {
+      if (n === 2 && failSecond) throw Error("Second write failed");
+      f.project.pages[n - 1].actions = structuredClone(args.actions); enrichment = structuredClone(args.enrichment); f.project.teachingRevision += "w";
+    }
+    const view = structuredClone({ viewId: "native.page" + n, pageId: "page" + n, pageNumber: n, project: f.project, enrichment, enrichmentCapabilities: { version: 1 } });
+    return { value: op === "narration-context" ? { view, text: "", evidence: {}, editor: { editGeneration: 1 } } : view };
+  };
+  const tools = new CoursewareNativeTools({ native: (op, args, n = 1) => route(op, args, n) }, {}, {}, route, () => "chat", undefined, undefined, undefined, async () => { saves++; });
+  const args = { sourceSha256: f.project.source.sha256, apply: true, script: { text: "P1: One\nP2: Two", policy: "preserve" } };
+  const first = (await tools.execute("chat", "courseware_narration_import", args, () => true)).value;
+  assert.equal(first.saved, false); assert.equal(first.pages.length, 1); assert.equal(first.failures.length, 1); assert.equal(saves, 1);
+  f.project.pages[0].actions[0].audioAssetId = "good"; failSecond = false;
+  const resumed = (await tools.execute("chat", "courseware_narration_import", args, () => true)).value;
+  assert.equal(resumed.saved, true); assert.equal(resumed.coverage.ready, true); assert.equal(f.project.pages[0].actions[0].audioAssetId, "good");
+});
+
+test("source IDs resolve immutable Host text and keep raw attachment paths out of the carrier", async () => {
+  const f = setup(); let called;
+  const tools = new CoursewareNativeTools({ native: async () => ({ value: { project: f.project, enrichmentCapabilities: { version: 1 } } }) }, {}, {}, {}, () => "chat",
+    undefined, undefined, undefined, undefined, undefined, {
+      async read(sessionId, sourceId) { called = [sessionId, sourceId]; return { text: "P1: Exact stored script.\nP2: Original goodbye." }; },
+      async list() { return { sources: [] }; },
+    });
+  const value = (await tools.execute("chat", "courseware_narration_import", { sourceSha256: f.project.source.sha256, apply: false,
+    script: { sourceId: "b".repeat(64), policy: "preserve" } }, () => true)).value;
+  assert.deepEqual(called, ["chat", "b".repeat(64)]);
+  assert.equal(value.enrichment.script.segments[0].text, "Exact stored script.");
+  assert(!JSON.stringify(value.enrichment).includes("path"));
+});
+
+test("activity reconciliation reuses the bound question and refuses unsupported or invented answers", async () => {
+  const f = setup();
+  const enrichment = { schemaVersion: "deckwise-teaching-enrichment/1", originalPages: f.project.pages.map((p, i) => ({ pageId: p.pageId, pageNumber: i + 1 })),
+    plan: { sha256: "c".repeat(64), units: [{ id: "review", title: "Review", evidence: "A circle is round.", kind: "quiz", pageIds: ["page2"], activityId: "question" }] } };
+  f.project.pages[1].actions.push({ id: "question", type: "interaction_checkpoint" });
+  const view = { project: f.project, enrichment, enrichmentCapabilities: { version: 1 } };
+  const reused = await activities.insertNativeActivity({ view, args: { apply: true, unitId: "review", afterPageId: "page1" }, check() {}, teaching: {} });
+  assert.equal(reused.reused, true);
+  delete enrichment.plan.units[0].activityId;
+  const teaching = { native: async () => ({ value: { view, text: "Circle", editor: { editGeneration: 1 }, evidence: { width: 254, height: 142.875 } } }) };
+  const args = { apply: false, unitId: "review", afterPageId: "page1", question: "Which is round?",
+    response: { kind: "single", options: ["square", "triangle"], answerIndices: [0] }, referenceEvidence: "A circle is round." };
+  await assert.rejects(activities.insertNativeActivity({ view, args, check() {}, teaching }), /not backed/);
+  args.response = { kind: "practice", options: [], answerIndices: [] };
+  await assert.rejects(activities.insertNativeActivity({ view, args, check() {}, teaching }), /checkpoint/);
+});
+
+test("new plan Quiz uses the existing native assessment projection and stable activity identity", async () => {
+  const f = setup();
+  const view = { viewId: "native.page1", project: f.project, enrichmentCapabilities: { version: 1 }, enrichment: {
+    schemaVersion: "deckwise-teaching-enrichment/1", originalPages: f.project.pages.map((p, i) => ({ pageId: p.pageId, pageNumber: i + 1 })),
+    plan: { sha256: "c".repeat(64), units: [{ id: "review", title: "Round shapes", evidence: "A circle is round.", kind: "quiz", pageIds: [] }] } } };
+  const calls = [];
+  const teaching = { async native(op, args, n) {
+    calls.push(op);
+    if (op === "narration-context") return { value: { view, text: "A circle is round.", editor: { editGeneration: 7 }, evidence: { width: 254, height: 142.875 } } };
+    if (op === "assessment-insert") {
+      assert.equal(args.expectedTeachingRevision, f.project.teachingRevision); assert.equal(args.expectedEditGeneration, 7);
+      assert.equal(args.projection.slideId, args.pageId); assert.equal(args.quiz.questions.length, 1);
+      assert.deepEqual(args.quiz.questions[0].answer, ["A"]);
+      assert(shared.isTeachingWrite({ projectId: f.project.projectId, pageId: args.pageId, expectedSourceRevision: f.project.source.revision,
+        expectedTeachingRevision: f.project.teachingRevision, actions: args.actions }), "Inserted actions must use the public teaching contract");
+      const visible = args.projection.elements.filter(e => e.type === "native_text").map(e => e.content).join("\n");
+      assert(visible.includes("Which shape is round?")); assert(!visible.includes("A circle is round."));
+      f.project.pages.splice(n, 0, { pageId: args.pageId, locked: false, reviewState: "review", actions: args.actions });
+      view.enrichment = args.enrichment;
+    }
+    return { value: view };
+  } };
+  const args = { apply: false, unitId: "review", afterPageId: "page1", question: "Which shape is round?", referenceEvidence: "A circle is round.",
+    response: { kind: "single", options: ["circle", "square"], answerIndices: [0] } };
+  const preview = await activities.insertNativeActivity({ view, args, teaching, check() {} });
+  assert.equal(preview.preview, true); assert(!calls.includes("assessment-insert"));
+  const applied = await activities.insertNativeActivity({ view, args: { ...args, apply: true }, teaching, check() {} });
+  assert.equal(applied.applied, true); assert.equal(f.project.pages[1].pageId, preview.pageId);
+  const repeated = await activities.insertNativeActivity({ view, args: { ...args, apply: true }, teaching, check() {} });
+  assert.equal(repeated.reused, true); assert.equal(calls.filter(op => op === "assessment-insert").length, 1);
+});
+
+test("a new oral checkpoint validates and projects its native canvas", async () => {
+  const f = setup();
+  const view = { project: f.project, enrichmentCapabilities: { version: 1 }, enrichment: {
+    schemaVersion: "deckwise-teaching-enrichment/1", originalPages: f.project.pages.map((p, i) => ({ pageId: p.pageId, pageNumber: i + 1 })),
+    plan: { sha256: "c".repeat(64), units: [{ id: "talk", title: "Round objects", evidence: "A circle is round.", kind: "checkpoint", pageIds: [] }] } } };
+  const result = await activities.insertNativeActivity({ view, args: { apply: false, unitId: "talk", afterPageId: "page1",
+    question: "Name a round object around you.", referenceEvidence: "A circle is round.", response: { kind: "short_answer", options: [], answerIndices: [] } },
+    check() {}, teaching: { native: async () => ({ value: { view, editor: { editGeneration: 1 }, text: "A circle is round.", evidence: { width: 254, height: 142.875 } } }) } });
+  assert.equal(result.preview, true);
+});
+
+test("an imported visible question is reported for conversion instead of duplicated", async () => {
+  const f = setup();
+  const view = { project: f.project, enrichmentCapabilities: { version: 1 }, enrichment: {
+    schemaVersion: "deckwise-teaching-enrichment/1", originalPages: f.project.pages.map((p, i) => ({ pageId: p.pageId, pageNumber: i + 1 })),
+    plan: { sha256: "c".repeat(64), units: [{ id: "review", title: "Review", evidence: "A circle is round.", kind: "quiz", pageIds: [] }] } } };
+  const result = await activities.insertNativeActivity({ view, args: { apply: true, unitId: "review", afterPageId: "page1",
+    question: "Which shape is round?", referenceEvidence: "A circle is round.", response: { kind: "single", options: ["circle", "square"], answerIndices: [0] } },
+    check() {}, teaching: { native: async (op, args, n) => { assert.equal(op, "narration-context");
+      return { value: { view, editor: { editGeneration: 1 }, text: n === 2 ? "Which shape is round? A. circle B. square" : "A circle is round.", evidence: {} } }; } } });
+  assert.equal(result.applied, false); assert.equal(result.requiresMapping, true);
+  assert.deepEqual(result.duplicateCandidates, [{ pageId: "page2", question: "Which shape is round?", requiresConversion: true }]);
+  assert.equal(f.project.pages.length, 2);
 });

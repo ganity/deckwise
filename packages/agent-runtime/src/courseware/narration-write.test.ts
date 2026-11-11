@@ -636,3 +636,17 @@ it("repairs all sixteen captured page-six focus omissions with the original spee
     expect(attention).toBeDefined();
   }
 });
+
+it.each(["plain", "import", "scene"] as const)("adds focus to supplied %s speech without requiring generated teaching metadata or a speech model", async taskType => {
+  const speech = { id: "original", type: "speech", text: "Circle. 1.25 cm.", source: "external", audioAssetId: "tts-" + "b".repeat(64) };
+  const project: CoursewareProject = { schemaVersion: COURSEWARE_CONTRACT_VERSION, projectId: "project", taskType, title: "Shapes",
+    source: { revision: "R1", sha256: candidateHash("pptx") }, teachingRevision: "T1",
+    pages: [{ pageId: "page", locked: false, reviewState: "review", actions: [speech] }] };
+  const baseline = { projectId: "project", documentId: "doc", pageId: "page", sourceRevision: "R1", sourceHash: project.source.sha256,
+    teachingRevision: "T1", contentHash: candidateHash("Circle"), clean: true, readOnly: false, manualLocked: false };
+  const result = await generateNarrationWrite({ project, pageId: "page", baseline, pageText: "Circle", instruction: "Bind existing exact words",
+    repairRequiredTeaching: true, evidence: { notes: "", visualSummary: "Circle", objects: [
+      { objectId: "label", kind: "text", text: "Circle", bbox: [0,0,100,30] },
+    ] }, getCurrentBaseline: async () => baseline, generate: async () => { throw Error("Speech model must not run"); } });
+  expect(result.write.actions[0]).toEqual({ ...speech, attention: { type: "highlight", objectIds: ["label"] } });
+});

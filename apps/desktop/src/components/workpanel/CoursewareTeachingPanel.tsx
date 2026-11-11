@@ -1,4 +1,4 @@
-import { replaceNarrationText, isCoursewareInteractionCheckpoint, type CoursewareTeachingDraft, type CoursewareTeachingView, type CoursewarePptxCandidateReview as PptxReview, type CoursewareSourceReview as SourceReview } from "@pi-desktop/shared";
+import { inspectCoursewareEnrichment, replaceNarrationText, isCoursewareInteractionCheckpoint, type CoursewareTeachingDraft, type CoursewareTeachingView, type CoursewarePptxCandidateReview as PptxReview, type CoursewareSourceReview as SourceReview } from "@pi-desktop/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IconFileText, IconMic, IconSparkles, IconImage, IconCheck } from "../icons";
@@ -258,6 +258,12 @@ export function CoursewareTeachingPanel({ sessionId, enabled }: { sessionId?: st
       adopt={(bindings, effectBindings) => void run(() => api.pptEditorTeachingAdopt(review.reviewId, bindings, effectBindings))} />}
     </div>
     {!review && view && page && <>
+      {view.enrichment && <div role="status" className="courseware-teaching-source-status">
+        <p>{t("panel.pptEditor.materialPolicy", { policy: t(view.enrichment.script?.policy === "preserve" ? "panel.pptEditor.materialPreserve" :
+          view.enrichment.script?.policy === "revise" ? "panel.pptEditor.materialRevise" :
+          view.enrichment.script?.policy === "generate-missing" ? "panel.pptEditor.materialGenerateMissing" : "panel.pptEditor.materialPlanOnly") })}</p>
+        <p>{t("panel.pptEditor.materialCoverage", { count: inspectCoursewareEnrichment(view.enrichment, view.project.pages).issues.length })}</p>
+      </div>}
       <div hidden={activeTab !== "review"}>
       <CoursewareTeachingHistory key={`history:${view.viewId}:${view.project.teachingRevision}`} view={view}
         disabled={!canEdit || changed || instructionPending || draftSaving || !!draftError || actions.some(action => action.type !== "audio_clip")}

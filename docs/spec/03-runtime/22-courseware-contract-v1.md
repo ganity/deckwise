@@ -772,3 +772,14 @@ This does not grant source-replacement, destructive deletion or external-publica
 authority; existing explicit user choices for those operations remain intact.
 This correction supersedes earlier per-page teaching-review language in this
 contract and the Host-owned-courseware ADR.
+
+### Native enrichment extension
+
+The native carrier optionally carries `enrichment` with schema version
+`deckwise-teaching-enrichment/1`. The cross-process types/validator live in
+`packages/shared/src/courseware-enrichment.ts`; the paired document reader uses
+the same versioned wire contract. The teaching view exposes capability version 1
+and the extension separately from the strict courseware project projection.
+Unknown extension versions and unexpected/private fields fail before writes.
+The existing carrier remains `deckwise-native-teaching/1`. See
+[the compatibility ADR](../../adr/shared-teaching-enrichment.md).

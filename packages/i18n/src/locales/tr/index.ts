@@ -1909,6 +1909,12 @@ sklm: {
       approvalStale: "Plan değişti. Yeniden inceleyip onaylayın.", approvalHint: "Onay yalnızca bu planı kaydeder. Medya oluşturmaz veya medya maliyetine yol açmaz.",
     },
     pptEditor: {
+      materialPolicy: "Anlatım politikası: {{policy}}",
+      materialCoverage: "Çözümlenmemiş materyal öğeleri: {{count}}",
+      materialPreserve: "Verilen metni koru",
+      materialRevise: "Taslağı düzenle",
+      materialGenerateMissing: "Eksik anlatımı oluştur",
+      materialPlanOnly: "Yalnızca ders planı",
       questionSpeech: "Question audio",
       updateQuestionSpeech: "Update spoken question text",
       createQuestionSpeech: "Create spoken question",

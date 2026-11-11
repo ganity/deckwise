@@ -1,5 +1,16 @@
 # DeckWise changes
 
+- Degrade unsupported unbound native playback effects to a bounded fade when their
+  object is known, otherwise skip them with diagnostics. Preserve original PPTX
+  bytes, supported effects and strict source-bound teaching checks. Resolve Master
+  single-child group speech motion to the exact visible child.
+
+- Keep final imported scripts verbatim with original-page bindings, optional lesson-plan
+  coverage and explicit narration policy across scene, PPT Master and import entries.
+  Reuse matching speech audio, protect scripts from automatic rewriting, and insert
+  missing plan Quiz/checkpoint pages with native Undo/Redo and durable source saves.
+  Attached material text is retained privately by Host for restart and continuation.
+
 - Restore structured scene narration, independent assessment constraints and native
   animation retention during rewrites. Reject changed music prompts before paid
   submission. Persist speech animation timing and keep fixed playback ownership

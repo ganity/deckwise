@@ -31,7 +31,7 @@ try {
   await run("host-build", "cargo", ["build", "-p", "host-core", "--locked"]);
   assert(existsSync(binary), "The current checkout's Host binary is missing");
   const files = ["generation-queue", "media", "local-media", "magic-layers", "canvas-music", "canvas-images", "scene-images", "tts", "saved-media", "chat-workflow-ui",
-    "saved-narration", "narration", "scene-plan", "scene-deck", "presentation", "chat-workflow", "scene-image-pipeline", "media-scope-integration", "local-media-host", "canvas-music-host", "workflow-contract", "sidecar-proxy"];
+    "saved-narration", "native-tools", "narration", "scene-plan", "scene-deck", "presentation", "chat-workflow", "scene-image-pipeline", "media-scope-integration", "local-media-host", "canvas-music-host", "workflow-contract", "sidecar-proxy"];
   const node = await run("main-host", process.execPath, ["--test", "--test-reporter=tap", ...files.map(name => `apps/desktop/test/courseware-${name}.test.mjs`)]);
   const count = key => Number(node.match(new RegExp(`^# ${key} (\\d+)$`, "m"))?.[1] ?? -1);
   assert(count("tests") > 0 && count("pass") === count("tests") && count("skipped") === 0 && count("cancelled") === 0, "Every mandatory Main/Host test must run");
@@ -41,7 +41,7 @@ try {
     if (json) report.metrics.push(JSON.parse(json));
   }
   for (const [pkg, tests] of [
-    ["shared", ["courseware-workflow", "courseware-presentation", "courseware-scene-teaching", "courseware-teaching-quality"]],
+    ["shared", ["courseware-enrichment", "courseware-workflow", "courseware-presentation", "courseware-scene-teaching", "courseware-teaching-quality"]],
     ["agent-runtime", ["courseware/narration-write", "courseware-turn-continuation", "courseware-stalled-continuation", "courseware-quality-continuation", "courseware-workflow-recovery", "courseware-workflow-tools", "runtime"]],
   ]) {
     const resultFile = join(output, `${pkg}.json`);

@@ -11,6 +11,8 @@ export type CoursewareFixedBuildView =
       report: { visualFidelity: string; diagnostics: CoursewareBuildDiagnostic[] } };
 
 export type CoursewareTeachingView = {
+  enrichment?: import("./courseware-enrichment.js").CoursewareEnrichment;
+  enrichmentCapabilities?: { version: 1 };
   nativeTeaching?: true;
   readOnly?: boolean;
   teaching?: import("./courseware-scene-teaching.js").CoursewareSceneTeaching;

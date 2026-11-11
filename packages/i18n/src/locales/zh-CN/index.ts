@@ -1892,6 +1892,12 @@ sklm: {
       approvalStale: "规划已修改，请重新审核并确认。", approvalHint: "确认只保存当前规划，不生成素材或产生媒体费用。",
     },
     pptEditor: {
+      materialPolicy: "讲解词处理方式：{{policy}}",
+      materialCoverage: "尚未匹配或待处理的资料项：{{count}}",
+      materialPreserve: "保留原文",
+      materialRevise: "允许改写",
+      materialGenerateMissing: "仅补充缺失讲解",
+      materialPlanOnly: "仅教案",
       questionSpeech: "题目语音",
       updateQuestionSpeech: "更新题目语音文本",
       createQuestionSpeech: "为题目创建语音",

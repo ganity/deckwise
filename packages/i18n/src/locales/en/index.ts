@@ -1949,6 +1949,12 @@ sklm: {
       approvalStale: "The plan changed. Review and approve it again.", approvalHint: "Approval only saves this plan. It does not generate assets or incur media costs.",
     },
     pptEditor: {
+      materialPolicy: "Narration policy: {{policy}}",
+      materialCoverage: "Unresolved material items: {{count}}",
+      materialPreserve: "Keep the supplied words",
+      materialRevise: "Revise the supplied draft",
+      materialGenerateMissing: "Generate missing narration",
+      materialPlanOnly: "Lesson plan only",
       questionSpeech: "Question audio",
       updateQuestionSpeech: "Update spoken question text",
       createQuestionSpeech: "Create spoken question",

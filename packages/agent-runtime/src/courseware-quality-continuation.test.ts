@@ -236,3 +236,21 @@ it('bounds repeated invalid scene submissions after shell-authored corrections',
   expect(continuation.reportOnly).toBe(true);
   expect(execute).not.toHaveBeenCalled();
 });
+
+it('stops automatic generation for unmatched fixed scripts or lesson-plan activities', async () => {
+  const continuation = new CoursewareTurnContinuation();
+  const snapshot = { projectId: 'native', nativeTeaching: true, sourceSha256: 'a'.repeat(64), teachingRevision: 'saved', jobs: [],
+    narrationReady: false, audioReady: false, teachingReady: false, completion: { ready: false,
+      issues: [{ code: 'SCRIPT_UNMATCHED', pageNumber: 0, repair: 'materials', repairable: false }] } };
+  const turn: AgentTurnContext = { context: { messages: [] }, newMessages: [], message: { role: 'assistant',
+    api: 'openai-completions', provider: 'fixture', model: 'fixture', timestamp: 0, stopReason: 'toolUse',
+    content: [{ type: 'toolCall', id: 'status', name: 'courseware_media_context', arguments: { continueTeaching: true } }],
+    usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } },
+    toolResults: [{ role: 'toolResult', toolCallId: 'status', toolName: 'courseware_media_context', content: [], isError: false, timestamp: 0, details: snapshot }] };
+  const execute = vi.fn(async () => ({ content: [], details: snapshot }));
+  await continuation.finish(turn, { execute, canWait: () => true });
+  const report = await continuation.finish({ ...turn, message: { ...turn.message, stopReason: 'stop', content: [] }, toolResults: [] }, { execute, canWait: () => true });
+  expect(report).toContain('cannot be repaired automatically');
+  expect(report).toContain('SCRIPT_UNMATCHED');
+  expect(execute).toHaveBeenCalledTimes(1);
+});
