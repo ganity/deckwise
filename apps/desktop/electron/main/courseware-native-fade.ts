@@ -1,5 +1,5 @@
 import { candidateHash, resolvePageFadeTarget } from "@pi-desktop/agent-runtime";
-import { assertPptEditorCommand, assertPptEditorContext, isCoursewareProject, samePptEditorBinding, type CoursewareProject, type PptEditorContext } from "@pi-desktop/shared";
+import { assertPptEditorCommand, assertPptEditorContext, isCoursewareProject, normalizeProjectPath, samePptEditorBinding, type CoursewareProject, type PptEditorContext } from "@pi-desktop/shared";
 import type { CoursewareTeachingCoordinator } from "./courseware-teaching";
 import type { FadeAuthorization, PptEditorController } from "./ppt-editor";
 import { readCandidateSource } from "./courseware-candidate-source";
@@ -45,7 +45,8 @@ export class CoursewareNativeFadeCoordinator {
     const { session } = await facts.host.call<{ session?: { mode?: string; projectPath?: string } }>("session.get", { id: facts.sessionId });
     const workspace = await this.getWorkspace();
     check();
-    if (!workspace || session?.mode !== "agent" || session.projectPath !== workspace) throw new Error("Native fade Chat mode or persisted workspace changed");
+    const workspaceKey = normalizeProjectPath(workspace);
+    if (!workspace || !workspaceKey || session?.mode !== "agent" || normalizeProjectPath(session.projectPath) !== workspaceKey) throw new Error("Native fade Chat mode or persisted workspace changed");
     const latest = await facts.host.call<{ project: unknown; mapping: unknown }>("courseware.project.context", { sessionId: facts.sessionId, projectId: facts.canonical.project.projectId });
     check();
     if (JSON.stringify(latest.project) !== JSON.stringify(facts.canonical.project) || JSON.stringify(latest.mapping) !== JSON.stringify(facts.canonical.mapping)) throw new Error("Canonical source, teaching, mapping or lock changed");

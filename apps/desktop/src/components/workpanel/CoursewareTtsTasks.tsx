@@ -58,7 +58,10 @@ export function CoursewareTtsTasks({ view, enabled, onActiveChange, onAdopt }: {
       <legend>{t("panel.pptEditor.ttsGenerate")}</legend>
       <button type="button" onClick={() => void run(async () => {
         const next = await api.pptEditorTtsModels(view.viewId, view.project.teachingRevision);
-        return () => { setModels(next); setModel(""); setVoice(""); clearQuote();
+        return () => {
+          const selected = next.find(entry => entry.model === model) ?? next[0];
+          setModels(next); setModel(selected?.model ?? "");
+          setVoice(selected?.voices.includes(voice) ? voice : selected?.voices[0] ?? ""); clearQuote();
           if (!next.length) setError(t("panel.pptEditor.ttsNoModels")); };
       })}>{t("panel.pptEditor.ttsLoadModels")}</button>
       <label>{t("panel.pptEditor.ttsSegment")}<select value={actionId} onChange={(event) => { setActionId(event.target.value); clearQuote(); }}>

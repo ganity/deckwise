@@ -224,8 +224,16 @@ export class CoursewareTtsCoordinator {
       const file = await open(saved.path, "r");
       let bytes: Buffer;
       try {
-        if ((await file.stat()).size !== saved.audio.byteLength) throw new Error("COURSEWARE_AUDIO_INTEGRITY_ERROR");
-        bytes = await file.readFile();
+        const stat = await file.stat();
+        if (!stat.isFile() || stat.size !== saved.audio.byteLength) throw new Error("COURSEWARE_AUDIO_INTEGRITY_ERROR");
+        bytes = Buffer.alloc(saved.audio.byteLength);
+        let offset = 0;
+        while (offset < bytes.length) {
+          const result = await file.read(bytes, offset, bytes.length - offset, offset);
+          if (!result.bytesRead) break;
+          offset += result.bytesRead;
+        }
+        if (offset !== bytes.length) throw new Error("COURSEWARE_AUDIO_INTEGRITY_ERROR");
       } finally { await file.close(); }
       if (bytes.length !== saved.audio.byteLength || createHash("sha256").update(bytes).digest("hex") !== saved.audio.sha256)
         throw new Error("COURSEWARE_AUDIO_INTEGRITY_ERROR");

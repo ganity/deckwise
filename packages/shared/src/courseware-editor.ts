@@ -279,3 +279,19 @@ export type CoursewareStyleReview = {
 export type CoursewareTtsModel = { model: string; voices: string[]; providerDefaultVoice: boolean };
 export type CoursewareTtsQuoteView = { quoteId: string; intentId: string; model: string; voice: string | null;
   maxPoints: number; maxChars: number; expiresAt: string };
+
+/** Only read/open races may be retried; callers must never retry writes with this predicate. */
+export function isTransientTeachingRace(error: unknown): boolean {
+  const message = String(error);
+  return ["PPTX or current page changed; reload teaching", "Teaching view changed; reload current page",
+    "No editable current slide", "Teaching is already opening"].some(text => message.includes(text));
+}
+
+/** Other pages may advance the revision without invalidating this recovery draft. */
+export function sameTeachingDraftPage(baseline: CoursewareProject, current: CoursewareProject, pageId: string): boolean {
+  const { pages: before, teachingRevision: _beforeRevision, ...beforeScope } = baseline;
+  const { pages: after, teachingRevision: _afterRevision, ...afterScope } = current;
+  const page = before.find(page => page.pageId === pageId);
+  return !!page && JSON.stringify(beforeScope) === JSON.stringify(afterScope) &&
+    JSON.stringify(page) === JSON.stringify(after.find(page => page.pageId === pageId));
+}

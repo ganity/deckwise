@@ -1,5 +1,9 @@
 # DeckWise changes
 
+- Reuse C import media deduplication and canonical workspace paths. Tolerate transient
+  page-read races, recover page-local drafts after unrelated edits, recognize Slide
+  and bracketed script headings, preserve explicit voices and bound archive reads.
+
 - Degrade unsupported unbound native playback effects to a bounded fade when their
   object is known, otherwise skip them with diagnostics. Preserve original PPTX
   bytes, supported effects and strict source-bound teaching checks. Resolve Master

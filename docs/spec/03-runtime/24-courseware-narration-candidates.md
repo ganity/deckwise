@@ -633,3 +633,18 @@ valid without generated scene requirements and never calls speech generation.
 The current live object evidence remains required for binding effects. Ordinary
 manual text editing is retained and reported as source divergence. Explicit source
 revision/policy changes are distinct from automatic repair.
+
+
+### Part A import integration (2026-11-11)
+
+- Background page checks retry transient read races; persistent non-transient failures
+  surface after five attempts. Foreground opens retry only known read races with a
+  bounded delay. Generic writes and paid submissions are never retried by this UI policy.
+- Legacy recovery drafts compare project/source context and the target page; another
+  page's revision alone does not expire the draft. Native autosave remains authoritative.
+- Explicit `Slide N` and bracketed page headings supplement existing Chinese-number
+  and Page/P headings. Body lines, original-page identity and order validation survive.
+- Loading voice models preserves a valid selected model/voice and otherwise selects
+  the first available model/voice. Generation still requires explicit fee confirmation.
+- Legacy archive previews read at most the declared, bounded byte length and verify
+  regular-file type, exact length and SHA-256; portable/native audio remains preferred.

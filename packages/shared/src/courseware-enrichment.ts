@@ -55,7 +55,7 @@ export function isCoursewareEnrichment(value: unknown): value is CoursewareEnric
 
 function pageLabel(line: string): { number: number; end: number } | undefined {
   const normalized = line.replace(/[Ａ-Ｚａ-ｚ０-９]/gu, c => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
-  const match = /^(?:#{1,6}\s*)?(?:P(?:age)?\s*(\d+)|第\s*([零〇一二两三四五六七八九十百\d]+)\s*页)(?=$|[\s:：、．.]\D|[\s:：、．.]$|[:：])\s*[:：、．.]?\s*/iu.exec(normalized);
+  const match = /^(?:#{1,6}\s*)?(?:[【\[]\s*)?(?:(?:P(?:age)?|Slide)\s*(\d+)|第\s*([零〇一二两三四五六七八九十百\d]+)\s*页)(?=$|[\s:：、．.]\D|[\s:：、．.]$|[:：]|[】\]])(?:[】\]]\s*)?\s*[:：、．.]?\s*/iu.exec(normalized);
   if (!match) return;
   const digits = (match[1] ?? match[2]).replace(/〇/gu, "零").replace(/两/gu, "二");
   let number = Number(digits);

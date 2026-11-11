@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { isCoursewareTeachingDraft, isCoursewareTeachingHistory, isCoursewareInteractionCheckpoint, replaceNarrationText } from "./courseware-editor.js";
+import { sameTeachingDraftPage, isTransientTeachingRace, isCoursewareTeachingDraft, isCoursewareTeachingHistory, isCoursewareInteractionCheckpoint, replaceNarrationText } from "./courseware-editor.js";
+import { isCoursewareProject } from "./courseware-contract.js";
 import fixture from "./courseware-contract.fixtures/accepted.json";
 
 it("bounds teacher-led question payloads and retains them in deleted-page history", () => {
@@ -63,4 +64,24 @@ it("preserves only strictly bounded explicit delays in deleted-page teaching his
   for (const durationMs of [-1, 0.5, 30001, "1000", null])
     expect(isCoursewareTeachingHistory(history({ ...entry.actions[0], durationMs }))).toBe(false);
   expect(isCoursewareTeachingHistory(history({ ...entry.actions[0], extra: true }))).toBe(false);
+});
+
+it("recovers a draft after another page changes, but fences source, target and context changes", () => {
+  const before = structuredClone(fixture.project);
+  if (!isCoursewareProject(before)) throw new Error("Invalid project fixture");
+  const current = structuredClone(before);
+  const pageId = before.pages[0].pageId;
+  current.teachingRevision = "next";
+  current.pages.push({ ...structuredClone(current.pages[0]), pageId: "other" });
+  expect(sameTeachingDraftPage(before, current, pageId)).toBe(true);
+  current.pages[0].locked = !current.pages[0].locked;
+  expect(sameTeachingDraftPage(before, current, pageId)).toBe(false);
+  expect(sameTeachingDraftPage(before, { ...before, source: { ...before.source, sha256: "b".repeat(64) } }, pageId)).toBe(false);
+  expect(sameTeachingDraftPage(before, { ...before, title: "Changed" }, pageId)).toBe(false);
+  expect(sameTeachingDraftPage(before, before, "missing")).toBe(false);
+});
+it("recognizes read races without classifying conflicts and integrity failures as transient", () => {
+  expect(isTransientTeachingRace(new Error("Teaching is already opening"))).toBe(true);
+  expect(isTransientTeachingRace(new Error("COURSEWARE_CONFLICT"))).toBe(false);
+  expect(isTransientTeachingRace(new Error("COURSEWARE_AUDIO_INTEGRITY_ERROR"))).toBe(false);
 });

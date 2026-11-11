@@ -1,4 +1,4 @@
-import { inspectCoursewareEnrichment, replaceNarrationText, isCoursewareInteractionCheckpoint, type CoursewareTeachingDraft, type CoursewareTeachingView, type CoursewarePptxCandidateReview as PptxReview, type CoursewareSourceReview as SourceReview } from "@pi-desktop/shared";
+import { isTransientTeachingRace, sameTeachingDraftPage, inspectCoursewareEnrichment, replaceNarrationText, isCoursewareInteractionCheckpoint, type CoursewareTeachingDraft, type CoursewareTeachingView, type CoursewarePptxCandidateReview as PptxReview, type CoursewareSourceReview as SourceReview } from "@pi-desktop/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IconFileText, IconMic, IconSparkles, IconImage, IconCheck } from "../icons";
@@ -59,7 +59,7 @@ export function CoursewareTeachingPanel({ sessionId, enabled }: { sessionId?: st
       if (id !== request.current) return;
       draftScope.current = { viewId: next.viewId, revision: next.nativeTeaching ? next.project.teachingRevision : draft?.revision ?? null, serial: 0, failed: false };
       if (draft) {
-        if (draft.pageId === next.pageId && JSON.stringify(draft.baseline) === JSON.stringify(next.project) &&
+        if (draft.pageId === next.pageId && sameTeachingDraftPage(draft.baseline, next.project, next.pageId) &&
             !next.project.pages.find(entry => entry.pageId === next.pageId)!.locked) {
           setActions(draft.actions); setNarrationInstruction({ viewId: next.viewId, text: draft.instruction });
           setRecovered(true); setSaved(false);
@@ -117,6 +117,17 @@ export function CoursewareTeachingPanel({ sessionId, enabled }: { sessionId?: st
     }).catch(failure => { if (id === request.current) setDraftError(String(failure)); })
       .finally(() => { if (id === request.current) setBusy(false); });
   };
+  const openTeaching = async (session: string) => {
+    const id = request.current;
+    for (let attempt = 0; ; attempt++) {
+      try { return await api.pptEditorTeachingOpen(session); }
+      catch (failure) {
+        if (id !== request.current || attempt >= 4 || !isTransientTeachingRace(failure)) throw failure;
+        await new Promise(resolve => setTimeout(resolve, Math.min(250 * 2 ** attempt, 2000)));
+        if (id !== request.current) throw new Error("Teaching request superseded");
+      }
+    }
+  };
   const run = useCallback(async (operation: () => Promise<CoursewareTeachingView>) => {
     const id = ++request.current;
     setBusy(true); setError(""); setSaved(false);
@@ -139,13 +150,14 @@ export function CoursewareTeachingPanel({ sessionId, enabled }: { sessionId?: st
         draftLoading || draftSaving || draftError || staleDraft || instructionPending || review || pptxCandidate || error) return;
     // Consume once: a later manual save can legitimately be newer than this hint.
     refreshSeen.current = teachingRefresh;
-    void run(() => api.pptEditorTeachingOpen(sessionId));
+    void run(() => openTeaching(sessionId));
   }, [enabled, sessionId, view, teachingRefresh, busy, changed, draftLoading, draftSaving,
     draftError, staleDraft, instructionPending, review, pptxCandidate, error, run]);
 
   useEffect(() => {
     if (!enabled || !sessionId || !view || busy || draftLoading || draftSaving || draftError || staleDraft || changed || instructionPending || review || pptxCandidate || error) return;
     let stopped = false;
+    let failures = 0;
     let timer: ReturnType<typeof setTimeout>;
     const followPage = async () => {
       if (readingContext.current) {
@@ -157,12 +169,17 @@ export function CoursewareTeachingPanel({ sessionId, enabled }: { sessionId?: st
         const context = await api.pptEditorGetContext();
         if (stopped) return;
         if (context.page && !context.readOnly && context.page !== view.pageNumber) {
-          void run(() => api.pptEditorTeachingOpen(sessionId));
+          void run(() => openTeaching(sessionId));
           return;
         }
+        failures = 0;
         timer = setTimeout(followPage, 1000);
       } catch (failure) {
-        if (!stopped) setError(String(failure));
+        if (!stopped) {
+          failures += 1;
+          if (isTransientTeachingRace(failure) || failures < 5) timer = setTimeout(followPage, 250);
+          else setError(String(failure));
+        }
       } finally {
         readingContext.current = false;
       }
@@ -193,7 +210,7 @@ export function CoursewareTeachingPanel({ sessionId, enabled }: { sessionId?: st
     <div className="courseware-teaching-current">
     <strong>{view ? t("panel.pptEditor.teachingPage", { page: view.pageNumber }) : t("panel.pptEditor.teachingTitle")}</strong>
     <button type="button" disabled={!enabled || !sessionId || busy || changed || !!review || !!pptxCandidate}
-      onClick={() => sessionId && void run(() => api.pptEditorTeachingOpen(sessionId))}>
+      onClick={() => sessionId && void run(() => openTeaching(sessionId))}>
       {t(working ? "panel.pptEditor.teachingBusy" : "panel.pptEditor.teachingCurrent")}
     </button>
     </div>
@@ -423,7 +440,7 @@ export function CoursewareTeachingPanel({ sessionId, enabled }: { sessionId?: st
       <div className="courseware-teaching-actions">
         <button type="button" disabled={!canEdit || !changed || !sessionId || actions.some((action) => action.type === "speech" && (typeof action.text !== "string" || !action.text.trim()))} onClick={() => sessionId && void run(async () => {
           const id = request.current;
-          const current = await api.pptEditorTeachingOpen(sessionId);
+          const current = await openTeaching(sessionId);
           if (id !== request.current || current.pageId !== view.pageId || JSON.stringify(current.project) !== JSON.stringify(view.project))
             throw new Error("Teaching changed; return to the draft page and resolve any source or narration changes before saving");
           const result = await api.pptEditorTeachingWrite(current.viewId, current.project.teachingRevision, actions);

@@ -55,3 +55,11 @@ it("allows explicitly authorized revision to produce new speech identities while
   pages[0].actions = [];
   expect(inspectCoursewareEnrichment(e, pages).issues[0].code).toBe("SCRIPT_UNMATCHED");
 });
+
+it("recognizes Slide and bracketed source-page headings without trimming spoken lines", () => {
+  expect(parseCoursewareScript("Slide 2\n  Exact words.  \n【第十二页】\nNext." ).map(s => [s.sourcePageNumber, s.text])).toEqual([
+    [2, "  Exact words.  "], [12, "Next."],
+  ]);
+  expect(() => parseCoursewareScript("Slide 2\nTwo\nSlide 1\nOne")).toThrow(/order/);
+  expect(parseCoursewareScript("Slide 1.25 is a decimal")[0].text).toBe("Slide 1.25 is a decimal");
+});

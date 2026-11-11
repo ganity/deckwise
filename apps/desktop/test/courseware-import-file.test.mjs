@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { register } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -15,7 +15,7 @@ test("an imported PPTX becomes a distinct editable workspace copy", async () => 
   const workspace = await mkdtemp(join(tmpdir(), "deckwise-import-"));
   try {
     const path = await importCoursewarePptx(workspace, fixture);
-    assert.ok(path.startsWith(join(workspace, ".deckwise-ppt", "imports")));
+    assert.ok(path.startsWith(join(await realpath(workspace), ".deckwise-ppt", "imports")));
     assert.deepEqual(await readFile(path), await readFile(fixture));
     assert.notEqual(path, fixture);
     await writeFile(path, "changed");
@@ -23,6 +23,29 @@ test("an imported PPTX becomes a distinct editable workspace copy", async () => 
   } finally {
     await rm(workspace, { recursive: true, force: true });
   }
+});
+
+test("imports into a canonical workspace reached through a directory alias", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "deckwise-import-alias-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const workspace = join(root, "actual");
+  const alias = join(root, "alias");
+  await mkdir(workspace);
+  await symlink(workspace, alias, process.platform === "win32" ? "junction" : "dir");
+  const imported = await importCoursewarePptx(alias, fixture);
+  assert.ok(imported.startsWith(join(await realpath(workspace), ".deckwise-ppt", "imports")));
+  assert.deepEqual(await readFile(imported), await readFile(fixture));
+});
+
+test("rejects an import directory redirected outside the workspace", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "deckwise-import-escape-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const workspace = join(root, "workspace");
+  const outside = join(root, "outside");
+  await mkdir(workspace);
+  await mkdir(outside);
+  await symlink(outside, join(workspace, ".deckwise-ppt"), process.platform === "win32" ? "junction" : "dir");
+  await assert.rejects(importCoursewarePptx(workspace, fixture), /课件导入目录/);
 });
 
 test("a non-PPTX selection cannot enter the editor import path", async () => {
