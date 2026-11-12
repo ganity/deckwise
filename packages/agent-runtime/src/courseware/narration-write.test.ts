@@ -92,6 +92,20 @@ describe("page narration source", () => {
     expect(project.pages[0].actions[0].audioAssetId).toBe(`music-${"a".repeat(64)}`);
   });
 
+  it("does not let required-action repair insert an assessment into a body page", async () => {
+    const project: CoursewareProject = { schemaVersion: COURSEWARE_CONTRACT_VERSION, projectId: "project", taskType: "plain", title: "Lesson",
+      source: { revision: "R1", sha256: candidateHash("pptx") }, teachingRevision: "T1",
+      pages: [{ pageId: "page", locked: false, reviewState: "review", actions: [{ id: "speech", type: "speech", text: "Original lecture" }] }] };
+    const baseline = { projectId: "project", documentId: "doc", pageId: "page", sourceRevision: "R1", sourceHash: project.source.sha256,
+      teachingRevision: "T1", contentHash: candidateHash(""), clean: true, readOnly: false, manualLocked: false };
+    await expect(generateNarrationWrite({ project, pageId: "page", baseline, pageText: "", repairRequiredTeaching: true,
+      independentAssessmentPages: true, instruction: "Repair", coursePlan: { teaching: { pageType: "slide", phase: "practice", objective: "Read", durationSeconds: 30, requiredObjects: [],
+        question: { text: "Which?", response: { kind: "short_answer", options: [], answerIndices: [] } } } },
+      getCurrentBaseline: async () => baseline, generate: async () => { throw new Error("Must not call the model"); },
+    })).rejects.toThrow("Body narration repair cannot insert a question");
+    expect(project.pages[0].actions).toEqual([{ id: "speech", type: "speech", text: "Original lecture" }]);
+  });
+
   it("repairs missing approved actions without a speech round trip and is idempotent", async () => {
     const speech = { id: "speech", type: "speech", text: "Hello. ", source: "original", pauseAfterMs: 1000,
       audioAssetId: "tts-" + "b".repeat(64), visualCues: [] };
@@ -649,4 +663,105 @@ it.each(["plain", "import", "scene"] as const)("adds focus to supplied %s speech
       { objectId: "label", kind: "text", text: "Circle", bbox: [0,0,100,30] },
     ] }, getCurrentBaseline: async () => baseline, generate: async () => { throw Error("Speech model must not run"); } });
   expect(result.write.actions[0]).toEqual({ ...speech, attention: { type: "highlight", objectIds: ["label"] } });
+});
+
+it("repairs all effects on one preserved speech using verified audio duration", async () => {
+  const speech = { id: "original", type: "speech", text: "Look at the red circle. A circle is round.", audioAssetId: "tts-" + "b".repeat(64), source: "external" };
+  const project: CoursewareProject = { schemaVersion: COURSEWARE_CONTRACT_VERSION, projectId: "project", taskType: "import", title: "Shapes", source: { revision: "R1", sha256: candidateHash("pptx") }, teachingRevision: "T1", pages: [{ pageId: "page", locked: false, reviewState: "review", actions: [speech] }] };
+  const baseline = { projectId: "project", documentId: "doc", pageId: "page", sourceRevision: "R1", sourceHash: project.source.sha256, teachingRevision: "T1", contentHash: candidateHash("Circle"), clean: true, readOnly: false, manualLocked: false };
+  const input = { project, pageId: "page", baseline, pageText: "Circle", instruction: "Fade in and spotlight the red circle; highlight Circle", repairRequiredTeaching: true, audioDurations: { original: 4000 },
+    evidence: { notes: "", visualSummary: "A red circle", objects: [{ objectId: "circle", kind: "image", text: "", aliases: ["red circle"], bbox: [0,50,100,100] }, { objectId: "title", kind: "text", text: "Circle", bbox: [0,0,100,30] }] }, getCurrentBaseline: async () => baseline,
+    generate: async () => ({ focuses: [{ speechId: "original", type: "spotlight", objectIds: ["circle"], animation: "fadeIn" }, { speechId: "original", type: "highlight", objectIds: ["title"] }] }) };
+  const result = await generateNarrationWrite(input);
+  expect(result.write.actions[0]).toMatchObject(speech);
+  expect(result.write.actions[0].attention).toBeUndefined();
+  expect(result.write.actions[0].visualCues).toHaveLength(3);
+  expect(project.pages[0].actions).toEqual([speech]);
+  await expect(generateNarrationWrite({ ...input, audioDurations: {} })).rejects.toThrow(/verified saved audio/);
+});
+it("matches a unique verified picture through its noun label without accepting another picture", () => {
+  const objects = [{ objectId: "circle", kind: "image", text: "", aliases: ["red circle"], bbox: [0,50,100,100] }, { objectId: "title", kind: "text", text: "Circle", bbox: [0,0,100,30] }];
+  expect(sceneSpeechTarget("A circle is round.", objects)?.objectId).toBe("circle");
+  expect(sceneSpeechTarget("A circle is round.", [...objects, { ...objects[0], objectId: "second", aliases: ["blue circle"] }])?.objectId).not.toBe("circle");
+});
+
+it.each(['plain','import','scene'] as const)('matches %s native paragraph text across layout breaks and Chinese character targets', async taskType => {
+  const project: CoursewareProject = {schemaVersion:COURSEWARE_CONTRACT_VERSION,projectId:'project',taskType,title:'影子',
+    source:{revision:'R1',sha256:'a'.repeat(64)},teachingRevision:'T1',pages:[{pageId:'page',locked:false,reviewState:'review',actions:[]}]};
+  const paragraph='影子在前，\n影子在后，\n影子常常跟着我，\n就像一条小黑狗。';
+  const objects=[
+    {objectId:'paragraph',kind:'text',text:paragraph,bbox:[0,0,100,100]},
+    {objectId:'dog',kind:'text',text:'小黑狗',bbox:[110,0,40,20]},
+    {objectId:'front',kind:'text',text:'前',bbox:[110,25,20,20]},
+    {objectId:'back',kind:'text',text:'后',bbox:[110,50,20,20]},
+    {objectId:'shadow',kind:'text',text:'影子',bbox:[110,75,40,20]},
+  ];
+  const baseline={projectId:'project',documentId:'doc',pageId:'page',sourceRevision:'R1',sourceHash:'sha256:'+project.source.sha256,
+    teachingRevision:'T1',contentHash:candidateHash(paragraph),clean:true,readOnly:false,manualLocked:false};
+  const input={project,pageId:'page',baseline,pageText:paragraph,instruction:'Read the source words',
+    evidence:{notes:'',visualSummary:'Native Chinese text',objects},getCurrentBaseline:async()=>baseline};
+  for(const [text,id] of [[paragraph.replaceAll('\n',''),'paragraph'],['影子在前，影子在后。','paragraph'],['影子在前，请认一认前这个字。','front']]) {
+    const result=await generateNarrationWrite({...input,generate:async()=>({blocks:[{type:'speech',text,attention:{type:'highlight',objectIds:[id]}}]})});
+    expect(result.write.actions).toEqual(expect.arrayContaining([expect.objectContaining({type:'speech',attention:expect.objectContaining({objectIds:expect.arrayContaining([id])})})]));
+  }
+  await expect(generateNarrationWrite({...input,generate:async()=>({blocks:[{type:'speech',text:'影子在前，请认一认前这个字。',attention:{type:'highlight',objectIds:['back']}}]})})).rejects.toThrow(/do not match/);
+});
+
+it("replaces repaired focus and keeps one entrance per target across saved speeches", async () => {
+  const speech = { id: "original", type: "speech", text: "Look at the red circle. A circle is round.", audioAssetId: "tts-" + "b".repeat(64), source: "external" };
+  const project: CoursewareProject = { schemaVersion: COURSEWARE_CONTRACT_VERSION, projectId: "project", taskType: "import", title: "Shapes", source: { revision: "R1", sha256: candidateHash("pptx") }, teachingRevision: "T1", pages: [{ pageId: "page", locked: false, reviewState: "review", actions: [{ ...speech, visualCues: [{ id: "wrong-focus", atMs: 0, endMs: 4000, effect: { type: "spotlight", elementId: "title" } }] }, { ...speech, id: "later", visualCues: [{ id: "later-entry", atMs: 0, endMs: 600, trigger: { version: 1, kind: "start" }, effect: { type: "element_animation", elementId: "circle", effect: "fadeIn" } }] }] }] };
+  const baseline = { projectId: "project", documentId: "doc", pageId: "page", sourceRevision: "R1", sourceHash: project.source.sha256, teachingRevision: "T1", contentHash: candidateHash("Circle"), clean: true, readOnly: false, manualLocked: false };
+  const input = { project, pageId: "page", baseline, pageText: "Circle", instruction: "Fade in and spotlight the red circle; highlight Circle", repairRequiredTeaching: true, audioDurations: { original: 4000 },
+    evidence: { notes: "", visualSummary: "A red circle", objects: [{ objectId: "circle", kind: "image", text: "", aliases: ["red circle"], bbox: [0,50,100,100] }, { objectId: "title", kind: "text", text: "Circle", bbox: [0,0,100,30] }] }, getCurrentBaseline: async () => baseline,
+    generate: async () => ({ focuses: [{ speechId: "original", type: "spotlight", objectIds: ["circle"], animation: "fadeIn" }, { speechId: "original", type: "highlight", objectIds: ["title"] }] }) };
+  const before = structuredClone(project);
+  const result = await generateNarrationWrite(input);
+  expect(result.write.actions[0]).toMatchObject(speech);
+  expect(result.write.actions[0].attention).toBeUndefined();
+  expect(result.write.actions[0].visualCues).toHaveLength(3);
+  expect(result.write.actions.flatMap(a => Array.isArray(a.visualCues) ? a.visualCues : []).filter(c => c.effect.type === "element_animation" && c.effect.effect === "fadeIn")).toHaveLength(1);
+  expect(result.write.actions[0].visualCues).not.toEqual(expect.arrayContaining([expect.objectContaining({ id: "wrong-focus" })]));
+  expect(project).toEqual(before);
+  await expect(generateNarrationWrite({ ...input, audioDurations: {} })).rejects.toThrow(/verified saved audio/);
+});
+
+it.each(['plain', 'import', 'scene'] as const)('matches a paraphrased %s paragraph without confusing its short title', async taskType => {
+  const paragraph = '请根据课文内容，将影子出现的四个方向按顺序把生字卡片送到正确位置上。';
+  const objects = [
+    { objectId: 'task', kind: 'text', text: paragraph, bbox: [0, 50, 200, 100] },
+    { objectId: 'title', kind: 'text', text: '影子', bbox: [0, 0, 100, 30] },
+    { objectId: 'think', kind: 'text', text: '认真思考', bbox: [110, 0, 100, 30] },
+  ];
+  const project: CoursewareProject = { schemaVersion: COURSEWARE_CONTRACT_VERSION, projectId: 'project', taskType, title: '影子',
+    source: { revision: 'r', sha256: candidateHash('pptx') }, teachingRevision: 't', pages: [{ pageId: 'page', locked: false, reviewState: 'review', actions: [] }] };
+  const baseline = { projectId: 'project', documentId: 'doc', pageId: 'page', sourceRevision: 'r', sourceHash: project.source.sha256,
+    teachingRevision: 't', contentHash: candidateHash(paragraph), clean: true, readOnly: false, manualLocked: false };
+  const input = { project, pageId: 'page', baseline, pageText: paragraph, instruction: 'Explain the task',
+    evidence: { notes: '', visualSummary: paragraph, objects }, getCurrentBaseline: async () => baseline };
+  const speech = '看这里的任务，请你根据课文内容，把生字卡片按影子出现的四个方向送到正确位置上。';
+  const generate = (id: string) => async () => ({ blocks: [{ type: 'speech', text: speech, attention: { type: 'highlight', objectIds: [id] } }] });
+  await expect(generateNarrationWrite({ ...input, generate: generate('task') })).resolves.toHaveProperty('write');
+  await expect(generateNarrationWrite({ ...input, generate: generate('think') })).rejects.toThrow(/do not match/);
+});
+
+it.each(['plain', 'import', 'scene'] as const)('matches a %s multiline name/value label across spoken linking words without matching another price', async taskType => {
+  const project: CoursewareProject = { schemaVersion: COURSEWARE_CONTRACT_VERSION, projectId: 'p', taskType, title: '价格',
+    source: { revision: 'r', sha256: candidateHash('pptx') }, teachingRevision: 't',
+    pages: [{ pageId: 'page', locked: false, reviewState: 'review', actions: [] }] };
+  const pageText = '铅笔\n0.5元\n铅笔盒\n5元';
+  const baseline = { projectId: 'p', documentId: 'd', pageId: 'page', sourceRevision: 'r', sourceHash: project.source.sha256,
+    teachingRevision: 't', contentHash: candidateHash(pageText), clean: true, readOnly: false, manualLocked: false };
+  const objects = [
+    { objectId: 'pencil-picture', kind: 'image', text: '', aliases: ['铅笔'], bbox: [0, 0, 20, 20] },
+    { objectId: 'pencil-price', kind: 'text', text: '铅笔\n0.5元', aliases: ['铅笔标价'], bbox: [0, 30, 20, 20] },
+    { objectId: 'case-price', kind: 'text', text: '铅笔盒\n5元', bbox: [50, 30, 20, 20] },
+  ];
+  const generate = (text: string) => generateNarrationWrite({ project, pageId: 'page', baseline, pageText, instruction: 'Explain prices',
+    evidence: { notes: '', visualSummary: '文具价格', objects }, getCurrentBaseline: async () => baseline,
+    generate: async () => ({ blocks: [{ type: 'speech', text, attention: { type: 'highlight', objectIds: ['pencil-price'] } }] }) });
+  expect((await generate('再看铅笔，标价是0.5元。')).write.actions[0].attention).toMatchObject({ objectIds: ['pencil-price'] });
+  for (const speech of ['铅笔，标价是10.5元。', '铅笔，标价是5元。', '铅笔盒，标价是0.5元。', '铅笔。另一个物品是0.5元。']) {
+    expect(sceneSpeechTarget(speech, objects, 'pencil-price')?.objectId).not.toBe('pencil-price');
+  }
+  await expect(generate('铅笔，标价是5元。')).rejects.toThrow(/do not match this speech/);
 });

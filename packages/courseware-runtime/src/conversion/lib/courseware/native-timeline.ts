@@ -38,15 +38,22 @@ export function projectNativeTimeline(page: SlidePageIR, aliases: readonly { obj
       return { elementId: target.id, ...effect, ...(effect.effect === 'bounceInBottom' ? { distance: page.height } : {}), durationMs: item.durationMs, startAtMs: item.startAtMs };
     }),
   }));
+  const wrappers = projectNativeTimelineGroups(page, groupIds.map(sourceShapeId => aliases.find(group => group.sourceShapeId === sourceShapeId) ?? { objectId: `source_${sourceShapeId}`, sourceShapeId }));
+  const parsed = nativeTimelineSchema.safeParse({ version: 1, steps, ...(wrappers.length ? { groups: wrappers } : {}) });
+  if (!parsed.success) throw new Error('NATIVE_ANIMATION_UNSUPPORTED');
+  return parsed.data;
+}
+
+/** Shared wrappers for native timing and speech motions, including nested groups. */
+export function projectNativeTimelineGroups(page: SlidePageIR, aliases: readonly { objectId: string; sourceShapeId: string }[]) {
+  const groupIds = aliases.map(group => group.sourceShapeId);
+  const groups = projectNativeGroups(page, aliases);
   const parent = (shapeId: string) => {
     const child = page.elements.find(element => element.sourceGroupShapeIds?.includes(shapeId));
     const ancestors = child?.sourceGroupShapeIds ?? [];
     return ancestors.slice(0, ancestors.indexOf(shapeId)).findLast(id => groupIds.includes(id));
   };
-  const wrappers = groups.map((group, index) => ({ elementId: group.element.id,
+  return groups.map((group, index) => ({ elementId: group.element.id,
     children: [...page.elements.filter(element => element.sourceGroupShapeIds?.filter(id => groupIds.includes(id)).at(-1) === groupIds[index]).map(element => element.id),
       ...groups.filter((_, childIndex) => parent(groupIds[childIndex]) === groupIds[index]).map(child => child.element.id)] }));
-  const parsed = nativeTimelineSchema.safeParse({ version: 1, steps, ...(wrappers.length ? { groups: wrappers } : {}) });
-  if (!parsed.success) throw new Error('NATIVE_ANIMATION_UNSUPPORTED');
-  return parsed.data;
 }

@@ -12,7 +12,8 @@ export function coursewareFailureRecovery(error: unknown): "retry-read" | "query
   for (let depth = 0; depth < 4 && record(cause); depth++) {
     const code = typeof cause.code === "string" ? cause.code : typeof cause.errorCode === "string" ? cause.errorCode :
       typeof cause.message === "string" ? /^([A-Z][A-Z0-9_]+)(?::|$)/u.exec(cause.message)?.[1] : undefined;
-    if (["TASK_STATUS_UNAVAILABLE", "COURSEWARE_MEDIA_TRANSPORT_FAILED", "HOST_OVERLOADED", "ECONNRESET", "ETIMEDOUT", "RATE_LIMITED", "SERVICE_UNAVAILABLE"].includes(code ?? "")) return "retry-read";
+    if (["TASK_STATUS_UNAVAILABLE", "COURSEWARE_MEDIA_TRANSPORT_FAILED", "HOST_OVERLOADED", "ECONNRESET", "ETIMEDOUT", "RATE_LIMITED", "SERVICE_UNAVAILABLE",
+      "PPT_EDITOR_NOT_READY", "PPT_EDITOR_SAVE_IN_PROGRESS"].includes(code ?? "")) return "retry-read";
     if (["COURSEWARE_MEDIA_GENERATION_STATUS_UNKNOWN", "COURSEWARE_SUBMISSION_UNKNOWN"].includes(code ?? "")) return "query-original";
     if (["INVALID_PARAMS", "COURSEWARE_INVALID"].includes(code ?? "")) return "repair-input";
     if (["TOOL_TURN_CANCELLED", "COURSEWARE_MEDIA_WAIT_CANCELLED", "ABORT_ERR"].includes(code ?? "") || cause.name === "AbortError") return "cancelled";

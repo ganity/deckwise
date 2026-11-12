@@ -33,6 +33,35 @@ new Function("require", "exports", outputText)((id) => {
   throw new Error(id);
 }, module.exports);
 const { CoursewareCandidateCoordinator } = module.exports;
+
+test("native lesson planning reads real pages, uses the selected model and rejects changes before adoption", async () => {
+  const project = { schemaVersion: "deckwise-courseware/1", projectId: "native", taskType: "import", title: "Lesson", source: { revision: "r", sha256: "a".repeat(64) },
+    teachingRevision: "r", pages: [{ pageId: "apple", locked: false, reviewState: "review", actions: [] }] };
+  let liveText = "A red apple", selected = "provider/model", active = true, mutate = () => {};
+  const operations = [];
+  const teaching = { async native(op, args, n = 1) {
+    operations.push(op);
+    const view = structuredClone({ project, viewId: "native.apple", pageId: "apple", pageNumber: n });
+    if (op === "open") return { value: view };
+    assert.equal(op, "narration-context");
+    return { value: { view, text: liveText, evidence: { notes: "Teacher note" } } };
+  } };
+  const complete = async input => {
+    assert.equal(input.modelKey, "provider/model"); assert.equal(input.includeSessionContext, false);
+    assert.equal(JSON.parse(input.messages[0].content).pages[0].text, "A red apple");
+    mutate();
+    return { text: JSON.stringify({ units: [{ title: "Apple", evidence: "Teach red apples.", kind: "teaching", mappings: [{ pageId: "apple", evidence: "red apple" }] }] }), modelKey: input.modelKey };
+  };
+  const coordinator = new CoursewareCandidateCoordinator(teaching, complete, undefined, async () => ({ modelKey: selected }));
+  const proposal = await coordinator.planNativeLesson("chat", "Teach red apples.", "Preserve the course", () => active);
+  assert.deepEqual(proposal.units[0].pageIds, ["apple"]); assert(!operations.includes("write"));
+  mutate = () => { liveText = "A blue ball"; };
+  await assert.rejects(coordinator.planNativeLesson("chat", "Teach red apples.", "", () => active), /content changed/);
+  liveText = "A red apple"; mutate = () => { selected = "provider/other"; };
+  await assert.rejects(coordinator.planNativeLesson("chat", "Teach red apples.", "", () => active), /model changed/);
+  selected = "provider/model"; mutate = () => { active = false; };
+  await assert.rejects(coordinator.planNativeLesson("chat", "Teach red apples.", "", () => active), /owner changed/);
+});
 const fixture = JSON.parse(await readFile(new URL("../../../packages/shared/src/courseware-contract.fixtures/accepted.json", import.meta.url), "utf8"));
 function setup(resolveModel) {
   const project = structuredClone(fixture.project);
@@ -222,6 +251,16 @@ for (const kind of ["original-notes", "external"]) test(`trusted ${kind} selecti
   assert.deepEqual(f.project.pages.slice(1), before.pages.slice(1));
 });
 
+test("supplied lesson-plan wording remains exact and bypasses generated-language review", async () => {
+  const f = setup();
+  const context = await f.context();
+  const text = "教师应该引导学生观察。设计意图是比较两个数。";
+  const receipt = await f.coordinator.selectNarrationSource("chat", { kind: "external", baseline: context.baseline, text }, () => true);
+  assert.equal(f.requests.length, 0);
+  assert.equal(f.calls.find(([method]) => method === "courseware.narration.save")[1].write.actions[0].text, text);
+  assert.equal(receipt.diagnostics?.some(d => /Narration language review/.test(d.message)) ?? false, false);
+});
+
 test("source selection captures text/baseline before saved-source await", async () => {
   const f = setup(); const context = await f.context();
   const selection = { kind: "external", baseline: structuredClone(context.baseline), text: "Original selection" };
@@ -352,7 +391,12 @@ test("native generated narration keeps page requirements, live targets and adopt
     return { value: captured().view };
   };
   const originalComplete = f.coordinator.complete;
-  f.coordinator.complete = async args => args.system.startsWith('Plan a coherent course') ? { text: JSON.stringify({ goal: 'Name the apple', pages: [{ pageNumber: 1, purpose: 'Name', bridge: 'Practice', focus: 'apple' }] }) } : originalComplete(args);
+  let focusRepairs = 0;
+  f.coordinator.complete = async args => {
+    if (args.system.startsWith('Plan a coherent course')) return { text: JSON.stringify({ goal: 'Name the apple', pages: [{ pageNumber: 1, purpose: 'Name', bridge: 'Practice', focus: 'apple' }] }) };
+    if (args.system.startsWith('Repair only synchronized effects')) { focusRepairs++; return { text: JSON.stringify({ focuses: [] }) }; }
+    return originalComplete(args);
+  };
   await f.coordinator.proposeNativeNarration("chat", 1, "Explain the apple", () => true);
   const input = JSON.parse(f.requests[0].messages[0].content);
   assert.deepEqual(input.coursePlan.teaching, teaching);
@@ -365,6 +409,7 @@ test("native generated narration keeps page requirements, live targets and adopt
   await f.coordinator.proposeNativeNarration("chat", 1, "Preserve speech", () => true, true);
   assert.deepEqual(page.actions.filter(action => action.type === "speech").map(action => action.text), before);
   assert.equal(f.requests.length, 1, "a satisfied repair never regenerates speech or buys replacement media");
+  assert.equal(focusRepairs, 1, "effect repair uses its own validated delta, not generated speech");
 });
 
 for (const policy of ["preserve", "generate-missing", "silent"]) test(`native selected narration respects ${policy} source policy before any write`, async () => {
@@ -382,4 +427,59 @@ for (const policy of ["preserve", "generate-missing", "silent"]) test(`native se
     policy === "silent" ? /intentionally silent/ : /policy prevents/);
   assert.equal(f.requests.length, 0);
   assert.equal(page.actions[0].text, "Existing narration");
+});
+
+test('native narration retry budget spans tool calls within one user turn and resets on a new turn', async () => {
+  const project = { schemaVersion: shared.COURSEWARE_CONTRACT_VERSION, projectId: 'native', taskType: 'plain', title: 'Father',
+    source: { revision: 'R1', sha256: 'a'.repeat(64) }, teachingRevision: 'T1',
+    pages: [{ pageId: 'page', locked: false, reviewState: 'review', actions: [] }] };
+  const png = Buffer.alloc(24); png.writeUInt32BE(0x89504e47, 0); png.writeUInt32BE(1280, 16); png.writeUInt32BE(720, 20);
+  const teaching = { native: async op => {
+    if (op === 'narration-visual') return { value: { dataUrl: `data:image/png;base64,${png.toString('base64')}` } };
+    assert.equal(op, 'narration-context');
+    return { value: { editor: { projectId: 'native', documentId: 'doc', sessionId: 'chat', editGeneration: 1 },
+      view: { project: structuredClone(project), pageId: 'page', viewId: 'view' }, text: 'father',
+      evidence: { width: 1280, height: 720, notes: '', objects: [{ objectId: 'father', kind: 'text', text: 'father', bbox: [0,0,100,100] }] } } };
+  } };
+  let turnId = 'turn-1', plans = 0, speech = 0;
+  const complete = async request => {
+    const data = JSON.parse(request.messages[0].content);
+    if (data.outline) {
+      plans++;
+      return { text: JSON.stringify({ goal: 'Read', pages: [{ pageNumber: 1, purpose: 'Read', focus: 'father', bridge: 'Continue' }] }) };
+    }
+    speech++;
+    return { text: JSON.stringify({ blocks: [{ type: 'wait', durationMs: 4000 }, { type: 'speech', text: 'Read father.' }] }) };
+  };
+  const coordinator = new CoursewareCandidateCoordinator(teaching, complete, undefined, async () => ({ modelKey: 'test' }), () => turnId);
+  const generate = instruction => coordinator.proposeNativeNarrationBatch('chat', [1], instruction, () => true);
+  const first = await generate('Read father');
+  assert.equal(first.failures[0].retriable, false); assert.equal(speech, 3); assert.equal(plans, 1);
+  project.source.sha256 = 'b'.repeat(64);
+  const repeated = await generate('Use a shorter instruction');
+  assert.equal(repeated.failures[0].code, 'COURSEWARE_NARRATION_RETRY_EXHAUSTED');
+  assert.equal(speech, 3); assert.equal(plans, 1);
+  turnId = 'turn-2';
+  await generate('Try again');
+  assert.equal(speech, 6); assert.equal(plans, 2);
+});
+
+test("activity review checks the question against real page context and rejects missing answer conditions", async () => {
+  let request;
+  const coordinator = new CoursewareCandidateCoordinator({}, async input => {
+    request = input; return { text: JSON.stringify({ valid: false, reason: 'Specify the light direction before choosing front or back.' }) };
+  }, undefined, async () => ({ modelKey: 'review/model' }));
+  const data = { question: 'Where is the shadow?', response: { kind: 'single', options: ['front', 'back'], answerIndices: [1] },
+    pageText: 'Shadows can be in front or behind.', planEvidence: 'The answer is back.' };
+  await assert.rejects(coordinator.reviewNativeActivity('chat', data, () => true), /Specify the light direction/);
+  assert.deepEqual(JSON.parse(request.messages[0].content), data);
+  assert.equal(request.includeSessionContext, false);
+  assert(request.system.includes('self-authored lesson plan'));
+  assert(request.system.includes('activityTitle'));
+  assert(request.system.includes('A shared topic alone is insufficient'));
+  assert(request.system.includes('cannot supply an absent teaching objective'));
+  assert(request.system.includes('A text-only extraction does not prove that an illustration is absent'));
+  assert(request.system.includes('Source-page facts can support a recall question'));
+  assert(request.system.includes('activityPage.visibleText'));
+  assert(request.system.includes('Reading prices on this page requires prices on the activity page'));
 });

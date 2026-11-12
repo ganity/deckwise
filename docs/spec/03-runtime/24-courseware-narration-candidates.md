@@ -1,5 +1,24 @@
 # Saved narration
 
+## Independent native activities
+
+Native body narration always rejects executable interaction and teacher-continuation
+blocks, including imported PPT and PPT Master pages without generation metadata.
+The single-page candidate and required-action repair entry points obey the same
+rule. Spoken learner prompts and fixed waits remain ordinary narration.
+Accepted Quiz/checkpoint units insert a real new PPT page after the requested
+stable page ID. Visible practice text or an accidental checkpoint on an original
+body slide must not force conversion/reuse of that body slide. Mapped independent
+activities remain idempotent.
+
+The native assessment editor uses saved Quiz content, generated page requirements
+or a bound activity unit to identify page purpose. Short-answer checkpoints remain
+interactive pages. Original or planned body pages containing historical questions
+keep the body narration editor and retain their saved actions/media unchanged.
+Older standalone activities without planning metadata retain their editor only
+when their content consists of a checkpoint and its exact question reading.
+No automatic migration, deletion or expansion of historical questions is performed.
+
 ## Grounded teaching moves
 
 Teaching requirements and the education context determine the learning objective,
@@ -18,7 +37,7 @@ Cached evidence includes the current teaching requirements in its identity.
 
 Validated page briefs are cached with that evidence, the requested instruction,
 approved plan, model and education context. A failed-page retry may reuse the
-unchanged arc; otherwise planning receives the full outline as context but emits
+unchanged arc; otherwise the legacy saved-project planner receives the full outline as context but emits
 only the selected body-page briefs in their exact order. The strict JSON schema
 is supplied to the model and unexpected fields are named in repair feedback.
 Neither a partial save nor a cached plan certifies whole-course completion.
@@ -82,6 +101,14 @@ and end-triggered animation use that duration; valid completed audio must not
 fail with `SPEECH_TIMING_AUDIO_REQUIRED`. Editor mode keeps all objects visible.
 The native slideshow hides entrance targets until their speech trigger, and
 object location refreshes the native selection outline, including group members.
+
+When a saved speech cue changes or is removed, the editor reconciles the previous
+native timing mirror in the same teaching history action. Target, preset and
+duration identify the previous mirror; unrelated native effects stay intact.
+Adding a new preset while leaving the old mirror behind is invalid: it can pass
+metadata checks but conflict at fixed playback construction. Replacement, removal,
+Undo/Redo and save/reopen are checked against the real SDK timing tree and existing
+embedded audio is retained.
 
 ## Direct save (2026-10-26)
 
@@ -492,8 +519,8 @@ If rasterization is unavailable, bounded embedded images are used and a diagnost
 is returned. Image-only pages are supported when the authorized model can read
 their visual evidence; pages without readable evidence fail individually.
 
-The whole-deck plan always includes all available pages, including on subset
-retries. Per-page model requests include the canonical JSON output schema, and
+The legacy saved-project whole-deck plan includes all available pages, including on subset
+retries. Native PPT generation uses the bounded batches described below instead. Per-page model requests include the canonical JSON output schema, and
 outputs still pass strict validation before saving.
 
 The outline format takes precedence over narration-format instructions: it uses
@@ -648,3 +675,173 @@ revision/policy changes are distinct from automatic repair.
   the first available model/voice. Generation still requires explicit fee confirmation.
 - Legacy archive previews read at most the declared, bounded byte length and verify
   regular-file type, exact length and SHA-256; portable/native audio remains preferred.
+
+### Generated-language review (2026-11-11)
+
+The shared batch path adds advisory page diagnostics for newly generated speech
+containing third-person teacher directions or instructional-design narration.
+It reuses a small subset of the zpj_deck language rules. It does not change text,
+reject saving, regenerate speech, add a model call, or affect completion status.
+These heuristic warnings may identify intentional quotations; they are not a
+semantic quality certificate. Broad learning-objective/stage labels are excluded.
+
+Run this review only after automatic speech generation, outside shared candidate
+validation. Explicit notes/external-source selection, accepted scripts and
+effect-only required-teaching repair retain their exact wording and existing audio.
+Use existing native evidence, history, save and diagnostic paths; no alternative
+renderer or persisted teaching model is introduced.
+
+### Bounded native narration batches
+
+The public narration tool schema and both Main handlers reject more than five
+pages per call, including an omitted native generation scope. Read-only status
+queries retain their full-deck scope. Agent skills and automatic required/focus
+repair also submit at most five pages, await save and reread source SHA before
+the next call; no full-deck outer request is accepted.
+
+Native PPT generation processes at most five consecutive requested pages per
+batch. Nonadjacent selections start separate batches. Each batch reads and sends
+only its own pages and up to two actual neighboring pages on each side; it never
+sends the complete deck outline to the relay. Neighbor text, notes, objectives and
+already-saved speech summaries are limited to 400 characters each. Images and
+full object evidence belong only to the current requested pages. Planning emits
+at most five briefs; individual speech requests retain their own page evidence
+and adjacent bridges. Approved requirements, source policies and output validation
+remain authoritative; a summary is context, not proof of unseen slide content.
+
+Each batch performs visual grounding, planning and individual native page writes,
+then the Chat tool waits for the normal native save acknowledgment before starting
+the next batch. It rereads source/revision after that save. Document identity and
+page order remain pinned across batches. Existing saved speech supplies continuity
+for the following batch, without a new summarization model request.
+
+The 180-second model-call limit and 14-minute safety limit apply to a small batch,
+not the complete 56-page request. Deadline expiry is not an owner cancellation.
+A fatal transport, owner, cancellation or uncertain-save failure stops later
+batches and returns acknowledged peer pages plus explicit failed/not-started page
+numbers. Classified page-local output/plan/content failures allow independent
+later groups to continue. Successful prior batches are not replayed. Only
+unfinished pages should be requested for recovery; an explicit rewrite remains
+an authorized rewrite. A failed save never reports that batch as persisted.
+No TTS or replacement media is purchased by this text-generation path.
+
+### Native narration validation and retry scope
+
+Match Chinese character targets and literal paragraph clauses using normalized
+layout whitespace, without removing Latin word boundaries or relaxing wrong-object,
+ambiguous-picture or backplate checks. Reuse this matcher for validation and
+inferred focus. An effect binding error on otherwise structured valid narration
+may request only an object-ID delta by speech-block index; it cannot rewrite its
+words, waits or media. Validate the amended candidate through the normal boundary.
+
+A changed package SHA alone must not discard generated narration. Before accepting
+the updated live binding, verify the remaining native project identity/revisions,
+all captured text/layout/requirements/source policy and selected pixels. Navigation
+and selection are likewise harmless only when actual content is unchanged. Real
+edits still trigger bounded rereading of unfinished pages; external teaching edits,
+locks and owner changes remain blocking.
+
+Validate page briefs independently, retain validated peers and the original goal,
+and request one repair only for failed page numbers. A failed brief never supplies
+fabricated content or blocks saving a valid peer. Root JSON/schema failures retain
+a bounded whole-scope repair when rows cannot be safely identified.
+
+The active durable user turn shares at most three page-generation/delta calls for
+the same page content/model/repair mode. Instruction changes, batch regrouping,
+autosave SHA and successful-peer teaching revisions do not renew that budget.
+Check terminal failures before further paid visual or planning work. A later
+explicit user request gets a fresh bounded budget; changed actual local content
+has a fresh key. Terminal planning/output/exhaustion errors carry per-page codes
+and `retriable:false`. Agent guidance must continue independent unfinished pages
+and report these failures without automatic single-page retries. Missing required
+live content still requires correcting the page or its approved mapping.
+
+### Native repairs with retained audio
+
+For effect-only repair, the native adapter supplies verified saved speech durations
+before normalizing the teaching view. Durations are indexed by page ID and speech
+ID so equal speech IDs on different pages cannot share timing. The generator can bind multiple focus cues
+to one existing speech, including an entrance animation, spotlight and title
+highlight. It preserves speech IDs, text, audio assets and unrelated cues, checks
+current page evidence/revisions, and refuses unknown targets or missing verified
+durations. It neither rewrites a final script nor starts TTS. Native writes and
+original-audio recovery also resolve pending attention against retained embedded
+audio; a fresh synthesis/adoption is unnecessary.
+
+Automatic teaching saves wait for outstanding native commands. Context reads
+join an in-progress save and verify document ownership afterwards. Mutation
+results return the source SHA and teaching revision read after save; stale writes
+remain rejected and must use freshly read context.
+
+The first automatic open may skip saving when no editor document exists; regular
+saves and foreign/read-only documents keep their existing guards. Native automatic
+teaching saves require conversation/document ownership without requiring the editor
+to be the foreground panel; direct Office selection edits still require visibility.
+A refused close during an outstanding save retains the conversation binding and
+review state; these are cleared only after the controller accepts the close.
+Native automatic media continuation rereads context after each adopted page. A refresh exception
+gets one reconciliation against current native state using the original orders;
+a second exception stops. Local query/adoption exceptions never prove provider
+generation failure and do not authorize a replacement purchase. Native saved
+completion also governs the continuation when only optional assessment images
+remain.
+
+Activity insertion keeps source evidence separate from its reference answer.
+Teacher-led `short_answer`, `discussion`, `practice` and `pbl` require
+`referenceAnswer: { summary, keyPoints }` and empty option/answer-index arrays.
+Validation errors preserve the requested response kind. Explicit inline user
+activity requirements can be mapped as lesson-plan source material without an
+attachment; missing accepted units still prevent insertion. Native teaching
+evidence identifies group containers as `group`, separate from their leaf shapes,
+text and images. Narration visual grounding uses those leaf objects for synchronized
+effects, preventing a decorative backplate/subject group from becoming an entrance
+animation target.
+Native teaching operations use shared courseware tools independently of Office selection-edit
+capabilities. English question templates use English helper copy; Chinese
+question templates retain their existing copy.
+
+For native imported decks with accepted Quiz/checkpoint units, body narration also
+uses independent-assessment validation: extra interaction blocks and teacher-led
+continuation cannot silently add another activity inside a lecture page. Invalid
+model output is corrected within the existing bounded narration retry, preserving
+the accepted activity quantities.
+
+Native narration/media context use identical assessment completion criteria.
+Missing optional option images remain in `assessmentMedia.targets` and keep its
+`ready` false, but do not invalidate core teaching completion. Missing question
+audio remains unfinished. Explicit user media requests still require checking
+and completing their actual targets before reporting that request complete.
+
+Saved-audio effect repair replaces the selected speech's existing focus of the
+same type and its associated motion, preserving unrelated cues, words and audio.
+An object has one entrance per page; later emphasis on the repaired object uses
+a repeatable pulse. Repair must not mutate its input project.
+
+Assessment-only narration requests retain existing question readings without
+visual recognition, course planning or speech generation. Their diagnostics direct
+callers to assessment media for missing question audio; body narration is not an
+assessment-repair mechanism.
+
+New mapped activities receive a separate semantic review against actual page text,
+saved narration, proposed answer and source evidence before preview/adoption.
+The review rejects contradictory answers and missing conditions; a generated plan
+is not independent factual proof. This model review supplements structural checks
+and does not guarantee factual correctness.
+
+Native CJK paragraphs may be paraphrased while a short page title is also spoken.
+Object matching accepts a long text carrier when several distinctive content
+words totaling at least six Han characters occur in the speech; shared title
+words alone do not establish a match. Short labels keep exact-name matching.
+Binding errors include the draft speech and candidate target text so bounded
+repairs can correct the actual mismatch. Focus repair supplies explicit valid
+block indices, preserving all accepted and draft speech words.
+
+Native activity review also receives the mapped activity title. A stale title on a
+revised question must be corrected before insertion; broad relevant titles remain
+valid. This semantic review is a bounded model check, not a guarantee of factual
+correctness, so real acceptance still reviews the final question and answer.
+
+Visual evidence format repair names the required and received root fields and
+expected object count. An omitted issues field must be returned explicitly
+(including issues:[] for no issues); it is not silently defaulted, and visual
+content validation remains mandatory. The repair budget remains one correction.

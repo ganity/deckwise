@@ -1,5 +1,11 @@
 # DeckWise changes
 
+- Offer a teaching setup card after PPT import, with direct Chat execution,
+  optional lesson plans/scripts and automatically planned independent activities.
+  Complete narration/audio/focus/animation without feature or count controls. Preserve existing
+  teaching by default. Hide setup after accepted submission and leave subsequent
+  progress, stopping and continuation to Chat.
+
 - Reuse C import media deduplication and canonical workspace paths. Tolerate transient
   page-read races, recover page-local drafts after unrelated edits, recognize Slide
   and bracketed script headings, preserve explicit voices and bound archive reads.

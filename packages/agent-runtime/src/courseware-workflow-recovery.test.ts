@@ -124,7 +124,7 @@ it("repairs a missing approved activity through the protected operation and rech
       issues: repaired ? [] : [{ pageId: "page", pageNumber: 1, code: "QUESTION_MISSING", repair: "narration", repairable: true }] } }),
   } };
   await continuation.finish(activation(), controls);
-  expect(await continuation.finish(closing, controls)).toContain("completed");
+  expect(await continuation.finish(closing, controls)).toContain("full playback acceptance remains unverified");
   expect(continuation.reportOnly).toBe(true);
   expect(execute).toHaveBeenCalledWith("courseware_narration_propose", expect.objectContaining({ pageNumbers: [1], repairRequiredTeaching: true }), undefined);
   expect(f.writes.at(-1)?.status).toBe("completed");
@@ -167,12 +167,12 @@ it.each([false, true])("rechecks actual state after a missing repair receipt (sa
   const result = await continuation.finish(closing, controls);
   expect(calls).toBe(1);
   if (actuallySaved) {
-    expect(result).toContain("completed");
+    expect(result).toContain("full playback acceptance remains unverified");
     expect(continuation.reportOnly).toBe(true);
     expect(f.writes.at(-1)?.status).toBe("completed");
   } else {
     expect(result).toContain("Required teaching repair failed");
-    expect(result).toContain("Save receipt missing");
+    expect(result).toContain('"reason":"Save receipt missing"');
     expect(f.writes.at(-1)?.status).toBe("blocked");
     const restarted = new CoursewareTurnContinuation();
     await restarted.finish(activation(), controls);
@@ -225,9 +225,14 @@ it("keeps monotonic repair budgets when unchanged work transitions to a blocked 
     },
   } };
   await continuation.finish(activation(), controls);
-  expect(await continuation.finish(closing, controls)).toContain("unfinished");
-  expect(await continuation.finish(closing, controls)).toContain("no saved progress");
+  expect(await continuation.finish(closing, controls)).toContain("Required teaching repair failed");
+  expect(await continuation.finish(closing, controls)).toBeUndefined();
   expect(f.writes.at(-1)?.status).toBe("blocked");
-  expect(Object.values(f.writes.at(-1)!.repairAttempts)).toEqual([2]);
+  expect(Object.values(f.writes.at(-1)!.repairAttempts)).toEqual([1]);
   expect(await continuation.finish(closing, controls)).toBeUndefined();
 });
+
+it.each(["PPT_EDITOR_NOT_READY", "PPT_EDITOR_SAVE_IN_PROGRESS"])(
+  "classifies %s as a bounded read retry, never a generation retry", code => {
+    expect(coursewareFailureRecovery(Object.assign(new Error("editor busy"), { code }))).toBe("retry-read");
+  });

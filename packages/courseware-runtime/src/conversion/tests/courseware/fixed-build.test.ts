@@ -58,7 +58,7 @@ it('builds and loads an unsupported unbound native preset as a reported fade', a
     loaded.dispose();
   } finally { await rm(temporary, { recursive: true, force: true }); }
 });
-it('builds and loads attention after saved native entrance clicks but rejects a second animation owner', async () => {
+it('builds native attention and gives saved speech sole ownership of competing unbound timing', async () => {
   const temporary = await mkdtemp(path.join(os.tmpdir(), 'fixed-native-attention-'));
   try {
     const zip = await JSZip.loadAsync(await readFile(input.source.path));
@@ -110,7 +110,12 @@ it('builds and loads attention after saved native entrance clicks but rejects a 
     for (const effect of ['fadeIn', 'fadeOut', 'pulse'] as const) {
       speech.visualCues = [{ id: 'competing-owner', atMs: 0, endMs: 200,
         effect: { type: 'element_animation', elementId: target.objectId, effect } }];
-      await expect(buildFixedCourseware(candidate, options)).rejects.toMatchObject({ code: 'NATIVE_ANIMATION_CUE_CONFLICT' });
+      const repaired = await buildFixedCourseware(candidate, { ...options, outputDirectory: path.join(temporary, 'repaired-' + effect) });
+      expect(repaired.report.diagnostics.some(d => d.code === 'PPTX_ANIMATION_SPEECH_OWNED')).toBe(true);
+      const playback = await loadFixedBuild(await readFile(path.join(repaired.directory, 'package.json')), repaired.buildId,
+        async asset => readFile(path.join(repaired.directory, asset.path)));
+      expect(playback.speechVisualCues.get(speech.id)?.[0].effect).toMatchObject({ kind: 'element_animation', action: { effect } });
+      playback.dispose();
       expect(await readFile(path.join(built.directory, 'package.json'))).toEqual(packageBytes);
     }
     expect(await readdir(options.outputDirectory)).toEqual([built.buildId]);
@@ -612,4 +617,20 @@ it('archives edited native quiz images and loads the result as a quiz with the s
   expect(content.questions[0].answer).toEqual(['B']);
   expect(content.questions[0].options[1].image.src).toMatch(/^blob:/);
   loaded.dispose();
+}, 30000);
+
+it('uses the saved activity question as its playback heading instead of an inferred answer option', async () => {
+  const candidate = structuredClone(input);
+  candidate.teaching.pages[0].actions = candidate.teaching.pages[0].actions.filter(action => action.type !== 'interaction_checkpoint');
+  candidate.teaching.pages[0].actions.push({ id: 'quiz-wait', type: 'interaction_checkpoint',
+    checkpointKind: 'chapter_summary', checkpointId: 'quiz', chapterId: 'chapter',
+    chapterTitle: 'Recognize two by choosing B', question: 'Which number is two?',
+    referenceAnswer: { summary: 'Two', keyPoints: [] }, context: { chapterSummary: 'Numbers', sourceSceneIds: [] } });
+  const built = await buildFixedCourseware(candidate, { workerDirectory, outputDirectory });
+  const bytes = await readFile(path.join(built.directory, 'package.json'));
+  const loaded = await loadFixedBuild(bytes, built.buildId, async asset => readFile(path.join(built.directory, asset.path)));
+  try {
+    expect(loaded.scenes[0].title).toBe('Which number is two?');
+    expect(loaded.scenes[1].title).toBe(JSON.parse(await readFile(path.join(valid.directory, 'package.json'), 'utf8')).pages[1].title);
+  } finally { loaded.dispose(); }
 }, 30000);

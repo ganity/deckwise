@@ -55,6 +55,13 @@ export class CoursewareNativeAudio {
           typeof args.model !== "string" || !/^[A-Za-z0-9._-]{1,128}$/.test(args.model) ||
           args.voice !== null && (typeof args.voice !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(args.voice))) throw new Error("Invalid native speech request");
       const request: CoursewareTtsRequest = { kind: "tts", model: args.model, input: action.text, voice: args.voice as string | null };
+      // Automatic continuation reuses receipts; the sidebar can still explicitly regenerate.
+      if (args.reuseExisting === true) {
+        const matching = intents.filter(i => i.pageId === view.pageId && i.actionId === action.id && currentIntent(i) &&
+          i.request.model === request.model && (i.request.voice ?? null) === request.voice);
+        if (matching.length > 1) throw new Error("Multiple matching speech tasks; select the original intent explicitly");
+        if (matching.length === 1) return { ...publicView(matching[0]), reused: true };
+      }
       const canonical = [request.kind, request.model, request.input, request.voice ?? null].reduce<string>((text, field) =>
         `${text}:${field === null ? -1 : field.length}:${field ?? ""}`, "courseware-media-v1");
       if (intents.length >= 1000) throw new Error("Native media journal is full");

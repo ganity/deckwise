@@ -145,6 +145,7 @@ impl PermissionManager {
             | "courseware_presentation_prepare"
             | "courseware_narration_propose"
             | "courseware_narration_import"
+            | "courseware_narration_plan"
             | "courseware_activity_insert"
             | "courseware_media_prepare"
             | "courseware_media_refresh"

@@ -19,8 +19,11 @@ try {
     outfile: join(temp, "main/controller.cjs"), bundle: true, platform: "node", format: "cjs",
     external: ["electron"],
     plugins: [{ name: "shorten-test-deadline", setup(build) {
+      build.onResolve({ filter: /^@pi-desktop\/courseware-runtime\/node$/ }, () => ({
+        path: join(root, "packages/courseware-runtime/dist/node.mjs"), external: true,
+      }));
       build.onLoad({ filter: /ppt-editor-handshake\.ts$/ }, async args => ({
-        contents: (await readFile(args.path, "utf8")).replace("60_000", "2_000"),
+        contents: (await readFile(args.path, "utf8")).replace("60_000", "2_000").replace("180_000", "2_000"),
         loader: "ts",
       }));
     } }],
@@ -49,6 +52,8 @@ app.whenReady().then(async () => {
   const server = createServer((_request, response) => {
     if (mode === "network") { response.destroy(); return; }
     response.setHeader("Content-Type", "text/html");
+    response.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    response.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
     if (mode === "office") {
       response.end('<!doctype html><script>window.addEventListener("message", event => {' +
         'const command=event.data; if(command.type==="document:open-buffer") parent.postMessage({type:"document:opened",id:command.id,payload:{fileName:command.payload.fileName,readonly:command.payload.readonly,deckwise:new URLSearchParams(location.search).get("deckwise")}},event.origin);' +
@@ -57,11 +62,17 @@ app.whenReady().then(async () => {
         '});parent.postMessage({type:"document:ready"},"*");</script>');
       return;
     }
+    const readyDelay = mode === "slow-shell" || mode === "slow-native" ? 1300 : 0;
+    const openDelay = mode === "slow-shell" ? 1000 : 150;
     response.end('<!doctype html><style>body{background:white}</style><script>' +
       (mode === "silent" ? '' :
-        'window.addEventListener("message", event => { if(event.data.type !== "document:open-buffer") return; setTimeout(() => parent.postMessage({type:' +
+        'let sdkReadyAt=0;window.addEventListener("message", event => { const command=event.data;' +
+        'if(command.type === "document:get-context") {const loading=Date.now()<sdkReadyAt; parent.postMessage({type:loading?"document:error":"document:context",id:command.id,payload:loading?{message:"Editor is still loading"}:{...command.payload,kind:"slide",editGeneration:1,page:1,readOnly:false,selectedText:"",selectionCharacters:0,capabilities:[]}},event.origin);return;}' +
+        'if(command.type !== "document:open-buffer") return; sdkReadyAt=Date.now()+' + (mode === "slow-native" ? 1000 : 0) + ';' +
+        (mode === "document-silent" ? 'return;' : '') +
+        'setTimeout(() => parent.postMessage({type:' +
         JSON.stringify(mode === "error" ? "document:error" : "document:opened") +
-        ',id:event.data.id,payload:{message:"conversion failed"}},event.origin),150); });parent.postMessage({type:"document:ready"},"*");') +
+        ',id:command.id,payload:{message:"conversion failed"}},event.origin),' + openDelay + '); });setTimeout(()=>parent.postMessage({type:"document:ready"},"*"),' + readyDelay + ');') +
       '</script>');
   });
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
@@ -101,6 +112,18 @@ app.whenReady().then(async () => {
     assert.equal((await controller.open(window, __dirname, "document.pptx")).status, "ready");
     assert.equal(window.contentView.children[0], view);
     assert.deepEqual(await readFile(path.join(__dirname, "document.pptx")), source);
+
+    for (const delayedMode of ["slow-shell", "slow-native"]) {
+      controller.close();
+      mode = delayedMode;
+      assert.equal((await controller.open(window, __dirname, "document.pptx")).status, "ready");
+      assert.deepEqual(await readFile(path.join(__dirname, "document.pptx")), source);
+    }
+    controller.close();
+    mode = "document-silent";
+    await assert.rejects(controller.open(window, __dirname, "document.pptx"), /timed out/);
+    assert.equal(states.at(-1).status, "error");
+    assert.equal(window.contentView.children.length, 0);
 
     controller.close();
     mode = "office";
@@ -156,7 +179,7 @@ app.whenReady().then(async () => {
   });
   let output = "";
   for (const stream of [child.stdout, child.stderr]) stream.on("data", data => { output += data; });
-  const timeout = setTimeout(() => child.kill("SIGKILL"), 20_000);
+  const timeout = setTimeout(() => child.kill("SIGKILL"), 30_000);
   let code;
   try {
     code = await new Promise((resolve, reject) => {
@@ -166,5 +189,5 @@ app.whenReady().then(async () => {
   } finally { clearTimeout(timeout); }
   assert.equal(code, 0, output.slice(-4000));
   assert.match(output, /PPT_EDITOR_LOADING_OK/);
-  console.log("PPT_EDITOR_LOADING_OK: timeout -> iframe load error -> protocol error -> retry -> acknowledged open -> close cancellation");
+  console.log("PPT_EDITOR_LOADING_OK: startup/document deadlines, slow shell/native readiness, retry, save and close cancellation");
 } finally { await rm(temp, { recursive: true, force: true }); }

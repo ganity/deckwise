@@ -1,5 +1,86 @@
 # 04. E2E Test Plan
 
+## E2E-COURSEWARE-import-start-card
+
+- Import a PPT into a task without Chat messages. Show the import card instead of
+  the generic creation welcome; keep ordinary and scene welcome behavior unchanged.
+- Wait through editor opening/saving. Confirm feature checkboxes, activity counts
+  and extra settings are absent. Optionally edit the audience or attach a plan/script.
+  Start directly through Chat with narration/audio/focus/animation enabled, existing
+  narration preserved, and activity counts/positions inferred from actual content
+  and the lesson plan, without a fixed quota or duplicate activity insertion.
+- Double-click while submission is pending: accept only one request. Reject or
+  throw during sending: retain audience/files and show an actionable error.
+- Show saved page/audio counts before starting. Accepted dispatch hides the whole
+  card and its duplicate controls. Stop/error/reopen after accepted user history
+  must keep it hidden, including paginated histories containing only recent tool
+  messages. Chat controls the rest. Failed initial dispatch, including
+  optimistic running/message rollback, keeps the setup and attachments available.
+- Switch sessions during a picker/read; the late result must not attach or dispatch
+  into either the old task or the new task. Account changes invalidate stale views.
+- Open Preview/check, capture the current teaching revision and use the existing
+  fixed build/play flow. No publication happens from the Start action.
+- Executable interaction coverage: `apps/desktop/test/courseware-import-start.browser.mjs`
+  uses real React components with external IPC/store edges controlled, no providers.
+  `courseware-chat-workflow-ui.test.mjs` protects other workflow entries. Validate
+  English/Chinese labels, narrow layout, and actual Electron import visibility
+  separately; synthetic submission is not evidence of real provider generation.
+
+## E2E-COURSEWARE-independent-native-activities
+
+- For import, PPT Master/plain and scene native body pages without teaching
+  metadata, return a short-answer interaction while generating narration. Reject
+  before writing and retain original page count, speech, media and page IDs.
+- Repeat through the single-page candidate and required-action repair routes.
+  Spoken learner prompts and fixed waits must still save successfully.
+- Add an accepted Quiz after a body slide that already contains the same visible
+  question. Insert exactly one real page; retain both original neighbors, their
+  narration/media and IDs. Repeat the insertion: reuse only its bound activity.
+- Open/reopen an original body slide with historical mixed lecture/question
+  actions. Show its body editor without changing saved actions or audio.
+- Open/reopen accepted short-answer Quiz and checkpoint pages: the first uses
+  Quiz, the second uses the interaction editor. Preserve question reading and
+  reference answers; verify insertion/save/undo using the native document route.
+
+## E2E-COURSEWARE-native-bounded-narration
+
+- Attempt a 56-page narration tool call: schema validation rejects it before Host
+  dispatch; direct native and legacy Main handlers reject the same oversized input.
+  Narration skills must not instruct an all-pages call. Automatic required and
+  advisory repairs use sequential calls of at most five pages and fresh source SHA.
+- Select 56 native pages across sequential tool calls. Observe no more than five consecutive pages in each
+  generation batch and a maximum nine-page relay outline (five current pages
+  plus two neighbors on each side). Image requests concern current pages only.
+- Confirm the first batch is saved before observing the sixth page. Every later
+  batch rereads source SHA/revision; neighboring saved speech appears as a bounded
+  summary without a separate paid summarization call.
+- Fail a later batch with a fatal transport/save/owner error: keep earlier saves
+  and return exact failed/not-started pages. No automatic replay or deck restart.
+  A terminal page-local plan/output/content failure permits independent later
+  segments to proceed; an exhausted page returns `retriable:false`.
+- Insert a mid-batch autosave changing only package SHA. Verify unchanged request
+  counts (two pages: two observations, one plan, two speech calls) and the updated
+  native save binding. Repeat with a simultaneous real pixel/text/requirement edit:
+  real changes must still invalidate stale output.
+- Read a native paragraph without its layout line breaks and explain the single
+  Chinese character 前 while mentioning 影子. Correct paragraph/character targets
+  pass in plain/import/scene; an unrelated 后/backplate target still fails.
+- Make page 2 of [1,2,3] return a malformed brief twice. The repair scope is [2];
+  pages 1 and 3 still save. If the second brief is valid, all three pages save and
+  the first validated course goal/peer briefs remain unchanged.
+- Exhaust page output repair and request that same page again with a shorter
+  instruction or single-page grouping, after a peer save and SHA update. No new
+  paid observation, plan or speech request occurs during the same user turn. A
+  new explicit user turn permits another bounded attempt. Effect-binding repair
+  requests only target-ID deltas and rejects attempts to replace speech/waits.
+- Reject a batch save or change document ownership between batches. Start no later
+  model request and do not claim the rejected save succeeded. Nonadjacent page
+  selections cannot grow the relay context across distant sections.
+- Provider-free executable coverage: `courseware-narration-batch.test.mjs` and
+  `courseware-native-tools.test.mjs`. Live-provider duration/quality and visible
+  editor behavior require separate acceptance; synthetic timing is not evidence
+  that an actual 56-page generation has completed.
+
 ## E2E-COURSEWARE-native-teaching-responsiveness
 
 - Hold a read-only TTS model response while reopening the teaching page and
@@ -1983,10 +2064,38 @@ switching/recovery, paid provider or installer acceptance is implied.
   sender/command correlation, errors, timeout, and cancellation.
   `xvfb-run -a node scripts/e2e-ppt-editor-loading.mjs --no-sandbox` runs the
   actual controller, preload, and host in isolated Electron data against a
-  controlled embed peer. Its test bundle shortens the 60-second deadline to
-  two seconds. Real WiseOffice conversion and presentation UI require a live
+  controlled embed peer. Its test bundle shortens each stage deadline to
+  two seconds and covers slow shell/native readiness exceeding the old shared
+  budget, document-acknowledgement timeout and retry. Real WiseOffice conversion and presentation UI require a live
   smoke test.
 - **Spec:** `04-ux/09-interaction-patterns.md` §8a.2.
+
+### E2E-DECKWISE-COMPOSER-SUBMISSION-RECOVERY
+
+- **Steps:** Send a draft with a file reference. Return false and throw a setup
+  error. Dismiss the error. Delay another failure, switch sessions and type;
+  switch back. Repeat while typing a newer draft in the original session.
+- **Expected:** The original draft and file reference survive failed sends.
+  Errors remain visible and dismissible only in the originating active session.
+  New typing and another session's draft survive late failures. An accepted send
+  clears the draft and previous error.
+- **Automation:** `node apps/desktop/test/composer-submit-errors.browser.mjs`
+  renders real React submit/draft hooks and `ComposerStatus` in Chromium, with
+  isolated local submission outcomes. The companion Node tests cover send/steer,
+  missing models, exceptions, failed results and accepted results. No provider,
+  installed Desktop instance or paid service is used.
+
+### E2E-DECKWISE-GENERATED-NARRATION-LANGUAGE-REVIEW
+
+- **Automation:** `node --test apps/desktop/test/courseware-narration-batch.test.mjs
+  apps/desktop/test/courseware-narration.test.mjs` checks all three task types
+  and the native orchestration path with controlled model outputs. Third-person
+  teacher/design wording produces an advisory while exact speech is saved with
+  one speech call. Explicit source wording bypasses the review. Required-effect
+  repair retains existing speech/audio without new generation or language review.
+- This is an orchestration integration check, not real-provider language-quality
+  or native Office playback acceptance. Existing native save/reopen gates remain
+  applicable to the shared teaching carrier.
 
 ### E2E-DECKWISE-REQUEST-BODY-LIMIT: Separate payload size from model context
 
@@ -18196,3 +18305,16 @@ Native authoring parity continuation:
   Source and activity contracts also run in the provider-free workflow gate.
 - External PowerPoint/WPS, live providers and cross-platform installers are separate
   qualification. A local browser pass must not be presented as that qualification.
+
+### Native teaching regression: distinct topics and concurrent opening
+
+Use different lesson topics for scene, presentation and real-PPT import, with no more than six final pages per lesson. Keep original import pages and verify new assessments are independent pages. Capture the user prompts, review approvals, interventions, saved PPTX, reopened teaching data, fixed-build diagnostics and actual player results. A resumed or corrected run is not an uninterrupted generation success.
+
+- Race automatic teaching's `open(path)` with the UI's `open(path, mimeType, extraRoots)`. Both must resolve against one initialization of the same PPTX. An extra-root authorization from one caller must never authorize another caller. Explicitly closing the editor must still cancel pending readers.
+- Switch Chat before a native tool dispatch, then return within the bounded focus wait. Dispatch only against the owning Chat. Cancelling that turn must prevent dispatch; a focus timeout must preserve its structured phase in the user-facing error.
+- Prepare an assessment whose internal teaching objective contains the answer. Its visible heading must be neutral; retain the objective internally. In the fixed player use the saved assessment question as the heading, never a large option label extracted from the slide.
+- After authorized media work, return a saved context with no pending jobs and `completion.ready:true`. Close into reporting without additional cosmetic questions or generation. A status-only read must not authorize work or force a reporting transition. Saved-state readiness alone does not prove live playback.
+- Review a question mentioning “图中” against extracted text that directly establishes its answer (for example, “铅笔 0.5元”). Do not infer that images are absent from a text-only extraction. Continue rejecting answers requiring unsupported visual properties.
+- Complete body-page audio while leaving Quiz and oral-interaction speech without audio. Native completion must identify each missing speech with `AUDIO_MISSING`, page/action identifiers and its lock-derived repairability. Automatic continuation must prepare only the missing activity audio; an empty issue list must never turn this repairable state into a terminal failure.
+- Native price-label binding: extracted text `铅笔\n0.5元` and spoken `再看铅笔，标价是0.5元。` must bind to the same text object. Reject mismatched amounts, a different product name, and a value mentioned in a separate sentence. Exercise the candidate validation in all three task types; do not remove the binding check.
+- Review an independent activity against its own visible question/options as well as source-page facts. An instruction to read prices on the current page must not pass merely because the preceding source page contains those prices. Preserve a supported recall task; reject missing current-page material. Inspect actual player screenshots in addition to audio and navigation assertions.

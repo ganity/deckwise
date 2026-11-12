@@ -126,8 +126,20 @@ export function inspectCoursewareEnrichment(enrichment: CoursewareEnrichment | u
   for (const unit of enrichment.plan?.units ?? []) {
     if (!unit.pageIds.length || unit.pageIds.some(id => !pages.some(p => p.pageId === id)))
       issues.push({ code: "PLAN_UNMATCHED", sourceId: unit.id });
-    if (unit.kind !== "teaching" && (!unit.activityId || !unit.pageIds.some(id => pages.find(p => p.pageId === id)?.actions.some(a =>
-      a.id === unit.activityId && a.type === "interaction_checkpoint")))) issues.push({ code: "ACTIVITY_MISSING", sourceId: unit.id });
+    if (unit.kind !== "teaching") {
+      const activityPages = unit.activityId ? pages.flatMap((page, index) => page.actions.some(a => a.id === unit.activityId && a.type === "interaction_checkpoint")
+        ? [{ page, index, action: page.actions.find(a => a.id === unit.activityId)! }] : []) : [];
+      if (activityPages.length !== 1 || !unit.pageIds.includes(activityPages[0]?.page.pageId)) {
+        issues.push({ code: "ACTIVITY_MISSING", sourceId: unit.id });
+      } else {
+        const activity = activityPages[0];
+        const sourceIds = activity.action.context && typeof activity.action.context === "object" && !Array.isArray(activity.action.context)
+          ? Reflect.get(activity.action.context, "sourceSceneIds") : undefined;
+        const sourceIndexes = Array.isArray(sourceIds) ? sourceIds.map(id => pages.findIndex(page => page.pageId === id)) : [];
+        if (sourceIndexes.some(index => index < 0 || index >= activity.index))
+          issues.push({ code: "ACTIVITY_ORDER_MISMATCH", sourceId: unit.id, pageId: activity.page.pageId });
+      }
+    }
   }
   return { ready: !issues.length, issues };
 }

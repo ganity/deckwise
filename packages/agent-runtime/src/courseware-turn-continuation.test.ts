@@ -813,7 +813,7 @@ it.each([true, false])("reconciles a required-repair failure before reporting (s
     expect(f.events.filter(e => e.event.type === "error")).toHaveLength(0);
     expect(repairs).toBe(1);
     expect(f.checkpoint()).toMatchObject({ status: saved ? "completed" : "blocked" });
-    expect(getCurrentSystemMessage(f.contexts.at(-1)!)?.sections?.courseware_workflow).toContain(saved ? "completed" : "Required teaching repair failed");
+    expect(getCurrentSystemMessage(f.contexts.at(-1)!)?.sections?.courseware_workflow).toContain(saved ? "full playback acceptance remains unverified" : "Required teaching repair failed");
     expect(f.calls.some(c => c.name === "courseware_media_prepare")).toBe(false);
   } finally { await f.runtime.dispose(); }
 });
@@ -873,7 +873,7 @@ it("ends repeated ready reads at the tool boundary before full media can trigger
     expect(f.calls.filter(call => call.name === "courseware_media_context")).toHaveLength(1);
     expect(f.toolCounts.at(-1)).toBe(f.toolCounts.at(-2));
     expect(JSON.stringify(f.contexts.map(messages => messages.map(message => message.content)))).not.toContain("x".repeat(1000));
-    expect(f.contexts[2].some(message => message.role === "system" && message.sections?.courseware_workflow?.includes("completed"))).toBe(true);
+    expect(f.contexts[2].some(message => message.role === "system" && message.sections?.courseware_workflow?.includes("full playback acceptance remains unverified"))).toBe(true);
     expect(f.agent.state.isStreaming).toBe(false);
     expect(f.events.filter(e => e.event.type === "agent_end")).toHaveLength(1);
   } finally { await f.runtime.dispose(); }
@@ -887,6 +887,8 @@ it("persists completion and closes after one final report", async () => {
     expect(f.checkpoint()).toMatchObject({ status: "completed", projectId: "project", sourceSha256: sha256 });
     expect(f.requests()).toBe(3);
     expect(f.toolCounts.at(-1)).toBe(f.toolCounts.at(-2));
+    expect(f.contexts.at(-1)?.some(message => message.role === "system" &&
+      message.sections?.courseware_workflow?.includes("full playback acceptance remains unverified"))).toBe(true);
     expect(f.agent.state.isStreaming).toBe(false);
     expect(f.events.filter(e => e.event.type === "agent_end")).toHaveLength(1);
     expect(f.events.filter(e => e.event.type === "error")).toHaveLength(0);
@@ -935,4 +937,26 @@ it("retains the failed workflow operation after successful PPT adoption without 
       details: { origin: "local", phase: "courseware-continuation", operation: "courseware_media_context" } } });
     expect(JSON.stringify(error)).not.toContain("private payload");
   } finally { await f.runtime.abort(); await f.runtime.dispose(); vi.useRealTimers(); }
+});
+
+it("closes completed media work when a subsequent saved check is ready without authorizing a new course", async () => {
+  const { CoursewareTurnContinuation } = await import('./courseware-turn-continuation.js');
+  const continuation = new CoursewareTurnContinuation();
+  const turn = (name: string, args: Record<string, unknown>, details: unknown) => ({
+    message: { content: [{ type: 'toolCall', id: 'call', name, arguments: args }], stopReason: 'toolUse' },
+    toolResults: [{ toolName: name, toolCallId: 'call', isError: false, details }],
+  }) as unknown as Parameters<InstanceType<typeof CoursewareTurnContinuation>['finish']>[0];
+  const controls = { canWait: () => true, execute: vi.fn(async () => { throw new Error('No new work or status poll expected'); }) };
+  await continuation.finish(turn('courseware_media_prepare', {}, { job: { sourceSha256: sha256 } }), controls);
+  const result = await continuation.finish(turn('courseware_media_context', {}, {
+    nativeTeaching: true, sourceSha256: sha256, jobs: [], completion: { ready: true },
+  }), controls);
+  expect(result).toContain('full playback acceptance remains unverified');
+  expect(continuation.reportOnly).toBe(true);
+  expect(controls.execute).not.toHaveBeenCalled();
+  const statusOnly = new CoursewareTurnContinuation();
+  expect(await statusOnly.finish(turn('courseware_media_context', {}, {
+    sourceSha256: sha256, jobs: [], completion: { ready: true },
+  }), controls)).toBeUndefined();
+  expect(statusOnly.reportOnly).toBe(false);
 });

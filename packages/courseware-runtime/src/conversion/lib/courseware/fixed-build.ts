@@ -1,19 +1,19 @@
+import { tmpdir } from 'node:os';
+import { inspectNativePlayback } from './native-playback-preflight';
 import { maicQuizSchema } from "../../../maic-classroom";
 import { projectNativeGroups } from './native-groups';
-import { projectNativeTimeline } from './native-timeline';
-import { fallbackNativeTimeline, resolveSingleChildSpeechAnimations } from './native-animation-fallback';
+import { projectPlaybackAnimations } from './playback-animations';
+import { resolveSingleChildSpeechAnimations } from './native-animation-fallback';
 import type { NativeTimeline } from '../../../native-timeline';
 import { createHash, randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { mapSlideIrToScenes } from '../import/mappers/import-ir-to-classroom';
 import type { SlideIR, ImportWarning } from '../import/types';
 import { fixedBuildInputSchema, type FixedBuildInput } from './fixed-build-input';
-import { hasGeneratedNativeMotions, projectNativeClicks, detachLinkedSpeechAnimations } from './native-click-animations';
 import { validSpeechAnimationSequence } from '../../../speech-animation-sequence';
-import { validateNativeAnimationBindings } from '../../../native-animation-node';
 import type { NativeClickAnimations } from '../../../native-click-animations';
 
 export const sha256 = (bytes: string | Uint8Array) =>
@@ -167,7 +167,7 @@ export function validateFixedMapping(input: FixedBuildInput, ir: SlideIR) {
               : [effect.elementId];
         requireBuild(
           targets.every((id) => mapping.objects.some((o) => o.objectId === id) ||
-            effect.type !== 'element_animation' && mapping.groups?.some(group => group.objectId === id)),
+            mapping.groups?.some(group => group.objectId === id)),
           'EFFECT_BINDING_MISMATCH',
         );
         const page = ir.pages.find((p) => p.id === mapping.importPageId)!;
@@ -255,41 +255,7 @@ export async function buildFixedCourseware(
       });
     }
     checkCancelled(options.signal);
-    const execution = promisify(execFile)(
-      process.execPath,
-      [
-        '--max-old-space-size=768',
-        path.join(options.workerDirectory, 'pptx-worker.mjs'),
-        path.join(staging, 'source.pptx'),
-        path.join(staging, 'conversion'),
-      ],
-      {
-        timeout: 90_000,
-        maxBuffer: 1024 * 1024,
-        killSignal: 'SIGKILL',
-        env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
-      },
-    );
-    // execFile's native AbortSignal path does not forward killSignal to spawn.
-    const cancel = () => { execution.child.kill('SIGKILL'); };
-    const closed = new Promise<void>(resolve => execution.child.once('close', () => resolve()));
-    options.signal?.addEventListener('abort', cancel, { once: true });
-    if (options.signal?.aborted) cancel();
-    try {
-      await execution;
-    } catch (error) {
-      checkCancelled(options.signal);
-      throw error;
-    } finally {
-      options.signal?.removeEventListener('abort', cancel);
-      await closed;
-    }
-    checkCancelled(options.signal);
-    const result = JSON.parse(await readFile(path.join(staging, 'conversion/result.json'), 'utf8'));
-    requireBuild(result.sourceSha256 === input.source.sha256, 'WORKER_SOURCE_MISMATCH');
-    const ir: SlideIR = JSON.parse(
-      await readFile(path.join(staging, 'conversion/slide-ir.json'), 'utf8'),
-    );
+    const ir = await parseFixedSource({ path: path.join(staging, 'source.pptx'), sha256: input.source.sha256 }, options.workerDirectory, path.join(staging, 'conversion'), options.signal);
     const diagnostics = ir.warnings ?? [];
     const skippableTiming = new Set(['PPTX_TIMING_UNSUPPORTED_BEHAVIOR', 'PPTX_TIMING_UNSUPPORTED_STRUCTURE',
       'PPTX_TIMING_TARGET_OR_DURATION_UNSUPPORTED', 'PPTX_TIMING_PARAGRAPH_TARGET_UNSUPPORTED',
@@ -342,48 +308,12 @@ export async function buildFixedCourseware(
       const groups = projectNativeGroups(page, mapping.groups ?? []);
       canvas.elements.push(...groups.map(group => group.element));
       const actions = input.teaching.pages.find((p) => p.pageId === mapping.pageId)!.actions;
-      let nativeAnimations: NativeClickAnimations | undefined;
-      let nativeTimeline: NativeTimeline | undefined;
-      try {
-        const remaining = detachLinkedSpeechAnimations(page, actions, mapping.objects);
-        if (!hasGeneratedNativeMotions(remaining, actions, mapping.objects)) {
-          try { nativeAnimations = projectNativeClicks(remaining); }
-          catch (error) {
-            if (actions.some(action => action.type === 'native_animation')) throw error;
-            try { nativeTimeline = projectNativeTimeline(remaining, mapping.groups ?? []); }
-            catch {
-              const speechTargets = new Set(actions.flatMap(action => action.type === 'speech'
-                ? (action.visualCues ?? []).flatMap(cue => {
-                  const effect = cue.effect;
-                  return effect.type === 'element_animation'
-                    ? mapping.objects.filter(object => object.objectId === effect.elementId).map(object => object.importElementId) : [];
-                }) : []));
-              nativeTimeline = fallbackNativeTimeline(remaining, mapping.groups ?? [], speechTargets, diagnostics, index);
-            }
-          }
-        }
-      }
-      catch { throw new FixedBuildError('NATIVE_ANIMATION_UNSUPPORTED', [...diagnostics, {
-        code: 'NATIVE_ANIMATION_UNSUPPORTED', severity: 'error', pageIndex: index,
-        message: 'Fixed playback requires verified finite whole-object presets and unchanged animation bindings.',
-      }]); }
-      if (actions.some(action => action.type === 'native_animation')) {
-        requireBuild(validateNativeAnimationBindings(actions, input.source.sha256, nativeAnimations?.steps.length ?? 0),
-          'NATIVE_ANIMATION_BINDING_MISMATCH');
-        nativeAnimations = { ...nativeAnimations!, version: 2 as const, sequence: 'teaching-timeline' as const };
-        const revealed = new Set<string>();
-        for (const action of actions) {
-          if (action.type === 'native_animation') revealed.add(nativeAnimations.steps[action.stepIndex].elementId);
-          if (action.type === 'speech') for (const cue of action.visualCues ?? []) {
-            const effect = cue.effect;
-            const ids = effect.type === 'highlight' ? effect.elementIds
-              : [effect.elementId, ...(effect.type === 'spotlight' ? effect.elementIds ?? [] : [])];
-            requireBuild(ids.every(id => {
-              const imported = mapping.objects.find(object => object.objectId === id)?.importElementId;
-              return !nativeAnimations!.steps.some(step => step.elementId === imported) || revealed.has(imported!);
-            }), 'NATIVE_ANIMATION_TARGET_NOT_REVEALED');
-          }
-        }
+      let nativeAnimations: NativeClickAnimations | undefined, nativeTimeline: NativeTimeline | undefined;
+      try { ({ nativeAnimations, nativeTimeline } = projectPlaybackAnimations(page, actions, mapping, input.source.sha256, diagnostics, index)); }
+      catch (error) {
+        const code = error instanceof Error ? error.message : 'NATIVE_ANIMATION_UNSUPPORTED';
+        throw new FixedBuildError(code, [...diagnostics, { code, severity: 'error', pageIndex: index,
+          message: `Page ${index + 1}: ${code}. Repair only this page's saved effects or source mapping.` }]);
       }
       if (nativeTimeline?.groups) {
         const extraGroups = nativeTimeline.groups.filter(group => !canvas.elements.some(element => element.id === group.elementId));
@@ -392,17 +322,6 @@ export async function buildFixedCourseware(
           const [derived] = projectNativeGroups(page, [{ objectId: `source_${sourceShapeId}`, sourceShapeId }]);
           canvas.elements.push(derived.element);
           groups.push(derived);
-        }
-      }
-      if (nativeAnimations || nativeTimeline) {
-        const nativeTargets = new Set([...(nativeAnimations?.steps.map(step => step.elementId) ?? []),
-          ...(nativeTimeline?.steps.flatMap(step => step.items.map(item => item.elementId)) ?? [])]);
-        for (const action of actions) if (action.type === 'speech') for (const cue of action.visualCues ?? []) {
-          const effect = cue.effect;
-          // Attention overlays preserve the native object animation owner.
-          if (effect.type === 'element_animation') requireBuild(
-            !nativeTargets.has(mapping.objects.find(object => object.objectId === effect.elementId)?.importElementId ?? ''),
-            'NATIVE_ANIMATION_CUE_CONFLICT');
         }
       }
       const quiz = options.nativeAssessments?.[mapping.pageId] ? maicQuizSchema.parse(options.nativeAssessments[mapping.pageId]) : undefined;
@@ -419,7 +338,7 @@ export async function buildFixedCourseware(
       return {
         ...(quiz ? { quiz } : {}),
         pageId: mapping.pageId,
-        title: scene.title,
+        title: actions.find(action => action.type === 'interaction_checkpoint' && action.checkpointKind === 'chapter_summary')?.question || scene.title,
         slide: canvas,
         objects: [...mapping.objects, ...groups.map(group => ({ objectId: group.objectId, importElementId: group.element.id }))],
         actions,
@@ -450,7 +369,7 @@ export async function buildFixedCourseware(
     const report = {
       ready: true,
       reviewedWarningCodes: [...new Set([...input.reviewedWarningCodes, ...diagnostics.filter(d =>
-        skippableTiming.has(d.code) || ['PPTX_ANIMATION_FALLBACK_FADE', 'PPTX_ANIMATION_SKIPPED'].includes(d.code)).map(d => d.code)])],
+        skippableTiming.has(d.code) || ['PPTX_ANIMATION_FALLBACK_FADE', 'PPTX_ANIMATION_SKIPPED', 'PPTX_ANIMATION_SPEECH_OWNED'].includes(d.code)).map(d => d.code)])],
       visualFidelity: 'NOT_VERIFIED',
       diagnostics,
       capabilities: {
@@ -522,4 +441,59 @@ export async function buildFixedCourseware(
   } finally {
     await rm(staging, { recursive: true, force: true });
   }
+}
+
+/** Execute the same bounded offline worker for preflight and fixed conversion. */
+async function parseFixedSource(source: { path: string; sha256: string }, workerDirectory: string, outputDirectory: string, signal?: AbortSignal): Promise<SlideIR> {
+  const execution = promisify(execFile)(
+    process.execPath,
+    [
+      '--max-old-space-size=768',
+      path.join(workerDirectory, 'pptx-worker.mjs'),
+      source.path,
+      outputDirectory,
+    ],
+    {
+      timeout: 90_000,
+      maxBuffer: 1024 * 1024,
+      killSignal: 'SIGKILL',
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+    },
+  );
+  // execFile's native AbortSignal path does not forward killSignal to spawn.
+  const cancel = () => { execution.child.kill('SIGKILL'); };
+  const closed = new Promise<void>(resolve => execution.child.once('close', () => resolve()));
+  signal?.addEventListener('abort', cancel, { once: true });
+  if (signal?.aborted) cancel();
+  try {
+    await execution;
+  } catch (error) {
+    checkCancelled(signal);
+    throw error;
+  } finally {
+    signal?.removeEventListener('abort', cancel);
+    await closed;
+  }
+  checkCancelled(signal);
+  const result = JSON.parse(await readFile(path.join(outputDirectory, 'result.json'), 'utf8'));
+  requireBuild(result.sourceSha256 === source.sha256, 'WORKER_SOURCE_MISMATCH');
+  const ir: SlideIR = JSON.parse(
+    await readFile(path.join(outputDirectory, 'slide-ir.json'), 'utf8'),
+  );
+  return ir;
+}
+
+export async function preflightNativePlayback(bytes: Uint8Array, pages: unknown, identity: unknown,
+  options: { workerDirectory: string; signal?: AbortSignal }) {
+  checkCancelled(options.signal);
+  requireBuild(bytes.byteLength <= 50 * 1024 * 1024, 'ASSET_MISSING_OR_OVERSIZED');
+  const manifest = await readFile(path.join(options.workerDirectory, 'manifest.json'));
+  await verifyWorker(options.workerDirectory, sha256(manifest), options.signal);
+  const directory = await mkdtemp(path.join(tmpdir(), 'deckwise-playback-preflight-'));
+  try {
+    const source = { path: path.join(directory, 'source.pptx'), sha256: sha256(bytes) };
+    await writeFile(source.path, bytes);
+    const ir = await parseFixedSource(source, options.workerDirectory, path.join(directory, 'conversion'), options.signal);
+    return inspectNativePlayback(ir, source.sha256, pages, identity);
+  } finally { await rm(directory, { recursive: true, force: true }); }
 }

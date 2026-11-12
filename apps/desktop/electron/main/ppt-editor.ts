@@ -12,7 +12,11 @@ import { resolveRealOpenablePath, resolveRealPathForCreateWithinRoot } from "./f
 import { installEditorHostProtocol } from "./editor-host-protocol";
 import {
   PPT_EDITOR_HANDSHAKE_TIMEOUT_MS,
+  PPT_EDITOR_DOCUMENT_OPEN_TIMEOUT_MS,
+  openPptEditorDocument,
+  PptEditorNotReadyError,
   waitForPptEditorMessage,
+  waitForPptEditorTeachingReady,
 } from "./ppt-editor-handshake";
 import { PptxInspector } from "./pptx-inspection";
 import type { ReviewedImage, ReviewedImageTarget } from "./courseware-image-review";
@@ -89,11 +93,13 @@ export class PptEditorController {
   private module = false;
   private ui = { theme: "light" as "light" | "dark", teachingOpen: true };
   private opening = false;
+  private pendingOpen?: { key: string; workspace: string; promise: Promise<PptEditorState> };
   private openAbort: AbortController | null = null;
   private bridgeAbort = new AbortController();
   private bridgeBinding: PptEditorBinding | null = null;
   private readonly bridgeRequests = new Set<string>();
   private readonly activeBridgeRequests = new Set<string>();
+  private readonly bridgeIdleWaiters = new Set<() => void>();
   private readonly editorUrl: URL;
   private readonly editorOrigin: string;
   private readonly onDownload = (event: Electron.Event) => event.preventDefault();
@@ -112,6 +118,42 @@ export class PptEditorController {
   }
 
   async open(window: BrowserWindow, workspaceRoot: string, requestedPath: string, mimeType?: string, extraRoots: string[] = [], forceReadOnly = false) {
+    const key = JSON.stringify([workspaceRoot, requestedPath, getOfficeExtension(requestedPath, mimeType), forceReadOnly]);
+    if (this.pendingOpen?.key === key) {
+      const pending = this.pendingOpen;
+      // UI and automatic teaching supply different root lists; each caller still needs its own access check.
+      if (!await resolveRealOpenablePath(requestedPath, workspaceRoot, extraRoots)) throw new Error("Document is outside allowed roots");
+      return pending.promise;
+    }
+    const pending = { key, workspace: workspaceRoot, promise: this.openDocument(window, workspaceRoot, requestedPath, mimeType, extraRoots, forceReadOnly) };
+    this.pendingOpen = pending;
+    try { return await pending.promise; }
+    finally { if (this.pendingOpen === pending) this.pendingOpen = undefined; }
+  }
+
+  async waitForOpen(workspace: string | null) {
+    if (this.pendingOpen?.workspace === workspace) await this.pendingOpen.promise;
+  }
+
+  async waitForTeachingReady(workspace: string | null, check: () => void, timeoutMs = 15_000) {
+    try {
+      await waitForPptEditorTeachingReady({
+        ready: () => this.ready && !!this.current && this.current.extension === "pptx" &&
+          this.current.workspaceRoot === workspace && !!this.bridgeBinding && !this.pendingSave &&
+          !this.saveOutcomeUncertain && (!this.nativeTeaching || this.editorUrl.protocol !== "deckwise-editor:" || this.nativeTeachingReady),
+        phase: () => this.pendingSave ? "saving" : "opening",
+        check,
+        timeoutMs,
+      });
+    } catch (error) {
+      if (error instanceof PptEditorNotReadyError)
+        console.warn(JSON.stringify({ event: "courseware.editor_readiness_timeout", errorCode: error.code,
+          operation: "courseware_media_context", phase: error.phase }));
+      throw error;
+    }
+  }
+
+  private async openDocument(window: BrowserWindow, workspaceRoot: string, requestedPath: string, mimeType?: string, extraRoots: string[] = [], forceReadOnly = false) {
     if (this.pendingSave) throw new Error("Finish the current save before opening another document");
     this.module = false;
     if (this.editorUrl.protocol === "deckwise-editor:") {
@@ -197,26 +239,20 @@ export class PptEditorController {
       await Promise.all([ready, view.webContents.loadURL(hostUrl.href)]);
       if (this.view !== view || abort.signal.aborted) throw new Error("Editor opening was cancelled");
       if (this.module) this.sendCommand("document:configure-ui", this.ui);
-      const commandId = this.sendCommand("document:open-buffer", {
+      const documentDeadline = Date.now() + PPT_EDITOR_DOCUMENT_OPEN_TIMEOUT_MS;
+      const commandId = `deckwise-${++this.commandSequence}`;
+      await openPptEditorDocument(this.ipcMain, view.webContents.id, commandId, () => this.sendCommand("document:open-buffer", {
         fileName: `${basename(sourcePath, extname(sourcePath))}.${getOfficeExtension(revision.file) ?? extension}`,
         buffer: transferableBuffer(sourceBytes),
         readonly: readOnly,
         editorBinding: extension === "pptx" ? this.bridgeBinding : undefined,
         trackPageLineage: extension === "pptx" ? true : undefined,
-      });
-      await waitForPptEditorMessage(
-        this.ipcMain,
-        view.webContents.id,
-        "document:opened",
-        commandId,
-        Math.max(1, deadline - Date.now()),
-        abort.signal,
-      );
+      }, commandId), abort.signal, Math.max(1, documentDeadline - Date.now()));
       if (this.view !== view) throw new Error("Editor opening was cancelled");
       if (extension === "pptx") {
         // document:opened acknowledges construction, before the native SDK is loaded.
         const binding = this.bridgeBinding!;
-        const signal = AbortSignal.any([abort.signal, AbortSignal.timeout(Math.max(1, deadline - Date.now()))]);
+        const signal = AbortSignal.any([abort.signal, AbortSignal.timeout(Math.max(1, documentDeadline - Date.now()))]);
         while (true) {
           signal.throwIfAborted();
           if (this.view !== view) throw new Error("Editor opening was cancelled");
@@ -264,6 +300,12 @@ export class PptEditorController {
 
   async getContext(workspaceRoot: string | null, signal?: AbortSignal) {
     signal?.throwIfAborted();
+    await this.waitForOpen(workspaceRoot);
+    signal?.throwIfAborted();
+    const document = this.current;
+    if (this.pendingSave) await this.ensureSaved(workspaceRoot);
+    signal?.throwIfAborted();
+    if (this.current !== document) throw new Error("Editor changed while waiting for save");
     const binding = this.requireBridge(workspaceRoot);
     const asset = await this.imageAssets?.metadata(workspaceRoot) ?? null;
     if (!samePptEditorBinding(binding, this.requireBridge(workspaceRoot))) throw new Error("Editor changed while reading image review");
@@ -383,9 +425,10 @@ export class PptEditorController {
   }
 
   private requireBridge(workspaceRoot: string | null): PptEditorBinding {
-    if (!this.ready || !this.view || this.current?.extension !== "pptx" || !this.bridgeBinding || this.pendingSave || this.saveOutcomeUncertain || this.current.workspaceRoot !== workspaceRoot) {
-      throw new Error("No ready PPTX editor session, or a save is in progress");
-    }
+    if (this.pendingSave) throw new PptEditorNotReadyError("saving");
+    if (this.saveOutcomeUncertain) throw new Error("PPT save status is uncertain; inspect the saved file before continuing");
+    if (!this.ready || !this.view || this.current?.extension !== "pptx" || !this.bridgeBinding || this.current.workspaceRoot !== workspaceRoot)
+      throw new PptEditorNotReadyError("opening");
     return this.bridgeBinding;
   }
 
@@ -410,6 +453,7 @@ export class PptEditorController {
       }, signal ? AbortSignal.any([this.bridgeAbort.signal, signal]) : this.bridgeAbort.signal);
     } finally {
       this.activeBridgeRequests.delete(id);
+      if (!this.activeBridgeRequests.size) { for (const resolve of this.bridgeIdleWaiters) resolve(); this.bridgeIdleWaiters.clear(); }
     }
   }
 
@@ -432,10 +476,15 @@ export class PptEditorController {
     this.classroomSave = undefined;
   }
 
-  async ensureSaved(workspace: string | null): Promise<void> {
+  async ensureSaved(workspace: string | null, options: { allowClosed?: boolean } = {}): Promise<void> {
+    if (!this.current && options.allowClosed) return;
     if (!this.current || this.current.workspaceRoot !== workspace || !this.ready || this.current.readOnly)
       throw new Error("No writable current PPTX");
+    const document = this.current;
     while (this.dirty || this.pendingSave) {
+      if (this.activeBridgeRequests.size) await new Promise<void>(resolve => this.bridgeIdleWaiters.add(resolve));
+      if (this.current !== document || document.workspaceRoot !== workspace) throw new Error("Editor changed while waiting to save");
+      if (!this.dirty && !this.pendingSave) break;
       const waiting = new Promise<void>((resolve, reject) => this.saveWaiters.add({ resolve, reject }));
       try { if (!this.pendingSave) this.save(); }
       catch (error) { this.finishSaveWaiters(error instanceof Error ? error : new Error(String(error))); }

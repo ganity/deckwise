@@ -11,6 +11,36 @@ quality, complex decks and release acceptance remain separate.
 
 ## Ownership
 
+### Imported PPT teaching entry
+
+An imported task replaces the generic empty Chat welcome with a teaching setup
+card. Its source is the current session's persisted import path, not transcript
+presence. Start requests missing narration, spoken audio, spotlight/highlight and
+teaching animations without feature checkboxes or extra settings. Existing narration
+and matching audio remain unchanged. Quiz/activity counts and insertion positions
+are inferred from actual content, objectives, existing activities and lesson plans,
+respecting explicit requirements and page limits. Reuse suitable existing activities;
+add only needed independent pages, never convert existing body pages.
+
+The card submits directly through the existing session-targeted `sendPrompt`,
+including the selected audience and material attachments with plan/script roles.
+It adds no renderer generation loop, teaching authority or automatic publication.
+Inputs are draft UI state until submission; accepted requirements live in the
+normal Chat history. Draft settings and unattached material selections do not
+survive a full renderer restart. Accepted submission hides the entire setup card;
+Chat owns progress, stopping and continuation thereafter. Persisted user/tool messages
+keep it hidden after reopening, including stopped or failed generation. Initial
+submission rejection preserves setup and attachments for retry.
+
+The editor must match the imported path, be writable, ready and saved before a
+generation request can be submitted. A synchronous submission fence prevents
+double clicks. Session/unmount/account changes invalidate pending reads and file
+picker results. Failed sends retain selections and attachment references. Real
+saved teaching data supplies pre-start page/audio counts. These counts are not
+acceptance or quality claims. No card reads continue after handoff to Chat.
+Preview/check reuse existing immutable snapshot, fixed build, warning review and
+inspection components. Existing publish gates remain authoritative.
+
 PPT Master SVG inspection remains mounted after adoption. Resolve its project
 from the saved source path before falling back to chat tool history. Open the
 first available SVG once during generation, allow manual reopening after export,
@@ -1152,3 +1182,90 @@ activities. They neither overwrite edits nor claim readiness from a parse receip
 Preserved script can use `repairRequiredTeaching:true` for focus/effects and
 required media without replacing words. Existing media services still own quotes,
 original provider orders, adoption, timing and native effect persistence.
+
+### Source-grounded automatic lesson mapping
+
+`courseware_narration_plan` resolves exactly one immutable source ID or inline
+user text and reads all real native page text/notes. The selected narration model
+extracts ordered teaching/Quiz/checkpoint units and proposes stable page mappings.
+Main validates exact source excerpts and exact live page excerpts, finite types,
+unique IDs and real pages; it rereads content and model ownership after inference.
+Unmatched units remain visible. A unique existing question with exact normalized
+source wording can retain its real activity ID; ambiguous matches remain unbound.
+No default Quiz quota, invented answer or generated lecture is accepted here.
+Explicit user requirements remain the priority for subsequent activity insertion.
+
+`apply:false` previews canonical enrichment. `apply:true` adopts through the same
+native material/history/save path. A caller can instead import preview units with
+the original source ID, avoiding another model call. Existing accepted plans are
+returned without inference or mutation; a different source reports
+`requiresExplicitReplacement`. Existing script policy, speech/audio, original
+anchors and approved scene/PPT-master teaching requirements are preserved.
+Inference accepts at most 100000 source characters, 100 pages and 300000 serialized
+evidence characters; larger material fails explicitly, never silently truncates.
+This tool requires an editor supporting enrichment v1. It does not create pages or
+purchase media: missing mapped activities use `courseware_activity_insert`, and
+the established narration and assessment-media tools consume the accepted plan.
+
+### Native full-deck audio recovery
+
+`courseware_media_refresh` additionally accepts `{kind:"tts", recover:true,
+sourceSha256}` with optional `pageNumbers`, `model` and `voice`. This native-only
+mode rereads each stable logical page and speech before adoption. It keeps any
+valid attached speech audio, queries original task receipts (including unknown
+submissions), and downloads/decodes/adopts only ready verified audio. It never
+quotes, submits, replaces failed tasks, or synthesizes missing speech. Multiple
+matching orders require an explicit original intent ID. Prepared, unknown, failed,
+locked, missing and stale targets remain visible; running orders remain pending.
+Successful pages are saved even if another page fails. Per-result saved state,
+failures and whole-scope audio readiness are reported separately. Repeating recovery
+retains already adopted audio and does not download it again.
+
+Automatic native media preparation reuses the exact current page/action/text/model/
+voice intent before obtaining a quote. Only a prepared original can be submitted;
+submitted and unknown orders are returned for refresh. Existing valid audio is
+retained. Explicit sidebar regeneration keeps its existing new-attempt semantics.
+Native context excludes already voiced actions from automatic jobs and exposes
+ambiguous original orders rather than selecting an arbitrary voice. Explicit
+single-page refreshes also expose per-intent terminal states and preserve partial
+adoption through the same save wrapper.
+
+Native completion checks use the fixed player's speech-animation sequence validator.
+Duplicate entrances report ANIMATION_TARGET_CONFLICT and prevent ready status.
+
+When the work panel and automatic teaching continuation open the same PPTX
+concurrently, identical open requests share initialization. Teaching context and
+automatic opening wait for the in-flight document open before querying the native
+bridge. A rejected/cancelled open remains an error; a reader must not silently
+read a replacement document. No generation or adoption is replayed to wait for
+editor readiness.
+
+### Saved playback-effect preflight
+
+Once native narration audio is complete and no original media job is pending,
+`courseware_media_context` parses the saved PPTX and validates its effects with
+the same `projectPlaybackAnimations` resolver used by fixed conversion. Results
+are cached only for the exact saved source hash. The source and teaching revision
+are checked after asynchronous work. This does not create a publication snapshot,
+purchase media, or prove natural audio completion. Errors carry page IDs/numbers;
+safe narration-binding corrections use the existing bounded, five-page repair
+loop and preserve text/audio. Explicit native-sequence or missing-source failures
+remain actionable errors rather than prompting a blind regeneration.
+
+Saved speech owns its targets' playback animation clock. An old editor can leave
+unbound native mirrors behind after a repair; conversion suppresses competing
+unbound timing, retains unrelated native effects and reports
+`PPTX_ANIMATION_SPEECH_OWNED`. Explicit native teaching bindings are not silently
+rewritten. Source PPTX bytes remain untouched. Multi-part speech pulse/rotation
+uses the same shared-center wrappers as native group timing; it is not projected
+as independent component transforms. Group-only wrappers have no click steps.
+
+Required-object descriptions are resolved against verified eligible object names,
+aliases and roles, with every whole word and a unique target required for the
+role-based match. An unresolved description is not proof that a visual is absent.
+The existing visual review can verify and save its planned alias, within the
+normal repair budget; actual missing visual content still requires source repair.
+
+Release/test candidates must contain the rebuilt WiseOffice bundle as well as the
+desktop main process, player/converter and agent-runtime. A desktop-only rebuild
+does not update native editing behavior. Keep bundle hashes alongside evidence.

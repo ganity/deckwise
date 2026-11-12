@@ -2590,6 +2590,10 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
     for (const result of turn.toolResults) {
       if (!result.isError) { this.toolValidationFailures.delete(result.toolName); continue; }
       const text = result.content.filter(block => block.type === "text").map(block => block.text).join("\n");
+      if (text === `Tool ${result.toolName} not found` && this.deferredToolNames.has(result.toolName)) {
+        result.content = [{ type: "text", text: `Tool ${result.toolName} is available but inactive. No work was performed. Call ${TOOL_SEARCH_NAME} with query "${result.toolName}", then use the returned schema on the next model turn. Do not repeat this call unchanged or substitute shell commands.` }];
+        continue;
+      }
       if (!text.startsWith(`Validation failed for tool "${result.toolName}":`)) continue;
       const issues = text.replace(/\\n/g, "\n").split("\n\nReceived arguments:")[0].split("\n").slice(1)
         .filter(line => /^\s*- /.test(line)).slice(0, 6).map(line => line.trim().slice(0, 500)).join("\n");
@@ -5898,7 +5902,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
   }
 
   private activateDeferredTools(names: readonly string[]): string[] {
-    const savedTeachingTools = ["courseware_presentation_adopt", "courseware_narration_context", "courseware_narration_propose", "courseware_narration_import", "courseware_activity_insert",
+    const savedTeachingTools = ["courseware_presentation_adopt", "courseware_narration_context", "courseware_narration_propose", "courseware_narration_plan", "courseware_narration_import", "courseware_activity_insert",
       "courseware_media_context", "courseware_media_prepare", "courseware_media_refresh", "courseware_media_assessments"];
     const selectedNames = names.includes("courseware_workflow_get") ? [...names, "courseware_scene_plan_submit", "courseware_story_begin", "courseware_story_save"] : names;
     const selected = selectedNames.some(name => name === "courseware_scene_compile" || savedTeachingTools.includes(name))

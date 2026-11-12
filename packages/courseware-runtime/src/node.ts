@@ -1,4 +1,4 @@
-export { buildFixedCourseware, validateFixedMapping, FixedBuildError, sha256, canonicalJson } from './conversion/lib/courseware/fixed-build';
+export { preflightNativePlayback, buildFixedCourseware, validateFixedMapping, FixedBuildError, sha256, canonicalJson } from './conversion/lib/courseware/fixed-build';
 export { adaptCanonicalSnapshot } from './conversion/lib/courseware/adapt-canonical-snapshot';
 export { fixedBuildInputSchema, type FixedBuildInput } from './conversion/lib/courseware/fixed-build-input';
 export { validateSavedSourceIdentity, exportSavedSourceIdentity, bindSavedSourceIdentity, reconcileSavedSources, type SavedSourceIdentity } from './conversion/lib/import/pptx/saved-source-identity';
@@ -11,3 +11,7 @@ export { decodeHtmlEntities } from './conversion/lib/import/narration/text-norma
 export { nativeMotionPreset } from "./generated-native-motion";
 export { detachLinkedSpeechAnimations } from "./conversion/lib/courseware/native-click-animations";
 export { prepareMaicAssessmentSpeech } from './maic-assessment-speech';
+
+export { validSpeechAnimationSequence } from "./speech-animation-sequence";
+
+export { inspectNativePlayback } from './conversion/lib/courseware/native-playback-preflight';

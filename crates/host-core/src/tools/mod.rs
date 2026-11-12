@@ -1020,6 +1020,7 @@ pub fn is_desktop_dispatched(tool_name: &str) -> bool {
                 | "courseware_narration_context"
                 | "courseware_narration_propose"
                 | "courseware_narration_import"
+                | "courseware_narration_plan"
                 | "courseware_activity_insert"
                 | "courseware_requirements_update"
                 | "courseware_scene_image_prepare"

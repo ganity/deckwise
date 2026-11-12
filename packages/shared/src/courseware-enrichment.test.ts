@@ -46,6 +46,15 @@ describe("portable teaching sources", () => {
     const pages = [{ pageId: "one", actions: [{ id: "speech", type: "speech", text: e.script!.segments[0].text }] }, { pageId: "two", actions: [] }];
     expect(inspectCoursewareEnrichment(e, pages).issues).toContainEqual({ code: "ACTIVITY_MISSING", sourceId: "review" });
   });
+  it("rejects an activity inserted before its mapped source page", () => {
+    const e = source();
+    e.plan = { sha256: "b".repeat(64), units: [{ id: "quiz", title: "Review", evidence: "Ask a question", kind: "quiz", pageIds: ["two"], activityId: "quiz-action" }] };
+    const pages = [{ pageId: "two", actions: [{ id: "quiz-action", type: "interaction_checkpoint", context: { sourceSceneIds: ["one"] } }] },
+      { pageId: "one", actions: [{ id: "speech", type: "speech", text: e.script!.segments[0].text }] }];
+    expect(inspectCoursewareEnrichment(e, pages).issues).toContainEqual({ code: "ACTIVITY_ORDER_MISMATCH", sourceId: "quiz", pageId: "two" });
+    pages.reverse();
+    expect(inspectCoursewareEnrichment(e, pages).issues).toEqual([]);
+  });
 });
 
 it("allows explicitly authorized revision to produce new speech identities while retaining source-page coverage", () => {

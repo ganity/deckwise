@@ -1,22 +1,58 @@
 import type { ImportWarning, SlidePageIR } from '../import/types';
 import { projectNativeTimeline } from './native-timeline';
+import { detachLinkedSpeechAnimations } from './native-click-animations';
+import { projectNativeGroups } from './native-groups';
+import { createHash } from 'node:crypto';
 import { nativeTimelineSchema, type NativeTimeline } from '../../../native-timeline';
 import type { FixedBuildInput } from './fixed-build-input';
 
-/** Master may wrap one visible object in a group; animate that exact child, not its invisible anchor. */
-export function resolveSingleChildSpeechAnimations(input: FixedBuildInput, pages: SlidePageIR[]) {
+/** Resolve saved group speech motion onto real components; group attention keeps its shared bounds. */
+export function resolveSingleChildSpeechAnimations(input: Pick<FixedBuildInput, 'mapping' | 'teaching'>, pages: SlidePageIR[]) {
   for (const page of input.teaching.pages) {
     const mapping = input.mapping.pages.find(p => p.pageId === page.pageId);
     const source = pages.find(p => p.id === mapping?.importPageId);
     if (!mapping || !source) continue;
-    for (const action of page.actions) if (action.type === 'speech') for (const cue of action.visualCues ?? []) {
-      const effect = cue.effect;
-      if (effect.type !== 'element_animation' || cue.nativeAnimation) continue;
-      const group = mapping.groups?.find(group => group.objectId === effect.elementId);
-      if (!group) continue;
-      const children = source.elements.filter(element => element.sourceGroupShapeIds?.includes(group.sourceShapeId));
-      const child = children.length === 1 && mapping.objects.find(object => object.importElementId === children[0].id);
-      if (child) effect.elementId = child.objectId;
+    for (const action of page.actions) if (action.type === 'speech') {
+      type Cue = NonNullable<typeof action.visualCues>[number];
+      const projected = new Set<Cue>();
+      action.visualCues = action.visualCues?.flatMap(cue => {
+        const effect = cue.effect;
+        if (effect.type !== 'element_animation' || cue.nativeAnimation) return [cue];
+        const group = mapping.groups?.find(group => group.objectId === effect.elementId);
+        if (!group) return [cue];
+        const children = source.elements.filter(element => element.sourceGroupShapeIds?.includes(group.sourceShapeId));
+        const bound = children.map(child => mapping.objects.find(object => object.importElementId === child.id));
+        if (!children.length || bound.some(child => !child) || children.some(child =>
+          !['text', 'shape', 'image'].includes(child.type) || child.width <= 0 || child.height <= 0)) return [cue];
+        // Remove only a verified native mirror before projecting the same opacity clock onto all components.
+        const [anchor] = projectNativeGroups(source, [group]);
+        const remaining = detachLinkedSpeechAnimations({ ...source, elements: [...source.elements,
+          { ...anchor.element, sourceShapeId: group.sourceShapeId }] }, [{ ...action, visualCues: [cue] }],
+          [{ objectId: group.objectId, importElementId: anchor.element.id }]);
+        source.pptxAnimation = remaining.pptxAnimation;
+        // Transform multi-part geometry around its shared center, not each child's center.
+        if (children.length > 1 && !['fadeIn', 'fadeOut'].includes(effect.effect)) return [cue];
+        return bound.map(child => {
+          const component = { ...cue,
+          id: bound.length === 1 ? cue.id : 'group-motion-' + createHash('sha256').update(JSON.stringify([cue.id, child!.objectId])).digest('hex'),
+          effect: { ...effect, elementId: child!.objectId },
+          };
+          projected.add(component);
+          return component;
+        });
+      });
+      // A group and its child can name the same opacity clock. Only coalesce
+      // exact duplicates introduced by projection; distinct source clocks still fail.
+      const clocks = new Map<string, Cue>();
+      action.visualCues = action.visualCues?.filter(cue => {
+        if (cue.effect.type !== 'element_animation') return true;
+        const key = JSON.stringify([cue.effect.elementId, cue.effect.effect, cue.atMs,
+          cue.endMs, cue.trigger, cue.nativeAnimation]);
+        const previous = clocks.get(key);
+        if (previous && (projected.has(previous) || projected.has(cue))) return false;
+        clocks.set(key, cue);
+        return true;
+      });
     }
   }
 }

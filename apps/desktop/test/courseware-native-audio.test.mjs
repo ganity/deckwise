@@ -43,8 +43,40 @@ function setup() {
   };
   const make = () => new CoursewareNativeAudio(auth, () => host, () => "chat", route, async () => 1000);
   const args = () => ({ viewId: view.viewId, expectedTeachingRevision: view.project.teachingRevision });
-  return { view, make, args, calls, submits: () => submits };
+  return { view, make, args, calls, auth, records, submits: () => submits };
 }
+test("automatic speech preparation reuses the exact durable order after restart and preserves manual regeneration", async () => {
+  const f = setup(), request = { ...f.args(), actionId: "speech", model: "voice-model", voice: null, reuseExisting: true };
+  const first = await f.make().execute("tts:prepare", request, 1, f.view);
+  const service = f.make();
+  const quote = await service.execute("tts:quote", { ...f.args(), intentId: first.intentId }, 1, f.view);
+  await service.execute("tts:submit", { ...f.args(), intentId: first.intentId, quoteId: quote.quoteId }, 1, f.view);
+  const reused = await f.make().execute("tts:prepare", request, 1, f.view);
+  assert.equal(reused.intentId, first.intentId); assert.equal(reused.phase, "submitted"); assert.equal(reused.reused, true);
+  assert.equal(f.submits(), 1);
+  const otherVoice = await f.make().execute("tts:prepare", { ...request, voice: "different" }, 1, f.view);
+  assert.notEqual(otherVoice.intentId, first.intentId);
+  const manual = await f.make().execute("tts:prepare", { ...request, reuseExisting: false }, 1, f.view);
+  assert.notEqual(manual.intentId, first.intentId);
+  await assert.rejects(f.make().execute("tts:prepare", request, 1, f.view), /Multiple matching/);
+  f.view.project.pages[0].actions[0].text = "New words";
+  const changed = await f.make().execute("tts:prepare", request, 1, f.view);
+  assert.notEqual(changed.intentId, first.intentId);
+});
+
+test("lost submission replies keep the original order query-only through repeated automatic preparation", async () => {
+  const f = setup(), service = f.make(); let submissions = 0;
+  f.auth.coursewareMedia.submitConfirmedTts = async () => { submissions++; throw new Error("Reply lost"); };
+  f.auth.coursewareMedia.findTts = async () => null;
+  const args = { ...f.args(), actionId: "speech", model: "voice-model", voice: null, reuseExisting: true };
+  const intent = await service.execute("tts:prepare", args, 1, f.view);
+  const quote = await service.execute("tts:quote", { ...f.args(), intentId: intent.intentId }, 1, f.view);
+  await assert.rejects(service.execute("tts:submit", { ...f.args(), intentId: intent.intentId, quoteId: quote.quoteId }, 1, f.view), /Reply lost/);
+  const restarted = f.make(), reused = await restarted.execute("tts:prepare", args, 1, f.view);
+  assert.equal(reused.intentId, intent.intentId); assert.equal(reused.phase, "submission-unknown");
+  const status = await restarted.execute("tts:submit", { ...f.args(), intentId: reused.intentId }, 1, f.view);
+  assert.equal(status.task, null); assert.equal(submissions, 1);
+});
 test("native paid speech retains durable task identity and adopts only through native revision CAS", async () => {
   const f = setup(), coordinator = f.make();
   const prepared = await coordinator.execute("tts:prepare", { ...f.args(), actionId: "speech", model: "voice-model", voice: null }, 1, f.view);

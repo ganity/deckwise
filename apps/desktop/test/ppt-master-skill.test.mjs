@@ -81,3 +81,20 @@ test("canvas draft revisions remain available before and during native Office ed
     assert.match(nativePrompt, /Canvas draft requests remain separate and use courseware_canvas_get\/edit/);
   }
 });
+
+test("native teaching routes stay available without Office selection capabilities or a plan attachment", () => {
+  for (const task of ["plain", "scene", "import"]) {
+    const prompt = promptModule.prompt("Add a short answer and spotlight", true, task);
+    assert.match(prompt, /Office selection capabilities do not limit these teaching operations/);
+    assert.match(prompt, /inline activity requirements can be mapped as lessonPlan.text\/units without a plan attachment/);
+  }
+});
+
+
+test("narration skills require small visible calls rather than one full-deck tool call", async () => {
+  for (const name of ["ppt-edit","ppt-import"]) {
+    const skill = readFileSync(new URL(`../resources/skills/${name}/SKILL.md`,import.meta.url),"utf8");
+    assert.match(skill,/at most 5 unfinished pages per call/);
+    assert.doesNotMatch(skill,/every user-authorized page in one call/);
+  }
+});

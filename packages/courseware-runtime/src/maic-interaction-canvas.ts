@@ -6,6 +6,7 @@ const escape = (text: string) => text.replaceAll('&', '&amp;').replaceAll('<', '
 /** MAIC build-interaction-scene's classroom template, scaled to the course canvas. */
 export function createMaicInteractionCanvas(id: string, title: string, question: string,
   width = 1000, ratio = 0.5625): Canvas {
+  const english = /[a-z]/iu.test(question) && !/[\u4e00-\u9fff]/u.test(question);
   const sx = width / 1000, sy = width * ratio / 562.5;
   const text = (suffix: string, value: string, top: number, height: number, size: number, color: string, bold = false) => ({
     id: `${id}_${suffix}`, type: 'text' as const, left: 136 * sx, top: top * sy,
@@ -20,8 +21,8 @@ export function createMaicInteractionCanvas(id: string, title: string, question:
         rotate: 0, viewBox: [824, 384], path: 'M 28 0 L 796 0 Q 824 0 824 28 L 824 356 Q 824 384 796 384 L 28 384 Q 0 384 0 356 L 0 28 Q 0 0 28 0 Z',
         fixedRatio: false, fill: '#F6F8FC', opacity: 1 },
       text('chapter_title', title, 114, 54, 28, '#1F2A44', true),
-      text('section_label', '课堂互动问答', 180, 32, 18, '#5B6B8C'),
+      text('section_label', english ? 'Classroom discussion' : '课堂互动问答', 180, 32, 18, '#5B6B8C'),
       text('question', question, 240, 104, 24, '#111827'),
-      text('hint', '请思考后回答，课堂互动结束后将继续播放。', 382, 28, 18, '#6B7280'),
+      text('hint', english ? 'Think and answer. Your teacher will continue.' : '请思考后回答，课堂互动结束后将继续播放。', 382, 28, 18, '#6B7280'),
     ] };
 }

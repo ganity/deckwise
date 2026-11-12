@@ -512,6 +512,16 @@ mod tests {
     }
 
     #[test]
+    fn required_effects_hash_matches_main_and_retains_all_requirements() {
+        let page: Page = serde_json::from_value(json!({
+            "title":"Circle", "visibleText":["Circle"], "visualIntent":"A red circle", "narration":"Look at the circle.",
+            "teaching":{"pageType":"slide","phase":"opening","objective":"See circle","durationSeconds":30,
+                "requiredObjects":["circle"],"requiredEffects":["spotlight","highlight","animation"]}
+        })).unwrap();
+        assert_eq!(page.source_hash().unwrap(), "sha256:0816c74ab1d3254de8c975238166ad1c1fcaad70500587d39dfc3d0838a39602");
+    }
+
+    #[test]
     fn independent_quiz_plan_hash_and_interaction_reference_fields_match_main() {
         let quiz = json!({"title":"Question","visibleText":[],"visualIntent":"A class","narration":"","quiz":{"questions":[{"answer":["A"],"id":"q","options":[{"label":"Hello","value":"A"},{"label":"Bye","value":"B"}],"question":"Greeting?","type":"single"}],"type":"quiz"},"teaching":{"pageType":"quiz","phase":"practice","objective":"Greet","durationSeconds":30,"requiredObjects":[]}});
         let page: Page = serde_json::from_value(quiz.clone()).unwrap();

@@ -39,10 +39,14 @@ export async function preparePresentation(input: {
   for (const [index, page] of pages.entries()) {
     if (!files[index].generated) continue;
     const id = `assessment-${page.pageNumber}`, question = page.teaching.question;
+    const prompt = page.quiz?.questions[0]?.question ?? question!.text;
+    const english = /[a-z]/iu.test(prompt) && !/[\u4e00-\u9fff]/u.test(prompt);
+    // Objectives can contain the correct answer; only neutral labels belong on learner pages.
+    const title = page.quiz ? (english ? "Quiz" : "课堂练习") : (english ? "Let us talk" : "说一说");
     const scene = parseMaicClassroom({ id: "preview", stage: { id: "preview", name: "Preview", createdAt: 0, updatedAt: 0 },
-      createdAt: new Date(0).toISOString(), scenes: [{ id, stageId: "preview", title: page.teaching.objective,
+      createdAt: new Date(0).toISOString(), scenes: [{ id, stageId: "preview", title,
         type: page.quiz ? "quiz" : "slide", order: index,
-        content: page.quiz ?? { type: "slide", canvas: authoring.createMaicInteractionCanvas(id, page.teaching.objective, question!.text, size.width, size.height / size.width) },
+        content: page.quiz ?? { type: "slide", canvas: authoring.createMaicInteractionCanvas(id, title, question!.text, size.width, size.height / size.width) },
         actions: question ? [{ id: `${id}-checkpoint`, type: "interaction_checkpoint", checkpointId: `${id}-checkpoint`,
           checkpointKind: "chapter_summary", chapterId: id, chapterTitle: page.teaching.objective, question: question.text,
           referenceAnswer: question.referenceAnswer ?? { summary: page.teaching.objective, keyPoints: [] },

@@ -160,7 +160,11 @@ test("repairs an invalid whole-deck plan inside the original narration request",
 test("bounds invalid-plan repair and reports the exact field without saving", async () => {
   const invalid = JSON.stringify({ goal: "Lesson", pages: [{ pageNumber: 1, purpose: "Explain", bridge: "Continue", focus: [] }] });
   const f = await fixture({ planOutputs: [invalid, invalid] });
-  await assert.rejects(f.execute("courseware_narration_propose", { pageNumbers: [1], sourceSha256: f.project.source.sha256, instruction: "Explain page one" }), /whole-deck narration plan.*pages\[0\]\.focus/);
+  const result = await f.execute("courseware_narration_propose", { pageNumbers: [1], sourceSha256: f.project.source.sha256, instruction: "Explain page one" });
+  assert.equal(result.saved, false);
+  assert.match(result.failures[0].error, /narration plan.*pages\[0\]\.focus/);
+  assert.equal(result.failures[0].code, "COURSEWARE_NARRATION_PLAN_INVALID");
+  assert.equal(result.failures[0].retriable, false);
   assert.equal(f.requests.filter(request => request.outline).length, 2);
   assert.equal(f.saved.length, 0);
   assert(f.calls.some(([method]) => method === "courseware.parseRelease"));
@@ -315,7 +319,7 @@ test("one save failure preserves completed pages and reports the failed page", a
 
 test("cancellation after a completed save keeps teaching and reports every remaining page", async () => {
   const f = await fixture({ pageCount: 6, cancelAfterSave: true });
-  const selected = [1, 2, 4, 5, 6];
+  const selected = [1, 4, 6];
   const result = await f.execute("courseware_narration_propose", { pageNumbers: selected, sourceSha256: "a".repeat(64), instruction: "Explain" });
   assert.equal(result.savedPages.length, 1);
   assert.equal(result.failures.length, selected.length - 1);
@@ -563,4 +567,12 @@ test("outline repair is rejected before a model call and quality directs generat
   assert.equal(result.saved, true);
   assert(f.project.pages[0].actions.filter(action => action.type === "speech").every(action => action.source === "generated"));
   assert.equal((await f.execute("courseware_narration_context")).narrationReady, true);
+});
+
+
+test("legacy narration also rejects oversized tool calls before parsing or generating", async () => {
+  const f = await fixture({pageCount:56});
+  const before = f.calls.length;
+  await assert.rejects(f.execute("courseware_narration_propose",{pageNumbers:Array.from({length:56},(_,i)=>i+1),sourceSha256:"a".repeat(64),instruction:"Teach"}),/at most 5 pages/);
+  assert.equal(f.calls.length,before); assert.equal(f.saved.length,0);
 });

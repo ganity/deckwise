@@ -525,6 +525,8 @@ export function Composer({
         ) : null}
         <ComposerStatus
           t={t}
+          submissionError={submitController.submissionError}
+          clearSubmissionError={submitController.clearSubmissionError}
           queuedPrompts={queuedPrompts}
           removeQueuedPrompt={removeQueuedPrompt}
           moveQueuedPrompt={moveQueuedPrompt}

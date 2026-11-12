@@ -106,6 +106,8 @@ export class CoursewareSavedNarration {
     if (Object.keys(input).some(k => !(propose ? ["pageNumbers", "sourceSha256", "instruction", "repairRequiredTeaching"] : ["pageNumbers"]).includes(k)) ||
         (propose && (typeof input.instruction !== "string" || !input.instruction.trim() || input.instruction.length > 8000 || typeof input.sourceSha256 !== "string" || !/^[a-f0-9]{64}$/u.test(input.sourceSha256))))
       throw new Error("Invalid saved narration arguments");
+    if (propose && (!Array.isArray(input.pageNumbers) || input.pageNumbers.length > 5))
+      throw new Error("Narration generation accepts at most 5 pages per tool call. Save the next unfinished batch and read fresh context/sourceSha256 before continuing");
     if (input.repairRequiredTeaching !== undefined && typeof input.repairRequiredTeaching !== "boolean") throw new Error("Invalid teaching repair mode");
     return this.withSaved(sessionId, canDispatch, async ({ host, jobId, project, bytes, check }) => {
       const numbers = input.pageNumbers;

@@ -1,3 +1,4 @@
+import { playbackActions } from './playback-actions';
 import { isCoursewareProject, isCoursewareSnapshot } from './canonical/courseware-contract';
 import { fixedBuildInputSchema, type FixedBuildInput } from './fixed-build-input';
 import { z } from 'zod';
@@ -58,18 +59,7 @@ export function adaptCanonicalSnapshot(
     teaching: {
       revision: snapshot.teachingRevision,
       sourceSha256: snapshot.source.sha256.toLowerCase(),
-      pages: project.pages.map(({ pageId, actions }) => ({ pageId, actions: actions.map(action => {
-        // Derived authoring duration and provenance do not belong to playback actions.
-        if (['speech', 'audio_clip', 'video_clip'].includes(String(action.type))) {
-          const { durationMs: _duration, ...playback } = action;
-          if (action.type === 'speech' && ['notes', 'external', 'original', 'light_rewrite', 'generated'].includes(String(action.source))) {
-            const { source: _source, ...speech } = playback;
-            return speech;
-          }
-          return playback;
-        }
-        return action;
-      }) })),
+      pages: project.pages.map(({ pageId, actions }) => ({ pageId, actions: playbackActions(actions) })),
     },
     mapping: files.mapping,
     assets: files.assets,

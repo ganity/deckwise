@@ -1,4 +1,5 @@
 import { COURSEWARE_WORKFLOW_TOOLS, ErrorCodes, IPC, type AgentEventEnvelope, type PlanExecutionFinishStatus, type Risk } from "@pi-desktop/shared";
+import { PptEditorNotReadyError } from "../ppt-editor-handshake";
 import { assertLinuxGlibcSupported } from "../linux-glibc";
 import { HostProcess } from "../host-process";
 import type { Logger } from "../logger";
@@ -175,9 +176,11 @@ export function createHostRuntime({
               () => !execution.cancelled && runtimeState.host === h && isTurnDispatchable(q.sessionId ?? "", q.turnId));
             payload = { executionId: q.executionId, ok: true, content };
           } catch (error) {
-            payload = { executionId: q.executionId, ok: false, errorCode: q.toolName.startsWith("courseware_canvas_") ? "MEDIA_CANVAS_REJECTED" :
+            payload = { executionId: q.executionId, ok: false, errorCode: error instanceof PptEditorNotReadyError ? error.code :
+              q.toolName.startsWith("courseware_canvas_") ? "MEDIA_CANVAS_REJECTED" :
               COURSEWARE_WORKFLOW_TOOLS.some(name => name === q.toolName) ? "COURSEWARE_WORKFLOW_REJECTED" : "PPT_EDITOR_REJECTED",
-              content: { error: error instanceof Error ? error.message : String(error) } };
+              content: { error: error instanceof Error ? error.message : String(error),
+                ...(error instanceof PptEditorNotReadyError ? { phase: error.phase } : {}) } };
           } finally { pptExecutions.delete(q.executionId); }
         } else if (q.toolName.startsWith("mcp_")) {
           try {

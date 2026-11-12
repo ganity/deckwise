@@ -22,6 +22,21 @@ async function compile(previous: MaicClassroom) {
 const pages = [{ pageId: 'page-1' }, { pageId: 'page-2' }];
 
 describe('canonical classroom native pages', () => {
+  it('uses English hints for English questions and retains Chinese hints for Chinese questions', () => {
+    const scene = fixture().scenes[1];
+    const english = assessmentPptxScene(scene, 'sha256:test', { width: 1000, height: 562.5 });
+    expect(JSON.stringify(english.elements)).toContain('Choose the best answer.');
+    expect(JSON.stringify(english.elements)).not.toMatch(/[\u4e00-\u9fff]/u);
+    if (scene.content.type !== 'quiz') throw Error('fixture');
+    scene.content.questions[0].question = '请选择圆形';
+    expect(JSON.stringify(assessmentPptxScene(scene, 'sha256:test', { width: 1000, height: 562.5 }).elements)).toContain('请选择最合适的答案');
+  });
+  it('keeps the English interaction template English including nested projected text', () => {
+    const canvas = createMaicInteractionCanvas('oral', 'Round objects', 'Name a round object around you.');
+    expect(JSON.stringify(canvas)).not.toMatch(/[\u4e00-\u9fff]/u);
+    expect(JSON.stringify(canvas)).toContain('Classroom discussion');
+    expect(JSON.stringify(createMaicInteractionCanvas('oral', '圆形', '请说一个圆形物品'))).toContain('课堂互动问答');
+  });
   it('projects encoded checkpoint canvas text as readable native text', () => {
     const scene = fixture().scenes[0];
     if (scene.content.type !== 'slide') throw new Error('fixture');

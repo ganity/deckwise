@@ -30,7 +30,7 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   };
 });
 
-const workerDirectory = path.resolve('../../apps/desktop/resources/pptx-worker');
+const workerDirectory = path.resolve(process.env.DECKWISE_NATIVE_WORKER_DIRECTORY ?? '../../apps/desktop/resources/pptx-worker');
 let outputDirectory: string;
 let input: ReturnType<typeof adaptCanonicalSnapshot>;
 let valid: Awaited<ReturnType<typeof buildFixedCourseware>>;

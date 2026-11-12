@@ -165,3 +165,15 @@ strict actual MAIC/cloud-web consumer checks passed; the host-style visual gate
 also passed. See [the acceptance record](007-maic-courseware-parity-acceptance.md)
 for evidence and online publication boundaries. The overall index remains IN
 PROGRESS for authenticated signed publication; no deployment or merge is claimed.
+
+## Education generation and stage-aware Scene visuals (2026-11-11)
+
+| Plan | Outcome | Priority | Effort | Dependency | Status |
+|---|---|---|---|---|---|
+| [009](009-education-scene-generation-and-skill-optimization.md) | Education-first route contracts, interruption diagnosis, and stage-aware raster Scene Visual Masters | P1 | L | Preserve 001–008 invariants; execute P0–P7 in order | TODO |
+
+Plan 009 records the agreed Scene image contract, kindergarten-to-senior-high
+visual defaults, explicit-style precedence, PPT Master reliability lessons,
+and a failure-diagnosis phase for interruptions and parameter errors. It is a
+plan only; implementation and rendered-image acceptance have not been
+performed.

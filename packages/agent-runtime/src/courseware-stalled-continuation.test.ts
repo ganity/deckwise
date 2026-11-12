@@ -14,6 +14,86 @@ const activation: AgentTurnContext = { ...closing, message: { ...closing.message
 ] }, toolResults: [{ role: "toolResult", toolCallId: "start", toolName: "courseware_media_context",
   timestamp: 0, content: [], isError: false, details: { sourceSha256 } }] };
 
+it("rereads native source after each page adoption before refreshing the next original", async () => {
+  const continuation = new CoursewareTurnContinuation();
+  let adopted = 0;
+  const execute = vi.fn(async (name: string, args: Record<string, unknown>) => {
+    const sha = String(adopted).repeat(64);
+    if (name === "courseware_media_refresh") {
+      if (args.sourceSha256 !== sha) throw new Error("Native source changed");
+      expect(args.intentId).toBe(`original-${adopted + 1}`);
+      adopted++;
+      return { content: [], details: { saved: true } };
+    }
+    return { content: [], details: { nativeTeaching: true, sourceSha256: sha,
+      narrationReady: true, audioReady: adopted === 2, teachingReady: adopted === 2,
+      completion: { ready: adopted === 2, issues: [] },
+      jobs: [1, 2].filter(n => n > adopted).map(n => ({ kind: "tts", intentId: `original-${n}`, pageNumber: n, sourceSha256: sha })) } };
+  });
+  const controls = { execute, canWait: () => true };
+  await continuation.finish(activation, controls);
+  expect(await continuation.finish(closing, controls)).toContain("Saved courseware content, media and teaching checks are complete");
+  expect(adopted).toBe(2);
+  expect(execute.mock.calls.filter(([name]) => name === "courseware_media_refresh")).toHaveLength(2);
+});
+
+it("reconciles one native refresh exception against current state without declaring the provider failed", async () => {
+  vi.useFakeTimers();
+  const continuation = new CoursewareTurnContinuation();
+  let refreshes = 0;
+  const execute = vi.fn(async (name: string) => {
+    if (name === "courseware_media_refresh") {
+      if (++refreshes === 1) throw new Error("Native view changed before adoption");
+      return { content: [], details: { saved: true } };
+    }
+    return { content: [], details: { nativeTeaching: true, sourceSha256, narrationReady: true,
+      audioReady: refreshes === 2, teachingReady: refreshes === 2, completion: { ready: refreshes === 2, issues: [] },
+      jobs: refreshes === 2 ? [] : [{ kind: "tts", intentId: "original", pageNumber: 1, sourceSha256 }] } };
+  });
+  const controls = { execute, canWait: () => true };
+  try {
+    await continuation.finish(activation, controls);
+    const running = continuation.finish(closing, controls);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(await running).toContain("Saved courseware content, media and teaching checks are complete");
+    expect(refreshes).toBe(2);
+    expect(execute.mock.calls.every(([name]) => !name.includes("prepare"))).toBe(true);
+  } finally { vi.useRealTimers(); }
+});
+
+it("bounds native exception reconciliation and reports the local stage without buying again", async () => {
+  vi.useFakeTimers();
+  const continuation = new CoursewareTurnContinuation();
+  let refreshes = 0;
+  const execute = vi.fn(async (name: string) => {
+    if (name === "courseware_media_refresh") { refreshes++; throw new Error("Native adoption unavailable"); }
+    return { content: [], details: { nativeTeaching: true, sourceSha256,
+      jobs: [{ kind: "tts", intentId: "original", pageNumber: 1, sourceSha256 }] } };
+  });
+  const controls = { execute, canWait: () => true };
+  try {
+    await continuation.finish(activation, controls);
+    const running = continuation.finish(closing, controls);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(await running).toContain("does not confirm provider generation failure");
+    expect(refreshes).toBe(2);
+    expect(continuation.reportOnly).toBe(true);
+    expect(execute.mock.calls.every(([name]) => !name.includes("prepare"))).toBe(true);
+  } finally { vi.useRealTimers(); }
+});
+
+it("accepts native completion when only optional assessment images remain", async () => {
+  const continuation = new CoursewareTurnContinuation();
+  const controls = { canWait: () => true, execute: vi.fn(async () => ({ content: [], details: {
+    nativeTeaching: true, sourceSha256, narrationReady: true, audioReady: true, teachingReady: true,
+    completion: { ready: true, issues: [] }, jobs: [],
+    assessmentMedia: { ready: false, targets: [{ kind: "image", sceneId: "quiz", optionValue: "A" }] },
+  } })) };
+  await continuation.finish(activation, controls);
+  expect(await continuation.finish(closing, controls)).toContain("Saved courseware content, media and teaching checks are complete");
+  expect(controls.execute.mock.calls).toHaveLength(1);
+});
+
 it("queries an unknown original once, finishes independent music, then exits unfinished", async () => {
   vi.useFakeTimers();
   const continuation = new CoursewareTurnContinuation();
@@ -243,4 +323,45 @@ it("continues a healthy image after the first original is unknown", async () => 
   await continuation.finish(f.start,controls);
   await continuation.finish(closing,controls);
   expect(healthyReads).toBe(1);
+});
+
+for (const required of [true, false]) it(`continues ${required ? 'required' : 'advisory'} repairs in visible calls of at most five pages`, async () => {
+  const continuation = new CoursewareTurnContinuation();
+  let pending = [1,2,3,4,5,6,7,8], revision = 0;
+  const batches: unknown[] = [];
+  const execute = vi.fn(async (name: string, args: Record<string, unknown>) => {
+    const sha = String(revision).repeat(64);
+    if (name === 'courseware_narration_propose') {
+      expect(args.sourceSha256).toBe(sha);
+      const pages = args.pageNumbers as number[];
+      expect(pages.length).toBeLessThanOrEqual(5);
+      batches.push(pages); pending = pending.filter(n=>!pages.includes(n)); revision++;
+      return {content:[],details:{saved:true}};
+    }
+    const issues = pending.map(pageNumber=>({pageNumber,pageId:'p'+pageNumber,code:required?'EFFECT_MISSING':'FOCUS_MISSING',repairable:true,repair:'narration'}));
+    return {content:[],details:{nativeTeaching:true,sourceSha256:sha,narrationReady:true,audioReady:true,teachingReady:!required||!pending.length,
+      completion:{ready:!required||!pending.length,issues:required?issues:[]},quality:{issues:required?[]:issues},jobs:[]}};
+  });
+  const controls = {execute,canWait:()=>true};
+  await continuation.finish(activation,controls);
+  expect(await continuation.finish(closing,controls)).toContain("Saved courseware content, media and teaching checks are complete");
+  expect(batches).toEqual([[1,2,3,4,5],[6,7,8]]);
+});
+
+it('repairs an unresolved semantic alias within the active turn without replaying audio or waiting for a new user message', async () => {
+  const continuation = new CoursewareTurnContinuation(); let repaired = false;
+  const execute = vi.fn(async (name: string, args: Record<string, unknown>) => {
+    if (name === 'courseware_narration_propose') {
+      expect(args).toMatchObject({pageNumbers:[2],repairRequiredTeaching:true});
+      expect(args.instruction).toContain('exact planned name as an alias');
+      repaired = true; return {content:[],details:{saved:true}};
+    }
+    expect(name).toBe('courseware_media_context');
+    return {content:[],details:{nativeTeaching:true,sourceSha256,narrationReady:true,audioReady:true,teachingReady:repaired,jobs:[],
+      completion:{ready:repaired,issues:repaired?[]:[{code:'OBJECT_REQUIREMENT_UNRESOLVED',pageId:'p2',pageNumber:2,repairable:true,repair:'narration'}]}}};
+  });
+  const controls={execute,canWait:()=>true};
+  await continuation.finish(activation,controls);
+  expect(await continuation.finish(closing,controls)).toContain('Saved courseware content');
+  expect(execute.mock.calls.filter(([name])=>name==='courseware_narration_propose')).toHaveLength(1);
 });

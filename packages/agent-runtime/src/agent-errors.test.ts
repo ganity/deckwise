@@ -30,6 +30,14 @@ describe("classifyAgentError", () => {
     expect(classifyAgentError(error).code).toBe("TURN_ABORTED");
   });
 
+  it("preserves a safe transient editor-readiness explanation and structured stage", () => {
+    const error = new CoursewareWorkflowError("PPT_EDITOR_NOT_READY", "private opening details", "courseware_media_context",
+      { cause: Object.assign(new Error("private source path"), { phase: "opening" }) });
+    expect(classifyAgentError(error)).toMatchObject({ code: "PPT_EDITOR_NOT_READY", retriable: true,
+      message: expect.stringMatching(/still opening or saving/),
+      details: { origin: "local", phase: "ppt-editor-readiness", operation: "courseware_media_context", errorCode: "PPT_EDITOR_NOT_READY", editorPhase: "opening" } });
+  });
+
   it("distinguishes a terminal team refusal from provider credentials", () => {
     for (const error of [
       'OpenAI API error (403): {"message":"TEAM_LLM_PERMISSION_DENIED"}',

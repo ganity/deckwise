@@ -9,6 +9,7 @@ import test from "node:test";
 const here = dirname(fileURLToPath(import.meta.url));
 register(pathToFileURL(join(here, "helpers/ts-import-hooks.mjs")));
 
+const { PptEditorNotReadyError } = await import("../electron/main/ppt-editor-handshake.ts");
 const { createHostRuntime } = await import("../electron/main/runtime/host.ts");
 const { createSessionCoordination } = await import(
   "../electron/main/runtime/session-coordination.ts"
@@ -80,7 +81,7 @@ const TOOL_NAME = VALUE_BY_FIELD.toolName;
  * decide that question itself. `activeTurn` seeds the session's live turn;
  * leaving it out models a session whose turn has already ended.
  */
-function fixture({ activeTurn } = {}) {
+function fixture({ activeTurn, pptError } = {}) {
   const calls = [];
   const invocations = [];
   const pptInvocations = [];
@@ -132,6 +133,7 @@ function fixture({ activeTurn } = {}) {
     executePptEditorTool: async (sessionId, toolName, args, canDispatch) => {
       assert(canDispatch(), "PPT dispatch must retain its current turn");
       pptInvocations.push({ sessionId, toolName, args });
+      if (pptError) throw pptError;
       return { applied: false, reviewState: "needs-review" };
     },
     pluginActiveInProject: () => true,
@@ -286,3 +288,15 @@ test("an mcprefixed tool keeps its own path", async () => {
   assert.equal(resolved[0].params.ok, true);
   assert.equal(f.invocations.length, 0, "an mcp tool never reaches the plugin runtime");
 });
+
+for (const phase of ["opening", "saving", "focus"]) {
+  test(`native ${phase} readiness survives the Main-to-Host execution boundary`, async () => {
+    const f = fixture({ activeTurn: TURN_ID, pptError: new PptEditorNotReadyError(phase) });
+    const [resolved] = await dispatch(f, { ...fullPayload(), toolName: "courseware_media_context", args: {} });
+    assert.equal(resolved.params.ok, false);
+    assert.equal(resolved.params.errorCode, "PPT_EDITOR_NOT_READY");
+    assert.equal(resolved.params.content.phase, phase);
+    assert.match(resolved.params.content.error, phase === "focus" ? /Return to this courseware Chat/ : /still opening or saving/);
+    assert.equal(f.pptInvocations.length, 1);
+  });
+}

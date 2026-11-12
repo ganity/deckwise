@@ -75,6 +75,8 @@ async function fixture(t, fixed = false) {
 test("ordinary preparation generates fixed assessments and preserves body/source/manual files", { skip: !process.env.DECKWISE_E2E_WORKFLOW_HOST, timeout: 90000 }, async t => {
   const f = await fixture(t, true);
   const args = { projectPath: ".deckwise-ppt/projects/family", canvas: { width: 1280, height: 720 }, pages: structuredClone(pages) };
+  args.pages[1].teaching.objective = "Identify father as the correct answer";
+  args.pages[2].teaching.objective = "Answer with This is my family";
   args.pages[2].teaching.question.text = "举起你的相册，指着一位家人说 This is my family! 再用英文介绍这位家人的称呼，和旁边的小朋友分享。";
   const source = await readFile(f.args.path);
   const result = await f.workflow.execute(f.sessionId, "courseware_presentation_prepare", args, () => true);
@@ -84,6 +86,8 @@ test("ordinary preparation generates fixed assessments and preserves body/source
   const quiz = await readFile(join(f.project, "svg_output/02.svg"), "utf8");
   const interaction = await readFile(join(f.project, "svg_output/03.svg"), "utf8");
   assert(quiz.includes("Who is this?"));
+  assert(!quiz.includes(args.pages[1].teaching.objective), "teacher objectives must not disclose the Quiz answer");
+  assert(!interaction.includes(args.pages[2].teaching.objective), "teacher objectives are not student headings");
   assert(interaction.includes('id="assessment-3_question"'));
   assert(!interaction.includes("This is my family.</tspan>"));
   assert(!quiz.includes("<image") && !interaction.includes("<animate"));

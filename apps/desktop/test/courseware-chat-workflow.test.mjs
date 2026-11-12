@@ -14,7 +14,7 @@ test("Main routes new presentation preparation through workflow without an open 
     { execute: (...args) => { calls.push(args); return "workflow"; } },
     { execute: () => { throw new Error("No PPT editor is bound to this Chat"); } }, {},
   );
-  for (const name of ["courseware_presentation_prepare", "courseware_presentation_adopt", "courseware_narration_import", "courseware_activity_insert"]) {
+  for (const name of ["courseware_presentation_prepare", "courseware_presentation_adopt", "courseware_narration_plan", "courseware_narration_import", "courseware_activity_insert"]) {
     const args = ["chat", name, {}, () => true];
     assert.equal(await execute(...args), "workflow");
     assert.deepEqual(calls.at(-1), args);

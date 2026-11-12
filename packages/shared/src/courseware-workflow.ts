@@ -4,7 +4,7 @@ import type { CoursewareSceneImageView, CoursewareScenePlanSnapshot } from "./co
 export const COURSEWARE_WORKFLOW_TOOLS = [
   "courseware_story_begin", "courseware_story_save", "courseware_workflow_get", "courseware_scene_plan_submit", "courseware_requirements_update", "courseware_scene_image_prepare",
   "courseware_scene_image_refresh", "courseware_scene_compile",
-  "courseware_narration_context", "courseware_narration_import", "courseware_activity_insert", "courseware_narration_propose",
+  "courseware_narration_context", "courseware_narration_plan", "courseware_narration_import", "courseware_activity_insert", "courseware_narration_propose",
   "courseware_media_context", "courseware_media_prepare", "courseware_media_refresh",
   "courseware_media_assessments",
   "courseware_presentation_prepare", "courseware_presentation_adopt",

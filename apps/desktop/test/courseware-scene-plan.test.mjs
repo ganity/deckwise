@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import test from "node:test";
@@ -298,7 +299,8 @@ test("import requirements can be discussed in main Chat before selection or open
   }
   const native = await dispatchChat(input.education, { taskType: "import", nativeEditing: true });
   assert.doesNotMatch(native, /No Office editing binding is active/);
-  assert.match(native, /read fresh context and use only operations advertised/);
+  assert.match(native, /For Office content edits, read fresh native context and use only operations advertised/);
+  assert.match(native, /Office selection capabilities do not limit these teaching operations/);
 });
 
 test("initial scene plan rejects malformed, oversized and late output", async () => {
@@ -491,4 +493,22 @@ test("a Freeze activity cannot be silently replaced by a checkpoint template", a
   assert.deepEqual(plan.pages[0].visibleText, body.visibleText);
   assert.equal(plan.pages[0].narration, body.narration);
   assert.equal(plan.pages[1].narration, "");
+});
+
+test("rejects noncanonical Quiz option keys before image generation or approval", () => {
+  const page = JSON.parse(answer).pages[0];
+  const quiz = { ...page, visibleText: [], narration: "", teaching: { pageType: "quiz", phase: "review", objective: "Check", durationSeconds: 30, requiredObjects: [] }, quiz: { type: "quiz", questions: [{ id: "q", type: "single", question: "Which shape?", options: [{ value: "circle", label: "circle" }, { value: "square", label: "square" }], answer: ["circle"] }] } };
+  assert.throws(() => parseSceneCoursePlan(JSON.stringify({ title: "Shapes", pages: [page, quiz] })), /options|answer values/);
+});
+
+test("scene normalization retains required effects and includes them in the page source hash", () => {
+  const draft = { title: "Circle", pages: [{ title: "Circle", visibleText: ["Circle"], visualIntent: "A red circle", narration: "Look at the circle.",
+    teaching: { pageType: "slide", phase: "opening", objective: "See circle", durationSeconds: 30, requiredObjects: ["circle"], requiredEffects: ["spotlight", "highlight", "animation"] } }] };
+  const first = parseSceneCoursePlan(JSON.stringify(draft));
+  assert.deepEqual(first.pages[0].teaching.requiredEffects, draft.pages[0].teaching.requiredEffects);
+  assert.equal(first.pages[0].sourceHash, "sha256:" + createHash("sha256").update(JSON.stringify(draft.pages[0])).digest("hex"));
+  draft.pages[0].teaching.requiredEffects = ["highlight"];
+  const changed = parseSceneCoursePlan(JSON.stringify(draft));
+  assert.notEqual(first.pages[0].sourceHash, changed.pages[0].sourceHash);
+  assert.equal(changed.pages[0].pageId, first.pages[0].pageId);
 });

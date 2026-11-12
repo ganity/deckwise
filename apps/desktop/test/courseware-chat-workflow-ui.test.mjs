@@ -59,6 +59,7 @@ async function fixture(t, component, props, overrides = {}, translate = key => k
     },
     async pptPreviewOpen(path) { calls.push(["preview", path]); },
     onAuthChanged: () => () => {},
+    onPptEditorState: () => () => {},
     async coursewareSceneImagePreview(_sessionId, intentId) { return { image: structuredClone(rows.find(row => row.intentId === intentId)), dataUrl: "data:image/png;base64,aGVsbG8=" }; },
     async coursewareSceneImageList() { return structuredClone(rows); },
     async coursewareSceneImageGenerate(...args) { calls.push(["generate", ...args]); rows = rows.map(row => ({ ...row, phase: "submitted" })); return rows[0]; },
@@ -111,6 +112,7 @@ async function fixture(t, component, props, overrides = {}, translate = key => k
     if (id === "./ui") return { Button: "button", TooltipButton: "button", portalOverlay: value => value };
     if (id === "./icons") return { IconClose: "icon" };
     if (id === "./CoursewareChatPresentation") return { CoursewareChatPresentation: "plain-presentation" };
+    if (id === "./CoursewareImportStart") return { CoursewareImportStart: "import-start" };
     if (id === "./CoursewareChatImages") return { CoursewareChatImages: "scene-images" };
     if (id === "./CoursewareChatNarration" || id === "./CoursewareChatPptxCandidates") return {};
     if (id === "./CoursewareSceneThumbnail") return { CoursewareSceneThumbnail: "scene-thumbnail" };

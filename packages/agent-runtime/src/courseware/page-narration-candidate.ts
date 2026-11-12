@@ -116,7 +116,7 @@ export async function generatePageNarrationCandidate(input: {
       if (mentioned.length) {
         const unrelated = block.attention.objectIds.filter(id => !mentioned.some(object => object.objectId === id));
         if (unrelated.length)
-          throw new PageCandidateError('INVALID_OUTPUT', `Attention targets do not match this speech: ${unrelated.join(', ')}; split teaching moves or use the mentioned object UUIDs`);
+          throw new PageCandidateError('INVALID_OUTPUT', `Attention targets do not match this speech: ${unrelated.join(', ')}; speech=${JSON.stringify(block.text)}; targets=${JSON.stringify(objects.filter(o => unrelated.includes(o.objectId)).map(o => ({ objectId: o.objectId, text: o.text, aliases: o.aliases })))}; split teaching moves or bind the verified object mentioned by its spoken alias; never put UUIDs in speech`);
       }
     }
   }
@@ -173,25 +173,70 @@ function containsExpression(text: string, expression: string) {
   return false;
 }
 
+// Preserve Latin word boundaries while ignoring native CJK layout spacing and line breaks.
+function normalizedTargetText(value: string) {
+  return value.normalize('NFKC').toLowerCase().replace(/\s+/gu, ' ')
+    .replace(/(?<=[\p{Script=Han}，。！？、；：]) | (?=[\p{Script=Han}，。！？、；：])/gu, '').trim();
+}
+
 function namedTargets(text: string, objects: NarrationObject[]) {
-  const normalized = text.toLowerCase();
-  const matches = objects.flatMap(object => [...new Set([object.text, ...(object.aliases ?? [])])].flatMap(value => {
-    const alias = value.trim().toLowerCase();
-    if (alias.length < 2) return [];
-    const found: Array<{ object: NarrationObject; start: number; end: number }> = [];
-    let cursor = 0, index: number;
-    while ((index = normalized.indexOf(alias, cursor)) !== -1) {
-      const end = index + alias.length;
-      // Latin names must match words: "Hi" must not target "Highlight".
-      if ((!/^[a-z0-9]/u.test(alias) || !/[a-z0-9]/u.test(normalized[index - 1] ?? '')) &&
-          (!/[a-z0-9]$/u.test(alias) || !/[a-z0-9]/u.test(normalized[end] ?? ''))) {
-        found.push({ object, start: index, end });
-        break;
+  const normalized = normalizedTargetText(text);
+  const matches = objects.flatMap(object => {
+    // A paragraph carrier remains a valid target when the teacher reads one of its complete clauses.
+    const clauses = object.text.split(/[\r\n。！？!?，,；;]+/u).filter(part =>
+      (part.match(/[\p{L}\p{N}]/gu)?.length ?? 0) >= 4);
+    return [...new Set([object.text, ...clauses, ...(object.aliases ?? [])])].flatMap(value => {
+      const alias = normalizedTargetText(value);
+      if (!alias || alias.length < 2 && !/^\p{Script=Han}$/u.test(alias)) return [];
+      const found: Array<{ object: NarrationObject; start: number; end: number }> = [];
+      let cursor = 0, index: number;
+      while ((index = normalized.indexOf(alias, cursor)) !== -1) {
+        const end = index + alias.length;
+        // Latin names must match words: "Hi" must not target "Highlight".
+        if ((!/^[a-z0-9]/u.test(alias) || !/[a-z0-9]/u.test(normalized[index - 1] ?? '')) &&
+            (!/[a-z0-9]$/u.test(alias) || !/[a-z0-9]/u.test(normalized[end] ?? ''))) {
+          found.push({ object, start: index, end });
+          break;
+        }
+        cursor = end;
       }
-      cursor = end;
-    }
-    return found;
-  }));
+      return found;
+    });
+  });
+  // Native price labels often split the name and amount across lines; speech adds linking words.
+  for (const object of objects) {
+    if (object.kind !== 'text' || matches.some(match => match.object.objectId === object.objectId)) continue;
+    const rows = object.text.split(/[\r\n]+/u).map(row => normalizedTargetText(row)).filter(Boolean);
+    if (rows.length !== 2 || !/^\p{Script=Han}{2,20}$/u.test(rows[0]) || !/^\d+(?:[.]\d+)?(?:元|角|分)$/u.test(rows[1])) continue;
+    const start = normalized.indexOf(rows[0]);
+    if (start < 0) continue;
+    const amount = normalized.indexOf(rows[1], start + rows[0].length);
+    if (amount < 0) continue;
+    const link = normalized.slice(start + rows[0].length, amount);
+    if (link.length > 20 || !/^[\s，,:：]*(?:的)?(?:标价|售价|单价|价格|价钱)?(?:是|为|要|卖|需要|共)?[\s，,:：]*$/u.test(link)) continue;
+    if (/[a-z0-9.]/u.test(normalized[amount - 1] ?? '') || /[a-z0-9.]/u.test(normalized[amount + rows[1].length] ?? '')) continue;
+    matches.push({ object, start, end: amount + rows[1].length });
+  }
+  // A teacher may paraphrase a long native paragraph while also saying its short title.
+  // Require several distinctive content words; one shared title/character is not enough.
+  for (const object of objects) {
+    if (object.kind !== 'text' || (object.text.match(/\p{Script=Han}/gu)?.length ?? 0) < 12 ||
+        matches.some(match => match.object.objectId === object.objectId)) continue;
+    const words = [...new Set(Array.from(new Intl.Segmenter('zh', { granularity: 'word' }).segment(object.text), part => part.segment))]
+      .filter(word => /^\p{Script=Han}{2,}$/u.test(word) && normalized.includes(word) &&
+        !objects.some(peer => peer !== object && peer.text.includes(word)));
+    if (words.length >= 2 && words.join('').length >= 6)
+      matches.push({ object, start: Math.min(...words.map(word => normalized.indexOf(word))),
+        end: Math.max(...words.map(word => normalized.indexOf(word) + word.length)) });
+  }
+  // A visible noun label may name its unique verified picture ("circle" / "red circle").
+  for (const match of [...matches]) {
+    const label = match.object.text.trim();
+    if (!label || label.length < 2 && !/^\p{Script=Han}$/u.test(label)) continue;
+    const pictures = objects.filter(o => !o.text.trim() && (o.aliases ?? []).some(alias => containsExpression(alias, label)));
+    if (pictures.length === 1 && !matches.some(m => m.object.objectId === pictures[0].objectId))
+      matches.push({ ...match, object: pictures[0] });
+  }
   // A longer identity wins, but a sentence carrier must not hide the character it names.
   return [...new Map(matches.filter(match => !matches.some(other => !other.object.text.trim() && other.start <= match.start && other.end >= match.end &&
     other.end - other.start > match.end - match.start)).map(match => [match.object.objectId, match.object])).values()];
@@ -222,7 +267,7 @@ function focusSpeech(block: Speech, objects: NarrationObject[], scene: boolean):
     if (!scene || attention.objectIds.length > 1 || !namedTargets(block.text, objects).length) return [{ ...block, attention }];
   }
   if (!scene) {
-    const matches = objects.filter(object => object.text.trim().length >= 2 && block.text.includes(object.text.trim()));
+    const matches = namedTargets(block.text, objects.filter(object => object.text.trim()));
     return [{ ...block, ...(matches.length === 1 ? { attention: { type: matches[0].kind === 'image' ? 'spotlight' : 'highlight', objectIds: [matches[0].objectId] } as const } : {}) }];
   }
   const clauses = [...new Intl.Segmenter(undefined, { granularity: 'sentence' }).segment(block.text)].map(sentence => sentence.segment);

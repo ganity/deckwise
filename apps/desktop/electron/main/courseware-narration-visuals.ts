@@ -11,7 +11,7 @@ import type { CoursewareSceneImage } from "./courseware-scene-context";
 
 const execute = promisify(execFile);
 export type NarrationEvidence = { text: string; notes: string; width: number; height: number;
-  elements: Array<{ id: string; kind: string; text: string; bbox: number[]; imageBase64?: string }> };
+  elements: Array<{ id: string; kind: string; name?: string; text: string; bbox: number[]; imageBase64?: string }> };
 
 function image(bytes: Buffer, assetId: string): CoursewareSceneImage {
   let decoded = nativeImage.createFromBuffer(bytes);

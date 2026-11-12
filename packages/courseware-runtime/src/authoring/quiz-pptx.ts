@@ -18,6 +18,7 @@ export function quizPptxScene(scene: MaicClassroom['scenes'][number], sourceHash
   const image = (id: string, src: string | undefined, x: number, y: number, w: number, h: number) => {
     if (src) elements.push({ ...base(id, box(x, y, w, h)), type: 'image_layer', assetId: src, layerRoute: 'A1' });
   };
+  const english = /[a-z]/iu.test(scene.content.questions[0].question) && !/[\u4e00-\u9fff]/u.test(scene.content.questions[0].question);
   text('title', `Quiz · ${scene.title}`, 38, 20, 924, 30, 18, '#387CF6', true);
   const questions = scene.content.questions, rowHeight = 474;
   questions.forEach((q, index) => {
@@ -30,7 +31,7 @@ export function quizPptxScene(scene: MaicClassroom['scenes'][number], sourceHash
     const optionTop = top + questionHeight + spacing, optionHeight = rowHeight - questionHeight - spacing * 2;
     if (q.type === 'short_answer') {
       card(`q${index}_answer_area`, 38, optionTop, 924, optionHeight);
-      text(`q${index}_answer_hint`, '请思考后回答', 60, optionTop + optionHeight * .1, 870, Math.min(40, optionHeight * .8), Math.min(20, optionHeight * .3), '#8C9DB8');
+      text(`q${index}_answer_hint`, english ? 'Think, then answer.' : '请思考后回答', 60, optionTop + optionHeight * .1, 870, Math.min(40, optionHeight * .8), Math.min(20, optionHeight * .3), '#8C9DB8');
       return;
     }
     const options = q.options ?? [], count = Math.max(1, options.length), gap = 16, width = (924 - gap * (count - 1)) / count;
@@ -42,7 +43,7 @@ export function quizPptxScene(scene: MaicClassroom['scenes'][number], sourceHash
         width - 28, Math.max(.1, optionHeight - imageHeight - optionHeight * .08), Math.min(26, optionHeight * .28), '#1E3A5F', true);
     });
   });
-  text('hint', '请选择最合适的答案', 38, 537, 924, 20, 14, '#8C9DB8');
+  text('hint', english ? 'Choose the best answer.' : '请选择最合适的答案', 38, 537, 924, 20, 14, '#8C9DB8');
   return editablePptxSceneSchema.parse({ version: 1, slideId: scene.id, sourceHash, canvas,
     visualMasterAssetId: backgroundId, cleanPlateAssetId: backgroundId, elements });
 }

@@ -119,7 +119,8 @@ export class CoursewareChatWorkflow {
       }
       return result;
     }
-    if (["courseware_narration_import", "courseware_activity_insert"].includes(name)) throw new Error("Open the native PPT with the current editor before adopting teaching materials");
+    if (["courseware_narration_plan", "courseware_narration_import", "courseware_activity_insert"].includes(name) ||
+        name === "courseware_media_refresh" && input.recover === true) throw new Error("Open the native PPT with the current editor before adopting teaching materials or recovering native audio");
     if (["courseware_narration_context", "courseware_narration_propose"].includes(name)) {
       if (!this.narration) throw new Error("Saved courseware narration is unavailable");
       return this.narration.execute(sessionId, name, input, canDispatch);

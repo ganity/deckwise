@@ -2,6 +2,39 @@ import { expect, it } from 'vitest';
 import type { ImportWarning, SlidePageIR } from '../import/types';
 import { fallbackNativeTimeline, resolveSingleChildSpeechAnimations } from './native-animation-fallback';
 import type { FixedBuildInput } from './fixed-build-input';
+import { validSpeechAnimationSequence } from '../../../speech-animation-sequence';
+
+for (const childFirst of [false, true]) {
+  it(`coalesces identical group/component opacity clocks (${childFirst ? 'child' : 'group'} first)`, () => {
+    const group = { id: 'group-fade', atMs: 0, endMs: 600, trigger: { version: 1, kind: 'start' },
+      effect: { type: 'element_animation', elementId: 'circle', effect: 'fadeIn' } };
+    const child = { ...group, id: 'child-fade', effect: { ...group.effect, elementId: 'fill' } };
+    const input = { mapping: { pages: [{ pageId: 'page', importPageId: 'ir', objects: [
+      { objectId: 'fill', importElementId: 'fill-ir' }, { objectId: 'shine', importElementId: 'shine-ir' }],
+      groups: [{ objectId: 'circle', sourceShapeId: '42' }] }] }, teaching: { pages: [{ pageId: 'page', actions: [
+      { id: 'speech', type: 'speech', text: 'Circle.', visualCues: childFirst ? [child, group] : [group, child] },
+    ] }] } } as FixedBuildInput;
+    const source: SlidePageIR = { id: 'ir', width: 960, height: 540, elements: ['fill', 'shine'].map(id => ({
+      id: id+'-ir', sourceGroupShapeIds: ['42'], type: 'shape', left: 10, top: 20, width: 30, height: 30,
+    })) };
+    const conflict = structuredClone(input);
+    const conflictSpeech = conflict.teaching.pages[0].actions[0];
+    if (conflictSpeech.type !== 'speech') throw new Error('fixture');
+    conflictSpeech.visualCues!.find(cue => cue.id === 'child-fade')!.endMs = 900;
+    resolveSingleChildSpeechAnimations(input, [source]);
+    const speech = input.teaching.pages[0].actions[0];
+    if (speech.type !== 'speech') throw new Error('fixture');
+    expect(speech.visualCues).toHaveLength(2);
+    expect(validSpeechAnimationSequence([speech])).toBe(true);
+    expect(speech.visualCues?.map(cue => cue.effect)).toEqual(expect.arrayContaining([
+      { type: 'element_animation', elementId: 'fill', effect: 'fadeIn' },
+      { type: 'element_animation', elementId: 'shine', effect: 'fadeIn' },
+    ]));
+    resolveSingleChildSpeechAnimations(conflict, [source]);
+    expect(conflictSpeech.visualCues).toHaveLength(3);
+    expect(validSpeechAnimationSequence([conflictSpeech])).toBe(false);
+  });
+}
 
 it('keeps supported effects, fades unsupported safe targets and skips ambiguous or speech-owned targets', () => {
   const page: SlidePageIR = { id: 'page', width: 960, height: 540,
@@ -55,4 +88,26 @@ it('resolves only unlinked speech animation on a single-child group', () => {
   resolveSingleChildSpeechAnimations(ambiguous, [{ ...page, elements: [...page.elements, { ...page.elements[0], id: 'second' }] }]);
   const unchanged = ambiguous.teaching.pages[0].actions[0];
   expect(unchanged.type === 'speech' && unchanged.visualCues?.[0].effect).toMatchObject({ elementId: 'group' });
+});
+
+it('fades every component of a multi-child circle group once on the speech clock', () => {
+  const input = { mapping: { pages: [{ pageId: 'page', importPageId: 'ir', objects: [
+    { objectId: 'fill', importElementId: 'fill-ir' }, { objectId: 'outline', importElementId: 'outline-ir' }],
+    groups: [{ objectId: 'circle', sourceShapeId: '42' }] }] }, teaching: { pages: [{ pageId: 'page', actions: [
+      { id: 'speech', type: 'speech', text: 'Circle.', visualCues: [
+        { id: 'fade', atMs: 0, endMs: 600, effect: { type: 'element_animation', elementId: 'circle', effect: 'fadeIn' } },
+        { id: 'focus', atMs: 600, endMs: 1200, effect: { type: 'spotlight', elementId: 'circle' } },
+      ] },
+    ] }] } } as FixedBuildInput;
+  const page: SlidePageIR = { id: 'ir', width: 960, height: 540, elements: ['fill', 'outline'].map((id, i) => ({
+    id: id+'-ir', sourceShapeId: String(i+2), sourceGroupShapeIds: ['42'], type: 'shape', left: 10, top: 20, width: 30, height: 30,
+  })), pptxAnimation: { steps: [{ id: 'native-fade', trigger: 'click', items: [{ id: 'mirror', target: { shapeId: '42' },
+    animationType: 'in', startAtMs: 0, durationMs: 600, nativePreset: { version: 1, class: 'entr', id: 10, verifiedSpeechMotion: true } }] }] } };
+  resolveSingleChildSpeechAnimations(input, [page]);
+  const speech = input.teaching.pages[0].actions[0];
+  expect(speech.type === 'speech' && speech.visualCues?.map(c=>c.effect)).toMatchObject([
+    { elementId: 'fill', effect: 'fadeIn' }, { elementId: 'outline', effect: 'fadeIn' }, { elementId: 'circle', type: 'spotlight' },
+  ]);
+  expect(speech.type === 'speech' && new Set(speech.visualCues?.map(c=>c.id)).size).toBe(3);
+  expect(page.pptxAnimation?.steps).toEqual([]);
 });

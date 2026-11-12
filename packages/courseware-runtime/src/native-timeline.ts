@@ -17,7 +17,7 @@ export const nativeTimelineSchema = z.object({
     }).strict().refine(item => item.startAtMs + item.durationMs <= 60000 &&
       (item.effect === 'bounceInBottom' ? item.distance !== undefined : item.distance === undefined) &&
       item.animationType === (['appear', 'fadeIn', 'bounceInBottom', 'wipeDown', 'scaleIn', 'zoomIn', 'slideInLeft', 'slideInRight'].includes(item.effect) ? 'in' : item.effect === 'fadeOut' ? 'out' : 'attention'))).min(1).max(200),
-  }).strict()).min(1).max(200),
-}).strict().refine(value => new Set(value.steps.map(step => step.id)).size === value.steps.length &&
+  }).strict()).max(200),
+}).strict().refine(value => (value.steps.length > 0 || !!value.groups?.length) && new Set(value.steps.map(step => step.id)).size === value.steps.length &&
   value.steps.reduce((count, step) => count + step.items.length, 0) <= 200);
 export type NativeTimeline = z.infer<typeof nativeTimelineSchema>;

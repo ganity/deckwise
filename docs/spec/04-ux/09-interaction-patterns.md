@@ -333,6 +333,10 @@ may be retained while exactly one workspace supplies the visible shell context.
   completed send clears only the draft belonging to the session that submitted
   it, even if the user switches sessions while the request is in flight;
   deleted sessions cannot retain drafts.
+- A rejected or unexpectedly failed send/steer restores the submitted text and
+  file references through that same draft slot. Newer typing wins over recovery.
+  The active originating session shows a dismissible error until another send
+  attempt or session switch; a late failure never shows in a different session.
 - Every tool call resolves `workspaceRoot` from the originating durable
   session, not from the currently selected project tab. Background completion
   refreshes the matching row without redirecting the active conversation.
@@ -1216,7 +1220,10 @@ Project drag/drop follows these patterns:
   acknowledged both `document:ready` and the matching `document:opened`
   command. Save remains disabled during opening. Native editor content is
   attached only after that acknowledgement; iframe navigation alone is not
-  readiness. Startup errors or a 60-second handshake deadline release the
+  readiness. Shell readiness has a 60-second deadline. After shell readiness,
+  document opening and native PPT context readiness share a fresh 180-second
+  budget. Register the matching open acknowledgement before dispatching the
+  command. Startup errors or an expired stage deadline release the
   failed view and expose **Retry**, which creates a fresh editor session for
   the same revision without changing the source document. Closing cancels a pending
   handshake. A ready session can still be reused when reopening the same file.

@@ -175,7 +175,7 @@ export class CoursewareTurnContinuation {
       if (!this.reportRetryUsed && turn.message.stopReason !== "error" && turn.message.stopReason !== "aborted" &&
           controls.canWait() && turn.message.content.some(block => block.type === "toolCall")) {
         this.reportRetryUsed = true;
-        return "The attempted tools in the final reporting pass were blocked; they performed no work and did not undo saved results. Now provide only a plain-language final answer using the latest saved workflow snapshot and its exact acceptance or error. Treat completion.ready and assessmentMedia.ready as authoritative: report missing media only when the latest snapshot lists it, and keep non-blocking quality diagnostics separate. Do not infer unfinished generation or request another user message merely because a reporting tool was blocked. No tool calls, tool markup, new submissions or claims of unverified completion. This is the final reporting correction.";
+        return "The attempted tools in the final reporting pass were blocked; they performed no work and did not undo saved results. Now provide only a plain-language final answer using the latest saved workflow snapshot and its exact acceptance or error. Treat completion.ready and assessmentMedia.ready as authoritative for saved-state checks: report missing media only when the latest snapshot lists it, and keep non-blocking quality diagnostics separate. They do not prove that a fixed build played through every page or that all audio ended naturally. Do not claim playback acceptance unless an actual playback result is available. Do not infer unfinished generation or request another user message merely because a reporting tool was blocked. No tool calls, tool markup, new submissions or claims of unverified completion. This is the final reporting correction.";
       }
       return;
     }
@@ -208,7 +208,7 @@ export class CoursewareTurnContinuation {
         return "The scene draft is not ready for review. Read this Chat's current plan.json and repair this exact product validation error using one complete Write with valid JSON, preserving all required fields and the user's explicit requirements, then submit again with courseware_scene_plan_submit. Do not resubmit unchanged bytes or use partial Edit repairs. Recheck every constraint, including the saved body-page budget and the user's total-page limit; opening, cover, activity setup and review consume body pages. Merge setup into existing body pages rather than adding a slide to fix an assessment. A file write or JSON parse is not completion.\n" + String(error);
       }
     }
-    const readyResult = this.savedGoal === "course" ? [...turn.toolResults].reverse().find(result =>
+    const readyResult = this.savedGoal ? [...turn.toolResults].reverse().find(result =>
       !result.isError && result.toolName === "courseware_media_context" && record(result.details) &&
       Array.isArray(result.details.jobs) && !result.details.jobs.length &&
       record(result.details.completion) && result.details.completion.ready === true) : undefined;
@@ -229,12 +229,21 @@ export class CoursewareTurnContinuation {
             if (!controls.canWait()) throw new LocalRequestError("request-preparation", { cause });
             continue;
           }
+          if (cause instanceof CoursewareWorkflowError && ["PPT_EDITOR_NOT_READY", "PPT_EDITOR_SAVE_IN_PROGRESS"].includes(cause.code))
+            throw new CoursewareWorkflowError(cause.code, "PPT editor is still opening or saving; this task is preserved and can continue when the editor is ready.", name, { cause });
           if (cause instanceof CoursewareWorkflowError)
             throw new CoursewareWorkflowError(cause.code, "Courseware automatic continuation failed.", name, { cause });
+          if (record(cause) && ["PPT_EDITOR_NOT_READY", "PPT_EDITOR_SAVE_IN_PROGRESS"].includes(String(cause.code)))
+            throw new CoursewareWorkflowError(String(cause.code), "PPT editor is still opening or saving; this task is preserved and can continue when the editor is ready.", name, { cause });
           throw new LocalRequestError("request-preparation", { cause });
         }
       }
     };
+    if (this.savedGoal === "jobs" && readyResult && record(readyResult.details)) {
+      // A successful final read can close authorized media work without broadening it into course repair.
+      this.stop();
+      return "Saved courseware checks are complete; report the saved result and any non-blocking diagnostics; full playback acceptance remains unverified unless actual playback evidence is available. Do not call more tools, ask about optional cosmetics, or start new generation.\n" + JSON.stringify(coursewareStatusSummary(readyResult.details));
+    }
     if (turn.message.content.some(block => block.type === "toolCall") && !readyResult) {
       // Native-save transactions can only advance lineage for an already persisted checkpoint.
       if (this.savedGoal === "course" && !this.restored && controls.checkpoints)
@@ -313,6 +322,7 @@ export class CoursewareTurnContinuation {
     let requiredRepairFailed = false;
     let lastSavedRefresh: string | undefined;
     const assessmentRefreshFailures = new Set<string>();
+    const nativeRefreshFailures = new Set<string>();
     const save = async (status: CoursewareWorkflowCheckpoint["status"]) => {
       if (!checkpoints || !snapshot || snapshot.canonicalOnly === true || snapshot.nativeTeaching === true || !canWait()) return;
       const next: CoursewareWorkflowCheckpoint = { revision: (checkpoint?.revision ?? 0) + 1,
@@ -368,12 +378,14 @@ export class CoursewareTurnContinuation {
           if (this.savedGoal === "jobs") { this.reset(); return; }
           const completion = record(snapshot.completion) ? snapshot.completion : undefined;
           if (completion && completion.ready !== true) {
-            const issues = Array.isArray(completion.issues) ? completion.issues : [];
+            const allIssues = Array.isArray(completion.issues) ? completion.issues : [];
+            const batchPages = new Set([...new Set(allIssues.filter(record).map(issue => issue.pageNumber).filter(Number.isInteger))].slice(0, 5));
+            const issues = allIssues.filter(issue => !record(issue) || !Number.isInteger(issue.pageNumber) || batchPages.has(issue.pageNumber));
             if (requiredRepairFailed) {
               await save("blocked"); this.stop();
               return "Required teaching repair failed. Saved acceptance still has missing requirements. Report the affected pages and preserved successful assets; do not repeat the failed repair or claim completion.\n" + JSON.stringify(coursewareStatusSummary(snapshot));
             }
-            if (!issues.length || issues.some(issue => !record(issue) || issue.repairable !== true)) {
+            if (!allIssues.length || allIssues.some(issue => !record(issue) || issue.repairable !== true)) {
               await save("blocked"); this.stop();
               return "The authorized courseware request is unfinished. Required teaching cannot be repaired automatically. Report these missing or locked requirements; preserve saved content and paid assets.\n" + JSON.stringify(coursewareStatusSummary(snapshot));
             }
@@ -382,14 +394,27 @@ export class CoursewareTurnContinuation {
               return "The authorized courseware request is unfinished. Required teaching repair budget is exhausted (at most two repairs per requirement and 100 tracked requirements). Report the remaining requirements and affected pages; do not claim completion or regenerate successful media.\n" + JSON.stringify(coursewareStatusSummary(snapshot));
             }
             await save("running");
-            if (snapshot.narrationReady === true && issues.every(issue => record(issue) &&
-                ["QUESTION_MISSING", "QUESTION_TYPE_MISMATCH", "MUSIC_MISSING", "VIDEO_MISSING", "EFFECT_MISSING"].includes(String(issue.code)))) {
+            const missingNarrationOnly = issues.every(issue => record(issue) && issue.code === "NARRATION_MISSING");
+            if (missingNarrationOnly || snapshot.narrationReady === true && issues.every(issue => record(issue) &&
+                ["QUESTION_MISSING", "QUESTION_TYPE_MISMATCH", "MUSIC_MISSING", "VIDEO_MISSING", "EFFECT_MISSING", "EFFECT_TARGET_MISSING", "OBJECT_REQUIREMENT_UNRESOLVED", "EFFECT_BINDING_MISMATCH", "EFFECT_TARGET_UNSUPPORTED", "ANIMATION_TARGET_CONFLICT"].includes(String(issue.code)))) {
               const pageNumbers = [...new Set(issues.flatMap(issue => record(issue) && Number.isInteger(issue.pageNumber) ? [issue.pageNumber] : []))];
               if (pageNumbers.length) {
                 try {
                   const repaired = await execute("courseware_narration_propose", { sourceSha256: this.sourceSha256, pageNumbers,
-                    repairRequiredTeaching: true, instruction: "Restore only the missing approved questions/music/video at their teaching positions. Preserve all existing speech texts verbatim and in order, audio, effects and media. Follow retained logical-page requirements." });
-                  if (repaired.saved !== true) { repairFailure = repaired; requiredRepairFailed = true; }
+                    ...(missingNarrationOnly ? {} : { repairRequiredTeaching: true }),
+                    instruction: missingNarrationOnly
+                      ? "Generate narration candidates only for these non-silent pages that have no saved speech. Use the current saved page text, independently mapped editable objects, retained lesson plan and adjacent-page context. Do not invent content that is absent; preserve every other page and all existing assets."
+                      : "Restore only missing approved teaching/effect bindings on these pages. Preserve existing speech text verbatim and in order, audio and media. Bind effects only to verified current page objects. For unresolved required-object descriptions, verify the current page visually and save the exact planned name as an alias only on its real target. If absent, report the source issue instead. Follow retained logical-page requirements." });
+                  if (repaired.saved !== true) {
+                    const failure = Array.isArray(repaired.failures) ? repaired.failures.find(record) : undefined;
+                    const rawReason = failure && typeof failure.error === "string" ? failure.error
+                      : typeof repaired.error === "string" ? repaired.error : undefined;
+                    const reason = rawReason
+                      ?.replace(/[\u0000-\u001f\u007f]/gu, " ").replace(/(api[_-]?key|token|password)\s*[:=]\s*\S+/giu, "$1=[REDACTED]").slice(0, 240);
+                    repairFailure = { code: typeof repaired.code === "string" ? repaired.code : "REQUIRED_REPAIR_FAILED",
+                      toolName: "courseware_narration_propose", pageNumbers, ...(reason ? { reason } : {}) };
+                    requiredRepairFailed = true;
+                  }
                 } catch (cause) {
                   signal?.throwIfAborted();
                   if (!canWait()) return;
@@ -407,7 +432,8 @@ export class CoursewareTurnContinuation {
             return instruction;
           }
           const quality = record(snapshot.quality) ? snapshot.quality : undefined;
-          if (record(snapshot.assessmentMedia) && snapshot.assessmentMedia.ready === false) {
+          if (record(snapshot.assessmentMedia) && snapshot.assessmentMedia.ready === false &&
+              !(snapshot.nativeTeaching === true && completion?.ready === true)) {
             const context = snapshot.assessmentMedia;
             if (this.assessmentJobs.size) {
               for (const [key, request] of this.assessmentJobs) {
@@ -442,7 +468,9 @@ export class CoursewareTurnContinuation {
             await save("running");
             return this.resume(snapshot) + "\nComplete the missing question audio and multiple-choice option images with courseware_media_assessments context/prepare/refresh. Load configured models with context kind:tts/image. Re-read context before each operation. Preserve adopted assets; do not ask for per-question approval.";
           }
-          const issues = quality && Array.isArray(quality.issues) ? quality.issues.filter(issue => record(issue) && issue.repairable === true) : [];
+          const allIssues = quality && Array.isArray(quality.issues) ? quality.issues.filter(issue => record(issue) && issue.repairable === true) : [];
+          const batchPages = new Set([...new Set(allIssues.filter(record).map(issue => issue.pageNumber).filter(Number.isInteger))].slice(0, 5));
+          const issues = allIssues.filter(issue => !record(issue) || !Number.isInteger(issue.pageNumber) || batchPages.has(issue.pageNumber));
           if (snapshot.narrationReady === true && snapshot.audioReady === true && snapshot.teachingReady === true && snapshot.videoReady !== false) {
             if (issues.length && !advisoryRepairFailed) {
               if (this.takeRepairBudget(issues, "advisory")) {
@@ -452,7 +480,8 @@ export class CoursewareTurnContinuation {
                   try {
                     const repaired = await execute("courseware_narration_propose", { sourceSha256: this.sourceSha256, pageNumbers,
                       repairRequiredTeaching: true, instruction: "Repair only missing unambiguous focus on existing speech. Preserve all text, IDs, audio, effects and media." });
-                    if (repaired.saved !== true) { repairFailure = repaired; advisoryRepairFailed = true; }
+                    if (repaired.saved !== true) { repairFailure = { code: typeof repaired.code === "string" ? repaired.code : "ADVISORY_REPAIR_FAILED",
+                      toolName: "courseware_narration_propose", pageNumbers }; advisoryRepairFailed = true; }
                   } catch (cause) {
                     signal?.throwIfAborted();
                     if (!canWait()) return;
@@ -471,7 +500,9 @@ export class CoursewareTurnContinuation {
             if (advisoryRepairFailed || quality && Array.isArray(quality.issues) && quality.issues.length)
               return "The course remains playable. " + (advisoryRepairFailed ? "Automatic focus repair failed; saved narration and audio remain available. " : "") +
                 "Stop automatic repairs and report the saved acceptance, unresolved teaching diagnostics and affected pages honestly; do not claim full teaching quality, ask for approval, or regenerate successful media.\n" + JSON.stringify(coursewareStatusSummary(snapshot));
-            return "The authorized courseware request is completed. Give the final report using this saved acceptance; do not call more tools.\n" + JSON.stringify(coursewareStatusSummary(snapshot));
+            return "Saved courseware content, media and teaching checks are complete. Report those checks as complete, but state that full playback acceptance remains unverified unless this snapshot contains actual playback evidence for every page and natural audio completion. Do not call more tools. " +
+              (snapshot.nativeTeaching === true ? "Saved spotlight/highlight cues are synchronized teaching overlays, distinct from native PowerPoint animation actions. Do not invent unsupported-capability claims or demand another approval for effects that already pass saved acceptance. Missing optional images excluded by the user are not unfinished generation. " : "") +
+              "\n" + JSON.stringify(coursewareStatusSummary(snapshot));
           }
           const instruction = this.resume(snapshot);
           await save(this.reportOnly ? "blocked" : "running");
@@ -498,6 +529,12 @@ export class CoursewareTurnContinuation {
           catch (cause) {
             if (signal?.aborted || !canWait()) throw cause;
             const ids = Array.isArray(intentIds) ? intentIds : [job.intentId];
+            // A native save can invalidate the captured version after adoption.
+            // Reread once and query the same originals; this never buys a replacement.
+            if (snapshot.nativeTeaching === true && ids.every(id => !nativeRefreshFailures.has(String(id)))) {
+              for (const id of ids) nativeRefreshFailures.add(String(id));
+              break;
+            }
             for (const intentId of ids) {
               const original = jobs.find(value => record(value) && value.intentId === intentId);
               this.blockedJobs.set(String(intentId), { job: original ?? job, error: String(cause) });
@@ -519,7 +556,10 @@ export class CoursewareTurnContinuation {
             const original = jobs.find(value => record(value) && value.intentId === failure.intentId);
             if (record(original)) this.blockedJobs.set(failure.intentId, { ...failure, job: original });
           }
-          if (result.saved === true || Array.isArray(result.results) && result.results.some(value => record(value) && value.saved === true)) progressed = true;
+          if (result.saved === true || Array.isArray(result.results) && result.results.some(value => record(value) && value.saved === true)) {
+            progressed = true;
+            if (snapshot.nativeTeaching === true) break;
+          }
         }
         if (!refreshes.length && this.blockedJobs.size) {
           const blocked = [...this.blockedJobs.values()];
@@ -541,7 +581,7 @@ export class CoursewareTurnContinuation {
             const instruction = this.resume(snapshot); await save(this.reportOnly ? "blocked" : "running"); return instruction;
           }
           await save("blocked"); this.stop();
-          return "The authorized courseware request is unfinished. Original media results are unknown or failed and independent pending jobs have been reconciled. Stop automatic polling, report the affected original intents and actual errors, and preserve their accounting and assets. Report this run as unfinished. Another attempt on a confirmed failure requires a later explicit user retry request.\n" + JSON.stringify(coursewareStatusSummary(snapshot));
+          return "The authorized courseware request is unfinished. Original media results are unknown or failed and independent pending jobs have been reconciled. Stop automatic polling, report the affected original intents and actual errors, and preserve their accounting and assets. A local query or adoption exception does not confirm provider generation failure: distinguish these stages, and never advise purchasing a replacement without a terminal provider failure receipt. Report this run as unfinished. Another attempt on a confirmed failure requires a later explicit user retry request.\n" + JSON.stringify(coursewareStatusSummary(snapshot));
         }
         if (progressed && lastSavedRefresh !== key) { lastSavedRefresh = key; continue; }
         await delayWithAbort(3000, signal);
@@ -563,12 +603,12 @@ export class CoursewareTurnContinuation {
       "This snapshot belongs to the current user turn; newer tool results supersede it. " +
       "Use this actual state to perform the next missing step now. Only an unselected first-page style needs user review. " +
       "Generate missing independent assets, decompose selected masters, or compile when no blockers remain. " +
-      "Compilation is an intermediate PPTX state. For a complete course, generate and save missing detailed narration with courseware_narration_propose, " +
-      "then create missing speech audio with courseware_media_prepare using the real catalog and speech IDs. Prefer one TTS call per page with actionIds for bounded parallel synthesis and archive; preserve existing narration/audio. " +
+      "Compilation is an intermediate PPTX state. For a complete course, generate and save missing detailed narration with courseware_narration_propose in sequential tool calls of at most 5 pages; await save and reread current sourceSha256 before the next unfinished batch, " +
+      "Assessment pages already own their question reading: never regenerate their body narration. Use courseware_media_assessments for missing Quiz/interaction question audio. For body pages, create missing speech audio with courseware_media_prepare using the real catalog and speech IDs. Prefer one TTS call per page with actionIds for bounded parallel synthesis and archive; preserve existing narration/audio. " +
       "Both kindergarten and primary courses need their planned teaching actions, interaction, animation, highlight and spotlight, synchronized with actual audio and mapped objects. " +
       "Scene mode shares these capabilities across stages; complete video or music only when required by the course plan. A wait is not an assessment, a draft is not executable media, and audio readiness alone is not full MAIC parity. " +
       "For required video, create a video block with courseware_narration_propose, then use courseware_media_context(kind:video) and courseware_media_prepare(kind:video, actionId:<saved video_slot ID>) with a configured model. Use courseware_media_context to check actual actions and teachingReady, videoReady and audioReady. Finish required media, archive and mount its real output before reporting completion. Return the editable PPTX and teaching data; do not capture a publication snapshot or build PPTist until the user publishes. " +
-      "Report the exact Host completion.counts and quality.counts; do not recalculate totals from memory or waive missing audio as usable completion. Completion requires completion.ready:true from Host acceptance of retained page requirements; missing required questions or music cannot be waived as advice. If detailed narration is already saved, use courseware_narration_propose with repairRequiredTeaching:true for missing required questions/music, preserving the exact current speech texts and their order. Repair only completion.issues on unlocked pages, preserving successful media; report locked or exhausted requirements as unfinished. " +
+      "Report the exact Host completion.counts and quality.counts; do not recalculate totals from memory or waive missing audio as usable completion. Saved-state completion requires completion.ready:true from Host acceptance of retained page requirements; missing required questions or music cannot be waived as advice. This is not playback acceptance: do not say the deck passed end-to-end playback without actual fixed-player evidence that every page was reached and each audio ended naturally. If detailed narration is already saved, use courseware_narration_propose with repairRequiredTeaching:true for missing required questions/music, preserving the exact current speech texts and their order. Repair only completion.issues on unlocked pages, preserving successful media; report locked or exhausted requirements as unfinished. " +
       "Read quality.issues as advisory, repair unlocked affected pages with the indicated narration/TTS/music tools, and recheck. A music_slot is an exact sequential playback position: generate music with its actionId and replace it in place; never append planned music to the end of the page. Report unresolved diagnostics without hiding the playable result. " +
       "Query original pending intents; do not create replacements for unknown submissions. blockedJobs have already been reconciled in this turn: leave them unchanged and complete only independent missing work.\n" + state;
   }

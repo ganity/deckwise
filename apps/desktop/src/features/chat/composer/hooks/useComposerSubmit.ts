@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { TFunction } from "i18next";
 import {
   restoreInlineComposerFileReferenceTokens,
@@ -44,6 +44,8 @@ type UseComposerSubmitOptions = {
 };
 
 export type ComposerSubmitController = {
+  submissionError: string | null;
+  clearSubmissionError: () => void;
   enhancingPrompt: boolean;
   enhancementUndoText: string | null;
   enhancementError: { message: string; code: string } | null;
@@ -77,6 +79,8 @@ export function useComposerSubmit({
   showToast,
   draft,
 }: UseComposerSubmitOptions): ComposerSubmitController {
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  useEffect(() => setSubmissionError(null), [draftKey]);
   const [enhancingPrompt, setEnhancingPrompt] = useState(false);
   const [enhancementUndoText, setEnhancementUndoText] = useState<string | null>(null);
   const [enhancementError, setEnhancementError] = useState<{
@@ -199,6 +203,7 @@ export function useComposerSubmit({
     );
     const serializedContent = serializeComposerFileReferences(text, activeFileReferences);
     if (!serializedContent) return;
+    setSubmissionError(null);
     if (sendBlocked) {
       if (pasting) showToast(t("chat.pasteInProgress"), { variant: "info" });
       return;
@@ -271,18 +276,30 @@ export function useComposerSubmit({
       }
     }
     if (!steering && !modelReady) {
-      showToast(t("errors.MODEL_NOT_CONFIGURED"), { variant: "error" });
+      setSubmissionError(t("errors.MODEL_NOT_CONFIGURED"));
       return;
     }
     const submittedDraft = submissionDraft(text);
     draft.clearDraftForKey(submittedDraftKey);
-    const accepted = steering
-      ? await steerPrompt(inlineContent, submittedDraft)
-      : await sendPrompt(inlineContent, submittedDraft);
-    if (!accepted) draft.restoreDraftForKey(submittedDraftKey, submittedDraft);
+    let accepted = false;
+    let sendError: string | undefined;
+    try {
+      accepted = steering
+        ? await steerPrompt(inlineContent, submittedDraft)
+        : await sendPrompt(inlineContent, submittedDraft);
+    } catch (error) {
+      sendError = error instanceof Error ? error.message : String(error);
+    }
+    if (!accepted) {
+      draft.restoreDraftForKey(submittedDraftKey, submittedDraft);
+      if (draftKeyForSession(useAppStore.getState().activeSessionId) === submittedDraftKey)
+        setSubmissionError(sendError || t("coursewareWorkflow.sendFailed"));
+    }
   };
 
   return {
+    submissionError,
+    clearSubmissionError: () => setSubmissionError(null),
     enhancingPrompt,
     enhancementUndoText,
     enhancementError,

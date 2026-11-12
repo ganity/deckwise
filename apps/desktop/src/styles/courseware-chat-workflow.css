@@ -137,3 +137,27 @@
 .courseware-scene-actions label { display: grid; gap: 6px; }
 .courseware-scene-actions textarea { width: 100%; min-height: 64px; resize: vertical; color: var(--ds-text-primary); background: var(--ds-bg-primary); border: 1px solid var(--ds-border-default); border-radius: var(--radius-sm); padding: 8px; font: inherit; }
 .courseware-teaching-progress { margin: 0; padding: 8px 12px; font-size: var(--text-xs); color: var(--ds-text-secondary); border-bottom: 1px solid var(--ds-border-subtle); }
+
+/* Imported courses keep their next action beside the conversation. */
+.courseware-import-start { flex: none; min-width: 0; max-height: 62vh; overflow: auto; margin: 8px 16px; padding: 16px; border: 1px solid var(--ds-border-default); border-radius: var(--radius-sm); background: var(--ds-bg-secondary); color: var(--ds-text-primary); font-size: var(--text-sm); }
+.courseware-import-start header, .courseware-import-start footer, .courseware-import-file { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.courseware-import-start header { justify-content: space-between; }
+.courseware-import-start header > div { min-width: 0; flex: 1; }
+.courseware-import-start h2 { margin: 5px 0; font-size: var(--text-md); overflow-wrap: anywhere; }
+.courseware-import-start p { margin: 8px 0; color: var(--ds-text-muted); line-height: 1.6; }
+.courseware-import-start fieldset { border: 0; padding: 8px 0; margin: 0; display: grid; gap: 10px; min-width: 0; }
+.courseware-import-start legend { font-weight: 600; }
+.courseware-import-start label { display: flex; align-items: center; gap: 8px; }
+.courseware-import-start button, .courseware-import-start select, .courseware-import-start input:not([type="checkbox"]) { border: 1px solid var(--ds-border-default); border-radius: var(--radius-sm); background: var(--ds-bg-elevated-opaque); color: var(--ds-text-primary); padding: 7px 10px; font: inherit; max-width: 100%; }
+.courseware-import-start button, .courseware-import-start summary { cursor: pointer; }
+.courseware-import-start button:disabled { opacity: .5; cursor: default; }
+.courseware-import-start :focus-visible { outline: 2px solid var(--ds-accent); outline-offset: 2px; }
+.courseware-import-start details { margin: 10px 0; }
+.courseware-import-start footer { margin-top: 12px; }
+.courseware-import-start .courseware-import-primary { border-color: var(--ds-accent); background: var(--ds-accent); color: var(--ds-bg-primary); }
+.courseware-import-start .courseware-import-audience label { flex-wrap: wrap; }
+.courseware-import-file { margin-top: 8px; }
+.courseware-import-file > span { flex: 1; overflow-wrap: anywhere; }
+.courseware-import-start [role="alert"] { color: var(--ds-error); }
+.courseware-import-review { border-top: 1px solid var(--ds-border-subtle); margin-top: 12px; padding-top: 8px; }
+@media (max-width: 700px) { .courseware-import-start { margin-inline: 8px; padding: 12px; } }

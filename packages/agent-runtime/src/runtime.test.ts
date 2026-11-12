@@ -10033,6 +10033,18 @@ describe("DesktopAgentRuntime subagents", () => {
 });
 
 describe("DesktopAgentRuntime deferred tool restore (#225)", () => {
+  it("explains a known inactive tool at the name-resolution boundary without granting execution", async () => {
+    const runtime = createRuntime({ history: [] });
+    const known = { toolName: "BrowserPreview", isError: true, content: [{ type: "text", text: "Tool BrowserPreview not found" }] };
+    const unknown = { toolName: "imaginary_tool", isError: true, content: [{ type: "text", text: "Tool imaginary_tool not found" }] };
+    (runtime as any).observeToolValidation({ toolResults: [known, unknown] });
+    expect(known.content[0].text).toContain('Call ToolSearch with query "BrowserPreview"');
+    expect(known.content[0].text).toContain('No work was performed');
+    expect((runtime as any).activeDeferredToolNames.has('BrowserPreview')).toBe(false);
+    expect(unknown.content[0].text).toBe('Tool imaginary_tool not found');
+    await runtime.dispose();
+  });
+
   const now = () => new Date().toISOString();
   const searchRow = (overrides: Partial<UiMessage> = {}): UiMessage => ({
     id: "tool-search-1",

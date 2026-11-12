@@ -31,6 +31,7 @@ export { buildStagePromptContext, resolveGenerationProfile } from "./courseware/
 export { candidateHash } from "./courseware/page-candidate-baseline.js";
 export { pageNarrationOutputSchema, isNarrationTextContainer } from "./courseware/page-narration-candidate.js";
 export { narrationPreviewSource } from "./courseware/narration-preview-source.js";
+export { findTeacherNarrationIssues } from "./courseware/narration-language-review.js";
 export { createAuthorizedPptCandidateTools } from "./ppt-candidate-host.js";
 export type { PptCandidateBaseline, PptCandidateContext } from "./ppt-candidate-tools.js";
 
@@ -40,3 +41,4 @@ export * from "./image-generation/index.js";
 
 export * from "./prompt-enhancement.js";
 export * from "./session-title-summarize.js";
+export { planNativeLesson, type NativeLessonPage } from "./courseware/native-lesson-planning.js";

@@ -1,6 +1,21 @@
 import { expect, it } from "vitest";
 import { createCoursewareWorkflowTools } from "./courseware-workflow-tools.js";
 import { COURSEWARE_WORKFLOW_TOOLS } from "@pi-desktop/shared";
+import { CoursewareWorkflowError } from "./courseware-workflow-recovery.js";
+import { classifyAgentError } from "./agent-errors.js";
+
+it("retains safe editor focus diagnostics through Host tool and continuation wrapping", async () => {
+  const tools = createCoursewareWorkflowTools({ async call<T>(): Promise<T> {
+    return { ok: false, errorCode: "PPT_EDITOR_NOT_READY", content: { error: "private path", phase: "focus" } } as T;
+  } }, "chat", () => "turn");
+  const tool = tools.find(t => t.name === "courseware_media_context")!;
+  const failure = await tool.execute("read", {}).catch(error => error);
+  expect(failure).toBeInstanceOf(CoursewareWorkflowError);
+  const classified = classifyAgentError(new CoursewareWorkflowError(failure.code, "continuation", "courseware_media_context", { cause: failure }));
+  expect(classified).toMatchObject({ code: "PPT_EDITOR_NOT_READY", retriable: true,
+    details: { editorPhase: "focus" }, message: expect.stringMatching(/Return to this courseware Chat/) });
+  expect(JSON.stringify(classified)).not.toContain("private path");
+});
 
 function fixture() {
   let turn: string | undefined = "turn-1";
@@ -23,6 +38,24 @@ it("advertises only finite sequential actions and pins every call to the owning 
   await f.tools.find(tool => tool.name === "courseware_workflow_get")!.execute("read", {});
   expect(f.calls).toEqual([{ method: "tools.execute", params: { sessionId: "chat-1", turnId: "turn-1",
     toolCallId: "read", toolName: "courseware_workflow_get", mode: "agent", args: {} } }]);
+});
+
+it("dispatches native lesson planning and bounded recovery without allowing mixed intent scopes", async () => {
+  const f = fixture(), sourceSha256 = "a".repeat(64);
+  const plan = f.tools.find(t => t.name === "courseware_narration_plan")!;
+  const recovery = f.tools.find(t => t.name === "courseware_media_refresh")!;
+  await plan.execute("plan", { sourceSha256, apply: false, lessonPlan: { sourceId: "b".repeat(64) } });
+  for (const lessonPlan of [{}, { sourceId: "b".repeat(64), text: "forged transcription" }])
+    await expect(plan.execute("bad-plan", { sourceSha256, apply: false, lessonPlan })).rejects.toThrow("Invalid courseware workflow input");
+  await recovery.execute("recover", { kind: "tts", sourceSha256, recover: true });
+  await recovery.execute("scoped", { kind: "tts", sourceSha256, recover: true, pageNumbers: [1, 3], model: "voice", voice: null });
+  for (const args of [
+    { kind: "tts", sourceSha256, recover: true, intentId: "original" },
+    { kind: "tts", sourceSha256, recover: true, pageNumbers: [1, 1] },
+    { kind: "music", sourceSha256, recover: true },
+    { kind: "tts", sourceSha256, recover: true, retryFailed: true },
+  ]) await expect(recovery.execute("bad", args)).rejects.toThrow("Invalid courseware workflow input");
+  expect(f.calls).toHaveLength(3);
 });
 
 it("dispatches an ordinary export teaching plan with bounded native Quiz option keys", async () => {
@@ -274,4 +307,18 @@ it("scopes narration context to selected pages and omits repeated full-deck payl
   expect(text).toContain("Keep exact speech");
   expect(text).not.toContain("approvedPlan");
   expect(result.details).toEqual(value);
+});
+
+it('advertises a five-page narration limit and rejects a whole-deck call before Host dispatch', async () => {
+  const f = fixture();
+  const generate = f.tools.find(tool => tool.name === 'courseware_narration_propose')!;
+  expect(generate.parameters).toMatchObject({properties:{pageNumbers:{maxItems:5}}});
+  expect(generate.description).not.toContain('all missing pages in one call');
+  expect(generate.description).toContain('at most 5');
+  const before = f.calls.length;
+  for (const pageNumbers of [[1,2,3,4,5,6], Array.from({length:56},(_,i)=>i+1)])
+    await expect(generate.execute('oversized',{pageNumbers,sourceSha256:'a'.repeat(64),instruction:'Teach'})).rejects.toThrow();
+  expect(f.calls).toHaveLength(before);
+  await generate.execute('five-pages',{pageNumbers:[1,2,3,4,5],sourceSha256:'a'.repeat(64),instruction:'Teach'});
+  expect(f.calls).toHaveLength(before + 1);
 });

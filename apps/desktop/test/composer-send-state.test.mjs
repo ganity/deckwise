@@ -245,12 +245,12 @@ test("send clears the composer before the round trip and restores a rejected dra
   assert.match(submit, /if \(pasting\) showToast\(t\("chat\.pasteInProgress"\)/);
   assert.match(
     submit,
-    /if \(!steering && !modelReady\) \{\s*showToast\(t\("errors\.MODEL_NOT_CONFIGURED"\), \{ variant: "error" \}\);\s*return;\s*\}/,
+    /if \(!steering && !modelReady\) \{\s*setSubmissionError\(t\("errors\.MODEL_NOT_CONFIGURED"\)\);\s*return;\s*\}/,
   );
   // Optimistic clear, restore on rejection. The clear must precede the await.
-  const clearAt = submit.indexOf("draft.clearDraftForKey(submittedDraftKey);\n    const accepted = steering");
+  const clearAt = submit.indexOf("draft.clearDraftForKey(submittedDraftKey);\n    let accepted = false;");
   assert.ok(clearAt > 0, "draft must be cleared before awaiting sendPrompt");
-  assert.match(submit, /if \(!accepted\) draft\.restoreDraftForKey\(submittedDraftKey, submittedDraft\);/);
+  assert.match(submit, /if \(!accepted\) \{\s*draft\.restoreDraftForKey\(submittedDraftKey, submittedDraft\);/);
   assert.doesNotMatch(submit, /if \(accepted\) draft\.clearDraftForKey\(submittedDraftKey\);\s*\};/);
   const restore = draftHook.match(
     /const restoreDraftForKey = \(key: string, snapshot: ComposerDraftSnapshot\) => \{[\s\S]*?\n  \};/,
@@ -281,7 +281,7 @@ test("mode slash prefixes send the trailing prompt and retain failed drafts", ()
   );
   assert.match(
     submit,
-    /const submittedDraft = submissionDraft\(text\);\s*draft\.clearDraftForKey\(submittedDraftKey\);\s*const accepted = steering[\s\S]*?await steerPrompt\(inlineContent, submittedDraft\)[\s\S]*?await sendPrompt\(inlineContent, submittedDraft\);\s*if \(!accepted\) draft\.restoreDraftForKey\(submittedDraftKey, submittedDraft\);/,
+    /const submittedDraft = submissionDraft\(text\);\s*draft\.clearDraftForKey\(submittedDraftKey\);[\s\S]*?accepted = steering[\s\S]*?await steerPrompt\(inlineContent, submittedDraft\)[\s\S]*?await sendPrompt\(inlineContent, submittedDraft\);[\s\S]*?if \(!accepted\) \{\s*draft\.restoreDraftForKey\(submittedDraftKey, submittedDraft\);/,
   );
   assert.match(store, /draft\?: ComposerDraftSnapshot/);
   const sendPrompt = queueSlice.slice(

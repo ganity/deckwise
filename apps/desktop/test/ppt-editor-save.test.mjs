@@ -9,6 +9,7 @@ import test from "node:test";
 import ts from "typescript";
 import JSZip from "jszip";
 import * as shared from "../../../packages/shared/dist/index.js";
+import * as coursewareRuntime from "../../../packages/courseware-runtime/dist/node.mjs";
 
 const require = createRequire(import.meta.url);
 // Real ZIP framing is required by the native-carrier validator; SDK roundtrips use E2E.
@@ -62,6 +63,7 @@ async function fixture(t, { contextErrors = [], contextPatch = {}, onContext = (
     new Function("require", "exports", "module", "__dirname", outputText)((id) => {
       if (id === "electron") return electron;
       if (id === "@pi-desktop/shared") return shared;
+      if (id === "@pi-desktop/courseware-runtime/node") return coursewareRuntime;
       if (id.startsWith(".")) return load(join(dirname(file), id + ".ts"));
       return require(id);
     }, module.exports, module, dirname(file));
@@ -89,6 +91,15 @@ async function fixture(t, { contextErrors = [], contextPatch = {}, onContext = (
   return { root, source, controller, commands, states, reply, start, exported, ack, dirty, window, viewOptions, throttling, sent };
 }
 
+test("automatic first open needs no save when closed and still rejects a foreign document", async t => {
+  const f = await fixture(t);
+  await assert.rejects(f.controller.ensureSaved(f.root + "-other", { allowClosed: true }), /No writable/);
+  f.controller.close();
+  await assert.rejects(f.controller.ensureSaved(f.root), /No writable/);
+  await f.controller.ensureSaved(f.root, { allowClosed: true });
+  assert.equal(f.commands.filter(command => command.type === "document:save").length, 0);
+});
+
 test("detached Office initialization runs without background timer throttling", async t => {
   const f = await fixture(t);
   assert.equal(f.window.contentView.children.length, 0);
@@ -102,7 +113,7 @@ test("PPTX stays opening until the loaded native editor answers, even after docu
     onContext(controller, states) {
       reads++;
       assert.equal(states.at(-1).status, "opening");
-      assert.throws(() => controller.teachingSnapshot(null), /No ready PPTX/);
+      assert.throws(() => controller.teachingSnapshot(null), { code: "PPT_EDITOR_NOT_READY" });
     } });
   assert.equal(reads, 3);
   assert.equal(f.states.at(-1).status, "ready");
@@ -154,11 +165,11 @@ test("exports are correlated, published once, and stay saving until host commit 
 test("teaching snapshot is unavailable for dirty or saving native state", async (t) => {
   const f = await fixture(t);
   assert.equal(f.controller.teachingSnapshot(f.root).revision, 1);
-  assert.throws(() => f.controller.teachingSnapshot("/other"), /No ready PPTX/);
+  assert.throws(() => f.controller.teachingSnapshot("/other"), { code: "PPT_EDITOR_NOT_READY" });
   f.dirty();
   assert.throws(() => f.controller.teachingSnapshot(f.root), /Save or reopen/);
   f.controller.save();
-  assert.throws(() => f.controller.teachingSnapshot(f.root), /No ready PPTX/);
+  assert.throws(() => f.controller.teachingSnapshot(f.root), { code: "PPT_EDITOR_NOT_READY" });
 });
 
 test("ignores editor events without a sender during preview teardown", async (t) => {
@@ -574,4 +585,66 @@ test("live Quiz edit keeps the editor open and retains its canonical draft acros
   assert(!f.states.some(s=>s.status==='closed'));
   const ordinary=f.start();await f.exported(ordinary);f.ack(ordinary,false);
   assert.equal(received[2],undefined,'canonical draft cannot leak to later ordinary saves');
+});
+
+test("automatic teaching save waits for an outstanding native read and context waits for save acknowledgment", { timeout: 5000 }, async t => {
+  const f = await fixture(t); f.dirty();
+  const reading = f.controller.bridgeRequest('document:native-teaching','document:native-teaching-result',{});
+  const request = f.commands.at(-1);
+  const saveSent = new Promise(resolve => f.sent.once('document:save', resolve));
+  const saving = f.controller.ensureSaved(f.root);
+  f.reply({ type:'message', message:{ type:'document:native-teaching-result',id:request.id,payload:{} } });
+  await reading;
+  const save = await saveSent;
+  const context = f.controller.getContext(f.root);
+  await f.exported(save); f.ack(save,false);
+  await saving; assert.equal((await context).kind,'slide');
+});
+
+test("concurrent opens of the same document share initialization and context waits for readiness", async t => {
+  const errors = [];
+  const f = await fixture(t, { contextErrors: errors });
+  f.controller.close();
+  errors.push("Editor is still loading", "Editor is still loading");
+  const before = f.commands.filter(c => c.type === 'document:open-buffer').length;
+  const opening = f.controller.open(f.window, f.root, 'lesson.pptx');
+  // UI supplies MIME and extra roots; automatic teaching opens the same PPT without them.
+  const sameOpen = f.controller.open(f.window, f.root, 'lesson.pptx',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation', [f.root]);
+  const read = f.controller.getContext(f.root);
+  const result = await Promise.allSettled([opening, sameOpen, read]);
+  assert(result.every(r => r.status === 'fulfilled'), JSON.stringify(result.map(r => r.status === 'rejected' ? String(r.reason) : r.value)));
+  assert.equal(f.commands.filter(c => c.type === 'document:open-buffer').length - before, 1);
+  assert.equal(result[2].value.documentId, f.controller.teachingSnapshot(f.root).documentId);
+});
+
+test("closing an initializing document rejects waiting context instead of reading its replacement", async t => {
+  const errors = [];
+  const f = await fixture(t, { contextErrors: errors });
+  f.controller.close();
+  errors.push('Editor is still loading');
+  const opening = f.controller.open(f.window, f.root, 'lesson.pptx');
+  const read = f.controller.getContext(f.root);
+  const results = Promise.allSettled([opening, read]);
+  await new Promise(resolve => f.sent.once('document:get-context', resolve));
+  f.controller.close();
+  const values = await results;
+  assert(values.every(r => r.status === 'rejected'));
+});
+
+test("sharing a pending open never grants another caller access through extra roots", async t => {
+  const contextPatch = {};
+  const f = await fixture(t, { contextPatch });
+  contextPatch.readOnly = true;
+  const external = await fs.mkdtemp(join(tmpdir(), 'ppt-extra-root-'));
+  t.after(() => fs.rm(external, { recursive: true, force: true }));
+  const path = join(external, 'outside.pptx');
+  await fs.writeFile(path, fixtureBytes);
+  f.controller.close();
+  const allowed = f.controller.open(f.window, f.root, path, undefined, [external]);
+  const denied = f.controller.open(f.window, f.root, path);
+  const results = await Promise.allSettled([allowed, denied]);
+  assert.equal(results[0].status, 'fulfilled', String(results[0].reason));
+  assert.equal(results[1].status, 'rejected');
+  assert.match(String(results[1].reason), /outside allowed roots/);
 });

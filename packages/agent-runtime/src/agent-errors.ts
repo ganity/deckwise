@@ -402,8 +402,26 @@ export function classifyAgentError(err: unknown): ClassifiedAgentError {
       "courseware_narration_propose", "courseware_media_assessments", "courseware_media_refresh"].includes(err.operation)
       ? err.operation : undefined;
     const code = ["COURSEWARE_CONFLICT", "COURSEWARE_INVALID", "COURSEWARE_INCOMPLETE", "COURSEWARE_NOT_FOUND",
-      "COURSEWARE_WORKFLOW_REJECTED", "TOOL_FAILED", "PERMISSION_DENIED", "TASK_STATUS_UNAVAILABLE"].includes(err.code)
+      "COURSEWARE_WORKFLOW_REJECTED", "TOOL_FAILED", "PERMISSION_DENIED", "TASK_STATUS_UNAVAILABLE",
+      "PPT_EDITOR_NOT_READY", "PPT_EDITOR_SAVE_IN_PROGRESS"].includes(err.code)
       ? err.code : "COURSEWARE_WORKFLOW_FAILED";
+    if (["PPT_EDITOR_NOT_READY", "PPT_EDITOR_SAVE_IN_PROGRESS"].includes(code)) {
+      let cause: unknown = err.cause, editorPhase: "opening" | "saving" | "focus" | undefined;
+      for (let depth = 0; depth < 4 && cause && typeof cause === "object"; depth++) {
+        const phase = Reflect.get(cause, "phase");
+        if (phase === "opening" || phase === "saving" || phase === "focus") { editorPhase = phase; break; }
+        cause = Reflect.get(cause, "cause");
+      }
+      const classified: ClassifiedAgentError = {
+        code, retriable: true,
+        message: editorPhase === "focus"
+          ? "Return to this courseware Chat and continue the preserved task. The other Chat's document has not been accessed."
+          : "The PPT is still opening or saving. The courseware task is preserved and will continue when the editor is ready.",
+        details: { origin: "local", phase: "ppt-editor-readiness", operation: err.operation,
+          errorCode: code, ...(editorPhase ? { editorPhase } : {}) },
+      };
+      return Object.defineProperty(classified, "cause", { value: err });
+    }
     const classified: ClassifiedAgentError = {
       code, retriable: false,
       message: operation === "courseware_media_context"
