@@ -1,3 +1,4 @@
+import * as runtime from "../../../packages/courseware-runtime/dist/node.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -11,7 +12,7 @@ const require = createRequire(import.meta.url);
 const exports = {};
 new Function("require", "exports", ts.transpileModule(readFileSync(new URL("../electron/main/courseware-native-package.ts", import.meta.url), "utf8"), {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true },
-}).outputText)(id => id === "@pi-desktop/shared" ? shared : require(id), exports);
+}).outputText)(id => id === "@pi-desktop/shared" ? shared : id === "@pi-desktop/courseware-runtime/node" ? runtime : require(id), exports);
 const { readNativeTeachingPackage } = exports;
 const bytes = Buffer.from("verified media");
 const sha = createHash("sha256").update(bytes).digest("hex");
@@ -39,4 +40,25 @@ test("explicit real Part A copy contains all verified teaching and assessment au
   const report = JSON.parse(readFileSync(join(process.env.DECKWISE_NATIVE_REAL_FIXTURE, "report.json"), "utf8"));
   assert.equal(value.pages.length, report.pages); assert.equal(value.media.length, report.media);
   assert.equal(value.media.reduce((sum, m) => sum + m.byteLength, 0), report.mediaBytes);
+});
+
+test("pre-migration generated Quiz metadata is retained before any manual question edit", async () => {
+  const value = fixture();
+  const quiz = { type: "quiz", interactionMode: "assessment_review", language: "zh-CN", questions: [{ id: "original", type: "single", question: "Choose",
+    options: [{ value: "A", label: "Hello", image: { src: "data:image/png;base64,aGVsbG8=", mimeType: "image/png" } }, { value: "B", label: "Bye" }], answer: ["B"], explanation: "Greeting", referenceAnswer: "Hello" }] };
+  value.generation = { pages: [{ pageId: "page", quiz }] };
+  const result = await readNativeTeachingPackage(await pack(value));
+  assert.deepEqual(result.assessments.page, quiz);
+  value.assessments = { page: { ...quiz, questions: [{ ...quiz.questions[0], question: "Manually edited" }] } };
+  assert.deepEqual((await readNativeTeachingPackage(await pack(value))).assessments, value.assessments);
+});
+
+test("saved source bindings remain portable while unsupported versions and private material fields fail", async () => {
+  const value = fixture(); value.enrichment = { schemaVersion: "deckwise-teaching-enrichment/1", originalPages: [{ pageId: "page", pageNumber: 1 }],
+    script: { sha256: "b".repeat(64), policy: "preserve", silentPageIds: [], segments: [{ id: "segment-1", text: "Hello", sourceLine: 2, pageId: "page", actionId: "speech" }] } };
+  assert.deepEqual((await readNativeTeachingPackage(await pack(value))).enrichment, value.enrichment);
+  value.enrichment.path = "/private/script.docx";
+  await assert.rejects(readNativeTeachingPackage(await pack(value)));
+  delete value.enrichment.path; value.enrichment.schemaVersion = "future";
+  await assert.rejects(readNativeTeachingPackage(await pack(value)));
 });

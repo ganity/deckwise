@@ -20,9 +20,9 @@ export function interactionElements(scene: Scene) {
   const texts = scene.content.canvas.elements.filter((e) => e.type === 'text');
   const marked =
     (scene.metadata?.interaction as { kind?: string } | undefined)?.kind === 'chapter_summary';
-  const label = texts.findIndex((e) => interactionText(e) === '课堂互动问答');
+  const label = texts.findIndex((e) => ['课堂互动问答', 'Classroom discussion'].includes(interactionText(e)));
   const hint = texts.findIndex(
-    (e) => interactionText(e) === '请思考后回答，课堂互动结束后将继续播放。',
+    (e) => ['请思考后回答，课堂互动结束后将继续播放。', 'Think and answer. Your teacher will continue.'].includes(interactionText(e)),
   );
   const hasCheckpoint = scene.actions?.some(
     (a) => a.type === 'interaction_checkpoint' && a.checkpointKind === 'chapter_summary',
@@ -52,6 +52,7 @@ export function interactionElements(scene: Scene) {
 
 /** Match the generated interaction contract without rewriting user narration/audio. */
 export function ensureInteractionCheckpoint(scene: Scene, scenes: Scene[] = []): Scene {
+  if (typeof scene.metadata?.assessmentSceneId === 'string' && scenes.some(item => item.id === scene.metadata?.assessmentSceneId && item.type === 'quiz')) return scene;
   if (scene.type !== 'slide' || scene.content.type !== 'slide') return scene;
   const existing = scene.actions?.find(
     (a): a is Checkpoint =>

@@ -37,6 +37,27 @@ it('rejects an unknown schema before executing conversion', async () => {
     ),
   ).rejects.toMatchObject({ code: 'SNAPSHOT_SCHEMA_INVALID' });
 });
+it('builds and loads an unsupported unbound native preset as a reported fade', async () => {
+  const temporary = await mkdtemp(path.join(os.tmpdir(), 'fixed-native-fallback-'));
+  try {
+    const zip = await JSZip.loadAsync(await readFile(input.source.path));
+    const xml = await zip.file('ppt/slides/slide1.xml')!.async('string');
+    const timing = (await readFile(path.join(fixture, 'native-fade-timing.xml'), 'utf8')).replace('presetID="10"', 'presetID="999"');
+    zip.file('ppt/slides/slide1.xml', xml.replace('</p:sld>', `${timing}</p:sld>`));
+    const bytes = await zip.generateAsync({ type: 'nodebuffer' }), candidate = structuredClone(input);
+    candidate.source.path = path.join(temporary, 'native.pptx'); await writeFile(candidate.source.path, bytes);
+    candidate.source.sha256 = candidate.mapping.sourceSha256 = candidate.teaching.sourceSha256 = sha256(bytes);
+    const built = await buildFixedCourseware(candidate, { workerDirectory, outputDirectory: path.join(temporary, 'builds') });
+    expect(built.report.ready).toBe(true);
+    expect(built.report.diagnostics.some(d => d.code === 'PPTX_ANIMATION_FALLBACK_FADE')).toBe(true);
+    const loaded = await loadFixedBuild(await readFile(path.join(built.directory, 'package.json')), built.buildId,
+      async asset => new Uint8Array(await readFile(path.join(built.directory, asset.path))));
+    const payload = JSON.parse(await readFile(path.join(built.directory, 'package.json'), 'utf8'));
+    expect(payload.pages[0].nativeTimeline.steps[0].items[0]).toMatchObject({ effect: 'fadeIn', durationMs: 500 });
+    expect(loaded.nativeTimeline).toBe(true);
+    loaded.dispose();
+  } finally { await rm(temporary, { recursive: true, force: true }); }
+});
 it('builds and loads attention after saved native entrance clicks but rejects a second animation owner', async () => {
   const temporary = await mkdtemp(path.join(os.tmpdir(), 'fixed-native-attention-'));
   try {
@@ -578,3 +599,17 @@ it('builds saved WiseOffice motion groups with exactly one speech animation owne
     } finally { loaded.dispose(); }
   } finally { await rm(temporary, { recursive: true, force: true }); }
 }, 30_000);
+
+it('archives edited native quiz images and loads the result as a quiz with the saved answer', async () => {
+  const pageId = input.teaching.pages[0].pageId;
+  const quiz = { type: 'quiz', interactionMode: 'classroom_instant_feedback', questions: [{ id: 'edited', type: 'single', question: 'Choose two',
+    options: [{ value: 'A', label: 'One' }, { value: 'B', label: 'Two', image: { src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=', mimeType: 'image/png' } }], answer: ['B'], referenceAnswer: 'Two' }] };
+  const build = await buildFixedCourseware(input, { workerDirectory, outputDirectory, nativeAssessments: { [pageId]: quiz } });
+  const bytes = await readFile(path.join(build.directory, 'package.json'));
+  const loaded = await loadFixedBuild(bytes, build.packageHash, async asset => new Uint8Array(await readFile(path.join(build.directory, asset.path))));
+  expect(loaded.scenes[0].content.type).toBe('quiz');
+  const content: any = loaded.scenes[0].content;
+  expect(content.questions[0].answer).toEqual(['B']);
+  expect(content.questions[0].options[1].image.src).toMatch(/^blob:/);
+  loaded.dispose();
+}, 30000);

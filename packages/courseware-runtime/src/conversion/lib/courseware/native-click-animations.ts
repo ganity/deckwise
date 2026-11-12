@@ -45,13 +45,26 @@ export function hasGeneratedNativeMotions(page: SlidePageIR, actions: readonly {
   });
 }
 
-/** A unique native effect on a logical object keeps its identity through native reorder and preset edits. */
+/** Speech owns exact persisted mirrors; explicit links additionally follow native preset and duration edits. */
 export function detachLinkedSpeechAnimations<T extends { type: string; visualCues?: Array<{ nativeAnimation?: string; atMs: number; endMs: number; effect: { type: string; elementId?: string; effect?: string } }> }>(
   page: SlidePageIR, actions: T[], mapping: readonly { objectId: string; importElementId: string }[],
 ): SlidePageIR {
   const claimed = new Set<object>();
   for (const action of actions) for (const cue of action.visualCues ?? []) {
-    if (!cue.nativeAnimation) continue;
+    if (!cue.nativeAnimation) {
+      if (action.type !== 'speech' || cue.effect.type !== 'element_animation' || actions.some(a => a.type === 'native_animation')) continue;
+      const preset = nativeMotionPreset(cue.effect.effect ?? '');
+      const imported = mapping.find(object => object.objectId === cue.effect.elementId)?.importElementId;
+      const targets = page.elements.filter(element => element.id === imported);
+      const duration = cue.endMs - cue.atMs;
+      if (!preset || targets.length !== 1 || !targets[0].sourceShapeId || !Number.isInteger(duration) || duration < 1 || duration > 5000) continue;
+      const mirror = page.pptxAnimation?.steps.flatMap(step => step.items).find(item => !claimed.has(item) &&
+        !!item.target && item.target.shapeId === targets[0].sourceShapeId && !item.target.paragraphIndexes && !item.target.characterRange &&
+        item.startAtMs === 0 && item.durationMs === duration && item.nativePreset?.version === 1 && item.nativePreset.verifiedSpeechMotion === true &&
+        item.nativePreset.class === preset.ooxmlClass && item.nativePreset.id === preset.presetId && (item.nativePreset.subtype ?? 0) === preset.subtype);
+      if (mirror) claimed.add(mirror);
+      continue;
+    }
     if (action.type !== 'speech' || cue.effect.type !== 'element_animation' || cue.nativeAnimation !== cue.effect.elementId) throw new Error('NATIVE_ANIMATION_LINK_INVALID');
     const id = mapping.find(object => object.objectId === cue.nativeAnimation)?.importElementId;
     const target = page.elements.find(element => element.id === id);

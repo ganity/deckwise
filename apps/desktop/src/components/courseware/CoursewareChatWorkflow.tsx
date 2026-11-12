@@ -6,7 +6,7 @@ import { useAppStore } from "../../stores/app-store";
 import { CoursewareSourceVisuals } from "../workpanel/CoursewareSourceVisuals";
 import { PptEditorTab } from "../workpanel/PptEditorTab";
 import { CoursewareClassroomEditor } from "../workpanel/CoursewareClassroomEditor";
-import { CoursewareImportDialog } from "../workpanel/CoursewareImportDialog";
+import { CoursewareDeliveryActions } from "./CoursewareDeliveryActions";
 import { CoursewareChatPresentation } from "./CoursewareChatPresentation";
 import { CoursewareChatNarration } from "./CoursewareChatNarration";
 import { CoursewareChatPptxCandidates } from "./CoursewareChatPptxCandidates";
@@ -29,7 +29,6 @@ function Workflow({ sessionId, panelBlocked = false, maximized, onToggleMaximize
   const [busy, setBusy] = useState(false);
   const [visualBusy, setVisualBusy] = useState(false);
   const [plainPath, setPlainPath] = useState<string | null>(null);
-  const [importOpen, setImportOpen] = useState(false);
   const [classroomOpen, setClassroomOpen] = useState(false);
   const visualWasBusy = useRef(false);
   const [refresh, setRefresh] = useState(0);
@@ -93,8 +92,7 @@ function Workflow({ sessionId, panelBlocked = false, maximized, onToggleMaximize
       if (finished && current()) useAppStore.setState({ coursewareTeachingRefresh: { sessionId, reread: true } });
     }} />
   </details>;
-  const firstLessonPlan = messages.filter(message => message.role === "user").flatMap(message => message.attachments ?? [])
-    .find(attachment => attachment.kind === "file" && /\.(pdf|docx?)$/i.test(attachment.name));
+
 
   const story = view?.story;
   const storyDecision = (action: "approve" | "disable") => run(async valid => {
@@ -138,6 +136,7 @@ function Workflow({ sessionId, panelBlocked = false, maximized, onToggleMaximize
 
   if (classroomOpen) return <section className="courseware-chat-workflow courseware-workspace has-editor">
     <button type="button" onClick={() => setClassroomOpen(false)}>返回课程工作区</button>
+    <CoursewareDeliveryActions sessionId={sessionId} title={session?.title ?? t("coursewareWorkflow.workspace")} disabled={blocked} />
     <CoursewareClassroomEditor sessionId={sessionId} readOnly={blocked} />
   </section>;
 
@@ -146,7 +145,7 @@ function Workflow({ sessionId, panelBlocked = false, maximized, onToggleMaximize
       <strong>{t("coursewareWorkflow.workspace")}</strong>
       <div className="courseware-workflow-actions">
         <button type="button" disabled={blocked} onClick={() => setClassroomOpen(true)}>Quiz / 互动编辑</button>
-        {path && <button type="button" disabled={blocked} onClick={() => setImportOpen(true)}>{t("coursewareWorkflow.publish")}</button>}
+        <CoursewareDeliveryActions sessionId={sessionId} title={session?.title ?? t("coursewareWorkflow.workspace")} disabled={blocked} />
         <button type="button" disabled={busy} onClick={() => setRefresh(value => value + 1)}>{t("coursewareWorkflow.refresh")}</button>
       </div>
     </header>}
@@ -202,9 +201,9 @@ function Workflow({ sessionId, panelBlocked = false, maximized, onToggleMaximize
       })}>{t("coursewareWorkflow.selectPpt")}</button>}
       {view.task.taskType === "plain" && <CoursewareChatPresentation sessionId={sessionId} sourcePath={view.task.sourcePath} disabled={blocked} refreshKey={refresh}
         sourceVisuals={ordinary ? sourceVisuals : undefined} onReady={setPlainPath} />}
-      {path && <PptEditorTab key={path} path={path} tabId="ppt" blocked={panelBlocked || importOpen} maximized={maximized} onToggleMaximize={onToggleMaximize}
+      {path && <PptEditorTab key={path} path={path} tabId="ppt" blocked={panelBlocked} maximized={maximized} onToggleMaximize={onToggleMaximize}
         actions={<>
-          <button type="button" disabled={blocked} onClick={() => setImportOpen(true)}>{t("coursewareWorkflow.publish")}</button>
+          <CoursewareDeliveryActions sessionId={sessionId} title={session?.title ?? t("coursewareWorkflow.workspace")} disabled={blocked} />
           <button type="button" disabled={busy} onClick={() => setRefresh(value => value + 1)}>{t("coursewareWorkflow.refresh")}</button>
         </>}
         storyPanel={storyReview}
@@ -213,8 +212,7 @@ function Workflow({ sessionId, panelBlocked = false, maximized, onToggleMaximize
           <CoursewareChatNarration sessionId={sessionId} disabled={blocked} />
           <CoursewareChatPptxCandidates sessionId={sessionId} disabled={blocked} />
         </>} />}
-      {path && <CoursewareImportDialog open={importOpen} sessionId={sessionId} initialTitle={session?.title ?? t("coursewareWorkflow.workspace")}
-        pptxPath={path} firstLessonPlan={firstLessonPlan ? { name: firstLessonPlan.name, path: firstLessonPlan.ref } : null} onClose={() => setImportOpen(false)} />}
+
     </>}
   </section>;
 }

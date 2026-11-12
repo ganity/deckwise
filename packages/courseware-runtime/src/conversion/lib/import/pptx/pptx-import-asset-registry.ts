@@ -15,7 +15,7 @@ interface RegisteredAssetMetadata {
 
 export class PptxImportAssetRegistry {
   private readonly bySourceKey = new Map<string, Promise<string>>();
-  private readonly byChecksum = new Map<string, string>();
+  private readonly byChecksum = new Map<string, Promise<string>>();
   private readonly assetDir: string;
   private reservedBytes = 0;
 
@@ -67,10 +67,12 @@ export class PptxImportAssetRegistry {
       normalizedInput.mimeType,
       normalizedInput.assetType,
     );
-    const checksumKey = `${normalizedInput.assetType}:${checksum}:${ext}`;
+    // Placeholders encode type and content, not extension. JPEG/JPG aliases
+    // with identical bytes must resolve to exactly one physical asset.
+    const checksumKey = `${normalizedInput.assetType}:${checksum}`;
     const existing = this.byChecksum.get(checksumKey);
     if (existing) {
-      return buildImportAssetPlaceholder(this.jobId, existing);
+      return existing;
     }
 
     const assetId = `${normalizedInput.assetType}_${checksum.slice(0, 20)}`;
@@ -86,11 +88,16 @@ export class PptxImportAssetRegistry {
     // Reserve before the first await so concurrent assets cannot each spend the same space.
     this.reservedBytes += buffer.length + Buffer.byteLength(metadataJson);
     this.assertWithinBudget();
-    await fs.mkdir(this.assetDir, { recursive: true });
-    await fs.writeFile(assetPath, buffer);
-    await fs.writeFile(metadataPath, metadataJson);
-    this.byChecksum.set(checksumKey, assetId);
-    return buildImportAssetPlaceholder(this.jobId, assetId);
+    const task = (async () => {
+      await fs.mkdir(this.assetDir, { recursive: true });
+      await fs.writeFile(assetPath, buffer);
+      await fs.writeFile(metadataPath, metadataJson);
+      return buildImportAssetPlaceholder(this.jobId, assetId);
+    })();
+    // Publish the pending write before yielding, so concurrent source aliases
+    // share both its result and failure instead of creating competing files.
+    this.byChecksum.set(checksumKey, task);
+    return task;
   }
 }
 

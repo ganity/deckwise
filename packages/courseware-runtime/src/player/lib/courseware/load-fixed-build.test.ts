@@ -672,3 +672,19 @@ it('loads automatic native preset steps and keeps click waits and delays before 
   candidate.pages[0].nativeTimeline.steps[0].items[0].elementId = 'missing';
   await expect(load()).rejects.toThrow('NATIVE_ANIMATION_TARGET_UNSUPPORTED');
 });
+
+it('loads native edited quiz images and reference answers from archived build assets', async () => {
+  const data: any = await payload();
+  const image = new Uint8Array([137, 80, 78, 71]);
+  data.assets.push({ id: 'picture', path: `assets/${await digestBytes(image)}.png`, sha256: await digestBytes(image), mimeType: 'image/png' });
+  data.pages[0].quiz = { type: 'quiz', interactionMode: 'classroom_instant_feedback', questions: [{ id: 'q', type: 'single', question: 'Choose',
+    options: [{ value: 'A', label: 'One', image: { src: 'picture', mimeType: 'image/png' } }, { value: 'B', label: 'Two' }], answer: ['B'], referenceAnswer: 'Two' }] };
+  const encoded = encode(data);
+  const loaded = await loadFixedBuild(encoded, await digestBytes(encoded), async asset => asset.id === 'picture' ? image : audio);
+  expect(loaded.scenes[0].type).toBe('quiz');
+  const content: any = loaded.scenes[0].content;
+  expect(content.questions[0].answer).toEqual(['B']);
+  expect(content.questions[0].options[0].image.src).toMatch(/^blob:/);
+  expect(content.questions[0].referenceAnswer).toBe('Two');
+  loaded.dispose();
+});

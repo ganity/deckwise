@@ -1,3 +1,9 @@
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { app } from "electron";
+import { CoursewareDelivery } from "../courseware-delivery";
+import { coursewareDeliveryFingerprint, exportNativeDelivery } from "../courseware-delivery-export";
 import { readNativeTeachingPackage } from "../courseware-native-package";
 import { readLiveSource } from "../courseware-source-files";
 import { CoursewareNativeMusic } from "../courseware-native-music";
@@ -125,6 +131,51 @@ export function registerPptEditorIpc(input: {
       return result.text;
     } });
   input.onClassroomReady?.(classroom);
+  const deliveryCurrent = async (sessionId: string) => {
+    assertClassroomOwner(sessionId);
+    const workspace = await getWorkspaceRoot(), host = getHost();
+    if (!workspace || !host) throw new Error("Courseware workspace is unavailable");
+    const { task } = await host.call<{ task?: { canonicalProjectId?: string } }>("courseware.task.get", { sessionId });
+    assertClassroomOwner(sessionId);
+    if (task?.canonicalProjectId) {
+      const view = await classroom.open({ sessionId });
+      if (!view.classroom || !view.revision) throw new Error("Complete the classroom before synchronizing");
+      return { documentId: view.projectId, fingerprint: createHash("sha256").update(JSON.stringify([view.revision, view.sourceRevision])).digest("hex") };
+    }
+    await editor.ensureSaved(workspace); assertClassroomOwner(sessionId);
+    const source = editor.teachingSnapshot(workspace), bytes = await readFile(source.path);
+    const carrier = await readNativeTeachingPackage(bytes); assertClassroomOwner(sessionId);
+    if (!carrier || createHash("sha256").update(bytes).digest("hex") !== source.sha256) throw new Error("Saved native courseware is unavailable");
+    const worker = process.env.DECKWISE_PPTX_WORKER || join(process.resourcesPath || "", "pptx-worker/pptx-worker.mjs");
+    const converterHash = createHash("sha256").update(await readFile(join(dirname(worker), "manifest.json"))).digest("hex");
+    return { documentId: carrier.documentId, fingerprint: coursewareDeliveryFingerprint(source.sha256, converterHash) };
+  };
+  const delivery = new CoursewareDelivery({ assertOwned: assertClassroomOwner, principal: () => input.authSession.getCoursewarePrincipal(),
+    host: () => { const host = getHost(); if (!host) throw new Error("Courseware Host is unavailable"); return host; }, current: deliveryCurrent,
+    archive: async (sessionId, reviewedWarningCodes) => {
+      const current = await deliveryCurrent(sessionId), host = getHost(), workspace = await getWorkspaceRoot();
+      if (!host || !workspace) throw new Error("Courseware Host is unavailable");
+      const { task } = await host.call<{ task?: { canonicalProjectId?: string } }>("courseware.task.get", { sessionId });
+      if (task?.canonicalProjectId) {
+        const view = await classroom.open({ sessionId });
+        if (!view.classroom || !view.revision) throw new Error("Complete the classroom before synchronizing");
+        if (view.classroom.scenes.some(scene => scene.actions?.some(action => action.type === "speech" && action.text.trim() && !action.audioUrl))) throw new Error("Complete narration audio before synchronizing");
+        const result = await classroom.export({ sessionId, projectId: view.projectId, expectedRevision: view.revision, expectedSourceRevision: view.sourceRevision });
+        return { bytes: Buffer.from(result.bytes), source: current };
+      }
+      const result = await exportNativeDelivery({ sessionId, workspace, host, editor, teaching,
+        reviewedWarningCodes, outputDirectory: join(app.getPath("userData"), "courseware-builds"), assertOwner: () => assertClassroomOwner(sessionId) });
+      return { bytes: result.bytes, source: { documentId: result.documentId, fingerprint: result.fingerprint } };
+    },
+    upload: bytes => input.authSession.uploadCoursewareDelivery(bytes),
+    request: (action, payload) => input.authSession.coursewareDeliveryRequest(action, payload),
+  });
+  registrar.handleWithEvent(IPC.invoke.coursewareDelivery, async (event, payload: unknown, ...extra: unknown[]) => {
+    registrar.assertMainWindowSender(event);
+    if (extra.length) throw new Error("Unexpected delivery parameters");
+    return delivery.execute(payload);
+  });
+
   const classroomTts = new CoursewareClassroomTts({ auth: input.authSession, open: sessionId => classroom.open({ sessionId }),
     getHost, getWorkspace: getWorkspaceRoot, assertOwned: assertClassroomOwner, decodeAudio: decodeCoursewareAudio });
   const classroomImages = new CoursewareClassroomImages({ auth: input.authSession, classroom,
