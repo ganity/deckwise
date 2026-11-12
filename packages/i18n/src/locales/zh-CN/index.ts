@@ -34,6 +34,25 @@ export const zhCN = {
     "remove": "移除",
     "retry": "重试"
   },
+  coursewareDelivery: {
+    "sync": "同步平台",
+    "publish": "发布",
+    "working": "正在处理…",
+    "syncRequired": "存在未同步的草稿版本，请先同步平台，再发布。",
+    "changed": "同步期间课件又有修改，请再次同步后发布。",
+    "synced": "已同步为平台草稿，线上版本保持不变。",
+    "published": "已发布同步版本。",
+    "conflict": "云端草稿已修改，请先处理版本冲突后再同步。",
+    "failed": "操作未完成。可重试以恢复同一次操作。",
+    "bound": "平台课程 {{id}} · 线上版本 {{version}}",
+    "overwriteHint": "将用当前本地版本替换云端草稿，线上版本保持不变。",
+    "overwrite": "用本地版本覆盖云端草稿",
+    "cancel": "取消",
+    "reviewHint": "请核对以下转换差异，确认后同步。",
+    "approveWarnings": "确认差异并同步",
+    "audioRequired": "请先生成完整讲解音频，再同步平台。",
+    "unsupported": "课件中有无法完整转换的教学步骤，请先在预览中检查并修复。"
+},
   coursewareStory: {
     creationMode: "创作方式",
     direct: "直接生成课件",

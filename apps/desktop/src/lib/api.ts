@@ -446,6 +446,8 @@ export const api = {
     invoke<{ ok: boolean }>(IPC.invoke.coursewareTeamMemberRevoke, { projectId, userId }),
   coursewareTeamMembers: (projectId: string) =>
     invoke<import("@pi-desktop/shared").CoursewareTeamMember[]>(IPC.invoke.coursewareTeamMembers, { projectId }),
+  coursewareDelivery: (action: "state" | "sync" | "publish", sessionId: string, title?: string, expectedCloudRevisionId?: string, reviewId?: string) =>
+    invoke<import("@pi-desktop/shared/protocol").CoursewareDeliveryView>(IPC.invoke.coursewareDelivery, { action, sessionId, ...(title === undefined ? {} : { title }), ...(expectedCloudRevisionId === undefined ? {} : { expectedCloudRevisionId }), ...(reviewId === undefined ? {} : { reviewId }) }),
   importCourseware: (input: DesktopCoursewareImportInput) =>
     invoke<DesktopCoursewareImportResult>(IPC.invoke.coursewareImport, input),
   parseDocument: (path: string) =>

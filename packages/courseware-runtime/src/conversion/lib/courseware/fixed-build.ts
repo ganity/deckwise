@@ -209,7 +209,9 @@ export function validateFixedMapping(input: FixedBuildInput, ir: SlideIR) {
 /** Builds only caller-owned fixed bytes. Never changes a source file or a previous valid build. */
 export async function buildFixedCourseware(
   raw: unknown,
-  options: { workerDirectory: string; outputDirectory: string; signal?: AbortSignal; nativeAssessments?: Record<string, unknown> },
+  options: { workerDirectory: string; outputDirectory: string; signal?: AbortSignal; nativeAssessments?: Record<string, unknown>;
+    onConverted?: (value: { ir: SlideIR; input: FixedBuildInput; directory: string;
+      assets: Array<{ id: string; path: string; sha256: string; mimeType: string }> }) => Promise<void> },
 ) {
   checkCancelled(options.signal);
   const parsed = fixedBuildInputSchema.safeParse(raw);
@@ -362,6 +364,7 @@ export async function buildFixedCourseware(
       }
     }
     validateResources(pages);
+    await options.onConverted?.({ ir, input, directory: staging, assets });
     const visualCues = input.teaching.pages.flatMap((p) =>
       p.actions.flatMap((a) => (a.type === 'speech' ? (a.visualCues ?? []) : [])),
     );

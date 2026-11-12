@@ -436,6 +436,32 @@ export class DesktopAuthSession {
     });
   }
 
+  async coursewareDeliveryRequest<T>(action: "state" | "sync" | "publish", payload: Record<string, unknown>): Promise<T> {
+    const token = await this.resolveAccessToken();
+    const path = action === "state" ? `/courses/courseware-delivery/state?${new URLSearchParams({ documentId: String(payload.documentId) })}`
+      : action === "sync" ? "/courses/courseware-delivery/sync" : `/courses/${Number(payload.courseId)}/publish-status`;
+    return this.request<T>(path, { signal: AbortSignal.timeout(330000), method: action === "state" ? "GET" : action === "sync" ? "POST" : "PUT",
+      headers: { Authorization: `Bearer ${token}` }, ...(action === "state" ? {} : { body: JSON.stringify(action === "publish" ? { ...payload, courseId: undefined } : payload) }) });
+  }
+
+  async uploadCoursewareDelivery(bytes: Buffer): Promise<{ fileUrl: string; packageHash: string }> {
+    const principal = this.getCoursewarePrincipal();
+    if (!bytes.length || bytes.length > 256 * 1024 * 1024) throw new Error("Invalid courseware package size");
+    const packageHash = createHash("sha256").update(bytes).digest("hex"), name = `${packageHash}.zip`;
+    const token = await this.resolveAccessToken(); principal.assertCurrent();
+    const query = new URLSearchParams({ filename: name, fileSize: String(bytes.length), skipMaterial: "true" });
+    const target = await this.request<PresignedUpload>(`/courses/presign?${query}`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+    principal.assertCurrent();
+    const body = new FormData();
+    for (const [key, value] of Object.entries(target.fields ?? {})) if (value != null) body.append(key, String(value));
+    body.append("file", new Blob([new Uint8Array(bytes)], { type: "application/zip" }), name);
+    if (!target.uploadUrl || !target.ossUrl) throw new Error("Courseware upload target is unavailable");
+    const response = await net.fetch(target.uploadUrl, { method: "POST", body });
+    principal.assertCurrent();
+    if (!response.ok) throw new Error(`Courseware upload failed (${response.status})`);
+    return { fileUrl: target.ossUrl, packageHash };
+  }
+
   private async uploadLocalFile(path: string, extensions: readonly string[]): Promise<{
     name: string;
     fileUrl: string;

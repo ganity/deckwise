@@ -1895,6 +1895,8 @@ async fn handle_request(
         | "courseware.classroom.refresh"
         | "courseware.classroom.source"
         | "courseware.classroom.create"
+        | "courseware.delivery.read"
+        | "courseware.delivery.write"
         | "courseware.classroom.get"
         | "courseware.classroom.write"
         | "courseware.classroom.snapshot"

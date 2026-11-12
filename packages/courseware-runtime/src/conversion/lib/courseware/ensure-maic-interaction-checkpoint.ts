@@ -52,6 +52,7 @@ export function interactionElements(scene: Scene) {
 
 /** Match the generated interaction contract without rewriting user narration/audio. */
 export function ensureInteractionCheckpoint(scene: Scene, scenes: Scene[] = []): Scene {
+  if (typeof scene.metadata?.assessmentSceneId === 'string' && scenes.some(item => item.id === scene.metadata?.assessmentSceneId && item.type === 'quiz')) return scene;
   if (scene.type !== 'slide' || scene.content.type !== 'slide') return scene;
   const existing = scene.actions?.find(
     (a): a is Checkpoint =>

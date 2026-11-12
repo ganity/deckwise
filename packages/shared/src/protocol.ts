@@ -579,6 +579,7 @@ export const IPC = {
     coursewareClassroomCreate: "deckwise/courseware/classroom/create",
     coursewareClassroomWrite: "deckwise/courseware/classroom/write",
     coursewareClassroomImage: "deckwise/courseware/classroom/image",
+    coursewareDelivery: "deckwise/courseware/delivery",
     coursewareClassroomExport: "deckwise/courseware/classroom/export",
     coursewareClassroomReference: "deckwise/courseware/classroom/reference",
     coursewareClassroomPlay: "deckwise/courseware/classroom/play",
@@ -695,3 +696,10 @@ export const IPC_WHITELIST = new Set<string>([
   ...Object.values(IPC.invoke),
   ...Object.values(IPC.event),
 ]);
+
+export type CoursewareDeliveryView = {
+  synced: boolean; courseId?: number; classroomId?: string; revisionId?: string;
+  cloudRevisionId?: string; publishedRevisionId?: string; version?: number; status?: string;
+  releaseSequence?: number; dirty: boolean; pending: boolean; pendingAction?: "sync" | "publish";
+  review?: { id: string; diagnostics: Array<{ code: string; message: string }> };
+};

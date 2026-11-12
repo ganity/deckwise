@@ -161,3 +161,6 @@
 .courseware-import-start [role="alert"] { color: var(--ds-error); }
 .courseware-import-review { border-top: 1px solid var(--ds-border-subtle); margin-top: 12px; padding-top: 8px; }
 @media (max-width: 700px) { .courseware-import-start { margin-inline: 8px; padding: 12px; } }
+.courseware-delivery-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.courseware-delivery-actions > [role="status"], .courseware-delivery-actions > [role="alert"] { flex-basis: 100%; max-width: 48rem; font-size: var(--text-xs); line-height: 1.6; overflow-wrap: anywhere; }
+.courseware-delivery-actions > [role="alert"] { color: var(--ds-error); }

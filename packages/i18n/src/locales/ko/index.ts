@@ -34,6 +34,25 @@ export const ko = {
     "remove": "제거",
     "retry": "다시 시도"
   },
+  coursewareDelivery: {
+    "sync": "Sync to platform",
+    "publish": "Publish",
+    "working": "Working…",
+    "syncRequired": "The draft has unsynced changes. Sync to the platform before publishing.",
+    "changed": "The courseware changed during sync. Sync again before publishing.",
+    "synced": "Platform draft synchronized. The online version is unchanged.",
+    "published": "Synchronized version published.",
+    "conflict": "The cloud draft changed. Resolve the version conflict before syncing.",
+    "failed": "The operation did not finish. Retry to recover the same operation.",
+    "bound": "Platform course {{id}} · Online version {{version}}",
+    "overwriteHint": "Replace the cloud draft with this local version. The online release is unchanged.",
+    "overwrite": "Replace cloud draft",
+    "cancel": "Cancel",
+    "reviewHint": "Review these conversion differences before synchronizing.",
+    "approveWarnings": "Accept differences and sync",
+    "audioRequired": "Generate all narration audio before synchronizing.",
+    "unsupported": "Some teaching steps cannot be converted completely. Review and fix them in playback first."
+},
   coursewareStory: {
     creationMode: "제작 방식",
     direct: "바로 수업 자료 생성",

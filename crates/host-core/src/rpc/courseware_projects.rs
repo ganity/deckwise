@@ -4,6 +4,7 @@ use crate::db::courseware_projects::TeachingWrite;
 mod asset_locks;
 mod candidates;
 mod classroom;
+mod delivery;
 mod drafts;
 mod materials;
 mod media_canvas;
@@ -189,6 +190,7 @@ pub(super) async fn handle(
     let invalid = |error: serde_json::Error| rpc_err(1002, error.to_string(), "INVALID_PARAMS");
     match method {
         "courseware.story.get" | "courseware.story.begin" | "courseware.story.save" | "courseware.story.decide" => story::handle(state, method, params).await,
+        "courseware.delivery.read" | "courseware.delivery.write" => delivery::handle(state, method, params).await,
         "courseware.classroom.mediaScope" | "courseware.classroom.refresh" | "courseware.classroom.source" | "courseware.classroom.create" | "courseware.classroom.get" | "courseware.classroom.write" | "courseware.classroom.snapshot" => classroom::handle(state, method, params).await,
         "courseware.workflow.get" | "courseware.workflow.checkpoint" => {
             workflow::handle(state, method, params).await
