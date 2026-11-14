@@ -108,6 +108,7 @@ export class PptEditorController {
     private readonly ipcMain: IpcMain,
     private readonly emit: (state: PptEditorState) => void,
     editorUrl = process.env.DECKWISE_EDITOR_URL || "deckwise-editor://wiseoffice",
+    private readonly background = false,
   ) {
     this.editorUrl = new URL(editorUrl);
     if (!/^https?:$/.test(this.editorUrl.protocol) && this.editorUrl.href !== "deckwise-editor://wiseoffice") {
@@ -273,7 +274,7 @@ export class PptEditorController {
       if (this.nativeTeaching && this.editorUrl.protocol === "deckwise-editor:")
         this.sendCommand("document:teaching-enable", { binding: this.bridgeBinding, nativeTeaching: true });
       if (this.visible) this.attach();
-      view.webContents.setBackgroundThrottling(true);
+      view.webContents.setBackgroundThrottling(!this.background);
       const state = this.state("ready");
       this.emit(state);
       return state;
@@ -434,6 +435,11 @@ export class PptEditorController {
 
   hasTeachingEditor(workspace: string | null): boolean {
     return !!this.view && this.current?.extension === "pptx" && this.current.workspaceRoot === workspace;
+  }
+
+  documentTarget(): { workspaceRoot: string; sourcePath: string; readOnly: boolean } | undefined {
+    const document = this.current;
+    return document ? { workspaceRoot: document.workspaceRoot, sourcePath: document.sourcePath, readOnly: document.readOnly } : undefined;
   }
 
   async routeNativeTeaching(workspace: string | null, operation: string, args: Record<string, unknown>, page: number) {

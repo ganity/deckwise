@@ -1,5 +1,26 @@
 # 04. E2E Test Plan
 
+## E2E-COURSEWARE-document-execution
+
+- With document A open, switch to a different Chat and edit A through its bound
+  native engine. Verify the save remains associated with A's original owner.
+- Edit closed scene/import documents B/C without replacing A. Retain page identities,
+  actual native teaching and foreground source bytes through export/reopen.
+- Open/close while native work is queued: wait for the current operation and save,
+  release the hidden editor, and load the latest bytes into the visible editor.
+  Revalidate the original open request's Chat/workspace after waiting.
+- A cancelled queued call must not open or change a document. A native failure must
+  not replay on another executor. Failed/uncertain saves preserve the editor and
+  block handoff. Read-only and cross-workspace targets must never fall back to disk.
+- Keep the teaching sidebar closed; engine readiness and native tools still work.
+- Coverage: `apps/desktop/test/courseware-document-tools.test.mjs`,
+  `apps/desktop/test/ppt-editor-contract.test.mjs`, and
+  `DECKWISE_E2E_NATIVE_PPTX=<native-fixture> node scripts/e2e-courseware-background-editing.mjs`.
+  The Electron test copies its input, exercises real native IPC and source saves,
+  controls Host responses, forbids model/media submissions, and preserves failed evidence.
+  Optionally set `DECKWISE_E2E_IMPORT_PPTX` to also cover first activation of a raw PPTX.
+
+
 ## E2E-COURSEWARE-import-start-card
 
 - Import a PPT into a task without Chat messages. Show the import card instead of

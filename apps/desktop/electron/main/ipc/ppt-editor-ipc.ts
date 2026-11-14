@@ -1,4 +1,6 @@
-import { NativePlaybackPreflight } from '../courseware-native-preflight';
+import { CoursewareDocumentTools } from "../courseware-document-tools";
+import { createCoursewareDocumentRuntime, createBackgroundCoursewareEditor } from "../courseware-document-runtime";
+import { createNativeAssessmentMedia } from "../courseware-native-assessment-media";
 import { routeNativeMediaLibrary } from "../courseware-native-library";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
@@ -7,11 +9,10 @@ import { app } from "electron";
 import { CoursewareDelivery } from "../courseware-delivery";
 import { coursewareDeliveryFingerprint, exportNativeDelivery } from "../courseware-delivery-export";
 import { readNativeTeachingPackage } from "../courseware-native-package";
-import { readLiveSource } from "../courseware-source-files";
 import { CoursewareNativeMusic } from "../courseware-native-music";
 import { CoursewareNativeVideo } from "../courseware-native-video";
 import { decodeCoursewareVideo } from "../courseware-audio-decode";
-import { CoursewareNativeTools } from "../courseware-native-tools";
+import type { CoursewareNativeTools } from "../courseware-native-tools";
 import { captureNativeTeachingSnapshot, copyNativeTeaching } from "../courseware-native-snapshot";
 import { CoursewareNativeAudio } from "../courseware-native-audio";
 import { CoursewareNativeSave } from "../courseware-native-save";
@@ -44,10 +45,8 @@ import { coursewareOnlineDeployment } from "../courseware-online-deployment";
 import { CoursewareClassroomCoordinator } from "../courseware-classroom";
 import { refreshNativeMaicClassroom } from "../courseware-classroom-native";
 import { createClassroomNativeWriter } from "../courseware-classroom-save";
-import { CoursewareClassroomTts } from "../courseware-classroom-tts";
 import { CoursewareAssessmentMedia } from "../courseware-assessment-media";
 import { executeSavedAssessmentMedia } from "../courseware-assessment-saved";
-import { CoursewareClassroomImages } from "../courseware-classroom-images";
 import { assessmentPageIds } from "../courseware-scene-object-view";
 
 export function registerPptEditorIpc(input: {
@@ -64,7 +63,7 @@ export function registerPptEditorIpc(input: {
   onChatBridgeReady: (bridge: PptEditorChatBridge) => void;
   onOnlinePreparationReady?: (preparation: CoursewareOnlinePreparation) => void;
   onClassroomReady?: (classroom: CoursewareClassroomCoordinator) => void;
-  onNativeTeachingReady?: (tools: CoursewareNativeTools) => void;
+  onNativeTeachingReady?: (tools: Pick<CoursewareNativeTools, "execute">) => void;
   onAssessmentMediaReady?: (media: Pick<CoursewareAssessmentMedia, "execute">) => void;
   onDeactivate?: () => void;
   getWorkspaceRoot: () => Promise<string | null>;
@@ -77,6 +76,12 @@ export function registerPptEditorIpc(input: {
   });
   const chat = new PptEditorChatBridge(editor, getHost, getWorkspaceRoot, input.getViewingSessionId);
   input.onChatBridgeReady(chat);
+  let documentOwner: { sessionId: string; workspace: string; path: string } | undefined;
+  const setDocumentOwner = (sessionId: string) => {
+    const target = editor.documentTarget();
+    documentOwner = target ? { sessionId, workspace: target.workspaceRoot, path: target.sourcePath } : undefined;
+    chat.setOwner(sessionId);
+  };
   const onlinePreparation = new CoursewareOnlinePreparation({ editor, auth: input.authSession, getHost, getWorkspace: getWorkspaceRoot,
     getSessionId: input.getViewingSessionId, assertOwned: sessionId => chat.assertOwned(sessionId) });
   input.onOnlinePreparationReady?.(onlinePreparation);
@@ -114,7 +119,7 @@ export function registerPptEditorIpc(input: {
         assertClassroomOwner(sessionId);
         if (!window || !workspace) throw new Error("Classroom window is unavailable");
         await editor.open(window, workspace, path);
-        assertClassroomOwner(sessionId); chat.setOwner(sessionId);
+        assertClassroomOwner(sessionId); setDocumentOwner(sessionId);
       } }),
     refreshNative: (sessionId, projectId) => teaching.withSaved(sessionId, async (host, jobId, snapshot, context) => {
       const workspace = await getWorkspaceRoot();
@@ -178,19 +183,11 @@ export function registerPptEditorIpc(input: {
     return delivery.execute(payload);
   });
 
-  const classroomTts = new CoursewareClassroomTts({ adoptNative: async (args, asset, bytes, durationMs) => {
-      const view = (await teaching.native("open"))!.value as import("@pi-desktop/shared").CoursewareTeachingView;
-      const page = view.project.pages.findIndex(p => p.pageId === args.sceneId) + 1;
-      if (!page || view.project.projectId !== args.projectId || view.project.teachingRevision !== args.expectedRevision) throw new Error("Native assessment changed");
-      await teaching.native("adopt-audio", { viewId: args.projectId + "." + args.sceneId, expectedTeachingRevision: args.expectedRevision,
-        command: { actionId: args.actionId, assetId: "tts-" + asset.sha256, sha256: asset.sha256, mimeType: asset.mime, bytes: Uint8Array.from(bytes).buffer, durationMs } }, page);
-      return classroom.open({ sessionId: args.sessionId });
-    }, auth: input.authSession, open: sessionId => classroom.open({ sessionId }),
-    getHost, getWorkspace: getWorkspaceRoot, assertOwned: assertClassroomOwner, decodeAudio: decodeCoursewareAudio });
-  const classroomImages = new CoursewareClassroomImages({ auth: input.authSession, classroom,
-    getHost, getWorkspace: getWorkspaceRoot, assertOwned: assertClassroomOwner });
-  const assessmentMedia = new CoursewareAssessmentMedia(classroom, classroomTts, classroomImages);
+  const { tts: classroomTts, images: classroomImages, assessments: assessmentMedia } = createNativeAssessmentMedia({
+    teaching, classroom, auth: input.authSession, getHost, getWorkspace: getWorkspaceRoot, assertOwned: assertClassroomOwner });
   input.onAssessmentMediaReady?.({ execute: async (sessionId, args, canDispatch) => {
+    const native = await documentTools.execute(sessionId, "courseware_media_assessments", args, canDispatch);
+    if (native) return native.value as Awaited<ReturnType<CoursewareAssessmentMedia["execute"]>>;
     let live = false;
     if (input.getViewingSessionId() === sessionId) {
       try {
@@ -231,7 +228,13 @@ export function registerPptEditorIpc(input: {
   }
   const nativeSave = new CoursewareNativeSave(getHost, input.getViewingSessionId, getWorkspaceRoot,
     sessionId => chat.assertOwned(sessionId), operation => teaching.duringNativeSave(operation));
-  editor.nativeSave = value => input.getViewingSessionId() ? nativeSave.prepare(value) : Promise.resolve(undefined);
+  const documentSave = new CoursewareNativeSave(getHost, () => documentOwner?.sessionId ?? null,
+    async () => documentOwner?.workspace ?? null, sessionId => {
+      const target = editor.documentTarget();
+      if (documentOwner?.sessionId !== sessionId || target?.sourcePath !== documentOwner.path || target.workspaceRoot !== documentOwner.workspace)
+        throw new Error("PPT save document owner changed");
+    }, operation => teaching.duringNativeSave(operation));
+  editor.nativeSave = value => documentOwner ? documentSave.prepare(value) : Promise.resolve(undefined);
   registrar.handleWithEvent(IPC.invoke.pptEditorProjectCopy, async (event, payload: unknown, ...extra: unknown[]) => {
     assertSender(event);
     if (extra.length || !payload || typeof payload !== "object" || Array.isArray(payload) ||
@@ -297,54 +300,12 @@ export function registerPptEditorIpc(input: {
     async (operation, args, page) => editor.routeNativeTeaching(await getWorkspaceRoot(), operation, args, page), decodeCoursewareAudio);
   const nativeVideo = new CoursewareNativeVideo(input.authSession, getHost, input.getViewingSessionId,
     async (operation, args, page) => editor.routeNativeTeaching(await getWorkspaceRoot(), operation, args, page), decodeCoursewareVideo);
-  let openingRequest: Promise<unknown> | undefined;
-  const playbackPreflight = new NativePlaybackPreflight();
-  input.onNativeTeachingReady?.(new CoursewareNativeTools(teaching, candidates, nativeAudio,
-    async (operation, args, page) => editor.routeNativeTeaching(await getWorkspaceRoot(), operation, args, page), input.getViewingSessionId, nativeVideo, nativeMusic, async (sessionId, canDispatch) => {
-      const check = () => { if (!canDispatch() || input.getViewingSessionId() !== sessionId) throw new Error("Native teaching owner changed"); };
-      check();
-      await openingRequest; check();
-      const host = getHost(), workspace = await getWorkspaceRoot();
-      await editor.waitForOpen(workspace); check();
-      if (!host || !workspace) return;
-      if (editor.hasTeachingEditor(workspace)) {
-        await editor.waitForTeachingReady(workspace, check);
-        return;
-      }
-      const result = await host.call<{ task?: { importPath?: string; generatedPath?: string } }>("courseware.task.get", { sessionId });
-      check();
-      const path = result.task?.importPath ?? result.task?.generatedPath;
-      if (!path || !await readNativeTeachingPackage(await readLiveSource(workspace, path))) return;
-      check();
-      const window = getMainWindow();
-      if (!window) throw new Error("Native teaching window unavailable");
-      await editor.ensureSaved(workspace, { allowClosed: true }); check();
-      await editor.open(window, workspace, path); check(); chat.setOwner(sessionId);
-      await editor.waitForTeachingReady(workspace, check);
-    }, async (sessionId, canDispatch) => {
-      chat.assertOwned(sessionId);
-      if (!canDispatch()) throw new Error("Native teaching turn ended before save");
-      await editor.ensureSaved(await getWorkspaceRoot());
-      chat.assertOwned(sessionId);
-      if (!canDispatch()) throw new Error("Native teaching turn ended during save");
-    }, assessmentMedia, {
-      async record(sessionId, name, text) {
-        const host = getHost(); if (!host) throw new Error("Host is unavailable");
-        return host.call("courseware.material.record", { sessionId, name, text, parser: "utf8/1" });
-      },
-      async read(sessionId, sourceId) {
-        const host = getHost(); if (!host) throw new Error("Host is unavailable");
-        return host.call("courseware.material.read", { sessionId, sourceId });
-      },
-      async list(sessionId) {
-        const host = getHost(); if (!host) throw new Error("Host is unavailable");
-        return host.call("courseware.material.list", { sessionId });
-      },
-    }, async (view, check) => {
-      const workspace = await getWorkspaceRoot(); check();
-      if (!workspace) throw new Error("Native preflight workspace unavailable");
-      return playbackPreflight.inspect(editor, workspace, view, check);
-    }));
+  const documentTools = new CoursewareDocumentTools({ getHost, editor,
+    createBackground: () => createBackgroundCoursewareEditor(registrar.ipcMain),
+    createTools: (targetEditor, scope) => createCoursewareDocumentRuntime({ editor: targetEditor, scope,
+      background: targetEditor !== editor, auth: input.authSession, complete: input.completeNarration,
+      resolveModel: input.resolveModel, activeTurns: input.activeTurns, getHost }) });
+  input.onNativeTeachingReady?.(documentTools);
   editor.nativeTeaching = createNativeTeachingHandler({ teaching, tts, classroom, classroomTts, classroomImages,
     nativeRoute: routeNative,
     assessmentContext: async view => {
@@ -471,15 +432,19 @@ export function registerPptEditorIpc(input: {
     if (extra.length || !payload || typeof payload !== "object" || Array.isArray(payload) ||
         Object.keys(payload).some(key => !["reviewId", "effectBindings"].includes(key)) || typeof Reflect.get(payload, "reviewId") !== "string" ||
         (Reflect.get(payload, "effectBindings") !== undefined && (!Array.isArray(Reflect.get(payload, "effectBindings")) || Reflect.get(payload, "effectBindings").length > 20000))) throw new Error("Invalid PPTX candidate adoption request");
-    candidatePreview.close();
     const owner = input.getViewingSessionId();
-    await adoption.adopt(Reflect.get(payload, "reviewId"), async (path) => {
-      const window = getMainWindow(); const workspace = await getWorkspaceRoot();
-      if (!window || !workspace || input.getViewingSessionId() !== owner) throw new Error("Source adoption owner changed before reopen");
-      await editor.open(window, workspace, path);
-      if (owner && input.getViewingSessionId() === owner) chat.setOwner(owner);
-    }, Reflect.get(payload, "effectBindings"));
-    return { ok: true };
+    return documentTools.transition(async () => {
+      if (input.getViewingSessionId() !== owner) throw new Error("Source adoption owner changed while waiting");
+      candidatePreview.close();
+      await adoption.adopt(Reflect.get(payload, "reviewId"), async (path) => {
+        const window = getMainWindow(); const workspace = await getWorkspaceRoot();
+        if (!window || !workspace || input.getViewingSessionId() !== owner) throw new Error("Source adoption owner changed before reopen");
+        await editor.open(window, workspace, path);
+        if (owner && input.getViewingSessionId() === owner) setDocumentOwner(owner);
+        else documentOwner = undefined;
+      }, Reflect.get(payload, "effectBindings"));
+      return { ok: true };
+    });
   });
 
   registrar.handleWithEvent(IPC.invoke.pptEditorGetContext, async (event) => {
@@ -495,29 +460,31 @@ export function registerPptEditorIpc(input: {
     IPC.invoke.pptEditorOpen,
     async (event, payload: { path?: string; mimeType?: string } = {}) => {
       assertSender(event);
-      const pending = (async () => {
+      const owner = input.getViewingSessionId();
+      const requestedWorkspace = getWorkspaceRoot();
+      return documentTools.transition(async () => {
         const window = getMainWindow();
-        const workspaceRoot = await getWorkspaceRoot();
+        const workspaceRoot = await requestedWorkspace;
         const path = String(payload.path ?? "").trim();
         if (!window || !workspaceRoot || !path) throw new Error("No document is available in the current workspace");
+        if (input.getViewingSessionId() !== owner || await getWorkspaceRoot() !== workspaceRoot) throw new Error("Document open owner changed while waiting");
         adoption.assertIdle();
+        const previous = editor.documentTarget();
+        if (previous && !previous.readOnly) await editor.ensureSaved(previous.workspaceRoot);
         input.onDeactivate?.();
         chat.clear();
         images.clear();
         visuals.clear();
         style.clear();
         candidatePreview.close();
-        const owner = input.getViewingSessionId();
         await nativeSave.recover(workspaceRoot, path, owner);
         await adoption.beforeOpen(workspaceRoot, path, owner, payload.mimeType);
         if (await getWorkspaceRoot() !== workspaceRoot || input.getViewingSessionId() !== owner) throw new Error("Source adoption owner changed before opening");
         const state = await editor.open(window, workspaceRoot, path, payload.mimeType, await getExtraRoots(workspaceRoot));
-        if (owner && input.getViewingSessionId() === owner) chat.setOwner(owner);
+        if (owner && input.getViewingSessionId() === owner) setDocumentOwner(owner);
+        else documentOwner = undefined;
         return state;
-      })();
-      openingRequest = pending;
-      try { return await pending; }
-      finally { if (openingRequest === pending) openingRequest = undefined; }
+      });
     },
   );
   registrar.handleWithEvent(IPC.invoke.pptEditorSave, async (event) => {
@@ -545,15 +512,20 @@ export function registerPptEditorIpc(input: {
   });
   registrar.handleWithEvent(IPC.invoke.pptEditorClose, async (event) => {
     assertSender(event);
-    adoption.assertIdle();
-    editor.close();
-    input.onDeactivate?.();
-    chat.clear();
-    images.clear();
-    visuals.clear();
-    style.clear();
-    candidatePreview.close();
-    return { ok: true };
+    return documentTools.transition(async () => {
+      adoption.assertIdle();
+      const target = editor.documentTarget();
+      if (target && !target.readOnly) await editor.ensureSaved(target.workspaceRoot);
+      editor.close();
+      documentOwner = undefined;
+      input.onDeactivate?.();
+      chat.clear();
+      images.clear();
+      visuals.clear();
+      style.clear();
+      candidatePreview.close();
+      return { ok: true };
+    });
   });
   registrar.handleWithEvent(
     IPC.invoke.pptEditorSetBounds,

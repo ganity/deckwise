@@ -353,3 +353,19 @@ Keep the fixed player for portable courseware and team builds. Those callers
 cannot be removed until a portable native PPT renderer exists. This does not
 claim that arbitrary native effects can be published through the finite portable
 animation projection; unsupported publication remains an explicit limitation.
+
+### 2026-11-14: Document-scoped native execution
+
+Native authoring is bound to a Host task's real document, independently of the
+currently viewed Chat. Reuse an open target's engine; otherwise use a hidden
+WiseOffice editor with the same teaching/media/candidate services and source-save
+checks. Do not maintain a second XML mutation implementation or disable ownership
+checks on the shared foreground editor. Canonical classroom persistence stays in
+its existing saved workflow. No public IPC schema or storage migration is added.
+
+One ordered native lane also fences visible open/close transitions. This bounds
+memory and prevents two writable engines from owning the same source during
+handoff. It trades simultaneous native mutations for deterministic saves while
+independent generation services can still run concurrently. A failed save retains
+its engine and archived revisions instead of discarding or replaying changes.
+Engine readiness is independent of the teaching sidebar's DOM/visibility.

@@ -20,21 +20,25 @@ test("a refused close preserves the conversation binding and review state", asyn
   const ipc = await read("../electron/main/ipc/ppt-editor-ipc.ts");
   const start = ipc.indexOf("registrar.handleWithEvent(IPC.invoke.pptEditorClose,");
   const end = ipc.indexOf("\n  });", start) + "\n  });".length;
-  for (const saving of [true, false]) {
+  for (const [saving, readOnly] of [[true, false], [false, false], [false, true]]) {
     const calls = [];
     let close;
     const clear = name => ({ clear() { calls.push(name); } });
-    new Function("registrar", "IPC", "assertSender", "adoption", "input", "chat", "images", "visuals", "style", "candidatePreview", "editor", ipc.slice(start, end))(
+    new Function("registrar", "IPC", "assertSender", "adoption", "input", "chat", "images", "visuals", "style", "candidatePreview", "editor", "documentTools", "documentOwner", ipc.slice(start, end))(
       { handleWithEvent(_channel, handler) { close = handler; } }, { invoke: { pptEditorClose: "close" } }, () => {},
       { assertIdle() {} }, { onDeactivate() { calls.push("deactivate"); } }, clear("chat"), clear("images"), clear("visuals"), clear("style"),
-      { close() { calls.push("preview"); } }, { close() { if (saving) throw Error("Finish the current save"); calls.push("editor"); } },
+      { close() { calls.push("preview"); } }, {
+        documentTarget() { return { workspaceRoot: "/workspace", readOnly }; },
+        async ensureSaved() { assert(!readOnly); if (saving) throw Error("Finish the current save"); calls.push("save"); },
+        close() { calls.push("editor"); },
+      }, { transition: operation => operation() }, undefined,
     );
     if (saving) {
       await assert.rejects(close({}), /Finish the current save/);
       assert.deepEqual(calls, []);
     } else {
       await close({});
-      assert.deepEqual(calls, ["editor", "deactivate", "chat", "images", "visuals", "style", "preview"]);
+      assert.deepEqual(calls, [...(readOnly ? [] : ["save"]), "editor", "deactivate", "chat", "images", "visuals", "style", "preview"]);
     }
   }
 });
@@ -113,21 +117,30 @@ test("bundled Office boots the isolated React module directly and retains its na
   assert.match(component, /state\.teachingOpen/);
 });
 
-test('native auto-open waits for the entire explicit open request including source recovery', async () => {
+test('document handoff waits for the entire explicit open request including source recovery', async () => {
   const ipc = await read('../electron/main/ipc/ppt-editor-ipc.ts');
-  const ensure = ipc.slice(ipc.indexOf('input.onNativeTeachingReady?.('), ipc.indexOf('}, async (sessionId, canDispatch) => {', ipc.indexOf('input.onNativeTeachingReady?.(')));
-  assert(ensure.indexOf('await openingRequest') < ensure.indexOf('await editor.waitForOpen'));
   const opening = ipc.slice(ipc.indexOf('IPC.invoke.pptEditorOpen,'), ipc.indexOf('registrar.handleWithEvent(IPC.invoke.pptEditorSave'));
+  assert.match(opening, /return documentTools.transition/);
   const calls = []; let finishRecovery;
   const recovery = new Promise(resolve => { finishRecovery = resolve; });
-  // Exercise the production request fence with recovery still pending.
-  const snippet = opening.slice(opening.indexOf('      const pending'), opening.indexOf('\n    },'));
-  const run = new Function('editor','nativeSave','adoption','getWorkspaceRoot','getMainWindow','getExtraRoots','input','chat','images','visuals','style','candidatePreview',
-    `let openingRequest,calls;return {run:async()=>{const payload={path:'lesson.pptx'};${snippet}},wait:async()=>{await openingRequest;calls.push('read')},setCalls(v){calls=v}};`);
-  const noop = {clear(){},setOwner(){}};
-  const fence = run({open:async()=>{calls.push('open');return{}}},{recover:async()=>{await recovery}}, {assertIdle(){},beforeOpen:async()=>{}},async()=>'/workspace',()=>({}),async()=>[],{getViewingSessionId:()=> 'chat'},noop,noop,noop,noop,{close(){}});
-  fence.setCalls(calls);
-  const opened=fence.run(); await new Promise(resolve=>setImmediate(resolve));
-  const reading=fence.wait(); await new Promise(resolve=>setImmediate(resolve));assert.deepEqual(calls,[]);
+  const snippet = opening.slice(opening.indexOf('      const owner'), opening.indexOf('\n    },'));
+  let queue = Promise.resolve();
+  const documentTools = { transition(operation) { const result = queue.then(operation); queue = result.catch(() => {}); return result; } };
+  const run = new Function('editor','nativeSave','adoption','getWorkspaceRoot','getMainWindow','getExtraRoots','input','chat','images','visuals','style','candidatePreview','documentTools','setDocumentOwner',
+    `return async()=>{const payload={path:'lesson.pptx'};${snippet}};`);
+  const noop = {clear(){}};
+  let viewing = "chat";
+  const request = run({documentTarget(){},open:async()=>{calls.push('open');return{}}},{recover:async()=>{await recovery}}, {assertIdle(){},beforeOpen:async()=>{}},async()=>'/workspace',()=>({}),async()=>[],{getViewingSessionId:()=> viewing},noop,noop,noop,noop,{close(){}},documentTools,()=>{});
+  const opened = request();
+  await new Promise(resolve=>setImmediate(resolve));
+  const reading = documentTools.transition(async()=>{calls.push('read')});
+  await new Promise(resolve=>setImmediate(resolve));assert.deepEqual(calls,[]);
   finishRecovery();await opened;await reading;assert.deepEqual(calls,['open','read']);
+  let release;
+  const waiting = documentTools.transition(() => new Promise(resolve => { release = resolve; }));
+  await new Promise(resolve => setImmediate(resolve));
+  const staleOpen = request(); viewing = 'other-chat';
+  release(); await waiting;
+  await assert.rejects(staleOpen, /owner changed while waiting/);
+  assert.deepEqual(calls, ['open','read']);
 });

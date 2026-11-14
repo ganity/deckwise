@@ -1240,6 +1240,32 @@ bridge. A rejected/cancelled open remains an error; a reader must not silently
 read a replacement document. No generation or adoption is replayed to wait for
 editor readiness.
 
+### Document-scoped native execution
+
+Native narration, activity and media tools resolve their source from the owning
+Host session/task, including its workspace and real source path. Viewing another
+Chat does not revoke that document binding. An already open target uses its live
+editor and saves its unsaved changes before reading a saved source baseline.
+Read-only, changed-workspace and uncertain-save failures never fall back to disk
+or another document. Canonical-only classrooms retain their saved workflow.
+
+Closed PPTX targets use one hidden WiseOffice worker. The same native teaching,
+candidate, assessment, media and playback-preflight services run in both contexts.
+An imported PPTX without native teaching is activated by the same engine command
+as a visible editor. Native readiness acknowledges engine initialization and must
+not depend on sidebar DOM, sidebar visibility or the selected Chat.
+
+Native tool calls and explicit editor open/close requests share an ordered lane.
+An open request captures and revalidates its original Chat/workspace after waiting.
+Before opening a visible document, the hidden worker saves and releases its current
+document; the visible editor then loads the latest committed bytes. Writes already
+dispatched are flushed even after cancellation. A failed flush retains its editor
+and blocks handoff until recovered, without replaying provider submissions. Source
+CAS, native export identity checks, archived revisions and existing media intent
+deduplication remain authoritative. This first implementation serializes native
+tool execution across documents to bound memory; scene/image generation outside
+this lane remains concurrent. It does not introduce an additional provider queue.
+
 ### Saved playback-effect preflight
 
 Once native narration audio is complete and no original media job is pending,

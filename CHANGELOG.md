@@ -1,5 +1,9 @@
 # DeckWise changes
 
+- Continue native teaching edits when a Chat is in the background. Route to the
+  target's open editor or an isolated hidden WiseOffice worker, serialize document
+  handoff, and preserve partial writes and source checks without replaying media orders.
+
 - Offer a teaching setup card after PPT import, with direct Chat execution,
   optional lesson plans/scripts and automatically planned independent activities.
   Complete narration/audio/focus/animation without feature or count controls. Preserve existing
