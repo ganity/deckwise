@@ -115,7 +115,9 @@ that reachable commit in Desktop. Compiled editor, worker and lock files stay
 out of Git. Do not bypass the hook or disable strict release mode.
 
 After signing, a separate `courseware-post-sign.json` captures the signed
-resource identity without modifying the signed app. Package verification checks
+resource identity without modifying the signed app. Windows records this receipt
+in `afterAllArtifactBuild`, after NSIS has added and signed `resources/elevate.exe`;
+the final resource fingerprint includes that helper. Package verification checks
 the appropriate receipt, inventories and absence of private state. Linux also
 extracts the final AppImage and runs the real Electron/Main/Host authoring,
 Quiz, save/reopen and playback acceptance gate. macOS/Windows have package

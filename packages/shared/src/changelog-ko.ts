@@ -2,6 +2,11 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const koEntries: ChangelogEntry[] = [
   {
+    version: "0.20.3",
+    date: "2026-11-16",
+    highlights: ["NSIS가 권한 상승 도우미를 추가한 후 발생하는 Windows 설치 패키지 검증 오류를 수정했습니다."],
+  },
+  {
     version: "0.20.2",
     date: "2026-11-16",
     highlights: [

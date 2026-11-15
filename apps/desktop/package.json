@@ -1,6 +1,6 @@
 {
   "name": "@pi-desktop/desktop",
-  "version": "0.20.2",
+  "version": "0.20.3",
   "desktopName": "deckwise.desktop",
   "private": true,
   "description": "DeckWise PPTX courseware desktop application",
@@ -95,6 +95,7 @@
     "beforePack": "./build/courseware-release.mjs",
     "afterPack": "./build/courseware-release.mjs",
     "afterSign": "./build/courseware-release.mjs",
+    "afterAllArtifactBuild": "./build/courseware-release.mjs",
     "appId": "com.trainwise.deckwise",
     "productName": "DeckWise",
     "directories": {

@@ -2,6 +2,11 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const deEntries: ChangelogEntry[] = [
   {
+    version: "0.20.3",
+    date: "2026-11-16",
+    highlights: ["Die Windows-Installationsprüfung berücksichtigt jetzt die von NSIS hinzugefügte Rechteerweiterungshilfe."],
+  },
+  {
     version: "0.20.2",
     date: "2026-11-16",
     highlights: [

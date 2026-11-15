@@ -8,16 +8,18 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { fingerprintDirectory, sourceIdentity, verifyInventory, inspectCoursewareInputs, assertCoursewareLock } from "../../../scripts/courseware-release-inputs.mjs";
-import { beforePack, afterPack } from "../build/courseware-release.mjs";
+import { beforePack, afterPack, afterSign, afterAllArtifactBuild } from "../build/courseware-release.mjs";
 
 const hash = bytes => createHash("sha256").update(bytes).digest("hex");
-test("electron-builder resolves both configured named hooks", async () => {
+test("electron-builder resolves all configured named hooks", async () => {
   const require = createRequire(import.meta.url);
   const builderRequire = createRequire(require.resolve("electron-builder/package.json"));
   const { resolveFunction } = builderRequire("app-builder-lib/out/util/resolve.js");
   const module = fileURLToPath(new URL("../build/courseware-release.mjs", import.meta.url));
   assert.equal(await resolveFunction("beforePack", module, "beforePack", process.cwd()), beforePack);
   assert.equal(await resolveFunction("afterPack", module, "afterPack", process.cwd()), afterPack);
+  assert.equal(await resolveFunction("afterSign", module, "afterSign", process.cwd()), afterSign);
+  assert.equal(await resolveFunction("afterAllArtifactBuild", module, "afterAllArtifactBuild", process.cwd()), afterAllArtifactBuild);
 });
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), "courseware-release-"));
