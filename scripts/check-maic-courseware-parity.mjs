@@ -13,13 +13,22 @@ import { fileURLToPath } from "node:url";
 import { pathToFileURL } from "node:url";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const out = process.env.DECKWISE_E2E_OUTPUT ? resolve(process.env.DECKWISE_E2E_OUTPUT) : await mkdtemp(join(tmpdir(), "maic-parity-"));
-await mkdir(out, { recursive: true });
 const cloud = resolve(process.env.MAIC_CLOUD_WEB_ROOT || join(root, "../../cloud-web-trainwise"));
 const maic = resolve(process.env.MAIC_SERVER_ROOT || join(root, "../../evo-trainwise-maic-server"));
 const runtimeRequire = createRequire(new URL("../packages/courseware-runtime/package.json", import.meta.url));
 const desktopRequire = createRequire(new URL("../apps/desktop/package.json", import.meta.url));
 const cloudRequire = createRequire(join(cloud, "package.json"));
+const maicRequire = createRequire(join(maic, "package.json"));
+assert(process.argv.length === 2 || process.argv.length === 3 && process.argv[2] === "--preflight", "Only --preflight is supported");
+for (const [require, name, repository] of [[maicRequire, "jszip", maic], [cloudRequire, "@tailwindcss/node", cloud], [cloudRequire, "tailwindcss", cloud]]) {
+  try { require.resolve(name); }
+  catch { throw new Error(`Install the locked dependencies in ${repository} before MAIC validation: missing ${name}`); }
+}
+for (const path of [join(maic, "lib/server/classroom-package-export.ts"), join(cloud, "components/scene-renderers/quiz-view.tsx")])
+  assert(existsSync(path), `Missing MAIC reference source: ${path}`);
+if (process.argv[2] === "--preflight") { console.log("PASS local MAIC reference prerequisites"); process.exit(0); }
+const out = process.env.DECKWISE_E2E_OUTPUT ? resolve(process.env.DECKWISE_E2E_OUTPUT) : await mkdtemp(join(tmpdir(), "maic-parity-"));
+await mkdir(out, { recursive: true });
 const { build } = runtimeRequire("esbuild");
 const { chromium, expect } = runtimeRequire("@playwright/test");
 const JSZip = runtimeRequire("jszip");
@@ -78,7 +87,6 @@ try {
       } }] });
     // Resolve external installed dependencies relative to the reference repository without changing it.
     const bundled = await readFile(output, "utf8");
-    const maicRequire = createRequire(join(maic, "package.json"));
     await writeFile(output, bundled.replace(/from (["'])([^"'.][^"']*)\1/g, (text, quote, specifier) =>
       specifier.startsWith("node:") || ["fs", "path", "crypto", "buffer", "stream", "util"].includes(specifier) ? text : `from ${quote}${pathToFileURL(maicRequire.resolve(specifier)).href}${quote}`));
     const consumer = await import(pathToFileURL(output).href);

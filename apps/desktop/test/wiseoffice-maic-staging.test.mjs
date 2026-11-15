@@ -24,15 +24,21 @@ test("plain upstream builds cannot bring back the legacy checkpoint form", async
 });
 test("MAIC staging pins the transformed editor provenance and every bundled file", async t => {
   const f = await fixture(t);
-  const marker = { version: 1, contentEditor: "maic", nativeCheckpointEditor: "native-teaching", commit: "a".repeat(40), dirty: false };
+  const marker = { version: 1, contentEditor: "maic", nativeCheckpointEditor: "native-teaching", commit: "a".repeat(40), dirty: false,
+    desktopCommit: "b".repeat(40), desktopDirty: false };
   await writeFile(join(f.source, "deckwise-maic-integration.json"), JSON.stringify(marker));
   f.stage();
   const receipt = JSON.parse(await readFile(join(f.output, "deckwise-bundle.json"), "utf8"));
   assert.equal(receipt.contentEditor, "maic"); assert.equal(receipt.commit, marker.commit); assert.equal(receipt.dirty, false);
+  assert.equal(receipt.desktopCommit, marker.desktopCommit); assert.equal(receipt.desktopDirty, false);
   assert(receipt.files.some(file => file.path === ".deckwise/teaching-preview.mjs"));
   for (const file of receipt.files) {
     const bytes = await readFile(join(f.output, file.path));
     assert.equal(bytes.length, file.bytes); assert.equal(createHash("sha256").update(bytes).digest("hex"), file.sha256);
   }
   assert.throws(f.stage, /Destination already exists/, "Never overwrite an existing bundle");
+  const check = () => execFileSync(process.execPath, [script, "--check", f.output], { encoding: "utf8", stdio: "pipe" });
+  assert.equal(JSON.parse(check()).status, "VERIFIED");
+  await writeFile(join(f.output, "module.html"), "tampered");
+  assert.throws(check, /mismatch/);
 });

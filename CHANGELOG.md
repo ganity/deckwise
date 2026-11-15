@@ -1,5 +1,22 @@
 # DeckWise changes
 
+- Verify paired courseware editor and native worker inventories before packaging,
+  reject stale compiler overrides and unpinned release inputs, record unpacked
+  build identity, and run courseware workflow contracts in Release verification.
+  Keep repeatable three-fixture Electron/Quiz regression evidence separate from
+  final installer and production-provider qualification.
+  Keep selected Quiz answer letters readable in both light and dark themes.
+
+- Preserve nested native speech animations across Office reopen and verify their
+  saved mirrors before completion. Bound unchanged preview loops, recover doubled
+  DSML tool markup, honor explicit narration block counts, review Quiz option
+  pixels before adoption, and compile new scene display copy as native text.
+
+- Require missing Quiz option images before native teaching completion. Recover
+  leaked tool markup and serialized empty replies once, preserve the hard context
+  budget after one overflow checkpoint retry, and match explicit currency-card
+  denominations without weakening object identity checks.
+
 - Continue native teaching edits when a Chat is in the background. Route to the
   target's open editor or an isolated hidden WiseOffice worker, serialize document
   handoff, and preserve partial writes and source checks without replaying media orders.

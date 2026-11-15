@@ -44,6 +44,8 @@ coverage/
 # Local runtime data
 # Generated from the separately verified Linux worker bundle.
 apps/desktop/resources/pptx-worker/
+apps/desktop/resources/pptx-worker-before-*/
+apps/desktop/resources/wiseoffice-before-*/
 apps/desktop/.pptx-worker-before-*/
 packages/courseware-runtime/.w06-2-worker*/
 .pi-desktop/
@@ -59,3 +61,4 @@ apps/.deckwise-office
 electron.vite.config.*.mjs
 
 apps/desktop/resources/wiseoffice/
+apps/desktop/resources/courseware-release-lock.json

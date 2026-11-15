@@ -31,6 +31,8 @@ function quizFixture(id) {
         questions: [{ id: `${id}-q`, type: "single", question: "可以用哪个词和朋友打招呼？", options: [{ value: "A", label: "Hello" }, { value: "B", label: "Bye" }], answer: ["A"], analysis: "Hello 用于见面问候。", hasAnswer: true, points: 1 }] }, actions: [] },
     { id: `${id}-assessment`, stageId: id, type: "quiz", title: "课堂测验", order: 1, content: { type: "quiz", interactionMode: "assessment_review", questions: [
       { id: `${id}-assessment-q`, type: "single", question: "选择正确答案", options: [{ value: "A", label: "选项一" }, { value: "B", label: "选项二" }], answer: ["A"], hasAnswer: true, points: 1 },
+      { id: `${id}-assessment-q2`, type: "single", question: "判断问候语", options: [{ value: "A", label: "选项一" }, { value: "B", label: "选项二" }], answer: ["A"], hasAnswer: true, points: 1 },
+      { id: `${id}-assessment-q3`, type: "single", question: "介绍自己", options: [{ value: "A", label: "选项一" }, { value: "B", label: "选项二" }], answer: ["A"], hasAnswer: true, points: 1 },
     ] }, actions: [] }], mediaManifest: [], audioManifest: [] };
 }
 const invoke = (name, ...args) => page.evaluate(async ({ name, args }) => {
@@ -39,6 +41,7 @@ const invoke = (name, ...args) => page.evaluate(async ({ name, args }) => {
   return response.data;
 }, { name, args });
 const editor = () => page.getByRole("region", { name: "课程内容编辑器" });
+const findCheckpoint = scene => scene.actions.find(action => action.type === "interaction_checkpoint");
 const read = () => invoke("coursewareClassroomOpen", { sessionId });
 const step = async (name, run) => { console.log("START", name); await run(); report.checks.push(name); console.log("PASS", name); };
 async function start() {
@@ -50,6 +53,7 @@ async function start() {
   for (const stream of [app.process().stdout, app.process().stderr]) stream.on("data", bytes => logs.push(String(bytes)));
   page = await app.firstWindow({ timeout: 60_000 });
   page.on("pageerror", error => pageErrors.push(error.stack));
+  await page.waitForURL(/\/renderer\/index\.html(?:[?#]|$)/, { waitUntil: "load" });
   await page.waitForFunction(() => !!window.piDesktop);
   await app.evaluate(({ session }) => session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
     const url = new URL(details.url);
@@ -88,13 +92,27 @@ async function openEditor() {
   await expect.poll(async () => await editor().isVisible() || await entry.isVisible()).toBe(true);
   if (!await editor().isVisible()) await entry.click();
   await expect(editor()).toBeVisible();
-  await expect(editor().getByText("已保存", { exact: true })).toBeVisible();
+  await expect(editor().getByRole("toolbar").getByRole("status")).toHaveText("已自动保存");
 }
 async function waitSaved(predicate) {
   await expect.poll(async () => {
     const current = await read(); return predicate(current.classroom);
   }, { timeout: 20_000 }).toBe(true);
-  await expect(editor().getByText("已保存", { exact: true })).toBeVisible();
+  await expect(editor().getByRole("toolbar").getByRole("status")).toHaveText("已自动保存");
+}
+async function answerQuiz(player, answer) {
+  const skip = player.getByRole("button", { name: "跳过失败的配音", exact: true });
+  for (let attempt = 0; attempt <= 4; attempt++) {
+    await expect.poll(async () => await answer.isEnabled() || await skip.isVisible(), { timeout: 30_000 }).toBe(true);
+    if (await answer.isEnabled()) { await answer.click(); return; }
+    assert(attempt < 4, "Quiz did not become answerable after bounded unavailable-speech recovery");
+    report.offlineFeedback = "Unavailable system speech was explicitly skipped through the player control; no speech events were fabricated.";
+    await skip.click();
+  }
+}
+async function setCorrectAnswer(form, value) {
+  const button = form.getByRole("button", { name: `正确答案 ${value}`, exact: true });
+  if (await button.getAttribute("aria-pressed") !== "true") await button.click();
 }
 async function exportArchive(label) {
   const view = await read();
@@ -121,6 +139,10 @@ try {
     await invoke("coursewareClassroomCreate", { sessionId, classroom: quizFixture("acceptance") });
     await openEditor();
     assert((await read()).classroom.scenes.every(scene => scene.type === "quiz"));
+    const selectedStyle = await editor().getByRole("button", { name: "正确答案 A", exact: true }).evaluate(button => {
+      const style = getComputedStyle(button); return { color: style.color, background: style.backgroundColor };
+    });
+    assert.notEqual(selectedStyle.color, selectedStyle.background, "Selected answer letter must be visible");
   });
   await step("Question, stable options, correct answers and image uploads survive autosave", async () => {
     await editor().getByRole("textbox", { name: "问题", exact: true }).fill("当我们和小朋友打招呼的时候，可以用哪个词呢？");
@@ -154,18 +176,22 @@ try {
     await waitSaved(c => c.scenes[0].content.questions[0].question === before);
     assert.equal((await read()).classroom.mediaManifest.length, 3);
   });
-  await step("Shared Quiz preview shows image options and supports retry then correct completion", async () => {
-    await editor().getByRole("button", { name: "预览题目", exact: true }).click();
-    const quiz = editor().locator('[data-scene-type="quiz"]'); await expect(quiz).toBeVisible();
+  await step("Shared Quiz player shows image options and supports retry then correct completion", async () => {
+    const opened = app.waitForEvent("window");
+    await editor().getByRole("button", { name: "播放整个课程", exact: true }).click();
+    const player = await opened; playerPage = player; player.on("pageerror", error => pageErrors.push(error.stack));
+    const quiz = player.locator('[data-scene-type="quiz"]'); await expect(quiz).toBeVisible();
     await expect(quiz.locator("img")).toHaveCount(3);
+    await player.locator("header h1").hover();
     await expect(quiz.getByRole("button", { name: /A.*Hello/ })).toHaveCSS("background-color", "rgb(255, 255, 255)");
     report.instantPreviewStyle = await quiz.getByRole("button", { name: /A.*Hello/ }).evaluate(element => ({ background: getComputedStyle(element).backgroundColor, radius: getComputedStyle(element).borderRadius }));
-    await quiz.getByRole("button", { name: /B.*Bye/ }).click();
+    await player.getByRole("button", { name: "播放", exact: true }).click();
+    await answerQuiz(player, quiz.getByRole("button", { name: /B.*Bye/ }));
     await expect(quiz.locator("button.border-red-300")).toHaveCount(1);
-    await quiz.getByRole("button", { name: /A.*Hello/ }).click();
+    await answerQuiz(player, quiz.getByRole("button", { name: /A.*Hello/ }));
     await expect(quiz.locator("button.border-emerald-300")).toHaveCount(1);
-    const image = join(out, "quiz-image-options.png"); await editor().screenshot({ path: image }); report.artifacts.push(image);
-    await editor().getByRole("button", { name: "返回编辑", exact: true }).click();
+    const image = join(out, "quiz-image-options.png"); await player.screenshot({ path: image }); report.artifacts.push(image);
+    await player.close(); playerPage = null;
   });
   await step("Interaction is a distinct editable slide checkpoint in a mixed course", async () => {
     const initial = (await read()).classroom;
@@ -178,13 +204,16 @@ try {
     const position = await interactionIndex();
     assert.equal(position, initial.scenes.indexOf(assessment) + 1, "Interaction checkpoint must follow the selected second Quiz");
     await editor().getByRole("textbox", { name: "问题", exact: true }).fill("请完整说出你的英文自我介绍。");
-    await waitSaved(c => c.scenes[position].actions[0].question === "请完整说出你的英文自我介绍。");
+    await waitSaved(c => findCheckpoint(c.scenes[position]).question === "请完整说出你的英文自我介绍。");
     await editor().getByRole("textbox", { name: "参考答案", exact: true }).fill("Hello, my name is Pandy.");
-    await waitSaved(c => c.scenes[position].actions[0].referenceAnswer.summary.includes("Pandy"));
-    await editor().getByRole("textbox", { name: "关键点（每行一项）", exact: true }).fill("问候语\n姓名");
-    await waitSaved(c => c.scenes[position].actions[0].referenceAnswer.keyPoints.length === 2);
+    await waitSaved(c => findCheckpoint(c.scenes[position]).referenceAnswer.summary.includes("Pandy"));
+    for (const [index, value] of ["问候语", "姓名"].entries()) {
+      await editor().getByRole("button", { name: "添加关键点", exact: true }).click();
+      await editor().getByRole("textbox", { name: `关键点 ${index + 1}`, exact: true }).fill(value);
+      await waitSaved(c => findCheckpoint(c.scenes[position]).referenceAnswer.keyPoints[index] === value);
+    }
     await editor().getByRole("textbox", { name: "约束性提示词", exact: true }).fill("引导学生自己说出姓名，不直接代答。");
-    await waitSaved(c => c.scenes[position].actions[0].constraintPrompt.includes("不直接代答"));
+    await waitSaved(c => findCheckpoint(c.scenes[position]).constraintPrompt.includes("不直接代答"));
     const image = join(out, "interaction-editor.png"); await editor().screenshot({ path: image }); report.artifacts.push(image);
     savedExport = await exportArchive("mixed");
     const scene = savedExport.meta.classroom.scenes.find(item => item.actions?.some(action => action.type === "interaction_checkpoint"));
@@ -205,22 +234,18 @@ try {
       questionForms: element.querySelectorAll("fieldset.maic-question").length,
       selectLabels: [...element.querySelectorAll("label")].filter(label => label.querySelector("select")).map(label => label.textContent),
     }));
-    assert.equal(report.assessmentEditor.questionForms, 1, "Assessment editor must show one question form");
+    assert.equal(report.assessmentEditor.questionForms, 3, "Existing multi-question assessment must remain editable");
     await forms().nth(0).getByLabel(/^题型/).selectOption("multiple");
     await waitSaved(c => c.scenes[position].content.questions[0].type === "multiple");
     for (const value of ["A", "B"]) {
-      await forms().nth(0).getByLabel(`正确答案 ${value}`, { exact: true }).check();
+      await setCorrectAnswer(forms().nth(0), value);
       await waitSaved(c => c.scenes[position].content.questions[0].answer.includes(value));
     }
-    await editor().getByRole("button", { name: "添加题目", exact: true }).click();
-    await waitSaved(c => c.scenes[position].content.questions.length === 2);
     page.once("dialog", dialog => dialog.accept());
     await forms().nth(1).getByLabel(/^题型/).selectOption("judge");
     await waitSaved(c => c.scenes[position].content.questions[1].type === "judge");
-    await forms().nth(1).getByLabel("正确答案 T", { exact: true }).check();
+    await setCorrectAnswer(forms().nth(1), "T");
     await waitSaved(c => c.scenes[position].content.questions[1].answer[0] === "T");
-    await editor().getByRole("button", { name: "添加题目", exact: true }).click();
-    await waitSaved(c => c.scenes[position].content.questions.length === 3);
     page.once("dialog", dialog => dialog.accept());
     await forms().nth(2).getByLabel(/^题型/).selectOption("short_answer");
     await waitSaved(c => c.scenes[position].content.questions[2].type === "short_answer");
@@ -240,8 +265,8 @@ try {
     await expect(player.locator('[data-scene-type="quiz"]')).toBeVisible({ timeout: 30_000 });
     await player.getByRole("button", { name: "下一页", exact: true }).click();
     const card = type => player.locator(`[data-question-id="${assessment.content.questions.find(question => question.type === type).id}"]`);
-    for (const value of ["A", "B"]) await card("multiple").getByRole("button", { name: new RegExp(`^${value}\\s*`) }).click();
-    await card("judge").getByRole("button", { name: /^T\s*/ }).click();
+    for (const value of ["A", "B"]) await answerQuiz(player, card("multiple").getByRole("button", { name: new RegExp(`^${value}\\s*`) }));
+    await answerQuiz(player, card("judge").getByRole("button", { name: /^T\s*/ }));
     await card("short_answer").getByRole("textbox").fill("Hello, my name is Pandy.");
     await player.getByRole("button", { name: "提交答案", exact: true }).click();
     await expect(player.getByText("答题报告", { exact: true })).toBeVisible();
@@ -272,7 +297,7 @@ try {
     await expect(quiz).toBeVisible({ timeout: 30_000 });
     await expect(quiz.locator("img")).toHaveCount(3);
     await player.getByRole("button", { name: "播放", exact: true }).click();
-    await quiz.getByRole("button", { name: /A.*Hello/ }).click();
+    await answerQuiz(player, quiz.getByRole("button", { name: /A.*Hello/ }));
     await expect.poll(async () => await player.locator('[data-player-mode="waiting_interaction"]').count()
       ? "interaction" : await player.getByRole("button", { name: "跳过失败的配音", exact: true }).isVisible() ? "unavailable_voice" : "pending", { timeout: 30_000 }).not.toBe("pending");
     if (await player.getByRole("button", { name: "跳过失败的配音", exact: true }).isVisible()) {
@@ -296,6 +321,7 @@ try {
     const current = (await read()).classroom;
     const position = current.scenes.findIndex(scene => scene.actions?.some(action => action.type === "interaction_checkpoint"));
     await editor().getByRole("button", { name: `${position + 1}. 互动 · ${current.scenes[position].title}`, exact: true }).click();
+    await editor().locator("summary").filter({ hasText: "更多上下文设置" }).click();
     for (const field of ["问题", "参考答案", "章节标题", "章节摘要"]) {
       await editor().getByRole("textbox", { name: field, exact: true }).fill("");
       await expect(editor().getByRole("textbox", { name: field, exact: true })).toHaveValue("");

@@ -96,9 +96,12 @@ test("release builds are gated on the CI checks and least-privilege permissions"
   assert.match(releaseWorkflowSource, /^permissions:\n  contents: read$/m);
   assert.match(releaseWorkflowSource, /^  verify:/m);
   assert.match(releaseWorkflowSource, /^  build:\n[\s\S]*?^    needs: verify$/m);
+  assert.match(releaseWorkflowSource, /DECKWISE_COURSEWARE_RELEASE: '1'/);
+  assert.match(releaseWorkflowSource, /DECKWISE_COURSEWARE_LOCK:.*courseware-release-lock\.json/);
   const verifyJob = releaseWorkflowSource.match(/^  verify:\n[\s\S]*?(?=^  build:)/m)?.[0];
   assert.ok(verifyJob, "release verify job is missing");
   for (const step of [
+    /run: pnpm test:courseware-workflow/,
     /run: pnpm build:js/,
     /run: pnpm --filter @pi-desktop\/desktop typecheck/,
     /run: pnpm lint/,

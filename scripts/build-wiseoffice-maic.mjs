@@ -3,12 +3,14 @@ import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { resolve, join } from "node:path";
 import { lstat, readFile, realpath, writeFile } from "node:fs/promises";
-import { execFileSync } from "node:child_process";
 import { maicSidebarSource, maicTeachingFlowSource, maicEmbedSource } from "./wiseoffice-maic-sidebar.mjs";
+import { sourceIdentity } from "./courseware-release-inputs.mjs";
 
 const [source, destination] = process.argv.slice(2);
 assert(source && destination, "Usage: build-wiseoffice-maic.mjs <WiseOffice source> <new build directory>");
 const root = await realpath(source), outDir = resolve(destination);
+const desktopRoot = fileURLToPath(new URL("../", import.meta.url));
+const desktopSource = sourceIdentity(desktopRoot), documentSource = sourceIdentity(root);
 await assert.rejects(lstat(outDir), { code: "ENOENT" }, "Build destination must be new");
 const requireSource = createRequire(join(root, "package.json"));
 const { build } = await import(pathToFileURL(requireSource.resolve("vite")).href);
@@ -35,6 +37,7 @@ await build({
 assert.deepEqual([...applied].sort(), ["embed", "flow", "sidebar"], "MAIC sidebar integration was not applied");
 const html = join(outDir, "module.html");
 await writeFile(html, secureEditorHtml(await readFile(html, "utf8")));
-const commit = execFileSync("git", ["-C", root, "rev-parse", "HEAD"], { encoding: "utf8" }).trim();
-const dirty = execFileSync("git", ["-C", root, "status", "--porcelain", "--untracked-files=no"], { encoding: "utf8" }).trim().length > 0;
-await writeFile(join(outDir, "deckwise-maic-integration.json"), JSON.stringify({ version: 1, contentEditor: "maic", nativeCheckpointEditor: "native-teaching", commit, dirty }));
+assert.deepEqual(sourceIdentity(root), documentSource, "Document source state changed during integration build");
+assert.deepEqual(sourceIdentity(desktopRoot), desktopSource, "Desktop source state changed during integration build");
+await writeFile(join(outDir, "deckwise-maic-integration.json"), JSON.stringify({ version: 1, contentEditor: "maic", nativeCheckpointEditor: "native-teaching",
+  ...documentSource, desktopCommit: desktopSource.commit, desktopDirty: desktopSource.dirty }));

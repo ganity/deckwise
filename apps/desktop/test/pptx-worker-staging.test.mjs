@@ -109,5 +109,9 @@ test('courseware Linux packaging checks the worker before using existing release
   assert.match(scripts['check:pptx-worker'], /stage-pptx-worker\.mjs --check/);
   assert.match(scripts['pack:courseware:linux'], /test:authoring-bundle/);
   assert.match(scripts['dist:courseware:linux'], /test:authoring-bundle/);
-  assert(build.linux.extraResources.some(resource => resource.from === '../../packages/courseware-runtime/dist/authoring.mjs' && resource.to === 'pptx-worker/authoring.mjs'));
+  assert(build.extraResources.some(resource => resource.from === 'resources/pptx-worker' && resource.to === 'pptx-worker'));
+  for (const platform of ['linux', 'mac', 'win'])
+    assert(!build[platform].extraResources.some(resource => /authoring\.mjs$/.test(resource.from)), 'Do not overwrite an inventoried worker file');
+  assert.equal(build.beforePack, './build/courseware-release.mjs');
+  assert.equal(build.afterPack, './build/courseware-release.mjs');
 });

@@ -78,6 +78,14 @@ try {
     } };
   }, { image });
   await page.goto(`http://127.0.0.1:${server.address().port}`);
+  await page.getByRole('button', {name:'正确答案 A',exact:true}).waitFor();
+  for (const [accent, background] of [['#ffffff', '#171717'], ['#171717', '#ffffff']]) {
+    await page.addStyleTag({content:`:root { --ds-accent:${accent}; --ds-bg-primary:${background}; }`});
+    const colors = await page.getByRole('button', {name:'正确答案 A',exact:true}).evaluate(button => {
+      const style = getComputedStyle(button); return {text:style.color, background:style.backgroundColor};
+    });
+    assert.notEqual(colors.text, colors.background, 'Selected answer must remain readable in both themes');
+  }
   await page.getByLabel('问题', { exact:true }).fill('Updated greeting');
   await page.waitForFunction(() => window.__writes.some(v => v.classroom.scenes[0].content.questions[0].question === 'Updated greeting'));
   await page.getByLabel('题目图片', { exact:true }).setInputFiles({ name:'one.png', mimeType:'image/png', buffer:Buffer.from(image.split(',')[1], 'base64') });

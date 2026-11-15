@@ -1,5 +1,24 @@
 # 04. E2E Test Plan
 
+## E2E-COURSEWARE-release-inputs
+
+- Reject missing, added or changed editor/worker files, unsafe paths, duplicate
+  inventory entries, symlinks, wrong target architecture and a compiler that
+  differs from the current runtime build. Recheck packaged copies, not only the
+  staging receipts. Release mode also requires the frozen lock and clean paired
+  sources; local dirty snapshots remain explicitly unqualified.
+- Never overwrite a frozen input lock or an existing evidence directory. Record
+  candidate identity with acceptance not run. Later signing and installer
+  transformations need their own final-artifact qualification.
+- Run `pnpm test:courseware-regression` with separate Master, Scene and import
+  fixtures, each at most six pages. Reject duplicate fixtures, failed/missing
+  reports and source/build/input/fixture drift during the run. Retain evidence;
+  a source regression pass never sets release readiness.
+- Regression coverage: `courseware-release-inputs.test.mjs`,
+  `pptx-worker-staging.test.mjs`, `wiseoffice-maic-staging.test.mjs`,
+  `ci-workflow.test.mjs`, plus the actual Electron/MAIC journeys run by
+  `scripts/check-courseware-regression.mjs`.
+
 ## E2E-COURSEWARE-document-execution
 
 - With document A open, switch to a different Chat and edit A through its bound
@@ -18,8 +37,10 @@
   `DECKWISE_E2E_NATIVE_PPTX=<native-fixture> node scripts/e2e-courseware-background-editing.mjs`.
   The Electron test copies its input, exercises real native IPC and source saves,
   controls Host responses, forbids model/media submissions, and preserves failed evidence.
-  Optionally set `DECKWISE_E2E_IMPORT_PPTX` to also cover first activation of a raw PPTX.
-
+  Optionally set `DECKWISE_E2E_SCENE_PPTX` to a separate scene fixture and
+  `DECKWISE_E2E_IMPORT_PPTX` to cover first activation of a raw PPTX. The combined
+  regression command requires both. `DECKWISE_E2E_OUTPUT` retains successful logs
+  and the four-check report as well as preserving failed temporary workspaces.
 
 ## E2E-COURSEWARE-import-start-card
 
@@ -16861,6 +16882,67 @@ Loopback supplier and unit evidence establishes protocol/persistence behavior;
 live supplier availability, generated identity/style quality and packaged video
 playback require separate acceptance. No paid supplier request was made here.
 
+### Teaching visual tolerance (2026-11-13)
+
+- Import, scene and PPT Master: a diamond kite versus a planned swallow-shaped
+  kite produces an advisory and saved narration using the observed identity.
+  A background bench without an independent target does not block completion.
+- Keep unresolved name matches visible as advisory bindings in narration and
+  media context. Neither context launches automatic object repair solely for a
+  design-name mismatch. Do not fabricate aliases or replace paid images.
+- Objects-only repair preserves every speech, audio reference and cue verbatim
+  while retaining truthful object identities despite unresolved optional props.
+- A missing essential family portrait still blocks narration. Required shape,
+  color and quantity facts remain strict when taught. Missing effect UUIDs and
+  invalid effect bindings remain blocking even when other warnings are present.
+- Restart with the updated visual policy; retry only the affected real pages 2
+  and 9 using their saved PPT. Preserve other pages, images, audio and music.
+
+Real-provider recovery evidence: session `3078acbe-c566-48ab-a7af-5871e1d34e47`,
+model `deepseek-v4.1-flash-1017`, pages 2/9 saved with 7/14 speech clips and all
+corresponding audio adopted. Final narration context reports zero missing speech
+audio across 87 speeches. Saved-file inspection confirms original media,
+assessments, other-page actions and page 9 music are preserved. Slide visuals
+are unchanged after normalizing WiseOffice's reserialized numeric shape IDs.
+Editor readiness conflicts required refresh of original TTS tasks, without
+resubmission. The original page 3 video remains pending; the final global media
+query failed with `COURSEWARE_WORKFLOW_REJECTED`, so whole-course completion and
+playback acceptance are not claimed. Evidence and before/after PPTX files:
+`/home/jhz/deckwise-validation/visual-tolerance-20261113/report.json`.
+Targeted narration/native-tool tests: 166 passed; desktop typecheck/build passed.
+
+### Unsubmitted media slots during native completion (2026-11-13)
+
+- With speech audio adopted and an unsubmitted video/music slot, read native
+  media context and the video model catalog successfully. An empty job list
+  does not mean the slot is ready for playback conversion. Preserve the slot
+  and report its pending status without invoking playback preflight.
+- After all slots and pending attention are resolved, run the existing shared
+  playback preflight. Binding errors must still block completion.
+
+Real-client validation against `https://trainwise.efrobot.com/llm-ha/v1` now
+reads video context successfully twice, preserving the page 3 slot and all 87
+adopted speech clips. Both reads return an empty video catalog. Read-only
+inspection of deployed configuration confirms no Seedance account or video
+provider, so no video submission was attempted. Desktop media/native tests
+(88), Host video tests (2), and llm-ha Seedance tests (4) pass, together with
+desktop typecheck/build. Live generation, settlement, download, adoption and
+playback remain unverified until the video provider is configured. Evidence:
+`/home/jhz/deckwise-validation/video-gateway-20261113/report.json`.
+
+### Scene image archive size recovery (2026-11-13)
+
+- Download a ready/settled decomposition whose valid background PNG exceeds
+  8 MiB but is below 32 MiB. Archive original bytes through Main and Host, reopen
+  them after Host restart, and retain the same SHA-256 and dimensions. Use an
+  archived master above 8 MiB as the source of a normalized decomposition reference;
+  preserve its original identity while the provider upload stays within 8 MiB.
+- Validate the same image at compiler capture and image-lock inspection; accept
+  the 32 MiB metadata boundary and reject larger images. Keep the 64 MiB Host
+  frame and the existing pixel, integrity and bundle checks.
+- Recover the original decomposition receipt without another generation request
+  or a paid retry. Native Electron decoding must accept the actual returned PNG.
+
 ### Seedream native decomposition errors (2026-10-27)
 
 - Submit an approved decomposition through llm-ha. While executing, refresh
@@ -18220,8 +18302,14 @@ without creating an empty runtime. Export/reopen must preserve checkpoint data.
 - Quiz and checkpoint playback use the shared runtime components. Check a wrong
   choice, correct retry, teacher continuation, source-less checkpoint context,
   repeated start/stop and media-read error recovery in the actual native iframe.
-- Preserve sandboxed local/team preview authorization and portable playback.
-  Relevant checks: `courseware-svg-entry.test.mjs`, `ppt-master-quality.test.mjs`,
+- Status update (2026-11-13): portable courseware, team publication and their
+  playback workflows are **TBD**, including whether they use a standalone
+  player. Existing local/team preview and portable-playback checks describe
+  implementation coverage, not approved product requirements. Desktop PPT
+  playback acceptance must use WiseOffice's native teaching slideshow; a
+  standalone fixed-player run cannot substitute for it. See the
+  [ADR status update](../../adr/host-owned-courseware-projects.md#2026-11-13-portable-courseware-and-team-publication--tbd).
+  Relevant existing checks: `courseware-svg-entry.test.mjs`, `ppt-master-quality.test.mjs`,
   `wiseoffice-maic-sidebar.browser.mjs`, `courseware-player-preview.test.mjs`,
   runtime `teaching-timeline-preview.test.ts` and WiseOffice teaching tests.
 
@@ -18331,6 +18419,11 @@ Native authoring parity continuation:
 
 Use different lesson topics for scene, presentation and real-PPT import, with no more than six final pages per lesson. Keep original import pages and verify new assessments are independent pages. Capture the user prompts, review approvals, interventions, saved PPTX, reopened teaching data, fixed-build diagnostics and actual player results. A resumed or corrected run is not an uninterrupted generation success.
 
+- Include native connector arrows in a Master body page. After save/reopen,
+  build and open the actual fixed player: valid endpoint-based lines without
+  rectangular height must render. Missing/nonfinite endpoints and missing
+  rectangular shape height must still reject; lines cannot become focus targets.
+
 - Race automatic teaching's `open(path)` with the UI's `open(path, mimeType, extraRoots)`. Both must resolve against one initialization of the same PPTX. An extra-root authorization from one caller must never authorize another caller. Explicitly closing the editor must still cancel pending readers.
 - Switch Chat before a native tool dispatch, then return within the bounded focus wait. Dispatch only against the owning Chat. Cancelling that turn must prevent dispatch; a focus timeout must preserve its structured phase in the user-facing error.
 - Prepare an assessment whose internal teaching objective contains the answer. Its visible heading must be neutral; retain the objective internally. In the fixed player use the saved assessment question as the heading, never a large option label extracted from the slide.
@@ -18339,3 +18432,33 @@ Use different lesson topics for scene, presentation and real-PPT import, with no
 - Complete body-page audio while leaving Quiz and oral-interaction speech without audio. Native completion must identify each missing speech with `AUDIO_MISSING`, page/action identifiers and its lock-derived repairability. Automatic continuation must prepare only the missing activity audio; an empty issue list must never turn this repairable state into a terminal failure.
 - Native price-label binding: extracted text `铅笔\n0.5元` and spoken `再看铅笔，标价是0.5元。` must bind to the same text object. Reject mismatched amounts, a different product name, and a value mentioned in a separate sentence. Exercise the candidate validation in all three task types; do not remove the binding check.
 - Review an independent activity against its own visible question/options as well as source-page facts. An instruction to read prices on the current page must not pass merely because the preceding source page contains those prices. Preserve a supported recall task; reject missing current-page material. Inspect actual player screenshots in addition to audio and navigation assertions.
+- Insert an oral activity after an independent Quiz while its plan unit maps an
+  original body page. Review must receive that original page's facts and saved
+  narration. With a reasoning model, reserve its normal output budget rather
+  than truncating the JSON verdict at 1,500 combined reasoning/output tokens.
+
+- A collective alias on a single member must not satisfy a compound or counted
+  requirement. Verify distinct members, quoted literal titles and ambiguity.
+  Object-only repair must make no narration/planning/TTS request, and preserve
+  every existing action, duration and audio reference. Recheck saved completion.
+- Corrupt a staged final asset after conversion: the final player loader must
+  reject it before publishing. Invalid geometry must also fail generation
+  preflight with a page-specific reason.
+- Play under the real fixed player's CSP. Audio priming must use `blob:`, emit no
+  `media-src` policy violation and release its Blob URL on destruction.
+- A saved page title wins over inferred labels. Without a saved title, a named
+  title frame wins over a body label marked as a title. Generic `source` must not
+  appear as a lesson heading. Independent activities retain their question heading.
+
+### Video CDN changes without task regeneration (2026-11-14)
+
+- Generate one video through llm-ha's user gateway and retrieve it without a CDN
+  allowlist. Cover both `ark-content-generation-*`, `ark-acg-*` and another
+  supplier HTTPS CDN; preserve signed query parameters and omit credentials.
+- Edit or clear legacy Seedance `asset_origins` after submission. Recover the
+  original receipt through settlement and refresh the ready URL without another
+  supplier POST, reservation or settlement. Signed URLs remain response-only.
+- Reject mismatched response origins, non-HTTPS or credential-bearing URLs, bad
+  media and redirects. Retain owner/team checks and image-origin validation.
+- Local coverage: `apps/desktop/test/courseware-media.test.mjs` and llm-ha's
+  Seedance/gateway tests. Live deployment and lesson playback are separate checks.

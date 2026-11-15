@@ -14,6 +14,15 @@ import {
 } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { verifyInventory } from "./courseware-release-inputs.mjs";
+
+if (process.argv[2] === "--check") {
+  assert(process.argv.length === 4, "Usage: stage-wiseoffice.mjs --check <staged bundle>");
+  const checked = await verifyInventory(resolve(process.argv[3]), "deckwise-bundle.json");
+  assert(checked.manifest.version === 1 && checked.manifest.contentEditor === "maic", "Invalid WiseOffice receipt");
+  console.log(JSON.stringify({ status: "VERIFIED", sha256: checked.sha256, files: checked.manifest.files.length }));
+  process.exit(0);
+}
 
 const [sourceArgument, destinationArgument] = process.argv.slice(2);
 assert(
@@ -76,7 +85,7 @@ const integration = await readFile(join(source, "deckwise-maic-integration.json"
 assert(integration?.version === 1 && integration.contentEditor === "maic" && integration.nativeCheckpointEditor === "native-teaching" &&
   /^[a-f0-9]{40}$/.test(integration.commit) && typeof integration.dirty === "boolean",
   "Build the MAIC editor integration with scripts/build-wiseoffice-maic.mjs before staging");
-const { commit, dirty } = integration;
+const { commit, dirty, desktopCommit, desktopDirty } = integration;
 await mkdir(dirname(destination), { recursive: true });
 const temporary = await mkdtemp(
   join(dirname(destination), ".wiseoffice-stage-"),
@@ -94,7 +103,7 @@ try {
   await inventory(temporary);
   await writeFile(
     join(temporary, "deckwise-bundle.json"),
-    JSON.stringify({ version: 1, commit, dirty, entry, contentEditor: integration.contentEditor, files }, null, 2),
+    JSON.stringify({ version: 1, commit, dirty, desktopCommit, desktopDirty, entry, contentEditor: integration.contentEditor, files }, null, 2),
   );
   await rename(temporary, destination);
 } catch (error) {

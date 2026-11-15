@@ -37,7 +37,7 @@ try {
       const file = path.join(directory, entry.name);
       assert(!entry.isSymbolicLink());
       if (entry.isDirectory()) await inventory(file);
-      else { const bytes = await readFile(file); files.push({ path: path.relative(output, file), bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') }); }
+      else { const bytes = await readFile(file); files.push({ path: path.relative(output, file).split(path.sep).join('/'), bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') }); }
     }
   }
   await inventory(output);

@@ -13,11 +13,18 @@ const root = repositoryRoot(), desktop = join(root, "apps/desktop");
 const { build } = createRequire(join(root, "packages/agent-runtime/package.json"))("esbuild");
 const temp = await mkdtemp(join(tmpdir(), "deckwise-background-editing-"));
 const workspace = join(temp, "workspace");
+const output = process.env.DECKWISE_E2E_OUTPUT;
+if (output) await mkdir(output);
 await mkdir(workspace);
-for (const id of ["a", "b", "c"]) await copyFile(id === "c" && process.env.DECKWISE_E2E_IMPORT_PPTX || process.env.DECKWISE_E2E_NATIVE_PPTX, join(workspace, id + ".pptx"));
-const before = await readFile(process.env.DECKWISE_E2E_NATIVE_PPTX);
-const importBefore = process.env.DECKWISE_E2E_IMPORT_PPTX ? await readFile(process.env.DECKWISE_E2E_IMPORT_PPTX) : undefined;
+const fixtures = { a: process.env.DECKWISE_E2E_NATIVE_PPTX, b: process.env.DECKWISE_E2E_SCENE_PPTX || process.env.DECKWISE_E2E_NATIVE_PPTX,
+  c: process.env.DECKWISE_E2E_IMPORT_PPTX || process.env.DECKWISE_E2E_NATIVE_PPTX };
+const originals = new Map();
+for (const [id, file] of Object.entries(fixtures)) {
+  originals.set(file, await readFile(file));
+  await copyFile(file, join(workspace, id + ".pptx"));
+}
 let passed = false;
+let log = "";
 try {
   await writeFile(join(temp, "entry.ts"), `
 import { app, BrowserWindow, ipcMain } from "electron";
@@ -58,7 +65,6 @@ app.whenReady().then(async () => {
     completeNarration: forbidden, completeScene: forbidden, authSession: new Proxy({}, { get: () => forbidden }) });
   const invoke = (name, ...args) => handlers.get(IPC.invoke[name])({ sender: window.webContents }, ...args);
   const read = async id => { const value = await readNativeTeachingPackage(await readFile(join(workspace, id + ".pptx"))); assert(value); return value; };
-  const initial = await read("a");
   const hash = async id => createHash("sha256").update(await readFile(join(workspace, id + ".pptx"))).digest("hex");
   const pageIds = new Map();
   const snapshots = new Map();
@@ -107,7 +113,7 @@ app.whenReady().then(async () => {
     await invoke("pptEditorClose");
     viewing = "unrelated-chat";
     assert.equal((await adopt("b", "Closed again; background editing still works.")).value.saved, true);
-    assert.equal((await read("b")).pages.length, initial.pages.length);
+    assert.equal((await read("b")).pages.length, snapshots.get("b").pages.length);
     await invoke("pptEditorClose");
     assert.equal(BrowserWindow.getAllWindows().length, 1);
     assert(!requests.some(method => /Submit|quote|generate/i.test(method)));
@@ -128,13 +134,15 @@ app.whenReady().then(async () => {
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/api.?key|secret|token|password|proxy|ELECTRON_RUN_AS_NODE|DECKWISE_EDITOR_URL/i.test(key)));
   const child = spawn(resolveElectronBinary(root).electronBinary, ["--no-sandbox", join(temp, "main/index.cjs")], { cwd: desktop, env, stdio: ["ignore", "pipe", "pipe"] });
   const timer = setTimeout(() => child.kill("SIGKILL"), 240_000);
-  child.stdout.pipe(process.stdout); child.stderr.pipe(process.stderr);
+  child.stdout.on("data", bytes => { log += bytes; process.stdout.write(bytes); });
+  child.stderr.on("data", bytes => { log += bytes; process.stderr.write(bytes); });
   const code = await new Promise((resolve, reject) => { child.on("error", reject); child.on("exit", resolve); }).finally(() => clearTimeout(timer));
   assert.equal(code, 0, "Native editor regression failed; evidence: " + temp);
-  assert.deepEqual(await readFile(process.env.DECKWISE_E2E_NATIVE_PPTX), before, "Input fixture must remain unchanged");
-  if (importBefore) assert.deepEqual(await readFile(process.env.DECKWISE_E2E_IMPORT_PPTX), importBefore, "Import fixture must remain unchanged");
+  for (const [file, before] of originals) assert.deepEqual(await readFile(file), before, "Input fixture must remain unchanged: " + file);
+  if (output) await copyFile(join(temp, "report.json"), join(output, "report.json"));
   passed = true;
 } finally {
+  if (output) await writeFile(join(output, "electron.log"), log);
   if (passed) await rm(temp, { recursive: true, force: true });
   else console.error("Retained failure evidence:", temp);
 }

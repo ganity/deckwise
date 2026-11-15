@@ -65,6 +65,9 @@ jobs:
       - name: Typecheck Desktop
         run: pnpm --filter @pi-desktop/desktop typecheck
 
+      - name: Courseware workflow contract gate
+        run: pnpm test:courseware-workflow
+
       - name: Lint
         run: pnpm lint
 
@@ -77,6 +80,9 @@ jobs:
   build:
     name: Build ${{ matrix.name }}
     needs: verify
+    env:
+      DECKWISE_COURSEWARE_RELEASE: '1'
+      DECKWISE_COURSEWARE_LOCK: ${{ github.workspace }}/apps/desktop/resources/courseware-release-lock.json
     strategy:
       fail-fast: false
       matrix:

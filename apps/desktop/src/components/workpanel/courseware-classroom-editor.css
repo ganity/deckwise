@@ -31,7 +31,7 @@
 .maic-option-row { display: flex; align-items: center; gap: 8px; }
 .maic-option-row > input { min-width: 0; flex: 1; }
 .maic-editor .maic-answer-option { border-radius: 50%; width: 34px; height: 34px; flex: 0 0 34px; padding: 0; }
-.maic-editor .maic-answer-option[aria-pressed="true"] { background: var(--ds-accent); border-color: var(--ds-accent); color: white; }
+.maic-editor .maic-answer-option[aria-pressed="true"] { background: var(--ds-accent); border-color: var(--ds-accent); color: var(--ds-bg-primary); }
 .maic-editor details { margin: 12px 0; }
 .maic-editor summary { cursor: pointer; padding: 8px 0; }
 .maic-keypoints > div { display: flex; align-items: flex-start; gap: 8px; margin-top: 8px; }
