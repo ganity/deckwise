@@ -344,10 +344,13 @@ else if (flags.includes("-r")) {
 });
 
 
-test("CI qualifies the real Windows paired editor before release reuse", () => {
+test("CI qualifies Windows installers and their final payload before release reuse", () => {
   const job = ciWorkflowSource.match(/^  windows-courseware:\n[\s\S]*?(?=^  js:)/m)?.[0];
   assert(job);
   assert.match(job, /runs-on: windows-latest/);
   assert.match(job, /uses: \.\/.github\/actions\/prepare-courseware/);
   assert.match(job, /run: node --test apps\/desktop\/test\/wiseoffice-build-paths.test.mjs/);
+  assert.match(job, /cargo build --release --locked -p host-core/);
+  assert.match(job, /run: pnpm --filter @pi-desktop\/desktop run dist:win -- --x64/);
+  assert.match(job, /run: node scripts\/check-courseware-package.mjs/);
 });

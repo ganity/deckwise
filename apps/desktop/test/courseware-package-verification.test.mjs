@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, readFile, rename, rm, writeFile } from "node:fs/promise
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
-import { asar } from "../../../scripts/check-courseware-package-credentials.mjs";
+import { asar, scanPackage } from "../../../scripts/check-courseware-package-credentials.mjs";
 import { digest, fileDigest, fingerprintDirectory } from "../../../scripts/courseware-release-inputs.mjs";
 import { checkCoursewarePackage } from "../../../scripts/check-courseware-package.mjs";
 import { artifactChecksums } from "../../../scripts/courseware-artifact-checksums.mjs";
@@ -82,4 +82,20 @@ test("artifact checksums cover distributable bytes and exclude build logs", asyn
   await writeFile(join(root, "DeckWise.AppImage"), "installer"); await writeFile(join(root, "latest-linux.yml"), "feed");
   await writeFile(join(root, "builder-debug.yml"), "private build log");
   assert.equal(await artifactChecksums(root), `${digest("installer")}  DeckWise.AppImage\n${digest("feed")}  latest-linux.yml\n`);
+});
+
+test("package scanning reads nested ASAR members with native paths and reports normalized findings", async t => {
+  const f = await fixture(t), source = join(f.root, "asar-source");
+  const nested = join(source, "node_modules", "argparse");
+  await mkdir(nested, { recursive: true });
+  await writeFile(join(nested, "LICENSE"), "Public dependency license");
+  await asar.createPackage(source, join(f.resources, "app.asar"));
+  const clean = await scanPackage(f.resources);
+  assert.equal(clean.passed, true);
+  assert(clean.files.some(file => file.path === "app.asar!/node_modules/argparse/LICENSE"));
+  await writeFile(join(nested, "auth.json"), '{"fixture":true}');
+  await asar.createPackage(source, join(f.resources, "app.asar"));
+  const privateState = await scanPackage(f.resources);
+  assert.equal(privateState.passed, false);
+  assert(privateState.findings.some(file => file.path === "app.asar!/node_modules/argparse/auth.json" && file.category === "credential-file"));
 });

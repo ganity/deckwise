@@ -67,8 +67,10 @@ main CI completes to avoid repeating it. Native compilation, paired Office
 integration, final package integrity and Linux AppImage acceptance always run.
 Vite transform IDs use forward slashes on every OS; MAIC integration normalizes
 Windows filesystem paths and CRLF source line endings before matching and
-requires all three transforms. CI builds the actual paired editor and native
-worker on Windows so checkout-specific failures block merging before release.
+requires all three transforms. CI builds the paired editor, native worker and
+Windows installers, then verifies the final payload before allowing a merge.
+ASAR inspection preserves native member separators for ASAR API calls and
+normalizes only the paths in reports.
 
 ### Courseware inputs and evidence
 
