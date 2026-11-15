@@ -1,6 +1,6 @@
 {
   "name": "@pi-desktop/courseware-runtime",
-  "version": "0.1.0",
+  "version": "0.17.7",
   "private": true,
   "type": "module",
   "description": "Offline fixed courseware conversion and playback for DeckWise",
