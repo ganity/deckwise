@@ -41,8 +41,8 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm --filter '@pi-desktop/desktop^...' --fail-if-no-match build
 
-      - name: Check Windows transform paths and line endings
-        run: node --test apps/desktop/test/wiseoffice-build-paths.test.mjs
+      - name: Check Windows transforms and package lifecycle
+        run: node --test apps/desktop/test/wiseoffice-build-paths.test.mjs apps/desktop/test/courseware-package-verification.test.mjs
 
       - name: Build and verify paired editor and native worker
         uses: ./.github/actions/prepare-courseware

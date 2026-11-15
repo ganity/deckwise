@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, readdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { assertCoursewareLock, digest, fileDigest, fingerprintDirectory, inspectCoursewareInputs, sourceIdentity, verifyInventory } from "../../../scripts/courseware-release-inputs.mjs";
 
@@ -51,10 +51,28 @@ export async function afterPack(context) {
 
 // Native signing changes binary bytes; keep that identity outside the signed app.
 export async function afterSign(context) {
-  const candidate = JSON.parse(await readFile(join(context.appOutDir, "courseware-candidate.json"), "utf8"));
+  if (context.electronPlatformName === "win32") return;
   const resources = context.electronPlatformName === "darwin"
     ? join(context.appOutDir, context.packager.appInfo.productFilename + ".app/Contents/Resources") : join(context.appOutDir, "resources");
-  await writeFile(join(context.appOutDir, "courseware-post-sign.json"), JSON.stringify({
+  await sealResources(context.appOutDir, resources);
+}
+
+export async function afterAllArtifactBuild(context) {
+  if ([...context.platformToTargets.keys()].some(platform => platform.nodeName === "win32")) {
+    // NSIS adds and signs resources/elevate.exe after afterSign.
+    const directories = (await readdir(context.outDir)).filter(name => /^win.*-unpacked$/.test(name));
+    assert(directories.length > 0, "Windows package output is missing");
+    for (const name of directories) {
+      const directory = join(context.outDir, name);
+      await sealResources(directory, join(directory, "resources"));
+    }
+  }
+  return [];
+}
+
+async function sealResources(directory, resources) {
+  const candidate = JSON.parse(await readFile(join(directory, "courseware-candidate.json"), "utf8"));
+  await writeFile(join(directory, "courseware-post-sign.json"), JSON.stringify({
     schemaVersion: "deckwise-courseware-post-sign/1", candidateId: candidate.candidateId,
     resourcesSha256: await fingerprintDirectory(resources),
   }, null, 2) + "\n", { flag: "wx" });

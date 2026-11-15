@@ -29,6 +29,11 @@ export type ChangelogEntry = {
 
 const enEntries: ChangelogEntry[] = [
   {
+    version: "0.20.3",
+    date: "2026-11-16",
+    highlights: ["Fix Windows installer verification after NSIS adds its elevation helper."],
+  },
+  {
     version: "0.20.2",
     date: "2026-11-16",
     highlights: [
@@ -868,6 +873,11 @@ const enEntries: ChangelogEntry[] = [
 
 const zhCNEntries: ChangelogEntry[] = [
   {
+    version: "0.20.3",
+    date: "2026-11-16",
+    highlights: ["修复 NSIS 添加提权辅助程序后 Windows 安装包完整性校验失败的问题。"],
+  },
+  {
     version: "0.20.2",
     date: "2026-11-16",
     highlights: [
@@ -1706,6 +1716,11 @@ const zhCNEntries: ChangelogEntry[] = [
 ];
 
 const zhTWEntries: ChangelogEntry[] = [
+  {
+    version: "0.20.3",
+    date: "2026-11-16",
+    highlights: ["修正 NSIS 加入提權輔助程式後 Windows 安裝套件完整性驗證失敗的問題。"],
+  },
   {
     version: "0.20.2",
     date: "2026-11-16",

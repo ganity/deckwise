@@ -2,6 +2,11 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const esEntries: ChangelogEntry[] = [
   {
+    version: "0.20.3",
+    date: "2026-11-16",
+    highlights: ["Corrige la verificación del instalador de Windows después de que NSIS añada su asistente de elevación."],
+  },
+  {
     version: "0.20.2",
     date: "2026-11-16",
     highlights: [

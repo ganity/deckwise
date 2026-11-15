@@ -99,6 +99,8 @@ Release 和 Linux package validation 通过 `.github/actions/prepare-courseware`
 发布锁等编译产物不提交 Git。不能绕过钩子或关闭严格发布模式。
 
 签名后用独立的 `courseware-post-sign.json` 记录资源身份，不修改签名应用。
+Windows 在 `afterAllArtifactBuild` 阶段生成该回执，等待 NSIS 添加并签名
+`resources/elevate.exe` 后再记录完整资源指纹，包含该提权辅助程序。
 包内检查核验对应回执、资源清单及私有状态。Linux 还会解包最终 AppImage，运行真实
 Electron、Main、Host 的课件编辑、Quiz、保存重开和播放验收。macOS/Windows 已接入
 包完整性校验，交互运行验收仍须另行执行。最终安装包与证据写入

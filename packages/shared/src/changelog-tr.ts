@@ -2,6 +2,11 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const trEntries: ChangelogEntry[] = [
   {
+    version: "0.20.3",
+    date: "2026-11-16",
+    highlights: ["NSIS yükseltme yardımcısını ekledikten sonra Windows yükleyici doğrulamasındaki hatayı düzeltir."],
+  },
+  {
     version: "0.20.2",
     date: "2026-11-16",
     highlights: [
