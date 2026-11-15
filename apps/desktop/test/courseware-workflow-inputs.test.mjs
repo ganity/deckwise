@@ -14,6 +14,7 @@ test("release runners prepare pinned Document and native worker inputs before pa
   assert.match(action, /ref: \$\{\{ steps\.source\.outputs\.commit \}\}/);
   assert.match(action, /persist-credentials: false/);
   assert.match(action, /pnpm.*install --frozen-lockfile/);
+  assert.match(action, /working-directory: \.courseware-inputs\/document/, "Resolve Document's own packageManager version");
   assert.match(action, /build-wiseoffice-maic\.mjs/);
   assert.match(action, /stage-wiseoffice\.mjs/);
   assert.match(action, /scripts\/stage-worker\.mjs/);
