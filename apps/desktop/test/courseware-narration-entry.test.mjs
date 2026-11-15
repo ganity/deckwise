@@ -155,7 +155,7 @@ test("generation moves its instruction-only draft into Chat and restores it if C
 });
 
 // Exercise the component's public controls and API boundary across renders.
-function teachingControls({ actions, locked = false, draftFailure = false, stale = false } = {}) {
+function teachingControls({ actions, locked = false, draftFailure = false, stale = false, corrupt = false } = {}) {
   const project = structuredClone(fixture.project);
   project.pages[0].actions = structuredClone(actions);
   project.pages[0].locked = locked;
@@ -167,7 +167,7 @@ function teachingControls({ actions, locked = false, draftFailure = false, stale
     pptEditorTeachingOpen: async () => { calls.push(["open"]); return structuredClone(view); },
     pptEditorTeachingDraftGet: async () => {
       if (draftFailure) throw new Error("Draft storage unavailable");
-      return { draft: stale ? { revision: "stale", pageId: view.pageId, baseline: {}, actions: [], instruction: "" } : draft };
+      return { draft: stale || corrupt ? { revision: "stale", pageId: view.pageId, baseline: corrupt ? {} : { ...structuredClone(project), sourceSha256: "changed-source" }, actions: [], instruction: "" } : draft };
     },
     pptEditorTeachingDraftSet: async (viewId, revision, content) => {
       calls.push(["draft", viewId, revision, structuredClone(content)]);
@@ -344,13 +344,13 @@ test("pause limits reject blank, fractional and out-of-range values while accept
 });
 
 test("timing and wait controls retain page lock, editor and draft recovery gates", async () => {
-  for (const options of [{ locked: true }, { draftFailure: true }, { stale: true }, { disabled: true }]) {
+  for (const options of [{ locked: true }, { draftFailure: true }, { stale: true }, { corrupt: true }, { disabled: true }]) {
     const actions = [...narratedActions(), { id: "wait", type: "interaction_checkpoint", checkpointId: "wait", checkpointKind: "teacher_continue" }];
     const f = teachingControls({ actions, ...options }); await f.load();
     if (options.disabled) f.disable();
     const pause = f.pause()[0], add = f.buttons("teachingAddCheckpoint")[0], remove = f.buttons("teachingRemoveCheckpoint")[0];
     assert(pause && add && remove);
-    for (const control of [pause, add, remove]) assert.equal(control.props.disabled, true);
+    for (const control of [pause, add, remove]) assert.equal(control.props.disabled, true, JSON.stringify(options) + " " + control.type + " " + control.props.children);
     pause.props.onChange({ target: { value: "500", valueAsNumber: 500 } }); add.props.onClick(); remove.props.onClick();
     await f.flush(); assert(!f.calls.some(([method]) => method === "draft"));
   }

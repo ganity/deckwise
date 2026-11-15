@@ -226,6 +226,8 @@ test("packaging keeps only shipped locales and excludes non-runtime artifacts", 
       from: "resources/editor-host",
       to: "editor-host",
     },
+    { from: "resources/wiseoffice", to: "wiseoffice" },
+    { from: "resources/pptx-worker", to: "pptx-worker" },
     {
       from: "resources/models.dev",
       to: "models.dev",

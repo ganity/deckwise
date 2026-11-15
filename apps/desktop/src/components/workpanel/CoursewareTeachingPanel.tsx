@@ -65,7 +65,9 @@ export function CoursewareTeachingPanel({ sessionId, enabled }: { sessionId?: st
           setRecovered(true); setSaved(false);
         } else setStaleDraft(draft);
       }
-    } catch (failure) { if (id === request.current) setDraftError(String(failure)); }
+    } catch (failure) {
+      if (id === request.current) { draftScope.current = null; setDraftError(String(failure)); }
+    }
     finally { if (id === request.current) { setDraftLoading(false); setDraftSaving(false); } }
   }, []);
   const persistDraft = (nextActions: Array<Record<string, unknown>>, instruction: string) => {

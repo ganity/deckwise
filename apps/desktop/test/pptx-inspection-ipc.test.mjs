@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import ts from "typescript";
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
 import { PptxInspector } from "../electron/main/pptx-inspection.ts";
 
 const source = await readFile(new URL("../electron/main/ipc/ppt-editor-ipc.ts", import.meta.url), "utf8");
@@ -25,6 +27,26 @@ test("inspection IPC authenticates sender and accepts only a host-selected saved
   }
   const module = { exports: {} };
   new Function("require", "exports", "module", outputText)((id) => {
+    if (id.startsWith("node:")) return require(id);
+    if (id === "electron") return { app: { getPath: () => "/unused-inspection-profile" } };
+    if (id === "../courseware-document-tools") return { CoursewareDocumentTools: class { transition(operation) { return operation(); } } };
+    if (id === "../courseware-document-runtime") return { createCoursewareDocumentRuntime() { throw new Error("Inspection must not open a document"); }, createBackgroundCoursewareEditor() { throw new Error("Inspection must not open a window"); } };
+    if (id === "../courseware-native-assessment-media") return { createNativeAssessmentMedia: () => ({ tts: {}, images: {}, assessments: {} }) };
+    if (id === "../courseware-native-library") return { routeNativeMediaLibrary() {} };
+    if (id === "../courseware-delivery") return { CoursewareDelivery: class {} };
+    if (id === "../courseware-delivery-export") return { coursewareDeliveryFingerprint() {}, exportNativeDelivery() {} };
+    if (id === "../courseware-native-package") return { readNativeTeachingPackage() {} };
+    if (id === "../courseware-native-music") return { CoursewareNativeMusic: class {} };
+    if (id === "../courseware-native-video") return { CoursewareNativeVideo: class {} };
+    if (id === "../courseware-native-audio") return { CoursewareNativeAudio: class {} };
+    if (id === "../courseware-native-save") return { CoursewareNativeSave: class {} };
+    if (id === "../courseware-native-snapshot") return { captureNativeTeachingSnapshot() {}, copyNativeTeaching() {} };
+    if (id === "../courseware-classroom") return { CoursewareClassroomCoordinator: class {} };
+    if (id === "../courseware-classroom-native") return { refreshNativeMaicClassroom() {} };
+    if (id === "../courseware-classroom-save") return { createClassroomNativeWriter() {} };
+    if (id === "../courseware-assessment-media") return { CoursewareAssessmentMedia: class {} };
+    if (id === "../courseware-assessment-saved") return { executeSavedAssessmentMedia() {} };
+    if (id === "../courseware-scene-object-view") return { assessmentPageIds() {} };
     if (id === "../courseware-native-media") return { CoursewareNativeMedia: class {} };
     if (id === "../courseware-native-sidebar") return { createNativeTeachingHandler() {} };
     if (id === "@pi-desktop/shared") return { IPC };
@@ -46,6 +68,7 @@ test("inspection IPC authenticates sender and accepts only a host-selected saved
     if (id === "../courseware-audio-decode") return { decodeCoursewareAudio() {}, decodeCoursewarePortableMedia() {} };
     if (id === "../courseware-portable-media") return { CoursewarePortableMedia: class {} };
     if (id === "../courseware-tts") return { CoursewareTtsCoordinator: class {} };
+    if (id === "../courseware-quiz-image-review") return { createQuizImageReview: () => async () => { throw new Error("Inspection must not call a model"); } };
     if (id === "../courseware-image-review") return { CoursewareImageReview: class { clear() {} } };
     if (id === "../courseware-visual-review") return { CoursewareVisualReview: class { clear() {} } };
     if (id === "../courseware-style-review") return { CoursewareStyleReviewCoordinator: class { clearReview() {} clear() {} } };

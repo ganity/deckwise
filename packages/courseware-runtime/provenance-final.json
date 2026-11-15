@@ -3498,6 +3498,12 @@
       "origin": "desktop-addition-or-local-resource",
       "source": null,
       "adapted": false
+    },
+    "vendor/pptxtojson/index.cjs.map": {
+      "sha256": "2d2576ea4c5771ab16051609162a55398c2087b07e587176ff13e220dfad9f16",
+      "origin": "patched-pptxtojson-2.1.0",
+      "source": "index.cjs.map",
+      "adapted": false
     }
   },
   "omittedExtractionFiles": [

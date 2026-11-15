@@ -208,7 +208,7 @@ test("the task dialog blocks Office through both workflow and direct-file work p
   assert.match(shell, /panelBlocked=\{searchOpen \|\| newTaskDialogOpen\}/);
   assert.match(panel, /<CoursewareChatWorkflow panelBlocked=\{exiting \|\| panelBlocked\}/);
   assert.match(panel, /<PptEditorTab\s+blocked=\{exiting \|\| panelBlocked\}/);
-  assert.match(workflow, /<PptEditorTab[^>]+blocked=\{panelBlocked \|\| importOpen\}/);
+  assert.match(workflow, /<PptEditorTab[^>]+blocked=\{panelBlocked\}/);
 });
 
 

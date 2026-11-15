@@ -6,13 +6,19 @@ import fixture from "../../../../tests/fixtures/team-fixed-files-c2b/fixed-playb
 import source from "../../../../tests/fixtures/team-fixed-files-c2b/SOURCE.json";
 import { loadTeamFixedBuild } from "./load-team-fixed-build";
 
+const buildFiles: Record<string, string> = source.buildFiles;
 const sha = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 function setup() {
   const selected = structuredClone(fixture.data.fixedBuild);
   for (const entry of selected.files) entry.downloadUrl = "";
   const { buildId, snapshotId, packageSha256 } = fixture.data.pointer;
   const expected = { buildId, snapshotId, packageSha256 };
-  const bytes = new Map(selected.files.map(item => [item.file.path, new Uint8Array(readFileSync(path.join(source.buildDirectory, item.file.path)))]));
+  const bytes = new Map(selected.files.map(item => {
+    const data = new Uint8Array(readFileSync(path.join('tests/fixtures/team-fixed-files-c2b', buildFiles[item.file.path])));
+    expect(data.byteLength).toBe(item.file.byteLength);
+    expect(sha(data)).toBe(item.file.sha256);
+    return [item.file.path, data];
+  }));
   const download = vi.fn(async (p: string, signal?: AbortSignal) => { signal?.throwIfAborted(); return bytes.get(p)!; });
   const replace = (name: string, value: unknown) => {
     const data = new TextEncoder().encode(JSON.stringify(value));

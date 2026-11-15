@@ -182,9 +182,11 @@ test("Office edits supersede SVG generation candidates", () => {
   assert.match(presentation, /pagesChanged/);
 });
 
-test("completed PPTX projects can be published with education metadata", () => {
-  assert.match(panel, /<CoursewareImportDialog/);
-  assert.match(panel, /coursewareWorkflow.publish/);
+test("completed PPTX projects can be published with education metadata", async () => {
+  assert.match(panel, /<CoursewareDeliveryActions/);
+  const delivery = await read("../src/components/courseware/CoursewareDeliveryActions.tsx");
+  assert.match(delivery, /coursewareDelivery.publish/);
+  assert.match(delivery, /api\.coursewareDelivery\(action, sessionId/);
   assert.match(importDialog, /firstLessonPlan/);
   assert.match(importDialog, /account\.dictionaries\?\.grades/);
   assert.match(importDialog, /account\.dictionaries\?\.subjects/);

@@ -11,7 +11,7 @@ import {
 import { createPptEditorPageLineage } from '../../../../tests/fixtures/office-lineage-b7/b7-ppt-editor-bridge';
 
 const fixture = path.resolve('tests/fixtures/office-lineage-b7');
-const worker = path.resolve('.worker-desktop-02');
+const worker = path.resolve(process.env.DECKWISE_NATIVE_WORKER_DIRECTORY ?? '../../apps/desktop/resources/pptx-worker');
 const names = ['source', 'native-edited', 'reordered', 'copied-page'] as const;
 const identities = new Map<string, SavedSourceIdentity>();
 const json = async (file: string) => JSON.parse(await readFile(file, 'utf8'));
@@ -22,9 +22,7 @@ beforeAll(async () => {
   for (const [file, record] of Object.entries(sources.files)) {
     expect(sha256(await readFile(path.join(fixture, file)))).toBe((record as { sha256: string }).sha256);
   }
-  expect(sha256(await readFile(path.join(worker, 'manifest.json')))).toBe(
-    '1eb6dd1479dffca96620281d74243bfab738d8115884dcdc633956c78247339a',
-  );
+  expect(await readFile(path.join(worker, 'pptx-worker.mjs'))).toEqual(await readFile('dist/pptx-worker.mjs'));
   directory = await mkdtemp(path.join(os.tmpdir(), 'desktop-office-lineage-'));
   sourceMapping = await json(path.join(fixture, 'source-mapping.json'));
   for (const name of names) {

@@ -7,6 +7,7 @@ import { afterAll, beforeAll, expect, it } from 'vitest';
 import { adaptCanonicalSnapshot, buildFixedCourseware, sha256 } from '../../../node';
 
 const fixture = path.resolve('tests/fixtures/office-text-format-b15');
+const workerDirectory = path.resolve(process.env.DECKWISE_NATIVE_WORKER_DIRECTORY ?? '../../apps/desktop/resources/pptx-worker');
 const json = async (file: string) => JSON.parse(await readFile(file, 'utf8'));
 let directory: string;
 beforeAll(async () => { directory = await mkdtemp(path.join(os.tmpdir(), 'office-text-format-')); });
@@ -58,11 +59,13 @@ for (const name of ['original', 'partial', 'cross-run']) {
     const bundle = await json(path.join(fixture, `canonical-${name}.json`));
     bundle.files.sourcePath = path.join(fixture, `${name}.pptx`);
     bundle.files.assets[0].path = path.resolve('tests/fixtures/fixed-courseware/page-1.wav');
+    bundle.files.converter.manifestSha256 = sha256(await readFile(path.join(workerDirectory, 'manifest.json')));
     const input = adaptCanonicalSnapshot(bundle.project, bundle.snapshot, bundle.files);
     const build = await buildFixedCourseware(input, {
-      outputDirectory: directory, workerDirectory: path.resolve('.worker-desktop-02'),
+      outputDirectory: directory, workerDirectory,
     });
-    expect(build.buildId).toBe(expected.fixedBuild.buildId);
+    // Historical build IDs include the old converter; verify today's bytes and the original formatting independently.
+    expect(build.buildId).toBe(sha256(await readFile(path.join(build.directory, 'package.json'))));
     expect(await readFile(path.join(build.directory, 'source.pptx'))).toEqual(bytes);
     const payload = await json(path.join(build.directory, 'package.json'));
     const actual = characters(payload.pages[1].slide.elements[0].text.content);

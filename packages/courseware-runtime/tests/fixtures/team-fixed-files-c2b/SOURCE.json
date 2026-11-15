@@ -1,10 +1,21 @@
 {
-  "scope": "Exact C2b authenticated HTTP response; URLs are expired loopback test-only signatures. D replays through an owned fetch boundary; not live platform acceptance.",
+  "scope": "Exact C2b authenticated HTTP response; URLs are expired loopback test-only signatures. D replays through an owned fetch boundary; not live platform acceptance. All nine immutable files are now repository-relative and verified against the original response hashes; identical PPTX/WAV bytes reuse the existing fixed-courseware fixtures.",
   "files": {
     "fixed-playback.json": {
       "source": "/home/jhz/code/train/docs/validation/courseware/parallel/C/c2-fixed-files-20261019/fixed-playback.json",
       "sha256": "4e79147dfefcbf90280e11cd573d68c388c065df3817b03d6cea4346a599e765"
     }
   },
-  "buildDirectory": "/home/jhz/code/train/docs/validation/courseware/parallel/D/20261019-d17-asset-budget/build-fixture"
+  "buildDirectory": "/home/jhz/code/train/docs/validation/courseware/parallel/D/20261019-d17-asset-budget/build-fixture",
+  "buildFiles": {
+    "assets/15c0d47fa3d8c1437dc9941104f49cae72eea6048df6fefa317e1a68d9f24452.wav": "../fixed-courseware/page-2.wav",
+    "assets/49f8ac278d71c0d1dbf205971f990f48e7473bcd3d81cc01b38541e5f8ad912b.wav": "../fixed-courseware/page-3.wav",
+    "assets/6de9e485a91d85dbb61aa8d24ef25ab19c8404f008475bb5139900e580f87985.wav": "../fixed-courseware/page-1.wav",
+    "assets/a20668c1b68d88f30d9da8bf91fa538acf13f775dbba9566ae358f4512c2e5a9.mp4": "files/assets/a20668c1b68d88f30d9da8bf91fa538acf13f775dbba9566ae358f4512c2e5a9.mp4",
+    "assets/eda715cfa5bfee179f178a4c3c8aa63ea72eedac9ef6dd3a8d29e67eda80b069.png": "files/assets/eda715cfa5bfee179f178a4c3c8aa63ea72eedac9ef6dd3a8d29e67eda80b069.png",
+    "manifest.json": "files/manifest.json",
+    "package.json": "files/package.json",
+    "report.json": "files/report.json",
+    "source.pptx": "../fixed-courseware/lesson-r8.pptx"
+  }
 }

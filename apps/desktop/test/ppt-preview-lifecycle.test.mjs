@@ -81,7 +81,7 @@ test("SVG slide list has no empty thumbnails and selectable elements show a hove
 });
 
 test("ordinary readiness follows inspected output independently of the running turn", () => {
-  assert.match(panel, /const path = referencedProject\(messages\)/);
+  assert.match(panel, /const path = referencedProject\(messages, sourcePath\)/);
   assert.match(panel, /readyPath = project\?\.pptxPath && !project.needsPptxRegeneration && !project.qualityIssue/);
   assert.match(panel, /onReady\?\.\(readyPath\)/);
   assert.doesNotMatch(panel, /42%|60%|88%/);
