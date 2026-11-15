@@ -1,0 +1,56 @@
+{
+  "date": "2026-11-04",
+  "purpose": "Plan 007 selected working-file provenance; not a full repository snapshot",
+  "repositories": {
+    "deckwise": {
+      "root": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A",
+      "head": "722cb123af4b9273ba6dad322d5959246e4a725d",
+      "files": {
+        "packages/shared/src/courseware-contract.ts": "e76755d29b812acebafef09704cd2e72e99e24a2ac7ae453ab302688c0c7aa51",
+        "packages/shared/src/courseware-editor.ts": "4aa14dd4c8d5380b35bdc0eb4bf9153732846760d82be2d83a9337d3b49d39f4",
+        "packages/shared/src/courseware-question.ts": "ef6817789b73351e723099811198e0a64d6040aef161d9490c96163ac17c1e2c",
+        "apps/desktop/electron/main/courseware-scene-plan.ts": "ef00127d2ec360e338a0448dc3e86735dbf0d12c676445b51ccf2b8c8b9661c2",
+        "apps/desktop/electron/main/courseware-scene-deck.ts": "3ff86fef85d8fa5ed5c26b7b4e40ebbb4ddaff6e124f586b017f85f1126ee7f6",
+        "apps/desktop/electron/main/courseware-native-sidebar.ts": "b87d5a4264cd913a2b35ff4744513e1d76552c2ec3d7c621e9bdab35d43e9d39",
+        "crates/host-core/src/db/courseware_projects/workflow.rs": "62ec5a92fed7a2dce735a38c32774876d54481e90b6a69b46c2fc1e18d8224b2",
+        "packages/courseware-runtime/src/conversion/lib/courseware/adapt-canonical-snapshot.ts": "e1c7032c5ff97c86d72747972b32714d305c7fbc27a267120d0f98461a9b3bf7",
+        "packages/courseware-runtime/src/conversion/lib/courseware/fixed-build-input.ts": "7c77b2a1123d5fe4a049e0b2183a8de39bb5a38583389ae6056565811cd43ec1",
+        "packages/courseware-runtime/src/conversion/lib/courseware/fixed-build.ts": "0eed4b4cd24609ec50093a7c7922a491916efa283dbcebdca11f2a494845f4b2",
+        "packages/courseware-runtime/src/player/lib/courseware/load-fixed-build.ts": "dd8fab79cf9a3f607c28d403b4aabfcd25b31f7023575a89c47cd388b9581e7f",
+        "packages/courseware-runtime/src/player/components/courseware/FixedCoursewarePlayer.tsx": "ef670788d3259edb9e5e491bd222c37c0b5bcf03d01600f3a4d6b90dbcfe264a"
+      }
+    },
+    "maic": {
+      "root": "/home/jhz/code/train/evo-trainwise-maic-server",
+      "head": "d8cde962d01d6722b710b32c11b161c54732c6e0",
+      "files": {
+        "lib/contracts/classroom.ts": "9466f52750bb1ff68b6c9c584e3007cb36bde7092ce99b85fd933811d9111813",
+        "lib/types/stage.ts": "59692da4b65d9bd211dc8319a676a6e20fea3f27be2fa8db36d12b42cb415a1e",
+        "lib/types/slides.ts": "f59f3ff53ea5f41feea27425b24a412fa67dc12ca9de20b7647e7b8c9a46b98d",
+        "lib/types/action.ts": "cd4d0753587cab41d8e1cd11a7c289c0188736734a22e0d8da7e2097f43f3d78",
+        "lib/interaction/types.ts": "eef7bb6521d3e1118d37bed35c57e381a1f263d8595b10c7456b58ee7f4575a2",
+        "lib/server/classroom-package-export.ts": "13a8c1e78530469db60f03e00664bce645230b43318efe778b751f71d74dcaf0",
+        "lib/generation/kindergarten/publish-compiler.ts": "ee5c2a8796a84b101323b4dec1e3220c79274a861f6bb8f5ee0b5d37cb9ff501"
+      }
+    },
+    "cloud-web": {
+      "root": "/home/jhz/code/train/cloud-web-trainwise",
+      "head": "9cea9d86a0fc8286a6fbe548eab580d6e3352ac2",
+      "files": {
+        "components/scene-renderers/quiz-view.tsx": "454f8378092a115a3737dab90e2f94fe93be68c87b0590bf7ee94d9848397f52",
+        "components/canvas/editor-panels/interaction-constraint-prompt.tsx": "a40d58fc54f4dee16b39fb8c05e11a3e5ff5aa881d02a2b7660393573594bffb",
+        "lib/classroom/quiz-option-editing.ts": "f9ce48bd7dac2673db3d9541f5890993ef95ec7503d54dedf9c7708d4a7dcde8",
+        "lib/classroom/save-classroom-draft.ts": "cb4f82082b7fab641f97f91cf3bc5ef6e98b35cb8783b9b568ceff4aba499dfa"
+      }
+    },
+    "wiseoffice": {
+      "root": "/home/jhz/code/train/document-worktrees/wiseoffice-native-teaching",
+      "head": "38afd920d1451945b3b4dd6a60f79430cda56c41",
+      "files": {
+        "lib/deckwise-teaching-sidebar.ts": "1d60c3e97aef5ab6c4c7d3edc5be8ea75fffa267aa032521e7175c2c2a8e346f",
+        "lib/deckwise-teaching-preview.ts": "7980cfd681a7ad55cf05878662a2428d3af0db4ce022985df58a8e942deda0cd",
+        "lib/deckwise-teaching-slideshow.ts": "9750002571a2584c9e32e549c589118fe11b789e65f905b448716bb63384a9ab"
+      }
+    }
+  }
+}

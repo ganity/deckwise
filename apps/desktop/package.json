@@ -1,6 +1,6 @@
 {
   "name": "@pi-desktop/desktop",
-  "version": "0.17.7",
+  "version": "0.20.0",
   "desktopName": "deckwise.desktop",
   "private": true,
   "description": "DeckWise PPTX courseware desktop application",
@@ -26,6 +26,12 @@
     "bundle:runtime": "pnpm -C ../../packages/agent-runtime bundle",
     "build:python-runtime": "node runtime/python/build-runtime.mjs --output dist/runtime/current",
     "prepare:ppt-master": "node ../../scripts/prepare-ppt-master.mjs --output dist/ppt-master",
+    "stage:wiseoffice": "node ../../scripts/stage-wiseoffice.mjs",
+    "check:wiseoffice": "node ../../scripts/stage-wiseoffice.mjs --check resources/wiseoffice",
+    "stage:pptx-worker": "node ../../scripts/stage-pptx-worker.mjs",
+    "check:pptx-worker": "node ../../scripts/stage-pptx-worker.mjs --check \"$PWD/resources/pptx-worker\"",
+    "pack:courseware:linux": "pnpm run check:pptx-worker && pnpm --filter @pi-desktop/courseware-runtime test:authoring-bundle && pnpm run pack --linux --x64",
+    "dist:courseware:linux": "pnpm run check:pptx-worker && pnpm --filter @pi-desktop/courseware-runtime test:authoring-bundle && pnpm run dist:linux --x64",
     "build:python-runtime:win": "node runtime/python/build-runtime.mjs --platform win --arch x64 --output dist/runtime/current",
     "runtime:mac:x64": "node runtime/python/build-runtime.mjs --platform mac --arch x64 --output dist/runtime/mac-x64",
     "runtime:mac:arm64": "node runtime/python/build-runtime.mjs --platform mac --arch arm64 --output dist/runtime/mac-arm64",
@@ -42,9 +48,11 @@
     "electron-updater": "^6.8.9"
   },
   "devDependencies": {
-    "@earendil-works/pi-ai": "0.85.1",
+    "@earendil-works/pi-ai": "1.1.0",
+    "@earendil-works/pi-mcp": "1.1.0",
     "@pi-desktop/agent-host": "workspace:*",
     "@pi-desktop/agent-runtime": "workspace:*",
+    "@pi-desktop/courseware-runtime": "workspace:*",
     "@pi-desktop/i18n": "workspace:*",
     "@pi-desktop/plugin-devkit": "workspace:*",
     "@pi-desktop/plugin-sdk": "workspace:*",
@@ -55,11 +63,12 @@
     "@types/react-dom": "^19.2.4",
     "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^4.6.0",
-    "dompurify": "^3.4.13",
+    "dompurify": "^3.4.17",
     "electron": "^43.4.1",
     "electron-builder": "^26.15.3",
     "electron-vite": "^4.0.0",
     "i18next": "^26.3.6",
+    "jszip": "3.10.1",
     "katex": "^0.16.47",
     "lucide-react": "^1.31.0",
     "marked": "^18.0.9",
@@ -83,6 +92,9 @@
     "zustand": "^5.0.15"
   },
   "build": {
+    "beforePack": "./build/courseware-release.mjs",
+    "afterPack": "./build/courseware-release.mjs",
+    "afterSign": "./build/courseware-release.mjs",
     "appId": "com.trainwise.deckwise",
     "productName": "DeckWise",
     "directories": {
@@ -144,6 +156,18 @@
       {
         "from": "resources/editor-host",
         "to": "editor-host"
+      },
+      {
+        "from": "resources/wiseoffice",
+        "to": "wiseoffice"
+      },
+      {
+        "from": "resources/pptx-worker",
+        "to": "pptx-worker"
+      },
+      {
+        "from": "resources/pptx-worker/node_modules",
+        "to": "pptx-worker/node_modules"
       },
       {
         "from": "resources/models.dev",
@@ -294,6 +318,9 @@
     },
     "asar": {
       "smartUnpack": false
+    },
+    "extraMetadata": {
+      "piDistribution": "installed"
     }
   }
 }

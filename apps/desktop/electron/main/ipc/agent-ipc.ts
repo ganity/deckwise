@@ -1,6 +1,8 @@
+import { readFile, stat } from "node:fs/promises";
+import { coursewareStoryPrompt } from "../courseware-story";
 import { DECKWISE_MANAGED_PROVIDER_ID, IPC, ErrorCodes, isGlobalPermissionMode, type AgentEventEnvelope, type AgentPromptRequest, type AgentSteerRequest, type UiMessage, type AgentQueuePushRequest, type AgentStopRequest, type AskToolResolution, type GlobalPermissionMode, type MessageUsage, type PlanExecutionFinishStatus, type PlanResolutionResult, type PlanResolveRequest, type PromptEnhancementRequest, type SessionSummarizeTitleRequest } from "@pi-desktop/shared";
 import type { FinishTurn } from "../runtime/plans";
-import { expandSlashInvocation, enhancePromptDraft, summarizeSessionTitle, visionFromModelConfig, type ComposerTemplate, type RuntimeProviderConfig } from "@pi-desktop/agent-runtime";
+import { expandSlashInvocation, enhancePromptDraft, resolveCoursewareRoute, summarizeSessionTitle, visionFromModelConfig, type ComposerTemplate, type RuntimeProviderConfig } from "@pi-desktop/agent-runtime";
 import { OAUTH_AUTH_KIND, type VendorOAuth } from "../oauth";
 import { appendPromptFallbackPaths, durableUserMessageId, isStructuredDocumentAttachment, preparePromptAttachments, stripPromptAttachmentReferences, type PreparedPromptAttachment } from "../prompt-attachments";
 import { executionFromResponse } from "../plan-execution";
@@ -13,7 +15,10 @@ import type { Logger } from "../logger";
 import type { PersistenceOutbox } from "../persistence-outbox";
 import type { ComposerCommandService } from "./composer-ipc";
 import type { IpcRegistrar } from "./types";
-import { PPT_MASTER_SKILL_ID } from "../builtin-skills";
+import { loadBuiltinSkillBody } from "../builtin-skills";
+import { sceneCoursePlanRelativePath, sceneCourseTeachingPolicy } from "../courseware-scene-plan";
+import type { CoursewareEducationContext } from "@pi-desktop/shared";
+import { resolveCoursewareLlmAuth } from "../courseware-llm-auth";
 
 export type AgentIpcDependencies = {
   registrar: IpcRegistrar;
@@ -37,6 +42,7 @@ export type AgentIpcDependencies = {
   activeTurns: Map<string, string>;
   /** Whether the named turn can still start or steer host work. */
   isTurnDispatchable: (sessionId: string, turnId: string | null | undefined) => boolean;
+  stopTurnDispatch: (sessionId: string, turnId: string | null | undefined) => void;
   activeTurnUsages: Map<string, MessageUsage>;
   approvedExecutionIdsBySession: Map<string, string>;
   claimedExecutionSessions: Map<string, string>;
@@ -65,15 +71,58 @@ function rejectNativeAgentOperation(sessionId: string): void {
   }
 }
 
-function deckWiseModelPrompt(content: string): string {
+function deckWiseModelPrompt(content: string, nativeEditing = false, taskType: "plain" | "scene" | "import" = "plain", educationContext?: unknown, sessionId?: string, story?: import("@pi-desktop/shared").CoursewareStoryState | null): string {
+  if (story && (!story.sha256 || story.sha256 !== story.approvedSha256)) return coursewareStoryPrompt(story, taskType) + "\nSaved education settings: " + JSON.stringify(educationContext ?? {}) + "\nUser request and materials:\n" + content;
+  const scenePlanning = !nativeEditing && taskType === "scene";
+  const route = resolveCoursewareRoute(taskType === "plain" ? "presentation" : taskType, nativeEditing ? "edit" : scenePlanning ? "plan" : "generate");
+  if (!route.available) throw new Error("场景课件生成服务尚未接通，请保留当前任务，稍后重试");
+  // Repairs can skip a requested Skill call; load the Host-selected workflow directly.
+  const generationSkill = !nativeEditing && (taskType === "plain" || scenePlanning) ? loadBuiltinSkillBody(route.skill) : null;
+  const teaching = educationContext && typeof educationContext === "object" && !Array.isArray(educationContext)
+    ? educationContext as CoursewareEducationContext
+    : {};
   return [
     "DeckWise turn policy:",
+    ...(story ? [coursewareStoryPrompt(story, taskType)] : []),
+    "- For an explicit request to design a teaching story before generating a new lesson, activate and call courseware_story_begin, read workflow, save the story and stop for human review before producing pages. Do not enable this merely because no lesson plan was supplied.",
     "- This product only supports creating, revising, inspecting, or exporting PPTX courseware.",
     "- If this request is outside that scope, do not call tools or answer it normally; briefly state the product boundary and ask for a courseware topic or source material.",
+    "- Preserve the current request's scope. For speech-only regeneration or a specific page range, omit continueTeaching:true: it authorizes whole-course completion and advisory repairs on other pages. Generate only the requested speech/page assets, read their saved results and report completion; do not repair unrelated narration, focus, questions or media.",
     "- In user-facing responses, never mention Pi, PPT Master, skill ids, Python scripts, SVG services, internal tools, or workspace paths. Describe the work using courseware requirements, courseware pages, page preview, and courseware editing.",
-    `- For a supported request, first call the \`Skill\` tool with id ${JSON.stringify(PPT_MASTER_SKILL_ID)} and follow the loaded instructions.`,
+    generationSkill
+      ? "- The Host has loaded the selected generation skill below. Follow it for generation, repair and export; another Skill call is unnecessary."
+    : `- For a supported request, first call the \`Skill\` tool with id ${JSON.stringify(route.skill)} and follow the loaded instructions.`,
+    `- Task authority: ${route.authority}. ${route.instruction}`,
+    "- Drive the complete requested workflow in this main Chat. Read courseware_workflow_get for saved requirements and real stage state before continuation. Ask essential missing information with asktool, reuse supplied answers, and save confirmed teaching settings through courseware_requirements_update before plan approval/source attachment. Its latest saved settings override the initial prompt snapshot; revise an unapproved plan to match changed settings before requesting review. Never silently guess the audience. Preserve optional requirements and task type.",
+    "- For supplied final narration scripts or lesson plans use courseware_narration_import: preview with apply:false, preserve final script verbatim, bind original page IDs, then apply:true. Never turn supplied script into a regeneration instruction. Before applying, read actual page text/objects via courseware_narration_context with pageNumbers and compare every bound section against the page. Page labels establish placement, not semantic correctness. Report contradictions and leave affected sections unresolved; never silently relocate or rewrite them. Expose unmatched source sections and activity coverage before claiming completion.",
+    "- For a supplied lesson-plan attachment without an accepted mapping, use courseware_narration_plan with its immutable sourceId; Main extracts and maps exact source evidence to live PPT text/notes. For an authorized teaching course apply:true saves that mapping directly. Preserve an existing accepted plan and approved scene/PPT-master requirements. Reconcile unmatched units explicitly; add only missing mapped activities with courseware_activity_insert, then use existing narration and assessment-media tools. Respect user counts/exclusions, and never invent assessment answers or replace a final script with generated text.",
+    "- Before generating missing native speech audio after interruption, use courseware_media_refresh(kind:tts,recover:true,sourceSha256) to recover the full deck, optionally scoped by pageNumbers or model/voice. This queries original receipts and adopts ready output without a new purchase. Native media_prepare also reuses the exact current speech/model/voice order. Existing valid audio stays attached. Unknown or failed originals require reporting, not automatic replacement; multiple matching orders require selecting an explicit original intent ID. Save successful recovery even when another page fails, and report unfinished pages separately.",
+    "- For saved PPTX page reading and narration use courseware_narration_context and courseware_narration_propose. These work with the editor closed and accept explicit page numbers. Complete the requested page range in sequential narration tool calls of at most 5 pages. Await saved results and reread current sourceSha256 before the next batch; never submit the complete deck in one call or ask the user to continue between batches. Preview is for human inspection. For TTS, pass the current page's missing speech IDs as actionIds to courseware_media_prepare(kind:tts) for bounded parallel synthesis and archive, rather than one tool call per speech. Native selection editing still requires its own Office binding.",
+    "- Quiz and interaction_checkpoint media are shared across import, scene and PPT-master paths. Read courseware_media_assessments(mode:context), then generate missing question TTS and each multiple-choice option image through its prepare/refresh modes. Use configured models/voices, current canonical revisions and the original saved target. Whole-course authorization includes these missing assets without per-question approval. Preserve successful assets and refresh pending/unknown originals. Re-read context after each adoption. courseware_media_context includes assessmentMedia readiness; do not report a complete teaching course while its targets remain. Canonical-only Quiz courses use this same tool without a fake PPTX.",
+    "- Ordinary PPT Master generation keeps its official SVG preview and explicit PPTX-export gate. Before authoring a new project, use courseware_presentation_prepare to save the complete page plan and generate fixed Quiz/checkpoint SVGs; design only the returned body pages. Assessments retain editable question text without lecture, decoration, answers or animation. Keep them within the user's total-page budget. After authorized export, load courseware_presentation_adopt to bind the verified export and the same saved teaching entries. Course export continues teaching by default, including a simple export request in this teaching-course task. Use continueTeaching:true and finish the shared saved narration, synchronized object effects, TTS and assessment media without another Continue request. Only an explicit PPTX-only/no-audio request uses continueTeaching:false and forbids paid audio/image generation. After adoption or Office editing, resume saved teaching; never replace it with a stale SVG export.",
+    "- Continue authorized non-blocking steps using tools; do not send the user to a right-side control form or stop after saying you will continue. Plan approval and first-page style selection require the user. Image generation handles billing internally; do not request payment confirmation. Show the first image in the right image preview. After style confirmation, continue remaining masters, decomposition and compilation without per-image approval.",
+    "- For scene continuation, inspect existing requests and selected assets before preparing missing ones. Ask for a model choice only when needed. Generate only the first visualMaster before human style approval. For an authorized whole-course request after style selection, call courseware_scene_image_refresh with the selected first-page master intentId and generateRemaining:true. Main reuses original jobs and overlaps missing masters with immediate per-page decomposition through the existing five-master/five-decomposition limits; inspect pipeline.ready, blockers and failures before compiling. For a single-page request, decompose its selected master with the cleanPlate target and the configured decomposition role; its bundle includes foreground layers, which must not be generated again. Do not prepare duplicates, fabricate assets or retry unknown paid outcomes. Current service requires a distinct cleanPlate and at least one foreground layer per page. Compile with courseware_scene_compile only after approval and no asset blockers. Image preparation returns the current job state. Continue independent missing assets after style confirmation, even when another submission is unknown. When only pending work remains, refresh original jobs with waitForUpdate:true until ready or failed, keeping this turn active without asking the user to continue. Unknown submission means service uncertainty, not missing human approval; it never revokes saved styleConfirmed. Refresh the same pending job; never resubmit it. Pause only for the existing plan/style decision, an actual error, user stop or completion of the authorized scope. PPTX compilation is intermediate for a complete teaching course: pass continueTeaching:true, generate missing detailed narration and use courseware_media_context/prepare/refresh to finish missing speech audio and required music without Office navigation. For an authorized complete saved course, resume with courseware_media_context continueTeaching:true and check teachingReady plus actual actions. Omit continueTeaching for an explicit PPTX-only request or status question. Deliver editable PPTX plus teaching data; build PPTist only on explicit publication, never as a generation-completion step. Do not substitute generic GenerateImages for scene tools.",
+    "- Desktop entry modes are ordinary generation, scene generation and PPT import; all share one PPTX editor and baseline teaching features. Scene mode supports kindergarten and primary with audience-specific teaching strategies. Both require teaching actions, animation, interaction, highlight and spotlight according to the lesson. Video and music follow the actual lesson requirements. Preserve mapped targets and real audio timing through the PPTX intermediate. Saved-media tools support TTS/music, planned video slots, finite mapped fadeIn/pulse motion and teacher-led questions with reference answers. For planned video, read courseware_media_context(kind:video), then prepare the saved video_slot with a configured model and refresh its original task through verified archive/adoption. Check Host completion.ready as well as teachingReady, audioReady and videoReady before completion. Required completion.issues are blocking; quality.issues remain advisory. For missing approved questions/music/video with detailed narration already saved, use repairRequiredTeaching:true to retain exact speech/audio/effects. Full MAIC motion parity and automatic answer grading remain unsupported; report those limits accurately.",
+    "- If the user asks to revise an existing media draft on the current canvas, use courseware_canvas_get to read it and courseware_canvas_edit to update only the requested draft fields. This saves draft metadata only; it never generates media or edits slides.",
+    ...(scenePlanning ? [`- The Host-selected scene planning file is ${JSON.stringify(sceneCoursePlanRelativePath(sessionId ?? ""))}. Read it before revising an existing draft; save only the raw {title,pages} JSON required by the loaded skill. Treat it as a generation draft, not live PPTX teaching. Never rewrite it merely because the user says continue: inspect approval and execute the next available workflow tool. Only report an artifact after its tool succeeds. Plan edits invalidate the whole-plan approval and asset bindings; explain that before revising after paid work.`] : []),
+    ...(educationContext ? [`- Teaching settings: ${JSON.stringify(educationContext)}. Treat age/grade/subject as content guidance, not as task routing.`] : []),
+    ...(scenePlanning ? [sceneCourseTeachingPolicy(teaching)] : teaching.schoolStage === "kindergarten" ? [
+      "- For kindergarten, keep child-facing text short, concrete and playful. Write page narration as direct teacher speech, with participation cues and modest praise. Keep teacher instructions in narration, not child-facing slide text.",
+      teaching.subject === "english"
+        ? teaching.fullEnglishTeaching === true
+          ? "- For full-English kindergarten teaching, use short, speakable English classroom sentences and occasional simple praise such as Good; do not turn narration into long explanations."
+          : "- For kindergarten English, use 0–2 short English expressions per ordinary page and no more than one brief praise sentence per page; keep the rest of the teaching explanation appropriate to the lesson language."
+        : "- Do not add English praise or commands merely because this is kindergarten; follow the selected subject and teaching language.",
+    ] : []),
     "- Attached office documents are pre-parsed by the DeckWise document service and appear below as `### 资料`; never inspect the original binary attachment or run a local document converter.",
-    "- Infer the lifecycle from workspace artifacts: before the first export, stop at the editable SVG preview unless this is the host's explicit PPTX export request; after an export exists, revise the SVG source and create a new PPTX version.",
+    nativeEditing
+      ? "- The Host bound this Chat to the active Office PPTX. For PPTX requests, activate PPT tools with ToolSearch. For teaching narration, activity pages, audio, animation, spotlight and highlight, use the shared courseware_narration_*/activity_insert/media_* tools and read saved context; Office selection capabilities do not limit these teaching operations. User-supplied inline activity requirements can be mapped as lessonPlan.text/units without a plan attachment. For Office content edits, read fresh native context and use only operations advertised for that surface. Canvas draft requests remain separate and use courseware_canvas_get/edit. Never modify the live PPTX using file/shell tools or replace it with SVG exports. Native edits remain unsaved until the user saves."
+      : taskType === "plain"
+        ? "- Before the first export, stop at the editable SVG preview unless this is the Host's explicit PPTX export request. SVG owns generation candidates only. Once Office editing begins, use the latest PPTX and teaching; reopen Office for native edits and never supersede them with an older SVG export."
+        : taskType === "import"
+          ? "- No Office editing binding is active. Read courseware_workflow_get and collect requirements in this Chat. If no PPTX is imported, direct the user to the file picker in the main Chat; if already imported, read its saved pages with courseware_narration_context and generate requested narration with courseware_narration_propose. Only native selection edits require opening Office. Never claim to have read pages before the saved-page tool succeeds. Do not inspect, parse or modify the PPTX with file or shell tools, invoke a local converter, or generate a replacement deck. Preserve the selected import task."
+          : "- Preserve the selected task type. Once Office editing begins, use the latest PPTX and teaching; never replace Office edits with an older candidate.",
+    ...(generationSkill ? [`\n# Skill: ${generationSkill.name} (${generationSkill.id})\n\n${generationSkill.body}`] : []),
     "",
     "User request:",
     content,
@@ -98,6 +147,7 @@ export function registerAgentIpc({
   dataDir,
   activeTurns,
   isTurnDispatchable,
+  stopTurnDispatch,
   activeTurnUsages,
   approvedExecutionIdsBySession,
   claimedExecutionSessions,
@@ -167,7 +217,7 @@ export function registerAgentIpc({
       ...launch.sidecarParams.provider,
       ...(launch.sidecarParams.provider.authKind === OAUTH_AUTH_KIND
         ? { resolveAuth: () => launch.providerId === DECKWISE_MANAGED_PROVIDER_ID
-            ? resolvePlatformAccessToken().then((apiKey) => ({ apiKey }))
+            ? resolveCoursewareLlmAuth(getHost, sessionId || undefined, resolvePlatformAccessToken)
             : vendorOAuth.resolveAuth(launch.providerId) }
         : {}),
     } as RuntimeProviderConfig;
@@ -215,7 +265,7 @@ export function registerAgentIpc({
       ...launch.sidecarParams.provider,
       ...(launch.sidecarParams.provider.authKind === OAUTH_AUTH_KIND
         ? { resolveAuth: () => launch.providerId === DECKWISE_MANAGED_PROVIDER_ID
-            ? resolvePlatformAccessToken().then((apiKey) => ({ apiKey }))
+            ? resolveCoursewareLlmAuth(getHost, sessionId, resolvePlatformAccessToken)
             : vendorOAuth.resolveAuth(launch.providerId) }
         : {}),
     } as RuntimeProviderConfig;
@@ -289,7 +339,7 @@ export function registerAgentIpc({
           errorCode: ErrorCodes.INVALID_ARGUMENT,
         });
       }
-      setNotificationViewingSessionId(req.sessionId);
+      if (req.viewingSessionId === req.sessionId) setNotificationViewingSessionId(req.sessionId);
       return sidecar.call("agent.prompt", {
         sessionId: req.sessionId,
         content: deckWiseModelPrompt(req.content),
@@ -301,16 +351,12 @@ export function registerAgentIpc({
     try {
     const sessionMessage = await resolveSessionMessageInput(host, req);
     // Install the renderer's prompt-time snapshot before any asynchronous
-    // setup. This closes the gap where a fast completion could beat the
-    // effect that reports the active chat session. Missing or mismatched
-    // context is deliberately fail-safe.
+    // setup. Background dispatch has no viewing hint and must not clear the
+    // foreground owner used by native teaching and source saves.
     const requestedViewingSessionId =
       typeof req.viewingSessionId === "string" ? req.viewingSessionId.trim() : "";
-    setNotificationViewingSessionId(
-      requestedViewingSessionId && requestedViewingSessionId === req.sessionId
-        ? requestedViewingSessionId
-        : null,
-    );
+    if (requestedViewingSessionId && requestedViewingSessionId === req.sessionId)
+      setNotificationViewingSessionId(requestedViewingSessionId);
     const settings = await host.call<any>("settings.get");
     const sessionResult = await host.call<{ session?: any }>("session.get", {
       id: req.sessionId,
@@ -407,6 +453,18 @@ export function registerAgentIpc({
       { webSearchEnabled: req.webSearchEnabled === true },
     );
     sidecar.setProjectInstructionRoot(req.sessionId, launch.projectPath);
+    const taskResult = await host.call<{ task?: { taskType?: unknown; educationContext?: unknown; storyFirst?: boolean; importPath?: unknown; generatedPath?: unknown } | null }>(
+      "courseware.task.get", { sessionId: req.sessionId },
+    );
+    const taskType = taskResult.task?.taskType ?? "plain";
+    if (taskType !== "plain" && taskType !== "scene" && taskType !== "import") {
+      throw new Error("Invalid saved courseware task type");
+    }
+    const storyResult = taskResult.task?.storyFirst
+      ? await host.call<{ story: import("@pi-desktop/shared").CoursewareStoryState | null }>(
+          "courseware.story.get", { sessionId: req.sessionId },
+        )
+      : { story: null };
 
     // Open a durable turn row, then persist the user message under it.
     const turn = await host.call<{ turnId?: string }>("session.beginTurn", {
@@ -496,12 +554,27 @@ export function registerAgentIpc({
     try {
       for (const attachment of preparedAttachments) {
         if (attachment.message.kind !== "file") continue;
-        if (!/\.(pdf|docx?|pptx?)$/i.test(attachment.message.name)) continue;
-        const parsed = await parseDocument(attachment.absolutePath);
+        const plainMaterial = /\.(txt|md)$/i.test(attachment.message.name);
+        if (!plainMaterial && !/\.(pdf|docx?|pptx?)$/i.test(attachment.message.name)) continue;
+        if (plainMaterial && (await stat(attachment.absolutePath)).size > 2 * 1024 * 1024) throw new Error("Text material exceeds the 2 MiB limit");
+        const parsed = plainMaterial
+          ? { text: new TextDecoder("utf-8", { fatal: true }).decode(await readFile(attachment.absolutePath)), cleanupUrls: [] as string[] }
+          : await parseDocument(attachment.absolutePath);
         documentCleanupUrls.push(...(parsed.cleanupUrls ?? []));
-        const content = (parsed.semanticText || parsed.text || "").trim();
+        const content = parsed.text || parsed.semanticText || "";
+        let sourceId: string | undefined;
+        if (!isTurnDispatchable(req.sessionId, durableTurnId)) throw new Error("Material parsing turn ended");
+        const { task } = await host.call<{ task: unknown }>("courseware.task.get", { sessionId: req.sessionId });
+        if (task && !content.trim()) throw new Error("The teaching attachment has no readable text; provide a text-based script or lesson plan");
+        if (content.trim()) {
+          if (task) {
+            const saved = await host.call<{ sourceId: string }>("courseware.material.record", { sessionId: req.sessionId,
+              name: attachment.message.name, text: content, parser: plainMaterial ? "utf8/1" : "document-service/1" });
+            sourceId = saved.sourceId;
+          }
+        }
         if (content) {
-          documentContexts.push(`### 资料：${attachment.message.name}\n${content.slice(0, 120000)}`);
+          documentContexts.push(`### 资料：${attachment.message.name}${sourceId ? ` [teaching sourceId: ${sourceId}; use this ID to preserve exact source text]` : ""}\n${content.slice(0, 120000)}`);
         }
       }
     } catch (error) {
@@ -518,7 +591,7 @@ export function registerAgentIpc({
         structuredDocuments,
       ),
       ...documentContexts,
-    ].filter(Boolean).join("\n\n"));
+    ].filter(Boolean).join("\n\n"), Boolean(launch.sidecarParams.pptEditorBinding), taskType, taskResult.task?.educationContext, req.sessionId, storyResult.story);
     if (documentCleanupUrls.length) {
       registerDocumentCleanup(req.sessionId, durableTurnId, documentCleanupUrls);
     }
@@ -708,12 +781,11 @@ export function registerAgentIpc({
 
   handle(IPC.invoke.agentStop, async (req: AgentStopRequest) => {
     if (!sidecar) throw new Error("sidecar unavailable");
+    stopTurnDispatch(req.sessionId, req.turnId ?? activeTurns.get(req.sessionId));
     logger.app("session", "info", "prompt graceful stop requested", {
       sessionId: req.sessionId,
     });
-    // The runtime owns the boundary decision. Do not close the durable turn
-    // here: agent_end must arrive after the current reply/tool batch completes
-    // and finish it as a normal completed turn.
+    // Fence dispatch before awaiting the sidecar; the durable turn still ends normally.
     return sidecar.call("agent.stop", req);
   });
 

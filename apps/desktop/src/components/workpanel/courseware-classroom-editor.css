@@ -1,0 +1,43 @@
+.maic-editor { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; height: 100%; color: var(--ds-text-primary); background: var(--ds-bg-primary); }
+.maic-editor-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px; border-bottom: 1px solid var(--ds-border-default); }
+.maic-editor button { padding: 6px 10px; border: 1px solid var(--ds-border-default); border-radius: 6px; background: var(--ds-bg-secondary); color: inherit; cursor: pointer; }
+.maic-editor button:disabled { opacity: .45; cursor: default; }
+.maic-editor-layout { display: grid; grid-template-columns: minmax(140px, 220px) minmax(0, 1fr); flex: 1; min-height: 0; }
+.maic-editor-layout > nav { overflow: auto; border-right: 1px solid var(--ds-border-default); padding: 10px; }
+.maic-editor-layout ol { padding: 0; margin: 0; list-style: none; }
+.maic-editor-layout nav button { width: 100%; text-align: left; margin-bottom: 6px; }
+.maic-editor [aria-current="page"] { outline: 2px solid var(--ds-accent); }
+.maic-editor-layout > main { padding: 24px; overflow: auto; }
+.maic-editor label { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; font-size: 13px; }
+.maic-editor input:not([type="radio"]):not([type="checkbox"]), .maic-editor textarea, .maic-editor select { border: 1px solid var(--ds-border-default); border-radius: 6px; padding: 8px; background: var(--ds-bg-secondary); color: inherit; width: 100%; box-sizing: border-box; }
+.maic-editor textarea { min-height: 80px; resize: vertical; }
+.maic-speech-status { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 10px; color: var(--teaching-muted, var(--ds-text-secondary, #667085)); }
+.maic-editor .maic-speech-status > button { flex-shrink: 0; white-space: nowrap; padding: 2px 0; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--teaching-accent, var(--ds-accent)); font: inherit; font-size: 11px; line-height: 18px; }
+.maic-scene-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
+.maic-scene-controls label { flex: 1; }
+.maic-question { border: 1px solid var(--ds-border-default); border-radius: 10px; padding: 18px; margin: 18px 0; min-width: 0; }
+.maic-option { border-left: 3px solid var(--ds-accent); padding: 8px 16px; margin: 12px 0; }
+.maic-image-field img { max-width: 220px; max-height: 140px; object-fit: contain; border-radius: 8px; }
+.maic-error { padding: 12px; color: var(--ds-error); }
+.maic-editor-sidebar .maic-editor-layout { display: flex; }
+.maic-editor-sidebar .maic-editor-layout > main { flex: 1; min-width: 0; padding: 12px; }
+.maic-editor-sidebar .maic-question { padding: 12px; margin: 12px 0; }
+.maic-editor-sidebar .maic-option { padding: 8px; }
+.maic-editor-sidebar .maic-editor-toolbar { gap: 6px; padding: 10px; }
+.maic-editor-sidebar .maic-editor-toolbar strong { flex: 1 0 100%; white-space: nowrap; }
+.maic-editor-sidebar .maic-editor-toolbar > button, .maic-editor-sidebar .maic-editor-toolbar > span { flex-shrink: 0; white-space: nowrap; }
+@media (max-width: 650px) { .maic-editor-layout { grid-template-columns: 125px minmax(0, 1fr); } .maic-editor-layout > main { padding: 12px; } }
+
+.maic-option-row { display: flex; align-items: center; gap: 8px; }
+.maic-option-row > input { min-width: 0; flex: 1; }
+.maic-editor .maic-answer-option { border-radius: 50%; width: 34px; height: 34px; flex: 0 0 34px; padding: 0; }
+.maic-editor .maic-answer-option[aria-pressed="true"] { background: var(--ds-accent); border-color: var(--ds-accent); color: var(--ds-bg-primary); }
+.maic-editor details { margin: 12px 0; }
+.maic-editor summary { cursor: pointer; padding: 8px 0; }
+.maic-keypoints > div { display: flex; align-items: flex-start; gap: 8px; margin-top: 8px; }
+.maic-keypoints > div > textarea { min-width: 0; flex: 1; }
+.maic-editor-sidebar .maic-option { border: 1px solid var(--ds-border-default); border-radius: 8px; padding: 10px; }
+
+.maic-image-field { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0; }
+.maic-image-field > span { flex: 1; }
+.maic-editor .maic-image-field > input[hidden] { display: none; }

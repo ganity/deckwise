@@ -501,6 +501,15 @@ type ModelDescriptor = {
 - route only that managed provider through the configured DeckWise gateway
   with the signed-in platform access token; user-configured providers keep
   their own endpoint and credential path
+- resolve managed courseware team scope from the saved Host task for each
+  request. Bound team Chat/one-shot calls use dedicated gateway project routes
+  with fresh Platform membership and billing authorization; denied/missing team
+  routes never fall back to personal. See [authorized media and LLM transport](27-courseware-authorized-media.md).
+- managed model discovery resolves authentication only for HTTPS gateways or
+  explicit HTTP `localhost` / `127.0.0.1` development gateways. Refuse other
+  schemes before authentication or network I/O, and do not follow redirects
+  with the bearer token. Discovery failure retains the existing local model
+  fallback; it does not authorize a model or bypass request authentication.
 - add built-in vendor quickly
 - add OpenAI-compatible endpoint
 - add custom provider

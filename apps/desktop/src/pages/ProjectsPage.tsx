@@ -129,7 +129,7 @@ export function ProjectsPage() {
   const archiveProject = useAppStore((s) => s.archiveProject);
   const deleteProjectAction = useAppStore((s) => s.deleteProject);
   const restoreProject = useAppStore((s) => s.restoreProject);
-  const newSession = useAppStore((s) => s.newSession);
+  const newSession = useAppStore((s) => s.openNewTaskDialog);
   const selectSession = useAppStore((s) => s.selectSession);
   const setPage = useAppStore((s) => s.setPage);
   const setSettingsTab = useAppStore((s) => s.setSettingsTab);

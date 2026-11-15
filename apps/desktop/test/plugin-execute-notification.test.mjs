@@ -9,6 +9,7 @@ import test from "node:test";
 const here = dirname(fileURLToPath(import.meta.url));
 register(pathToFileURL(join(here, "helpers/ts-import-hooks.mjs")));
 
+const { PptEditorNotReadyError } = await import("../electron/main/ppt-editor-handshake.ts");
 const { createHostRuntime } = await import("../electron/main/runtime/host.ts");
 const { createSessionCoordination } = await import(
   "../electron/main/runtime/session-coordination.ts"
@@ -80,9 +81,10 @@ const TOOL_NAME = VALUE_BY_FIELD.toolName;
  * decide that question itself. `activeTurn` seeds the session's live turn;
  * leaving it out models a session whose turn has already ended.
  */
-function fixture({ activeTurn } = {}) {
+function fixture({ activeTurn, pptError } = {}) {
   const calls = [];
   const invocations = [];
+  const pptInvocations = [];
   let notification = null;
 
   const activeTurns = new Map();
@@ -128,6 +130,12 @@ function fixture({ activeTurn } = {}) {
       drainToasts: () => [],
     },
     userMcp: { callTool: async () => null },
+    executePptEditorTool: async (sessionId, toolName, args, canDispatch) => {
+      assert(canDispatch(), "PPT dispatch must retain its current turn");
+      pptInvocations.push({ sessionId, toolName, args });
+      if (pptError) throw pptError;
+      return { applied: false, reviewState: "needs-review" };
+    },
     pluginActiveInProject: () => true,
     sendToRenderer() {},
     emitAgentEvent() {},
@@ -147,6 +155,7 @@ function fixture({ activeTurn } = {}) {
   return {
     calls,
     invocations,
+    pptInvocations,
     notify: (method, params) => notification(method, params),
   };
 }
@@ -184,6 +193,18 @@ test("the host-core notification carries every field the receiver reads", () => 
     1,
     "the turn identity must be sent exactly once",
   );
+});
+
+test("redo notifications reach the PPT executor instead of installed plugin lookup", async () => {
+  const f = fixture({ activeTurn: TURN_ID });
+  const payload = { ...fullPayload(), toolName: "ppt_propose_page_redo" };
+  const resolved = await dispatch(f, payload);
+  assert.equal(resolved.length, 1); assert.equal(resolved[0].params.ok, true);
+  assert.deepEqual(f.pptInvocations, [{ sessionId: SESSION_ID, toolName: payload.toolName, args: payload.args }]);
+  assert.equal(f.invocations.length, 0);
+  const foreign = await dispatch(f, { ...payload, toolName: "ppt_propose_arbitrary" });
+  assert.equal(foreign.at(-1).params.errorCode, "TOOL_NOT_FOUND");
+  assert.equal(f.pptInvocations.length, 1);
 });
 
 test("the live turn's payload runs the plugin tool and is answered", async () => {
@@ -267,3 +288,15 @@ test("an mcprefixed tool keeps its own path", async () => {
   assert.equal(resolved[0].params.ok, true);
   assert.equal(f.invocations.length, 0, "an mcp tool never reaches the plugin runtime");
 });
+
+for (const phase of ["opening", "saving", "focus"]) {
+  test(`native ${phase} readiness survives the Main-to-Host execution boundary`, async () => {
+    const f = fixture({ activeTurn: TURN_ID, pptError: new PptEditorNotReadyError(phase) });
+    const [resolved] = await dispatch(f, { ...fullPayload(), toolName: "courseware_media_context", args: {} });
+    assert.equal(resolved.params.ok, false);
+    assert.equal(resolved.params.errorCode, "PPT_EDITOR_NOT_READY");
+    assert.equal(resolved.params.content.phase, phase);
+    assert.match(resolved.params.content.error, phase === "focus" ? /Return to this courseware Chat/ : /still opening or saving/);
+    assert.equal(f.pptInvocations.length, 1);
+  });
+}

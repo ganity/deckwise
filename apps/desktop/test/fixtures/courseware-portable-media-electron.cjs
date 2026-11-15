@@ -1,0 +1,113 @@
+const { app, BrowserWindow } = require('electron');
+const fs = require('node:fs');
+const path = require('node:path');
+const crypto = require('node:crypto');
+const assert = require('node:assert/strict');
+const root = path.resolve(__dirname, '../../../..');
+const ts = require(path.join(root, 'apps/desktop/node_modules/typescript'));
+const profile = process.env.DECKWISE_PORTABLE_MEDIA_TEST_DIR;
+assert(profile && path.isAbsolute(profile), 'An isolated test directory is required');
+app.setPath('userData', path.join(profile, 'profile'));
+app.disableHardwareAcceleration();
+app.on('window-all-closed', () => {});
+const modules = new Map();
+function load(name) {
+  if (modules.has(name)) return modules.get(name);
+  const exports = {};
+  const source = fs.readFileSync(path.join(root, 'apps/desktop/electron/main', name + '.ts'), 'utf8');
+  const js = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
+  new Function('require', 'exports', js)(id => id === 'electron' ? { BrowserWindow } : id === './courseware-media' ? { MAX_AUDIO_BYTES: 16 * 1024 * 1024 } : id.startsWith('./') ? load(id.slice(2)) : require(id), exports);
+  modules.set(name, exports); return exports;
+}
+app.whenReady().then(async () => {
+  const report = { codecs: [], mainRoutes: [], accountLookups: 0, hostCalls: [] };
+  try {
+    const { decodeCoursewarePortableMedia: decode } = load('courseware-audio-decode');
+    const { CoursewarePortableMedia } = load('courseware-portable-media');
+    const stored = new Map();
+    const project = { projectId: 'portable-decoder-test', source: { revision: 'r1', sha256: 'a'.repeat(64) }, pages: [{ pageId: 'page', actions: [] }] };
+    const add = async (file, mimeType, type) => {
+      const bytes = fs.readFileSync(file);
+      const pending = decode(bytes, mimeType);
+      const window = BrowserWindow.getAllWindows()[0];
+      assert.equal(window.webContents.getLastWebPreferences().nodeIntegration, false);
+      assert.equal(window.webContents.getLastWebPreferences().sandbox, true);
+      assert.equal(window.webContents.isAudioMuted(), true);
+      const meta = await pending;
+      assert(meta.durationMs > 0);
+      const sha256 = crypto.createHash('sha256').update(bytes).digest('hex');
+      const id = `${type === 'speech' ? 'tts' : type === 'video_clip' ? 'video' : 'music'}-${sha256}`;
+      const out = path.join(profile, `${sha256}.bin`); fs.writeFileSync(out, bytes);
+      const actionId = 'node-' + project.pages[0].actions.length;
+      project.pages[0].actions.push({ id: actionId, type, text: 'Hello!', [type === 'video_clip' ? 'videoAssetId' : 'audioAssetId']: id });
+      stored.set(actionId, { asset: { id, sha256, mimeType }, path: out, byteLength: bytes.length, durationMs: meta.durationMs });
+      report.codecs.push({ mimeType, ...meta });
+      return meta;
+    };
+    const wav = await add(path.join(root, 'packages/courseware-runtime/tests/fixtures/fixed-courseware/page-1.wav'), 'audio/wav', 'speech');
+    assert.equal(wav.durationMs, 5955);
+    await add(path.join(root, 'apps/desktop/test/fixtures/courseware-tts-tone.mp3'), 'audio/mpeg', 'audio_clip');
+    const concurrentBytes = fs.readFileSync(path.join(root, 'apps/desktop/test/fixtures/courseware-tts-tone.mp3'));
+    const parallel = Promise.allSettled(Array.from({ length: 11 }, () => decode(concurrentBytes, 'audio/mpeg')));
+    report.parallelDecodeWindows = BrowserWindow.getAllWindows().length;
+    const decoded = await parallel;
+    assert.equal(report.parallelDecodeWindows, 10);
+    assert(decoded.every(result => result.status === 'fulfilled' && result.value.durationMs > 0));
+    assert.equal(BrowserWindow.getAllWindows().length, 0);
+    report.parallelDecodes = decoded.length;
+    const context = { project, projectId: project.projectId, sessionId: 'isolated', pageId: 'page', expectedSourceRevision: 'r1', expectedTeachingRevision: 't1', async assertCurrent() {},
+      host: { async call(method, args) { assert.equal(method, 'courseware.project.localMedia'); report.hostCalls.push(method); return { media: stored.get(args.actionId) ?? null }; } } };
+    const teaching = { async ttsContext() { return context; }, async captureSnapshot(_value, assets) { assert.equal(assets.length, stored.size); assert(assets.every(a => a.local === true && !a.path && !a.tts)); return 'local-snapshot'; } };
+    const local = new CoursewarePortableMedia(teaching, decode);
+    const auth = { getCoursewarePrincipal() { report.accountLookups++; assert.fail('Local playback required an account'); } };
+    const { CoursewareTtsCoordinator } = load('courseware-tts');
+    const { CoursewareNativeMedia } = load('courseware-native-media');
+    const tts = new CoursewareTtsCoordinator(teaching, auth, undefined, local);
+    const media = new CoursewareNativeMedia(teaching, auth, {}, local);
+    const view = { viewId: 'view', expectedTeachingRevision: 't1' };
+    assert.equal((await tts.preview({ ...view, actionId: 'node-0' })).mimeType, 'audio/wav');
+    report.mainRoutes.push('tts-local-preview');
+    assert.equal((await media.preview({ ...view, actionId: 'node-1' })).mimeType, 'audio/mpeg');
+    report.mainRoutes.push('music-local-preview');
+    assert.equal(await tts.captureSnapshot(view), 'local-snapshot');
+    report.mainRoutes.push('local-snapshot-without-auth');
+    stored.get('node-0').durationMs++;
+    await assert.rejects(tts.preview({ ...view, actionId: 'node-0' }), /DURATION_MISMATCH/);
+    report.durationMismatchRejected = true; stored.get('node-0').durationMs--;
+    await assert.rejects(decode(Buffer.from('not audio'), 'audio/ogg'), /INVALID_FORMAT/);
+    await assert.rejects(decode(Buffer.from('not audio'), 'audio/mp4'), /INVALID_FORMAT/);
+    const video = new BrowserWindow({ show: false, webPreferences: { sandbox: true, nodeIntegration: false, contextIsolation: true, backgroundThrottling: false, partition: 'fixture-' + crypto.randomUUID() } });
+    video.webContents.session.webRequest.onBeforeRequest((details, callback) => callback({ cancel: !details.url.startsWith('data:') && !details.url.startsWith('blob:') }));
+    await video.loadURL('data:text/html,<canvas id="c" width="64" height="64"></canvas>');
+    report.mp4RecordingSupported = await video.webContents.executeJavaScript(`MediaRecorder.isTypeSupported('video/mp4')`);
+    assert(report.mp4RecordingSupported, 'The isolated MP4 fixture requires MediaRecorder MP4 support');
+    if (report.mp4RecordingSupported) {
+      const encoded = await video.webContents.executeJavaScript(`(async () => {
+        const canvas = document.getElementById('c'), ctx = canvas.getContext('2d');
+        const stream = canvas.captureStream(10), recorder = new MediaRecorder(stream, {mimeType:'video/mp4'}), chunks=[];
+        const done = new Promise(resolve => { recorder.ondataavailable=e=>chunks.push(e.data); recorder.onstop=resolve; });
+        recorder.start(); let frame=0; const timer=setInterval(()=>{ctx.fillStyle=frame++%2?'red':'blue';ctx.fillRect(0,0,64,64);},80);
+        await new Promise(resolve=>setTimeout(resolve,1000)); recorder.stop(); await done; clearInterval(timer); stream.getTracks().forEach(t=>t.stop());
+        return btoa(String.fromCharCode(...new Uint8Array(await new Blob(chunks,{type:'video/mp4'}).arrayBuffer())));
+      })()`);
+      video.destroy();
+      const fixture = path.join(profile, 'generated.mp4'); fs.writeFileSync(fixture, Buffer.from(encoded, 'base64'));
+      const meta = await add(fixture, 'video/mp4', 'video_clip');
+      assert(meta.width === 64 && meta.height === 64);
+      const [audioMeta, videoMeta] = await Promise.all([decode(concurrentBytes, 'audio/mpeg'), decode(Buffer.from(encoded, 'base64'), 'video/mp4')]);
+      assert(audioMeta.durationMs > 0 && videoMeta.width === 64 && videoMeta.height === 64);
+      assert.equal((await media.preview({ ...view, actionId: 'node-2' })).mimeType, 'video/mp4');
+      report.mainRoutes.push('video-local-preview');
+      assert.equal(await tts.captureSnapshot(view), 'local-snapshot');
+      report.mainRoutes.push('tts-music-video-local-snapshot');
+    } else video.destroy();
+    assert.equal(BrowserWindow.getAllWindows().length, 0);
+    report.status = 'PASS';
+    fs.writeFileSync(path.join(profile, 'report.json'), JSON.stringify(report, null, 2));
+    console.log('PORTABLE_MEDIA_PROBE ' + JSON.stringify(report)); app.exit(0);
+  } catch (error) {
+    report.status = 'FAIL'; report.error = error.stack;
+    fs.writeFileSync(path.join(profile, 'report.json'), JSON.stringify(report, null, 2));
+    console.error(error); app.exit(1);
+  }
+});

@@ -297,7 +297,7 @@ test("skill import is one native file and is copied through the host", () => {
   assert.match(skillImport, /properties:\s*\["openFile"\]/);
   assert.doesNotMatch(skillImport, /properties:\s*\[[^\]]*(?:multiSelections|openDirectory)/);
   assert.match(skillImport, /host\.call\("skills\.import"/);
-  assert.match(read("../../../crates/host-core/src/user_skills.rs"), /fs::copy\(&source_path, &target\)/);
+  assert.match(read("../../../crates/host-core/src/user_skills.rs"), /fs::copy\(source, target\)/);
 });
 
 test("MCP management reuses the validated modal and blocks same-level duplicates", () => {

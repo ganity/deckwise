@@ -1,0 +1,19 @@
+{
+  "status": "PASS_PACKAGED_SCHEMA_NOTICE",
+  "packaged": true,
+  "paidCalls": false,
+  "identityFixture": true,
+  "sandbox": "--no-sandbox",
+  "checks": [
+    "Boot refusal is retained before the authenticated shell mounts",
+    "Actual packaged fatal banner shows schema25/support24 and tells the teacher to install the newer build",
+    "Renderer reload retains the same specific fatal notice",
+    "Rejected future database bytes remain unchanged"
+  ],
+  "runtime": {
+    "packaged": true,
+    "appPath": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop/release/schema-notice-20261025/linux-unpacked/resources/app.asar",
+    "executablePath": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop/release/schema-notice-20261025/linux-unpacked/deckwise"
+  },
+  "banner": "当前 DeckWise 比本地数据更旧（数据库 schema 25，此版本仅支持 24）。请安装上次打开这些数据的更新版本，或更高版本。\n打开日志"
+}

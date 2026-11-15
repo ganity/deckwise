@@ -17,6 +17,7 @@ import {
 import { DbSchemaTooNewError, parseSchemaTooNew } from "./host-boot-diagnostics";
 import { redactValue } from "./logger";
 import { bundledPythonEnvironment } from "./python-runtime";
+import { coursewareRuntimeEnvironment } from "./courseware-runtime";
 
 const HOST_DISPOSE_GRACE_MS = 3_000;
 const HOST_FORCE_KILL_GRACE_MS = 1_000;
@@ -118,6 +119,7 @@ export class HostProcess {
       env: {
         ...stripProxyEnv(bundledPythonEnvironment()),
         PI_DESKTOP_DATA_DIR: dataDir,
+        ...coursewareRuntimeEnvironment(),
         // Only Electron knows whether this build runs from `resources/` or a
         // source checkout, so it resolves the bundled-plugin directory and
         // host-core simply reconciles its registry against it (ADR 0105).
@@ -311,22 +313,22 @@ export class HostProcess {
     params: unknown = {},
     timeoutOverrideMs?: number,
   ): Promise<T> {
-    for (const delayMs of [0, ...HOST_OVERLOAD_RETRY_DELAYS_MS]) {
-      if (delayMs > 0) {
-        await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
-      }
+    const parserDeadline = Date.now() + 90_000;
+    let overloadRetries = 0;
+    while (true) {
       try {
         return await this.callOnce<T>(method, params, timeoutOverrideMs);
       } catch (error) {
-        if (
-          !isHostOverloaded(error) ||
-          delayMs === HOST_OVERLOAD_RETRY_DELAYS_MS.at(-1)
-        ) {
-          throw error;
+        // A rejected start owns no job; wait for its existing owner to release it.
+        if (method === "courseware.parseStart" && error instanceof Error &&
+            error.message === "Release the existing courseware job before starting another" && Date.now() < parserDeadline) {
+          await new Promise<void>(resolve => setTimeout(resolve, 100));
+          continue;
         }
+        if (!isHostOverloaded(error) || overloadRetries === HOST_OVERLOAD_RETRY_DELAYS_MS.length) throw error;
+        await new Promise<void>(resolve => setTimeout(resolve, HOST_OVERLOAD_RETRY_DELAYS_MS[overloadRetries++]));
       }
     }
-    throw new Error(`host RPC retry exhausted: ${method}`);
   }
 
   private async callOnce<T = unknown>(

@@ -7,6 +7,8 @@ import type {
   AppVersionInfo,
   AskToolResolution,
   ContextCompactionMark,
+  CoursewareEducationContext,
+  CoursewareTaskType,
   Mode,
   ModelInfo,
   OnboardingState,
@@ -23,7 +25,7 @@ import type {
   ProviderPublic,
   ReviewRollbackResult,
   SessionSummary,
-  ThinkingLevel,
+  SessionThinkingLevel,
   UiMessage,
 } from "@pi-desktop/shared";
 import type { SettingsTabId } from "../lib/settings-search";
@@ -95,12 +97,19 @@ export type RefreshSessionsOptions = {
 /** Toolbar selections retained on the unpersisted new-task draft. */
 export type DraftSessionConfiguration = {
   mode: Mode;
-  thinkingLevel: ThinkingLevel;
+  thinkingLevel: SessionThinkingLevel;
   providerId?: string;
   modelId?: string;
   permissionMode?: PermissionMode;
 };
 
+
+export type CoursewareTaskSetup = {
+  taskType: CoursewareTaskType;
+  educationContext: CoursewareEducationContext;
+  initialPrompt?: string;
+  storyFirst?: boolean;
+};
 
 export type AppState = {
   ready: boolean;
@@ -110,11 +119,19 @@ export type AppState = {
   sessions: SessionSummary[];
   /** Renderer-owned conversation presentation metadata. */
   sessionMeta: Record<string, SessionMeta>;
+  /** Invalidation hint only; teaching content remains owned by Host. */
+  coursewareTeachingRefresh?: { sessionId: string } & (
+    { teachingRevision: string; sourceSha256?: never } | { sourceSha256: string; teachingRevision?: never } |
+    { reread: true; sourceSha256?: never; teachingRevision?: never }
+  );
   sessionView: SessionView;
   /** Open project tabs and the host's currently active workspace. */
   openProjects: ProjectWorkspace[];
   openProjectPaths: string[];
   createProjectDialogOpen: boolean;
+  newTaskDialog: { projectPath: string } | null;
+  openNewTaskDialog: (options?: { projectPath?: string | null }) => Promise<void>;
+  closeNewTaskDialog: () => void;
   activeProjectPath?: string;
   projectMeta: Record<string, ProjectMeta>;
   /** Kept as a flat map for lightweight consumers (Sidebar). */
@@ -191,14 +208,14 @@ export type AppState = {
     id: string,
     opts?: { record?: boolean } & NavigationOptions,
   ) => Promise<void>;
-  newSession: (options?: { projectPath?: string | null }) => Promise<void>;
+  newSession: (options?: { projectPath?: string | null; courseware?: CoursewareTaskSetup }) => Promise<void>;
   forkSession: (id: string) => Promise<void>;
   forkAssistantMessage: (messageId: string) => Promise<void>;
   configureActiveSession: (config: {
     mode: Mode;
     providerId?: string;
     modelId?: string;
-    thinkingLevel: ThinkingLevel;
+    thinkingLevel: SessionThinkingLevel;
     permissionMode?: PermissionMode;
   }) => Promise<void>;
   /** Returns true once accepted unless concurrent smart Stop restores it. */

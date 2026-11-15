@@ -1,0 +1,22 @@
+{
+  "agent-runtime/sidecar.js": {
+    "currentSha256": "67ca21e676ce19d1dddb58368bf15bef187e203c7b4df9f828d3df3bc81c767c",
+    "previousPackageSha256": "67ca21e676ce19d1dddb58368bf15bef187e203c7b4df9f828d3df3bc81c767c",
+    "unchanged": true
+  },
+  "pptx-worker/authoring.mjs": {
+    "currentSha256": "586ba532f841b0c59c1fdaebecc230bb1f31fec9118626556ff6927dfd10637c",
+    "previousPackageSha256": "586ba532f841b0c59c1fdaebecc230bb1f31fec9118626556ff6927dfd10637c",
+    "unchanged": true
+  },
+  "pptx-worker/pptx-worker.mjs": {
+    "currentSha256": "9df334e62bd535bc3663c3b28a9082b4a5c0ab59fbf730f0ccdcf9856b1ba3f3",
+    "previousPackageSha256": "9df334e62bd535bc3663c3b28a9082b4a5c0ab59fbf730f0ccdcf9856b1ba3f3",
+    "unchanged": true
+  },
+  "bin/pi-desktop-host-core": {
+    "currentSha256": "df346a256a06e1e6041a91233ad6894803241f5bc9689183b62894300dda9d8e",
+    "previousPackageSha256": "15d27f22650797e52893604c8d7f197367e71a8d09f466736af1a3d5445380b6",
+    "unchanged": false
+  }
+}

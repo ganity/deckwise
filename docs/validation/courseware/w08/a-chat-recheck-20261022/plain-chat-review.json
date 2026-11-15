@@ -1,0 +1,56 @@
+{
+  "reviewId": "1e2e021c-a35e-4635-a548-bb8d61470163",
+  "candidateId": "c0662d11-d75a-4a8f-b507-187b03d9a455",
+  "status": "needs-review",
+  "teaching": {
+    "viewId": "9eaaa978-4f58-4b33-921f-8b54fbe577d1",
+    "project": {
+      "pages": [
+        {
+          "actions": [],
+          "locked": false,
+          "pageId": "4955df9b-5364-4332-aba5-defd2cde42ee",
+          "reviewState": "review"
+        },
+        {
+          "actions": [],
+          "locked": false,
+          "pageId": "f52227cc-ceac-49e7-9e9b-3eed15c2bf72",
+          "reviewState": "review"
+        },
+        {
+          "actions": [],
+          "locked": false,
+          "pageId": "08df9dd9-3820-4ce4-b55f-263dc5f4a429",
+          "reviewState": "review"
+        }
+      ],
+      "projectId": "office-lesson-1c353be748b2",
+      "schemaVersion": "deckwise-courseware/1",
+      "source": {
+        "revision": "8f9f04b3aada31571b607d48978df0a610cdd664d3276bcf40d4a1450217b5d8",
+        "sha256": "8f9f04b3aada31571b607d48978df0a610cdd664d3276bcf40d4a1450217b5d8"
+      },
+      "taskType": "import",
+      "teachingRevision": "25675b9e-d62c-4802-9590-2121e71c6a98",
+      "title": "lesson-1c353be748b2"
+    },
+    "pageId": "4955df9b-5364-4332-aba5-defd2cde42ee",
+    "pageNumber": 1
+  },
+  "actions": [
+    {
+      "id": "speech-c0662d11-d75a-4a8f-b507-187b03d9a455-0",
+      "pauseAfterMs": 4000,
+      "text": "Look! What do you see?",
+      "type": "speech"
+    },
+    {
+      "id": "speech-c0662d11-d75a-4a8f-b507-187b03d9a455-1",
+      "text": "Thank you for trying.",
+      "type": "speech"
+    }
+  ],
+  "stale": false,
+  "audioReady": false
+}

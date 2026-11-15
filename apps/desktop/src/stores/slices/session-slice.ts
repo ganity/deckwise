@@ -43,6 +43,7 @@ import {
 import type {
   AppState,
   DraftSessionConfiguration,
+  CoursewareTaskSetup,
   NavigationOptions,
   PendingPlanRefreshResult,
   SessionHistoryWindow,
@@ -87,6 +88,7 @@ export type SessionSliceDependencies = StoreAccess & {
     intent: number;
     projectPath?: string | null;
     draftConfiguration?: DraftSessionConfiguration | null;
+    courseware?: CoursewareTaskSetup;
   }) => Promise<string | null>;
 };
 
@@ -109,6 +111,8 @@ export function createSessionSlice({
   | "prefetchSession"
   | "selectSession"
   | "newSession"
+  | "openNewTaskDialog"
+  | "closeNewTaskDialog"
   | "forkSession"
   | "forkAssistantMessage"
   | "configureActiveSession"
@@ -399,6 +403,19 @@ export function createSessionSlice({
       }
     },
 
+    openNewTaskDialog: async (options) => {
+      const projectPath = options && "projectPath" in options
+        ? options.projectPath : get().workspace?.path;
+      if (!projectPath?.trim()) {
+        get().showToast(i18n.t("chat.projectRequired"), { variant: "info" });
+        await get().openProject();
+        return;
+      }
+      set({ newTaskDialog: { projectPath } });
+    },
+
+    closeNewTaskDialog: () => set({ newTaskDialog: null }),
+
     newSession: async (options) => {
       const requestedProjectPath =
         options && "projectPath" in options
@@ -413,7 +430,7 @@ export function createSessionSlice({
       const pending = runtime.pendingNewSessionRequests.get(scopeKey);
       if (pending) {
         await pending;
-        return;
+        if (!options?.courseware) return;
       }
 
       const intent = runtime.beginNavigationIntent();
@@ -437,6 +454,7 @@ export function createSessionSlice({
           get().sessionMeta,
         );
         if (
+          !options?.courseware &&
           latest &&
           sessionIsReusableEmpty(latest, {
             running: get().runningSessions[latest.id] === true,
@@ -453,6 +471,7 @@ export function createSessionSlice({
           intent,
           projectPath: requestedProjectPath,
           draftConfiguration: null,
+          courseware: options?.courseware,
         });
       })();
       runtime.pendingNewSessionRequests.set(scopeKey, request);

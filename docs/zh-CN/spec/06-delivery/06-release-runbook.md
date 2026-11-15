@@ -51,6 +51,72 @@ Windows 可执行文件和原生窗口图标中使用 `build/icon.ico`。渲染�
 3. 安装 Rust 工具链和 pnpm 工作区。Rust 必须在 macOS 本机运行器上运行：
    Apple Silicon 使用 arm64，Intel 使用 x86_64。
 
+### 课件输入与验收证据
+
+课件安装包需要配套的 MAIC 集成 Document 构建，以及与目标操作系统、架构一致的原生 PPTX Worker。
+任意本地 WiseOffice 目录不能作为正式发布输入。`DECKWISE_COURSEWARE_RELEASE=1` 要求
+Desktop 和 Document 均已提交且工作区干净；开发快照不能满足正式发布门禁。
+
+准备新目录；暂存与冻结操作拒绝覆盖已有数据：
+
+```sh
+pnpm build:js
+node scripts/build-wiseoffice-maic.mjs /absolute/Document /absolute/new-integrated-editor
+node scripts/stage-wiseoffice.mjs /absolute/new-integrated-editor
+node packages/courseware-runtime/scripts/stage-worker.mjs "$PWD/apps/desktop/resources/pptx-worker"
+node scripts/courseware-release-inputs.mjs --freeze "$PWD/apps/desktop/resources/courseware-release-lock.json"
+node scripts/courseware-release-inputs.mjs --check "$PWD/apps/desktop/resources/courseware-release-lock.json"
+DECKWISE_COURSEWARE_RELEASE=1 \
+DECKWISE_COURSEWARE_LOCK="$PWD/apps/desktop/resources/courseware-release-lock.json" \
+pnpm --filter @pi-desktop/desktop pack
+```
+
+输入锁记录 Desktop/Document 修订、工作区状态、SDK、WiseOffice 清单和 Worker 清单哈希。
+打包前核验实际字节、文件缺失或增加、符号链接、目标架构以及 Worker 与编译器的一致性，
+打包后再次核验复制结果。集成编辑器记录其共享 Quiz 代码对应的 Desktop 修订；正式发布
+拒绝修订不同或工作区不干净的集成结果。所有平台均从同一个经过清单验证的 Worker 目录
+复制文件，不允许之后覆盖编译器。每份解包输出包含 `courseware-candidate.json`，记录
+应用、资源、ASAR、Host 和 Agent 的指纹，以及 `acceptance: "NOT_RUN"`。
+这是 `afterPack` 在签名前生成的身份回执，不代表发布已获验收。
+签名或重新打包可能改变字节，必须重新验证最终产物；签名前身份不能证明签名包身份。
+
+Release 和 Linux package validation 通过 `.github/actions/prepare-courseware`
+读取 `apps/desktop/courseware-sources.json` 中 Document 的仓库和完整提交 SHA，
+安装锁定依赖，构建 MAIC 集成编辑器及当前运行器原生 Worker，再冻结并校验发布锁。
+先推送、合并 Document 源码，再在 Desktop 中固定可拉取的提交；编辑器、Worker 和
+发布锁等编译产物不提交 Git。不能绕过钩子或关闭严格发布模式。
+
+签名后用独立的 `courseware-post-sign.json` 记录资源身份，不修改签名应用。
+包内检查核验对应回执、资源清单及私有状态。Linux 还会解包最终 AppImage，运行真实
+Electron、Main、Host 的课件编辑、Quiz、保存重开和播放验收。macOS/Windows 已接入
+包完整性校验，交互运行验收仍须另行执行。最终安装包与证据写入
+`SHA256SUMS-<platform>-<arch>.txt`。
+
+手动 Release 的产物保存在 `oss://trainwise/deckwise/builds/<run_id>/<platform>/`，
+只有版本标签会进入发布任务。手动 Linux 工作流通过名为 `deckwise-linux-x64` 的
+Actions artifact 提供 AppImage、DEB、RPM、验收报告和校验和。
+
+执行无需付费供应商调用的可重复源码回归时，准备三份不同的、每份不超过六页的 PPTX：
+
+先安装各参考仓库的锁定依赖。使用非默认参考仓库位置时，设置 `MAIC_SERVER_ROOT` 和
+`MAIC_CLOUD_WEB_ROOT`；运行 `node scripts/check-maic-courseware-parity.mjs --preflight`
+可在启动 Electron 前检查前提。依赖锁失败表示验证被阻断，不能视为课件验证通过。
+
+```sh
+DECKWISE_E2E_OUTPUT=/absolute/new-evidence \
+DECKWISE_E2E_NATIVE_PPTX=/absolute/master.pptx \
+DECKWISE_E2E_SCENE_PPTX=/absolute/scene.pptx \
+DECKWISE_E2E_IMPORT_PPTX=/absolute/import.pptx \
+pnpm test:courseware-regression
+```
+
+该命令记录源码、构建、输入与夹具身份并检查其保持不变，运行真实 Electron 场景传输、
+原生前台/后台编辑保存重开，以及真实 Host/MAIC/cloud-web Quiz 消费流程。它保留日志和报告，
+移除供应商凭据及付费测试开关，输出 `LOCAL_REGRESSION_PASS` 和 `releaseReady:false`。
+它不能替代三条路径的真实生产生成、媒体计费与结果未知订单恢复、完整播放和 Quiz 验收，
+以及各原生平台的安装包验证。声明可发布前，须使用最终交付物、选定的生产模型和相同
+冻结输入完成这些验证。
+
 ## 3. 构建内容
 
 - Electron 应用程序具有强化的运行时 + 权利

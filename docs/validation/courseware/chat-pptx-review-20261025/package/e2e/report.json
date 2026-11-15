@@ -1,0 +1,218 @@
+{
+  "status": "PASS_CHAT_FIRST_PLAN_ASSETS_COMPILE_AND_WISEOFFICE",
+  "packaged": true,
+  "checks": [
+    "The actual new-task dialog transfers a reviewed brief to Chat without sending or opening a workbench",
+    "The main Chat saves and reviews a real plan without mounting the secondary controls",
+    "Plan approval actually advances Agent tools to a prepared image and an unchecked quote",
+    "A full Desktop restart restores approval and the prepared intent without replay or spend",
+    "Each explicit image review advances the same Chat until the actual compiler saves an editable PPTX",
+    "The Chat artifact action opens real WiseOffice with separate objects and the planned narration",
+    "An import task can discuss requirements in Chat before file selection",
+    "The Chat picker can cancel and then import the original PPTX into WiseOffice without the generation form",
+    "Ordinary PPT creation uses the same dialog and does not submit an unsent brief",
+    "Ordinary Chat authors saved pages and narration, passes official checks and opens the actual SVG preview",
+    "Idle refresh rejects a changed ordinary page and Chat repairs it through both official gates",
+    "An explicit ordinary export runs the official notes, finalize and PPTX tools then opens WiseOffice",
+    "The same generated ordinary Chat edits actual Office objects and explicitly saves its PPTX",
+    "The same Chat rewrites narration from the saved Office page and waits for explicit adoption",
+    "Closing and rejecting a Chat candidate keep unchanged teaching usable without manual reload",
+    "Main Chat previews and explicitly adopts a real fade candidate while preserving native content and teaching",
+    "Full restart restores the ordinary Office edit and adopted page narration without generation replay"
+  ],
+  "directory": "/tmp/deckwise-chat-first-k4yzSk",
+  "paidCalls": false,
+  "identityFixture": true,
+  "modelFixture": true,
+  "mediaFixture": true,
+  "sandbox": "--no-sandbox",
+  "runtime": {
+    "packaged": true,
+    "appPath": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop/release/chat-pptx-review-20261025/linux-unpacked/resources/app.asar",
+    "executablePath": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop/release/chat-pptx-review-20261025/linux-unpacked/deckwise"
+  },
+  "generated": {
+    "path": "/tmp/deckwise-chat-first-k4yzSk/workspace/.deckwise-ppt/generated/d9a6bb6952aaa719a9b21dd002a0ffc335f12b40d4c42c0ee7bdff573f2b57f4.pptx",
+    "sha256": "d9a6bb6952aaa719a9b21dd002a0ffc335f12b40d4c42c0ee7bdff573f2b57f4",
+    "compiledPages": 1,
+    "fixtureSubmissions": 3,
+    "projectId": "office-d9a6bb6952aaa719a9b21dd002a0ffc335f12b40-204bf3efaeee"
+  },
+  "imported": {
+    "sessionId": "02bcaa8f-6202-4d6d-bda1-d76375d7b915",
+    "sourceSha256": "d9a6bb6952aaa719a9b21dd002a0ffc335f12b40d4c42c0ee7bdff573f2b57f4",
+    "pickerFixture": true
+  },
+  "ordinary": {
+    "sessionId": "adaa96fa-f965-4683-a49c-f2f807ca3469",
+    "projectPath": ".deckwise-ppt/projects/chat-first-circle_ppt169_20261025",
+    "sourceSha256": "de0dc4995cb7ce490531144d5d6289ce1b0c3ee67905803d60798bdfa4b0ffa1",
+    "nativeObjects": 3,
+    "pptxPreviewStates": [
+      {
+        "loaded": true,
+        "restrictions": 0
+      },
+      {
+        "loaded": true,
+        "restrictions": 128
+      }
+    ],
+    "reviewExit": {
+      "previewClosed": true,
+      "candidateRejected": true,
+      "teachingUsableWithoutManualReload": true,
+      "sourceUnchanged": true
+    },
+    "pptxReview": {
+      "kind": "page-fade",
+      "previousSha256": "bd02b31a105ec6216f840776564d6ce300d71805f13984fd3ad331248adfdef4",
+      "installedSha256": "c1391d58e8cff093a7063831b56210db15f16dab8ced20de9cdc5b4776adbd72",
+      "readOnlyPreview": true,
+      "explicitAdoption": true,
+      "preservedParts": 22,
+      "teachingPreserved": true,
+      "sidebarConfirmedNewSource": true
+    },
+    "editing": {
+      "nativeSavedSha256": "bd02b31a105ec6216f840776564d6ce300d71805f13984fd3ad331248adfdef4",
+      "pageId": "1b3c76b3-1c27-4f93-bb28-94d83ac2703c",
+      "teachingRevision": "8945728d-8aae-4e52-8116-040e99262b68",
+      "explicitSave": true,
+      "explicitNarrationAdoption": true,
+      "mainChatNarrationReview": true,
+      "restartVerified": true
+    }
+  },
+  "modelRequests": 68,
+  "mediaRequests": [
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models/scene-image/quote",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models/scene-image/quote",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/tasks/confirmed",
+      "method": "POST"
+    },
+    {
+      "path": "/courseware/media/tasks/chat-first-image-1",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/tasks/chat-first-image-1",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/tasks/chat-first-image-1/asset",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models/scene-image/quote",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/tasks/confirmed",
+      "method": "POST"
+    },
+    {
+      "path": "/courseware/media/tasks/chat-first-image-2",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/tasks/chat-first-image-2",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/tasks/chat-first-image-2/asset",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models/scene-image/quote",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/tasks/confirmed",
+      "method": "POST"
+    },
+    {
+      "path": "/courseware/media/tasks/chat-first-image-3",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/tasks/chat-first-image-3",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/tasks/chat-first-image-3/asset",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    }
+  ]
+}

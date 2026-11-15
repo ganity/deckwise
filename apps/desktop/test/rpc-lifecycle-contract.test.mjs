@@ -158,9 +158,9 @@ test("Bash defaults are finite and the tool advertises the effective timeout", (
   assert.match(runtimeSource, /DEFAULT_COMMAND_TIMEOUT_MS/);
   assert.match(runtimeSource, /defaults to a 60-second timeout/);
   assert.match(runtimeSource, /timeoutMs,\n\s+}/);
-  assert.match(rpcTimeoutSource, /DEFAULT_BASH_RPC_TIMEOUT_MS/);
-  assert.match(rpcTimeoutSource, /return DEFAULT_BASH_RPC_TIMEOUT_MS/);
-  assert.doesNotMatch(rpcTimeoutSource, /return undefined/);
+  assert.match(rpcTimeoutSource, /DEFAULT_COMMAND_TIMEOUT_MS/);
+  assert.match(rpcTimeoutSource, /DEFAULT_COMMAND_TIMEOUT_MS/);
+  assert.match(rpcTimeoutSource, /method === "tools.execute"[\s\S]*?return undefined/);
 });
 
 test("turn ownership and execution queue wake only after durable turn settlement", () => {
@@ -256,13 +256,9 @@ test("settings writes validate without applying read defaults", () => {
   assert.doesNotMatch(apiSource, /planApprovalPermissionMode/);
 });
 
-test("renderer notification drops silently when the render frame is disposed", () => {
-  const sendStart = mainIndexSource.indexOf("function sendToRenderer(");
-  const sendEnd = mainIndexSource.indexOf(
-    "function resetMenuRendererReady",
-    sendStart,
-  );
-  const sendSource = mainIndexSource.slice(sendStart, sendEnd);
+test("renderer notification drops silently when the render frame is disposed", async () => {
+  const sendSource = await readMainModule("runtime/renderer-events.ts");
+  assert.match(mainIndexSource, /createRendererEventSender\(\{/);
   assert.ok(sendSource.includes("window.webContents.send(channel, payload)"));
   assert.ok(sendSource.includes("try {"));
   assert.ok(sendSource.includes("} catch {"));

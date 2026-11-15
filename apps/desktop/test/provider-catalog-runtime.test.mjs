@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createServer } from "node:http";
 import { registerHooks } from "node:module";
 import test from "node:test";
 
@@ -273,6 +274,72 @@ test("the managed provider preserves a gateway URL override", async () => {
     assert.deepEqual(requests, ["http://127.0.0.1:9788/v1/models"]);
   } finally {
     globalThis.fetch = originalFetch;
+    if (originalBaseUrl === undefined) delete process.env.DECKWISE_LLM_BASE_URL;
+    else process.env.DECKWISE_LLM_BASE_URL = originalBaseUrl;
+  }
+});
+
+test("managed model discovery refuses insecure gateways before resolving authentication", async () => {
+  const { catalog } = await fixtureRuntime();
+  const originalFetch = globalThis.fetch;
+  const originalBaseUrl = process.env.DECKWISE_LLM_BASE_URL;
+  let authCalls = 0;
+  let requests = 0;
+  globalThis.fetch = async () => {
+    requests += 1;
+    return new Response(JSON.stringify({ data: [{ id: "unsafe-model" }] }));
+  };
+  try {
+    const runtime = createProviderCatalogRuntime({
+      getHost: () => ({ call: async () => ({ providers: [] }) }),
+      modelsDevCatalog: catalog,
+      resolvePlatformAccessToken: async () => { authCalls += 1; return "fixture-token"; },
+    });
+    for (const url of ["http://gateway.example/v1", "ftp://localhost/v1", "file://localhost/v1"]) {
+      process.env.DECKWISE_LLM_BASE_URL = url;
+      const providers = await runtime.listRuntimeProviders();
+      assert.notEqual(providers[0].defaultModelId, "unsafe-model");
+    }
+    assert.equal(authCalls, 0);
+    assert.equal(requests, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalBaseUrl === undefined) delete process.env.DECKWISE_LLM_BASE_URL;
+    else process.env.DECKWISE_LLM_BASE_URL = originalBaseUrl;
+  }
+});
+
+test("managed model discovery does not forward authentication through redirects", async () => {
+  const { catalog } = await fixtureRuntime();
+  const originalBaseUrl = process.env.DECKWISE_LLM_BASE_URL;
+  const requests = [];
+  const server = createServer((request, response) => {
+    requests.push({ path: request.url, authorization: request.headers.authorization });
+    if (request.url === "/v1/models") {
+      response.writeHead(307, { Location: "/redirected/models" });
+      response.end();
+      return;
+    }
+    response.writeHead(200, { "Content-Type": "application/json" });
+    response.end(JSON.stringify({ data: [{ id: "redirected-model" }] }));
+  });
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  try {
+    process.env.DECKWISE_LLM_BASE_URL = `http://127.0.0.1:${server.address().port}/v1`;
+    const runtime = createProviderCatalogRuntime({
+      getHost: () => ({ call: async () => ({ providers: [] }) }),
+      modelsDevCatalog: catalog,
+      resolvePlatformAccessToken: async () => "fixture-token",
+    });
+    const providers = await runtime.listRuntimeProviders();
+    assert.notEqual(providers[0].defaultModelId, "redirected-model");
+    assert.deepEqual(requests, [{ path: "/v1/models", authorization: "Bearer fixture-token" }]);
+  } finally {
+    server.closeAllConnections();
+    await new Promise((resolve) => server.close(resolve));
     if (originalBaseUrl === undefined) delete process.env.DECKWISE_LLM_BASE_URL;
     else process.env.DECKWISE_LLM_BASE_URL = originalBaseUrl;
   }

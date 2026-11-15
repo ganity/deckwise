@@ -1,0 +1,971 @@
+use super::*;
+use serde_json::json;
+
+fn seed(hash: &str) -> SavedProjectSeed {
+    let mut value: Value = serde_json::from_slice(include_bytes!(
+        "../../../courseware/identity/fixtures/identity.json"
+    ))
+    .unwrap();
+    value["sourceSha256"] = hash.into();
+    for (index, object) in value["pages"][0]["objects"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .enumerate()
+    {
+        object["sourceObjectName"] = format!("Shape {index}").into();
+    }
+    SavedProjectSeed {
+        project_id: "office-native-test".into(),
+        sha256: hash.into(),
+        pages: 1,
+        identity: Some(SavedSourceIdentity::parse(&serde_json::to_vec(&value).unwrap()).unwrap()),
+    }
+}
+fn proof() -> NativeLineage {
+    NativeLineage {
+        protocol: "deckwise-office-page-lineage/1".into(),
+        project_id: "f".repeat(64),
+        document_id: "native-test".into(),
+        session_id: "session".into(),
+        save_request_id: "save".into(),
+        source_sha256: "a".repeat(64),
+        output_sha256: "b".repeat(64),
+        opened_page_tokens: vec!["page-token".into()],
+        page_tokens: vec!["page-token".into()],
+        objects: vec![(0..4)
+            .map(|index| ObjectLineage {
+                name: format!("Shape {index}"),
+                source_name: Some(format!("Shape {index}")),
+                source_page_token: Some("page-token".into()),
+                shape_id: None,
+                source_shape_id: None,
+            })
+            .collect()],
+        animation_unchanged: vec![true],
+    }
+}
+
+#[test]
+fn native_save_keeps_teaching_readable_before_canonical_canvas_refresh() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_str().unwrap();
+    let db = Database::open_in_dir(dir.path()).unwrap();
+    let project = db
+        .open_identified_courseware_project_with_metadata(
+            root,
+            &seed(&"a".repeat(64)),
+            "scene",
+            None,
+        )
+        .unwrap();
+    let classroom = json!({"id":"course","stage":{"id":"stage","name":"Lesson","createdAt":1,"updatedAt":1},"createdAt":"2026-11-06", "scenes":[
+        {"id":"quiz","stageId":"stage","title":"Quiz","type":"quiz","order":0,"metadata":{"nativePageId":project.pages[0].page_id},
+         "content":{"type":"quiz","questions":[{"id":"q","type":"single","question":"Choose","options":[{"value":"A","label":"Hello"},{"value":"B","label":"Bye"}],"answer":["A"]}]},"actions":[]}
+    ]});
+    let before = db
+        .write_courseware_classroom(
+            root,
+            &project.project_id,
+            None,
+            &project.source.revision,
+            &classroom,
+        )
+        .unwrap();
+    let pending = db
+        .prepare_native_save(root, "/lesson.pptx", &seed(&"b".repeat(64)), &proof())
+        .unwrap();
+    db.resolve_native_save(root, pending["saveId"].as_str().unwrap(), &"b".repeat(64))
+        .unwrap();
+    let context = db
+        .courseware_project_context(root, &project.project_id)
+        .expect("native teaching must load after an ordinary PPT save");
+    assert_eq!(
+        context["assessmentPageIds"],
+        json!([project.pages[0].page_id])
+    );
+    assert_eq!(context["completion"]["ready"], true);
+    assert_eq!(
+        db.classroom_source_document(root, &project.project_id)
+            .unwrap(),
+        before,
+        "reading teaching must preserve canonical content"
+    );
+    assert!(
+        db.courseware_classroom(root, &project.project_id, None)
+            .is_err(),
+        "canonical canvas still requires explicit reconciliation"
+    );
+}
+
+#[test]
+fn classroom_save_preserves_repeated_native_speech_identities() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_str().unwrap();
+    let db = Database::open_in_dir(dir.path()).unwrap();
+    let mut project = db
+        .open_identified_courseware_project_with_metadata(
+            root,
+            &seed(&"a".repeat(64)),
+            "scene",
+            None,
+        )
+        .unwrap();
+    project.pages[0].actions = vec![
+        json!({"id":"native-one","type":"speech","text":"Hello"}),
+        json!({"id":"native-two","type":"speech","text":"Hello"}),
+    ];
+    db.kv_set(
+        NAMESPACE,
+        &storage_key(root, &project.project_id).unwrap(),
+        &serde_json::to_value(&project).unwrap(),
+    )
+    .unwrap();
+    let classroom = json!({"id":"course","stage":{"id":"stage","name":"Lesson","createdAt":1,"updatedAt":1},"createdAt":"2026-11-07","scenes":[{
+        "id":"body","stageId":"stage","title":"Body","type":"slide","order":0,
+        "metadata":{"nativePageId":project.pages[0].page_id,"assessmentSpeechIds":{"checkpoint":"question"}},
+        "content":{"type":"slide","canvas":{"id":"canvas","elements":[]}},
+        "actions":[{"id":"one","type":"speech","text":"Hello"},{"id":"two","type":"speech","text":"Hello"},{"id":"question","type":"speech","text":"Question"}]
+    }]});
+    let before = db
+        .write_courseware_classroom(
+            root,
+            &project.project_id,
+            None,
+            &project.source.revision,
+            &classroom,
+        )
+        .unwrap();
+    let request = ClassroomSave {
+        expected_revision: before["revision"].as_str().unwrap().into(),
+        classroom,
+    };
+    let pending = db
+        .prepare_native_save_with_classroom(
+            root,
+            "/lesson.pptx",
+            &seed(&"b".repeat(64)),
+            &proof(),
+            Some(&request),
+        )
+        .unwrap();
+    db.resolve_native_save(root, pending["saveId"].as_str().unwrap(), &"b".repeat(64))
+        .unwrap();
+    let native = db
+        .get_courseware_project(root, &project.project_id)
+        .unwrap()
+        .unwrap();
+    assert_eq!(native.pages[0].actions, project.pages[0].actions);
+    assert_eq!(
+        db.courseware_classroom(root, &project.project_id, None)
+            .unwrap()["classroom"]["scenes"][0]["actions"]
+            .as_array()
+            .unwrap()
+            .len(),
+        3
+    );
+}
+
+#[test]
+fn classroom_save_does_not_replace_new_native_narration_with_unchanged_canonical_text() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_str().unwrap();
+    let db = Database::open_in_dir(dir.path()).unwrap();
+    let mut project = db
+        .open_identified_courseware_project_with_metadata(
+            root,
+            &seed(&"a".repeat(64)),
+            "scene",
+            None,
+        )
+        .unwrap();
+    let classroom = json!({"id":"course","stage":{"id":"stage","name":"Lesson","createdAt":1,"updatedAt":1},"createdAt":"2026-11-07","scenes":[{
+        "id":"body","stageId":"stage","title":"Body","type":"slide","order":0,
+        "metadata":{"nativePageId":project.pages[0].page_id,"nativeNarrationText":"Old outline"},
+        "content":{"type":"slide","canvas":{"id":"canvas","elements":[]}},
+        "actions":[{"id":"narration-0","type":"speech","text":"Old outline"}]
+    }]});
+    let before = db
+        .write_courseware_classroom(
+            root,
+            &project.project_id,
+            None,
+            &project.source.revision,
+            &classroom,
+        )
+        .unwrap();
+    project.pages[0].actions = vec![
+        json!({"id":"generated","type":"speech","text":"New detailed narration", "source":"generated"}),
+    ];
+    db.kv_set(
+        NAMESPACE,
+        &storage_key(root, &project.project_id).unwrap(),
+        &serde_json::to_value(&project).unwrap(),
+    )
+    .unwrap();
+    let request = ClassroomSave {
+        expected_revision: before["revision"].as_str().unwrap().into(),
+        classroom,
+    };
+    let pending = db
+        .prepare_native_save_with_classroom(
+            root,
+            "/lesson.pptx",
+            &seed(&"b".repeat(64)),
+            &proof(),
+            Some(&request),
+        )
+        .unwrap();
+    db.resolve_native_save(root, pending["saveId"].as_str().unwrap(), &"b".repeat(64))
+        .unwrap();
+    let native = db
+        .get_courseware_project(root, &project.project_id)
+        .unwrap()
+        .unwrap();
+    assert_eq!(native.pages[0].actions, project.pages[0].actions);
+    let canonical = db
+        .courseware_classroom(root, &project.project_id, None)
+        .unwrap();
+    assert_eq!(
+        canonical["classroom"]["scenes"][0]["metadata"]["nativeNarrationText"], "Old outline",
+        "leave reconciliation able to detect the newer native text"
+    );
+}
+
+#[test]
+fn native_classroom_save_is_atomic_cancel_safe_and_recovers_after_restart() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_str().unwrap();
+    let db = Database::open_in_dir(dir.path()).unwrap();
+    let project = db
+        .open_identified_courseware_project_with_metadata(
+            root,
+            &seed(&"a".repeat(64)),
+            "scene",
+            None,
+        )
+        .unwrap();
+    let mut classroom = json!({"id":"course","stage":{"id":"stage","name":"Lesson","createdAt":1,"updatedAt":1},"createdAt":"2026-11-05", "scenes":[
+        {"id":"quiz","stageId":"stage","title":"Quiz","type":"quiz","order":0,"metadata":{"nativePageId":project.pages[0].page_id},
+         "content":{"type":"quiz","questions":[{"id":"q","type":"single","question":"Old question","options":[{"value":"A","label":"Hello"},{"value":"B","label":"Bye"}],"answer":["A"]}]},"actions":[]}
+    ]});
+    let before = db
+        .write_courseware_classroom(
+            root,
+            &project.project_id,
+            None,
+            &project.source.revision,
+            &classroom,
+        )
+        .unwrap();
+    classroom["scenes"][0]["content"]["questions"][0]["question"] = json!("New question");
+    let request = ClassroomSave {
+        expected_revision: before["revision"].as_str().unwrap().into(),
+        classroom: classroom.clone(),
+    };
+    let cancelled = db
+        .prepare_native_save_with_classroom(
+            root,
+            "/lesson.pptx",
+            &seed(&"b".repeat(64)),
+            &proof(),
+            Some(&request),
+        )
+        .unwrap();
+    assert_eq!(
+        db.courseware_classroom(root, &project.project_id, None)
+            .unwrap(),
+        before
+    );
+    assert!(db
+        .write_courseware_classroom(
+            root,
+            &project.project_id,
+            before["revision"].as_str(),
+            &project.source.revision,
+            &classroom
+        )
+        .is_err());
+    assert_eq!(
+        db.resolve_native_save(root, cancelled["saveId"].as_str().unwrap(), &"a".repeat(64))
+            .unwrap()["status"],
+        "cancelled"
+    );
+    assert_eq!(
+        db.courseware_classroom(root, &project.project_id, None)
+            .unwrap(),
+        before
+    );
+    let mut stale = request.clone();
+    stale.expected_revision = "stale".into();
+    assert!(db
+        .prepare_native_save_with_classroom(
+            root,
+            "/lesson.pptx",
+            &seed(&"b".repeat(64)),
+            &proof(),
+            Some(&stale)
+        )
+        .is_err());
+    let pending = db
+        .prepare_native_save_with_classroom(
+            root,
+            "/lesson.pptx",
+            &seed(&"b".repeat(64)),
+            &proof(),
+            Some(&request),
+        )
+        .unwrap();
+    drop(db);
+    let db = Database::open_in_dir(dir.path()).unwrap();
+    assert_eq!(
+        db.resolve_native_save(root, pending["saveId"].as_str().unwrap(), &"b".repeat(64))
+            .unwrap()["status"],
+        "committed"
+    );
+    let after = db
+        .courseware_classroom(root, &project.project_id, None)
+        .unwrap();
+    let native = db
+        .get_courseware_project(root, &project.project_id)
+        .unwrap()
+        .unwrap();
+    assert_ne!(after["revision"], before["revision"]);
+    assert_eq!(after["sourceRevision"], native.source.revision);
+    assert_eq!(native.source.sha256, "b".repeat(64));
+    assert_eq!(
+        after["classroom"]["scenes"][0]["metadata"]["nativePageId"],
+        native.pages[0].page_id
+    );
+    assert_eq!(
+        after["classroom"]["scenes"][0]["content"]["questions"][0]["question"],
+        "New question"
+    );
+    assert_eq!(
+        db.courseware_classroom(root, &project.project_id, before["revision"].as_str())
+            .unwrap(),
+        before
+    );
+}
+
+#[test]
+fn native_save_recovers_pending_tts_across_restart_without_changing_paid_requests() {
+    use super::super::tts::{audio::Audio, Selection, TaskRef};
+    for phase in ["unknown", "submitted", "archived", "rejected"] {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().to_str().unwrap();
+        let db = Database::open_in_dir(dir.path()).unwrap();
+        let opened = db
+            .open_identified_courseware_project_with_metadata(
+                root,
+                &seed(&"a".repeat(64)),
+                "scene",
+                None,
+            )
+            .unwrap();
+        let baseline = db
+            .initialize_generated_narration(
+                root,
+                &opened.project_id,
+                &opened.source.sha256,
+                "Lesson",
+                &["Hello".into()],
+            )
+            .unwrap();
+        let selection = Selection {
+            intent_id: "pending".into(),
+            principal_key: "d".repeat(64),
+            project_id: baseline.project_id.clone(),
+            page_id: baseline.pages[0].page_id.clone(),
+            action_id: baseline.pages[0].actions[0]["id"].as_str().unwrap().into(),
+            expected_source_revision: baseline.source.revision.clone(),
+            expected_teaching_revision: baseline.teaching_revision.clone(),
+            model: "tts".into(),
+            voice: None,
+        };
+        let original =
+            db.prepare_courseware_tts(root, selection.clone()).unwrap()["intent"].clone();
+        if phase == "rejected" {
+            db.kv_set(
+                "coursewareTask.v1",
+                "session",
+                &json!({"teamProjectId":uuid::Uuid::new_v4().to_string()}),
+            )
+            .unwrap();
+        }
+        db.begin_courseware_tts(
+            root,
+            &selection.project_id,
+            &selection.principal_key,
+            &selection.intent_id,
+            "session",
+        )
+        .unwrap();
+        let task = TaskRef {
+            task_id: "paid-task".into(),
+            idempotency_key: original["idempotencyKey"].as_str().unwrap().into(),
+            request_hash: original["requestHash"].as_str().unwrap().into(),
+        };
+        let audio = Audio {
+            task_ref: task.clone(),
+            sha256: "e".repeat(64),
+            mime_type: "audio/mpeg".into(),
+            byte_length: 100,
+            duration_ms: 1000,
+        };
+        if matches!(phase, "submitted" | "archived") {
+            db.bind_courseware_tts(
+                root,
+                &selection.project_id,
+                &selection.principal_key,
+                &selection.intent_id,
+                task.clone(),
+            )
+            .unwrap();
+        }
+        if phase == "archived" {
+            db.stage_courseware_tts_audio(
+                root,
+                &selection.project_id,
+                &selection.principal_key,
+                &selection.intent_id,
+                audio.clone(),
+            )
+            .unwrap();
+        }
+        // An aborted export must not advance pending media's source binding.
+        let cancelled = db
+            .prepare_native_save(root, "/lesson.pptx", &seed(&"b".repeat(64)), &proof())
+            .unwrap();
+        db.resolve_native_save(
+            root,
+            cancelled["saveId"].as_str().unwrap(),
+            &baseline.source.sha256,
+        )
+        .unwrap();
+        assert!(db
+            .get_courseware_tts(
+                root,
+                &selection.project_id,
+                &selection.principal_key,
+                &selection.intent_id
+            )
+            .unwrap()["intent"]["boundSource"]
+            .is_null());
+        let receipt = db
+            .prepare_native_save(root, "/lesson.pptx", &seed(&"b".repeat(64)), &proof())
+            .unwrap();
+        let save_id = receipt["saveId"].as_str().unwrap().to_owned();
+        drop(db);
+        let db = Database::open_in_dir(dir.path()).unwrap();
+        db.resolve_native_save(root, &save_id, &"b".repeat(64))
+            .unwrap();
+        // A second round-trip must follow the verified binding, not the original hash.
+        let mut lineage = proof();
+        lineage.source_sha256 = "b".repeat(64);
+        lineage.output_sha256 = "c".repeat(64);
+        let receipt = db
+            .prepare_native_save(root, "/lesson.pptx", &seed(&"c".repeat(64)), &lineage)
+            .unwrap();
+        db.resolve_native_save(root, receipt["saveId"].as_str().unwrap(), &"c".repeat(64))
+            .unwrap();
+        let retained = db
+            .get_courseware_tts(
+                root,
+                &selection.project_id,
+                &selection.principal_key,
+                &selection.intent_id,
+            )
+            .unwrap()["intent"]
+            .clone();
+        for field in [
+            "selection",
+            "sourceSha256",
+            "request",
+            "requestHash",
+            "idempotencyKey",
+        ] {
+            assert_eq!(
+                retained[field], original[field],
+                "{phase}: immutable {field}"
+            );
+        }
+        assert_eq!(retained["boundSource"]["sha256"], "c".repeat(64), "{phase}");
+        if phase == "rejected" {
+            db.reject_courseware_tts(
+                root,
+                &selection.project_id,
+                &selection.principal_key,
+                &selection.intent_id,
+                super::super::tts::RejectedRequest {
+                    idempotency_key: task.idempotency_key,
+                    request_hash: task.request_hash,
+                },
+            )
+            .unwrap();
+            assert_eq!(
+                db.get_courseware_tts(
+                    root,
+                    &selection.project_id,
+                    &selection.principal_key,
+                    &selection.intent_id
+                )
+                .unwrap()["intent"]["phase"],
+                "rejected"
+            );
+            continue;
+        }
+        if phase == "unknown" {
+            db.bind_courseware_tts(
+                root,
+                &selection.project_id,
+                &selection.principal_key,
+                &selection.intent_id,
+                task,
+            )
+            .unwrap();
+        }
+        db.stage_courseware_tts_audio(
+            root,
+            &selection.project_id,
+            &selection.principal_key,
+            &selection.intent_id,
+            audio,
+        )
+        .unwrap();
+        let project = db
+            .get_courseware_project(root, &selection.project_id)
+            .unwrap()
+            .unwrap();
+        let adopted = db
+            .adopt_courseware_tts_audio(
+                root,
+                &selection.project_id,
+                &selection.principal_key,
+                &selection.intent_id,
+                &project.teaching_revision,
+                None,
+            )
+            .unwrap();
+        assert_eq!(
+            adopted.pages[0].actions[0]["audioAssetId"],
+            format!("tts-{}", "e".repeat(64))
+        );
+    }
+}
+
+#[test]
+fn native_save_does_not_rebind_stale_speech_or_copied_pages_and_keeps_adoption_guards() {
+    use super::super::tts::{audio::Audio, Selection, TaskRef};
+    for change in ["text", "page", "locked", "prepared"] {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().to_str().unwrap();
+        let db = Database::open_in_dir(dir.path()).unwrap();
+        let opened = db
+            .open_identified_courseware_project_with_metadata(
+                root,
+                &seed(&"a".repeat(64)),
+                "scene",
+                None,
+            )
+            .unwrap();
+        let baseline = db
+            .initialize_generated_narration(
+                root,
+                &opened.project_id,
+                &opened.source.sha256,
+                "Lesson",
+                &["Hello".into()],
+            )
+            .unwrap();
+        let selection = Selection {
+            intent_id: "pending".into(),
+            principal_key: "d".repeat(64),
+            project_id: baseline.project_id.clone(),
+            page_id: baseline.pages[0].page_id.clone(),
+            action_id: baseline.pages[0].actions[0]["id"].as_str().unwrap().into(),
+            expected_source_revision: baseline.source.revision.clone(),
+            expected_teaching_revision: baseline.teaching_revision.clone(),
+            model: "tts".into(),
+            voice: None,
+        };
+        let prepared = db.prepare_courseware_tts(root, selection.clone()).unwrap();
+        if change != "prepared" {
+            db.begin_courseware_tts(
+                root,
+                &selection.project_id,
+                &selection.principal_key,
+                &selection.intent_id,
+                "session",
+            )
+            .unwrap();
+            let task = TaskRef {
+                task_id: "task".into(),
+                idempotency_key: prepared["intent"]["idempotencyKey"]
+                    .as_str()
+                    .unwrap()
+                    .into(),
+                request_hash: prepared["intent"]["requestHash"].as_str().unwrap().into(),
+            };
+            db.bind_courseware_tts(
+                root,
+                &selection.project_id,
+                &selection.principal_key,
+                &selection.intent_id,
+                task.clone(),
+            )
+            .unwrap();
+            db.stage_courseware_tts_audio(
+                root,
+                &selection.project_id,
+                &selection.principal_key,
+                &selection.intent_id,
+                Audio {
+                    task_ref: task,
+                    sha256: "e".repeat(64),
+                    mime_type: "audio/mpeg".into(),
+                    byte_length: 100,
+                    duration_ms: 1000,
+                },
+            )
+            .unwrap();
+        }
+        let mut lineage = proof();
+        if change == "text" {
+            let mut actions = baseline.pages[0].actions.clone();
+            actions[0]["text"] = json!("Changed");
+            db.write_courseware_teaching(
+                root,
+                &TeachingWrite {
+                    project_id: baseline.project_id.clone(),
+                    page_id: selection.page_id.clone(),
+                    expected_source_revision: baseline.source.revision.clone(),
+                    expected_teaching_revision: baseline.teaching_revision.clone(),
+                    actions,
+                },
+            )
+            .unwrap();
+        } else if change == "page" {
+            lineage.page_tokens[0] = "copied-page".into();
+        } else if change == "locked" {
+            db.set_courseware_page_lock(
+                root,
+                &baseline.project_id,
+                &selection.page_id,
+                &baseline.source.revision,
+                &baseline.teaching_revision,
+                true,
+            )
+            .unwrap();
+        }
+        let receipt = db
+            .prepare_native_save(root, "/lesson.pptx", &seed(&"b".repeat(64)), &lineage)
+            .unwrap();
+        db.resolve_native_save(root, receipt["saveId"].as_str().unwrap(), &"b".repeat(64))
+            .unwrap();
+        let retained = db
+            .get_courseware_tts(
+                root,
+                &selection.project_id,
+                &selection.principal_key,
+                &selection.intent_id,
+            )
+            .unwrap();
+        assert_eq!(
+            retained["intent"]["boundSource"].is_null(),
+            change != "locked",
+            "{change}"
+        );
+        let project = db
+            .get_courseware_project(root, &selection.project_id)
+            .unwrap()
+            .unwrap();
+        assert!(
+            db.adopt_courseware_tts_audio(
+                root,
+                &selection.project_id,
+                &selection.principal_key,
+                &selection.intent_id,
+                &project.teaching_revision,
+                None
+            )
+            .is_err(),
+            "{change}"
+        );
+        assert!(db
+            .get_courseware_tts(
+                root,
+                &selection.project_id,
+                &"f".repeat(64),
+                &selection.intent_id
+            )
+            .is_err());
+    }
+}
+
+#[test]
+fn native_save_preserves_identity_and_narration_rebases_drafts_and_recovers_after_restart() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_str().unwrap();
+    let old_seed = seed(&"a".repeat(64));
+    let new_seed = seed(&"b".repeat(64));
+    let save_id;
+    let baseline;
+    {
+        let db = Database::open_in_dir(dir.path()).unwrap();
+        let opened = db
+            .open_identified_courseware_project_with_metadata(root, &old_seed, "scene", None)
+            .unwrap();
+        baseline = db
+            .initialize_generated_narration(
+                root,
+                &opened.project_id,
+                &old_seed.sha256,
+                "Lesson",
+                &["Hello".into()],
+            )
+            .unwrap();
+        let draft_key = serde_json::to_string(&(
+            root,
+            "session",
+            &baseline.project_id,
+            &baseline.pages[0].page_id,
+        ))
+        .unwrap();
+        db.kv_set(DRAFTS, &draft_key, &json!({"revision":"draft-1","baseline":baseline,"pageId":baseline.pages[0].page_id,
+            "actions":[{"id":"speech-draft","type":"speech","text":"My unsaved explanation"}],"instruction":""})).unwrap();
+        let prepared = db
+            .prepare_native_save(root, "/lesson.pptx", &new_seed, &proof())
+            .unwrap();
+        save_id = prepared["saveId"].as_str().unwrap().to_owned();
+        assert!(db.ensure_no_source_adoption(root).is_err());
+        assert!(db
+            .resolve_native_save(root, &save_id, &"c".repeat(64))
+            .is_err());
+    }
+    let db = Database::open_in_dir(dir.path()).unwrap();
+    assert!(db
+        .native_save_for_path(root, "/lesson.pptx")
+        .unwrap()
+        .is_some());
+    assert_eq!(
+        db.resolve_native_save(root, &save_id, &new_seed.sha256)
+            .unwrap()["status"],
+        "committed"
+    );
+    assert_eq!(
+        db.resolve_native_save(root, &save_id, &new_seed.sha256)
+            .unwrap()["status"],
+        "committed"
+    );
+    db.ensure_no_source_adoption(root).unwrap();
+    let current = db
+        .open_identified_courseware_project(root, &new_seed)
+        .unwrap();
+    assert_eq!(current.pages[0].page_id, baseline.pages[0].page_id);
+    assert_eq!(current.pages[0].actions, baseline.pages[0].actions);
+    let old = db
+        .courseware_project_context(root, &current.project_id)
+        .unwrap();
+    assert_eq!(
+        old["savedObjects"]["pages"][0]["objects"][0]["objectId"],
+        db.kv_get(
+            identities::IDENTITY_NAMESPACE,
+            &identities::identity_key(root, &current.project_id, &old_seed.sha256).unwrap()
+        )
+        .unwrap()
+        .unwrap()["pages"][0]["objects"][0]["logicalId"]
+    );
+    let key = serde_json::to_string(&(
+        root,
+        "session",
+        &baseline.project_id,
+        &baseline.pages[0].page_id,
+    ))
+    .unwrap();
+    let draft = db.kv_get(DRAFTS, &key).unwrap().unwrap();
+    assert_eq!(draft["baseline"]["source"]["sha256"], new_seed.sha256);
+    assert_eq!(draft["actions"][0]["text"], "My unsaved explanation");
+    db.write_courseware_teaching(
+        root,
+        &TeachingWrite {
+            project_id: current.project_id.clone(),
+            page_id: current.pages[0].page_id.clone(),
+            expected_source_revision: current.source.revision.clone(),
+            expected_teaching_revision: current.teaching_revision.clone(),
+            actions: current.pages[0].actions.clone(),
+        },
+    )
+    .unwrap();
+}
+
+#[test]
+fn native_save_copy_does_not_steal_original_objects_and_cancel_keeps_baseline() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_str().unwrap();
+    let db = Database::open_in_dir(dir.path()).unwrap();
+    let baseline = db
+        .open_identified_courseware_project(root, &seed(&"a".repeat(64)))
+        .unwrap();
+    let mut lineage = proof();
+    lineage.objects[0][0].source_name = None;
+    lineage.objects[0][0].source_page_token = None;
+    let new_seed = seed(&"b".repeat(64));
+    let receipt = db
+        .prepare_native_save(root, "/lesson.pptx", &new_seed, &lineage)
+        .unwrap();
+    let id = receipt["saveId"].as_str().unwrap();
+    assert_eq!(
+        db.resolve_native_save(root, id, &baseline.source.sha256)
+            .unwrap()["status"],
+        "cancelled"
+    );
+    let receipt = db
+        .prepare_native_save(root, "/lesson.pptx", &new_seed, &lineage)
+        .unwrap();
+    db.resolve_native_save(root, receipt["saveId"].as_str().unwrap(), &new_seed.sha256)
+        .unwrap();
+    let current = db
+        .courseware_project_context(root, &baseline.project_id)
+        .unwrap();
+    let old = db
+        .kv_get(
+            identities::IDENTITY_NAMESPACE,
+            &identities::identity_key(root, &baseline.project_id, &baseline.source.sha256).unwrap(),
+        )
+        .unwrap()
+        .unwrap();
+    assert_ne!(
+        current["savedObjects"]["pages"][0]["objects"][0]["objectId"],
+        old["pages"][0]["objects"][0]["logicalId"]
+    );
+    assert_eq!(
+        current["savedObjects"]["pages"][0]["objects"][1]["objectId"],
+        old["pages"][0]["objects"][1]["logicalId"]
+    );
+}
+
+#[test]
+fn native_save_disables_deleted_attention_and_changed_native_animation_with_visible_history() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_str().unwrap();
+    let db = Database::open_in_dir(dir.path()).unwrap();
+    let mut baseline = db
+        .open_identified_courseware_project(root, &seed(&"a".repeat(64)))
+        .unwrap();
+    let old = db
+        .courseware_project_context(root, &baseline.project_id)
+        .unwrap();
+    let target = old["savedObjects"]["pages"][0]["objects"][0]["objectId"].clone();
+    baseline.pages[0].actions = vec![
+        json!({"id":"speech","type":"speech","text":"Look here", "visualCues":[
+        {"id":"cue","atMs":0,"endMs":1000,"effect":{"type":"highlight","elementIds":[target]}}]}),
+        json!({"id":"animation","type":"native_animation","version":1,"sourceSha256":baseline.source.sha256,"stepIndex":0}),
+    ];
+    db.kv_set(
+        NAMESPACE,
+        &storage_key(root, &baseline.project_id).unwrap(),
+        &serde_json::to_value(&baseline).unwrap(),
+    )
+    .unwrap();
+    let mut proof = proof();
+    proof.objects[0][0].source_name = None;
+    proof.animation_unchanged[0] = false;
+    let receipt = db
+        .prepare_native_save(root, "/lesson.pptx", &seed(&"b".repeat(64)), &proof)
+        .unwrap();
+    assert_eq!(receipt["warnings"].as_array().unwrap().len(), 1);
+    db.resolve_native_save(root, receipt["saveId"].as_str().unwrap(), &"b".repeat(64))
+        .unwrap();
+    let context = db
+        .courseware_project_context(root, &baseline.project_id)
+        .unwrap();
+    assert_eq!(
+        context["project"]["pages"][0]["actions"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        context["project"]["pages"][0]["actions"][0]["text"],
+        "Look here"
+    );
+    assert_eq!(
+        context["project"]["pages"][0]["actions"][0]["visualCues"],
+        json!([])
+    );
+    assert_eq!(context["saveWarnings"], receipt["warnings"]);
+    let history_key = serde_json::to_string(&(
+        storage_key(root, &baseline.project_id).unwrap(),
+        &baseline.teaching_revision,
+    ))
+    .unwrap();
+    assert_eq!(
+        db.kv_get(HISTORY_NAMESPACE, &history_key).unwrap().unwrap(),
+        serde_json::to_value(&baseline).unwrap()
+    );
+}
+
+#[test]
+fn native_save_rebinds_durable_workflow_without_reauthorizing_execution() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_str().unwrap();
+    let db = Database::open_in_dir(dir.path()).unwrap();
+    let project = db
+        .open_identified_courseware_project(root, &seed(&"a".repeat(64)))
+        .unwrap();
+    let session =
+        crate::sessions::create_session(&db, None, None, None, None, Some(root.into())).unwrap();
+    let turn = crate::sessions::begin_turn(&db, &session.id, None, None).unwrap();
+    let checkpoint = super::super::workflow::Checkpoint {
+        revision: 1,
+        project_id: project.project_id.clone(),
+        source_sha256: project.source.sha256.clone(),
+        status: "running".into(),
+        repair_attempts: std::collections::BTreeMap::from([("c".repeat(64), 2)]),
+        last_resume: Some("d".repeat(64)),
+    };
+    db.save_courseware_workflow_checkpoint(root, &session.id, &turn, 0, &checkpoint)
+        .unwrap();
+    let receipt = db
+        .prepare_native_save(root, "slides.pptx", &seed(&"b".repeat(64)), &proof())
+        .unwrap();
+    let save_id = receipt["saveId"].as_str().unwrap();
+    assert_eq!(
+        db.courseware_workflow_checkpoint(root, &session.id, &project.project_id)
+            .unwrap()
+            .unwrap()
+            .source_sha256,
+        "a".repeat(64)
+    );
+    db.resolve_native_save(root, save_id, &"b".repeat(64))
+        .unwrap();
+    db.resolve_native_save(root, save_id, &"b".repeat(64))
+        .unwrap();
+    crate::sessions::end_turn(&db, &turn, "aborted", None, None, false).unwrap();
+    drop(db);
+    let db = Database::open_in_dir(dir.path()).unwrap();
+    let rebound = db
+        .courseware_workflow_checkpoint(root, &session.id, &project.project_id)
+        .unwrap()
+        .unwrap();
+    assert_eq!(rebound.source_sha256, "b".repeat(64));
+    assert_eq!(rebound.revision, 2);
+    assert_eq!(rebound.repair_attempts, checkpoint.repair_attempts);
+    assert!(rebound.last_resume.is_none());
+    assert!(db
+        .save_courseware_workflow_checkpoint(
+            root,
+            &session.id,
+            &turn,
+            2,
+            &super::super::workflow::Checkpoint {
+                revision: 3,
+                ..rebound
+            }
+        )
+        .is_err());
+}
+
+mod media;

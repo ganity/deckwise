@@ -454,7 +454,7 @@ The desktop application also uses technologies including Electron, React, TypeSc
 
 PI-Desktop is an early preview under active development.
 
-The current **0.17.x** DeckWise line adds PPTX courseware creation and revision, native SVG slide editing, full-size slide screenshots, and a managed AI provider to the desktop shell, streaming agent runtime, workspace tools, projects and sessions, and cross-platform packaging.
+The current **0.20.x** DeckWise line expands ordinary generation, scene generation and PPT import with native teaching content, narration, Quiz editing, media recovery, and verified cross-platform packaging.
 
 Current priorities include:
 

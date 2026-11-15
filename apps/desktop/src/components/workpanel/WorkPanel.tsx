@@ -30,16 +30,19 @@ import {
   IconClose,
   IconDiff,
   IconFileText,
+  IconFolderOpen,
   IconPanelMaximize,
   IconPanelRestore,
   IconPlug,
   IconPlus,
 } from "../icons";
 import { ReviewTab } from "./ReviewTab";
+import { TeamProjectsTab } from "./TeamProjectsTab";
+import { CoursewareMediaCanvasTab } from "./CoursewareMediaCanvasTab";
 import { FilesTab } from "./FilesTab";
 import { PluginViewTab } from "./PluginViewTab";
 import { SubagentPanel } from "./SubagentPanel";
-import { PptMasterTab } from "./PptMasterTab";
+import { CoursewareChatWorkflow } from "../courseware/CoursewareChatWorkflow";
 import { PptEditorTab } from "./PptEditorTab";
 import { SvgEditorTab } from "./SvgEditorTab";
 import type { SubagentPanelSelection } from "../../lib/subagent-panel";
@@ -54,7 +57,10 @@ import {
 const TAB_ICONS = {
   new: IconPlus,
   review: IconDiff,
+  team: IconFolderOpen,
+  "media-canvas": IconFileText,
   ppt: IconFileText,
+  "scene-images": IconFileText,
   "svg-editor": IconFileText,
   editor: IconFileText,
   file: IconFileText,
@@ -85,6 +91,7 @@ function tabLabel(
   t: (key: string) => string,
   pluginViews: PluginViewMeta[],
 ) {
+  if (tab.kind === "scene-images") return t("coursewareWorkflow.workspace");
   if (tab.kind === "plugin") {
     if (tab.resource === `${BROWSER_PLUGIN_TAB.pluginId}/${BROWSER_PLUGIN_TAB.viewId}`) {
       return "预览编辑";
@@ -95,7 +102,7 @@ function tabLabel(
     return view?.title ?? tab.resource ?? t("panel.tabs.plugin");
   }
   if (tab.kind === "new") return t("panel.new.title");
-  if (tab.kind === "ppt") return "课件工作台";
+  if (tab.kind === "ppt") return t("coursewareWorkflow.workspace");
   if (tab.kind === "svg-editor") return tab.resource?.split("/").filter(Boolean).at(-1) || t("panel.tabs.svgEditor");
   if (tab.kind === "editor") return tab.resource?.replaceAll("\\", "/").split("/").at(-1) || t("panel.tabs.file");
   if (tab.kind !== "file") return t(`panel.tabs.${tab.kind}`);
@@ -113,15 +120,28 @@ function workPanelTools(
     {
       id: "ppt-master",
       tab: toolWorkPanelTab("ppt"),
-      label: "课件工作台",
+      label: t("coursewareWorkflow.workspace"),
       icon: IconFileText,
-      description: "课件生成、预览与编辑",
+      description: t("coursewareWorkflow.workspaceDescription"),
     },
     {
       id: "review",
       tab: toolWorkPanelTab("review"),
       label: t("panel.tabs.review"),
       icon: IconDiff,
+    },
+    {
+      id: "team-projects",
+      tab: toolWorkPanelTab("team"),
+      label: "团队课件",
+      icon: IconFolderOpen,
+      description: "查看团队成员共享的课件",
+    },
+    {
+      id: "media-canvas",
+      tab: toolWorkPanelTab("media-canvas"),
+      label: t("panel.mediaCanvas.title"),
+      icon: IconFileText,
     },
     ...pluginViews.map((view) => {
       const Icon = pluginViewIcon(view.icon);
@@ -604,6 +624,26 @@ export function WorkPanel({
               <ReviewTab />
             </div>
           )}
+          {!subagentPanel && activeTab?.kind === "team" && (
+            <div
+              id={`work-panel-surface-${activeTab.id}`}
+              className="work-panel-tabpane"
+              role="tabpanel"
+              aria-labelledby={`work-panel-tab-${activeTab.id}`}
+            >
+              <TeamProjectsTab sessionId={activeSessionId ?? undefined} />
+            </div>
+          )}
+          {!subagentPanel && activeTab?.kind === "media-canvas" && (
+            <div
+              id={`work-panel-surface-${activeTab.id}`}
+              className="work-panel-tabpane"
+              role="tabpanel"
+              aria-labelledby={`work-panel-tab-${activeTab.id}`}
+            >
+              <CoursewareMediaCanvasTab sessionId={activeSessionId ?? undefined} />
+            </div>
+          )}
           {!subagentPanel && activeTab?.kind === "file" && (
             <div
               key={activeTab.id}
@@ -623,7 +663,13 @@ export function WorkPanel({
               role="tabpanel"
               aria-labelledby={`work-panel-tab-${activeTab.id}`}
             >
-              <PptMasterTab />
+              <CoursewareChatWorkflow panelBlocked={exiting || panelBlocked} maximized={maximized} onToggleMaximize={onToggleMaximize} />
+            </div>
+          )}
+          {!subagentPanel && activeTab?.kind === "scene-images" && (
+            <div key={activeTab.id} id={`work-panel-surface-${activeTab.id}`} className="work-panel-tabpane"
+              role="tabpanel" aria-labelledby={`work-panel-tab-${activeTab.id}`}>
+              <CoursewareChatWorkflow panelBlocked={exiting || panelBlocked} maximized={maximized} onToggleMaximize={onToggleMaximize} />
             </div>
           )}
           {!subagentPanel && activeTab?.kind === "editor" && activeTab.resource && (
@@ -635,6 +681,7 @@ export function WorkPanel({
               aria-labelledby={`work-panel-tab-${activeTab.id}`}
             >
               <PptEditorTab
+                blocked={exiting || panelBlocked}
                 path={activeTab.resource}
                 mimeType={activeTab.mimeType}
                 tabId={activeTab.id}

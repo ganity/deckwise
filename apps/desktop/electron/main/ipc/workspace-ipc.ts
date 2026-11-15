@@ -2,6 +2,7 @@ import { dialog, shell } from "electron";
 import { dirname } from "node:path";
 import { homedir } from "node:os";
 import { existsSync, statSync } from "node:fs";
+import { rm } from "node:fs/promises";
 import { isAbsolute, join, resolve } from "node:path";
 import {
   ErrorCodes,
@@ -37,6 +38,7 @@ import {
 } from "../fs-panel";
 import { resolveChatFileRef } from "../chat-ref-resolve";
 import { getWorkspaceFileIndex } from "../fs-index";
+import { importCoursewarePptx } from "../courseware-import-file";
 import {
   projectFolderPaths,
   refreshProjectGroups,
@@ -544,6 +546,31 @@ export function registerWorkspaceIpc({
       };
     },
   );
+
+  handleWithEvent(IPC.invoke.coursewareImportPptx, async (event, input: { sessionId?: unknown; token?: unknown } = {}) => {
+    assertMainWindowSender(event);
+    if (!host || typeof input.sessionId !== "string") throw new Error("session required");
+    const sessionId = input.sessionId.trim();
+    const [sessionResult, taskResult] = await Promise.all([
+      host.call<{ session?: { projectPath?: string } }>("session.get", { id: sessionId, messageLimit: 1 }),
+      host.call<{ task?: { taskType?: string; importPath?: string } }>("courseware.task.get", { sessionId }),
+    ]);
+    const workspace = sessionResult.session?.projectPath;
+    if (!workspace || taskResult.task?.taskType !== "import" || taskResult.task.importPath) {
+      throw new Error("当前会话不是等待导入的 PPT 任务");
+    }
+    const paths = consumeComposerPickerSelection(input.token, event.sender.id);
+    if (paths.length !== 1) throw new Error("请只选择一个 PPTX 文件");
+    const path = await importCoursewarePptx(workspace, paths[0]!);
+    try {
+      await host.call("courseware.task.attachImport", { sessionId, path });
+    } catch (error) {
+      await rm(path, { force: true });
+      throw error;
+    }
+    return { path };
+  });
+
 
   handleWithEvent(
     IPC.invoke.clipboardRecordPaste,

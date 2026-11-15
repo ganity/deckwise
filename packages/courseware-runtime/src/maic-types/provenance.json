@@ -1,0 +1,25 @@
+{
+  "repository": "evo-trainwise-maic-server",
+  "revision": "d8cde962d01d6722b710b32c11b161c54732c6e0",
+  "sources": {
+    "lib/types/action.ts": "cd4d0753587cab41d8e1cd11a7c289c0188736734a22e0d8da7e2097f43f3d78",
+    "lib/types/stage.ts": "59692da4b65d9bd211dc8319a676a6e20fea3f27be2fa8db36d12b42cb415a1e",
+    "lib/interaction/types.ts": "eef7bb6521d3e1118d37bed35c57e381a1f263d8595b10c7456b58ee7f4575a2",
+    "lib/types/slides.ts": "f59f3ff53ea5f41feea27425b24a412fa67dc12ca9de20b7647e7b8c9a46b98d",
+    "lib/interaction/ensure-interaction-checkpoint.ts": "35041d5dfcff767a6aaa6b5ed22b877086639552c168fb35c294e42d8e83f1ba",
+    "lib/import/narration/text-normalizer.ts": "b4b6319268756219ccee2e4930e97970765c63ee324fb036372f47658d99d6b8"
+  },
+  "notes": "Action/stage/interaction content contracts pinned without local desktop extensions. PPTist Slide uses existing vendored renderer model.",
+  "quizPresentation": {
+    "repository": "cloud-web-trainwise",
+    "revision": "9cea9d86a0fc8286a6fbe548eab580d6e3352ac2",
+    "path": "components/scene-renderers/quiz-view.tsx",
+    "sha256": "454f8378092a115a3737dab90e2f94fe93be68c87b0590bf7ee94d9848397f52",
+    "projection": "ClassroomInstantSingleQuestionView and assessment SingleChoiceQuestion/MultipleChoiceQuestion/ShortAnswerQuestion/QuestionCard/ScoreBanner presentation and grading helpers; store/network services injected or explicitly unavailable offline; assessment animations project final static geometry",
+    "darkVariant": "@custom-variant dark (&:is(.dark *));",
+    "styleSources": {
+      "app/globals.css": "2de18dbbeed404a95d8fb73e6394951c403a288e9106689a469edbe9701719b9",
+      "app/openmaic-globals.css": "af564dbb7ad4630785ada872a852b81f9986004d55b96c332c9c53276ec56d3f"
+    }
+  }
+}

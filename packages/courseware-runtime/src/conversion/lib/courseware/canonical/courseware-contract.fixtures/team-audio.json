@@ -1,0 +1,15 @@
+{
+  "code": 200,
+  "data": {
+    "projectId": "68a6fb20-8710-4873-919d-acd3261d243d",
+    "assetRef": {
+      "assetId": "25ca4b2e-b986-4b37-81aa-7e656e5781df",
+      "sha256": "c726d333dd159a31423f3480dbb1c5c4a9dfcd30efe1f7e12ade390dc92e8908",
+      "mime": "audio/wav",
+      "byteLength": 1644,
+      "downloadPath": "/courseware/team/projects/68a6fb20-8710-4873-919d-acd3261d243d/assets/25ca4b2e-b986-4b37-81aa-7e656e5781df/content",
+      "durationMs": 100
+    }
+  },
+  "message": "success"
+}

@@ -10,7 +10,7 @@ const [controller, ipc, protocol, api, panel, skill, editor, editorCss] = await 
   read("../electron/main/ipc/ppt-preview-ipc.ts"),
   read("../../../packages/shared/src/protocol.ts"),
   read("../src/lib/api.ts"),
-  read("../src/components/workpanel/PptMasterTab.tsx"),
+  read("../src/components/courseware/CoursewareChatPresentation.tsx"),
   read("../electron/main/builtin-skills.ts"),
   read("../src/components/workpanel/SvgEditorTab.tsx"),
   read("../src/styles/svg-editor.css"),
@@ -37,7 +37,7 @@ test("the main-window-only IPC returns a ready preview URL", () => {
 });
 
 test("the courseware workspace exposes an in-app page preview action", () => {
-  assert.match(panel, /预览与编辑页面/);
+  assert.match(panel, /coursewareWorkflow.previewPages/);
   assert.match(panel, /api\.pptPreviewOpen/);
   assert.match(panel, /svgEditorWorkPanelTab/);
   assert.match(skill, /--no-browser/);
@@ -80,10 +80,9 @@ test("SVG slide list has no empty thumbnails and selectable elements show a hove
   assert.match(editorCss, /\.svg-editor-canvas \.svg-editor-selectable:hover\s*(?:,[^{]+)?\{[^}]*outline:\s*2px solid/);
 });
 
-test("page generation stays active until the whole agent turn finishes", () => {
-  assert.match(panel, /const projectPath = useMemo\(\(\) => referencedProject\(messages\), \[messages\]\)/);
-  assert.match(panel, /projectPath && current\?\.projectPath === projectPath \? current : null/);
-  assert.doesNotMatch(panel, /setProject\(null\);\s*void refreshProject\(\)/);
-  assert.match(panel, /pageGenerationDone =\s*Boolean\(project\?\.hasSvg\) &&\s*\(!isRunning \|\| Boolean\(project\?\.pptxPath\)\)/);
-  assert.match(panel, /project\?\.hasSvg \? isRunning \? "生成中可预览" : "可编辑"/);
+test("ordinary readiness follows inspected output independently of the running turn", () => {
+  assert.match(panel, /const path = referencedProject\(messages, sourcePath\)/);
+  assert.match(panel, /readyPath = project\?\.pptxPath && !project.needsPptxRegeneration && !project.qualityIssue/);
+  assert.match(panel, /onReady\?\.\(readyPath\)/);
+  assert.doesNotMatch(panel, /42%|60%|88%/);
 });

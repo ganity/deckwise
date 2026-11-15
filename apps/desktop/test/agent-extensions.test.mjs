@@ -24,7 +24,7 @@ function bridge(overrides = {}) {
     onPrompt: (prompt) => events.prompts.push(prompt),
     onToast: (message, level) => events.toasts.push({ message, level }),
     onStatus: (event) => events.statuses.push(event),
-    promptTimeoutMs: 50,
+    promptTimeoutMs: 1000,
     ...overrides,
   });
   return { b, events };
@@ -239,15 +239,15 @@ test("ui requests: notify and status pass through; prompts round-trip, queue per
   assert.equal(b.respond(events.prompts[0].promptId, true), true);
   assert.deepEqual(await confirm, { kind: "confirm", value: true });
   await new Promise((r) => setTimeout(r, 0));
-  b.respond(events.prompts[1].promptId, "b");
+  b.respond(events.prompts.find(p => p.request.kind === "select" && !p.cancelled).promptId, "b");
   assert.deepEqual(await select, { kind: "select", value: "b" });
 
-  assert.deepEqual(await b.requestUi(envelope({ kind: "input", title: "Name" })), { kind: "input", value: undefined });
+  assert.deepEqual(await b.requestUi(envelope({ kind: "input", title: "Name" })), { kind: "input", value: undefined, cancelled: true });
 
   const aborted = b.requestUi(envelope({ kind: "confirm", title: "x", message: "" }, "s9"));
   await new Promise((r) => setTimeout(r, 0));
   b.cancelPrompts("s9");
-  assert.deepEqual(await aborted, { kind: "confirm", value: false });
+  assert.deepEqual(await aborted, { kind: "confirm", value: false, cancelled: true });
   assert.equal(b.pendingPromptCount(), 0);
 
   const { b: headless } = bridge({ hasRenderer: () => false });

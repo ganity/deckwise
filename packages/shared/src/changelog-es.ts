@@ -2,6 +2,16 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const esEntries: ChangelogEntry[] = [
   {
+    version: "0.20.0",
+    date: "2026-11-15",
+    highlights: [
+      "Crea material didáctico mediante generación normal, generación por escenas o importación de PPT, con el contenido docente guardado en la presentación editable.",
+      "Edita narraciones, preguntas de Quiz, imágenes de respuestas y medios didácticos; guarda, vuelve a abrir y reproduce la lección completa.",
+      "Continúa chats de cursos independientes con edición en primer o segundo plano y recupera el trabajo interrumpido mediante sus tareas originales.",
+      "Mejora la fiabilidad de los instaladores con recursos de Office compatibles, herramientas de conversión nativas y comprobaciones de integridad.",
+    ],
+  },
+  {
     version: "0.17.7",
     date: "2026-10-13",
     highlights: [

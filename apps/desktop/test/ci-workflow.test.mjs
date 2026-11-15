@@ -62,6 +62,15 @@ test("CI does not typecheck workspace dependencies twice", () => {
   assert.doesNotMatch(ciWorkflowSource, /run: pnpm typecheck/);
 });
 
+test("CI and release verification install the matching browser before UI unit tests", () => {
+  for (const source of [ciWorkflowSource, releaseWorkflowSource]) {
+    const install = source.indexOf("run: pnpm --filter @pi-desktop/courseware-runtime exec playwright install --with-deps --only-shell chromium");
+    const tests = source.indexOf("run: pnpm -r --if-present test");
+    assert(install > 0 && install < tests, "Fresh runners need the runtime package's Chromium and system libraries");
+    assert.match(source.slice(0, install), /runs-on: ubuntu-24\.04/, "The locked browser runtime requires a supported runner OS");
+  }
+});
+
 test("release runners validate tags without a separate job barrier", () => {
   assert.doesNotMatch(releaseWorkflowSource, /^  validate:/m);
   assert.doesNotMatch(releaseWorkflowSource, /^    needs: validate$/m);
@@ -96,9 +105,12 @@ test("release builds are gated on the CI checks and least-privilege permissions"
   assert.match(releaseWorkflowSource, /^permissions:\n  contents: read$/m);
   assert.match(releaseWorkflowSource, /^  verify:/m);
   assert.match(releaseWorkflowSource, /^  build:\n[\s\S]*?^    needs: verify$/m);
+  assert.match(releaseWorkflowSource, /DECKWISE_COURSEWARE_RELEASE: '1'/);
+  assert.match(releaseWorkflowSource, /DECKWISE_COURSEWARE_LOCK:.*courseware-release-lock\.json/);
   const verifyJob = releaseWorkflowSource.match(/^  verify:\n[\s\S]*?(?=^  build:)/m)?.[0];
   assert.ok(verifyJob, "release verify job is missing");
   for (const step of [
+    /run: pnpm test:courseware-workflow/,
     /run: pnpm build:js/,
     /run: pnpm --filter @pi-desktop\/desktop typecheck/,
     /run: pnpm lint/,
@@ -150,7 +162,7 @@ test("manual Linux package validation covers the RPM desktop identity", () => {
   assert.match(linuxPackageWorkflowSource, /StartupWMClass=deckwise/);
   assert.match(
     linuxPackageWorkflowSource,
-    /uses: actions\/upload-artifact@v6[\s\S]*path: apps\/desktop\/release\/\*\.rpm/,
+    /uses: actions\/upload-artifact@v6[\s\S]*path: \|[\s\S]*apps\/desktop\/release\/\*\.rpm/,
   );
 });
 

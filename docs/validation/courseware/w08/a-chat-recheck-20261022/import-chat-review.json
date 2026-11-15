@@ -1,0 +1,57 @@
+{
+  "reviewId": "fd10b1e6-0407-45f2-8447-ecd3a8fdb342",
+  "candidateId": "a5cc0aa8-db22-4c34-b1f9-9662955a3b77",
+  "status": "needs-review",
+  "teaching": {
+    "viewId": "95c75e61-de01-4e7a-9063-d83a4fb7b8b1",
+    "project": {
+      "educationContext": {},
+      "pages": [
+        {
+          "actions": [],
+          "locked": false,
+          "pageId": "b7d27fff-b964-4665-ac82-108d69867947",
+          "reviewState": "review"
+        },
+        {
+          "actions": [],
+          "locked": false,
+          "pageId": "a823fee8-8374-48dc-aabb-5ed0f7650615",
+          "reviewState": "review"
+        },
+        {
+          "actions": [],
+          "locked": false,
+          "pageId": "e1006bc3-b2d5-4259-800c-c174ab464418",
+          "reviewState": "review"
+        }
+      ],
+      "projectId": "office-84939375-9856-464d-8ea4-a1fc5b702104-les-ed02118ea342",
+      "schemaVersion": "deckwise-courseware/1",
+      "source": {
+        "revision": "14450ff1387b1010c22ab0d68470a0f454198634f1b52e8d2cceb20004ae0c4b",
+        "sha256": "14450ff1387b1010c22ab0d68470a0f454198634f1b52e8d2cceb20004ae0c4b"
+      },
+      "taskType": "import",
+      "teachingRevision": "70568d59-fcf6-4fb4-a2f2-f07e9af995b8",
+      "title": "84939375-9856-464d-8ea4-a1fc5b702104-les-ed02118ea342"
+    },
+    "pageId": "b7d27fff-b964-4665-ac82-108d69867947",
+    "pageNumber": 1
+  },
+  "actions": [
+    {
+      "id": "speech-a5cc0aa8-db22-4c34-b1f9-9662955a3b77-0",
+      "pauseAfterMs": 4000,
+      "text": "Look! What do you see?",
+      "type": "speech"
+    },
+    {
+      "id": "speech-a5cc0aa8-db22-4c34-b1f9-9662955a3b77-1",
+      "text": "Thank you for trying.",
+      "type": "speech"
+    }
+  ],
+  "stale": false,
+  "audioReady": false
+}

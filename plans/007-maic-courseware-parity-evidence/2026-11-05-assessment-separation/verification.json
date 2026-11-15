@@ -1,0 +1,113 @@
+{
+  "recordedAt": "2026-11-05T05:38:18.334922+00:00",
+  "worktree": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A",
+  "checks": {
+    "generation": {
+      "passed": 64
+    },
+    "mainHost": {
+      "passed": 2
+    },
+    "workflowNativeEditor": {
+      "passed": 32,
+      "skipped": 1
+    },
+    "editorBrowser": "PASS",
+    "desktopTypecheck": "PASS",
+    "desktopBuild": "PASS",
+    "hostBuild": "PASS",
+    "hostScenePlan": {
+      "passed": 6
+    },
+    "hostCoursewareInitial": {
+      "passed": 371,
+      "failed": 1,
+      "ignored": 2,
+      "explanation": "Only the assessment image test fixture retained body visibleText/narration. Updated to pure assessment data and reran that test successfully; the entire 374-test selection was not rerun."
+    },
+    "hostAssessmentImageRetest": {
+      "passed": 1
+    },
+    "diffCheck": "PASS"
+  },
+  "limits": [
+    "No paid LLM/image/TTS generation in this verification.",
+    "No live app restart and no migration or modification of existing user lesson files."
+  ],
+  "sources": [
+    {
+      "path": "apps/desktop/electron/main/courseware-scene-plan.ts",
+      "sha256": "ef42c914fd64363881e3bd4a122dc1ac29834f060bb0c704ca20ab1a17170d40"
+    },
+    {
+      "path": "apps/desktop/electron/main/courseware-scene-deck.ts",
+      "sha256": "b9793263d57204a51e3e811134ff0a1d88f340cf313d341493d4b2d2da1737e5"
+    },
+    {
+      "path": "apps/desktop/electron/main/courseware-scene-staging.ts",
+      "sha256": "6ce512cc8cbe88365df8973642d73fcc7a25eda2191d7e3af464fb76249fab5c"
+    },
+    {
+      "path": "apps/desktop/electron/main/courseware-scene-object-view.ts",
+      "sha256": "828092d0a4e4c57296777477290e78a274070d8062a3c79441f72cc7c4fe691a"
+    },
+    {
+      "path": "apps/desktop/electron/main/courseware-saved-narration.ts",
+      "sha256": "9258fb674834d929238dde3ccdead7c86c897e2062c2e7e24ffddb9d924fae7b"
+    },
+    {
+      "path": "apps/desktop/electron/main/courseware-narration-batch.ts",
+      "sha256": "df07e6f98f9c7cccb96d3f4800d44bac16b06c760f3187990c19c04efb8d61b1"
+    },
+    {
+      "path": "apps/desktop/resources/skills/scene-courseware/SKILL.md",
+      "sha256": "0911d80598bcce07d5a7b611e7761c1de899a29cb007ca944fa793ccf1ea441c"
+    },
+    {
+      "path": "packages/shared/src/courseware-teaching-quality.ts",
+      "sha256": "27bc225b01064fdb58aa6b28c57570b12ae1138b5c5ab9af7e3d114645dda1d4"
+    },
+    {
+      "path": "packages/agent-runtime/src/courseware/narration-write.ts",
+      "sha256": "8af18347be6112d9a75b3b9280d75ffe4c271812f63afdd06ee1c83ee29c5669"
+    },
+    {
+      "path": "crates/host-core/src/rpc/courseware_projects.rs",
+      "sha256": "a266b3a2edffa1a632116cadfb462bbc68de708789d0efe83b5cd1c85f84a08f"
+    },
+    {
+      "path": "crates/host-core/src/rpc/courseware_projects/scene_plan.rs",
+      "sha256": "f63776d169acd4537038d547964c134dc0734850d7c3afeba3c008700af6a339"
+    },
+    {
+      "path": "crates/host-core/src/db/courseware_projects.rs",
+      "sha256": "4ad867e8b443109946dad1b966ec289b7dd7485996331da193f0971ed1479dd1"
+    },
+    {
+      "path": "crates/host-core/src/db/courseware_projects/classroom.rs",
+      "sha256": "e4738e459f651ba033cb206d6f9070714c57ffe9227a5e8cfec01d5aa232fa83"
+    },
+    {
+      "path": "crates/host-core/src/db/courseware_projects/identities.rs",
+      "sha256": "43d859109fbfd131d79c2d4a28bbd2e3f66bbe896c29d16051fd09ccd6b466c2"
+    },
+    {
+      "path": "crates/host-core/src/db/courseware_projects/candidates.rs",
+      "sha256": "f6cfbf5c35508dd554c093aad627377913013ef243739835bbc20f1f5e3836ac"
+    },
+    {
+      "path": "crates/host-core/src/db/courseware_projects/workflow.rs",
+      "sha256": "048ba2f662242fe265c96772b635bf2b72b894d4497d52f69581ac90aaaddb7d"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "target/debug/pi-desktop-host-core",
+      "sha256": "4340e95d6e00400abffa576c8cfd5bc07c40ebf491ecb0ffb9bad0d020a3bff7"
+    },
+    {
+      "path": "apps/desktop/out/main/index.js",
+      "sha256": "4682cf98b7828d48373be0ca02cf66cf3c59292daa1851dbf983b7e491373bf4"
+    }
+  ]
+}

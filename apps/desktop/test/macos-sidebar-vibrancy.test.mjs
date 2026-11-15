@@ -60,7 +60,6 @@ test("macOS main window enables native sidebar vibrancy only in its platform bra
 test("native theme source maps preferences and only resets vibrancy on change", () => {
   const applyNative = functionSource(lifecycleSource, "applyNativeThemeSource");
   const applyMenu = functionSource(lifecycleSource, "applyApplicationMenuSettings");
-  const send = functionSource(mainSource, "sendToRenderer");
 
   assert.match(applyNative, /let next: "system" \| "light" \| "dark" = "system"/);
   assert.match(
@@ -91,8 +90,8 @@ test("native theme source maps preferences and only resets vibrancy on change", 
   assert.match(applyTheme, /applyNativeThemeSource\(\{\s*theme: preference \}\)/);
   assert.match(applyMenu, /applyAppThemePreference\(settings\?\.theme\)/);
   assert.match(
-    send,
-    /if \(channel === IPC\.event\.pluginChanged\) \{\s*applicationLifecycle\?\.applyNativeThemeSource\(\{\s*theme: applicationAppearanceState\.appThemePreference,/,
+    mainSource,
+    /const sendToRenderer = createRendererEventSender\(\{[\s\S]*?onPluginChanged: \(\) => applicationLifecycle\?\.applyNativeThemeSource\(\{\s*theme: applicationAppearanceState\.appThemePreference,/,
   );
 });
 

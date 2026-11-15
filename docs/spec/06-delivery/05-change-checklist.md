@@ -135,6 +135,22 @@ After implementation (or alongside it):
 
 ---
 
+### Online reviewed-publication input changes
+
+When changing this boundary, also verify:
+
+- [ ] Capture/read bind the exact project, source/request UUID, baseline
+  revisions, epoch, force-save request, full ordered mapping and archived length.
+- [ ] Real `speech.visualCues[]` highlight/spotlight effects are preserved only
+  with valid timing/style/unit values, unique cue IDs/targets and same-page
+  mapped targets; unsupported standalone effects and non-speech cues reject.
+- [ ] Archive download has no caller URL, token/cookie forwarding or redirects,
+  enforces the 20 MiB bound, verifies actual SHA/length/PPTX container, and
+  discards late account/cancel results.
+- [ ] Logs identify the tested corrected source and actual new result count;
+  pre-correction green logs and independent layer checks are not substituted
+  for final validation or a joined publication/native-save barrier.
+
 ## 5. Git Commit Checklist
 
 - [ ] Change is one logical unit (or split into focused commits).

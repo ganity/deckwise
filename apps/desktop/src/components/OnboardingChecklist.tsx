@@ -1,3 +1,4 @@
+import { DECKWISE_MANAGED_PROVIDER_ID } from "@pi-desktop/shared";
 import { useTranslation } from "react-i18next";
 import { api } from "../lib/api";
 import { useAppStore } from "../stores/app-store";
@@ -17,12 +18,17 @@ const STEP_LOCALE_KEY: Record<string, string> = {
 export function OnboardingChecklist() {
   const { t } = useTranslation();
   const onboarding = useAppStore((s) => s.onboarding);
+  const managedReady = useAppStore((s) =>
+    s.providers.some((provider) =>
+      provider.id === DECKWISE_MANAGED_PROVIDER_ID && provider.enabled && !!provider.models?.length),
+  );
   const setPage = useAppStore((s) => s.setPage);
   const setSettingsTab = useAppStore((s) => s.setSettingsTab);
   const openProject = useAppStore((s) => s.openProject);
 
   if (!onboarding?.showChecklist) return null;
-  const steps = onboarding.steps ?? [];
+  const steps = (onboarding.steps ?? []).filter((step) =>
+    !managedReady || (step.id !== "provider" && step.id !== "secret"));
   if (steps.length === 0 || steps.every((s) => s.done)) return null;
 
   const stepLabel = (id: string, fallback: string) => {

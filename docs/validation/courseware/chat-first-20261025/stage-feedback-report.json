@@ -1,0 +1,172 @@
+{
+  "status": "PASS_CHAT_FIRST_PLAN_ASSETS_COMPILE_AND_WISEOFFICE",
+  "checks": [
+    "The actual new-task dialog transfers a reviewed brief to Chat without sending or opening a workbench",
+    "The main Chat saves and reviews a real plan without mounting the secondary controls",
+    "Plan approval actually advances Agent tools to a prepared image and an unchecked quote",
+    "A full Desktop restart restores approval and the prepared intent without replay or spend",
+    "Each explicit image review advances the same Chat until the actual compiler saves an editable PPTX",
+    "The Chat artifact action opens real WiseOffice with separate objects and the planned narration",
+    "An import task can discuss requirements in Chat before file selection",
+    "The Chat picker can cancel and then import the original PPTX into WiseOffice without the generation form",
+    "Ordinary PPT creation uses the same dialog and does not submit an unsent brief",
+    "Ordinary Chat authors saved pages and narration, passes official checks and opens the actual SVG preview",
+    "Idle refresh rejects a changed ordinary page and Chat repairs it through both official gates",
+    "An explicit ordinary export runs the official notes, finalize and PPTX tools then opens WiseOffice"
+  ],
+  "directory": "/tmp/deckwise-chat-first-egxJcf",
+  "paidCalls": false,
+  "identityFixture": true,
+  "modelFixture": true,
+  "mediaFixture": true,
+  "sandbox": "--no-sandbox",
+  "generated": {
+    "path": "/tmp/deckwise-chat-first-egxJcf/workspace/.deckwise-ppt/generated/1c3b70f901cc58093262562b2ba8c0aabab977d19468543586c294c1d144ef59.pptx",
+    "sha256": "1c3b70f901cc58093262562b2ba8c0aabab977d19468543586c294c1d144ef59",
+    "compiledPages": 1,
+    "fixtureSubmissions": 3,
+    "projectId": "office-1c3b70f901cc58093262562b2ba8c0aabab977d1-ef0f3caba6ed"
+  },
+  "imported": {
+    "sessionId": "4c24248c-b44f-475f-935c-14066ba529e7",
+    "sourceSha256": "1c3b70f901cc58093262562b2ba8c0aabab977d19468543586c294c1d144ef59",
+    "pickerFixture": true
+  },
+  "ordinary": {
+    "sessionId": "e7f28d19-3f31-4414-bd93-20dd0365f701",
+    "projectPath": ".deckwise-ppt/projects/chat-first-circle_ppt169_20261025",
+    "sourceSha256": "ac7b2378909cc4d453cd137aa0fdc06ae722e42d05681012a1b79da5e8d2743a",
+    "nativeObjects": 3
+  },
+  "modelRequests": 47,
+  "mediaRequests": [
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models/scene-image/quote",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models/scene-image/quote",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/tasks/confirmed",
+      "method": "POST"
+    },
+    {
+      "path": "/courseware/media/tasks/chat-first-image-1",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/tasks/chat-first-image-1",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/tasks/chat-first-image-1/asset",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models/scene-image/quote",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/tasks/confirmed",
+      "method": "POST"
+    },
+    {
+      "path": "/courseware/media/tasks/chat-first-image-2",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/tasks/chat-first-image-2",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/tasks/chat-first-image-2/asset",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models/scene-image/quote",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/tasks/confirmed",
+      "method": "POST"
+    },
+    {
+      "path": "/courseware/media/tasks/chat-first-image-3",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/tasks/chat-first-image-3",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/tasks/chat-first-image-3/asset",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    }
+  ]
+}

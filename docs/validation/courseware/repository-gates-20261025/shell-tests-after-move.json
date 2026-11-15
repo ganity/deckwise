@@ -1,0 +1,14 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "host-core",
+    "--locked",
+    "--jobs",
+    "2",
+    "tools::shell::tests"
+  ],
+  "exitCode": 0,
+  "status": "PASS"
+}

@@ -1,3 +1,5 @@
+import { setTimeout as delay } from "node:timers/promises";
+
 type IpcListener = (event: { sender: { id: number } }, message: unknown) => void;
 
 type IpcSource = {
@@ -6,6 +8,53 @@ type IpcSource = {
 };
 
 export const PPT_EDITOR_HANDSHAKE_TIMEOUT_MS = 60_000;
+export const PPT_EDITOR_DOCUMENT_OPEN_TIMEOUT_MS = 180_000;
+
+export class PptEditorNotReadyError extends Error {
+  readonly code = "PPT_EDITOR_NOT_READY";
+  readonly phase: "opening" | "saving" | "focus";
+  constructor(phase: "opening" | "saving" | "focus") {
+    super(phase === "focus"
+      ? "Return to this courseware Chat to continue; the task is waiting without accessing the other Chat's document."
+      : "PPT editor is still opening or saving; the saved courseware task is waiting for the editor to become ready.");
+    this.name = "PptEditorNotReadyError";
+    this.phase = phase;
+  }
+}
+
+export async function waitForPptEditorTeachingReady(input: {
+  ready(): boolean;
+  phase(): "opening" | "saving" | "focus";
+  check(): void;
+  timeoutMs?: number;
+  intervalMs?: number;
+}): Promise<void> {
+  const deadline = Date.now() + (input.timeoutMs ?? 15_000);
+  while (true) {
+    input.check();
+    if (input.ready()) return;
+    if (Date.now() >= deadline) throw new PptEditorNotReadyError(input.phase());
+    await delay(Math.min(input.intervalMs ?? 100, Math.max(1, deadline - Date.now())));
+  }
+}
+
+/** Register acknowledgement before dispatch and release it if dispatch fails. */
+export async function openPptEditorDocument(ipcMain: IpcSource, senderId: number,
+  commandId: string, dispatch: () => void, signal: AbortSignal,
+  timeoutMs = PPT_EDITOR_DOCUMENT_OPEN_TIMEOUT_MS): Promise<void> {
+  const abort = new AbortController();
+  const pending = waitForPptEditorMessage(ipcMain, senderId, "document:opened", commandId,
+    timeoutMs, AbortSignal.any([signal, abort.signal]));
+  try {
+    signal.throwIfAborted();
+    dispatch();
+    await pending;
+  } catch (error) {
+    abort.abort(error);
+    await pending.catch(() => undefined);
+    throw error;
+  }
+}
 
 export function waitForPptEditorMessage(
   ipcMain: IpcSource,

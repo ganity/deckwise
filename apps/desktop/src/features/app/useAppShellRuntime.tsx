@@ -341,10 +341,7 @@ export function useAppShellRuntime() {
         switch (command) {
           case "newTask":
             if (workPanelMaximizedRef.current) setWorkPanelMaximized(false);
-            await store.newSession();
-            requestAnimationFrame(() =>
-              document.querySelector<HTMLTextAreaElement>(".composer-input")?.focus(),
-            );
+            await store.openNewTaskDialog();
             break;
           case "openProject":
             await store.openProject();
@@ -400,7 +397,8 @@ export function useAppShellRuntime() {
     return off;
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    // Publish the owner before child effects read session-scoped courseware state.
     const viewingSessionId = page === "chat" ? activeSessionId ?? null : null;
     void api
       .setNotificationViewingSession(viewingSessionId)

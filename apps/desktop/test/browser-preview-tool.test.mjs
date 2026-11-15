@@ -102,7 +102,7 @@ test("agent runtime exposes BrowserPreview in every mode and prompts for it", ()
   );
   // Default system prompt limits preview calls to user-visible HTML work and
   // reuses the live-reloading surface while the page is being refined.
-  assert.match(runtimeSource, /user-visible HTML pages/);
+  assert.match(runtimeSource, /For user-visible HTML pages/);
   assert.match(runtimeSource, /first meaningful visual edit/);
   assert.match(runtimeSource, /Reuse that preview while iterating/);
   assert.match(

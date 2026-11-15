@@ -1,0 +1,984 @@
+use super::*;
+use crate::db::courseware_projects::tts::{request_hash, Phase, RejectedRequest, Request, TaskRef};
+use base64::Engine as _;
+use sha2::{Digest, Sha256};
+
+pub(super) mod assets;
+mod prompts;
+
+const NAMESPACE: &str = "coursewareSceneImages.v1";
+const MAX_INTENTS: usize = 300;
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct Scope {
+    session_id: String,
+    principal_key: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct Prepare {
+    session_id: String,
+    principal_key: String,
+    plan_sha256: String,
+    page_id: String,
+    model: String,
+    #[serde(default)]
+    target: Target,
+    #[serde(default)]
+    instructions: String,
+    reference_intent_id: Option<String>,
+    #[serde(default)]
+    decomposition: bool,
+    #[serde(default)]
+    planning_required: bool,
+    planned_prompt: Option<PlannedPrompt>,
+    reference_input: Option<ReferenceInput>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ReferenceInput {
+    source_sha256: String,
+    bytes_base64: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct PlannedPrompt {
+    source_request_hash: String,
+    input: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
+enum Target {
+    VisualMaster {},
+    CleanPlate {},
+    Layer { name: String },
+}
+
+impl Default for Target {
+    fn default() -> Self {
+        Self::VisualMaster {}
+    }
+}
+
+impl Target {
+    fn valid(&self) -> bool {
+        match self {
+            Self::Layer { name } => {
+                !name.is_empty()
+                    && name.encode_utf16().count() <= 80
+                    && name.trim() == name
+                    && !name.chars().any(char::is_control)
+            }
+            _ => true,
+        }
+    }
+
+    fn prompt(&self) -> String {
+        match self {
+            Self::VisualMaster {} => "Use case: scientific-educational. Create one polished full-bleed 16:10 kindergarten storybook teaching-slide illustration, 1280x800, including the final composition, exact display text and main visual. Follow the course art direction. Preserve recurring character anatomy, proportions, markings, clothes, materials, palette and lighting. Show only page-required subjects, each exactly once; no duplicate mascots, character badges, decorative animals, logos or watermarks. Keep the default setting unless this page requires a teaching-related location change.".into(),
+            Self::CleanPlate {} => "Create ONLY a clean, empty environment background for this page. Match the scene's art direction. Remove all teaching objects, characters, foreground props, text, labels, letters and watermarks; these will be added as separate editable objects. Do not render a complete slide.".into(),
+            Self::Layer { name } => format!("Create ONLY the isolated foreground asset named {name:?}, in the scene's art direction. Transparent PNG background, visible isolated subject, no surrounding scene, floor, text, labels, letters or watermark. Do not render a complete slide; this asset will be placed as an independent editable object."),
+        }
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct Operation {
+    session_id: String,
+    principal_key: String,
+    intent_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct RebindModel {
+    session_id: String,
+    principal_key: String,
+    intent_id: String,
+    expected_request_hash: String,
+    model: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct Bind {
+    session_id: String,
+    principal_key: String,
+    intent_id: String,
+    task_ref: TaskRef,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct Reject {
+    session_id: String,
+    principal_key: String,
+    intent_id: String,
+    rejected_request: RejectedRequest,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(super) struct ImageRequest {
+    pub(super) kind: String,
+    pub(super) model: String,
+    pub(super) input: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) reference_image: Option<ReferenceImage>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) parameters: Option<Value>,
+}
+
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(super) struct ReferenceImage {
+    pub(super) sha256: String,
+    pub(super) mime_type: String,
+    pub(super) byte_length: usize,
+}
+
+impl ReferenceImage {
+    pub(super) fn valid(&self) -> bool {
+        valid_hash(&self.sha256)
+            && matches!(self.mime_type.as_str(), "image/png" | "image/jpeg")
+            && (1..=32 * 1024 * 1024).contains(&self.byte_length)
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct Intent {
+    intent_id: String,
+    plan_sha256: String,
+    page_id: String,
+    #[serde(default)]
+    target: Target,
+    request: ImageRequest,
+    idempotency_key: String,
+    request_hash: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    source_prompt: Option<String>,
+    #[serde(default)]
+    planning_required: bool,
+    phase: Phase,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    planning_instructions: String,
+    task_ref: Option<TaskRef>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    submission_scope: Option<crate::db::courseware_projects::media_scope::SubmissionScope>,
+    #[serde(default)]
+    asset: Option<assets::ImageAsset>,
+    #[serde(default)]
+    selected: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    reference_intent_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    source_reference_image: Option<ReferenceImage>,
+}
+
+fn invalid(message: &str) -> JsonRpcError {
+    rpc_err(1002, message, "COURSEWARE_INVALID")
+}
+
+fn conflict(message: &str) -> JsonRpcError {
+    rpc_err(1008, message, "COURSEWARE_CONFLICT")
+}
+
+fn valid_hash(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c))
+}
+
+fn valid_id(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 128
+        && value != "."
+        && value != ".."
+        && value
+            .bytes()
+            .all(|c| c.is_ascii_alphanumeric() || b"._-".contains(&c))
+}
+
+impl ImageRequest {
+    pub(super) fn default_parameters(decomposition: bool) -> Value {
+        if decomposition {
+            json!({"size":"2K", "output_format":"png", "response_format":"url", "watermark":false})
+        } else {
+            json!({"quality":"high", "image_size":"1280x800"})
+        }
+    }
+
+    pub(super) fn hash(&self) -> String {
+        let plain = Request {
+            kind: self.kind.clone(),
+            model: self.model.clone(),
+            input: self.input.clone(),
+            voice: None,
+        };
+        if self.reference_image.is_none() && self.parameters.is_none() {
+            return request_hash(&plain);
+        }
+        let mut canonical = "courseware-media-v1".to_owned();
+        let mut fields = vec![
+            Some(self.kind.as_str()),
+            Some(self.model.as_str()),
+            Some(self.input.as_str()),
+            None,
+        ];
+        let length = self
+            .reference_image
+            .as_ref()
+            .map(|r| r.byte_length.to_string());
+        if let Some(reference) = &self.reference_image {
+            fields.extend([
+                Some(reference.sha256.as_str()),
+                Some(reference.mime_type.as_str()),
+                length.as_deref(),
+            ]);
+        }
+        let parameters = self.parameters.as_ref().map(Value::to_string);
+        if let Some(parameters) = &parameters {
+            fields.push(Some(parameters.as_str()));
+        }
+        for field in fields {
+            match field {
+                Some(value) => {
+                    canonical.push_str(&format!(":{}:{}", value.encode_utf16().count(), value))
+                }
+                None => canonical.push_str(":-1:"),
+            }
+        }
+        hex::encode(Sha256::digest(canonical.as_bytes()))
+    }
+}
+
+impl Intent {
+    fn validate(&self) -> Result<(), JsonRpcError> {
+        if self.phase == Phase::Rejected
+            && !self
+                .submission_scope
+                .as_ref()
+                .is_some_and(|scope| scope.team_project_id.is_some())
+        {
+            return Err(invalid("Rejected request has no team scope"));
+        }
+        if !valid_id(&self.intent_id)
+            || !valid_hash(&self.plan_sha256)
+            || !valid_id(&self.page_id)
+            || !self.target.valid()
+            || !matches!(self.request.kind.as_str(), "image" | "image-layers")
+            || (self.request.kind == "image-layers"
+                && (self.reference_intent_id.is_none()
+                    || matches!(self.target, Target::VisualMaster {})))
+            || !valid_id(&self.request.model)
+            || self.request.input.trim().is_empty()
+            || self.request.input.encode_utf16().count() > 4000
+            || (self.planning_required && !matches!(self.target, Target::VisualMaster {}))
+            || self.planning_instructions.encode_utf16().count() > 1200
+            || self
+                .planning_instructions
+                .chars()
+                .any(|c| c.is_control() && c != '\n' && c != '\r' && c != '\t')
+            || self.source_prompt.as_ref().is_some_and(|s| {
+                s.trim().is_empty()
+                    || s.encode_utf16().count() > 4000
+                    || !matches!(self.target, Target::VisualMaster {})
+            })
+            || self
+                .request
+                .reference_image
+                .as_ref()
+                .is_some_and(|r| !r.valid() || r.byte_length > 8 * 1024 * 1024)
+            || self.request.reference_image.is_some() != self.reference_intent_id.is_some()
+            || self.source_reference_image.as_ref().is_some_and(|r| {
+                !r.valid()
+                    || self.request.kind != "image-layers"
+                    || self
+                        .request
+                        .reference_image
+                        .as_ref()
+                        .is_none_or(|wire| wire.mime_type != "image/jpeg")
+            })
+            || self
+                .reference_intent_id
+                .as_ref()
+                .is_some_and(|id| !valid_id(id))
+            || uuid::Uuid::parse_str(&self.idempotency_key).is_err()
+            || self.request_hash != self.request.hash()
+            || (self.phase == Phase::Submitted) != self.task_ref.is_some()
+            || self
+                .submission_scope
+                .as_ref()
+                .is_some_and(|scope| !scope.valid() || self.phase == Phase::Prepared)
+            || self.task_ref.as_ref().is_some_and(|task| {
+                !valid_id(&task.task_id)
+                    || task.idempotency_key != self.idempotency_key
+                    || task.request_hash != self.request_hash
+            })
+            || self.asset.as_ref().is_some_and(|asset| {
+                !asset.valid() || self.task_ref.as_ref() != Some(&asset.task_ref)
+            })
+            || (self.selected && self.asset.is_none())
+        {
+            return Err(invalid("Invalid stored scene image intent"));
+        }
+        Ok(())
+    }
+
+    fn view(&self, current: Option<&str>) -> Value {
+        json!({"intent":self,"current":current == Some(self.plan_sha256.as_str())})
+    }
+}
+
+mod references;
+pub(super) use references::canvas_reference;
+use references::{selected_reference, verify_decomposition_selection, verify_reference};
+
+fn current_plan(state: &AppState, root: &str, scope: &Scope) -> Option<String> {
+    let task = state.db.kv_get(TASK_NAMESPACE, &scope.session_id).ok()??;
+    if task["taskType"] != "scene"
+        || task.get("generatedPath").is_some()
+        || task.get("canonicalProjectId").is_some()
+    {
+        return None;
+    }
+    let approval = scene_plan::approval(state, root, &scope.session_id).ok()??;
+    let sha256 = approval["sha256"].as_str()?;
+    scene_plan::read_plan(root, &scope.session_id, sha256).ok()?;
+    Some(sha256.to_owned())
+}
+
+#[derive(Clone, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(super) struct GenerationProof {
+    plan_sha256: String,
+    principal_key: String,
+    selected_intent_ids: Vec<String>,
+}
+
+/// Recheck the exact reviewed inputs under the same Host lock as project initialization/attachment.
+pub(super) fn verify_generation(
+    state: &AppState,
+    root: &str,
+    session_id: &str,
+    proof: &GenerationProof,
+) -> Result<scene_plan::Plan, JsonRpcError> {
+    let scope = Scope {
+        session_id: session_id.into(),
+        principal_key: proof.principal_key.clone(),
+    };
+    let key = storage_key(root, &scope)?;
+    if !valid_hash(&proof.plan_sha256)
+        || current_plan(state, root, &scope).as_deref() != Some(&proof.plan_sha256)
+        || proof.selected_intent_ids.len() > MAX_INTENTS
+    {
+        return Err(conflict("Reviewed scene generation inputs changed"));
+    }
+    let plan = scene_plan::read_plan(root, session_id, &proof.plan_sha256)?;
+    let intents = load(state, &key)?;
+    let selected: Vec<_> = intents
+        .iter()
+        .filter(|i| i.selected && i.plan_sha256 == proof.plan_sha256)
+        .collect();
+    let expected: std::collections::HashSet<_> = proof.selected_intent_ids.iter().collect();
+    let actual: std::collections::HashSet<_> = selected.iter().map(|i| &i.intent_id).collect();
+    if expected.len() != proof.selected_intent_ids.len() || expected != actual {
+        return Err(conflict("Reviewed scene asset selection changed"));
+    }
+    let pages: std::collections::HashSet<_> = plan
+        .pages
+        .iter()
+        .enumerate()
+        .filter(|(_, page)| {
+            page.quiz.is_none()
+                && !page
+                    .teaching
+                    .as_ref()
+                    .is_some_and(|teaching| teaching.question.is_some())
+        })
+        .map(|(index, _)| format!("scene-{:03}", index + 1))
+        .collect();
+    for page_id in &pages {
+        let assets: Vec<_> = selected.iter().filter(|i| &i.page_id == page_id).collect();
+        let master = assets
+            .iter()
+            .find(|i| matches!(i.target, Target::VisualMaster {}));
+        let clean = assets
+            .iter()
+            .find(|i| matches!(i.target, Target::CleanPlate {}));
+        if master.is_none()
+            || clean.is_none()
+            || !assets
+                .iter()
+                .any(|i| matches!(i.target, Target::Layer { .. }))
+            || master.and_then(|i| i.asset.as_ref()).map(|a| &a.sha256)
+                == clean.and_then(|i| i.asset.as_ref()).map(|a| &a.sha256)
+        {
+            return Err(conflict("Each scene page needs separate reviewed reference, background and foreground assets"));
+        }
+        verify_reference(&intents, master.unwrap())?;
+        verify_decomposition_selection(&intents, clean.unwrap())?;
+    }
+    for intent in selected {
+        if !pages.contains(&intent.page_id) {
+            return Err(invalid("Selected scene asset has an unknown page"));
+        }
+        let asset = intent
+            .asset
+            .as_ref()
+            .ok_or_else(|| invalid("Selected scene asset is not archived"))?;
+        let (_, length) =
+            crate::courseware::snapshot_assets::verify(&state.data_dir, &asset.sha256)
+                .map_err(error)?;
+        if length != asset.byte_length as u64 {
+            return Err(conflict("Selected scene asset length changed"));
+        }
+    }
+    Ok(plan)
+}
+
+fn storage_key(root: &str, scope: &Scope) -> Result<String, JsonRpcError> {
+    if !valid_hash(&scope.principal_key)
+        || scope.session_id.is_empty()
+        || scope.session_id.len() > 128
+        || !scope
+            .session_id
+            .bytes()
+            .all(|c| c.is_ascii_alphanumeric() || b"_-".contains(&c))
+    {
+        return Err(invalid("Invalid scene image scope"));
+    }
+    let root = std::fs::canonicalize(root).map_err(|e| error(e.into()))?;
+    serde_json::to_string(&(root, &scope.session_id, &scope.principal_key))
+        .map_err(|e| error(e.into()))
+}
+
+fn load(state: &AppState, key: &str) -> Result<Vec<Intent>, JsonRpcError> {
+    let Some(value) = state.db.kv_get(NAMESPACE, key).map_err(error)? else {
+        return Ok(Vec::new());
+    };
+    let intents: Vec<Intent> =
+        serde_json::from_value(value).map_err(|_| invalid("Invalid scene image journal"))?;
+    if intents.len() > MAX_INTENTS {
+        return Err(invalid("Scene image journal exceeds limits"));
+    }
+    let mut ids = std::collections::HashSet::new();
+    let mut selected = std::collections::HashSet::new();
+    for intent in &intents {
+        intent.validate()?;
+        if !ids.insert(&intent.intent_id) {
+            return Err(invalid("Duplicate scene image intent"));
+        }
+        if intent.selected
+            && !selected.insert((&intent.plan_sha256, &intent.page_id, &intent.target))
+        {
+            return Err(invalid("Duplicate selected scene image"));
+        }
+    }
+    Ok(intents)
+}
+
+fn save(state: &AppState, key: &str, intents: &[Intent]) -> Result<(), JsonRpcError> {
+    let value = serde_json::to_value(intents).map_err(|e| error(e.into()))?;
+    state.db.kv_set(NAMESPACE, key, &value).map_err(error)?;
+    if state.db.kv_get(NAMESPACE, key).map_err(error)?.as_ref() != Some(&value) {
+        return Err(conflict("Scene image intent was not stored"));
+    }
+    // The paid request must follow the same checked WAL barrier as TTS.
+    state.db.source_adoption_barrier().map_err(error)
+}
+
+pub(super) async fn handle(
+    state: Arc<Mutex<AppState>>,
+    method: &str,
+    params: Value,
+) -> Result<Value, JsonRpcError> {
+    if matches!(
+        method,
+        "courseware.sceneImage.asset.stage"
+            | "courseware.sceneImage.bundle.stage"
+            | "courseware.sceneImage.asset.get"
+            | "courseware.sceneImage.reference.get"
+            | "courseware.sceneImage.asset.adopt"
+    ) {
+        return assets::handle(state, method, params).await;
+    }
+    let decode = |e: serde_json::Error| rpc_err(1002, e.to_string(), "INVALID_PARAMS");
+    let rebind = if method == "courseware.sceneImage.rebindModel" {
+        Some(serde_json::from_value::<RebindModel>(params.clone()).map_err(decode)?)
+    } else {
+        None
+    };
+    let (scope, prepare, operation, binding, rejection) = match method {
+        "courseware.sceneImage.rebindModel" => {
+            let p = rebind
+                .as_ref()
+                .ok_or_else(|| invalid("Invalid model rebind"))?;
+            (
+                Scope {
+                    session_id: p.session_id.clone(),
+                    principal_key: p.principal_key.clone(),
+                },
+                None,
+                Some(p.intent_id.clone()),
+                None,
+                None,
+            )
+        }
+        "courseware.sceneImage.prepare" => {
+            let p: Prepare = serde_json::from_value(params).map_err(decode)?;
+            (
+                Scope {
+                    session_id: p.session_id.clone(),
+                    principal_key: p.principal_key.clone(),
+                },
+                Some(p),
+                None,
+                None,
+                None,
+            )
+        }
+        "courseware.sceneImage.list" => (
+            serde_json::from_value::<Scope>(params).map_err(decode)?,
+            None,
+            None,
+            None,
+            None,
+        ),
+        "courseware.sceneImage.get"
+        | "courseware.sceneImage.begin"
+        | "courseware.sceneImage.retry" => {
+            let p: Operation = serde_json::from_value(params).map_err(decode)?;
+            (
+                Scope {
+                    session_id: p.session_id,
+                    principal_key: p.principal_key,
+                },
+                None,
+                Some(p.intent_id),
+                None,
+                None,
+            )
+        }
+        "courseware.sceneImage.bind" => {
+            let p: Bind = serde_json::from_value(params).map_err(decode)?;
+            (
+                Scope {
+                    session_id: p.session_id,
+                    principal_key: p.principal_key,
+                },
+                None,
+                Some(p.intent_id),
+                Some(p.task_ref),
+                None,
+            )
+        }
+        "courseware.sceneImage.reject" => {
+            let p: Reject = serde_json::from_value(params).map_err(decode)?;
+            (
+                Scope {
+                    session_id: p.session_id,
+                    principal_key: p.principal_key,
+                },
+                None,
+                Some(p.intent_id),
+                None,
+                Some(p.rejected_request),
+            )
+        }
+        _ => return Err(rpc_err(-32601, "Method not found", "METHOD_NOT_FOUND")),
+    };
+    let state = state.lock().await;
+    let root = project_workspace(&state, &scope.session_id)?;
+    let key = storage_key(&root, &scope)?;
+    let mut intents = load(&state, &key)?;
+    let current = current_plan(&state, &root, &scope);
+    if let Some(mut p) = prepare {
+        if !valid_hash(&p.plan_sha256)
+            || !valid_id(&p.model)
+            || current.as_deref() != Some(&p.plan_sha256)
+        {
+            return Err(conflict("Review and confirm the current scene plan first"));
+        }
+        let plan = scene_plan::read_plan(&root, &scope.session_id, &p.plan_sha256)?;
+        let page = p
+            .page_id
+            .strip_prefix("scene-")
+            .and_then(|v| v.parse::<usize>().ok())
+            .filter(|n| p.page_id == format!("scene-{n:03}") && *n > 0)
+            .and_then(|n| plan.pages.get(n - 1))
+            .ok_or_else(|| invalid("Invalid scene image page"))?;
+        if page.quiz.is_some()
+            || page
+                .teaching
+                .as_ref()
+                .is_some_and(|teaching| teaching.question.is_some())
+        {
+            return Err(invalid(
+                "Quiz and checkpoint pages use native templates, not generated slide images",
+            ));
+        }
+        let first_visual_page = plan
+            .pages
+            .iter()
+            .position(|page| {
+                page.quiz.is_none()
+                    && !page
+                        .teaching
+                        .as_ref()
+                        .is_some_and(|teaching| teaching.question.is_some())
+            })
+            .map(|index| format!("scene-{:03}", index + 1))
+            .ok_or_else(|| invalid("This plan has no visual teaching pages"))?;
+        if !p.target.valid()
+            || (p.planning_required && !matches!(p.target, Target::VisualMaster {}))
+            || (p.decomposition
+                && (!matches!(p.target, Target::CleanPlate {}) || p.reference_intent_id.is_none()))
+            || p.instructions.encode_utf16().count() > 1200
+            || p.instructions
+                .chars()
+                .any(|c| c.is_control() && c != '\n' && c != '\r' && c != '\t')
+        {
+            return Err(invalid("Invalid scene image target or instructions"));
+        }
+        if matches!(p.target, Target::VisualMaster {}) {
+            if p.page_id == first_visual_page {
+                if p.reference_intent_id.is_some() {
+                    return Err(invalid("The representative page cannot reference itself"));
+                }
+            } else {
+                let style = intents
+                    .iter()
+                    .find(|i| {
+                        i.plan_sha256 == p.plan_sha256
+                            && i.page_id == first_visual_page
+                            && i.selected
+                            && i.asset.is_some()
+                            && matches!(i.target, Target::VisualMaster {})
+                    })
+                    .ok_or_else(|| conflict("Select the representative page style first"))?;
+                if p.reference_intent_id
+                    .as_ref()
+                    .is_some_and(|id| id != &style.intent_id)
+                {
+                    return Err(conflict("Selected course style reference changed"));
+                }
+                p.reference_intent_id = Some(style.intent_id.clone());
+            }
+        }
+        let prompt = prompts::build(
+            &plan,
+            page,
+            &p.target,
+            p.decomposition,
+            p.reference_intent_id.is_some(),
+            &p.instructions,
+        );
+        if prompt.encode_utf16().count() > 4000 {
+            return Err(invalid("Scene image prompt exceeds 4000 UTF-16 units; shorten the visual intent, visual bible or additional instructions"));
+        }
+        let mut request = ImageRequest {
+            kind: if p.decomposition {
+                "image-layers"
+            } else {
+                "image"
+            }
+            .into(),
+            model: p.model,
+            input: prompt,
+            parameters: Some(ImageRequest::default_parameters(p.decomposition)),
+            reference_image: if let Some(id) = &p.reference_intent_id {
+                let reference_page = if matches!(p.target, Target::VisualMaster {}) {
+                    &first_visual_page
+                } else {
+                    &p.page_id
+                };
+                let asset = selected_reference(&intents, &p.plan_sha256, reference_page, id)?;
+                Some(ReferenceImage {
+                    sha256: asset.sha256.clone(),
+                    mime_type: asset.mime_type.clone(),
+                    byte_length: asset.byte_length,
+                })
+            } else {
+                None
+            },
+        };
+        let source_reference_image = if let Some(encoded) = &p.reference_input {
+            let source = request
+                .reference_image
+                .as_ref()
+                .ok_or_else(|| invalid("Reference required"))?;
+            if !p.decomposition
+                || source.sha256 != encoded.source_sha256
+                || encoded.bytes_base64.len() > (8usize * 1024 * 1024).div_ceil(3) * 4
+            {
+                return Err(invalid("Invalid normalized reference source"));
+            }
+            let codec = base64::engine::general_purpose::STANDARD;
+            let bytes = codec
+                .decode(&encoded.bytes_base64)
+                .map_err(|_| invalid("Invalid normalized reference"))?;
+            if bytes.len() < 5
+                || bytes.len() > 8 * 1024 * 1024
+                || !bytes.starts_with(b"\xff\xd8\xff")
+                || !bytes.ends_with(b"\xff\xd9")
+                || codec.encode(&bytes) != encoded.bytes_base64
+            {
+                return Err(invalid("Invalid normalized reference JPEG"));
+            }
+            let source = source.clone();
+            let wire = ReferenceImage {
+                sha256: hex::encode(Sha256::digest(&bytes)),
+                mime_type: "image/jpeg".into(),
+                byte_length: bytes.len(),
+            };
+            crate::courseware::snapshot_assets::archive_bytes(
+                &state.data_dir,
+                &wire.sha256,
+                &bytes,
+            )
+            .map_err(error)?;
+            request.reference_image = Some(wire);
+            Some(source)
+        } else {
+            None
+        };
+        let request_hash = request.hash();
+        if let Some(index) = intents.iter().rposition(|i| {
+            i.phase != Phase::Rejected
+                && i.plan_sha256 == p.plan_sha256
+                && i.page_id == p.page_id
+                && i.target == p.target
+                && {
+                    let mut source = i.request.clone();
+                    if let Some(prompt) = &i.source_prompt {
+                        source.input = prompt.clone();
+                    }
+                    source.hash() == request_hash
+                }
+                && i.reference_intent_id == p.reference_intent_id
+        }) {
+            if p.planning_required
+                && !intents[index].planning_required
+                && intents[index].phase == Phase::Prepared
+            {
+                intents[index].planning_required = true;
+                intents[index].planning_instructions = p.instructions.clone();
+                save(&state, &key, &intents)?;
+            }
+            if let Some(planned) = p.planned_prompt {
+                if !matches!(p.target, Target::VisualMaster {})
+                    || planned.source_request_hash != request_hash
+                {
+                    return Err(invalid("Visual-master plan source changed"));
+                }
+                let existing = &mut intents[index];
+                if existing.source_prompt.is_none() {
+                    if existing.phase != Phase::Prepared || existing.submission_scope.is_some() {
+                        return Err(conflict("Submitted image prompts are immutable"));
+                    }
+                    if planned.input.trim().is_empty()
+                        || planned.input.encode_utf16().count() > 4000
+                        || planned
+                            .input
+                            .chars()
+                            .any(|c| c.is_control() && c != '\n' && c != '\r' && c != '\t')
+                        || page
+                            .visible_text
+                            .iter()
+                            .any(|text| !planned.input.contains(text))
+                    {
+                        return Err(invalid(
+                            "Invalid planned visual-master prompt or display text",
+                        ));
+                    }
+                    existing.source_prompt = Some(existing.request.input.clone());
+                    existing.request.input = planned.input;
+                    existing.request_hash = existing.request.hash();
+                    existing.idempotency_key = uuid::Uuid::new_v4().to_string();
+                    existing.validate()?;
+                    save(&state, &key, &intents)?;
+                }
+            }
+            return Ok(intents[index].view(current.as_deref()));
+        }
+        if p.planned_prompt.is_some() {
+            return Err(conflict(
+                "Prepare the visual-master source before planning it",
+            ));
+        }
+        if intents.len() >= MAX_INTENTS {
+            return Err(conflict("Scene image journal is full"));
+        }
+        let intent = Intent {
+            intent_id: uuid::Uuid::new_v4().to_string(),
+            plan_sha256: p.plan_sha256,
+            page_id: p.page_id,
+            target: p.target,
+            request_hash: request.hash(),
+            source_prompt: None,
+            planning_required: p.planning_required,
+            planning_instructions: if p.planning_required {
+                p.instructions
+            } else {
+                String::new()
+            },
+            request,
+            idempotency_key: uuid::Uuid::new_v4().to_string(),
+            phase: Phase::Prepared,
+            task_ref: None,
+            submission_scope: None,
+            asset: None,
+            selected: false,
+            reference_intent_id: p.reference_intent_id,
+            source_reference_image,
+        };
+        intent.validate()?;
+        let result = intent.view(current.as_deref());
+        intents.push(intent);
+        save(&state, &key, &intents)?;
+        return Ok(result);
+    }
+    let Some(intent_id) = operation else {
+        return Ok(
+            json!({"intents":intents.iter().map(|i| i.view(current.as_deref())).collect::<Vec<_>>()}),
+        );
+    };
+    if !valid_id(&intent_id) {
+        return Err(invalid("Invalid scene image intent id"));
+    }
+    let index = intents
+        .iter()
+        .position(|i| i.intent_id == intent_id)
+        .ok_or_else(|| rpc_err(1007, "Scene image intent not found", "COURSEWARE_NOT_FOUND"))?;
+    if method == "courseware.sceneImage.retry" {
+        let original = &intents[index];
+        if current.as_deref() != Some(&original.plan_sha256)
+            || original.phase != Phase::Submitted
+            || original.task_ref.is_none()
+            || original.asset.is_some()
+            || original.selected
+        {
+            return Err(conflict(
+                "Only a current submitted request without an adopted asset can have a new attempt",
+            ));
+        }
+        verify_reference(&intents, original)?;
+        let retry_id = format!(
+            "retry-{}",
+            hex::encode(Sha256::digest(original.intent_id.as_bytes()))
+        );
+        if let Some(existing) = intents.iter().find(|i| i.intent_id == retry_id) {
+            return Ok(existing.view(current.as_deref()));
+        }
+        if intents.len() >= MAX_INTENTS {
+            return Err(conflict("Scene image journal is full"));
+        }
+        let mut retry = original.clone();
+        retry.intent_id = retry_id;
+        if retry.request.kind == "image-layers" {
+            retry.request.input = prompts::LAYER_PROMPT.to_owned();
+            retry.request_hash = retry.request.hash();
+        }
+        retry.idempotency_key = uuid::Uuid::new_v4().to_string();
+        retry.phase = Phase::Prepared;
+        retry.task_ref = None;
+        retry.submission_scope = None;
+        retry.validate()?;
+        let result = retry.view(current.as_deref());
+        intents.push(retry);
+        save(&state, &key, &intents)?;
+        return Ok(result);
+    }
+    if method == "courseware.sceneImage.begin" || rebind.is_some() {
+        verify_reference(&intents, &intents[index])?;
+    }
+    let intent = &mut intents[index];
+    if method == "courseware.sceneImage.begin"
+        && intent.planning_required
+        && intent.source_prompt.is_none()
+    {
+        return Err(conflict(
+            "Finish visual-master planning before image submission",
+        ));
+    }
+    if let Some(p) = rebind {
+        if !valid_id(&p.model)
+            || !valid_hash(&p.expected_request_hash)
+            || current.as_deref() != Some(&intent.plan_sha256)
+            || intent.phase != Phase::Prepared
+            || intent.task_ref.is_some()
+            || intent.submission_scope.is_some()
+            || intent.asset.is_some()
+            || intent.selected
+            || intent.request_hash != p.expected_request_hash
+        {
+            return Err(conflict(
+                "Only the unchanged current unsubmitted request may change model",
+            ));
+        }
+        if intent.request.model != p.model {
+            intent.request.model = p.model;
+            intent.request_hash = intent.request.hash();
+            intent.idempotency_key = uuid::Uuid::new_v4().to_string();
+        }
+        intent.validate()?;
+    } else if method == "courseware.sceneImage.begin" {
+        if current.as_deref() != Some(&intent.plan_sha256) || intent.phase != Phase::Prepared {
+            return Err(conflict(
+                "Scene image intent is stale or already begun; query its retained task",
+            ));
+        }
+        intent.submission_scope = Some(
+            state
+                .db
+                .courseware_media_submission_scope(&scope.session_id)
+                .map_err(error)?,
+        );
+        intent.phase = Phase::SubmissionUnknown;
+    } else if let Some(rejected) = rejection {
+        if intent.phase != Phase::SubmissionUnknown
+            || intent.task_ref.is_some()
+            || intent.idempotency_key != rejected.idempotency_key
+            || intent.request_hash != rejected.request_hash
+            || !intent
+                .submission_scope
+                .as_ref()
+                .is_some_and(|scope| scope.team_project_id.is_some())
+        {
+            return Err(conflict("No matching unbound team submission"));
+        }
+        intent.phase = Phase::Rejected;
+        intent.validate()?;
+    } else if let Some(task) = binding {
+        if !matches!(intent.phase, Phase::SubmissionUnknown | Phase::Submitted)
+            || intent.task_ref.as_ref().is_some_and(|old| old != &task)
+        {
+            return Err(conflict(
+                "Scene image receipt cannot replace the retained request",
+            ));
+        }
+        if intent.task_ref.as_ref() == Some(&task) {
+            return Ok(intent.view(current.as_deref()));
+        }
+        intent.task_ref = Some(task);
+        intent.phase = Phase::Submitted;
+        intent.validate()?;
+    }
+    let result = intent.view(current.as_deref());
+    if method != "courseware.sceneImage.get" {
+        save(&state, &key, &intents)?;
+    }
+    Ok(result)
+}
+
+#[cfg(test)]
+mod tests;

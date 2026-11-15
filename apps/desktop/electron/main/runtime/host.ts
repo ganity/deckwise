@@ -1,4 +1,5 @@
-import { ErrorCodes, IPC, type AgentEventEnvelope, type PlanExecutionFinishStatus, type Risk } from "@pi-desktop/shared";
+import { COURSEWARE_WORKFLOW_TOOLS, ErrorCodes, IPC, type AgentEventEnvelope, type PlanExecutionFinishStatus, type Risk } from "@pi-desktop/shared";
+import { PptEditorNotReadyError } from "../ppt-editor-handshake";
 import { assertLinuxGlibcSupported } from "../linux-glibc";
 import { HostProcess } from "../host-process";
 import type { Logger } from "../logger";
@@ -18,6 +19,7 @@ export type HostRuntimeDependencies = {
   sessionProjects: Map<string, string | null>;
   plugins: PluginRuntime;
   userMcp: UserMcpRuntime;
+  executePptEditorTool: (sessionId: string, toolName: string, args: unknown, canDispatch: () => boolean) => Promise<unknown>;
   pluginActiveInProject: (pluginId: string, projectPath: string | null | undefined) => boolean;
   sendToRenderer: (channel: string, payload: unknown) => void;
   emitAgentEvent: (envelope: AgentEventEnvelope) => void;
@@ -53,6 +55,7 @@ export function createHostRuntime({
   sessionProjects,
   plugins,
   userMcp,
+  executePptEditorTool,
   pluginActiveInProject,
   sendToRenderer,
   emitAgentEvent,
@@ -71,6 +74,7 @@ export function createHostRuntime({
   startHost: () => Promise<void>;
 } {
   const wireHost = (h: HostProcess) => {
+  const pptExecutions = new Map<string, { cancelled: boolean }>();
 
   h.onNotification((method, params) => {
     // Notifications from a previous host generation must never reach the
@@ -79,6 +83,11 @@ export function createHostRuntime({
     // An install reports itself, so the dialog that shows it can follow the
     // phases, the mirror being tried and the bytes that have arrived. Nothing
     // here decides anything: the request's own answer is still the outcome.
+    if (method === "ppt.cancelExecution") {
+      const execution = pptExecutions.get(String((params as { executionId?: unknown })?.executionId ?? ""));
+      if (execution) execution.cancelled = true;
+      return;
+    }
     if (method === "plugin.installProgress") {
       sendToRenderer(IPC.event.pluginInstallProgress, params);
       return;
@@ -158,7 +167,22 @@ export function createHostRuntime({
           : null;
         const tool = plugins.getTools().find((t) => t.fullName === q.toolName);
         let payload: Record<string, unknown>;
-        if (q.toolName.startsWith("mcp_")) {
+        if ([...COURSEWARE_WORKFLOW_TOOLS, "courseware_canvas_get", "courseware_canvas_edit", "ppt_get_context", "ppt_get_presentation_text", "ppt_replace_selection", "ppt_add_slide_text", "ppt_replace_slide_image_from_asset", "ppt_set_slide_text_bold", "ppt_set_slide_text_italic", "ppt_set_slide_text_box_size", "ppt_set_slide_image_size", "ppt_set_slide_image_position", "ppt_add_slide_object_animation", "ppt_insert_slide_image_from_asset", "ppt_set_slide_fade", "ppt_set_slide_font_family", "ppt_set_slide_font_size", "ppt_set_slide_text_color", "ppt_set_slide_text_box_position", "ppt_get_narration_context", "ppt_propose_page_narration", "ppt_propose_page_fade", "ppt_propose_page_redo", "ppt_propose_page_style_batch"].includes(q.toolName)) {
+          const execution = { cancelled: false };
+          pptExecutions.set(q.executionId, execution);
+          try {
+            if (q.mode !== "agent") throw new Error("Courseware editing tools require Agent mode");
+            const content = await executePptEditorTool(q.sessionId ?? "", q.toolName, q.args,
+              () => !execution.cancelled && runtimeState.host === h && isTurnDispatchable(q.sessionId ?? "", q.turnId));
+            payload = { executionId: q.executionId, ok: true, content };
+          } catch (error) {
+            payload = { executionId: q.executionId, ok: false, errorCode: error instanceof PptEditorNotReadyError ? error.code :
+              q.toolName.startsWith("courseware_canvas_") ? "MEDIA_CANVAS_REJECTED" :
+              COURSEWARE_WORKFLOW_TOOLS.some(name => name === q.toolName) ? "COURSEWARE_WORKFLOW_REJECTED" : "PPT_EDITOR_REJECTED",
+              content: { error: error instanceof Error ? error.message : String(error),
+                ...(error instanceof PptEditorNotReadyError ? { phase: error.phase } : {}) } };
+          } finally { pptExecutions.delete(q.executionId); }
+        } else if (q.toolName.startsWith("mcp_")) {
           try {
             const result = await userMcp.callTool(q.toolName, q.args, projectPath);
             payload = { executionId: q.executionId, ok: true, content: result ?? null };

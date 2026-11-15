@@ -42,6 +42,9 @@ type AppError = {
 
 ## 3. 代码注册
 
+> **增量说明：** 新增规范暂保留英文原文，已有中文译文继续保留；以下表格与英文源规格同步。
+
+
 ### 3. 1 应用程序/协议
 
 | 代码 | 可重审的 | 意义 |
@@ -73,6 +76,14 @@ type AppError = {
 | `HOST_SHUTTING_DOWN` | 是的 | 主机收到 EOF 正在排空；调用被拒绝而不是被启动 |
 | `RATE_LIMITED` | 是的 | 某个按调用方计的主机预算（插件会话导入、批量操作）在其窗口内被超出 |
 | `LIMIT_EXCEEDED` | 不 | 载荷超过了固定的主机上限（条目数、字节数）并被拒绝 |
+| `CONFIG_SYNC_INVALID` | no | invalid sync configuration, password, path, request, or approval input |
+| `CONFIG_SYNC_LOCKED` | no | the local encrypted sync vault is not unlocked |
+| `CONFIG_SYNC_UNSUPPORTED` | no | the vault format or S3 conditional-write capability is unsupported |
+| `CONFIG_SYNC_REMOTE` | maybe | S3 object, authentication, quota, or availability failure |
+| `CONFIG_SYNC_CONFLICT` | maybe | remote head, vault identity, or approval digest conflict |
+| `CONFIG_SYNC_CRYPTO` | no | authenticated encryption, object identity, or ciphertext validation failed |
+| `CONFIG_SYNC_MAPPING_REQUIRED` | no | imported project-scoped configuration needs an explicit local folder/group mapping |
+| `CONFIG_SYNC_LIMIT_EXCEEDED` | no | encrypted sync state exceeded an entity, object, resource, archive, or decompression bound |
 
 `HOST_UNAVAILABLE` 是为丢失或损坏的主机 process/transport 保留的，
 不是普通的入学压力。 RPC 容量返回 `HOST_OVERLOADED`，并且
@@ -89,9 +100,12 @@ stdio 与 Tokio 的动态阻塞池隔离，因此后一种情况
 | `AGENT_NOT_FOUND` | 不 | 会话丢失 |
 | `TURN_NOT_FOUND` | 不 | 使 id 无效 |
 | `TURN_ABORTED` | 不 | 回合被 user/system 中止 |
+| `AGENT_SIDECAR_CRASHED` | no | the Node agent sidecar process died mid-turn; the owning turn settles as aborted with this code instead of an unrelated plan-approval code (issue #1077) |
+| `AGENT_SIDECAR_OOM` | no | the sidecar died after its JavaScript heap hit the configured cap, diagnosed from the V8 fatal-error banner in its stderr tail; the same turn fails the same way until the input shrinks (issue #1077) |
 | `MODEL_NOT_CONFIGURED` | 不 | 未选择可用模型，或提供商因未知而拒绝所选模型 |
 | `PROVIDER_ERROR` | 是的 | 上游提供商故障；可重试的故障（5xx 网关）最多获得四次同回合重试，格式错误的 400/422 请求是终止的 |
 | `PROVIDER_UNAUTHORIZED` | 不 | bad/missing 提供商凭证 |
+| `TEAM_LLM_PERMISSION_DENIED` | no | managed project request received HTTP 403 with the dedicated team-refusal marker; show project access guidance without API-key settings. Other 401/403 errors retain their existing meaning. |
 | `PROVIDER_RATE_LIMITED` | 是的 | 供应商费率有限 |
 | `CONTEXT_TOO_LARGE` | 不 | 恢复后 prompt/context 仍超出安全模型预算、发生第二个提供程序溢出或禁用自动恢复 |
 | `CONTEXT_COMPACTION_FAILED` | 不 | 自动保留尾部恢复无法准备、持久或适合检查点，或手动检查点摘要生成/持久追加失败；受保护的下一个提供程序请求不会启动 |
@@ -103,6 +117,9 @@ stdio 与 Tokio 的动态阻塞池隔离，因此后一种情况
 | `SPEECH_INPUT_TOO_LARGE` | 不 | 语音输入超过 25 MB |
 | `SUBAGENT_IDLE_TIMEOUT` | 不 | 已撤回（D328）：空闲看门狗不再武装；代码仅为已存储结果保留 |
 | `SUBAGENT_DURATION_TIMEOUT` | 不 | 已撤回（D328）：时长看门狗不再武装；代码仅为已存储结果保留 |
+| `SUBAGENT_CONTEXT_OVERFLOW` | no | a delegate's own model context exceeded its safe budget and neither automatic turn-boundary compaction nor the degraded retry that keeps only the task brief and the most recent messages brought it back below the limit; the failure names the actionable recovery instead of the provider's overflow text |
+| `SUBAGENT_OUTPUT_TRUNCATED` | no | a delegate's report ended at the model output-token limit; the partial report is preserved for diagnosis, but the run is failed rather than presented as a completed delegation |
+| `SUBAGENT_PARENT_FAILED` | no | parent failure interrupted a running delegate; its chain remains manually resumable with Task, subject to the existing history and read-budget gates |
 
 ### 3. 3 工作空间/工具/权限
 
@@ -117,6 +134,7 @@ stdio 与 Tokio 的动态阻塞池隔离，因此后一种情况
 | `TOOL_DENIED` | 不 | 权限被拒绝/模式被禁止 |
 | `TOOL_TIMEOUT` | 是的 | 工具执行超时 |
 | `TOOL_FAILED` | 也许 | 工具已执行但失败 |
+| `FILE_NOT_FOUND` | no | Read/Write/Edit target path does not exist (distinct from `TOOL_DENIED`) |
 | `TOOL_ABORTED` | 不 | 工具在完成前被用户停止或回合中止取消 |
 | `MUTATION_RETRY_BUDGET_EXHAUSTED` | 是 | 重复保护在同路径 `Edit` 或 shell patch 反复失败后终止了本轮；携带 `details.kind`（`edit` 或 `patch-command`）与最后一个工具错误代码 |
 | `PROCESS_RESOURCE_EXHAUSTED` | 是的 | shell 进程无法启动，因为操作系统暂时耗尽了进程资源 |
@@ -183,6 +201,7 @@ stdio 与 Tokio 的动态阻塞池隔离，因此后一种情况
 | 代码 | 可重试 | 含义 |
 |---|---|---|
 | `EDIT_TAG_REQUIRED` | 否 | `tag` 缺失或不是 4 位十六进制 |
+| `EDIT_LEGACY_MATCH_FAILED` | yes after a `Read` | legacy `old_string` was not found or matched multiple times; model must re-read or provide unique context |
 | `EDIT_TAG_MISMATCH` | `Read` 之后可以 | tag 无法哈希出实时文件且漂移恢复拒绝；携带实时 tag 与锚点处的当前内容 |
 | `EDIT_TAG_UNKNOWN` | `Read` 之后可以 | tag 格式正确，但本会话没有为该路径记录过对应内容 |
 | `EDIT_LINES_UNSEEN` | 是 | 锚点引用了会话从未显示过的行；携带被揭示的内容 |
@@ -211,6 +230,7 @@ reveal 不并入任何行，必须重新读取。
 |---|---|---|
 | `PROVIDER_SECRET_MISSING` | 不 | 启用的提供程序需要 API 密钥 |
 | `MODEL_ALIAS_TOO_LONG` | 不 | 已配置模型别名超过 60 个 Unicode 字符 |
+| `MODEL_BINDINGS_DEGRADED` | no | stored model bindings are unreadable; explicit model-array replacement is blocked to prevent data loss |
 | `SECRET_STORE_UNAVAILABLE` | 也许 | 操作系统安全存储不可用（保留） |
 | `SETTINGS_INVALID` | 不 | 设置有效负载无效（保留） |
 
@@ -269,6 +289,67 @@ reveal 不并入任何行，必须重新读取。
 带有一个标记，命名哪一端幸存以及其余部分在哪里，或者报告
 同级结果字段中的有界窗口
 （请参阅 [16-工具-结果-限制](/zh-CN/spec/03-runtime/16-tool-result-limits)）。
+
+> **增量说明：** 新增规范暂保留英文原文，已有中文译文继续保留；以下表格与英文源规格同步。
+
+### 3.8 Remote control (RACP-WS / SSH bootstrap)
+
+Emitted by the desktop's remote-host client and the `pi-host` server when a
+session lives on a paired remote machine driven over `RACP-WS`
+(see [19-remote-agent-control-protocol](19-remote-agent-control-protocol.md),
+[../05-security/02-remote-control-security](../05-security/02-remote-control-security.md),
+ADR 0285). The renderer never sees the local/remote split beyond a badge; these
+codes surface through the same error object as any other call.
+
+| code | retriable | meaning |
+|---|---|---|
+| `HOST_DISCONNECTED` | yes | the remote host connection dropped; in-flight calls are rejected and the client reconnects and resubscribes by cursor |
+| `HOST_BOOTSTRAP_FAILED` | no | provisioning the remote `pi-host` over SSH failed (download, checksum mismatch, or `install.sh`); `details.reason` names the stage |
+| `HOST_VERSION_MISMATCH` | no | the remote `pi-host` version does not match the desktop; the desktop refuses to drive an incompatible host |
+| `REMOTE_AUTH_FAILED` | no | the device or pairing token was rejected on the RACP-WS upgrade |
+| `REMOTE_CONNECTION_FAILED` | yes | the RACP-WS transport could not connect (non-loopback URL, refused socket) |
+| `REMOTE_FORWARD_FAILED` | yes | the SSH loopback port forward could not be established |
+| `REMOTE_PATH_NOT_FOUND` | no | a remote project/workspace path does not exist on the host |
+| `REMOTE_PATH_FORBIDDEN` | no | a remote path is outside the host's permitted roots |
+| `PAIRING_FAILED` | no | `connection/pair` could not mint a device credential |
+| `PAIRING_TOKEN_EXPIRED` | no | the single-use pairing token expired before pairing completed |
+| `CAPABILITY_UNAVAILABLE` | no | an operation was requested for a capability the host advertised as unavailable (e.g. attachments, tool relay) |
+
+### 3.9 Live Voice
+
+Live Voice errors are returned through app-owned IPC and provider adapter
+events. They do not represent Agent turn failures. A retriable error means the
+user may retry the same call after the stated transient condition clears; it
+does not trigger automatic provider or billing fallback.
+
+| code | retriable | meaning |
+|---|---|---|
+| `LIVE_DISABLED` | no | Live Voice is disabled in settings |
+| `LIVE_NOT_CONFIGURED` | no | no valid Live Voice binding is selected |
+| `LIVE_PROVIDER_NOT_FOUND` | no | the selected Provider is missing, disabled, or changed while resolving credentials |
+| `LIVE_AUTH_KIND_UNSUPPORTED` | no | the selected Provider credential type is incompatible with the adapter |
+| `LIVE_AUTH_REQUIRED` | no | required OAuth or API-key credentials are absent or rejected |
+| `LIVE_ACCOUNT_ID_MISSING` | no | Codex OAuth account identity is absent or inconsistent |
+| `LIVE_ACCESS_DENIED` | no | the provider denied access or entitlement |
+| `LIVE_RATE_LIMITED` | yes | the provider returned a rate-limit response |
+| `LIVE_PROTOCOL_UNSUPPORTED` | no | endpoint, model, or requested protocol profile is unsupported |
+| `LIVE_PROTOCOL_ERROR` | no | a provider or IPC message is malformed or violates the selected protocol |
+| `LIVE_ALREADY_ACTIVE` | no | another Live Voice call or microphone-release quarantine owns the single-call slot |
+| `LIVE_REQUEST_CONFLICT` | no | an idempotency request ID was reused with different call parameters |
+| `LIVE_SETTINGS_IN_USE` | no | settings changed during preparation or the active binding cannot be rewritten |
+| `LIVE_MEDIA_RELEASE_UNCONFIRMED` | no | renderer media release was not acknowledged; Main quarantines the microphone lease |
+| `LIVE_STALE_CALL` | no | the call, request, or capture epoch is no longer current |
+| `LIVE_INVALID_OWNER` | no | IPC or media-port ownership does not match the trusted main frame |
+| `LIVE_MICROPHONE_BUSY` | no | Dictation, another Live call, or an unconfirmed prior release owns the shared capture lease |
+| `LIVE_MICROPHONE_DENIED` | no | the user or operating system denied microphone permission |
+| `LIVE_MICROPHONE_UNAVAILABLE` | no | no usable microphone device is available |
+| `LIVE_MEDIA_UNSUPPORTED` | no | required browser media or AudioWorklet support is unavailable |
+| `LIVE_PLAYBACK_BLOCKED` | maybe | browser audio playback needs a user gesture or could not resume |
+| `LIVE_TIMEOUT` | yes | a bounded startup, handshake, heartbeat, control, or cleanup stage timed out |
+| `LIVE_NETWORK_ERROR` | yes | a transient provider transport connection failed |
+| `LIVE_NETWORK_POLICY_UNSUPPORTED` | no | the desktop proxy route cannot be represented safely by the Live transport |
+| `LIVE_AUDIO_BACKPRESSURE` | no | bounded PCM or playback credits were exhausted |
+| `LIVE_EXECUTION_NOT_CONNECTED` | no | a provider requested an unsupported function/delegation execution path |
 
 ## 4. 映射规则
 

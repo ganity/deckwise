@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { askToolOptionLabel, askToolOptionDescription } from "@pi-desktop/shared";
 import type { AskToolQuestion } from "@pi-desktop/shared";
 import type { PendingAsk } from "../lib/pending-asks";
 import { useAppStore } from "../stores/app-store";
@@ -162,7 +163,9 @@ export function AskToolCard({ request, queued = 0 }: { request: PendingAsk; queu
       </div>
       <h3 className="asktool-question">{current.question}</h3>
       <div className="asktool-options" role={current.multiSelect ? "group" : "radiogroup"}>
-        {current.options.map((option) => {
+        {current.options.map((entry) => {
+          const option = askToolOptionLabel(entry);
+          const description = askToolOptionDescription(entry);
           const selected = currentDraft.values.includes(option);
           return (
             <button
@@ -175,7 +178,7 @@ export function AskToolCard({ request, queued = 0 }: { request: PendingAsk; queu
               onClick={() => selectOption(option)}
             >
               <span className="asktool-option-mark" aria-hidden>{selected ? "✓" : ""}</span>
-              <span>{option}</span>
+              <span>{option}{description ? <small>{description}</small> : null}</span>
             </button>
           );
         })}

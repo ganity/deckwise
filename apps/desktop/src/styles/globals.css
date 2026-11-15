@@ -28,6 +28,8 @@
 @import "./destinations.css";
 @import "./projects.css";
 @import "./project-create-dialog.css";
+@import "./courseware-task-dialog.css";
+@import "./courseware-chat-workflow.css";
 @import "./sessions.css";
 @import "./work-panel.css";
 @import "./svg-editor.css";

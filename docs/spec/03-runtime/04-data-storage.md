@@ -1,4 +1,15 @@
-# 04. Data Storage (Schema v17)
+# 04. Data Storage (Schema v24)
+
+The courseware A branch supports the same SQLite schema v24 as the main
+checkout. Fresh databases use the v24 DDL; existing versions 18 through 23
+run the original ordered migrations with a backup before each step: thinking
+`omit` (19), queued user-message/voice provenance (20), session checklist (21),
+session ordering index (22), title provenance (23), and the worktree registry
+and nullable project setup command (24). Existing v24 databases open without
+rebuilding their tables. Newer unknown versions still refuse. Courseware
+records retain their existing Host-owned `kv` storage and are preserved.
+This storage compatibility does not enable main-only voice, checklist or
+isolated-worktree UI features in the courseware branch.
 
 ## 0. Ownership decision
 
@@ -1471,3 +1482,12 @@ the sidecar.
 The first slice has no projection cache or async scan bound; every list still
 reads/parses complete files. Caching by canonical path/file identity/size/mtime
 and bounded asynchronous scanning remain deferred performance work.
+
+
+### Tolerant transcript reads
+
+Transcript and revision readers skip malformed records, decode invalid UTF-8
+best effort, and preserve physical byte offsets for bounded reads. Torn tails
+are excluded without rewriting user data. Regression coverage lives in
+`crates/host-core/src/transcripts_layout_tests.rs` and
+`scripts/e2e-transcript-cache.mjs` (upstream `80dc767b0`).

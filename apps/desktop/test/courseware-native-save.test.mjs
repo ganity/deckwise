@@ -1,0 +1,199 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
+import { createHash } from "node:crypto";
+import test from "node:test";
+import ts from "typescript";
+import * as shared from "../../../packages/shared/dist/index.js";
+const require = createRequire(import.meta.url), cache = new Map();
+function load(file) {
+  if (cache.has(file)) return cache.get(file);
+  const module = { exports: {} }; cache.set(file, module.exports);
+  const output = ts.transpileModule(readFileSync(file, "utf8"), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
+  new Function("require", "exports", output)(id => id === "@pi-desktop/shared" ? shared : id.startsWith(".") ? load(join(dirname(file), id + ".ts")) : require(id), module.exports);
+  return module.exports;
+}
+const main = new URL("../electron/main/", import.meta.url).pathname;
+const { CoursewareNativeSave } = load(join(main, "courseware-native-save.ts"));
+const { jobIdFor } = load(join(main, "ppt-editor-files.ts"));
+function setup() {
+  const workspace = "/tmp/native-save", sourcePath = workspace + "/lesson.pptx", calls = [];
+  const input = { workspace, sourcePath, sourceRevisionPath: "old.pptx", sourceSha256: "a".repeat(64), outputPath: "new.pptx", outputSha256: "b".repeat(64),
+    saveRequestId: "save-1", binding: { projectId: createHash("sha256").update(workspace).digest("hex"), documentId: jobIdFor(workspace, sourcePath), sessionId: "editor-session" } };
+  input.lineage = { ...input.binding, protocol: "deckwise-office-page-lineage/1", saveRequestId: input.saveRequestId,
+    sourceSha256: input.sourceSha256, outputSha256: input.outputSha256 };
+  let path, status = "committed";
+  const receipt = { saveId: "receipt", sourcePath, sourceSha256: input.sourceSha256, outputSha256: input.outputSha256, status: "pending" };
+  const host = { async call(method, params) {
+    calls.push({ method, params });
+    if (method === "courseware.parseStart") { path = params.path; return { jobId: path }; }
+    if (method === "courseware.parseStatus") return { status: "SUCCEEDED", summary: { sourceSha256: path === "old.pptx" ? input.sourceSha256 : input.outputSha256 } };
+    if (method === "courseware.nativeSave.prepare") return receipt;
+    if (method === "courseware.nativeSave.resolve") return { ...receipt, status };
+    if (method === "courseware.nativeSave.forPath") return { save: receipt };
+    return {};
+  } };
+  const service = new CoursewareNativeSave(() => host, () => "chat-session", async () => workspace, () => {}, async operation => operation());
+  return { input, service, calls, setStatus: value => { status = value; }, host };
+}
+
+test("native save parses and releases the old source before the new source, then resolves the durable receipt", async () => {
+  const f = setup(); const pending = await f.service.prepare(f.input);
+  assert.deepEqual(f.calls.map(c => c.method), ["courseware.parseStart", "courseware.parseStatus", "courseware.project.attach", "courseware.project.openSaved", "courseware.parseRelease",
+    "courseware.parseStart", "courseware.parseStatus", "courseware.nativeSave.prepare", "courseware.parseRelease"]);
+  await pending.commit();
+  assert.equal(f.calls.at(-1).method, "courseware.nativeSave.resolve");
+});
+test("native save rejects foreign export receipts before parser or authority writes", async () => {
+  for (const change of [{ outputSha256: "c".repeat(64) }, { documentId: "foreign" }, { saveRequestId: "old-save" }]) {
+    const f = setup(); Object.assign(f.input.lineage, change);
+    await assert.rejects(f.service.prepare(f.input), /identity is unavailable/);
+    assert.equal(f.calls.length, 0);
+  }
+});
+test("native save releases failed parsing and never prepares a live-file replacement", async () => {
+  const f = setup(), original = f.host.call;
+  f.host.call = async (method, params) => method === "courseware.parseStatus" ? { status: "FAILED", message: "invalid exported file" } : original(method, params);
+  await assert.rejects(f.service.prepare(f.input), /invalid exported file/);
+  assert.equal(f.calls.at(-1).method, "courseware.parseRelease");
+  assert.equal(f.calls.some(c => c.method === "courseware.nativeSave.prepare"), false);
+});
+test("reopening resolves a durable save before opening or parsing the document", async () => {
+  const f = setup(); await f.service.recover(f.input.workspace, f.input.sourcePath, "chat-session");
+  assert.deepEqual(f.calls.map(c => c.method), ["courseware.nativeSave.forPath", "courseware.nativeSave.resolve"]);
+});
+
+test("real SDK files retain narration and object UUIDs across two real Host saves and reopen", {
+  skip: !process.env.DECKWISE_NATIVE_SAVE_FIXTURE, timeout: 120_000,
+}, async t => {
+  const { promises: fs } = await import("node:fs"), { tmpdir } = await import("node:os");
+  const { Host, resolveHostBinary } = await import("../../../scripts/e2e/host.mjs");
+  const root = await fs.mkdtemp(join(tmpdir(), "native-save-host-"));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const workspace = join(root, "workspace"), data = join(root, "profile");
+  await fs.mkdir(workspace); await fs.mkdir(join(data, "plugins/market"), { recursive: true });
+  await fs.writeFile(join(data, "plugins/market/catalog.json"), JSON.stringify({ schemaVersion: 2, providerId: "official", plugins: [] }));
+  const host = new Host(resolveHostBinary(), data);
+  const fixture = process.env.DECKWISE_NATIVE_SAVE_FIXTURE;
+  const receipts = JSON.parse(await fs.readFile(join(fixture, "lineage.json"), "utf8"));
+  const { publishRevision, replaceSourceFile } = load(join(main, "ppt-editor-files.ts"));
+  const sourcePath = join(workspace, "lesson.pptx"), documentId = jobIdFor(workspace, sourcePath), archive = join(workspace, ".deckwise-ppt/revisions");
+  const original = await fs.readFile(join(fixture, "original.pptx"));
+  await fs.writeFile(sourcePath, original);
+  let previous = await publishRevision({ root: archive, jobId: documentId, bytes: original, extension: "pptx", cause: "generated", expectedRevision: 0 });
+  const binding = { projectId: createHash("sha256").update(workspace).digest("hex"), documentId, sessionId: "sdk-session" };
+  try {
+    await host.start();
+    const { session } = await host.call("session.create", { title: "Native save", mode: "agent", projectPath: workspace });
+    const service = new CoursewareNativeSave(() => host, () => session.id, async () => workspace, () => {}, async operation => operation());
+    let firstContext, ttsScope, paidIntent, workflowTurn, workflowCheckpoint;
+    for (const [index, name] of ["first.pptx", "second.pptx"].entries()) {
+      const bytes = await fs.readFile(join(fixture, name));
+      const next = await publishRevision({ root: archive, jobId: documentId, bytes, extension: "pptx", cause: "edited", expectedRevision: previous.revision });
+      const lineage = { ...receipts[index], ...binding }; delete lineage.bytes;
+      const pending = await service.prepare({ workspace, sourcePath, sourceRevisionPath: previous.documentPath, sourceSha256: previous.sha256,
+        outputPath: next.documentPath, outputSha256: next.sha256, saveRequestId: lineage.saveRequestId, binding, lineage });
+      await replaceSourceFile(sourcePath, bytes, "pptx", previous.sha256);
+      await pending.commit();
+      let context = await host.call("courseware.project.context", { sessionId: session.id, projectId: "office-" + documentId });
+      if (!firstContext) {
+        const project = context.project;
+        await host.call("courseware.teaching.write", { sessionId: session.id, write: { projectId: project.projectId, pageId: project.pages[0].pageId,
+          expectedSourceRevision: project.source.revision, expectedTeachingRevision: project.teachingRevision,
+          actions: [{ id: "narration", type: "speech", text: "Keep my narration across native PPT saves." }] } });
+        firstContext = await host.call("courseware.project.context", { sessionId: session.id, projectId: project.projectId });
+        workflowTurn = (await host.call("session.beginTurn", { sessionId: session.id })).turnId;
+        workflowCheckpoint = { revision: 1, projectId: project.projectId, sourceSha256: project.source.sha256,
+          status: "running", repairAttempts: { ["c".repeat(64)]: 2 }, lastResume: null };
+        await host.call("courseware.workflow.checkpoint", { sessionId: session.id, projectId: project.projectId,
+          turnId: workflowTurn, expectedRevision: 0, checkpoint: workflowCheckpoint });
+        ttsScope = { sessionId: session.id, projectId: project.projectId, principalKey: "d".repeat(64), intentId: "native-pending-tts" };
+        paidIntent = (await host.call("courseware.tts.prepare", { sessionId: session.id, selection: {
+          projectId: ttsScope.projectId, principalKey: ttsScope.principalKey, intentId: ttsScope.intentId,
+          pageId: project.pages[0].pageId, actionId: "narration", model: "tts", voice: null,
+          expectedSourceRevision: firstContext.project.source.revision, expectedTeachingRevision: firstContext.project.teachingRevision,
+        } })).intent;
+        await host.call("courseware.tts.begin", ttsScope);
+      } else {
+        assert.equal(context.project.pages[0].pageId, firstContext.project.pages[0].pageId);
+        assert.equal(context.savedObjects.pages[0].objects[0].objectId, firstContext.savedObjects.pages[0].objects[0].objectId);
+        if (lineage.protocol === "deckwise-office-page-lineage/2") {
+          const objects = context.savedObjects.pages[0].objects;
+          for (const [objectIndex, item] of lineage.objects[0].entries()) {
+            if (!item.sourcePageToken) assert.notEqual(objects[objectIndex].objectId, firstContext.savedObjects.pages[0].objects[0].objectId,
+              "a copied same-name object must receive its own identity");
+          }
+        }
+        assert.deepEqual(context.project.pages[0].actions, firstContext.project.pages[0].actions);
+        const workflow = await host.call("courseware.workflow.get", { sessionId: session.id, projectId: context.project.projectId });
+        assert.equal(workflow.checkpoint.revision, 2);
+        assert.equal(workflow.checkpoint.sourceSha256, context.project.source.sha256);
+        assert.deepEqual(workflow.checkpoint.repairAttempts, workflowCheckpoint.repairAttempts);
+        assert.equal(workflow.completion.ready, false);
+        workflowCheckpoint = workflow.checkpoint;
+        const retained = (await host.call("courseware.tts.get", ttsScope)).intent;
+        assert.deepEqual(retained.boundSource, context.project.source);
+        assert.equal(retained.idempotencyKey, paidIntent.idempotencyKey);
+        assert.equal(retained.requestHash, paidIntent.requestHash);
+        const taskRef = { taskId: "existing-paid-task", idempotencyKey: paidIntent.idempotencyKey, requestHash: paidIntent.requestHash };
+        await host.call("courseware.tts.bind", { ...ttsScope, taskRef });
+        const audioBytes = await fs.readFile(new URL("./fixtures/courseware-tts-tone.mp3", import.meta.url));
+        const sha256 = createHash("sha256").update(audioBytes).digest("hex");
+        await host.call("courseware.tts.audio.stage", { ...ttsScope, audio: { taskRef, sha256, mimeType: "audio/mpeg",
+          byteLength: audioBytes.length, durationMs: 250 }, bytesBase64: audioBytes.toString("base64") });
+        const adopted = await host.call("courseware.tts.audio.adopt", { ...ttsScope,
+          expectedTeachingRevision: context.project.teachingRevision, expectedAudioAssetId: null });
+        assert.equal(adopted.project.pages[0].actions[0].audioAssetId, `tts-${sha256}`);
+        const archived = await host.call("courseware.tts.audio.get", ttsScope);
+        assert.deepEqual(archived.boundSource, context.project.source);
+        assert.deepEqual(await fs.readFile(archived.path), audioBytes);
+      }
+      previous = next;
+    }
+    await service.recover(workspace, sourcePath, session.id);
+    assert.equal((await fs.readFile(sourcePath)).equals(await fs.readFile(join(fixture, "second.pptx"))), true);
+    await host.stop();
+    await host.start();
+    const scope = { sessionId: session.id, projectId: workflowCheckpoint.projectId };
+    const restored = await host.call("courseware.workflow.get", scope);
+    assert.deepEqual(restored.checkpoint, workflowCheckpoint);
+    const next = { ...workflowCheckpoint, revision: 3, status: "blocked" };
+    await assert.rejects(host.call("courseware.workflow.checkpoint", { ...scope, turnId: workflowTurn,
+      expectedRevision: 2, checkpoint: next }), /running Agent turn/);
+    const resumed = await host.call("session.beginTurn", { sessionId: session.id });
+    await host.call("courseware.workflow.checkpoint", { ...scope, turnId: resumed.turnId,
+      expectedRevision: 2, checkpoint: next });
+    assert.deepEqual((await host.call("courseware.workflow.get", scope)).checkpoint, next);
+  } finally { await host.stop(); }
+});
+
+test("native carrier save publishes the complete file without parsing or Host teaching writes", {
+  skip: !process.env.DECKWISE_NATIVE_REAL_FIXTURE,
+}, async t => {
+  const { promises: fs } = await import("node:fs"), { tmpdir } = await import("node:os");
+  const workspace = await fs.mkdtemp(join(tmpdir(), "native-carrier-publish-"));
+  t.after(() => fs.rm(workspace, { recursive: true, force: true }));
+  const sourcePath = join(workspace, "lesson.pptx"), outputPath = join(workspace, "export.pptx");
+  const before = await fs.readFile(join(process.env.DECKWISE_NATIVE_REAL_FIXTURE, "original.pptx"));
+  const after = await fs.readFile(join(process.env.DECKWISE_NATIVE_REAL_FIXTURE, "native.pptx"));
+  await fs.writeFile(sourcePath, before); await fs.writeFile(outputPath, after);
+  const hash = bytes => createHash("sha256").update(bytes).digest("hex");
+  const binding = { projectId: hash(workspace), documentId: jobIdFor(workspace, sourcePath), sessionId: "editor" };
+  const input = { workspace, sourcePath, outputPath, sourceRevisionPath: sourcePath, sourceSha256: hash(before), outputSha256: hash(after),
+    binding, saveRequestId: "native-save", nativeTeaching: { documentId: "document", revision: "revision" } };
+  input.lineage = { ...binding, protocol: "deckwise-office-page-lineage/2", sourceSha256: input.sourceSha256, outputSha256: input.outputSha256, saveRequestId: input.saveRequestId };
+  const calls = [], host = { async call(method) { calls.push(method); throw new Error("Unexpected Host request"); } };
+  const service = new CoursewareNativeSave(() => host, () => "chat", async () => workspace, () => {}, async run => run());
+  const cancelled = await service.prepare(input); await cancelled.cancel();
+  const pending = await service.prepare(input);
+  const { publishRevision, replaceSourceFile } = load(join(main, "ppt-editor-files.ts"));
+  const root = join(workspace, "revisions"); await fs.mkdir(root);
+  const revision = await publishRevision({ root, jobId: binding.documentId, bytes: after, extension: "pptx", cause: "edited", expectedRevision: 0 });
+  assert.equal(revision.sha256, input.outputSha256);
+  await replaceSourceFile(sourcePath, after, "pptx", input.sourceSha256); await pending.commit();
+  assert.equal(hash(await fs.readFile(sourcePath)), input.outputSha256);
+  assert.deepEqual(calls, []);
+  await fs.writeFile(sourcePath, "external edit");
+  await assert.rejects(pending.commit(), /needs recovery/);
+});

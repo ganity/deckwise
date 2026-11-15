@@ -162,7 +162,7 @@ export const MessageRow = memo(function MessageRow({
                           <FileRefChip
                             name={attachment.name}
                             path={attachment.ref}
-                            kind={attachment.kind}
+                            kind="file"
                             onOpen={openFileRef}
                           />
                         </span>

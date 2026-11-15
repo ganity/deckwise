@@ -1,0 +1,69 @@
+{
+  "actions": [
+    {
+      "id": "speech_intro",
+      "type": "speech",
+      "text": "先看标题。",
+      "source": "original"
+    },
+    {
+      "id": "animation_title",
+      "type": "element_animation",
+      "elementId": "title_1",
+      "effect": "fadeIn",
+      "animationType": "in",
+      "duration": 300,
+      "pptistTrigger": "click",
+      "startAtMs": 0,
+      "pptxTimeline": { "version": 1, "stepId": "step_1" }
+    },
+    {
+      "id": "animation_bullets",
+      "type": "element_animation",
+      "elementId": "content_1",
+      "effect": "fadeIn",
+      "animationType": "in",
+      "duration": 300,
+      "pptistTrigger": "meantime",
+      "startAtMs": 100,
+      "paragraphIndexes": [0, 1],
+      "pptxTimeline": { "version": 1, "stepId": "step_1" }
+    },
+    {
+      "id": "checkpoint_audio",
+      "type": "interaction_checkpoint",
+      "checkpointId": "audio_1_checkpoint",
+      "checkpointKind": "media_playback",
+      "elementId": "audio_1",
+      "mediaType": "audio",
+      "startMode": "teacher_triggered",
+      "waitForCompletion": true,
+      "pptxTimeline": { "version": 1, "stepId": "step_1" }
+    },
+    {
+      "id": "play_audio_1",
+      "type": "play_audio",
+      "elementId": "audio_1",
+      "pptxTimeline": { "version": 1, "stepId": "step_1" }
+    },
+    {
+      "id": "speech_step",
+      "type": "speech",
+      "text": "这两个要点需要一起理解。",
+      "source": "light_rewrite",
+      "pptxTimeline": { "version": 1, "stepId": "step_1", "phase": "after" }
+    }
+  ],
+  "unsupportedActions": [
+    {
+      "id": "animation_unknown_version",
+      "type": "element_animation",
+      "elementId": "title_1",
+      "effect": "fadeIn",
+      "animationType": "in",
+      "duration": 300,
+      "pptistTrigger": "click",
+      "pptxTimeline": { "version": 2, "stepId": "step_1" }
+    }
+  ]
+}

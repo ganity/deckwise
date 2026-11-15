@@ -12,10 +12,12 @@ import { ChatSurface } from "../../components/ChatSurface";
 import { SearchDialog } from "../../components/SearchDialog";
 import { ToastHost } from "../../components/Toast";
 import { ExtensionPromptHost } from "../../components/ExtensionPromptDialog";
+import { CoursewareTaskDialog } from "../../components/CoursewareTaskDialog";
 import { ProjectCreateDialog } from "../../components/ProjectCreateDialog";
 import { UpdateBanner } from "../../components/UpdateBanner";
 import { WindowControls } from "../../components/WindowControls";
 import { api } from "../../lib/api";
+import { useAppStore } from "../../stores/app-store";
 import { CollapsedTitlebarActions, RoutePending } from "./chrome";
 import { useAppShellRuntime } from "./useAppShellRuntime";
 
@@ -35,6 +37,7 @@ const ScheduledPage = lazy(() =>
   })),
 );
 export function AppShell() {
+  const newTaskDialogOpen = useAppStore(state => state.newTaskDialog !== null);
   const {
     t,
     ready,
@@ -242,7 +245,7 @@ export function AppShell() {
 
           {(presentedWorkPanelOpen || workPanelExiting) && (
             <WorkPanel
-              panelBlocked={searchOpen}
+              panelBlocked={searchOpen || newTaskDialogOpen}
               exiting={workPanelExiting}
               onExitAnimationEnd={() =>
                 finishWorkPanelExit(workPanelExitGeneration.current)
@@ -297,6 +300,7 @@ export function AppShell() {
     >
       {shell}
       <ProjectCreateDialog />
+      <CoursewareTaskDialog />
       {splash}
     </div>
   );

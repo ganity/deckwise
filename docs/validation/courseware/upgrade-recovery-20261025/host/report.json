@@ -1,0 +1,39 @@
+{
+  "status": "PASS_PACKAGED_HOST_UPGRADE_RECOVERY",
+  "checks": [
+    "Actual schema18 Host data upgrades to 24 with retained rows and six readable backups",
+    "Older packaged Host refuses schema24 without changing the database or retained asset",
+    "Injected migration failure rolls back to 18 and retains backup; explicit correction permits upgrade",
+    "Old Host opens a separate pre-upgrade backup while upgraded data and assets remain intact",
+    "Current packaged Host also refuses unknown schema25 without rewriting it"
+  ],
+  "paidCalls": false,
+  "electronUi": false,
+  "currentHost": {
+    "path": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop/release/chat-pptx-review-20261025/linux-unpacked/resources/bin/pi-desktop-host-core",
+    "sha256": "15d27f22650797e52893604c8d7f197367e71a8d09f466736af1a3d5445380b6"
+  },
+  "olderHost": {
+    "path": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop/release/parallel-A-a29/linux-unpacked/resources/bin/pi-desktop-host-core",
+    "sha256": "4e04e8a61108f52cdae3ec7f4d7af16a9fc413003cc191779f23a7e05db597e5"
+  },
+  "retainedState": {
+    "schema": 18,
+    "sessions": [
+      [
+        "kept",
+        "Keep my lesson"
+      ]
+    ],
+    "messages": [
+      [
+        "kept-message",
+        "Keep the lesson brief"
+      ]
+    ],
+    "sentinel": "{\"narration\": \"Good!\", \"unknownTask\": \"hold-do-not-resubmit\"}",
+    "integrity": "ok",
+    "foreignKeys": []
+  },
+  "assetSha256": "9c6cc858c539cf3111ef2c9457ced3505bd7696819b5751b75fba27170681a83"
+}

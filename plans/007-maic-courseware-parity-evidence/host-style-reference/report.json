@@ -1,0 +1,13 @@
+{
+  "status": "PASS",
+  "sourceDirectory": "/tmp/maic-assessment-reference-tHthEA",
+  "runtimeCssSha256": "870935fa36dc5bb13402dad875ff0f5966dad286ed1a4533ef7caadfc810a043",
+  "command": "node packages/courseware-runtime/scripts/verify-maic-assessment-reference.mjs",
+  "checks": [
+    "Actual cloud-web assessment card geometry and computed styles at1280/1844",
+    "Actual desktop tokens/base/editor CSS loaded after Quiz styles",
+    "OS light/dark × explicit dark class absent/present × controls enabled/disabled",
+    "Disabled assessment controls and textarea preserve reference styles"
+  ],
+  "note": "The reference browser gate executed after the10journey P7 run; it verifies the final CSS variant and host cascade. P7 original source fingerprint is preserved separately."
+}

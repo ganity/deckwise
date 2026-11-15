@@ -1,0 +1,5452 @@
+{
+  "allEqual": false,
+  "boundary": "Dependency identity only. Does not accept new Main/Host/Agent/runtime code, packing, credentials, suppliers or end-to-end generation.",
+  "checkedAtUtc": "2026-10-24T19:12:44.686522+00:00",
+  "comparison": "all relative entries; regular-file SHA-256/size; raw symlink target; mode; no timestamps",
+  "comparisons": [
+    {
+      "accepted": {
+        "aggregateSha256": "1b57c1095d7558f6f3b0540d70d3d857363109e23d6c455904b5163a8b2dd635",
+        "directories": 307,
+        "files": 4418,
+        "regularFileBytes": 157240101,
+        "root": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop/release/music-adoption-20261024/linux-unpacked/resources/runtime",
+        "symlinks": 1047
+      },
+      "differenceCount": 418,
+      "differences": [
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/_compat_pickle.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "36bc41686a1bbab3d4f8c16bfa372a8426d2f1627b3892de439e2852281ea4ad",
+            "size": 7475
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/_py_warnings.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "54a255779b2cbc292b8e37e3d4a33fe2226bd9570c130125f9c58bf7562d4579",
+            "size": 37081
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/_strptime.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "333e64fdfb3e6325ddda4abdd430a6903762f18576c99736c40ffb332dbeafde",
+            "size": 36978
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/base64.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "077ae90046c2d1a14984d066e3880ee4475a5942c5821132da07ab2dc56455ae",
+            "size": 26962
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/bisect.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "7e70627f7b7e0ef967f26db81627859e3bf828ce7b2ebaf7b3810e9346b80461",
+            "size": 3693
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/calendar.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "4c4de57cbb686e8e1a99232b10c3bc8b28aa8585dbfe4012b842be5f21c09cc0",
+            "size": 47482
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/codeop.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "079b1b94f7ec072d95bfe9f99d57e5c3857f595d79882903122d6f600fd92941",
+            "size": 7059
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/colorsys.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "a950de762b441989317e94c538afa9e7165ff7379fa876697e30cb0ebc5461e6",
+            "size": 5370
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/contextvars.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "a30fd813035750b2e22a1d78d126e2fde3cf84948db4e3ef1b4d0b9b3308644e",
+            "size": 488
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/datetime.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "5ed9f7cd05d567da186d17f6ebb49581a551cff9761a360c13aaf77516d2d199",
+            "size": 599
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/decimal.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "368ea6eb9b3d8a4d60fe6f0cd80eec1dba779f4599aabb58e70995eba8adef42",
+            "size": 3106
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/difflib.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "a4c34d8a93031a1aa7d3462e3580612f6b785fdb3c0a157eb5f40ee63eb03a5a",
+            "size": 74030
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/filecmp.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "f3224c5adba93b64009354501b0b0c9fe0790b2e28c6fcdf62bdc5e0dd56906d",
+            "size": 15410
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/fractions.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "4ab466a83d90cbbdcd80cecd2d1a7389c5fcdd0310280f6f63f00db3f3f57f85",
+            "size": 41970
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/gzip.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "d4c777ad9749360025ce5c31a1d146ab416f8e2829692fe276e4e2e98d954809",
+            "size": 33770
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/heapq.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "f74ee9d5ffc2788aee430fbab1e7763150610ff9bb67c945328f1bd18ec440c7",
+            "size": 18698
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/hmac.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "63b084273a16876863e3d0d2c44fc9412cd9ca5cd9ffc812e3d0b0f0a085b0a5",
+            "size": 12300
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/ipaddress.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "e1f466f75c1abdc541c5d36253716454663572f88d77a4a553b316a89a4a5b4a",
+            "size": 94118
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/mimetypes.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "17cb0851441d0c41e2cc4af745f5b7a9a3370b55d9a259ac35324ec677db31fd",
+            "size": 28998
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/numbers.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "c1fda0a73638a67f3b048eb7923321848230a9a281904c4f4d89355fbd348840",
+            "size": 14290
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/pickle.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "bd6defa07cc7172ba99ad97c5dd3002f4bcc1ae81d3f440c8fea59d91de9099d",
+            "size": 85159
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/pkgutil.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "d41f9f3157c77f50bbdd7f988bbfb776174fdaa987da6ed325193e2d7ac96f5e",
+            "size": 18112
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/platform.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "2579987b75a4a4daef3c217b7e8bfab47b4bfddb19a46c3a9168a81c93b8db09",
+            "size": 48179
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/pprint.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "b891d8ae80ad43dc34a1339fb42ad9806ae21ed8e05cce80edc52e1353ef3bfd",
+            "size": 30915
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/queue.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "23c2ba54e056f34ff5442301783521d9314bf1a3d9243327714795d0628ca6a3",
+            "size": 17608
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/quopri.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "e0012c41ce9a1275d5f37b9cecac5c1958ae638bca432e854ee98036ae686630",
+            "size": 9914
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/random.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "f84283d7d343c72068633c5aa403d8e7885242deb77c50fa5bc55a6d3a6ef23f",
+            "size": 38053
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/secrets.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "97c6d7e9cb09cc2e2acc5b6b3cd8b181f78fb3c91c5d544f23e48acf9d16469a",
+            "size": 2596
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/selectors.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "3cdc4bb2e893ae37b6150f4c18a198569a8899d1e2ca7f63dc78f118261cdeef",
+            "size": 27160
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/shlex.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "bebf84457531241244edfa15c2189046d79154bf0c8b3f63eee8b837a51864a7",
+            "size": 15575
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/signal.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "8e2d2d9f234db59e343c8da72fceee68e70327567dba6d01f035c33eb624feab",
+            "size": 4684
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/socket.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "9a1d132539e9b329ded00d8544b475565a6e9495f28dbc7213456790e138d23a",
+            "size": 43235
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/socketserver.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "a0436603f649d476b449ff8e4a58d5f1624ee31a4ae152143b68e9b95ec7a9b7",
+            "size": 35276
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/ssl.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "420810c733ea177be6fd111433bd2350c46445c17340a1ac10131e84ac9202f8",
+            "size": 67065
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/statistics.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "c79a9ff193267fbe4f9f61d6ce704a14caebd8cb7c64e31b571d7c5990547bfc",
+            "size": 77678
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/stringprep.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "d3ef58e5bef5b2e6038b58ef3cba5a00d39d822c3c08fb5f968e68879287cf87",
+            "size": 25477
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/struct.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "616e420609aa906428139896e1ee7c265d79e6ffd52737acac706aa2174eae17",
+            "size": 428
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/subprocess.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "1ad7831337f70b7182ea22adb3bcd66d518d5aae694d602b785c530f574d8361",
+            "size": 85054
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/tempfile.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "5090fd40eb1d0fd36583d2cc08da747d1f6bfd4c89d285817f130cb8c941c3d8",
+            "size": 42191
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/textwrap.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "fc6663d67a866e46a1eb8f67c0b6da69fb1d2f41e683e4b70c2b9cbb8235a7e5",
+            "size": 18535
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/threading.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "e9abdc5e98c7c4dd6c83ab0874fca79db958cef5e74e4c95cd8dc349c83fda56",
+            "size": 66589
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/traceback.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "cfe24b6831076f7cf49c393482247a904198f58f91acd5e16886ab287996d54d",
+            "size": 78707
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/typing.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "6691d50a8fe82441d12a928529d1cf166af9b6d38d14e8fc40ce2f99cba4bb51",
+            "size": 171895
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/uuid.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "dfe52420345309918b5e49c87d646f3db07065e759b1275ecb156a64c10e2f33",
+            "size": 41303
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/warnings.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "603980e9816509c8e11215600f7cf76e422804cf95cc7818354a1e4a45a6237b",
+            "size": 2597
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/__pycache__/webbrowser.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "ac9f29e213acfd0bbaa765e581bb9339d23d5b85e655cc483d6a314d734aeaf9",
+            "size": 30781
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/concurrent/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/concurrent/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "a2048b4baf45749f0442e1e278ddc0c71496a7d337a3b33b8fcefd28da89a6ba",
+            "size": 242
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/concurrent/futures/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/concurrent/futures/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "8aeb4b5b776ec1260e0aec98e3bc4202603f9cc9743bd4275a9188c077d69c88",
+            "size": 1699
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/concurrent/futures/__pycache__/_base.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "2f75ce7a064fc52953d2f0d91d1f738798fa4fd2c7d53c4832c889f58d061aee",
+            "size": 34704
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/concurrent/futures/__pycache__/process.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "4b301b674f91fd00deca8bfe2a281d2ba1841709b8e8aae1562261d9d18d8f39",
+            "size": 42081
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/email/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/email/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "39ffdd7f75df80dfc9813209858a446fcb24090e1851d4235b77d06824f3d85d",
+            "size": 1970
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/email/__pycache__/_encoded_words.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "24563e033c0690ec5b101fb3d62956f892e277a4e55768206d170f571107c5f1",
+            "size": 8632
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/email/__pycache__/_parseaddr.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "653829a8e0a03c3fd4c0b59775c8453f0aad4cd62cc0891bda924e57b35bb43b",
+            "size": 23988
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/email/__pycache__/_policybase.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "f7e2e609a58b94af99071292b127dbb37168586023e257a4a2e08cc8aa940369",
+            "size": 18729
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/email/__pycache__/base64mime.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "e1971623af2730ee2130887724e7259758a7518804ce20001c9a38243dc7eda9",
+            "size": 4105
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/email/__pycache__/charset.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "04918714dd699a8ba0c51066f1a37f85940a0367a092045a1e4645d15e54c6c2",
+            "size": 15100
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/email/__pycache__/encoders.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "8ede774fa4a6e0fa55b0916d54ff12bf775060ebc735811440983c83bced1caa",
+            "size": 2190
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/email/__pycache__/errors.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "db8ce8b3073df49a47fb9b2d0637894a388785a1d6ca69c5033a3ae55f04965d",
+            "size": 7681
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/email/__pycache__/feedparser.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "1dafd77c1e4a0e0057dcdecfee92ed41c25607bf0c9af10f99eb3f689a1399ee",
+            "size": 21128
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/email/__pycache__/header.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "d04454bd2ddfa729b95958d26ae1ce56084b815e5e759afdc1eba91998fca5b1",
+            "size": 25646
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/email/__pycache__/iterators.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "b6911ac4f44a1a025377051dedc4c2da2b10d70e9145c09a917b453efe3283cf",
+            "size": 2997
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/email/__pycache__/message.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "64d4f8586363849c299150580d33468fc914a0e241e662cb68ec2b3f36264ff6",
+            "size": 52554
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/email/__pycache__/parser.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "f56b7fb4ea9fefc2bf6e58254678bf1be09120a00a5bda226d7420dcd14507c8",
+            "size": 6699
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/email/__pycache__/quoprimime.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "d3e35e3fb2bb9740cc32c05dce78a57420d3a894387d0cfdd7021a6a64523fe6",
+            "size": 10481
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/email/__pycache__/utils.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "d2ef29f8c819919fde6515082549c688b963cdd02cee3ab922adead8d6e8ed9e",
+            "size": 17236
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/encodings/__pycache__/cp437.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "6755f30f9a1970a948f255c526f46f867a50412da2596598c883eeeb22330dde",
+            "size": 11992
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/encodings/__pycache__/idna.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "1bb21564b4b7786f3f22c8a9a2d117db0daaf71ba5516b1ff4217e6145a92de3",
+            "size": 15093
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/encodings/__pycache__/utf_8_sig.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "f37ffe074cf87d23dc0d9bf4e0e731b9bd1dd0d365d80791c4fcc3209b62ea6a",
+            "size": 7301
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/html/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/html/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "62686ed672e1665e9655887602428e2a435676881c1e778e57b89fee3b98ada8",
+            "size": 5886
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/html/__pycache__/entities.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "dc1efff962b9e8d8e7941ae5c40fb29e0dfbd9ff9e669d98459607c2e984aa79",
+            "size": 97115
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/http/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/http/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "021a9711548c11ec4ba36f478b5a3f0babc3dddaf4296662f51b3ae7570cbb09",
+            "size": 10476
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/http/__pycache__/client.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "df1724cc32842e0ea575d55f6ce973ec2a07e97f88ec77368243d7e917e4d913",
+            "size": 60951
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/http/__pycache__/server.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "08731a37f22ffbd40ed56f290f238ea1cd3b2f78d27b383331a1073b73f75343",
+            "size": 62177
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/importlib/__pycache__/abc.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "a514fd5f81716fa2e4503279f49548baa8df8b61810e2738a66ff542b99e88be",
+            "size": 10343
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/importlib/metadata/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/importlib/metadata/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "e3e38261dc3f1d7ab1c9ef08df3f5477160a71af26fef0b11327d45c88bd3400",
+            "size": 60160
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/importlib/metadata/__pycache__/_adapters.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "2f3635d6757a69e163c6d03ef612508b152ab67f0965127a32625e8b2c759d4a",
+            "size": 4233
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/importlib/metadata/__pycache__/_collections.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "fa3708686bd93f525d13810eedf17359b5e76a167871f8cc0746927d76ce3df7",
+            "size": 2082
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/importlib/metadata/__pycache__/_functools.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "4bab3b090037608e85ed5fa3c55df86bbc05487d27c7b7418f3331c416b7112e",
+            "size": 3353
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/importlib/metadata/__pycache__/_itertools.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "f91708f4e323931f1a31febe02b0ca1cefc3a0c3d8ea95f20129f0346ef4e74f",
+            "size": 2393
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/importlib/metadata/__pycache__/_meta.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "b1605b0d69f35ee307d70bb79a24dbf5ba4d6a015e51c59e14c6f6fcfabfe097",
+            "size": 5670
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/importlib/metadata/__pycache__/_text.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "e0ac72045eccb271816e76ba97257ac5f48f8775bc02e2ef8b405bb8bd6f7989",
+            "size": 3897
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/json/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/json/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "40b5978b5f26a90d7b4e2c17776fce885152e3379ace67eedc25bd342c2fedc7",
+            "size": 14316
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/json/__pycache__/decoder.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "2524edeb2c8c857afcc734a522c8edc7d657917d5debb797831c032d79cbd2cf",
+            "size": 14572
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/json/__pycache__/encoder.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "bd4eaba28b5d88c25285e2f06982df6cda78df0092645bf4086ccbc643fc7275",
+            "size": 17128
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/json/__pycache__/scanner.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "a9dfabcd8f8c03223f4ecfc107049f8b99cf03acfe85e7be37ebad92c43f4686",
+            "size": 3643
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/logging/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/logging/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "087e7573bbe98cd19be81b3b71101a27779716f8f911e98dda8c48d4693bf9e5",
+            "size": 96925
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/multiprocessing/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/multiprocessing/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "c406c49c69edeeb8956915ea751736ab0b46bffc46baf4f27c56ac184662afce",
+            "size": 1082
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/multiprocessing/__pycache__/connection.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "27c687786a03e5540c49de968142d829b10e68cab8aaeb3a531cf3da116efaa7",
+            "size": 52421
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/multiprocessing/__pycache__/context.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "6ec77a7e5175975bccd9f6ae2f53bc3f808afc880b980c5816e81d6243635722",
+            "size": 17850
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/multiprocessing/__pycache__/process.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "f39dc81d2fd7f2c67b89c40dfbc83a2da1f646ae50d711fb3ebf32add0b459d6",
+            "size": 18509
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/multiprocessing/__pycache__/queues.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "83bf686f175de1eff783c4b56dae8d9264c8a74dcf03b2832a799e680fd8fb0b",
+            "size": 19576
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/multiprocessing/__pycache__/reduction.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "f92401030c33bc23c1debb139a943d65cc1961b14d7862988d5f42d3a6766456",
+            "size": 14420
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/multiprocessing/__pycache__/util.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "580486bb1200e8ff2fa30c6ebe4d87c6424af89afe0bf1617bfd7b3e9651733c",
+            "size": 20805
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/PIL/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/PIL/__pycache__/ExifTags.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "f531fde41eb126d80ee379dc7eb63fbe30ce6c289c2dd36aff2606982726bed1",
+            "size": 11558
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/PIL/__pycache__/GimpGradientFile.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "5f870670a800598d68fc1dc9be97321a53800f6822af0f4a84a6f85eaf41be1a",
+            "size": 7309
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/PIL/__pycache__/GimpPaletteFile.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "a9dedefa9ffd9c55c988d6d01aebeeadced2851e04bef53cfd70d2a5a30f47a8",
+            "size": 3602
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/PIL/__pycache__/Image.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "e84c6e9f0145a2c9ccca83e70191babef9f7d289f51b1cda9b4dee796f2e0b00",
+            "size": 203278
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/PIL/__pycache__/ImageColor.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "79ed646729c8b058ea8fbb71a20e2f7758105b6fcd73efc68fc72b5c1b03131d",
+            "size": 13595
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/PIL/__pycache__/ImageFont.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "ecbef29c91e7018f71c21a03b24d03ea30bdc4fb87e48435409897ff16ea222f",
+            "size": 72773
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/PIL/__pycache__/ImageMode.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "7998fb00c35310304e3223ae5c290f752227ccad0f533cb49622402628f26c04",
+            "size": 3061
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/PIL/__pycache__/ImageOps.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "ed140a466bc3db4a3240861b827e0d7257ad23434d79d973dcabed72a300d395",
+            "size": 34792
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/PIL/__pycache__/ImagePalette.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "d9263aff778360d1cf6dcb4f7a3ea2e4b0c8a4ea6acb233064aa9663af830f91",
+            "size": 15502
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/PIL/__pycache__/PaletteFile.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "cc69beb20dc86c47d162544eb129f9be334286aec595d80b9d170f53e0431478",
+            "size": 2402
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/PIL/__pycache__/TiffTags.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "8ac8fec779c252e335d139d4f91ad006c81dcd2935c93e5caa62279b1edfd688",
+            "size": 20089
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/PIL/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "7ca9c177a06c41e62c1469350f32f8a6af6fd4162a0c65f51a1bca803e83c6d2",
+            "size": 2817
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/PIL/__pycache__/_binary.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "9228914d8e00c55888388b8a54f5aede6763ca973d63b9399224cd339476b989",
+            "size": 5232
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/PIL/__pycache__/_deprecate.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "852219c29c4b54bcdc942412eeb004095699456f703c07b4708292ca7522cb00",
+            "size": 2790
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/PIL/__pycache__/_typing.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "8c53910aa7f253945d6496a96d3cd079126dcd43749ba14c164e6d5823387b26",
+            "size": 2053
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/PIL/__pycache__/_util.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "d8085498c667d54bd3d194d80672703ed3afc01fb102742a4dba6a80449b612e",
+            "size": 2264
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/PIL/__pycache__/_version.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "5cc6262de104aefac673fb249d1983747f834afbea2b5cf58e78cda941adc059",
+            "size": 328
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/blinker/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/blinker/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "1c3c1623ad717df6925fe41cd737e23d9fa739623d2bcaa672113593c85a77c4",
+            "size": 560
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/blinker/__pycache__/_utilities.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "966533406ca1432349f1e75f72c8ae961ac8b410137822d67acc9b810cb1161e",
+            "size": 3734
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/blinker/__pycache__/base.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "f712f459dbbb4c5a97a9ca063c960219abaef9d670c3cef319518c9d0bc7733c",
+            "size": 25087
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/click/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/click/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "77a7ed3b19a300b5a5c8c60fac11660dc0c7928830c964cc23a3353472bfcaa7",
+            "size": 4847
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/click/__pycache__/_compat.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "32905a532fc1492a3ee5d286bc78f1f070d68338dc6502e2a74f053e7cac8902",
+            "size": 29821
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/click/__pycache__/_utils.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "b1e9d522c8f71ba991eea0fb07f9ac0cf2e656c86df34fe27d176c502b2ad577",
+            "size": 1757
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/click/__pycache__/core.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "3d2bf9e04ddee23cbf31a48608028c2ada07894f3879cd9b12b2bf00be55fb2f",
+            "size": 171154
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/click/__pycache__/decorators.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "919a78d3d58719c2c4f7024651b43a101d3b6003e242a3d7c57c2d930e6b7761",
+            "size": 30399
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/click/__pycache__/exceptions.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "1330505513906ae391281a61ad28ce270e1da09dc89b2e461ec0dadce3a54167",
+            "size": 20877
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/click/__pycache__/formatting.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "52bf6d11fe90ce14ad6a8f5a177a7e1edfeba9d6a6fc9430ba3b8c69655b8be4",
+            "size": 16905
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/click/__pycache__/globals.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "0ed8e9fba1d586c790fb26cd7d05229635708130c891d8df2706f3550457e53a",
+            "size": 3867
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/click/__pycache__/parser.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "045c5525a76badf3630bcca35578b4364f41bb57efc0a9b4af833f2c3ea55225",
+            "size": 24031
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/click/__pycache__/termui.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "ee9438ad41417d4e80c448cf604b653faa0412488417220b632bf73d083e47e1",
+            "size": 42531
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/click/__pycache__/types.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "9690cbd41f12863154898656ffc89ba596b07a1343ba9f16ceaf074ed04ad300",
+            "size": 70013
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/click/__pycache__/utils.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "a434705b68cfca77045617080b5249f6feed4b7bec03808e54773dce4036acc5",
+            "size": 30952
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/flask/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/flask/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "e52bca3537bc5dab4313031a38bdd72267640730a68f799e7696dbfb060c36e1",
+            "size": 2754
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/flask/__pycache__/app.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "9f14e121ff2c7184e6cf361a4969e2b62a282ca2e373324ccdae8eed3f8b70ba",
+            "size": 64210
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/flask/__pycache__/blueprints.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "abb036eb4559b9b8568ece2c77d5cf8a914a2ead9aa7c61be0dd73dc0f24ca54",
+            "size": 5473
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/flask/__pycache__/cli.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "fd19c28af95a9eb279c4fe0308f7a6f413bc96e73f4f91a169f97e7b08362c25",
+            "size": 49488
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/flask/__pycache__/config.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "2e6675fb8909f3d351c8c4e3efdc24c844ecf9c4c5325e9e25535b5485ba50fd",
+            "size": 17550
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/flask/__pycache__/ctx.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "b681b3b5f7d98dfd402288d5c861eae2c94b0567381eaca0d1da9b99b126b45c",
+            "size": 24050
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/flask/__pycache__/globals.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "bb9afa80238e0e291021b4ec8036f6618c056f1c291ca88a701a0407626f7b6a",
+            "size": 1983
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/flask/__pycache__/helpers.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "28cea1d3658b168c295978ffd8163e64f2a77937d45fe3a4123ef44d00a6874c",
+            "size": 27451
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/flask/__pycache__/logging.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "40e0cae7c9ece41ffb0fd784eecc892c4c2eafa0a85109b93bdaf158fdeb20c6",
+            "size": 3921
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/flask/__pycache__/sessions.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "328eb10609a4817eefea4923e8b8bbd729af92e8d0ac56c398c4a90032d79f1e",
+            "size": 19519
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/flask/__pycache__/signals.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "854deb18ffb98e37e764aab03c71db5fb5ac65021dd4ff7f2e3f56707af4c177",
+            "size": 1286
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/flask/__pycache__/templating.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "0988182dd27ba686c916550d9063b9e5a13d045d824ddafa11e5ba3e1b950fe6",
+            "size": 12091
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/flask/__pycache__/typing.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "6322521eb51e1176a26fa66974c3d63e409f69fcd32ab28ffc64fe1349c58d8c",
+            "size": 4718
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/flask/__pycache__/wrappers.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "e0bc48f9c112d58b6ab817a549eb5feac774e6b9e6c9567a046b552805855292",
+            "size": 11496
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/flask/json/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/flask/json/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "473c44e35c9f598d2fb08281191185a85e9124cb2f67b67d5989d0607dc2a130",
+            "size": 7228
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/flask/json/__pycache__/provider.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "b58b92e7cc570c8da5dbc4f39990ff72fdd387d80ce0860f42588a8cbf4ecb9a",
+            "size": 10783
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/flask/json/__pycache__/tag.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "f88409f8c148b39add160b9d3a93eb1265f127f9291f5311ce3aa47dbb033d3b",
+            "size": 18941
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/flask/sansio/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/flask/sansio/__pycache__/app.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "61cfce1e1a44d804a1a9bbc9f2c9658cfacb90f87e2a1a6b3af220db8fde50d4",
+            "size": 36894
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/flask/sansio/__pycache__/blueprints.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "4a05ba08ce3391b5ee87ef5eac04953dc3431d5ddae42114be7c9ffc6b2887e1",
+            "size": 35855
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/flask/sansio/__pycache__/scaffold.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "d43c032ba870d5be1aaf995727da9cd37f203547b59b243879079903054d1b43",
+            "size": 33731
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/itsdangerous/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/itsdangerous/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "3e2c84b637b1195372395f70a3bafa4af14160513ae01a3efc8e0c464212d613",
+            "size": 1837
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/itsdangerous/__pycache__/_json.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "413f3c5d441039191f8f753bbd356086d6524d50d9fe3ad788e9c5ae678acbf9",
+            "size": 1628
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/itsdangerous/__pycache__/encoding.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "aff150e8e032c94a6dd6ac09c76e281d1cb2118dfbf8760a9be75dd37c438664",
+            "size": 3447
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/itsdangerous/__pycache__/exc.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "f3bf5cfc0a38992eb9fe5725e0c3412e52052bb973be190dfe21077f89587035",
+            "size": 4986
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/itsdangerous/__pycache__/serializer.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "e304a1057af6c3c1c05ee10edc3bf71a766570fdf112e95bf952daa70ba3dede",
+            "size": 17971
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/itsdangerous/__pycache__/signer.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "58bdafb08be136dbabbb13db47c8ca7ae34de5f231e043d23f0034e7eb993891",
+            "size": 13558
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/itsdangerous/__pycache__/timed.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "a4e7653c0d03223180e57523bfecde8c880c4d2612cef7d17d8e263eaf73f6be",
+            "size": 10063
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/itsdangerous/__pycache__/url_safe.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "f53f0a25f02262b0de1b8dee8914bc7f5508729e2a4e32bae2097b5e6246edb9",
+            "size": 4060
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/jinja2/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/jinja2/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "43466ef57e8d4641ac64ff8a0b1ac3b20b376b14aefa652727bea142400d4764",
+            "size": 1716
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/jinja2/__pycache__/_identifier.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "3e749c090b22b52e66def1d34e59fa876c580c1ed02a8660b2551180271d9441",
+            "size": 2200
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/jinja2/__pycache__/async_utils.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "253653a7fe0b0bf3f5c4c15f0d824e591a38719dfbf23f21976b1d68722748d8",
+            "size": 6425
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/jinja2/__pycache__/bccache.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "8043d357cbfb0fdf62e21a5eb0f4b5ad34b3e2003dcddbfb14783de90a5eca94",
+            "size": 23767
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/jinja2/__pycache__/compiler.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "e9e4d9524a6d592c0d1a84446a75aa9a59340b7fbda2ea8d5742cc161902a422",
+            "size": 126427
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/jinja2/__pycache__/defaults.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "e804c21c64ebc5ce47877bf39ef52313e7d49b6ab2631734043793f6a7a6ad6b",
+            "size": 2165
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/jinja2/__pycache__/environment.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "a849ed5f8ce022092a444608901b344e2b2226fbdcfcb022e9c013766278aa60",
+            "size": 89859
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/jinja2/__pycache__/exceptions.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "9f0ae7c3310ff8bd71c36ee6ea9cded5be18645154139475344e447b613403fe",
+            "size": 9548
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/jinja2/__pycache__/filters.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "c5e1e4791a596b44cf1a0c2850141d59a797d57102dd3bfa9e48e6e5727f5f87",
+            "size": 87983
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/jinja2/__pycache__/idtracking.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "2e79b1e1f3fdfb62ac54b67a021d0354013555f803a86105dd590a7bb56a45d9",
+            "size": 25822
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/jinja2/__pycache__/lexer.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "19d799d027cb4db6e9f4fae6f5f3a571ceb68919d1937453c6b5951be18473b2",
+            "size": 38856
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/jinja2/__pycache__/loaders.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "a98df1f1a66f425f8f86a138b072d0b5ebf315863390b0efff2359571d5584ae",
+            "size": 37889
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/jinja2/__pycache__/nodes.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "382b932875c291584fade60843a6de954292e50aaca57e0e26e4d1d3a148ce83",
+            "size": 76172
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/jinja2/__pycache__/optimizer.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "247e1c642a23e3b5617d53c8607f8c5c906e0579f3a119133ed1d5789c60ba6b",
+            "size": 3380
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/jinja2/__pycache__/parser.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "2d37e7f853c35dd8e0979587e7dbcc48ff9181cd3e5c857c4c8c50bead46567e",
+            "size": 70361
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/jinja2/__pycache__/runtime.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "2e65a19575f9b94a4d7db5100a510f2c3626a6a393b889de81490bb75336898e",
+            "size": 62826
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/jinja2/__pycache__/tests.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "ec3d97f6324c71b2638834e7cb0d2c96ba5206e99efd72ee38e2f77fad2abee6",
+            "size": 12155
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/jinja2/__pycache__/utils.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "84a1928acb33d7990f5f62c0498c153e270b8a0c903c8c40830cbd36246d08f5",
+            "size": 43863
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/jinja2/__pycache__/visitor.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "abf8e4e056a13d700febac02412011a69ed7ee79631b6363cb6ae8a75f59366b",
+            "size": 6513
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/lxml/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/lxml/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "d2ba6a19986657abfadf8b0ef56302ab0544b79a13dc055e0877a136c7f31135",
+            "size": 1077
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/markupsafe/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/markupsafe/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "9801333552bcdfbb79dd486be633d44553a7085b5e7a4b8cf34b6896cd7eb21a",
+            "size": 28706
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "5bb43e81489dfe589c81dfe5f0f3e8a0830007b0d1a385f8a7568e5ff3ae19da",
+            "size": 3021
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/__pycache__/action.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "3da867da4e674569a1cc015e61dc262b9fc958e08f2052fc760f3e99c6910734",
+            "size": 14241
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/__pycache__/api.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "d177b8bf76cfaf848dfee1fdd7a1b5b7677a6cd1104011ed9578afbe7c0dac0d",
+            "size": 3019
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/__pycache__/exc.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "188337a6708e47be9310259bde69d13c41ab20617d15071c6b19f1cd25a22bcb",
+            "size": 1177
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/__pycache__/media.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "f676eb55eb3999c62a842ff4dbf253185dc12a68235d6cb9c60ff0cc411fe586",
+            "size": 12395
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/__pycache__/package.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "7b8a5cd343da5c8fbd637f6a346fce966a0ddb2c17e3d8ca7f9a90150f91b105",
+            "size": 11550
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/__pycache__/presentation.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "c76e846e979508d472a135874a30b67ff536b32e7f05b806c3fe852c44d0e437",
+            "size": 6697
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/__pycache__/shared.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "1891f5595cb8577597d77bedb6805f1f4faa68f1bf30f2081f05e89cf434f05d",
+            "size": 5499
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/__pycache__/slide.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "32e9447f5a74cc8726dbe8f5a82a7f280d69b29e80b5b2d23890c0001ce07ba4",
+            "size": 31077
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/__pycache__/spec.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "96adbb579e06e8939f62a5695da6bbb2b969d2b7f47c24b976fbed82f699d3a9",
+            "size": 21079
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/__pycache__/table.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "54ca9c314fc8ad40b7e2c52e45b91ba25863955fc776d2e99063a3374485534d",
+            "size": 34210
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/__pycache__/util.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "4f38e556265a2b4619360c3d7df656fe8e719a39276ef8841550b6ad112ccd97",
+            "size": 12781
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/chart/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/chart/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "e7b60081c56bcabd1bd60d1b39887579704227d04fbba249cc53a1fe220ae5b5",
+            "size": 256
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/chart/__pycache__/axis.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "c78937f0cfdd7ccf41a73044d1cfeffef9b2f0fd05c382b32c97cefba147ecc8",
+            "size": 24351
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/chart/__pycache__/category.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "cc70920f60a3388f4a78765f2bc24bac2e0ea36bc67731010406ca72af4c9152",
+            "size": 9430
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/chart/__pycache__/chart.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "d4521c042bb636734d7efb69840cb955ca8ae29d5dafa61a9dbe959346c29e44",
+            "size": 13868
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/chart/__pycache__/datalabel.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "ef24c825db968a3009705f0ccb291ce80819c81eb1076dd935f806c5ac98c755",
+            "size": 13469
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/chart/__pycache__/legend.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "c876dfdbdaa9e7309d38735c0cd7cb9a8256caab16f0d35e0d6d514e7bc66a2a",
+            "size": 3961
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/chart/__pycache__/marker.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "ece5d6884c7c41f5372b56b940ddd4599de193c8a9c32a65702671aec8967e04",
+            "size": 3157
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/chart/__pycache__/plot.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "ff975b6ad11f54ff759dab35715f5fbcb86e37e14ae0128decb03342c264b5b9",
+            "size": 20665
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/chart/__pycache__/point.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "a709386c352ca79d8a51fff9524f3ae660c72b6eac42f37f6cce8693a648d0fb",
+            "size": 5127
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/chart/__pycache__/series.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "d2c5ea2e88cebefe50a31ee79cc2d81f8cd0288254b22f1cb020f94f1f0ab6bf",
+            "size": 11893
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/chart/__pycache__/xmlwriter.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "9278708f78de0f38370891572c59f4985cd2bd4b4aa7ae993a02f277a33ac60a",
+            "size": 67128
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/dml/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/dml/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "aeece04f81567bba954a9d307d34069911649b7ba92cd54b59e3a0e37740028a",
+            "size": 254
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/dml/__pycache__/chtfmt.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "0e8fdf775fdcd4d9040c0475a6acd6fda46019e4c16388059116a8a6ac4cb3b5",
+            "size": 2081
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/dml/__pycache__/color.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "d0401fb94b02429e7fe0a8daf4a17e33c42dc0ea33f1c3aa6b07a45374d94523",
+            "size": 14940
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/dml/__pycache__/effect.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "b33176804ef6b361a49d20256457aef28c5095e64cc838772c464c63460119ca",
+            "size": 2132
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/dml/__pycache__/fill.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "d147b852b3b8dc0925aa0dad96cbf0def631f3a6a27217694f8d13603ef21ed6",
+            "size": 20389
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/dml/__pycache__/line.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "f2e911c42311113db9508ba754dbdb1497c9fca2380c5d8bcee357a25850504c",
+            "size": 4642
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/enum/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/enum/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "6f5f39d7b2aae76fea8fd102e6e16b5af18796ee5569b30c316d82cb38fbf06a",
+            "size": 255
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/enum/__pycache__/action.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "f1f09dca930038521080e5f9b6526dcb2aacfc84a2a6530c1c60f33a75681361",
+            "size": 1836
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/enum/__pycache__/base.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "10bfcf9f3a74021bb78dbfcab387acc1229e85111fbec48bacf5d4ff451034a0",
+            "size": 9581
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/enum/__pycache__/chart.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "c7bf3b1d5ed95e0a3d2d36372b0095b708e65cef8553e91f126d7a96ce106cbc",
+            "size": 11933
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/enum/__pycache__/dml.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "ef41fef7ed59626fd2f0bf6a7fa31364c108dd36087d417d6a32239c80d0f2b3",
+            "size": 9824
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/enum/__pycache__/lang.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "c5e2e6e2c0710ab7e24b1317419f3bd620dc16dee907a2df1bbbbcbe9e565b16",
+            "size": 15823
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/enum/__pycache__/shapes.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "0d1728e870d3a47685d85a406b6b4473f067ab9246f9a5440daf48fccf368ce5",
+            "size": 23624
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/enum/__pycache__/text.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "eae5a8c77a3457263e8a67698625d68c8ba4116f770bdad07e73ee51a300ec4b",
+            "size": 6678
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/opc/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/opc/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "dbb06fe162b16e3ed0aae19e465ade5ee231e8634dd4c364104cf1b3bbc38c6d",
+            "size": 254
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/opc/__pycache__/constants.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "97c7a96abdfbe2a4a14b4adf971e54dddbc76940ea6c8923472c98d0e0369bd3",
+            "size": 18974
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/opc/__pycache__/oxml.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "bf24bedcaf9eb2d65609cce478c2bbc5225a232a9284c328c1080680ac949b9d",
+            "size": 9724
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/opc/__pycache__/package.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "c2d196a546cd34d510deea82a959ca84e9dd709d31f8c7db060860ad41b2a154",
+            "size": 50490
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/opc/__pycache__/packuri.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "756b62db5e2d6940d385ec0bd4572fee591a08390546241805259bd2a4bd5453",
+            "size": 6561
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/opc/__pycache__/serialized.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "b6667785aa50f151689a4abea1587b933b32764d0e7364f491a6178573316fad",
+            "size": 21817
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/opc/__pycache__/shared.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "258cb4e90f718a0c152549ffdcd9d4dbd80d71f4b13fa6652c7cbd0077d6c092",
+            "size": 1685
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/opc/__pycache__/spec.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "0af9d4a7e304fb59b9051f5f8a752a8dafc4a9be0866aa5933f9386738323825",
+            "size": 2011
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "b06fca5c1818d02461112a003ecdb5802b8a24f6e37a8aa13020aaa204b60f7e",
+            "size": 15555
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/__pycache__/action.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "870ca734f5bb17f707ae3fbc382788b40d4cb5f16610b2e59cee0a6ce48d069c",
+            "size": 2707
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/__pycache__/coreprops.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "a1d9f44056342ddb0706d91f1a80d1775c72f3c385691eedc959909f04daeebd",
+            "size": 18859
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/__pycache__/ns.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "da0845bd3aa7d8acf061d39bb3d380de693b6d88b994a316d6b0394e6c8e46b7",
+            "size": 7914
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/__pycache__/presentation.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "6e1315604f12d6d90b968eb6df3885268372266500e51e99a523fa3115499e72",
+            "size": 6247
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/__pycache__/simpletypes.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "eecade08ff01557c8e67c8ff4c10d611d819619b223e01a9b6c21fb2fc0ba594",
+            "size": 37045
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/__pycache__/slide.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "ef40a73fadef56de56ce40d8760c08dda8e7da8c045c9dbe3ec70e7d4407e08f",
+            "size": 15617
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/__pycache__/table.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "e4726dcfecb47e79f70e28accd4ff51594882ab9c68c15d4fce98a23c2aef750",
+            "size": 35210
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/__pycache__/text.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "16dc0439084c75a65f66b8c37f2095c2d0918a0ea8612200300442023a87750a",
+            "size": 28124
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/__pycache__/theme.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "727193f85e8795d8831f8a3c95c14723245a6265ac223da7200602192388141c",
+            "size": 1191
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/__pycache__/xmlchemy.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "3203e21df4e5735a918fad2d3721f39c2867527a9b66944a593ac7180f86a6c4",
+            "size": 47334
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/chart/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/chart/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "a2855722fdc8620edc64db794823b035f9ab806167355ec37268d0f6c6780783",
+            "size": 261
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/chart/__pycache__/axis.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "b26300983970f8561ed91347706d04d69096707977ccbe6e9f9df006b5e0825b",
+            "size": 11638
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/chart/__pycache__/chart.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "452c1201c371d3e58fb2d16f214528205dd57eaf4ded5dab6e0523f8cd2342e0",
+            "size": 11857
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/chart/__pycache__/datalabel.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "15b1e02ec94fac3416d462ed0eff4244c184d5b7735b5f57a25e627b6a1b9cf7",
+            "size": 9862
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/chart/__pycache__/legend.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "c8d9c87c609a4c2b111717d9dab8782849427202abd35dcd1859edf4425ec8f0",
+            "size": 3104
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/chart/__pycache__/marker.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "85237989d43b31695fa8e0937364ad7f1a298c1c9a90438f839ed33bb935fb61",
+            "size": 2755
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/chart/__pycache__/plot.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "585a4218b0178c216377a63ab390db2b75c04cd3cc5f9dc84405007e8aa43bb8",
+            "size": 12190
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/chart/__pycache__/series.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "33230fdf79b3caf3497d14af11ed62810a0aaa77b8147ba1865f43b650863083",
+            "size": 10242
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/chart/__pycache__/shared.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "5cb349073d0d2a1d6fd820c3da141abc9fa39be417b0ff08ffa0f7f7f3ffc298",
+            "size": 8864
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/dml/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/dml/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "fabeb33b52b48177a2ad7b8cce37d31ce1ce30108dea9965020aa26ac13bea2c",
+            "size": 259
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/dml/__pycache__/color.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "bd7999e200a61384b04f5e231f88924e3b69086e7dfdcfdb2205e15ca6a07061",
+            "size": 4277
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/dml/__pycache__/fill.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "f9b109e5a1455787820b77737330fb6c57458314a04b17839f119df6cf7a3d6b",
+            "size": 7938
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/dml/__pycache__/line.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "f4cf2066d9dae01e7702fcb8d136ea4435dcd2d2edf70a8fb6c97c15992030a4",
+            "size": 876
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/shapes/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/shapes/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "c04d436a5b165abd5a90c1c4e0d3527fed1ebf0cd480a6758c8d2ecc872d2ecb",
+            "size": 1007
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/shapes/__pycache__/autoshape.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "33e4633597a58b97a0de7146c0320ca3f4ae1eff85f111330b48b134ecafdd81",
+            "size": 19240
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/shapes/__pycache__/connector.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "f5396b3ee9b30dc524da0a9c62c7410d11d5c2dcee5ff5c039a9253c3f841ebf",
+            "size": 4498
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/shapes/__pycache__/graphfrm.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "a4207d2fe37208ef2f094b785de4ac56bcb79609c3597377266c59873847c32f",
+            "size": 17967
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/shapes/__pycache__/groupshape.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "0df84e7b6cd691188c10a2b69dcc29ebbe9339ac922f0e2612fdb575ccee1a71",
+            "size": 16540
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/shapes/__pycache__/picture.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "30814bde3d1416538569e55e94b16f966fdebafb50a9bbbb8d792332b07f123f",
+            "size": 10406
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/oxml/shapes/__pycache__/shared.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "031b952d694b25e580c229a2203c1e0ade56ed9ec1bd0bf60c89af6fa7f56bb0",
+            "size": 21693
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/parts/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/parts/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "5c2d730eb524f5d61ba6803926c08ca9468fa42ce729d937fab91e6aa57108d2",
+            "size": 256
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/parts/__pycache__/chart.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "f21d7b186b793e040937b4d258fb00de8c2afe6bd5a2f93e9dc211d1a29ee8fa",
+            "size": 5074
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/parts/__pycache__/coreprops.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "e226e6aeea524d91e97b4a0ca0add3eb8bb2580b3e41072c561cee3136136d5c",
+            "size": 12189
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/parts/__pycache__/embeddedpackage.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "a5e24a9a73d4adfed46debd39708a91d3c946cb2ec9ce513b74e1e116bf007e5",
+            "size": 4438
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/parts/__pycache__/image.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "c1d41e4e341daeebc5498c9c6b27c02cde694705c2e8c45035e8ba82d78afbea",
+            "size": 16217
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/parts/__pycache__/media.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "44736ace346d6437b3a1fb450df318b5ed482f2381ff155e79515fc8cfb62a85",
+            "size": 1708
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/parts/__pycache__/presentation.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "feba96170e0926e4ffe762a4f6595a889098f427ffe3e52a2f5c61c0c20a3ede",
+            "size": 8539
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/parts/__pycache__/slide.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "78ae452ff8508c7a925789e55602ef6261e88e3a481858b64a9b8dfba7c2795a",
+            "size": 17108
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/shapes/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/shapes/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "6ddbc1c1245b604fbd623a04e896bba7b5255e4aaa3292d6213ffe91782f37cc",
+            "size": 1816
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/shapes/__pycache__/autoshape.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "e51f8417594b5e3c19d04103a224d3d497203c7342f4e7e7eaa9f70bb8a196e6",
+            "size": 22361
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/shapes/__pycache__/base.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "bf401a228eaecd70d9058ca77fd8680fe447f94bc8024925ad211de9dcabe9e9",
+            "size": 15375
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/shapes/__pycache__/connector.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "b6b8e685e913204635348852469ea84ff78861b0389b4787fe0649cf886e6e37",
+            "size": 12429
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/shapes/__pycache__/freeform.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "0b635ee05976e1d77a1e89a4464f496cf04ca79cb7dc1db33eee23583b21b4ef",
+            "size": 21444
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/shapes/__pycache__/graphfrm.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "28560bada0a6af63edd0581b52f68965738409ac863db67b9e8c466f7d5f82e3",
+            "size": 10195
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/shapes/__pycache__/group.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "bc24a684e1701ee3c338f2de76efde773b8aac10ebd37b1999094b44c19b06a7",
+            "size": 4196
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/shapes/__pycache__/picture.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "319e9c67b22771e21c566726b8675ed73b1307a72706331948e50d200680f61a",
+            "size": 12106
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/shapes/__pycache__/placeholder.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "f4bc5459fb372e1f961b16b5c79e76bae7ebb8ae179542a8bb23d66e27e316e4",
+            "size": 20567
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/shapes/__pycache__/shapetree.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "0e588ea3f7b5b32012d0cec954ef2a11ae0176a606913f29e91675c1f36d9150",
+            "size": 68509
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/text/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/text/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "8bb12fa1ca4ec9e6d06aa25cf735e3a09f20784d3c88a7031075eb0da013bdd3",
+            "size": 255
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/text/__pycache__/fonts.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "933eec570128c6c7696cd22cbdd811ddaf572128149a9e0a3d52bb57bddf4212",
+            "size": 18974
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/text/__pycache__/layout.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "07536a2352d751e2f259303831a1d53879beccd9452d6536b2cb35ad3d62cc12",
+            "size": 15724
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/pptx/text/__pycache__/text.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "87643ff98c014abbf2b4c36bd02adba93c58de7de23fdc9ca04e36d7bf5b9936",
+            "size": 45354
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "9908facf9b0e96595b42faf05860d4d1e9f54cd6a658dcb7184e0485b21cdc69",
+            "size": 408
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/__pycache__/_internal.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "cb3fd254f844ad8be45f23d63aa7ff878255af2ccc46c17c74dd20a6dfba6b0b",
+            "size": 12953
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/__pycache__/exceptions.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "d2b273b29f436b482eaf8b57e017c273a03c3174c1b4a8e26ef859033273f308",
+            "size": 37566
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/__pycache__/formparser.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "f7a8d20ebf972668e5649ce0ba2a0db0e969d5c2b274e3817a001958a579de50",
+            "size": 19179
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/__pycache__/http.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "ff4f098d87f8d0aeefbb2aaab106ed21d72112c732651a02390af33696a41298",
+            "size": 57631
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/__pycache__/local.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "25638df08a4f1f51175b3245dab6fd04edfbf003c689800b6fdf247a3a48502a",
+            "size": 33376
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/__pycache__/security.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "57bc1b21b47400f03970518a7e2aa0abd414187356b8c97c305285a406d488a3",
+            "size": 10504
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/__pycache__/serving.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "4bc4e0bb7991532fd2dff22d273b63b910049b4edc18cdee5531e66d2726e282",
+            "size": 52187
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/__pycache__/test.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "e613ee9c07244e587b5d56e4c9d79186cc8e3b5be75adb115432df2be2f20f40",
+            "size": 68236
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/__pycache__/urls.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "ea4eda090a8b6acf2331223da1d54e852322ad1816736b0df1edb446391582e5",
+            "size": 9491
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/__pycache__/user_agent.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "ecf85cbf2ef6f6068e866effe85e5e276839c97aec80a9866b724c10c26caf22",
+            "size": 2928
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/__pycache__/utils.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "014be3966abaf4102554475333232a0a091a962220ceaa9df28dcd034c658b38",
+            "size": 30002
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/__pycache__/wsgi.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "e3dcfa1d47d8f2ca0df0f1be583fe671aa3be6396e504305dbfd963db0c83265",
+            "size": 30583
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/datastructures/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/datastructures/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "62320a68723f9be3e758f92962c49ae163590f7efb8558877244bd2531f2c64d",
+            "size": 2630
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/datastructures/__pycache__/accept.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "e7be1528b33bf449268e16c371f6d4c7c4a20c7b5527a3e8159680a56fdf0a54",
+            "size": 20842
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/datastructures/__pycache__/auth.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "8c24c92caaac4ed68806495279bffb6391900add5f679777cb04b7b61535e3c7",
+            "size": 18777
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/datastructures/__pycache__/cache_control.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "16b2cbbf9f8500d01343758e433a03f0b6f8bb30474b329b433a71e8369c46a2",
+            "size": 13067
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/datastructures/__pycache__/csp.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "4985fccdcbe6e2e7ab50c6c7716e51b109301182f498d47b401b7ac7731fc236",
+            "size": 7336
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/datastructures/__pycache__/etag.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "77e660abb1c982d6fa939be6455a917a76a9344be52862657982699cda756166",
+            "size": 7656
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/datastructures/__pycache__/file_storage.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "05a4491aa13bd37712d34845c2da0fb4bc278bfd7f6f59bc6669ffef17261b3d",
+            "size": 10729
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/datastructures/__pycache__/headers.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "3bac1752d040da390c08ded80efff21ab7e0390b8c6e522e0251dc31dfce8731",
+            "size": 39906
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/datastructures/__pycache__/mixins.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "ae54cd391b7fb7108469611a2d7a2c8e48ef12993fd6b3b109e194eedb83b22c",
+            "size": 25150
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/datastructures/__pycache__/range.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "a97612030a27be53f1365131d7694fdd81674280afe793fbf5f22fe689aa3133",
+            "size": 13275
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/datastructures/__pycache__/structures.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "496be197ce118da7db2448db899de109036ed75459b5ecaac369d0e5dc53afa5",
+            "size": 76103
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/routing/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/routing/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "d327ccc11aeee9d4bd4e14ca790faded368c5558f13b77a708635c1f1217cf3b",
+            "size": 4733
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/routing/__pycache__/converters.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "731eb39d40dcb3c416d51fdda7fc349e65670cae65671463b94db507e134f3aa",
+            "size": 13343
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/routing/__pycache__/exceptions.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "b9ae2aa443d8e8b17a88efa5740257a8779cd67e9ef30abc1d211eb6f9a5c8c6",
+            "size": 9873
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/routing/__pycache__/map.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "f9a10c0040feae1710f04527607e46eca7370499907da1819b7a492792406ec9",
+            "size": 41784
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/routing/__pycache__/matcher.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "a02ade4a161a458bcbb024516156fc8d5babc4929a83448a0ec1bfa5ad781072",
+            "size": 10011
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/routing/__pycache__/rules.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "e26c1965769f5bdd64a8d9ff963c7cdf538bc06bfc8df40fbd4a5bcc9621dfe4",
+            "size": 45046
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/sansio/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/sansio/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "d12dafd70a904c97cf258d0f13910bb9e902ad7eb5802ab6f976c84416e35f5c",
+            "size": 261
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/sansio/__pycache__/http.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "e43bf69023a0b8cea7fff837a47468f3e6f91cec50501eba92d8553d773e752b",
+            "size": 6327
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/sansio/__pycache__/multipart.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "4d9aa52eb2f2e98684cad7ea79cd73cd0a926e67ba3ccc6fb9b50491d54196c0",
+            "size": 16469
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/sansio/__pycache__/request.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "8d77018db00d75f14d5bf0ed224cea50bb02e7b7623a2cfc218c6e5a97d4da34",
+            "size": 25518
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/sansio/__pycache__/response.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "c555f9a191a1f5aec82852df3b980fce265c34985c8c5d84b1d49ad262890a5b",
+            "size": 36993
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/sansio/__pycache__/utils.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "d2cf9cc98f49162f862fe2adf704195029fcd52b8fcde86f05aad506f6085bab",
+            "size": 8890
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/wrappers/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/wrappers/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "685d0313c11a4e602703e7d0df22684801e4092277e483b29a0aeb1401ab402c",
+            "size": 385
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/wrappers/__pycache__/request.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "c20c3d6c80af634f363ed2f2909b75ec92437eb8c93b975b0abd204954a0d2c0",
+            "size": 28656
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/werkzeug/wrappers/__pycache__/response.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "943246de3b95aaf37071cc3315f2e21e502dd0d72009e81efee4357809627e24",
+            "size": 39303
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "d5b1e8d60dbbd9288f2efbc5605c6bba487d76883577f783cb341382f86dd142",
+            "size": 375
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/app.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "aab1d4191a912778733ad94ecff8315ebe6f684bde1baca8779cd243fc4f5d66",
+            "size": 10814
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/chart.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "3f5e3e204f50f4d1e3ddbf9593229589703346f57f12522d6c0a82f583a26cc4",
+            "size": 159865
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/chart_area.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "4b622191642183c8e5a2d821cc5433b1f7af29622ac57baa83ae92a459b67986",
+            "size": 3312
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/chart_bar.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "bfb73cdfbb2255cd4af43bab10442f2a45b846416cc37108c22a99d5e6b2d5e6",
+            "size": 6275
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/chart_column.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "c3bc5f5a4808f46926ec25a4483956b0f378a46209bd6f8e045144d8801cd63b",
+            "size": 4674
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/chart_doughnut.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "5186963895b4dd8ce676cdff58fde0cb69ea47ee75f65d6e05076a10e65d646c",
+            "size": 3473
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/chart_line.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "43054b3c83c1959cff66f26d95ac6ef1bb3a4b52e3a9e3c2e1e969a555c20bc5",
+            "size": 4677
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/chart_pie.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "501a96392fa9b6c594bc0cf7527007a4ac2367dc4fc4a7022158eba0bdd2dcaf",
+            "size": 8948
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/chart_radar.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "b3498d3aaf359295b562e3a6f38e07e8693be66bda6b21761302dd970d58340b",
+            "size": 3645
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/chart_scatter.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "1b5d36f421362849e281e2c798003b45a9f5ebfee81a773e0e95e679fa8caa25",
+            "size": 10935
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/chart_stock.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "9b43bbd85c4f3735972ef0a06217b4546ae4a6af5c79bef73b647dd146ff322a",
+            "size": 4024
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/chart_title.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "0e99b270c0ba585a4a659b4912582a66eb0fcd99acefd5938b6e034023174ad3",
+            "size": 5436
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/chartsheet.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "965161775e42e88f594e9d7f1a90245765446d025af75259678dbecb65e9f16f",
+            "size": 7015
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/color.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "46d7037fe54cac254d858d9903defcde9b89a12e63417307fa2ca901a529ff31",
+            "size": 15326
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/comments.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "f0a4a9c3c3448e4af2acd57543a899c326441ad0ca1c3a005fe7b3d5cff82080",
+            "size": 15874
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/contenttypes.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "432052550d36cc01b5363f99c5e1782b6736fdaec68d1dd102675ee0812d720e",
+            "size": 14030
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/core.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "cc215b591d853b20c0a6afabdf02c3d2e36fbfa152d15fa2e6e4ac367df575fc",
+            "size": 8554
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/custom.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "75b84f50848819bce70e79fa3cc8e725f656169194a85122be485a6efd06ed4d",
+            "size": 5824
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/drawing.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "4383a6d8c4e319b97ab6ad029270a8f79f22a48e7557702fc9055d26ad8c6464",
+            "size": 49509
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/exceptions.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "ffa2a56266f85d5ca77becca90f5994cf391e9427e8fa0bbb2f614fd4d0fd44d",
+            "size": 2941
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/feature_property_bag.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "2a37e2cd3150455ebbd5db0ccfedd0716293d509b6179550b427cf210d2befb4",
+            "size": 5915
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/format.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "338de6ee8214fd76e8d47594a91bc750317b536e806d6b39bd990303a0120c6f",
+            "size": 43649
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/image.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "d7b401c5bb4eb31c4d4d0b033fb5ff28fb3c1208d8d9d520c87e3c257bb26818",
+            "size": 19015
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/metadata.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "c34e894f5bb87ab945c44fb45ee4d32dd4b4902898cac72b549d70927d278df4",
+            "size": 10426
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/packager.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "25bffda100e076e0e1e30456eb5aae1b8858ba681f3dc8c9abc60acb2b9e74cd",
+            "size": 41739
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/relationships.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "0c672f039f6f7cdc20ec487a10902e9bcea270fbad47270439e04e9ab2e66019",
+            "size": 6419
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/rich_value.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "736588789a35ca99fc3b85b7ccae8d71436d2df2d60291580b5eacd71aefe5a8",
+            "size": 3587
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/rich_value_rel.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "deab66227247f6b710fed3f9995a1523ef9bfa5aa0014cf6342c04f9238b3168",
+            "size": 2927
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/rich_value_structure.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "41401102a9d687d8c3f52b438f392563e30712a3865ff7ba8e8b8e5d2fa6dadf",
+            "size": 3484
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/rich_value_types.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "e9a06956b5b4040c91e58748b7a45b162a075ce91c9c1aabfda065f713ba0a93",
+            "size": 4093
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/shape.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "54d2dd979b74cc37a29f0d0ae3362d1a1c7a35438c40a10d7c4688abba97a352",
+            "size": 14285
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/sharedstrings.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "1d9843bd87ff5ad9a05d1c6eb158ea6133ab637b0670064bb49aef7b48ef62b2",
+            "size": 5840
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/styles.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "e4eea0110683bb294d198c007bb49ef67057dd0e4004db5f93e656226faaf2dc",
+            "size": 30571
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/table.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "494eff0a83eba334d7a0844497da9378b3758e301f3dce64e46183ed39a81261",
+            "size": 8105
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/theme.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "bed4c37c85533c9efbfb0930987e384cecb2515e61d43499864d9691b68546d5",
+            "size": 9520
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/url.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "338c96b73e3880ee0c4e68b5cfb0eba1c5beb45a8642a7a9c305c0c6c01b38ef",
+            "size": 13058
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/utility.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "d87bc1ae8671b9872bdd97f520e5edb0258d1ca092b2944a633415ab41046833",
+            "size": 36315
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/vml.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "95dc76ebe94be69ba0019d6b4a5d5a9fe4690e5b115a4168289e8b1a06156a44",
+            "size": 29400
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/workbook.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "93eb4938250c131491832fe2684282da118a2cfe53602efa430171b971349299",
+            "size": 64527
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/worksheet.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "b8aa54f9688065f4ea21402985b525f15b03a1fefe972d7c3d57b95041a374ff",
+            "size": 298823
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/site-packages/xlsxwriter/__pycache__/xmlwriter.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "50b473a170ef79d56b9351b4cc9fa7e6273e8ddc3b9ab2b962307455f9d18602",
+            "size": 12769
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/string/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/string/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "19b0cbb7edb5ba16cb4fe2cceaaa1bf11020866d22b811bb79c442ffc945f449",
+            "size": 13067
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/urllib/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/urllib/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "463094297fcbf774a176a748a432ad29ee382e5e66723c73e622db8b270e3f82",
+            "size": 238
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/urllib/__pycache__/error.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "8fa24c8aba51e938528db665a9265865ba9db21e160d45ab2deed6a943cd9db9",
+            "size": 3953
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/urllib/__pycache__/parse.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "8d27752de212c75dc3f9e13762b10b0f7035bb6fbe1a5f8e617fe317acf51baa",
+            "size": 53707
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/urllib/__pycache__/request.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "5fb20c4d56d14253c9dcce824d044a173273b9dc06b70e7735ea899f7710d47c",
+            "size": 91186
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/urllib/__pycache__/response.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "28b70e4ffcaaa91e9a632837a2b04e2b38717504a3fb93e21cc517d08ce39593",
+            "size": 4799
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/xml/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/xml/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "e8dd15dd2a66f76240c3048f24404841185194088b140a5e4f1579e6a4031f90",
+            "size": 810
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/xml/etree/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/xml/etree/__pycache__/ElementPath.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "5523408bcfba322bd73d9dcff4edd183cfe7682321d6d756aee0d655d9903f63",
+            "size": 15967
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/xml/etree/__pycache__/ElementTree.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "8cc5cc6e43ffe03e31c94fe9a423b6b00de70cb650925faabb9dcae3da25a34c",
+            "size": 85748
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/xml/etree/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "f77e4a0fc0ac06b78998fec46c06aeffef79079a6b86c4d26ca979344224ef9f",
+            "size": 241
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/xml/parsers/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/xml/parsers/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "a265f77efebac03f2e36e7e40acf6a6810e7d5e94b20721f4edaa890f65b55e5",
+            "size": 420
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/xml/parsers/__pycache__/expat.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "ee84b7478ad0636f5b8c2869d327ccdb4e63ac34a54d8eed780684adb5f8c5b4",
+            "size": 514
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/xml/sax/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/xml/sax/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "0dd96a482c2faf640a423513fb04bd57c8a621026fb6448c84e26dec78b1cbde",
+            "size": 4046
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/xml/sax/__pycache__/_exceptions.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "ac0524481f737a3f4ce95d678da412cf0db620a4d479130f0ac57fe60f06985f",
+            "size": 6429
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/xml/sax/__pycache__/handler.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "1f873b5fbd44e88d0332223c3279d1980b9bce6b976048da3bad14089b5ed282",
+            "size": 14428
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/xml/sax/__pycache__/saxutils.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "14618350c02c4b0c095a9bfda4168058f2771b72322c6a7af117a38882e269a4",
+            "size": 20386
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/xml/sax/__pycache__/xmlreader.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "67eaba1231c919bd0e81ec36089e211491824fe510a9d723aefc2a13f607ca8f",
+            "size": 19639
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/zipfile/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/zipfile/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "60edf2fab279d8172b6d006cba6a7efada2a7656086aa41c66b7f279c070dc50",
+            "size": 111636
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/zipfile/_path/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/zipfile/_path/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "d310194d8df03a9ad0ca396311831b5825e9b303b2ad0c213c0ec89dd1a5762d",
+            "size": 20722
+          }
+        },
+        {
+          "accepted": null,
+          "path": "python/lib/python3.14/zipfile/_path/__pycache__/glob.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "c52d9e99d30406f7323e48199097065773c32fa0068212c511bd2793bfb7597b",
+            "size": 5947
+          }
+        }
+      ],
+      "equal": false,
+      "label": "python-runtime",
+      "staged": {
+        "aggregateSha256": "a7bdf0d64ae68b5a8112788fa7583355e9936a60621fb2b45cdc8cbc6fe1eaed",
+        "directories": 352,
+        "files": 4791,
+        "regularFileBytes": 165535290,
+        "root": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop/dist/runtime/current",
+        "symlinks": 1047
+      }
+    },
+    {
+      "accepted": {
+        "aggregateSha256": "2308fb815bf2288d04be43c6948e9de52e44774da95470c52095bfa5dacecfea",
+        "directories": 157,
+        "files": 12984,
+        "regularFileBytes": 83680906,
+        "root": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop/release/music-adoption-20261024/linux-unpacked/resources/skills/ppt-master",
+        "symlinks": 0
+      },
+      "differenceCount": 133,
+      "differences": [
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__/attribution_guard.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "bc6d858104669acbd6fac26febd66456ed2cfbf468c2c59007b63673b546c208",
+            "size": 15740
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__/authoring_roundtrip.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "162afc6442c6c51e0441f69364923568729f5c46b17a90062a22af7b72e33b99",
+            "size": 91567
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__/compact_svg_coordinates.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "624bea247404395fb6f99da91bcdc850e0da00a6f0da514459d4e40ce2734332",
+            "size": 17511
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__/compact_svg_styles.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "082883d7568f172d217f4655451f91c0c66a70b155285b77e5bf6f5ad4bfa171",
+            "size": 30173
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__/config.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "988d9972d8b6acd53f5e0550247bc507ae2578d52e5c6a4d1f9a603aa92aadf1",
+            "size": 22834
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__/console_encoding.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "35eca028458a6008c0975930f06796c679659b523174009f1aca27cc473951b8",
+            "size": 5375
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__/error_helper.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "98037aa75860574a8330303c918b340af411926e59baf15fe7a1522ca4bb17e9",
+            "size": 16247
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__/extract_svg_assets.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "735692e2ab3c007d72ff3025d84cd6e1f1366d977cee03d63c7e8f52f763c3ca",
+            "size": 68946
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__/hyperlink_contract.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "db7a59897bc792b99deed563f03bea846844697543744067a74a1164a7921a8e",
+            "size": 20583
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__/language_tags.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "3d6ef99d31b6e8a9e5da9491b5f8205047552f970e841b9217a908aeda1425b3",
+            "size": 12137
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__/native_payloads.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "285a310cd12390781e288ba626c21c947ec44657ad27f0712b36c310e0817ac8",
+            "size": 32848
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__/pptx_animations.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "19f4991b9fd4941ae15a83df5b82f57ca180b805009f738a667029baa12a6edd",
+            "size": 180742
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__/pptx_effects.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "8081a6affbd0dcde36f0ab79f7dc92d4e155024f2f68874ae76c4c9944cb3ad7",
+            "size": 13299
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__/pptx_embedded_fonts.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "c550f9aeb4c68f5c96953ad024c4dfd9e549665e83a45ba31eaf1b64dec16e50",
+            "size": 19556
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__/pptx_gradients.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "36702ae62c0274fad310d59963aba1f502a2d47e46b43c7d600b5a225e4c0b49",
+            "size": 7564
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__/pptx_opc_validation.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "36fc3fbb44dd0af028ae50ced6227047cd9a356c3e9fcf9b3a88ffbfa90eed14",
+            "size": 16486
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__/pptx_transitions.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "6494c24d90d9e3d8702ecc2c14fd68fa6c364c2196bbd6182af8cbe7cee8528b",
+            "size": 117016
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__/pptx_workspace.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "d0c056a8db7d5d84bcae097d55b9fcfde2a6cec4c97cc6f18963c3d448d222f5",
+            "size": 49696
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__/project_utils.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "f1d91f5d555cd7ca6bc1f3c027d76aff341f87affc00b0e6b7392c53944f490e",
+            "size": 31626
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__/resource_paths.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "2c93a9258e11cb199ec6f4a57255b51b7f59bd4150241b5024146c7554077998",
+            "size": 14737
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__/semantic_table.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "3eab7d2ecb32415a1efdd8dc8fe7879bff9c6caddef7959b7f8ef62444d3c849",
+            "size": 22354
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__/server_common.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "8dcc562e7f807136bf8612546cbe84d52f47eafc57fb56cbce5fa442867f586b",
+            "size": 16367
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__/slide_roster.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "ac44aaca1cd025b0c2cc9ca72a663b536d0f4078d0eab3b76d6df51c5fdf3b9d",
+            "size": 2312
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__/stamp_native_fallbacks.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "2b48f8d2f9fdf200a6996ecedd923cc3b0a2355ba46588a79782d5a401a8f441",
+            "size": 18661
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__/svg_authoring_contract.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "5c8a7b465896f8785f36908f3c0ce6516e5e4a273e93950e391a4b2b1ffc111d",
+            "size": 18509
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__/svg_authoring_view.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "49a05bbab6050b8fec2bda2dbfee492af80e2f17723603b5e0ccb5cd69b71b47",
+            "size": 144186
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__/svg_compatibility.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "3079a38337f88efdd07c007b292f9f114ebfe4d986505ea0ea6e58c88b3a5440",
+            "size": 3054
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__/update_spec.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "d7eb4c16a52e312967ea5bc79fffd994f6c350c11a620cbc271bd69e56a10cf9",
+            "size": 21390
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__/visualization_catalog.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "12c85be244d6e2e71016793bb833260c36bbbc8feaad15fa25a2033fa6a4da7a",
+            "size": 17594
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__/workflow_log.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "24864c2b19d324a1b01f9bf53b274c80fc402026aeb3f58d79cf96d3a4f5dca6",
+            "size": 5615
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/__pycache__/workflow_transcript.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "2fa6ce2eb9c4c5b3ef3855f8de60a15077e8009aa5e969385086fbc7bc24c435",
+            "size": 22273
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/pptx_ooxml/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/pptx_ooxml/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "80821ed33c0bb1cc927ff319a7ac3723b3e762d5c49ae81ba402735702c1f412",
+            "size": 794
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/pptx_ooxml/__pycache__/analyzer.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "18270ae6b3f013baa42ada0872585efcf200a50b97432df19c8cce8afbbb78bd",
+            "size": 15835
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/pptx_ooxml/__pycache__/chart_read.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "76e3f63bf3c40f13515460cc4afdd9acfcd142ef7756733ee7d2b6f6b1c846b2",
+            "size": 5947
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/pptx_ooxml/__pycache__/clone.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "d89847da4d8d1c1bba9d90f502c52caba11e9bbbb3ccb408b71ddd7d0d91bc49",
+            "size": 37669
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/pptx_ooxml/__pycache__/diagram_read.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "85e66255905aee023ca21f5dbfab4b56c7dfb2535b23a97ccf5638c88b269149",
+            "size": 27091
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/pptx_ooxml/__pycache__/edit_safety.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "5b793c5e8ffb61f2a66b304160f06c502b9c33d089385a9ab197313d877768cc",
+            "size": 14558
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/pptx_ooxml/__pycache__/ooxml.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "ba3732383dfcc5f0204b01e80bc31f0ea4c2f0eaf6e6cfb454e313ccfd425f07",
+            "size": 16705
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/pptx_ooxml/__pycache__/package.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "0d8da2efbdce08b0659f1160476c2ac63591875e3ea9b02c278fca266a992114",
+            "size": 9459
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/pptx_shapes/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/pptx_shapes/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "56d24dc1c92848a36093386a3ac22333210b994b0b4170c48c365598a668d9f2",
+            "size": 3360
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/pptx_shapes/__pycache__/errors.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "8c5c54028c7ed811aec835b5012da78e15c7170c8c490a7cc6b25e76de1e6f37",
+            "size": 2062
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/pptx_shapes/__pycache__/formula.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "43cb2ec49901b58e1bc3e5ebfdfce983d3771ff14d5a3c105fb0b4391f3120a8",
+            "size": 18125
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/pptx_shapes/__pycache__/loader.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "4d00b3d62f81cd429a49dfd1b42366599421f589437ce8b92bd303ed1416b9e5",
+            "size": 20360
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/pptx_shapes/__pycache__/models.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "07e0c191b75dce1c1ab6a8cc6f01c7a3d3e4f60672177e9d18e9e00534ba6c82",
+            "size": 8176
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/pptx_shapes/__pycache__/registry.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "2f9bacaa9021d41d4cf19c09529c511303969c88e752d809f861f9190f711a6c",
+            "size": 14807
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/pptx_shapes/__pycache__/semantic_hash.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "bc1930d1733c9baca2166eb80230334169d54203f079ceefde43c6c78cfa0570",
+            "size": 21133
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/pptx_shapes/__pycache__/semantics.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "4da786fe845a06be41053d5f2fdd179cd05c847cf478ccc437708153affdbbdf",
+            "size": 24515
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/pptx_shapes/__pycache__/xml_safety.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "dc9b9f8f320b1737c2f117c81c0aacb721ee7352537d2b63f76d512999cd9788",
+            "size": 1539
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/pptx_to_svg/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/pptx_to_svg/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "aa6c91e275edcf11e447657c4c04c6edee458144f4c779198a6daaa54cc84921",
+            "size": 1172
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/pptx_to_svg/__pycache__/emu_units.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "07a3b96540ac33f713502f3b351fa66ce2774d5732fa14736264433272985ec3",
+            "size": 13228
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/pptx_to_svg/__pycache__/preset_authoring.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "1d0dd0e8ee830b80744c002239bcc27e4ab942263df6fe74bc92fe8804c1180a",
+            "size": 44689
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/pptx_to_svg/__pycache__/preset_registry_to_svg.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "3760c970d4f8818bc226f6eccfde56a33d67e1514b3be4b22c09e2bc0c5e870c",
+            "size": 10368
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/pptx_to_svg/__pycache__/preset_svg_markup.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "5932357c8c3ec89d596c85ee73da0e4fb1634e4b0ac1b5ac0b4cc3b7ed774c99",
+            "size": 11283
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/project_management/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/project_management/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "49238e789f886736517ad7282f6f661b267d83acf1c59fdf2a78d6010c823f3e",
+            "size": 687
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/project_management/__pycache__/cli.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "4883d6573ddb41ea5aed604fcce8c43804a41a114d684516b8759c8f64b14ad1",
+            "size": 73294
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/project_management/__pycache__/page_context.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "f342146ba069521175ef1f4a75bfc6025db93bb612d3f25079d7d7388541bc62",
+            "size": 47971
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/project_management/__pycache__/paths.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "e72f963ad2c803054b49df7a335180098e599c64eef984770db396ad66f5a31e",
+            "size": 1246
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/project_management/__pycache__/project_specs.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "3b6cf6cfbde0d80ae05f84d8847d6577a1d93b3e41ec5a6dbf5a0053a353c79f",
+            "size": 72329
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/source_to_md/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/source_to_md/__pycache__/_dispatcher.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "80f5f99764aa242bcaeeaf57536d512676dcf8a9ec4a3e4e5d0a1e44108374b7",
+            "size": 8257
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_editor/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_editor/__pycache__/annotations.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "b3b7e29f80826ff37610ab89fd3ca1a524ed386328fbc4bd212dd3aa534985fe",
+            "size": 19067
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_finalize/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_finalize/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "b9a6c9c2845d57c0460eaa82746c085374b00c522326e63d2e474bd83ad1050d",
+            "size": 686
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_finalize/__pycache__/align_embed_images.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "8a5b5061df653814e85f2f6dcf3d7d32cc3d2d59a3ee47ad956da923b5f0eaf9",
+            "size": 31401
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_finalize/__pycache__/crop_images.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "a0752a8c55433f97ac7518d4405bcc54798743b8a06b40cced2f08894369289c",
+            "size": 15209
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_finalize/__pycache__/embed_icons.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "10f6e8aae8bab268c0bd959fed78ccc5fe945da89522b6368f5394151453d371",
+            "size": 30964
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_finalize/__pycache__/embed_images.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "d0688ca60460a53c2fc6bededdeac380a474ac1ae88e05f6ea34ec84bcfbbbcb",
+            "size": 14406
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_finalize/__pycache__/fix_image_aspect.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "ff59069cc96086c679ffe17ff68b521fec190b0d2693710c9b70d0a3fdd74173",
+            "size": 17524
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_finalize/__pycache__/flatten_tspan.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "24dbe9135b55676235570397c7c077d26d8a869f836855d2897772ec76817508",
+            "size": 45888
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_quality/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_quality/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "07bd2abc8dbf5af343c87821fcb444d44e0994d3dc26379f7f859f01370c3da3",
+            "size": 565
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_quality/__pycache__/checker.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "d07ce93f442a62279977be745ce819468a11e1b1016cf7a0ebf76e0327d3fde9",
+            "size": 457781
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_quality/__pycache__/cli.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "31324a521ccb1162cb093a76068a0e872c268441b3296b17f0e9198dce42e4fd",
+            "size": 20367
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_quality/__pycache__/svg_contracts.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "fbb708fd9a68e98c263d17c3b6e258c4d296f3f6510fb6863825352edbf0324d",
+            "size": 51841
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_quality/__pycache__/xml_support.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "c0cd8dd95a02e8a805e03455a787e3b4196942c9941fdfd4c151a4c9db2a5bef",
+            "size": 1962
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "190b7d467e1b16f4c3c009ff66dfa4c16fda3118d5ef0bde1412a00d43b99aaf",
+            "size": 1448
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/__pycache__/animation_config.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "7e544636e495d367d6b6f6a57e9fc94ada886a998b2b5bf0de6b9f20eb67e1f9",
+            "size": 81921
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/__pycache__/canvas_contract.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "82f529cadc71da355d98fa8850385ee2de16b54d647ac53bb1cea47ff43108f4",
+            "size": 14321
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/__pycache__/geometry_properties.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "874135dfb03c9c1adb67c2ecdc384e18b5df3afc6a5ce5ff5de570b9324be100",
+            "size": 7610
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/__pycache__/semantic_markers.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "d3e5dd2998bca66f0304236f9ba1f6632e18b9a7f06a04afb20a527875d9f090",
+            "size": 10738
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/__pycache__/tspan_flattener.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "26cf97fbf9fbcd0faa05e0045535c253afb4cbe31534d97d223902fef61dc276",
+            "size": 4154
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/__pycache__/use_expander.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "c95f786a18701280c6ac7fd094c02ef8a66aa9092b8edc6e1bef50f62d9129b3",
+            "size": 31699
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/drawingml/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/drawingml/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "f70295b692a81fcd97f070abd6a0361679e3c7739a4bd886f1bbdf696913fffc",
+            "size": 301
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/drawingml/__pycache__/context.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "777ed0b085ac000fb02f1c75ddcdca0c2607c7c9335948dd095e2a3ebaa818dd",
+            "size": 13622
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/drawingml/__pycache__/converter.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "2801e99e1a77a95177bf5f908ed012e6cca30447850cb27209833bb8ecd66e9c",
+            "size": 111891
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/drawingml/__pycache__/elements.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "1acac8f8aaa93548a178d91bb7f9634505c8e8cac01df561eadd2370db860886",
+            "size": 227497
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/drawingml/__pycache__/hyperlinks.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "a38600af2c75d19635cc45831cf3cc61488f07b2e2ce091e7e87ee5ad38b1619",
+            "size": 6734
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/drawingml/__pycache__/paths.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "cc58c03a065cb83eb077d47bcca27977f519ee258c67412e82e6dfc94c9c781b",
+            "size": 44163
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/drawingml/__pycache__/styles.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "b73a26c4fa594412daaf18d4aee3b0159ee81a996cb19b99605e118d42c26b40",
+            "size": 32250
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/drawingml/__pycache__/text_properties.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "84083241fe84cdb0a687bae800cc0cef6b6bb9d6beee4ac213862064a37d2ea2",
+            "size": 31886
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/drawingml/__pycache__/theme_colors.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "96f7bf8df07443b319fa44ad4da06b13e9d2a77920833e99f0add368d53edf24",
+            "size": 16128
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/drawingml/__pycache__/theme_fonts.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "d6a90b54a65d2d0057be985aff842730d76dd781fdb8a658191d24c1a80273d1",
+            "size": 26328
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/drawingml/__pycache__/utils.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "ad0daa85b831e5c42584de4ea666a51de89d050e9bf4f7fb34c3d45cf46e96bb",
+            "size": 184832
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/native_objects/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/native_objects/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "6a6c0ac16265b1f75a4dae7f46068a59de40dd08b586fb6cc54cbd702e6502b0",
+            "size": 33203
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/native_objects/__pycache__/chart_data.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "8e71473f40659bd3834df70da8054d0bb02cbb3528af5ef1e1c52861e89c25a7",
+            "size": 79086
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/native_objects/__pycache__/chart_style.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "a4c98038b117fbed78830a91efc354126d6cac857b2221d91d8c5907a0a475dc",
+            "size": 88178
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/native_objects/__pycache__/chart_xml.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "1813ec5b7038ac876ec31cc55d98f01010c1832ffcacc680669d1debade85bae",
+            "size": 70647
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/native_objects/__pycache__/chartex.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "808831ad89c145e3e4f2577d80101ee88cd1f719e6a1965ca6107701e04e5607",
+            "size": 27257
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/native_objects/__pycache__/fallback_hash.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "e6d755c24633c9744ee79e0298253bfcbaabba268027e6826c6ff4c21ce7f063",
+            "size": 7278
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/native_objects/__pycache__/formula.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "fa3e18b6291a37e3e2b159896800c321ae389606c22616ae1ee222f278f8c465",
+            "size": 11214
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/native_objects/__pycache__/formula_ast.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "574fc2c71db0a886e7a9526244c8d3bcdf7dd13deb703436d4a699ec6f704bc7",
+            "size": 28405
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/native_objects/__pycache__/formula_compiler.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "ae201d2115b1247c889d7ff386c0cf55fbd329bf83fed6b2ca79334321f54f8d",
+            "size": 4238
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/native_objects/__pycache__/formula_omml.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "289c32d8b2c77fae4ee4c6aceac4dfd4dcb02211a1f1b57dd521f21f6dc2ba50",
+            "size": 52404
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/native_objects/__pycache__/formula_parser.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "89db291e45caf09cfae4aa5feb78888be59bc4ad29517982a8f3e6931a7cdc65",
+            "size": 126672
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/native_objects/__pycache__/formula_profile.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "7b112084fca4483af38f56b1f682f1c5977648cacf098463eb9962fa4f5f164f",
+            "size": 21075
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/native_objects/__pycache__/formula_run_properties.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "a6d5a1869189d2b611ebc0c4568ac8e6b957bf57c5747d3aaf366371796a2100",
+            "size": 11415
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/native_objects/__pycache__/inline_formula.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "08b00b2fd0194bc47c07faa6cc2d3f1f82403ed9e91542e2477fa6b591e6d7ac",
+            "size": 13873
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/native_objects/__pycache__/marker_attributes.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "a63273c96cbf63cd0bd1d6298faa4ba1d1fd64fb8dabf61b1ea0ef8ddf58805d",
+            "size": 9126
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/native_objects/__pycache__/marker_common.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "f80ef7c4452bf230a99bbae817a91c3a7df1024ce7609815ecd14b6d6763aced",
+            "size": 57235
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/native_objects/__pycache__/marker_status.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "d6c5c4f8c9690980f8c36ff64334e91d5f71adbfc07f54fe22b43450947e23d9",
+            "size": 10227
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/native_objects/__pycache__/table.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "ef11845df05d057b3250c554f2afa8d6ad2781d05759d0c3c19dcb6b61260d6c",
+            "size": 99936
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/native_objects/__pycache__/workbook.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "9774ca5ec9af9cad4d548639f6132e42d66c5187e90ea2e9d4034f40ec031642",
+            "size": 14359
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/pptx_package/__pycache__",
+          "staged": {
+            "kind": "directory",
+            "mode": "0o775"
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/pptx_package/__pycache__/__init__.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "bbb622b3a70e978d869041b630511a4b51dcda9f45e036f01b64e6a423d39346",
+            "size": 305
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/pptx_package/__pycache__/builder.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "f46be7774f8a61c47cdb97ada7170894d94ef609a50c34c0849a4b5604d93d37",
+            "size": 371161
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/pptx_package/__pycache__/cli.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "b33b25831eac49162af6b24f4cc14460030618d1b05c8cef6f8ed8fc044f6332",
+            "size": 166205
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/pptx_package/__pycache__/dimensions.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "fc94b3f3354d173e6088fd77aeb8b664ad6c8b958c49bf23ddaeb6c7f10ae317",
+            "size": 7267
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/pptx_package/__pycache__/discovery.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "51691fdd2175c29a4bf21588d5834ed3e5e2fc86e5afa5c4ad89c01d142a04e2",
+            "size": 5233
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/pptx_package/__pycache__/media.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "c55cc67d09e54b6d42dc73f2c69fbf5d08afdf4917180b635d9beb57c4a1e244",
+            "size": 6859
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/pptx_package/__pycache__/narration.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "cb976965e2ef917184cb96ae33c7558ffa0804c640850f5feb6059bf0d00ad2b",
+            "size": 33675
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/pptx_package/__pycache__/notes.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "08e3b92fa037f1093360cd0730cd8e6416ea64e206200d147c4577e055a90c7a",
+            "size": 13164
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/pptx_package/__pycache__/slide_xml.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "b502af3b48465a50e1cd5ddb25d196459173b5b0fca102c9f35bf5399c5bde63",
+            "size": 5223
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/pptx_package/__pycache__/template_structure.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "b0278b990f851521bd7cbc21fc46bb21a925cd567377c1e86831afbb833387eb",
+            "size": 177633
+          }
+        },
+        {
+          "accepted": null,
+          "path": "scripts/svg_to_pptx/pptx_package/__pycache__/template_validation.cpython-314.pyc",
+          "staged": {
+            "kind": "file",
+            "mode": "0o664",
+            "sha256": "c61e1fee0cf84ebb2c80f6c2efc677d0b83db37fc43822b15342fd9df0df15fe",
+            "size": 67268
+          }
+        }
+      ],
+      "equal": false,
+      "label": "ppt-master",
+      "staged": {
+        "aggregateSha256": "13cbed4e11c20c6d4b2fd7f06b962bd0c612ce6e3ab929f1cafd9edeeeb9c7bd",
+        "directories": 170,
+        "files": 13104,
+        "regularFileBytes": 88459568,
+        "root": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop/dist/ppt-master",
+        "symlinks": 0
+      }
+    }
+  ],
+  "completedAtUtc": "2026-10-24T19:13:18.841396+00:00",
+  "scriptSha256": "9fb9476e62b2b112e72dcf9512639fca12b4bee89908c63d6c435ac4f7bcdd31",
+  "referenceCodeAndExistingFilesEqual": true,
+  "additionalFiles": "Only generated Python bytecode and its cache directories; full-tree equality is false and is not claimed."
+}

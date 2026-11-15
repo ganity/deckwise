@@ -12,7 +12,7 @@ import {
   normalizeMode,
 } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
-import { scheduleHomeDraftAdopt } from "../../lib/composer-draft-cache";
+import { readComposerDraft, scheduleHomeDraftAdopt } from "../../lib/composer-draft-cache";
 import {
   commitForkedSessionState,
   forkedSessionMessages,
@@ -27,7 +27,7 @@ import {
   sessionIsArchived,
   sessionIsPinned,
 } from "../../lib/sidebar-preferences";
-import type { AppState, DraftSessionConfiguration } from "../app-state";
+import type { AppState, CoursewareTaskSetup, DraftSessionConfiguration } from "../app-state";
 import type { SessionRuntime } from "./session-runtime";
 import type { StoreAccess } from "../slices/types";
 import { switchWorkPanelSession } from "../slices/work-panel-slice";
@@ -36,6 +36,7 @@ export type PersistSessionOptions = {
   intent?: number;
   projectPath?: string | null;
   draftConfiguration?: DraftSessionConfiguration | null;
+  courseware?: CoursewareTaskSetup;
 };
 
 export type SessionCoordination = {
@@ -306,7 +307,7 @@ export function createSessionCoordination({
     try {
       created = await api.createSession({
         title: untitledTaskTitle(),
-        mode: draftConfig?.mode ?? normalizeMode(settings?.defaultMode),
+        mode: options.courseware ? "agent" : draftConfig?.mode ?? normalizeMode(settings?.defaultMode),
         thinkingLevel: draftConfig?.thinkingLevel ?? defaultThinkingLevel,
         permissionMode: "auto",
         providerId: draftConfig?.providerId,
@@ -322,11 +323,31 @@ export function createSessionCoordination({
       throw error;
     }
     const sessionId = created.session.id;
+    if (options.courseware) {
+      try {
+        await api.coursewareTaskSet(sessionId, options.courseware.taskType, options.courseware.educationContext,
+          ...(options.courseware.storyFirst ? [true] as const : []));
+      } catch (error) {
+        // Keep the empty session recoverable without presenting an unconfigured task as ready.
+        commitCreatedEmptySession(created.session, { activate: false });
+        if (previousSessionId && runtime.navigationIntentIsCurrent(active)) {
+          void get().selectSession(previousSessionId, { navigationIntent: active });
+        }
+        throw error;
+      }
+    }
     if (!runtime.navigationIntentIsCurrent(active)) {
       commitCreatedEmptySession(created.session, { activate: false });
       return null;
     }
     commitCreatedEmptySession(created.session, { activate: true });
+    if (options.courseware?.initialPrompt?.trim()) {
+      const draft = readComposerDraft(sessionId);
+      const brief = options.courseware.initialPrompt;
+      set({ composerPrefill: { sessionId,
+        text: draft?.text && draft.text !== brief ? `${brief}\n\n${draft.text}` : brief,
+        fileReferences: draft?.fileReferences ?? [] } });
+    }
     return sessionId;
   }
 

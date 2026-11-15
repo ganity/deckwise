@@ -1,11 +1,10 @@
 /**
- * E2E-245 contract: the single-file sidecar bundle (esbuild, same flags as
- * `pnpm bundle`) must load a TypeScript extension through jiti from a
- * directory with no node_modules, with the kernel packages reachable through
- * virtual modules.
+ * E2E-245 contract: the packaged sidecar output must load a TypeScript
+ * extension through jiti from a directory with no node_modules, with the
+ * kernel packages reachable through virtual modules.
  */
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,7 +23,7 @@ afterEach(() => {
 });
 
 describe("bundled loader (E2E-245)", () => {
-  it("loads a TypeScript extension from a bundle outside the repo", async () => {
+  it("loads a TypeScript extension through split ESM chunks outside the repo", async () => {
     const entry = join(work, "entry.ts");
     writeFileSync(
       entry,
@@ -46,17 +45,23 @@ const result = tool ? await tool.execute("1", { a: 20, b: 22 }) : undefined;
 process.stdout.write(JSON.stringify({ state: report.state, diagnostics: runner.getDiagnostics(), text: result?.content[0] }));
 `,
     );
+    const bundleDir = join(work, "bundle");
     await build({
       entryPoints: [entry],
       bundle: true,
       platform: "node",
       format: "esm",
-      outfile: join(work, "bundle.mjs"),
+      minify: true,
+      splitting: true,
+      outdir: bundleDir,
+      entryNames: "sidecar",
+      chunkNames: "chunks/[name]-[hash]",
       logLevel: "silent",
       banner: {
         js: "import { createRequire as __piCreateRequire } from 'node:module'; const require = __piCreateRequire(import.meta.url);",
       },
     });
+    writeFileSync(join(bundleDir, "package.json"), '{"type":"module"}\n');
     const extension = join(work, "typed.ts");
     writeFileSync(
       extension,
@@ -72,7 +77,7 @@ export default function (pi: any) {
 }
 `,
     );
-    const out = execFileSync(process.execPath, [join(work, "bundle.mjs"), extension], {
+    const out = execFileSync(process.execPath, [join(bundleDir, "sidecar.js"), extension], {
       cwd: work,
       encoding: "utf8",
     });
@@ -82,4 +87,111 @@ export default function (pi: any) {
       text: { type: "text", text: "42" },
     });
   }, 30_000);
+});
+
+/**
+ * Regression for the packaged install: pi-coding-agent's own extension loader
+ * picks jiti `virtualModules` only for compiled or bundled Node distributions.
+ * Every other Node build falls back to `require.resolve("typebox")` relative to
+ * the importing file. A packaged sidecar lives in `resources/agent-runtime/`,
+ * which has no `node_modules` above it, so without the bundled-Node define the
+ * sidecar fails every native Pi extension with
+ * `Cannot find module 'typebox'`.
+ */
+describe("packaged sidecar extension loader", () => {
+  // pi-coding-agent ships an import-only export map, so locate its directory
+  // through the workspace layout the sidecar bundle resolves from.
+  const extensionLoader = resolve(
+    here,
+    "..",
+    "..",
+    "node_modules",
+    "@earendil-works/pi-coding-agent",
+    "dist",
+    "core",
+    "extensions",
+    "loader.js",
+  );
+
+  /** Read the esbuild defines from the production bundle configuration. */
+  function bundleDefines(): Record<string, string> {
+    const source = readFileSync(resolve(here, "..", "..", "scripts", "bundle.mjs"), "utf8");
+    const value = source.match(/PI_BUNDLED_NODE:\s*"([^"]+)"/)?.[1];
+    return value ? { PI_BUNDLED_NODE: value } : {};
+  }
+
+  it("loads a typebox-importing extension from a bundle outside the repo", async () => {
+    expect(existsSync(extensionLoader)).toBe(true);
+    expect(bundleDefines()).toEqual({ PI_BUNDLED_NODE: "true" });
+    const entry = join(work, "entry.mjs");
+    writeFileSync(
+      entry,
+      `import { createRequire } from "node:module";
+import { loadExtensions } from ${JSON.stringify(extensionLoader)};
+const [extension] = process.argv.slice(2);
+const eventBus = { emit: () => {}, on: () => () => {}, off: () => {} };
+const resolvesTypebox = (() => {
+  try {
+    createRequire(import.meta.url).resolve("typebox");
+    return true;
+  } catch {
+    return false;
+  }
+})();
+const loaded = await loadExtensions([extension], process.cwd(), eventBus, undefined);
+process.stdout.write(JSON.stringify({ resolvesTypebox, loaded: loaded.extensions.length, errors: loaded.errors.map((error) => error.error) }));
+`,
+    );
+    // `--platform`, `--format` and the banner are duplicated from the bundle
+    // script on purpose; only `--define:` flags are read back from it, so a
+    // future non-define flag in the script has to be mirrored here.
+    await build({
+      entryPoints: [entry],
+      bundle: true,
+      platform: "node",
+      format: "esm",
+      minify: true,
+      outfile: join(work, "sidecar.js"),
+      logLevel: "silent",
+      define: bundleDefines(),
+      banner: {
+        js: "import { createRequire as __piCreateRequire } from 'node:module'; const require = __piCreateRequire(import.meta.url);",
+      },
+    });
+
+    const extension = join(work, "typed.ts");
+    writeFileSync(
+      extension,
+      `import { Type } from "typebox";
+export default function (pi: any) {
+  pi.registerTool({
+    name: "fx_noop",
+    description: "no-op",
+    parameters: Type.Object({ a: Type.Number() }),
+    async execute() {
+      return { content: [{ type: "text", text: "ok" }], details: {} };
+    },
+  });
+}
+`,
+    );
+
+    // vitest exports NODE_PATH into its workers and the child would inherit
+    // the repository's node_modules through it. A packaged install has no such
+    // fallback, so scrub it before running the bundle under test.
+    const childEnv = { ...process.env };
+    delete childEnv.NODE_PATH;
+    const out = execFileSync(process.execPath, [join(work, "sidecar.js"), extension], {
+      cwd: work,
+      encoding: "utf8",
+      env: childEnv,
+    });
+    const report = JSON.parse(out) as { resolvesTypebox: boolean; loaded: number; errors: string[] };
+    expect(report.errors).toEqual([]);
+    expect(report.loaded).toBe(1);
+    // The child resolves `typebox` as soon as something above the bundle
+    // provides it, and a `TMPDIR` inside the repository does, which would let
+    // this case pass without the bundle define.
+    expect(report.resolvesTypebox, "TMPDIR must lie outside any node_modules tree").toBe(false);
+  }, 60_000);
 });

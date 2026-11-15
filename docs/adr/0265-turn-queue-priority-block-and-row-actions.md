@@ -51,11 +51,11 @@ queue at all even though the Host already orders it by a durable `position`.
    runs against the live editor read because the draft cache is not written per
    keystroke.
 6. **The promoted block is delivered as adjacent messages, not as separate
-   turns.** Promotion still does not touch the running turn by itself: the
-   renderer requests the existing graceful `agent/stop`, and the block leaves at
-   the next boundary. The first promoted entry then starts the turn, and every
-   later promoted entry is injected into that same turn as user input over the
-   Composer's existing steering channel. The transcript therefore reads
+   turns.** Promotion attempts delivery to the running turn through the
+   Composer's existing steering channel. The renderer does not then stop that
+   turn: doing so would stop the recipient of the new input before it answers.
+   Without a running turn, the first promoted entry starts a turn and later
+   promoted entries are injected into that same turn. The transcript therefore reads
    `user: first`, `user: second` and the model answers once. The injection is
    retried a bounded number of times because the runtime only accepts input for
    a live run; an entry that is still undelivered stays queued and leaves at the

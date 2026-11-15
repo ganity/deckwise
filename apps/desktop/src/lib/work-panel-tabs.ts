@@ -3,6 +3,9 @@ import { getOfficePreviewExtension } from "@pi-desktop/shared";
 export type WorkPanelTabKind =
   | "new"
   | "review"
+  | "team"
+  | "media-canvas"
+  | "scene-images"
   | "ppt"
   | "svg-editor"
   | "editor"
@@ -68,7 +71,7 @@ export function switchWorkPanelContextState(
 export function toolWorkPanelTab(
   kind: Exclude<WorkPanelTabKind, "new" | "file" | "plugin">,
 ): WorkPanelTab {
-  return { id: kind, kind };
+  return kind === "scene-images" ? { id: "ppt", kind: "ppt" } : { id: kind, kind };
 }
 
 /**
@@ -164,7 +167,7 @@ export function parsePluginViewRef(
 export function isKnownWorkPanelTab(tab: WorkPanelTab): boolean {
   return (
     Boolean(tab) &&
-    (tab.kind === "new" || tab.kind === "review" || tab.kind === "ppt" || tab.kind === "svg-editor" || tab.kind === "editor" ||
+    (tab.kind === "new" || tab.kind === "review" || tab.kind === "team" || tab.kind === "media-canvas" || tab.kind === "ppt" || tab.kind === "scene-images" || tab.kind === "svg-editor" || tab.kind === "editor" ||
       tab.kind === "file" || tab.kind === "plugin")
   );
 }
@@ -176,8 +179,11 @@ export function isWorkPanelTabClosable(tab: WorkPanelTab): boolean {
 export function sanitizeWorkPanelTabsState(
   state: WorkPanelTabsState,
 ): WorkPanelTabsState {
-  const tabs = state.tabs.filter(isKnownWorkPanelTab);
-  if (tabs.length === state.tabs.length) return state;
+  const workspace = state.tabs.find(tab => tab?.kind === "ppt");
+  const migrated = state.tabs.map(tab => tab?.kind === "scene-images" ? workspace ?? toolWorkPanelTab("ppt") : tab);
+  const tabs = migrated.filter((tab, index) => isKnownWorkPanelTab(tab) && migrated.findIndex(other => other?.id === tab.id) === index);
+  if (tabs.length === state.tabs.length && !state.tabs.some(tab => tab?.kind === "scene-images")) return state;
+  if (state.tabs.some(tab => tab?.id === state.activeTabId && tab?.kind === "scene-images")) return { tabs, activeTabId: "ppt" };
   if (
     state.activeTabId === null ||
     tabs.some((tab) => tab.id === state.activeTabId)
@@ -242,12 +248,17 @@ export function openWorkPanelTabState(
   state: WorkPanelTabsState,
   tab: WorkPanelTab,
 ): WorkPanelTabsState {
+  if (tab.kind === "scene-images") tab = toolWorkPanelTab("ppt");
+  const workspace = state.tabs.find(item => item.kind === "ppt" && item.resource && item.resource === tab.resource);
+  if (tab.kind === "editor" && workspace) tab = workspace;
+  if (tab.kind === "ppt" && tab.resource) state = { ...state,
+    tabs: state.tabs.filter(item => item.kind !== "editor" || item.resource !== tab.resource) };
   const index = state.tabs.findIndex((item) => item.id === tab.id);
   if (index === -1) {
     return { tabs: [...state.tabs, tab], activeTabId: tab.id };
   }
   const tabs = [...state.tabs];
-  tabs[index] = tab;
+  tabs[index] = tab.kind === "ppt" ? { ...state.tabs[index], ...tab, resource: tab.resource ?? state.tabs[index].resource } : tab;
   return { tabs, activeTabId: tab.id };
 }
 
@@ -259,7 +270,7 @@ export function replaceWorkPanelTabState(
 ): WorkPanelTabsState {
   const sourceIndex = state.tabs.findIndex((item) => item.id === sourceTabId);
   if (sourceIndex < 0) return openWorkPanelTabState(state, tab);
-  if (sourceTabId === tab.id) return { ...state, activeTabId: tab.id };
+  if (sourceTabId === tab.id) return openWorkPanelTabState(state, tab);
 
   const existingIndex = state.tabs.findIndex(
     (item) => item.id === tab.id && item.id !== sourceTabId,

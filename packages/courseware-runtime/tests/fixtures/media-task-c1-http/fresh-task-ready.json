@@ -1,0 +1,23 @@
+{
+  "version": "courseware-media-v1",
+  "taskId": "5bf68e91-20a9-44ef-94ac-656e386b2a59",
+  "idempotencyKey": "c1-e2e-mxapi-image",
+  "requestHash": "035b35c952a22ab2b45a1702a170e0a242304f56e7c5411f0114621d3c4f5aee",
+  "kind": "image",
+  "model": "courseware-image-v1",
+  "state": "ready",
+  "feeState": "settled",
+  "reservedPoints": 5,
+  "actualPoints": 5,
+  "receiptId": "courseware-media:5bf68e91-20a9-44ef-94ac-656e386b2a59",
+  "errorCode": null,
+  "assetRef": {
+    "assetId": "93515c80-30ef-4f6c-8d73-bc8a17496a99",
+    "sha256": "55ccf93d4cdfb394363c73b6eae96c8d5e50e5e46d969e710bcc1833f6acef1f",
+    "mime": "image/png",
+    "byteLength": 68,
+    "downloadPath": "/courseware/media/tasks/5bf68e91-20a9-44ef-94ac-656e386b2a59/asset",
+    "width": 1,
+    "height": 1
+  }
+}

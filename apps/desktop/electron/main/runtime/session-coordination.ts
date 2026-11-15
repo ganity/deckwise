@@ -57,6 +57,7 @@ export function createSessionCoordination({
    * the frozen record already owns the turn.
    */
   const pendingAbortReasons = new Map<string, TurnEndReason>();
+  const stoppedDispatch = new Set<string>();
 
   async function acquireSessionOperation(sessionId: string): Promise<() => void> {
     const id = sessionId.trim();
@@ -170,15 +171,21 @@ export function createSessionCoordination({
   function releaseTurnClaims(sessionId: string, turnId: string): void {
     const key = planSubmissionTurnKey(sessionId.trim(), turnId.trim());
     pendingAbortReasons.delete(key);
+    stoppedDispatch.delete(key);
     const waiters = turnSettlements.get(key);
     if (!waiters) return;
     turnSettlements.delete(key);
     for (const resolve of waiters) resolve();
   }
 
+  /** Stop new side effects while the current reply and submitted work settle normally. */
+  function stopTurnDispatch(sessionId: string, turnId: string | null | undefined): void {
+    if (isActiveTurn(sessionId, turnId)) stoppedDispatch.add(planSubmissionTurnKey(sessionId.trim(), String(turnId).trim()));
+  }
+
   /**
    * Last synchronous gate before a plugin side effect. A turn that is not the
-   * session's live turn, has an abort decision recorded, or is already finalizing
+   * session's live turn, is stopped/cancelled, or is already finalizing
    * must not start one. Callers must not await between this check and the
    * dispatch.
    */
@@ -188,7 +195,7 @@ export function createSessionCoordination({
   ): boolean {
     if (!isActiveTurn(sessionId, turnId)) return false;
     const key = planSubmissionTurnKey(sessionId.trim(), String(turnId).trim());
-    return !pendingAbortReasons.has(key) && !turnFinalizations.has(key);
+    return !pendingAbortReasons.has(key) && !stoppedDispatch.has(key) && !turnFinalizations.has(key);
   }
 
   /**
@@ -260,6 +267,7 @@ export function createSessionCoordination({
     shouldCreateTaskNotification,
     isActiveTurn,
     lockAbortReason,
+    stopTurnDispatch,
     peekAbortReason,
     clearAbortReason,
     releaseTurnClaims,

@@ -1,0 +1,49 @@
+{
+  "warnings": [
+    {
+      "warning": "warning: this function has too many arguments (8/7)",
+      "location": "--> crates/host-core/src/db/courseware_projects/chat_changes/resolutions.rs:83:5"
+    },
+    {
+      "warning": "warning: this boolean expression can be simplified",
+      "location": "--> crates/host-core/src/db/courseware_projects/chat_changes.rs:196:16"
+    },
+    {
+      "warning": "warning: this boolean expression can be simplified",
+      "location": "--> crates/host-core/src/rpc/courseware_projects/media_canvas/music.rs:204:20"
+    },
+    {
+      "warning": "warning: this boolean expression can be simplified",
+      "location": "--> crates/host-core/src/rpc/courseware_projects/media_canvas/music.rs:597:20"
+    },
+    {
+      "warning": "warning: this boolean expression can be simplified",
+      "location": "--> crates/host-core/src/rpc/courseware_projects/media_canvas/tasks.rs:65:16"
+    },
+    {
+      "warning": "warning: this boolean expression can be simplified",
+      "location": "--> crates/host-core/src/rpc/courseware_projects/media_canvas/tasks.rs:92:16"
+    },
+    {
+      "warning": "warning: this boolean expression can be simplified",
+      "location": "--> crates/host-core/src/rpc/courseware_projects/media_canvas/tasks.rs:439:16"
+    },
+    {
+      "warning": "warning: this boolean expression can be simplified",
+      "location": "--> crates/host-core/src/rpc/courseware_projects/scene_images.rs:203:16"
+    },
+    {
+      "warning": "warning: this boolean expression can be simplified",
+      "location": "--> crates/host-core/src/rpc/courseware_projects/scene_images.rs:676:16"
+    },
+    {
+      "warning": "warning: called `filter(..).next_back()` on an `DoubleEndedIterator`. This is more succinctly expressed by calling `.rfind(..)` instead",
+      "location": "--> crates/host-core/src/transcripts.rs:893:35"
+    },
+    {
+      "warning": "warning: this call to `clone` can be replaced with `std::slice::from_ref`",
+      "location": "--> crates/host-core/src/db/courseware_projects/source_candidates/adoption/audio_tests.rs:664:17"
+    }
+  ],
+  "strictWarningsDeniedRun": false
+}

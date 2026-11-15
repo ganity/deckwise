@@ -24,7 +24,6 @@ import type {
   ComposerPrefill,
 } from "../../lib/composer-smart-stop";
 import { optimisticUserMessage } from "../../lib/session-transcript";
-import { toolWorkPanelTab } from "../../lib/work-panel-tabs";
 import type { AppState } from "../app-state";
 import {
   type SessionRuntime,
@@ -286,9 +285,6 @@ export function createQueueSlice({
       }));
       try {
         await api.prioritizeQueuedPrompt(promptId);
-        // Send now keeps its graceful stop: the active turn reaches its
-        // boundary before the promoted row starts.
-        if (get().runningSessions[sessionId]) await api.stop(sessionId);
       } catch (error) {
         void get().refreshQueuedPrompts(sessionId);
         get().showToast(
@@ -410,7 +406,6 @@ export function createQueueSlice({
           latestTurnResults: withoutRecordKey(state.latestTurnResults, startedIn),
           sessionOutcomes: withoutRecordKey(state.sessionOutcomes, startedIn),
         }));
-        get().openWorkPanelTabForSession(startedIn, toolWorkPanelTab("ppt"));
         const optimisticMessage = optimisticUserMessage(
           crypto.randomUUID(),
           content,

@@ -113,7 +113,7 @@ test("macOS development launches from a branded host bundle", () => {
   assert.equal(packageJson.scripts.dev, "node ../../scripts/dev-electron.mjs");
   assert.match(devScriptSource, /process\.platform === "darwin"/);
   assert.match(devScriptSource, /PI_DESKTOP_DEV: "1"/);
-  assert.match(devScriptSource, /env\.DECKWISE_EDITOR_URL \|\|= "https:\/\/trainwise\.efrobot\.com\/wiseoffice"/);
+  assert.doesNotMatch(devScriptSource, /env\.DECKWISE_EDITOR_URL\s*(?:=|\|\|=)/);
   assert.match(devScriptSource, /ELECTRON_EXEC_PATH/);
   assert.match(devScriptSource, /CFBundleDisplayName", APP_NAME/);
   assert.match(devScriptSource, /CFBundleName", APP_NAME/);

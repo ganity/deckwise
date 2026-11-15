@@ -11,6 +11,9 @@ jobs:
     name: Linux x64 packages
     runs-on: ubuntu-22.04
     timeout-minutes: 60
+    env:
+      DECKWISE_COURSEWARE_RELEASE: '1'
+      DECKWISE_COURSEWARE_LOCK: ${{ github.workspace }}/apps/desktop/resources/courseware-release-lock.json
     defaults:
       run:
         shell: bash
@@ -44,16 +47,46 @@ jobs:
           wait "$host_build_pid"
           trap - EXIT
 
+      - name: Prepare paired courseware inputs
+        uses: ./.github/actions/prepare-courseware
+
+      - name: Install RPM inspection tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y cpio rpm xvfb libasound2 libatk-bridge2.0-0 libgtk-3-0 libnss3
+
       - name: Build Linux packages
         run: pnpm --filter @pi-desktop/desktop run dist:linux -- --x64
 
       - name: Verify Linux host glibc floor
         run: node scripts/check-linux-host-glibc.mjs target/release/pi-desktop-host-core
 
-      - name: Install RPM inspection tools
+      - name: Verify packaged courseware payload
+        run: node scripts/check-courseware-package.mjs
+
+      - name: Exercise the final Linux AppImage
         run: |
-          sudo apt-get update
-          sudo apt-get install --no-install-recommends -y cpio rpm
+          set -euo pipefail
+          mkdir "$RUNNER_TEMP/courseware-appimage"
+          appimage=$(realpath apps/desktop/release/*.AppImage)
+          (cd "$RUNNER_TEMP/courseware-appimage" && "$appimage" --appimage-extract > /dev/null)
+          export DECKWISE_E2E_PACKAGE_ROOT="$RUNNER_TEMP/courseware-appimage/squashfs-root"
+          export DECKWISE_E2E_OUTPUT="$RUNNER_TEMP/courseware-package-acceptance"
+          node scripts/check-courseware-package.mjs "$DECKWISE_E2E_PACKAGE_ROOT"
+          xvfb-run -a node scripts/e2e-maic-courseware.mjs
+          cp "$DECKWISE_E2E_OUTPUT/report.json" apps/desktop/release/courseware-acceptance-linux-x64.json
+
+      - name: Preserve failed package acceptance evidence
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: courseware-acceptance-linux-x64-failure
+          if-no-files-found: ignore
+          retention-days: 7
+          path: ${{ runner.temp }}/courseware-package-acceptance
+
+      - name: Record final artifact checksums
+        run: node scripts/courseware-artifact-checksums.mjs
 
       - name: Verify RPM package
         run: |
@@ -82,10 +115,15 @@ jobs:
           grep -Fx 'Icon=deckwise' "$desktop_entry" >/dev/null
           grep -Fx 'StartupWMClass=deckwise' "$desktop_entry" >/dev/null
 
-      - name: Upload RPM package
+      - name: Upload validated Linux packages
         uses: actions/upload-artifact@v6
         with:
-          name: deckwise-linux-x64-rpm
+          name: deckwise-linux-x64
           if-no-files-found: error
           retention-days: 7
-          path: apps/desktop/release/*.rpm
+          path: |
+            apps/desktop/release/*.AppImage
+            apps/desktop/release/*.deb
+            apps/desktop/release/*.rpm
+            apps/desktop/release/courseware-*.json
+            apps/desktop/release/SHA256SUMS-*.txt

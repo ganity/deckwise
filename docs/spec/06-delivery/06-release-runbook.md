@@ -54,6 +54,90 @@ when macOS `iconutil` is available, without overwriting the canonical source.
 3. Rust toolchain and pnpm workspace installed. The Rust toolchain must run on
    the native macOS runner: arm64 for Apple Silicon or x86_64 for Intel.
 
+### Courseware inputs and evidence
+
+Courseware packages require a paired MAIC-integrated Document build and a native
+PPTX worker for the exact target OS/architecture. An arbitrary local WiseOffice
+directory is not a release input. Both Desktop and Document must be committed
+and clean for `DECKWISE_COURSEWARE_RELEASE=1`. Development snapshots can be
+inspected, but cannot satisfy that release gate.
+
+Prepare new directories; staging and freezing refuse to overwrite existing data:
+
+```sh
+pnpm build:js
+node scripts/build-wiseoffice-maic.mjs /absolute/Document /absolute/new-integrated-editor
+node scripts/stage-wiseoffice.mjs /absolute/new-integrated-editor
+node packages/courseware-runtime/scripts/stage-worker.mjs "$PWD/apps/desktop/resources/pptx-worker"
+node scripts/courseware-release-inputs.mjs --freeze "$PWD/apps/desktop/resources/courseware-release-lock.json"
+node scripts/courseware-release-inputs.mjs --check "$PWD/apps/desktop/resources/courseware-release-lock.json"
+DECKWISE_COURSEWARE_RELEASE=1 \
+DECKWISE_COURSEWARE_LOCK="$PWD/apps/desktop/resources/courseware-release-lock.json" \
+pnpm --filter @pi-desktop/desktop pack
+```
+
+The input lock records Desktop/Document revisions, dirty states, SDK,
+WiseOffice inventory and worker inventory hashes. Packaging checks actual file
+bytes, missing/extra files, symlinks, target architecture and worker/compiler
+agreement before packing and checks the copied bundles again afterward.
+The integrated editor also records the Desktop revision whose shared Quiz code
+it embeds; release mode rejects a different or dirty integration revision. Worker
+files are copied from one inventoried directory on all platforms, with no later
+compiler override. Each unpacked output gains `courseware-candidate.json`, with
+unpacked app, resource, ASAR, Host and Agent fingerprints and
+`acceptance: "NOT_RUN"`. This is an identity receipt from `afterPack`, before
+signing, not release approval.
+Signing or later repacking may change bytes and requires new final-artifact
+qualification; never reuse a pre-signing identity as proof of a signed package.
+
+Release and Linux package validation use `.github/actions/prepare-courseware`:
+it checks out the repository and full commit SHA in
+`apps/desktop/courseware-sources.json`, installs locked Document dependencies,
+builds the MAIC integration and the runner's native worker, then freezes and
+checks the ignored input lock. Push and merge Document source first, then pin
+that reachable commit in Desktop. Compiled editor, worker and lock files stay
+out of Git. Do not bypass the hook or disable strict release mode.
+
+After signing, a separate `courseware-post-sign.json` captures the signed
+resource identity without modifying the signed app. Package verification checks
+the appropriate receipt, inventories and absence of private state. Linux also
+extracts the final AppImage and runs the real Electron/Main/Host authoring,
+Quiz, save/reopen and playback acceptance gate. macOS/Windows have package
+integrity checks; their interactive runtime acceptance is still a separate gate.
+`SHA256SUMS-<platform>-<arch>.txt` hashes final installers and evidence.
+
+Manual Release runs retain outputs under
+`oss://trainwise/deckwise/builds/<run_id>/<platform>/`; only version tags enter
+the publish job. The manual Linux workflow uploads AppImage, DEB, RPM,
+acceptance reports and checksums as `deckwise-linux-x64` Actions artifacts.
+
+For repeatable provider-free source regression, use three distinct preserved
+PPTX fixtures of at most six pages each:
+
+Install each reference repository's locked dependencies first. Set
+`MAIC_SERVER_ROOT` and `MAIC_CLOUD_WEB_ROOT` when using nondefault reference
+checkouts; run `node scripts/check-maic-courseware-parity.mjs --preflight` to
+check those prerequisites without starting Electron. A dependency-lock failure
+is a blocked validation, not a passing courseware result.
+
+```sh
+DECKWISE_E2E_OUTPUT=/absolute/new-evidence \
+DECKWISE_E2E_NATIVE_PPTX=/absolute/master.pptx \
+DECKWISE_E2E_SCENE_PPTX=/absolute/scene.pptx \
+DECKWISE_E2E_IMPORT_PPTX=/absolute/import.pptx \
+pnpm test:courseware-regression
+```
+
+This command records source/build/input/fixture identities, checks they remain
+unchanged, and runs actual Electron scene transport, native foreground/background
+edit/save/reopen and the real Host/MAIC/cloud-web Quiz consumer journey. It keeps
+logs and reports, strips provider credentials and paid test flags, and reports
+`LOCAL_REGRESSION_PASS` with `releaseReady:false`. It is deliberately not a
+substitute for fresh production generation on all three paths, media billing and
+uncertain-order recovery, complete playback/Quiz acceptance or native-platform
+installer qualification. Qualify those against the final deliverable, the chosen
+production model and the same frozen inputs before calling a release ready.
+
 ## 3. What the build ships
 
 - Electron app with hardened runtime + entitlements

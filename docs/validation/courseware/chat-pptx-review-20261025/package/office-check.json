@@ -1,0 +1,8 @@
+{
+  "status": "PASS_PINNED_OFFICE_FILES",
+  "root": "/home/jhz/code/train/document-worktrees/courseware-par-A-preview/dist-w15-canvas-target-20261023",
+  "filesMatched": 2899,
+  "pinnedInventory": "/home/jhz/code/train/docs/validation/courseware/parallel/A/a-attention-delivery-20261023/office-inputs.json",
+  "inventoryFileSha256": "a59d934e4653b42ea76a0bfee2ada95db3b09c75dfc44614afbf98b457708bb7",
+  "scope": "Separately served WiseOffice output, not embedded in the AppImage."
+}

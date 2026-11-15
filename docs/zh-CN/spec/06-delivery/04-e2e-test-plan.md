@@ -70,8 +70,8 @@
 
 | 级别 | 适用范围 | 计数目标 | 工装 |
 |---|---|---|---|
-| **单位** | 单模块，无 IPC | 很多 | Vitest / Rust#[测试] |
-| **整合** | IPC 合约，主机↔渲染器，主机↔sidecar | 中等 | Vitest + IPC 模拟或现场 Electron |
+| **Unit** | Single module, no IPC | Many | Vitest / Rust #[test] |
+| **Integration** | IPC contract, host↔renderer, host↔sidecar | Moderate | Vitest + IPC mocks or live Electron |
 | **E2E** | 桌面应用程序的完整用户旅程 | 100 多个功能+ US-UI 视觉目录 | 现在协议烟雾 + Electron 探针；后来成为剧作家 |
 
 **策略**：记录所有 E2E 场景；当变更风险需要时，与代码一起添加或更新
@@ -87,7 +87,7 @@ unit/integration 测试；代码 pull request 使用有选择且高价值的 E2E
 | **Rust #[测试]** | 主机核心单元测试 | 活跃（`cargo test -p host-core`） |
 | **协议烟雾** | 主机 RPC + 工具 + 无头插件 | 有效（`test:e2e`，20 次检查） |
 | **Electron 探针** | 启动桥、会话列表响应性和崩溃监控 | 活跃（`test:e2e:boot`、`test:e2e:supervision`） |
-| **剧作家** | 完整的 UI 驱动旅程 | 计划（M5 之后） |
+| **Playwright** | Full UI-driven journeys | Planned (post-M5) |
 
 > 决策：协议烟雾测试和 Electron 探针是活跃的验证资产；更广泛的桌面旅程按场景执行，所需平台不可用时记录为环境受限。
 
@@ -97,12 +97,12 @@ unit/integration 测试；代码 pull request 使用有选择且高价值的 E2E
 
 | 要求 | 详情 |
 |---|---|
-| 平台 | macOS arm64、Intel x64、Windows x64 和 Linux x64 发行目标 (D126/D285) |
+| Platform | macOS arm64 and Intel x64, Windows x64, and Linux x64 release targets (D126/D285) |
 | 公司简介 | 干净的 `~/.pi-desktop` 配置文件（无需事先配置） |
 | 固定装置 | 示例项目目录 (`examples/fixtures/sample-project/`) |
 | 示例插件 | 从本地路径加载 `examples/plugins/hello` |
-| 提供商 | 至少一个拥有有效密钥的提供商（测试帐户） |
-| 显示 | 无头功能 Electron 或真实显示 |
+| Provider | At least one provider with a valid key (test account) |
+| Display | Headless-capable Electron or real display |
 
 ---
 
@@ -5035,39 +5035,39 @@ IPC 请求无法关闭。
 
 | 验收 | 应用场景 |
 |---|---|
+| F / Security — Immutable reviewed online publication input and nested attention targets | E2E-COURSEWARE-online-reviewed-publication-candidate |
+| B / C / F — Isolated existing-session team online join | E2E-COURSEWARE-online-team-join |
+| B / C / F — Definite team media refusal | E2E-COURSEWARE-media-refusal-recovery |
 | B / C — 托管线上网关 | E2E-DECKWISE-MANAGED-GATEWAY |
 | B / F — 内置 AI 上下文设置 | E2E-DECKWISE-MANAGED-CONTEXT |
 | C / D — 绑定项目的课件任务 | E2E-DECKWISE-PROJECT-REQUIRED |
 | A / C — Unicode stdio 成帧 | E2E-RPC-unicode-separators |
+| A / C — Temporary courseware worker lifecycle | E2E-COURSEWARE-HOST-WORKER |
+| A / C / F — Saved PPTX inspection | E2E-COURSEWARE-SAVED-PPTX-INSPECTION |
+| A / Delivery — Linux courseware package | E2E-COURSEWARE-LINUX-PACKAGE |
 | C / G / Quality — Plugins navigation | E2E-NAV-plugins-button-goes-back |
 | C / D / Quality — 侧边栏行状态 | E2E-LAYOUT-sidebar-row-states |
 | A / C / Quality — 侧栏材质与设置返回 | E2E-LAYOUT-sidebar-settings |
 | B / F / Security — 提供商复制 | E2E-PROVIDER-copy-config-without-credentials |
 | D / E / F / Security / Quality — 原生 SVG 编辑器 | E2E-DECKWISE-PPT-SVG-SOURCE, E2E-DECKWISE-PPT-SVG-PREVIEW-RECOVERY |
-| A — 应用程序启动 | E2E-001、E2E-002、E2E-003、E2E-004、E2E-067、E2E-076、E2E-079、E2E-092、E2E-097、E2E-143、E2E-150、E2E-168、E2E-204、E2E-217 |
-| B——模型配置 | E2E-005、E2E-005G、E2E-006、E2E-007、E2E-038、E2E-050、E2E-052、E2E-055、E2E-066、E2E-080、E2E-082、E2E-151、E2E-005J、E2E-199、E2E-201、E2E-202、E2E-203、E2E-209、E2E-166 |
-| C — 对话和直播 | E2E-008、E2E-008d、E2E-008a、E2E-009、E2E-010、E2E-011、E2E-011a、E2E-011b、E2E-031、E2E-040、E2E-047、E2E-048、E2E-048A、E2E-049、E2E-052、 E2E-053、E2E-054、E2E-055、E2E-059、E2E-059a、E2E-060c、E2E-060d、E2E-061、E2E-061a、E2E-062、E2E-064、E2E-065、E2E-068、E2E-071、 E2E-073、E2E-074、E2E-075、E2E-081、E2E-083、E2E-084、E2E-086、E2E-087、E2E-088、E2E-088b、E2E-089、E2E-090、E2E-094、E2E-095、E2E-096、 E2E-097、E2E-098、E2E-099、E2E-102、E2E-102a、E2E-102b、E2E-106、E2E-109、E2E-111、E2E-114、E2E-116、E2E-117、E2E-118、E2E-119、 E2E-120、E2E-121、E2E-代理-001、E2E-142、E2E-144、E2E-145、E2E-146、E2E-147、E2E-151、E2E-199、E2E-250、E2E-166、E2E-SUBAGENT-resume-a-settled-delegation |
-| D——工作区 | E2E-012、E2E-013、E2E-022B、E2E-024I、E2E-047、E2E-049、E2E-057、E2E-058、E2E-060、E2E-068、E2E-075、E2E-078、E2E-153 |
+| A — App startup | E2E-001, E2E-002, E2E-003, E2E-004, E2E-067, E2E-076, E2E-079, E2E-092, E2E-097, E2E-143, E2E-150, E2E-168, E2E-204 |
+| B — Model config | E2E-005, E2E-006, E2E-007, E2E-038, E2E-050, E2E-052, E2E-055, E2E-066, E2E-080, E2E-082, E2E-102c, E2E-102d, E2E-102e, E2E-151, E2E-154, E2E-163, E2E-166, E2E-172, E2E-174, E2E-197, E2E-005G, E2E-005J, E2E-199, E2E-201, E2E-202, E2E-203, E2E-205, E2E-206, E2E-209 |
+| C — Conversation & stream | E2E-008, E2E-008d, E2E-008a, E2E-009, E2E-010, E2E-011, E2E-011a, E2E-011b, E2E-011d, E2E-011e, E2E-011g, E2E-031, E2E-040, E2E-047, E2E-048, E2E-048A, E2E-049, E2E-052, E2E-053, E2E-054, E2E-055, E2E-059, E2E-059a, E2E-060c, E2E-060d, E2E-061, E2E-061a, E2E-062, E2E-064, E2E-065, E2E-068, E2E-071, E2E-073, E2E-074, E2E-075, E2E-081, E2E-083, E2E-084, E2E-086, E2E-087, E2E-088, E2E-088b, E2E-089, E2E-090, E2E-COMPOSER-narrow-controls, E2E-094, E2E-095, E2E-096, E2E-097, E2E-098, E2E-099, E2E-102, E2E-102a, E2E-102b, E2E-102c, E2E-102d, E2E-102g, E2E-106, E2E-109, E2E-111, E2E-114, E2E-116, E2E-117, E2E-118, E2E-119, E2E-120, E2E-121, E2E-218, E2E-219, E2E-AGENTS-001, E2E-142, E2E-144, E2E-145, E2E-146, E2E-146a, E2E-147, E2E-151, E2E-154, E2E-155, E2E-158, E2E-159, E2E-161, E2E-162, E2E-166, E2E-172, E2E-173, E2E-174, E2E-177, E2E-178, E2E-179, E2E-180, E2E-182, E2E-183, E2E-187, E2E-198, E2E-199, E2E-202, E2E-203, E2E-207, E2E-208, E2E-CHAT-content-width-handles, E2E-250, E2E-102i, E2E-PLUGIN-session-orchestrator-real-workers, E2E-SUBAGENT-settlement-updates-before-parent-poll, E2E-SUBAGENT-resume-a-settled-delegation |
+| D — Workspace | E2E-012, E2E-013, E2E-022B, E2E-024I, E2E-047, E2E-049, E2E-057, E2E-058, E2E-060, E2E-068, E2E-075, E2E-078, E2E-153, E2E-158, E2E-182, E2E-187, E2E-252 |
 | D——工作区（项目排序） | E2E-253 |
-| E——工具和权限 | E2E-008a、E2E-014、E2E-015、E2E-016、E2E-017、E2E-018、E2E-019、E2E-024I、E2E-024K、E2E-040、E2E-049、E2E-074、E2E-093、E2E-097、 E2E-099、E2E-100、E2E-101、E2E-102、E2E-103、E2E-105、E2E-106、E2E-107、E2E-111、E2E-112、E2E-113、E2E-114、E2E-115、E2E-116、 E2E-119、E2E-121、E2E-122、E2E-123、E2E-142、E2E-145、E2E-147、E2E-PLUGIN-imported-pi-package-skills、E2E-166 |
-| F——坚持 | E2E-020、E2E-021、E2E-036、E2E-037、E2E-038、E2E-040、E2E-042、E2E-047、E2E-048、E2E-051、E2E-054、E2E-056、E2E-061、E2E-062、 E2E-064、E2E-066、E2E-068、E2E-071、E2E-072、E2E-073、E2E-082、E2E-084、E2E-096、E2E-098、E2E-102、E2E-102b、E2E-103、E2E-代理-001、 E2E-061a、E2E-073a、E2E-104、E2E-106、E2E-107、E2E-108、E2E-109、E2E-110、E2E-112、E2E-118、E2E-119、E2E-120、E2E-121、E2E-123、E2E-142、E2E-146、E2E-148、E2E-151、E2E-171、E2E-005J |
+| E — Tools & permissions | E2E-008a, E2E-014, E2E-015, E2E-016, E2E-017, E2E-018, E2E-019, E2E-024I, E2E-024K, E2E-040, E2E-049, E2E-074, E2E-093, E2E-097, E2E-099, E2E-100, E2E-101, E2E-102, E2E-102d, E2E-102e, E2E-102g, E2E-103, E2E-105, E2E-106, E2E-107, E2E-111, E2E-112, E2E-113, E2E-114, E2E-115, E2E-116, E2E-119, E2E-121, E2E-122, E2E-142, E2E-145, E2E-147, E2E-155, E2E-158, E2E-166, E2E-181, E2E-PLUGIN-imported-pi-package-skills |
+| F — Persistence | E2E-020, E2E-021, E2E-021a, E2E-036, E2E-037, E2E-038, E2E-040, E2E-042, E2E-047, E2E-048, E2E-051, E2E-054, E2E-056, E2E-061, E2E-062, E2E-064, E2E-066, E2E-068, E2E-071, E2E-072, E2E-073, E2E-082, E2E-084, E2E-096, E2E-098, E2E-102, E2E-102b, E2E-102c, E2E-102d, E2E-102g, E2E-102i, E2E-103, E2E-AGENTS-001, E2E-061a, E2E-073a, E2E-104, E2E-106, E2E-107, E2E-108, E2E-109, E2E-110, E2E-112, E2E-118, E2E-119, E2E-120, E2E-121, E2E-123, E2E-142, E2E-146, E2E-146a, E2E-148, E2E-151, E2E-158, E2E-160, E2E-168, E2E-171, E2E-177, E2E-178, E2E-183, E2E-186, E2E-005J, E2E-PLUGIN-session-orchestrator-real-workers |
+| F — Persistence (project ordering) | E2E-251 |
+| G — Plugins | E2E-022, E2E-022A, E2E-022B, E2E-022C, E2E-023, E2E-024, E2E-024B, E2E-024C, E2E-024D, E2E-024AA, E2E-024E, E2E-024W, E2E-024F, E2E-024G, E2E-024H, E2E-024I, E2E-024J, E2E-024K, E2E-024L, E2E-024M, E2E-024N, E2E-024O, E2E-024P, E2E-025, E2E-026, E2E-105, E2E-117, E2E-120, E2E-122, E2E-123, E2E-024Q, E2E-148, E2E-152, E2E-153, E2E-PLUGIN-imported-pi-package-skills, E2E-PLUGIN-import-extension-installs-dependencies, E2E-PLUGIN-import-extension-reports-missing-dependency, E2E-PLUGIN-global-shortcut-owns-only-its-own-command, E2E-PLUGIN-permission-gate-for-real-time-capabilities, E2E-PLUGIN-background-audio-and-realtime-connection, E2E-PLUGIN-fs-root-follows-the-calling-session |
+| H — Diagnostics | E2E-027, E2E-031, E2E-034, E2E-042, E2E-096, E2E-098, E2E-104, E2E-107, E2E-108, E2E-109, E2E-110, E2E-113, E2E-115, E2E-116, E2E-118, E2E-121, E2E-146, E2E-146a, E2E-155, E2E-159, E2E-176, E2E-194, E2E-195 |
+| Security | E2E-028, E2E-029, E2E-030, E2E-024J, E2E-024K, E2E-024M, E2E-049, E2E-068, E2E-086, E2E-102c, E2E-102d, E2E-102e, E2E-105, E2E-106, E2E-107, E2E-108, E2E-109, E2E-110, E2E-112, E2E-113, E2E-115, E2E-116, E2E-117, E2E-119, E2E-121, E2E-122, E2E-123, E2E-142, E2E-148, E2E-151, E2E-153, E2E-158, E2E-187, E2E-196c, E2E-196b, E2E-196, E2E-PLUGIN-fs-root-follows-the-calling-session |
+| Quality | E2E-032, E2E-033, E2E-039, E2E-043, E2E-044, E2E-045, E2E-046, E2E-047, E2E-048, E2E-048A, E2E-049, E2E-050, E2E-053, E2E-055, E2E-056, E2E-057, E2E-058, E2E-059, E2E-060, E2E-061, E2E-062, E2E-063, E2E-064, E2E-065, E2E-066, E2E-067, E2E-068, E2E-069, E2E-070, E2E-071, E2E-072, E2E-073, E2E-074, E2E-075, E2E-076, E2E-077, E2E-078, E2E-079, E2E-080, E2E-081, E2E-082, E2E-083, E2E-084, E2E-085, E2E-086, E2E-092, E2E-093, E2E-094, E2E-095, E2E-096, E2E-097, E2E-098, E2E-099, E2E-100, E2E-101, E2E-102, E2E-102a, E2E-102b, E2E-102c, E2E-102d, E2E-102e, E2E-103, E2E-AGENTS-001, E2E-021a, E2E-024N, E2E-059a, E2E-060b, E2E-060c, E2E-061a, E2E-073a, E2E-111, E2E-114, E2E-117, E2E-118, E2E-119, E2E-120, E2E-122, E2E-123, E2E-142, E2E-143, E2E-144, E2E-145, E2E-146, E2E-147, E2E-148, E2E-150, E2E-151, E2E-153, E2E-155, E2E-158, E2E-159, E2E-160, E2E-161, E2E-162, E2E-163, E2E-168, E2E-172, E2E-173, E2E-174, E2E-011g, E2E-176, E2E-177, E2E-178, E2E-179, E2E-180, E2E-181, E2E-182, E2E-183, E2E-186, E2E-187, E2E-194, E2E-195, E2E-196a, E2E-196b, E2E-196c, E2E-198, E2E-199, E2E-200, E2E-196, E2E-201, E2E-204, E2E-202, E2E-203, E2E-205, E2E-206, E2E-207, E2E-208, E2E-209, E2E-210, E2E-218, E2E-219, E2E-250, E2E-252, E2E-102i, E2E-SUBAGENT-settlement-updates-before-parent-poll, E2E-PLUGIN-imported-pi-package-skills, E2E-PLUGIN-fs-root-follows-the-calling-session, E2E-SUBAGENT-resume-a-settled-delegation |
 | F——持久化（项目排序） | E2E-253 |
-| G——插件 | E2E-022、E2E-022A、E2E-022B、E2E-022C、E2E-023、E2E-024、E2E-024B、E2E-024C、E2E-024D、E2E-024AA、E2E-024E、E2E-024W、E2E-024F、E2E-024G、E2E-024H、 E2E-024I、E2E-024J、E2E-024K、E2E-024L、E2E-024M、E2E-024N、E2E-024O、E2E-024P、E2E-025、E2E-026、E2E-105、E2E-117、E2E-120、E2E-122、E2E-123、E2E-148、E2E-153、E2E-PLUGIN-imported-pi-package-skills、E2E-PLUGIN-import-extension-installs-dependencies、E2E-PLUGIN-import-extension-reports-missing-dependency、E2E-PLUGIN-global-shortcut-owns-only-its-own-command、E2E-PLUGIN-permission-gate-for-real-time-capabilities、E2E-PLUGIN-background-audio-and-realtime-connection |
-| H——诊断 | E2E-027、E2E-031、E2E-034、E2E-042、E2E-096、E2E-098、E2E-104、E2E-107、E2E-108、E2E-109、E2E-110、E2E-113、E2E-115、E2E-116、 E2E-118、E2E-121、E2E-146、E2E-194、E2E-195 |
-| 安全性 | E2E-028、E2E-029、E2E-030、E2E-024J、E2E-024K、E2E-024M、E2E-049、E2E-068、E2E-086、E2E-105、E2E-106、E2E-107、E2E-108、E2E-109、 E2E-110、E2E-112、E2E-113、E2E-115、E2E-116、E2E-117、E2E-119、E2E-121、E2E-122、E2E-123、E2E-142、E2E-148、E2E-151、E2E-153 |
-| 品质 | E2E-032、E2E-033、E2E-039、E2E-043、E2E-044、E2E-045、E2E-046、E2E-047、E2E-048、E2E-048A、E2E-049、E2E-050、E2E-053、E2E-055、 E2E-056、E2E-057、E2E-058、E2E-059、E2E-060、E2E-061、E2E-062、E2E-063、E2E-064、E2E-065、E2E-066、E2E-067、E2E-068、E2E-069、 E2E-070、E2E-071、E2E-072、E2E-073、E2E-074、E2E-075、E2E-076、E2E-077、E2E-078、E2E-079、E2E-080、E2E-081、E2E-082、E2E-083、 E2E-084、E2E-085、E2E-086、E2E-092、E2E-093、E2E-094、E2E-095、E2E-096、E2E-097、E2E-098、E2E-099、E2E-100、E2E-101、E2E-102、 E2E-102a、E2E-102b、E2E-103、E2E-AGENTS-001、E2E-024N、E2E-024O、E2E-059a、E2E-060b、E2E-060c、E2E-060d、E2E-061a、E2E-073a、E2E-111、 E2E-114、E2E-117、E2E-118、E2E-119、E2E-120、E2E-122、E2E-123、E2E-142、E2E-143、E2E-144、E2E-145、E2E-146、E2E-147、E2E-148、E2E-150、E2E-151、E2E-153、E2E-194、E2E-195、E2E-199、E2E-200、E2E-201、E2E-202、E2E-203、E2E-204、E2E-209、E2E-210、E2E-250、E2E-PLUGIN-imported-pi-package-skills、E2E-SUBAGENT-resume-a-settled-delegation |
-| 品质（项目排序） | E2E-253 |
 | C — 对话和直播（输入法斜杠别名） | E2E-255 |
 | E——工具和权限（Skill 常驻） | E2E-254 |
 | 品质（Skill 常驻与输入法斜杠别名） | E2E-254、E2E-255 |
 | C — 对话和直播（导入可见性） | E2E-257 |
 | F——持久化（导入可见性） | E2E-257 |
-| C — 对话和直播（聊天文件引用） | E2E-CHAT-shorthand-file-ref-opens-the-matching-file、E2E-CHAT-file-ref-opens-the-surface-that-owns-it |
-| G——插件（聊天文件引用） | E2E-CHAT-file-ref-opens-the-surface-that-owns-it、E2E-PLUGIN-file-view-collapse-persists |
-| 品质（聊天文件引用） | E2E-CHAT-shorthand-file-ref-opens-the-matching-file、E2E-CHAT-file-ref-opens-the-surface-that-owns-it、E2E-PLUGIN-file-view-collapse-persists |
-| G——插件（项目文件夹根） | E2E-PLUGIN-file-view-switches-folder-per-project |
-| 安全性（项目文件夹根） | E2E-PLUGIN-file-view-switches-folder-per-project |
-| 品质（项目文件夹根） | E2E-PLUGIN-file-view-switches-folder-per-project |
 | G——插件（导入可见性） | E2E-257 |
 | 品质（导入可见性） | E2E-257 |
 | G——插件（Session Orchestrator） | E2E-PLUGIN-session-orchestrator-real-workers |
@@ -5082,6 +5082,12 @@ IPC 请求无法关闭。
 | G — 插件（独立会话通信） | E2E-SESSION-independent-top-level-communication |
 | 品质（独立会话通信） | E2E-SESSION-independent-top-level-communication、E2E-SESSION-hover-card-model-and-links |
 | C — 对话与流式（hover 卡片模型和链接） | E2E-SESSION-hover-card-model-and-links |
+| C — 对话和直播（聊天文件引用） | E2E-CHAT-shorthand-file-ref-opens-the-matching-file、E2E-CHAT-file-ref-opens-the-surface-that-owns-it |
+| G——插件（聊天文件引用） | E2E-CHAT-file-ref-opens-the-surface-that-owns-it、E2E-PLUGIN-file-view-collapse-persists |
+| 品质（聊天文件引用） | E2E-CHAT-shorthand-file-ref-opens-the-matching-file、E2E-CHAT-file-ref-opens-the-surface-that-owns-it、E2E-PLUGIN-file-view-collapse-persists |
+| G——插件（项目文件夹根） | E2E-PLUGIN-file-view-switches-folder-per-project |
+| 安全性（项目文件夹根） | E2E-PLUGIN-file-view-switches-folder-per-project |
+| 品质（项目文件夹根） | E2E-PLUGIN-file-view-switches-folder-per-project |
 | D — 工作区（删除项目） | E2E-PROJECT-delete-removes-project-and-owned-sessions |
 | F — 持久化（删除项目） | E2E-PROJECT-delete-removes-project-and-owned-sessions |
 | 品质（删除项目） | E2E-PROJECT-delete-removes-project-and-owned-sessions |
@@ -5096,15 +5102,15 @@ IPC 请求无法关闭。
 | 里程碑 | 应用场景 |
 |---|---|
 | M1 | E2E-001、E2E-002、E2E-003、E2E-028、E2E-029 |
-| M2 | E2E-004、E2E-005、E2E-006、E2E-007、E2E-008、E2E-008d、E2E-009、E2E-010、E2E-011、E2E-011a、E2E-011b、E2E-020、E2E-021、E2E-027、E2E-031、 E2E-036、E2E-037、E2E-042、E2E-087、E2E-088、E2E-088b、E2E-089、E2E-090、E2E-144、E2E-005J、E2E-201 |
+| M2 | E2E-004, E2E-005, E2E-006, E2E-007, E2E-008, E2E-008d, E2E-009, E2E-010, E2E-011, E2E-011a, E2E-011b, E2E-011d, E2E-011e, E2E-011g, E2E-020, E2E-021, E2E-021a, E2E-027, E2E-031, E2E-036, E2E-037, E2E-042, E2E-087, E2E-088, E2E-088b, E2E-089, E2E-090, E2E-COMPOSER-narrow-controls, E2E-144, E2E-005J, E2E-201, E2E-202, E2E-207, E2E-206 |
 | M3 | E2E-012、E2E-013、E2E-014、E2E-015、E2E-016、E2E-017、E2E-018、E2E-019、E2E-040 |
 | M4 | E2E-022、E2E-023、E2E-024、E2E-025、E2E-026、E2E-030、E2E-038 |
-| M5 | E2E-008a、E2E-032、E2E-033、E2E-034、E2E-039、E2E-043、E2E-044、E2E-045、E2E-046、E2E-047、E2E-048、E2E-048A、E2E-049、E2E-050、 E2E-051、E2E-052、E2E-053、E2E-054、E2E-055、E2E-056、E2E-057、E2E-058、E2E-059、E2E-060、E2E-061、E2E-062、E2E-063、E2E-064、 E2E-065、E2E-066、E2E-067、E2E-068、E2E-069、E2E-070、E2E-071、E2E-072、E2E-073、E2E-074、E2E-075、E2E-076、E2E-077、E2E-078、 E2E-079、E2E-080、E2E-081、E2E-082、E2E-083、E2E-084、E2E-085、E2E-086、E2E-092、E2E-093、E2E-096、E2E-097、E2E-098、E2E-099、 E2E-100、E2E-101、E2E-102、E2E-102a、E2E-102b、E2E-AGENTS-001、E2E-059a、E2E-060b、E2E-060c、E2E-061a、E2E-073a、E2E-094、E2E-095、E2E-143、E2E-145、E2E-146、E2E-147、E2E-194、E2E-195、E2E-204、E2E-250 |
+| M5 | E2E-008a, E2E-032, E2E-033, E2E-034, E2E-039, E2E-043, E2E-044, E2E-045, E2E-046, E2E-047, E2E-048, E2E-048A, E2E-049, E2E-050, E2E-051, E2E-052, E2E-053, E2E-054, E2E-055, E2E-056, E2E-057, E2E-058, E2E-059, E2E-060, E2E-061, E2E-062, E2E-063, E2E-064, E2E-065, E2E-066, E2E-067, E2E-068, E2E-069, E2E-070, E2E-071, E2E-072, E2E-073, E2E-074, E2E-075, E2E-076, E2E-077, E2E-078, E2E-079, E2E-080, E2E-081, E2E-082, E2E-083, E2E-084, E2E-085, E2E-086, E2E-092, E2E-093, E2E-096, E2E-097, E2E-098, E2E-099, E2E-100, E2E-101, E2E-102, E2E-102a, E2E-102b, E2E-102c, E2E-102d, E2E-102e, E2E-AGENTS-001, E2E-059a, E2E-060b, E2E-060c, E2E-061a, E2E-073a, E2E-094, E2E-095, E2E-143, E2E-145, E2E-146, E2E-146a, E2E-147, E2E-177, E2E-178, E2E-180, E2E-181, E2E-182, E2E-183, E2E-186, E2E-187, E2E-194, E2E-195, E2E-204, E2E-208, E2E-CHAT-content-width-handles, E2E-250, E2E-252, E2E-102i |
 | M5（项目排序） | E2E-253 |
 | M2（输入法斜杠别名） | E2E-255 |
 | M5（Skill 常驻） | E2E-254 |
-| M6 | E2E-104、E2E-105、E2E-106、E2E-107、E2E-108、E2E-109、E2E-110、E2E-111、E2E-112、E2E-113、E2E-114、E2E-115、E2E-116、E2E-117、 E2E-118、E2E-119、E2E-120、E2E-103 |
-| M6+ | E2E-121、E2E-122、E2E-123、E2E-142、E2E-148、E2E-150、E2E-151、E2E-168、E2E-199、E2E-200、E2E-202、E2E-203、E2E-209、E2E-211、E2E-212、E2E-213、E2E-214、E2E-215、E2E-216、E2E-217、E2E-257、E2E-166、E2E-SUBAGENT-resume-a-settled-delegation |
+| M6 | E2E-104, E2E-105, E2E-106, E2E-107, E2E-108, E2E-109, E2E-110, E2E-111, E2E-112, E2E-113, E2E-114, E2E-115, E2E-116, E2E-117, E2E-118, E2E-119, E2E-120, E2E-103, E2E-172 |
+| M6+ | E2E-121, E2E-122, E2E-148, E2E-150, E2E-151, E2E-154, E2E-155, E2E-158, E2E-159, E2E-160, E2E-161, E2E-162, E2E-163, E2E-166, E2E-168, E2E-173, E2E-174, E2E-176, E2E-179, E2E-196a, E2E-196b, E2E-196c, E2E-198, E2E-199, E2E-200, E2E-202, E2E-203, E2E-205, E2E-209, E2E-210, E2E-212, E2E-213, E2E-214, E2E-215, E2E-216, E2E-217, E2E-218, E2E-219, E2E-257, E2E-SUBAGENT-settlement-updates-before-parent-poll, E2E-PLUGIN-fs-root-follows-the-calling-session, E2E-SUBAGENT-resume-a-settled-delegation |
 | M6+（Session Orchestrator） | E2E-PLUGIN-session-orchestrator-real-workers |
 | M6+（会话列表响应性） | E2E-SESSION-list-refresh-keeps-desktop-responsive |
 | M6+（独立会话通信） | E2E-SESSION-independent-top-level-communication、E2E-SESSION-hover-card-model-and-links |
@@ -5114,7 +5120,7 @@ IPC 请求无法关闭。
 | 后MVP | E2E-022A、E2E-022B、E2E-022C、E2E-024I、E2E-024J、E2E-024K、E2E-024L、E2E-024M（插件路线图 R2/R3/R6） |
 | 基线后本地自动化 | E2E-220 |
 | MVP 后远程控制 | E2E-221、E2E-222、E2E-223、E2E-224、E2E-225、E2E-226、E2E-227、E2E-228、E2E-229、E2E-230、E2E-231、E2E-232 |
-| 受信任扩展（R7 v1） | E2E-241、E2E-242、E2E-243、E2E-244、E2E-245、E2E-PLUGIN-imported-pi-package-skills、E2E-PLUGIN-import-extension-installs-dependencies、E2E-PLUGIN-import-extension-reports-missing-dependency、E2E-PLUGIN-declared-provider-appears-in-the-native-provider-list |
+| Trusted extensions (R7 v1) | E2E-241, E2E-242, E2E-TRUSTED-EXTENSION-custom-agent-stream-and-binding, E2E-243, E2E-244, E2E-245, E2E-PLUGIN-imported-pi-package-skills, E2E-PLUGIN-import-extension-installs-dependencies, E2E-PLUGIN-import-extension-reports-missing-dependency, E2E-PLUGIN-declared-provider-appears-in-the-native-provider-list |
 | M6+（删除项目） | E2E-PROJECT-delete-removes-project-and-owned-sessions |
 | M6+（两步删除） | E2E-SESSION-two-click-delete-arms-first |
 | C — 对话和直播（模型回退） | E2E-SUBAGENT-ordered-model-fallback-preserves-work |
@@ -7883,3 +7889,229 @@ runner 会在运行时的隔离临时目录中生成六个插件形态 fixture�
   覆盖验证、目录刷新和回退；`node scripts/e2e-managed-context-persistence.mjs`
   验证真实宿主 SQLite 的保存与重启。
 - **状态：** 已自动化，不调用线上模型。
+
+
+### Restored tool calls across system records
+
+A model system record persisted between an assistant tool call and its result
+must not detach the call from its original assistant during history restore.
+The restored provider request preserves the live call/result ownership.
+Regression: `packages/agent-runtime/src/system-transcript-runtime.test.ts`.
+Upstream source: `f1778a193`.
+
+
+### Tolerant transcript reads
+
+Transcript and revision readers skip malformed records, decode invalid UTF-8
+best effort, and preserve physical byte offsets for bounded reads. Torn tails
+are excluded without rewriting user data. Regression coverage lives in
+`crates/host-core/src/transcripts_layout_tests.rs` and
+`scripts/e2e-transcript-cache.mjs` (upstream `80dc767b0`).
+
+
+### Provider retry after compaction
+
+A provider retry uses the current transcript after compaction, whether or not
+the failed assistant remains. Both parent and subagent paths remove any
+trailing failed assistants before continuing. Upstream: `77a706acb`; regression
+coverage in runtime and subagent tests.
+
+
+### System certificate expiry
+
+Only unexpired OS trust anchors are added to the bundled and explicitly supplied
+CA sets. TLS chain and hostname verification remain enabled. Deterministic
+coverage: `packages/agent-runtime/src/system-ca.test.ts`; upstream `8c267ab24`.
+
+## 英文源规格增量：交付验证
+
+> **增量说明：** 新增规范暂保留英文原文，已有中文译文继续保留；以下表格与英文源规格同步。
+
+## W09.1 durable media submission scope (2026-10-24)
+
+Build the current Host with `cargo build -p host-core`, then run:
+
+```sh
+DECKWISE_E2E_MEDIA_SCOPE_HOST="$PWD/target/debug/pi-desktop-host-core" \
+  node --test apps/desktop/test/courseware-media-scope-integration.test.mjs
+```
+
+This uses actual Main canvas coordination, Host process/restart and authenticated
+HTTP client against loopback identity/media. Require four groups: first binding
+before begin selects the team route; first binding after begin retains personal
+scope; lost response plus sharing/full restart recovers with GET only; two
+independent coordinators dispatch one key once. Assert original request hashes,
+persisted explicit nullable scope and exact personal/team paths. This does not
+use Electron net/auth UI, actual Spring or a paid provider. The test skips
+without the explicit freshly built Host path, so a skipped result is not proof.
+
+Host tests additionally cover TTS/scene/canvas saved scope, both binding orders,
+reopen, duplicate begin refusal, legacy unknown recovery, invalid team IDs and
+failed scope writes preserving prepared state. Main tests reject missing,
+malformed and foreign-session scope before POST. Repeated task selection must
+not remove the saved team binding. Preserve separate actual Spring/role/fee
+and packaged/intended-environment gates; these tests do not complete W09.1.
+
+
+## W09.1 managed auxiliary completion scope (2026-10-24)
+
+Run:
+
+```sh
+node --test apps/desktop/test/courseware-one-shot-auth.test.mjs \
+  apps/desktop/test/courseware-llm-auth.test.mjs \
+  apps/desktop/test/prompt-enhancement.test.mjs \
+  apps/desktop/test/session-auto-title.test.mjs \
+  apps/desktop/test/session-message-input.test.mjs
+```
+
+The public prompt-enhancement and title IPC handlers must use the persisted
+original Chat identity for managed project routing. Cover personal success,
+binding the existing Chat, authorized team success, terminal HTTP 403 without
+personal fallback, unchanged vendor OAuth routing and sessionless personal
+enhancement. The resolver regressions separately cover malformed scope, missing
+session, Host replacement and insecure/credential-bearing gateway refusal.
+
+For the changed packaged runtime, use isolated profiles, fixture refresh tokens,
+an owned real Spring/MySQL/Redis instance and the current llm-ha binary with a
+loopback supplier. Verify actual main Chat Responses requests before/after
+binding, Viewer refusal, immediate Editor grant/downgrade/revocation, unrelated
+personal success and full restart. Include actual prompt-enhancement/title IPC
+success/refusal. Supplier counts must not increase on project refusal. Pin exact
+ASAR/Host/sidecar hashes; do not override packaged runtimes. This proves transport
+and authorization with fixture content, not paid supplier quality, deployed
+service readiness or full W09.1/W17 acceptance.
+
+
+## W15.2 music source lifecycle (2026-10-24)
+
+Run the focused `courseware-music-media`, `courseware-canvas-music` and
+`courseware-canvas-music-ui` Node tests plus existing media/image/team regressions.
+Build shared contracts and a fresh Host; run the actual Main/Host/HTTP gate:
+
+```sh
+DECKWISE_E2E_MUSIC_HOST="$PWD/target/debug/pi-desktop-host-core" \
+  node --test apps/desktop/test/courseware-canvas-music-host.test.mjs
+```
+
+Require exact Unicode/null/empty-option hashes; separate quote confirmations;
+all ordered candidates; lost generation/export responses recovered after real
+Host restarts by GET only; private preview/export archives surviving another
+restart without remote requests; immutable original scope and hashes. Synthetic
+media/identity are explicit. A skipped test without the fresh Host path is not
+acceptance. The initial fixture's incorrect expected transport-error name must
+remain separate from the final passing run.
+
+The separate Platform `MusicDesktopJoinedTest` runs the actual Desktop client
+against loopback Spring/Tomcat, disposable MySQL/Redis and a MAIC protocol fixture.
+It checks two candidates, independent archives, separate generation/export fees,
+lost-response GET recovery, Viewer submission refusal and revoked remote preview.
+See the root `docs/validation/courseware/w15/music-joined-20261024` evidence.
+These gates do not validate production JWT, real MAIC/MXAPI, actual human audio
+quality, PPTX adoption, packaged installers or formal release.
+
+The actual source UI gate is `scripts/e2e-courseware-canvas-music.mjs`. After
+Shared/i18n/Desktop and Host builds, run it under `xvfb-run -a` with explicit
+`--host` and a new `--evidence-dir`; it retains `--no-sandbox`. Require six
+groups: saved title/lyrics; generation quote and separate explicit consent;
+both ordered previews decoded and played; separately confirmed selected export;
+complete Electron/Host restart with three local audio plays and zero media
+requests; List-only historical export quoting with no status GET or POST.
+Persisted archive/candidate metadata must enable those controls even when
+`task:null` after restart. Preserve the intermediate five-group run separately;
+only the six-group rerun covers the historical-export handler fix. This gate
+uses identity/media fixtures and does not replace the real Spring boundary.
+
+
+
+### E2E-CW-W17-RECOVERY: A packaged migration survives process death
+
+- **Preconditions**: Linux; actual packaged schema18 and schema24 Host binaries;
+  a new evidence directory and enough temporary space for synthetic backups.
+- **Steps**: Run `python3 scripts/check-courseware-upgrade-interruption.py
+  CURRENT_HOST OLDER_SCHEMA18_HOST NEW_EVIDENCE_DIRECTORY`. Seed 24,001 sessions,
+  message/KV sentinels and a local asset. Observe the v18 backup and uncommitted
+  migration WAL frames; stop the test child, verify no commit marker, then SIGKILL.
+  Reopen SQLite, restart the current Host to complete migration and reopen again.
+- **Expected**: Kill occurs during actual uncommitted migration writes. Retained
+  row fingerprints, asset bytes, database integrity and foreign keys survive.
+  No half-renamed sessions table remains. Upgrade reaches24 and all six
+  intermediate backups are readable. No real account, supplier call or user
+  database is accessed. A missed transaction window fails the gate.
+- **Specs linked**: `03-runtime/07-process-model.md` (database boot refusal),
+  `03-runtime/26-courseware-fixed-snapshots.md` (separate preview/publication scope),
+  Plan007 W17.2.
+- **Acceptance**: recovery, data retention; Linux process death only, not physical
+  power loss or deferred team publication-pointer recovery.
+- **Milestone**: single-teacher trial recovery.
+- **Status**: three actual packaged Host checks pass in
+  `validation/courseware/upgrade-recovery-20261025/sigkill/report.json`.
+
+| Requirement | Scenario | Evidence |
+| --- | --- | --- |
+| W17.2 migration process-death recovery | E2E-CW-W17-RECOVERY | `scripts/check-courseware-upgrade-interruption.py`; packaged Host report above |
+
+### E2E-COURSEWARE-manual-media-fixed-build
+
+- Build the retained three-page fixed-courseware PPTX using the current staged
+  worker, including its original standalone manually started video timing.
+- Require an unchanged video element and archived media; do not invent a native
+  object animation or waive unsupported timing diagnostics.
+- Automatic, delayed, finite-duration, looping, inherited scheduling and paragraph
+  media timing must not use the standalone-manual exception.
+- Run the fixed-build/cancellation and manual-media-timing regressions. Cancellation
+  must preserve the exact previous package bytes using the current converter
+  manifest; historical build IDs are not valid across converter changes.
+
+### E2E-COURSEWARE-saved-narration-visuals
+
+- Run `scripts/e2e-courseware-saved-narration.mjs` under Electron with the real
+  Host binary, staged PPTX worker, a multi-page saved source and output directory.
+  Use deterministic model callbacks; no paid provider or editor is required.
+- Include image-only and rich-text pages. Require nonempty decoded vision images,
+  a complete ordered plan and a direct save or explicit error for every requested
+  page. The retained 56-page source must save all 56 pages into formal teaching
+  without candidate RPCs or human adoption.
+- Restart Host and read every page's saved speech. Regenerate one page and verify
+  only its teaching changed. Force one page to fail and verify successful pages
+  remain saved. Stored target-page drafts and locks must prevent replacement.
+- Verify original PPTX bytes and zero editor/selection RPCs. Record completion and
+  model-call counts in result.json. Chat and sidebar expose no narration adoption.
+- Run Host direct-save transaction/rollback, speech-audio invalidation, music
+  preservation and existing attention/TTS tests. Deterministic checks prove flow
+  and persistence; real-provider narration quality remains separate acceptance.
+- Retained result: `docs/validation/courseware/direct-narration-20261026/README.md`.
+
+### E2E-COURSEWARE-export-credential-gate
+
+- Run `node --experimental-strip-types --test scripts/check-courseware-package-credentials.test.mjs`.
+- Preserve actual fixed-export manifest/hash/allowlist validation. Decode each
+  allowlisted PPTX and inspect notes, metadata, relationships and embedded bytes
+  using the existing credential/path signatures. Reports must omit matched values.
+- Reject malformed archives, escaping paths, symlinks, more than 4,096 entries,
+  over 256 MiB compressed/total decoded bytes and over 64 MiB per decoded member.
+- Scan the retained ordinary/scene/import/edit/redo exports from the packaged
+  Chat gate; bind their hashes without another generation or paid call.
+- Known signatures do not establish absence of unknown/obfuscated secrets;
+  nested embedded archives and shadowed ZIP records need separate review.
+- Evidence: `validation/courseware/export-credentials-20261025/README.md`.
+  This is artifact verification, not a runtime DLP feature or full W04.3 acceptance.
+
+## E2E-WISEOFFICE-bundled-runtime
+
+- Stage a WiseOffice production build into a new resource directory and verify
+  its source revision/dirty flag and per-file hashes. Missing/incomplete bundles
+  fail explicitly, without falling back to the network.
+- Run `scripts/verify-local-wiseoffice.mjs` using Electron and an isolated profile
+  with every HTTP(S) request denied. Open a local PPTX in memory, wait for actual
+  native readiness, save through the host acknowledgement protocol, reopen the
+  exported bytes, check page count and isolation, and assert the source unchanged.
+- Check encoded traversal, backslash, NUL, symlink escapes, unknown hosts, missing
+  files and unsupported methods; assert decoded WASM magic and isolation headers.
+- In WiseOffice run `test/e2e/deckwise-native-animation.spec.ts`: use the bounded
+  DeckWise command bridge, apply native fade, undo/redo, acknowledge save, inspect
+  exported timing and reopen to verify the native effect and duration. This is
+  deterministic SDK evidence, not a paid LLM run or complete animation coverage.
+- Repeat packaged cold/warm open, edit/save/reopen on Linux, macOS and Windows
+  before claiming release readiness. Current source probes do not certify those
+  lanes, full timeline playback, object identity or same-canvas overlay geometry.

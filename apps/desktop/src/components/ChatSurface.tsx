@@ -11,6 +11,7 @@ import { ConversationWidthHandles } from "./ConversationWidthHandles";
 import { useAppStore } from "../stores/app-store";
 import { headPermission } from "../lib/pending-permissions";
 import { headAsk } from "../lib/pending-asks";
+import { CoursewareWorkspaceEntry } from "./courseware/CoursewareWorkspaceEntry";
 
 const StableComposer = memo(Composer);
 
@@ -44,6 +45,7 @@ export const ChatSurface = memo(function ChatSurface() {
   const { t } = useTranslation();
   const [quickstartPrefill, setQuickstartPrefill] =
     useState<ComposerPrefill | null>(null);
+  const [importSessionId, setImportSessionId] = useState<string | null>(null);
   const activeSessionId = useAppStore((state) => state.activeSessionId);
   const selectingSessionId = useAppStore((state) => state.selectingSessionId);
   const retainedSessionIds = useAppStore((state) => state.retainedSessionIds);
@@ -121,7 +123,7 @@ export const ChatSurface = memo(function ChatSurface() {
   // still resolving, the visible pane keeps its own transcript, so the hero must
   // not take over just because the destination projection is still empty.
   const showEmptyState =
-    !hasTranscript && (!visibleSessionId || visibleSessionId === activeSessionId);
+    !hasTranscript && !(activeSessionId && importSessionId === activeSessionId) && (!visibleSessionId || visibleSessionId === activeSessionId);
   return (
     <div
       className={`chat-surface route-surface${sessionSwitching ? " session-switching" : ""}`}
@@ -133,6 +135,7 @@ export const ChatSurface = memo(function ChatSurface() {
         </div>
       ) : null}
       <ConversationWidthHandles />
+      <CoursewareWorkspaceEntry onImport={setImportSessionId} />
       {showEmptyState ? (
         <div
           className="home-main-content"
@@ -197,7 +200,7 @@ export const ChatSurface = memo(function ChatSurface() {
                       type="button"
                       className="deckwise-home-prompt"
                       onClick={async () => {
-                        if (!activeSessionId) await useAppStore.getState().newSession();
+                        if (!activeSessionId) await useAppStore.getState().openNewTaskDialog();
                         setQuickstartPrefill({ text: prompt, token: Date.now() });
                       }}
                     >

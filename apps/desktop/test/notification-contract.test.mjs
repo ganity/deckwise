@@ -80,6 +80,7 @@ test("the visible chat session suppresses durable task notifications", () => {
   assert.match(mainSource, /"render-process-gone"[\s\S]*windowState\.notificationViewingSessionId = null/);
   assert.match(appSource, /page === "chat" \? activeSessionId \?\? null : null/);
   assert.match(appSource, /setNotificationViewingSession\(viewingSessionId\)/);
+  assert.match(appSource, /useLayoutEffect\(\(\) => \{\s*\/\/[^\n]*\n\s*const viewingSessionId = page === "chat"/);
 });
 
 test("sidebar terminal outcomes are notification-backed, not lifecycle-backed", () => {

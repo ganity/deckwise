@@ -14,6 +14,13 @@ import {
   isCommandShellOption,
   isGlobalPermissionMode,
   isToolsOutputParams,
+  AGENT_COMPACT_RPC_TIMEOUT_MS,
+  COMMAND_RPC_BUFFER_MS,
+  COMPACTION_SUMMARY_MAX_RETRIES,
+  COMPACTION_SUMMARY_RETRY_BUDGET_MS,
+  STREAM_IDLE_TIMEOUT_MS,
+  TOOL_QUEUE_WAIT_MS,
+  WORKTREE_DELEGATE_RPC_TIMEOUT_MS,
   rpcTimeoutMs,
   type PlanExecution,
   type PlanArtifact,
@@ -24,6 +31,16 @@ import {
 } from "./index.js";
 
 describe("Plan protocol contracts", () => {
+  it("exposes finite reviewed online preparation channels", () => {
+    for (const [name, suffix] of [
+      ["coursewareOnlinePrepareReview", "review"],
+      ["coursewareOnlinePrepareConfirm", "confirm"],
+      ["coursewareOnlinePrepareCancel", "cancel"],
+    ] as const) {
+      expect(IPC.invoke[name]).toBe(`deckwise/courseware/online/prepare/${suffix}`);
+      expect(IPC_WHITELIST.has(IPC.invoke[name])).toBe(true);
+    }
+  });
   it("uses protocol v11/schema v16 and exposes the plan, schedule, and shell channels", () => {
     expect(PROTOCOL_VERSION).toBe(11);
     expect(SCHEMA_VERSION).toBe(16);
@@ -37,6 +54,8 @@ describe("Plan protocol contracts", () => {
     expect(IPC_WHITELIST.has(IPC.invoke.scheduledUpdate)).toBe(true);
     expect(IPC_WHITELIST.has(IPC.invoke.scheduledDelete)).toBe(true);
     expect(IPC_WHITELIST.has(IPC.invoke.scheduledRun)).toBe(true);
+    expect(IPC_WHITELIST.has(IPC.invoke.scheduledExecute)).toBe(true);
+    expect(IPC_WHITELIST.has(IPC.invoke.scheduledListRuns)).toBe(true);
     expect(IPC.invoke.providersRefreshModelCatalog).toBe(
       "pi-desktop/providers/refreshModelCatalog",
     );
@@ -67,6 +86,21 @@ describe("Plan protocol contracts", () => {
     expect(IPC_WHITELIST.has(IPC.invoke.speechTranscribe)).toBe(true);
     expect(IPC_WHITELIST.has(IPC.invoke.speechSynthesize)).toBe(true);
     expect(IPC_WHITELIST.has(IPC.invoke.speechGetStatus)).toBe(true);
+    expect(IPC.invoke.coursewareMediaCanvasGet).toBe("deckwise/courseware/media-canvas/get");
+    expect(IPC.invoke.coursewareMediaCanvasSet).toBe("deckwise/courseware/media-canvas/set");
+    expect(IPC_WHITELIST.has(IPC.invoke.coursewareMediaCanvasGet)).toBe(true);
+    expect(IPC_WHITELIST.has(IPC.invoke.coursewareMediaCanvasSet)).toBe(true);
+    for (const [name, suffix] of [
+      ["coursewareCanvasImageModels", "models"], ["coursewareCanvasImageList", "list"],
+      ["coursewareCanvasImagePrepare", "prepare"], ["coursewareCanvasImageQuote", "quote"],
+      ["coursewareCanvasImageSubmitConfirmed", "submit-confirmed"], ["coursewareCanvasImageStatus", "status"],
+      ["coursewareCanvasImageArchive", "archive"], ["coursewareCanvasImagePreview", "preview"],
+      ["coursewareCanvasImageReferencePreview", "reference-preview"],
+      ["coursewareCanvasImageRestore", "restore"],
+    ] as const) {
+      expect(IPC.invoke[name]).toBe(`deckwise/courseware/canvas-image/${suffix}`);
+      expect(IPC_WHITELIST.has(IPC.invoke[name])).toBe(true);
+    }
   });
 
   it("exposes the vendor-account OAuth channels through the preload whitelist", () => {
@@ -115,10 +149,22 @@ describe("Plan protocol contracts", () => {
       cadence: "manual",
       mode: normalizeMode("chat"),
       enabled: true,
+      permissionMode: "accept-edits",
+      thinkingLevel: "high",
+      providerId: "provider-1",
+      modelId: "model-1",
+      workspacePath: "C:/work/project",
       createdAt: "2026-01-01T00:00:00.000Z",
       updatedAt: "2026-01-01T00:00:00.000Z",
     };
     expect(task.mode).toBe("plan");
+    expect(task).toMatchObject({
+      permissionMode: "accept-edits",
+      thinkingLevel: "high",
+      providerId: "provider-1",
+      modelId: "model-1",
+      workspacePath: "C:/work/project",
+    });
   });
 
   it("keeps approval actions and target permission modes typed", () => {
@@ -218,29 +264,65 @@ describe("Plan protocol contracts", () => {
     ).toBe(false);
   });
 
-  it("derives transport deadlines from command execution semantics", () => {
-    expect(rpcTimeoutMs("tools.execute", { toolName: "Bash" })).toBe(190_000);
+  it("leaves tool approval transport open until the user decides", () => {
+    expect(rpcTimeoutMs("tools.execute", { toolName: "Bash" })).toBeUndefined();
     expect(
-      rpcTimeoutMs("tools.execute", { toolName: "Bash", timeoutMs: 5_000 }),
-    ).toBe(135_000);
-    expect(
-      rpcTimeoutMs("tools.execute", { toolName: "Bash", timeoutMs: 60_000 }),
-    ).toBe(190_000);
-    expect(
-      rpcTimeoutMs("tools.execute", { toolName: "Bash", timeoutMs: 0 }),
-    ).toBe(190_000);
-    expect(
-      rpcTimeoutMs("tools.execute", {
-        toolName: "Bash",
-        timeoutMs: 2_147_483_647,
-      }),
-    ).toBe(2_147_483_647);
-    expect(rpcTimeoutMs("tools.execute", { toolName: "Read" })).toBe(130_000);
-    expect(rpcTimeoutMs("tools.execute", { toolName: "BrowserPreview" })).toBe(
-      130_000,
-    );
+      rpcTimeoutMs("tools.execute", { toolName: "plugin_advisor_ask", timeoutMs: 5_000 }),
+    ).toBeUndefined();
+    expect(rpcTimeoutMs("tools.execute", { toolName: "Read" })).toBeUndefined();
+    expect(rpcTimeoutMs("tools.execute", { toolName: "BrowserPreview" })).toBeUndefined();
     expect(rpcTimeoutMs("tools.abort", { sessionId: "s", toolCallId: "t" })).toBe(
       130_000,
     );
   });
+
+  it("lets a subagent worktree merge outlast its permit waits (ADR 0329)", () => {
+    for (const method of ["worktree.delegate.create", "worktree.delegate.settle"]) {
+      expect(rpcTimeoutMs(method, {})).toBe(WORKTREE_DELEGATE_RPC_TIMEOUT_MS);
+    }
+    expect(WORKTREE_DELEGATE_RPC_TIMEOUT_MS).toBeGreaterThan(5_000 + TOOL_QUEUE_WAIT_MS + 3 * 120_000);
+    expect(rpcTimeoutMs("worktree.merge", {})).toBe(130_000);
+  });
+
+  it("outlasts the whole model request a manual compaction spends (#795)", () => {
+    // One summary prompt plus the sidecar's retry budget: every attempt that
+    // stops producing events is cut by the stream watchdog, and each retry pays
+    // its backoff wait. A flat 130s fired on a ~158s compaction, so Electron
+    // reported a failure while the sidecar persisted the checkpoint anyway.
+    expect(STREAM_IDLE_TIMEOUT_MS).toBe(180_000);
+    expect(COMPACTION_SUMMARY_MAX_RETRIES).toBe(3);
+    expect(COMPACTION_SUMMARY_RETRY_BUDGET_MS).toBe(14_000);
+    expect(AGENT_COMPACT_RPC_TIMEOUT_MS).toBe(
+      (1 + COMPACTION_SUMMARY_MAX_RETRIES) * STREAM_IDLE_TIMEOUT_MS +
+        COMPACTION_SUMMARY_RETRY_BUDGET_MS +
+        COMMAND_RPC_BUFFER_MS,
+    );
+    expect(AGENT_COMPACT_RPC_TIMEOUT_MS).toBe(744_000);
+    expect(rpcTimeoutMs("agent.compact", { sessionId: "s" })).toBe(
+      AGENT_COMPACT_RPC_TIMEOUT_MS,
+    );
+    // The deadline is per-method on purpose: widening the global default would
+    // hide a genuinely lost reply on every other call.
+    expect(rpcTimeoutMs("agent.getStatus", { sessionId: "s" })).toBe(130_000);
+  });
+
+  it("leaves a whole cloud sync unbounded and observable after navigation", () => {
+    // The Host owns sync execution; progress is supplementary, and navigating
+    // away from Settings must not impose a transport deadline on that request.
+    expect(IPC.event.configSyncProgress).toBe(
+      "pi-desktop/configSync/event/progress",
+    );
+    expect(IPC_WHITELIST.has(IPC.event.configSyncProgress)).toBe(true);
+    expect(rpcTimeoutMs("configSync.syncNow", {})).toBeUndefined();
+    expect(rpcTimeoutMs("configSync.getState", {})).toBe(130_000);
+  });
+});
+
+it("bounds only the reviewed style-batch transport and includes permission/response margins", () => {
+  expect(rpcTimeoutMs("tools.execute", { toolName: "ppt_propose_page_style_batch", timeoutMs: 1_800_000 })).toBe(1_930_000);
+  expect(rpcTimeoutMs("tools.execute", { toolName: "ppt_propose_page_style_batch" })).toBe(1_930_000);
+  expect(rpcTimeoutMs("tools.execute", { toolName: "ppt_propose_page_style_batch", timeoutMs: Number.MAX_SAFE_INTEGER })).toBe(1_930_000);
+  expect(rpcTimeoutMs("tools.execute", { toolName: "ppt_propose_page_style_batch", timeoutMs: 0 })).toBe(1_930_000);
+  expect(rpcTimeoutMs("tools.execute", { toolName: "ppt_propose_page_style_batch", timeoutMs: 5_000 })).toBe(135_000);
+  expect(rpcTimeoutMs("tools.execute", { toolName: "ppt_propose_page_redo", timeoutMs: 1_800_000 })).toBeUndefined();
 });

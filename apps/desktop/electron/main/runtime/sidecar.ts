@@ -11,6 +11,7 @@ import { registerPluginDevTools } from "../plugin-dev-tools";
 import { resolveLocalFile } from "../browser-view";
 import { modelConfigFromModelsDev } from "../models-dev-catalog";
 import { AgentSidecar } from "../agent-sidecar";
+import { resolveCoursewareLlmAuth } from "../courseware-llm-auth";
 import { OAUTH_AUTH_KIND, type VendorOAuth } from "../oauth";
 import type { AgentExtensionBridge } from "../agent-extensions";
 import type { BrowserHost } from "../browser-host";
@@ -41,6 +42,7 @@ export type SidecarRuntimeDependencies = {
    * in Agent Host or the renderer.
    */
   isStaleTerminalEvent: (envelope: AgentEventEnvelope) => boolean;
+  isTurnDispatchable: (sessionId: string, turnId: string | undefined) => boolean;
   isQuitting: () => boolean;
   dataDir: string;
   agentExtensions: AgentExtensionBridge;
@@ -70,6 +72,7 @@ export function createSidecarRuntime({
   inflightCheckpointer,
   finishTurn,
   isStaleTerminalEvent,
+  isTurnDispatchable,
   finishApprovedExecution,
   superviseRestart,
   isQuitting,
@@ -97,6 +100,12 @@ export function createSidecarRuntime({
     // the current turn's state in Agent Host or the renderer. Persistence is a
     // separate call, so dropping it here still archives it as history.
     if (isStaleTerminalEvent(envelope)) return;
+    // A cancelled turn may still own the session while unwinding; do not revive its activity.
+    if (
+      !envelope.parentToolCallId && envelope.turnId &&
+      !isTurnDispatchable(envelope.sessionId, envelope.turnId) &&
+      (envelope.event.type === "agent_start" || envelope.event.type === "turn_start" || envelope.event.type === "status")
+    ) return;
     runtimeState.agentHostBridge?.ingest(envelope);
     sendToRenderer(IPC.event.agentMessage, envelope);
   };
@@ -395,9 +404,9 @@ export function createSidecarRuntime({
       return { ok: true };
     },
   });
-  s.setVendorAuthResolver(async ({ providerId }) =>
+  s.setVendorAuthResolver(async ({ sessionId, providerId }) =>
     providerId === DECKWISE_MANAGED_PROVIDER_ID
-      ? { apiKey: await resolvePlatformAccessToken() }
+      ? resolveCoursewareLlmAuth(() => runtimeState.host, sessionId, resolvePlatformAccessToken)
       : vendorOAuth.resolveAuth(providerId),
   );
   s.setSubagentModelResolver(async (key: string) => {

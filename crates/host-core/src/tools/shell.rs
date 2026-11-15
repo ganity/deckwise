@@ -110,6 +110,19 @@ pub fn dialect_for_id(id: &str) -> Option<&'static str> {
     }
 }
 
+/// Format a scratch directory for the shell that will read `PI_SCRATCH_DIR`.
+///
+/// Mirrors `formatScratchDirForShell` in `agent-runtime`: POSIX shells
+/// (including Git Bash on Windows) can only consume forward-slash paths, so
+/// the env value must match the forward-slash path the prompt advertises.
+pub fn format_scratch_dir_for_shell(dialect: Option<&str>, path: &Path) -> PathBuf {
+    if dialect == Some("posix") {
+        PathBuf::from(path.to_string_lossy().replace('\\', "/"))
+    } else {
+        path.to_path_buf()
+    }
+}
+
 /// Build a public catalog using a caller-supplied availability probe. This
 /// pure seam keeps catalog/default/fallback tests independent of the host OS.
 pub fn catalog_for_platform(
@@ -197,9 +210,16 @@ pub fn build_invocation_for_platform(
         ShellPlatform::Windows => match shell_id {
             // PowerShell 7 keeps the PowerShell 5.1 invocation contract, so the
             // same non-interactive script drives both generations.
+            //
+            // `2>&1` turns each stderr line of a native command into an
+            // ErrorRecord whose id starts with `NativeCommandError`. Those lines
+            // go to stderr, but only the native exit code decides failure; any
+            // other ErrorRecord is a PowerShell error and fails the call.
+            // Remaining output passes through `Out-String -Stream`, so objects
+            // keep their console formatting instead of becoming type names.
             WINDOWS_POWERSHELL_ID | PWSH_ID => {
                 let script = format!(
-                    "$OutputEncoding = New-Object System.Text.UTF8Encoding($false); [Console]::OutputEncoding = $OutputEncoding; $ErrorActionPreference = 'Continue'; $ProgressPreference = 'SilentlyContinue'; $global:LASTEXITCODE = 0; $script:piPowerShellError = $false; & {{ {command} }} 2>&1 | ForEach-Object {{ if ($_ -is [System.Management.Automation.ErrorRecord]) {{ $script:piPowerShellError = $true; [Console]::Error.WriteLine($_.Exception.Message) }} else {{ [Console]::Out.WriteLine([string]$_) }} }}; $piNativeExitCode = $LASTEXITCODE; if ($script:piPowerShellError) {{ exit 1 }}; exit $piNativeExitCode"
+                    "$OutputEncoding = New-Object System.Text.UTF8Encoding($false); [Console]::OutputEncoding = $OutputEncoding; $ErrorActionPreference = 'Continue'; $ProgressPreference = 'SilentlyContinue'; $global:LASTEXITCODE = 0; $script:piPowerShellError = $false; & {{ {command} }} 2>&1 | ForEach-Object {{ if ($_ -is [System.Management.Automation.ErrorRecord]) {{ if ($_.FullyQualifiedErrorId -notlike 'NativeCommandError*') {{ $script:piPowerShellError = $true }}; [Console]::Error.WriteLine($_.Exception.Message) }} else {{ $_ }} }} | Out-String -Stream | ForEach-Object {{ [Console]::Out.WriteLine($_) }}; $piNativeExitCode = $LASTEXITCODE; if ($script:piPowerShellError) {{ exit 1 }}; exit $piNativeExitCode"
                 );
                 vec![
                     "-NoLogo".into(),
@@ -592,275 +612,64 @@ fn is_executable(path: &Path) -> bool {
 
 #[cfg(windows)]
 fn is_executable(path: &Path) -> bool {
-    path.is_file()
-        && path
-            .extension()
-            .is_some_and(|extension| extension.eq_ignore_ascii_case(OsStr::new("exe")))
+    if !path
+        .extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case(OsStr::new("exe")))
+    {
+        return false;
+    }
+    windows_path_exists_as_non_directory(path)
+}
+
+/// Win32 `FILE_ATTRIBUTE_DIRECTORY`.
+#[cfg(any(windows, test))]
+const FILE_ATTRIBUTE_DIRECTORY: u32 = 0x0000_0010;
+
+/// Decide whether a Windows `.exe` candidate exists from Win32 attributes.
+///
+/// `attributes` is `None` when `GetFileAttributesExW` failed (missing path,
+/// typically `ERROR_PATH_NOT_FOUND` / `ERROR_FILE_NOT_FOUND`). Size is not an
+/// input: Store app-execution aliases report size 0 and must still be accepted.
+///
+/// The reparse tag is optional because `GetFileAttributesExW` does not return
+/// it. When present, `IO_REPARSE_TAG_APPEXECLINK` (0x8000001B) is accepted the
+/// same as any other existing non-directory file.
+#[cfg(any(windows, test))]
+fn windows_exe_exists_from_win32_attrs(attributes: Option<u32>, _reparse_tag: Option<u32>) -> bool {
+    let Some(attrs) = attributes else {
+        return false;
+    };
+    if attrs & FILE_ATTRIBUTE_DIRECTORY != 0 {
+        return false;
+    }
+    // Store aliases (`IO_REPARSE_TAG_APPEXECLINK`) and other non-directory
+    // reparse points stay launchable via CreateProcessW even though CreateFileW
+    // returns ERROR_CANT_ACCESS_FILE (1920). Do not require size > 0.
+    true
+}
+
+/// `Path::is_file()` / `std::fs::metadata` use CreateFileW, which fails on
+/// Microsoft Store app-execution aliases. `GetFileAttributesExW` succeeds on
+/// those reparse points and still rejects a missing path.
+#[cfg(windows)]
+fn windows_path_exists_as_non_directory(path: &Path) -> bool {
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::Storage::FileSystem::{
+        GetFileAttributesExW, GetFileExInfoStandard, WIN32_FILE_ATTRIBUTE_DATA,
+    };
+
+    let mut wide: Vec<u16> = path.as_os_str().encode_wide().collect();
+    wide.push(0);
+    let mut info = WIN32_FILE_ATTRIBUTE_DATA::default();
+    let ok = unsafe {
+        GetFileAttributesExW(wide.as_ptr(), GetFileExInfoStandard, (&raw mut info).cast())
+    };
+    if ok == 0 {
+        windows_exe_exists_from_win32_attrs(None, None)
+    } else {
+        windows_exe_exists_from_win32_attrs(Some(info.dwFileAttributes), None)
+    }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn catalog_defaults_and_fallback_are_platform_specific() {
-        let unix = catalog_for_platform(ShellPlatform::Unix, None, |_| true);
-        assert_eq!(unix.configured_id, BASH_ID);
-        assert_eq!(
-            unix.effective.as_ref().map(|option| option.id.as_str()),
-            Some(BASH_ID)
-        );
-        assert!(!unix.fallback);
-        assert_eq!(unix.choices.len(), 1);
-
-        let windows = catalog_for_platform(ShellPlatform::Windows, None, |_| true);
-        assert_eq!(windows.configured_id, WINDOWS_POWERSHELL_ID);
-        assert_eq!(windows.choices.len(), 4);
-        assert_eq!(windows.choices[0].label, "Windows PowerShell");
-        assert!(windows.choices[0].is_default);
-        assert_eq!(windows.choices[1].id, PWSH_ID);
-        assert_eq!(windows.choices[1].label, "PowerShell 7");
-        assert_eq!(windows.choices[1].dialect, "powershell");
-        assert!(!windows.choices[1].is_default);
-
-        // The fallback follows catalog order, so PowerShell 7 — placed directly
-        // after the in-box 5.1 entry — is the first available choice once 5.1 is
-        // gone. Both entries keep the `powershell` dialect, so the fallback
-        // cannot change the command language a pinned turn runs.
-        let fallback =
-            catalog_for_platform(ShellPlatform::Windows, Some(WINDOWS_POWERSHELL_ID), |id| {
-                id != WINDOWS_POWERSHELL_ID
-            });
-        assert_eq!(
-            fallback.effective.as_ref().map(|option| option.id.as_str()),
-            Some(PWSH_ID)
-        );
-        assert!(fallback.fallback);
-
-        // With both PowerShell entries gone, `cmd` comes next in catalog order.
-        let cmd_fallback =
-            catalog_for_platform(ShellPlatform::Windows, Some(WINDOWS_POWERSHELL_ID), |id| {
-                id == CMD_ID || id == GIT_BASH_ID
-            });
-        assert_eq!(
-            cmd_fallback
-                .effective
-                .as_ref()
-                .map(|option| option.id.as_str()),
-            Some(CMD_ID)
-        );
-        assert!(cmd_fallback.fallback);
-    }
-
-    #[test]
-    fn unknown_configured_id_normalizes_to_platform_default() {
-        let catalog =
-            catalog_for_platform(ShellPlatform::Unix, Some("C:\\custom\\shell.exe"), |_| true);
-        assert_eq!(catalog.configured_id, BASH_ID);
-        assert_eq!(
-            catalog.effective.as_ref().map(|option| option.id.as_str()),
-            Some(BASH_ID)
-        );
-    }
-
-    #[test]
-    fn user_login_path_probes_a_real_path() {
-        // On any machine with a login shell the probe yields a non-empty
-        // PATH of absolute directories; when no shell can be probed the
-        // function must degrade to None rather than panic.
-        if let Some(path) = user_login_path() {
-            assert!(!path.is_empty(), "probed PATH is non-empty");
-            assert!(path.starts_with('/'), "PATH entries stay absolute");
-            assert!(path.contains('/'), "PATH looks like directories");
-        }
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn packaged_runtime_is_prepended_without_losing_the_user_path() {
-        let joined = prepend_path(
-            Some(OsStr::new("/deckwise/python/bin")),
-            Some(OsStr::new("/usr/local/bin:/usr/bin")),
-        )
-        .unwrap();
-        let entries = env::split_paths(OsStr::new(&joined)).collect::<Vec<_>>();
-        assert_eq!(entries[0], PathBuf::from("/deckwise/python/bin"));
-        assert_eq!(entries[1], PathBuf::from("/usr/local/bin"));
-        assert_eq!(entries[2], PathBuf::from("/usr/bin"));
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn non_executable_file_is_rejected() {
-        let dir = tempfile::tempdir().unwrap();
-        let plain = dir.path().join("not-a-shell");
-        std::fs::write(&plain, "text").unwrap();
-        assert!(!is_executable(&plain));
-    }
-
-    #[test]
-    fn powershell_7_is_a_distinct_selection_with_the_powershell_contract() {
-        // The 5.1 and 7 entries stay separately selectable while sharing one
-        // dialect and one non-interactive script.
-        assert!(is_known_shell_id(PWSH_ID));
-        assert_eq!(dialect_for_id(PWSH_ID), Some("powershell"));
-        assert_ne!(PWSH_ID, WINDOWS_POWERSHELL_ID);
-
-        let selected = catalog_for_platform(ShellPlatform::Windows, Some(PWSH_ID), |id| {
-            id != WINDOWS_POWERSHELL_ID
-        });
-        assert_eq!(selected.configured_id, PWSH_ID);
-        assert!(!selected.fallback);
-        assert_eq!(
-            selected.effective.as_ref().map(|option| option.id.as_str()),
-            Some(PWSH_ID)
-        );
-
-        let pwsh = build_invocation_for_platform(
-            ShellPlatform::Windows,
-            PWSH_ID,
-            PathBuf::from("pwsh.exe"),
-            "Write-Output 'hello'",
-        )
-        .unwrap();
-        let legacy = build_invocation_for_platform(
-            ShellPlatform::Windows,
-            WINDOWS_POWERSHELL_ID,
-            PathBuf::from("powershell.exe"),
-            "Write-Output 'hello'",
-        )
-        .unwrap();
-        assert_eq!(pwsh.args, legacy.args);
-        assert_eq!(pwsh.args[7], "-Command");
-        assert!(pwsh.args[8].contains("Write-Output 'hello'"));
-    }
-
-    #[test]
-    fn unavailable_powershell_7_falls_back_and_reports_it() {
-        let catalog =
-            catalog_for_platform(ShellPlatform::Windows, Some(PWSH_ID), |id| id != PWSH_ID);
-        assert_eq!(catalog.configured_id, PWSH_ID);
-        assert_eq!(
-            catalog.effective.as_ref().map(|option| option.id.as_str()),
-            Some(WINDOWS_POWERSHELL_ID)
-        );
-        assert!(catalog.fallback);
-    }
-
-    #[cfg(windows)]
-    #[test]
-    fn missing_powershell_7_guidance_names_the_searched_locations() {
-        // "was not found" alone leaves the user unable to act; the message has
-        // to name both probed locations.
-        assert!(PWSH_MISSING_GUIDANCE.contains("pwsh.exe"));
-        assert!(PWSH_MISSING_GUIDANCE.contains("ProgramFiles"));
-        assert!(PWSH_MISSING_GUIDANCE.contains("PATH"));
-    }
-
-    #[cfg(windows)]
-    #[test]
-    fn powershell_7_resolves_only_through_its_own_locations() {
-        // Guards the resolver contract without depending on whether this
-        // machine has PowerShell 7 installed: either it resolves to a real
-        // `pwsh.exe`, or it fails with the guidance that names the locations.
-        match resolve_shell(PWSH_ID) {
-            Ok(resolved) => assert_eq!(
-                resolved
-                    .program
-                    .file_name()
-                    .and_then(|name| name.to_str())
-                    .map(str::to_ascii_lowercase),
-                Some("pwsh.exe".to_string())
-            ),
-            Err(message) => assert_eq!(message, PWSH_MISSING_GUIDANCE),
-        }
-    }
-
-    #[test]
-    fn invocation_builder_uses_each_dialect_contract() {
-        let powershell = build_invocation_for_platform(
-            ShellPlatform::Windows,
-            WINDOWS_POWERSHELL_ID,
-            PathBuf::from("powershell.exe"),
-            "Write-Output 'hello'",
-        )
-        .unwrap();
-        assert_eq!(
-            powershell.args[..7],
-            [
-                "-NoLogo",
-                "-NoProfile",
-                "-NonInteractive",
-                "-InputFormat",
-                "Text",
-                "-OutputFormat",
-                "Text"
-            ]
-        );
-        assert_eq!(powershell.args[7], "-Command");
-        let script = &powershell.args[8];
-        assert!(script.contains("UTF8Encoding"));
-        assert!(script.contains("$LASTEXITCODE"));
-        assert!(script.contains("Write-Output 'hello'"));
-
-        let cmd = build_invocation_for_platform(
-            ShellPlatform::Windows,
-            CMD_ID,
-            PathBuf::from("cmd.exe"),
-            "echo hello",
-        )
-        .unwrap();
-        assert_eq!(
-            cmd.args,
-            [
-                "/D",
-                "/Q",
-                "/V:OFF",
-                "/S",
-                "/C",
-                "chcp 65001>nul && echo hello"
-            ]
-        );
-
-        let git_bash = build_invocation_for_platform(
-            ShellPlatform::Windows,
-            GIT_BASH_ID,
-            PathBuf::from("bash.exe"),
-            "printf hello",
-        )
-        .unwrap();
-        assert_eq!(
-            git_bash.args,
-            ["--noprofile", "--norc", "-c", "printf hello"]
-        );
-
-        let bash = build_invocation_for_platform(
-            ShellPlatform::Unix,
-            BASH_ID,
-            PathBuf::from("/bin/bash"),
-            "printf hello",
-        )
-        .unwrap();
-        assert_eq!(bash.args, ["-lc", "printf hello"]);
-    }
-
-    #[test]
-    fn invocation_builder_rejects_nul_and_long_windows_commands() {
-        let nul = build_invocation_for_platform(
-            ShellPlatform::Windows,
-            CMD_ID,
-            PathBuf::from("cmd.exe"),
-            "echo\0bad",
-        );
-        assert!(nul.is_err());
-
-        let long_command = "x".repeat(MAX_WINDOWS_COMMAND_LINE_UNITS);
-        let too_long = build_invocation_for_platform(
-            ShellPlatform::Windows,
-            CMD_ID,
-            PathBuf::from("cmd.exe"),
-            &long_command,
-        );
-        assert!(too_long.is_err());
-    }
-}
+mod tests;

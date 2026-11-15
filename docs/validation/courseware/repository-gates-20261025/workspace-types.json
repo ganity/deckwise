@@ -1,0 +1,13 @@
+{
+  "command": [
+    "pnpm",
+    "-r",
+    "--if-present",
+    "typecheck"
+  ],
+  "startedAt": "2026-10-24T22:07:32.013910+00:00",
+  "finishedAt": "2026-10-24T22:08:38.062820+00:00",
+  "exitCode": 0,
+  "status": "PASS",
+  "secretsRemovedFromEnvironment": true
+}

@@ -1,6 +1,9 @@
+import { readNativeTeachingPackage } from "../courseware-native-package";
+import { planSceneVisualMaster, type VisualMasterPlanningInput } from "../courseware-visual-master";
+import { planMagicLayers, magicLayersBundle, type MagicLayersFallback } from "../courseware-magic-layers";
 import { join } from "node:path";
 import type { BrowserWindow, IpcMain, IpcMainInvokeEvent } from "electron";
-import { err, ErrorCodes, IPC, ok, type Result } from "@pi-desktop/shared";
+import { err, ErrorCodes, IPC, ok, type Result, type HostStatusEvent } from "@pi-desktop/shared";
 import type { AgentHostBridge } from "../agent-host-bridge";
 import type { AgentSidecar } from "../agent-sidecar";
 import type { HostProcess } from "../host-process";
@@ -18,6 +21,14 @@ import { registerProviderIpc } from "./provider-ipc";
 import { registerPullsIpc } from "./pulls-ipc";
 import { registerScheduledIpc } from "./scheduled-ipc";
 import { registerSessionIpc } from "./session-ipc";
+import { registerCoursewareSceneImageIpc } from "./courseware-scene-image-ipc";
+import { registerCoursewareMediaCanvasIpc } from "./courseware-media-canvas-ipc";
+import { registerCoursewareCanvasImageIpc } from "./courseware-canvas-image-ipc";
+import type { CoursewareMediaCanvasCoordinator } from "../courseware-media-canvas";
+import { CoursewareSavedNarration } from "../courseware-saved-narration";
+import { CoursewareSavedMedia } from "../courseware-saved-media";
+import { decodeCoursewareAudio, decodeCoursewareVideo } from "../courseware-audio-decode";
+import { CoursewareChatWorkflow } from "../courseware-chat-workflow";
 import { registerSettingsIpc } from "./settings-ipc";
 import { registerSkillsIpc } from "./skills-ipc";
 import { fetchSkillMarketDocument, searchSkillMarket } from "../skill-market-catalog";
@@ -26,6 +37,9 @@ import { createComposerTemplateLoader, registerWorkspaceIpc } from "./workspace-
 import { registerComposerIpc } from "./composer-ipc";
 import { registerSpeechIpc } from "./speech-ipc";
 import { registerPptEditorIpc } from "./ppt-editor-ipc";
+import { registerCoursewarePlaybackIpc } from "./courseware-playback-ipc";
+import { registerCoursewareOnlineIpc } from "./courseware-online-ipc";
+import type { CoursewareOnlinePreparation } from "../courseware-online-prepare";
 import { registerPptPreviewIpc } from "./ppt-preview-ipc";
 import { registerAuthIpc } from "./auth-ipc";
 import type { DesktopAuthSession } from "../auth-session";
@@ -35,9 +49,12 @@ export type RegisterIpcDependencies = {
   ipcMain: IpcMain;
   getMainWindow: () => BrowserWindow | null;
   getHost: () => HostProcess | null;
+  getHostStatus: () => HostStatusEvent | null;
   getSidecar: () => AgentSidecar | null;
   getAgentHostBridge: () => AgentHostBridge | null;
   authSession: DesktopAuthSession;
+  mediaCanvas: CoursewareMediaCanvasCoordinator;
+  onCoursewareWorkflowReady?: (workflow: CoursewareChatWorkflow) => void;
   getNotificationViewingSessionId: () => string | null;
   setNotificationViewingSessionId: (sessionId: string | null) => void;
   activeUserSubagentDocuments: (...args: any[]) => Promise<any>;
@@ -68,7 +85,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     authSession,
     registerDocumentCleanup,
     getNotificationViewingSessionId,
-    setNotificationViewingSessionId,
+    setNotificationViewingSessionId: updateViewingSession,
     getPluginLauncherWindow,
     togglePluginLauncher,
     safeOpenExternal,
@@ -76,6 +93,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     dataDir,
     activeTurns,
     isTurnDispatchable,
+    stopTurnDispatch,
     sessionProjects,
     persistenceOutbox,
     logger,
@@ -118,7 +136,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     clipboardHistory,
     recordPastedClipboardFiles,
     currentWorkspacePath,
-    setCurrentWorkspacePath,
+    setCurrentWorkspacePath: updateWorkspacePath,
     withGitBranch,
     activeTurnUsages,
     approvedExecutionIdsBySession,
@@ -143,6 +161,16 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     isDeveloperMode,
     sendToRenderer,
   } = dependencies;
+
+  let cancelCoursewarePlayback = () => {};
+  const setNotificationViewingSessionId = (sessionId: string | null) => {
+    if (sessionId !== getNotificationViewingSessionId()) cancelCoursewarePlayback();
+    updateViewingSession(sessionId);
+  };
+  const setCurrentWorkspacePath = (path: string | null) => {
+    cancelCoursewarePlayback();
+    updateWorkspacePath(path);
+  };
 
 
   const ipcHandlers = new Map<string, (...args: any[]) => Promise<any>>();
@@ -193,9 +221,14 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     getWorkspaceRoot: optionalWorkspaceRoot,
   });
 
+  let onlinePreparation: CoursewareOnlinePreparation | undefined;
+  registerCoursewareOnlineIpc({ registrar, authSession, getMainWindow, sendToRenderer, getPreparation: () => onlinePreparation,
+    getHost, getWorkspaceRoot: optionalWorkspaceRoot, getViewingSessionId: getNotificationViewingSessionId });
+
   registerAppIpc({
     registrar,
     getHost,
+    getHostStatus: dependencies.getHostStatus,
     getPluginLauncherWindow,
     togglePluginLauncher,
     safeOpenExternal,
@@ -213,6 +246,43 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     setViewingSessionId: setNotificationViewingSessionId,
     sendToRenderer,
   });
+  const sceneGeneration = { ...dependencies.sceneGeneration,
+    layerFallback: (async input => {
+      const result = await authSession.coursewareMedia.magicLayers.split({ ...input, image: input.bytes,
+        plan: async () => planMagicLayers(input, await dependencies.sceneGeneration.resolveModel(input.sessionId), dependencies.completeScene) });
+      await input.check();
+      return magicLayersBundle(result.bytes, result.manifest, input.width, input.height);
+    }) satisfies MagicLayersFallback,
+    planVisualMaster: async (input: VisualMasterPlanningInput) => planSceneVisualMaster(input,
+      await dependencies.sceneGeneration.resolveModel(input.sessionId), dependencies.completeNarration) };
+  registerCoursewareSceneImageIpc({ registrar, getHost, getViewingSessionId: getNotificationViewingSessionId,
+    activeTurns, authSession, generation: sceneGeneration });
+  const coursewareWorkflow = new CoursewareChatWorkflow(getHost, getNotificationViewingSessionId, authSession, sceneGeneration);
+  const savedNarration = new CoursewareSavedNarration(getHost, getNotificationViewingSessionId,
+    dependencies.completeNarration, dependencies.sceneGeneration?.resolveModel, dependencies.completeScene, readNativeTeachingPackage);
+  coursewareWorkflow.narration = savedNarration;
+  coursewareWorkflow.media = new CoursewareSavedMedia(savedNarration, authSession, decodeCoursewareAudio, decodeCoursewareVideo);
+  dependencies.onCoursewareWorkflowReady?.(coursewareWorkflow);
+  registrar.handleWithEvent(IPC.invoke.coursewareWorkflowGet, async (event, value: unknown, ...extra: unknown[]) => {
+    registrar.assertMainWindowSender(event);
+    if (extra.length || !value || typeof value !== "object" || Array.isArray(value) ||
+        Object.keys(value).join(",") !== "sessionId" || typeof Reflect.get(value, "sessionId") !== "string")
+      throw new Error("Invalid courseware workflow request");
+    return coursewareWorkflow.read(Reflect.get(value, "sessionId"));
+  });
+  registrar.handleWithEvent(IPC.invoke.coursewareStoryDecision, async (event, input: unknown, ...extra: unknown[]) => {
+    registrar.assertMainWindowSender(event);
+    if (extra.length || !input || typeof input !== "object" || Array.isArray(input)) throw new Error("Invalid story decision");
+    const sessionId = Reflect.get(input, "sessionId"), host = getHost();
+    if (!host || typeof sessionId !== "string" || sessionId !== getNotificationViewingSessionId() || activeTurns.has(sessionId))
+      throw new Error("Wait for the current Chat to finish before deciding its story");
+    await coursewareWorkflow.read(sessionId);
+    if (host !== getHost() || sessionId !== getNotificationViewingSessionId() || activeTurns.has(sessionId)) throw new Error("Story decision scope changed");
+    return host.call("courseware.story.decide", input);
+  });
+  registerCoursewareMediaCanvasIpc(registrar, dependencies.mediaCanvas);
+  registerCoursewareCanvasImageIpc({ registrar, getHost, getViewingSessionId: getNotificationViewingSessionId,
+    activeTurns, authSession });
   registerSessionIpc({
     registrar,
     getHost,
@@ -298,12 +368,34 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     stripWinLongPrefix,
   });
 
+  let canonicalClassroom: import("../courseware-classroom").CoursewareClassroomCoordinator | undefined;
+  cancelCoursewarePlayback = registerCoursewarePlaybackIpc({ registrar, getMainWindow, getHost,
+    getWorkspaceRoot: optionalWorkspaceRoot, getViewingSessionId: getNotificationViewingSessionId, dataDir, authSession,
+    refreshCanonical: async (sessionId, projectId) => {
+      if (!canonicalClassroom) throw new Error("Classroom editor is unavailable");
+      const view = await canonicalClassroom.open({ sessionId });
+      if (view.projectId !== projectId) throw new Error("Canonical/native project changed");
+    } });
   registerPptEditorIpc({
+    savedNarration,
     registrar,
+    activeTurns,
+    authSession,
     getMainWindow,
+    getHost,
     getWorkspaceRoot: optionalWorkspaceRoot,
+    getViewingSessionId: getNotificationViewingSessionId,
+    onChatBridgeReady: dependencies.onPptEditorChatReady,
+    onOnlinePreparationReady: preparation => { onlinePreparation = preparation; },
+    onClassroomReady: classroom => { canonicalClassroom = classroom; },
+    onNativeTeachingReady: tools => { coursewareWorkflow.nativeTeaching = tools; },
+    onAssessmentMediaReady: media => { coursewareWorkflow.assessments = media; },
+    completeNarration: dependencies.completeNarration,
+    completeScene: dependencies.completeScene,
+    resolveModel: dependencies.sceneGeneration?.resolveModel,
     sendToRenderer,
     getExtraRoots: fsExtraRoots,
+    onDeactivate: cancelCoursewarePlayback,
   });
 
   registerAgentExtensionIpc({
@@ -343,6 +435,7 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     dataDir,
     activeTurns,
     isTurnDispatchable,
+    stopTurnDispatch,
     activeTurnUsages,
     approvedExecutionIdsBySession,
     claimedExecutionSessions,

@@ -1,0 +1,73 @@
+{
+  "status": "PASS",
+  "providerCalls": 0,
+  "nativeEditor": "not-run",
+  "checks": [
+    {
+      "name": "host-build",
+      "exitCode": 0,
+      "durationMs": 257
+    },
+    {
+      "name": "main-host",
+      "exitCode": 0,
+      "durationMs": 13057,
+      "passed": 413,
+      "skipped": 0
+    },
+    {
+      "name": "shared",
+      "exitCode": 0,
+      "durationMs": 1986,
+      "passed": 27,
+      "skipped": 0
+    },
+    {
+      "name": "agent-runtime",
+      "exitCode": 0,
+      "durationMs": 14450,
+      "passed": 413,
+      "skipped": 0
+    },
+    {
+      "name": "host-contracts",
+      "exitCode": 0,
+      "durationMs": 276050,
+      "passed": 250,
+      "ignored": 2
+    }
+  ],
+  "metrics": [
+    {
+      "scenario": "music-originals",
+      "mockPosts": 2,
+      "recoveredOriginals": 2,
+      "archivedExports": 1
+    },
+    {
+      "scenario": "media-scope",
+      "mockPosts": 9,
+      "queuedExpiryPosts": 0,
+      "recoveredOriginals": 1
+    },
+    {
+      "scenario": "concurrency",
+      "peakConcurrency": {
+        "tts": 10,
+        "image": 5,
+        "image-layers": 5,
+        "music": 2,
+        "video": 2,
+        "music-export": 2
+      }
+    },
+    {
+      "modelRepairCalls": 1,
+      "savedQuestions": 1,
+      "originalVideoAdoptions": 1,
+      "preservedSpeeches": 4,
+      "terminalEvents": 1,
+      "providerCalls": 0
+    }
+  ]
+}

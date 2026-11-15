@@ -235,10 +235,10 @@ function promptAttachmentsFromDraft(
 function promptAttachmentsFromMessage(
   attachments: UiMessage["attachments"],
 ): AgentPromptAttachment[] {
-  return (attachments ?? []).map((attachment) => ({
+  return (attachments ?? []).filter((attachment) => attachment.kind !== "session").map((attachment) => ({
     path: attachment.ref,
     name: attachment.name,
-    kind: attachment.kind,
+    kind: attachment.kind === "image" ? "image" as const : "file" as const,
     ...(attachment.mimeType ? { mimeType: attachment.mimeType } : {}),
     ...(attachment.size !== undefined ? { size: attachment.size } : {}),
   }));

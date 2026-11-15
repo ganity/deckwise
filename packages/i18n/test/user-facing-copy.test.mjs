@@ -7,6 +7,14 @@ const chinese = flattenCatalog(zhCN);
 const traditional = flattenCatalog(zhTW);
 const korean = flattenCatalog(ko);
 
+test("cover confirmation continues the original deliverables without another scope decision", () => {
+  assert.match(chinese["coursewareWorkflow.stylePrompt"], /本任务最初已明确的交付要求/);
+  assert.match(chinese["coursewareWorkflow.stylePrompt"], /不要再次询问已确定的需求或扩大任务范围/);
+  assert.doesNotMatch(chinese["coursewareWorkflow.stylePrompt"], /仅在我已要求/);
+  assert.match(english["coursewareWorkflow.stylePrompt"], /original requested deliverables/);
+  assert.match(english["coursewareWorkflow.stylePrompt"], /Do not ask again/);
+});
+
 test("shell status and crash copy stay user-facing", () => {
   assert.equal(english["app.tagline"], "AI PPTX courseware workspace");
   assert.equal(

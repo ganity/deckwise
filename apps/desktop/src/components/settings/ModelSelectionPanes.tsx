@@ -128,7 +128,7 @@ export function useModelSelection(
         const thinkingLevels = sortThinkingLevels(binding.thinkingLevels);
         const enabled = thinkingLevels;
         const defaultThinkingLevel =
-          binding.defaultThinkingLevel && enabled.includes(binding.defaultThinkingLevel)
+          binding.defaultThinkingLevel && (binding.defaultThinkingLevel === "omit" || enabled.includes(binding.defaultThinkingLevel))
             ? binding.defaultThinkingLevel
             : (enabled[0] ?? null);
         if (
@@ -708,7 +708,7 @@ export function ModelSelectionPanes({
                               label={t("settings.defaultThinkingLevel")}
                               value={
                                 binding.defaultThinkingLevel &&
-                                enabledLevels.includes(binding.defaultThinkingLevel)
+                                (binding.defaultThinkingLevel === "omit" || enabledLevels.includes(binding.defaultThinkingLevel))
                                   ? binding.defaultThinkingLevel
                                   : (enabledLevels[0] ?? "")
                               }

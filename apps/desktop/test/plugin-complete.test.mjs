@@ -344,7 +344,7 @@ test("agent.complete keeps the classified provider code for the plugin", async (
 
 test("the plugin completion declares INVALID_ARGUMENT for empty model output", async () => {
   const source = await readFile(
-    new URL("../electron/main/services/plugin-services.ts", import.meta.url),
+    new URL("../electron/main/main-completion.ts", import.meta.url),
     "utf8",
   );
   assert.match(source, /emptyErrorCode: "INVALID_ARGUMENT"/);

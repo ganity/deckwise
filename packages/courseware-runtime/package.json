@@ -1,0 +1,58 @@
+{
+  "name": "@pi-desktop/courseware-runtime",
+  "version": "0.20.0",
+  "private": true,
+  "type": "module",
+  "description": "Offline fixed courseware conversion and playback for DeckWise",
+  "exports": {
+    "./authoring": {
+      "types": "./dist/types/src/authoring.d.ts",
+      "import": "./dist/authoring.mjs"
+    },
+    "./node": {
+      "types": "./dist/types/src/node.d.ts",
+      "import": "./dist/node.mjs"
+    },
+    "./player": {
+      "types": "./dist/types/src/player.d.ts",
+      "import": "./dist/player.mjs"
+    },
+    "./player.css": "./dist/player.css"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs && tsc --declaration --emitDeclarationOnly --noEmit false --outDir dist/types",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:authoring-bundle": "node scripts/verify-authoring-bundle.mjs",
+    "stage:worker": "node scripts/stage-worker.mjs",
+    "test:browser": "node scripts/verify-playback-browser.mjs"
+  },
+  "dependencies": {
+    "zod": "4.4.3",
+    "echarts": "6.0.0",
+    "nanoid": "5.1.7",
+    "saxes": "6.0.0",
+    "jszip": "3.10.1",
+    "svg-pathdata": "8.0.0",
+    "@napi-rs/canvas": "0.1.96",
+    "sharp": "0.34.5",
+    "@fontsource/abeezee": "5.3.0",
+    "tinycolor2": "1.6.0",
+    "dompurify": "3.4.13"
+  },
+  "devDependencies": {
+    "esbuild": "0.27.4",
+    "typescript": "5.9.3",
+    "vitest": "4.1.4",
+    "@types/node": "20.19.39",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@types/tinycolor2": "1.4.6",
+    "@playwright/test": "1.59.1",
+    "vite": "8.0.8"
+  },
+  "peerDependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  }
+}

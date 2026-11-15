@@ -1,0 +1,3 @@
+# Preserve pinned distributions, font files and their upstream notices byte-for-byte.
+/assets/** -text
+/vendor/** -text

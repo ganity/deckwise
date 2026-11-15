@@ -1,0 +1,218 @@
+{
+  "objects": [
+    {
+      "objectId": "1",
+      "kind": "image",
+      "text": "五位新朋友都来啦！Monkey Munchy Panda Pandy Dog Doffy Cat Catty Teddy Bear",
+      "aliases": [
+        "Monkey Munchy Panda Pandy Dog Doffy Cat Catty Teddy Bear 总标题",
+        "五位新朋友都来啦"
+      ],
+      "bbox": [
+        0,
+        0,
+        100,
+        100
+      ]
+    },
+    {
+      "objectId": "2",
+      "kind": "image",
+      "text": "",
+      "aliases": [
+        "Monkey Munchy",
+        "小猴子"
+      ],
+      "bbox": [
+        0,
+        0,
+        100,
+        100
+      ]
+    },
+    {
+      "objectId": "3",
+      "kind": "image",
+      "text": "",
+      "aliases": [
+        "Panda Pandy",
+        "熊猫"
+      ],
+      "bbox": [
+        0,
+        0,
+        100,
+        100
+      ]
+    },
+    {
+      "objectId": "4",
+      "kind": "image",
+      "text": "",
+      "aliases": [
+        "Dog Doffy",
+        "小狗"
+      ],
+      "bbox": [
+        0,
+        0,
+        100,
+        100
+      ]
+    },
+    {
+      "objectId": "5",
+      "kind": "image",
+      "text": "",
+      "aliases": [
+        "Cat Catty",
+        "小猫"
+      ],
+      "bbox": [
+        0,
+        0,
+        100,
+        100
+      ]
+    },
+    {
+      "objectId": "6",
+      "kind": "image",
+      "text": "",
+      "aliases": [
+        "Teddy Bear",
+        "小熊",
+        "泰迪熊"
+      ],
+      "bbox": [
+        0,
+        0,
+        100,
+        100
+      ]
+    },
+    {
+      "objectId": "7",
+      "kind": "image",
+      "text": "Monkey Munchy",
+      "aliases": [
+        "Monkey Munchy 名字",
+        "猴子名字标签"
+      ],
+      "bbox": [
+        0,
+        0,
+        100,
+        100
+      ]
+    },
+    {
+      "objectId": "8",
+      "kind": "image",
+      "text": "Panda Pandy",
+      "aliases": [
+        "Panda Pandy 名字",
+        "熊猫名字标签"
+      ],
+      "bbox": [
+        0,
+        0,
+        100,
+        100
+      ]
+    },
+    {
+      "objectId": "9",
+      "kind": "image",
+      "text": "Dog Doffy",
+      "aliases": [
+        "Dog Doffy 名字",
+        "小狗名字标签"
+      ],
+      "bbox": [
+        0,
+        0,
+        100,
+        100
+      ]
+    },
+    {
+      "objectId": "10",
+      "kind": "image",
+      "text": "Cat Catty",
+      "aliases": [
+        "Cat Catty 名字",
+        "小猫名字标签"
+      ],
+      "bbox": [
+        0,
+        0,
+        100,
+        100
+      ]
+    },
+    {
+      "objectId": "11",
+      "kind": "image",
+      "text": "Teddy Bear",
+      "aliases": [
+        "Teddy Bear 名字",
+        "小熊名字标签"
+      ],
+      "bbox": [
+        0,
+        0,
+        100,
+        100
+      ]
+    },
+    {
+      "objectId": "12",
+      "kind": "image",
+      "text": "Say hello to ...!",
+      "aliases": [
+        "Say hello to... 句式",
+        "向……问好句型"
+      ],
+      "bbox": [
+        0,
+        0,
+        100,
+        100
+      ]
+    },
+    {
+      "objectId": "13",
+      "kind": "image",
+      "text": "请大声说出这五位新朋友的名字吧！",
+      "aliases": [
+        "任务提示",
+        "说出名字要求"
+      ],
+      "bbox": [
+        0,
+        0,
+        100,
+        100
+      ]
+    }
+  ],
+  "speeches": [
+    "Monkey Munchy！",
+    "Monkey Munchy。",
+    "Panda Pandy！",
+    "Panda Pandy。",
+    "Dog Doffy！",
+    "Dog Doffy。",
+    "Cat Catty！",
+    "Cat Catty。",
+    "Teddy Bear！",
+    "Teddy Bear。",
+    "Say hello to Monkey Munchy！",
+    "Hello, Monkey Munchy！",
+    "Say hello to Panda Pandy！",
+    "Hello, Panda Pandy！",
+    "Say hello to Teddy Bear！",
+    "Hello, Teddy Bear！"
+  ]
+}

@@ -22,3 +22,11 @@
 | [18-line-anchored-edit-contract.md](18-line-anchored-edit-contract.md) | Line-anchored Edit contract |
 | [19-remote-agent-control-protocol.md](19-remote-agent-control-protocol.md) | Remote Agent Control Protocol |
 | [20-speech.md](20-speech.md) | Host speech (ASR/TTS) |
+| [21-courseware-parser.md](21-courseware-parser.md) | Optional local PPTX worker lifecycle |
+| [22-courseware-contract-v1.md](22-courseware-contract-v1.md) | Courseware project/teaching contract and session-scoped Host persistence |
+| [23-courseware-native-chat.md](23-courseware-native-chat.md) | Existing Chat native Office tools, ownership and Host permission dispatch |
+| [24-courseware-narration-candidates.md](24-courseware-narration-candidates.md) | Internal Host narration proposal storage, review lifecycle and atomic adoption |
+| [25-courseware-source-candidates.md](25-courseware-source-candidates.md) | Internal Host PPTX baseline/output archives, generator mapping context and restart recovery |
+| [26-courseware-fixed-snapshots.md](26-courseware-fixed-snapshots.md) | Explicit per-page teaching confirmation and Host-owned immutable source/teaching/mapping/audio exports |
+| [27-courseware-authorized-media.md](27-courseware-authorized-media.md) | Main-only authenticated TTS transport; Host ingestion remains pending |
+| [29-courseware-chat-workflow.md](29-courseware-chat-workflow.md) | Main Chat generation, finite tools, human approvals and teaching requirements CAS |

@@ -1,0 +1,10 @@
+{
+  "command": [
+    "node",
+    "scripts/check-architecture.mjs",
+    "--base",
+    "origin/main"
+  ],
+  "exitCode": 1,
+  "status": "FAIL"
+}

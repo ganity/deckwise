@@ -1,22 +1,48 @@
 /** Shared public types grouped by the owning application domain. */
+import type { RemoteWorkspace } from "./workspace.js";
 import type { Mode } from "./common.js";
-import type { ThinkingLevel } from "./models.js";
+import type { SessionThinkingLevel, ThinkingLevel } from "./models.js";
 import type { PermissionMode } from "./permissions.js";
 import type { UiMessage } from "./messages.js";
-import type { PlanningState } from "./plans.js";
+import type { PlanHistoryEntry, PlanningState } from "./plans.js";
+import type { SessionWorktreeSummary } from "./worktree.js";
 
-export type SessionSource = "desktop" | "pi-native";
+/**
+ * Which authority owns a session's transcript.
+ *
+ * - `desktop`: this desktop's own host-core (the default; older hosts omit the
+ *   field and it is normalized to `desktop`).
+ * - `pi-native`: an imported Pi CLI session, read-mostly.
+ * - `remote`: a session that lives on a paired remote `pi-host` and is driven
+ *   over RACP-WS. The renderer treats it exactly like a `desktop` session apart
+ *   from a display badge; the local/remote split is resolved in Electron main.
+ */
+export type SessionSource = "desktop" | "pi-native" | "remote";
 
 export type SessionCapabilities = {
   canPrompt: boolean;
   canStop: boolean;
   canRefresh: boolean;
+  /** Absent preserves the existing local behavior. */
+  canConfigureModel?: boolean;
+  canAttach?: boolean;
+  canSteer?: boolean;
+  canEditMessages?: boolean;
+  canUseLocalTools?: boolean;
+  canUseTerminal?: boolean;
+  canReadWorkspace?: boolean;
 };
 
 export type SessionSummary = {
+  remoteWorkspace?: RemoteWorkspace;
   id: string;
   /** Transcript authority. Omitted by older hosts and normalized to `desktop`. */
   source?: SessionSource;
+  /** Display-only remote identity; never a local project path. */
+  remoteHostKey?: string;
+  remoteHostLabel?: string;
+  remoteProjectId?: string;
+  remoteWorkspaceLabel?: string;
   /** Native sessions expose only safe actions in the first continuation slice. */
   capabilities?: SessionCapabilities;
   /** Stable machine-readable reason why a native session cannot be continued. */
@@ -28,7 +54,7 @@ export type SessionSummary = {
   modelId?: string;
   providerId?: string;
   mode: Mode;
-  thinkingLevel: ThinkingLevel;
+  thinkingLevel: SessionThinkingLevel;
   /** Per-session permission mode; `inherit` follows the global default (D115). */
   permissionMode: PermissionMode;
   /** Effective capability for this session's exact provider/model pair. */
@@ -36,12 +62,26 @@ export type SessionSummary = {
   /** Effective image-input capability for this session's exact model. */
   supportsVision?: boolean;
   supportedThinkingLevels?: ThinkingLevel[];
+  /**
+   * True when this session is the transcript owned by a scheduled-task run.
+   * The automation owns it: the SessionList and global session search hide it,
+   * and the Scheduled page is its entry point (`todos`-style automation output).
+   * Older hosts omit it, so `undefined` means an ordinary conversation.
+   */
+  scheduledRun?: boolean;
+  /**
+   * Present only for an isolated session (ADR 0329): its tools run in its own
+   * git worktree. Older hosts and ordinary sessions omit it.
+   */
+  worktree?: SessionWorktreeSummary;
   updatedAt: string;
   createdAt: string;
 };
 
 export type SessionDetail = SessionSummary & {
   messages: UiMessage[];
+  /** Authoritative metadata scoped to the submitted contracts in this page. */
+  planHistory?: PlanHistoryEntry[];
   /** Owning Task for a nested search target; context only, outside page cursors. */
   navigationParent?: UiMessage;
   /** Zero-based offset of the first message returned by a bounded history read. */
@@ -168,6 +208,8 @@ export type AgentActivity =
       phase: "retrying";
       since: number;
       attempt: number;
+      /** The retry budget is unbounded for this active turn. */
+      infinite?: boolean;
       retryDelayMs?: number;
       error?: AgentActivityError;
     }

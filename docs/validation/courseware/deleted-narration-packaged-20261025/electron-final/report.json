@@ -1,0 +1,30 @@
+{
+  "case": "W06.1-PACKAGED-DELETED-NARRATION-RECOVERY",
+  "status": "PASS",
+  "packaged": true,
+  "checks": [
+    "Open real Desktop, native Office and saved-source teaching",
+    "Save teacher narration before native duplication and deletion",
+    "Delete the original Office slide and explicitly associate its visual copy as a new page",
+    "Read and preview deleted narration without mutating teaching or source",
+    "Restart restores the recovered draft without silently applying it",
+    "Second restart retains explicitly saved narration and unchanged PPTX"
+  ],
+  "originalHash": "3a8034c35af68ada908f01b5d78754989d9f2638aaf334f9ea206dbb1f5d7399",
+  "sandbox": "--no-sandbox",
+  "paidCalls": false,
+  "runtime": {
+    "packaged": true,
+    "appPath": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop/release/chat-pptx-review-20261025/linux-unpacked/resources/app.asar",
+    "resourcesPath": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop/release/chat-pptx-review-20261025/linux-unpacked/resources",
+    "executablePath": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop/release/chat-pptx-review-20261025/linux-unpacked/deckwise"
+  },
+  "recovery": {
+    "deletedPageId": "4d45c18f-deb2-4d51-8aa5-778631ee5faf",
+    "destinationPageId": "f306e120-1a86-44f6-b64d-9b3d132100b8",
+    "sourceSha256": "6f2e56acddf47be64e023dac0d67d030955d11073e391b143611d7ed8f2555f0",
+    "draftRestart": true,
+    "explicitSave": true,
+    "savedRestart": true
+  }
+}

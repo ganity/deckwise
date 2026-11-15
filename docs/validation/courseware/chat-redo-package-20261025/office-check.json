@@ -1,0 +1,8 @@
+{
+  "status": "PASS_EXACT_MATCHING_OFFICE_OUTPUT",
+  "root": "/home/jhz/code/train/document-worktrees/courseware-par-A-preview/dist-chat-source-groups-20261025",
+  "files": 2893,
+  "inventoryAggregateSha256": "e52176bdc9673c4b38d3ab17fdc24dcbb0571ea57229c360a663d2e96ee660ab",
+  "inventory": "../chat-source-visuals-20261025/integrated/office-build-inputs.json",
+  "sourcePatch": "../chat-source-visuals-20261025/integrated/wiseoffice-grouped-preview.patch"
+}

@@ -1,0 +1,90 @@
+{
+  "classification": "Actual B15 Office saved PPTX bytes. Canonical projects, logical mappings, ready state, unrelated existing fixed WAV and teacher wait are authored test compositions, not A immutable Host exports or matching narration.",
+  "B15Evidence": "/home/jhz/code/train/docs/validation/courseware/parallel/B/b15-20261019",
+  "B15SourceTree": "9fc3741154418d6a163f7e5c1575b9771069a36c",
+  "files": {
+    "original.pptx": {
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/B/b11-20261019/generation-final/source.pptx",
+      "sha256": "4ef70dd8edabd41dbc2e2c916f8e75e843f9be2ddc503accf3857f1112d5962e"
+    },
+    "partial.pptx": {
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/B/b15-20261019/run-03/mouse-partial-saved.pptx",
+      "sha256": "d916bc90bb130d2799be91f95bf9c9c4c1b4f3c9ea7834829f8abdad043a0f11"
+    },
+    "cross-run.pptx": {
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/B/b15-20261019/run-03/mouse-cross-run-saved.pptx",
+      "sha256": "8f95bd156219e0c375da111c6582fb4ea74ae2abfb202b3c547b6e31abe388e1"
+    }
+  },
+  "variants": {
+    "original": {
+      "text": "梨 Pear",
+      "fontSizesPt": [
+        32,
+        32,
+        32,
+        32,
+        32,
+        32
+      ],
+      "colors": [
+        "000000",
+        "000000",
+        "000000",
+        "000000",
+        "000000",
+        "000000"
+      ],
+      "fixedBuild": {
+        "outputDirectory": ".builds-desktop-b15-01",
+        "buildId": "fb635f989e69496548f5c3db70034f827be1bbf0de2993a18cc078c0e4e455a9"
+      }
+    },
+    "partial": {
+      "text": "梨 Pear",
+      "fontSizesPt": [
+        32,
+        32,
+        44.5,
+        44.5,
+        44.5,
+        44.5
+      ],
+      "colors": [
+        "000000",
+        "000000",
+        "336699",
+        "336699",
+        "336699",
+        "336699"
+      ],
+      "fixedBuild": {
+        "outputDirectory": ".builds-desktop-b15-01",
+        "buildId": "35065d3fd89b02034d602e41243575b933702e00100b4359e91b4e308ba8947a"
+      }
+    },
+    "cross-run": {
+      "text": "梨 Pear",
+      "fontSizesPt": [
+        32,
+        36,
+        36,
+        36,
+        44.5,
+        44.5
+      ],
+      "colors": [
+        "000000",
+        "CC5500",
+        "CC5500",
+        "CC5500",
+        "336699",
+        "336699"
+      ],
+      "fixedBuild": {
+        "outputDirectory": ".builds-desktop-b15-01",
+        "buildId": "55c2d192725c8fa83f252fef5dfbf3c6d06cc127eedd1a38ecfd9a679bfaaa43"
+      }
+    }
+  }
+}

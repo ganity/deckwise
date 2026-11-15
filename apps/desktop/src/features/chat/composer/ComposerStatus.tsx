@@ -17,6 +17,8 @@ import {
 
 export type ComposerStatusProps = {
   t: TFunction;
+  submissionError: string | null;
+  clearSubmissionError: () => void;
   queuedPrompts: readonly QueuedPrompt[];
   removeQueuedPrompt: (id: string) => void;
   moveQueuedPrompt: (id: string, direction: QueuedPromptDirection) => Promise<void>;
@@ -34,6 +36,8 @@ export type ComposerStatusProps = {
 /** Non-editor composer status rows: queue, enhancement errors, and folder drops. */
 export function ComposerStatus({
   t,
+  submissionError,
+  clearSubmissionError,
   queuedPrompts,
   removeQueuedPrompt,
   moveQueuedPrompt,
@@ -49,6 +53,20 @@ export function ComposerStatus({
 }: ComposerStatusProps) {
   return (
     <>
+      {submissionError ? (
+        <div className="composer-enhancement-error" role="alert">
+          <span className="composer-enhancement-error-message">{submissionError}</span>
+          <TooltipButton
+            type="button"
+            className="composer-enhancement-error-dismiss"
+            tooltip={t("common.close")}
+            ariaLabel={t("common.close")}
+            onClick={clearSubmissionError}
+          >
+            <IconX size={13} aria-hidden="true" />
+          </TooltipButton>
+        </div>
+      ) : null}
       {queuedPrompts.length ? (
         <div
           className="composer-queued-prompts"

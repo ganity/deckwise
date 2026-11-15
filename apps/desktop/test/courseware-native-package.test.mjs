@@ -1,0 +1,64 @@
+import * as runtime from "../../../packages/courseware-runtime/dist/node.mjs";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { join } from "node:path";
+import { createHash } from "node:crypto";
+import test from "node:test";
+import ts from "typescript";
+import JSZip from "jszip";
+import * as shared from "../../../packages/shared/dist/index.js";
+const require = createRequire(import.meta.url);
+const exports = {};
+new Function("require", "exports", ts.transpileModule(readFileSync(new URL("../electron/main/courseware-native-package.ts", import.meta.url), "utf8"), {
+  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true },
+}).outputText)(id => id === "@pi-desktop/shared" ? shared : id === "@pi-desktop/courseware-runtime/node" ? runtime : require(id), exports);
+const { readNativeTeachingPackage } = exports;
+const bytes = Buffer.from("verified media");
+const sha = createHash("sha256").update(bytes).digest("hex");
+function fixture() {
+  return { schemaVersion: "deckwise-native-teaching/1", documentId: "document", revision: "rev1",
+    pages: [{ pageId: "page", locked: false, reviewState: "review", actions: [{ id: "speech", type: "speech", text: "Hello", audioAssetId: "tts-" + sha }] }],
+    identity: { pages: [{ pageId: "page", objects: [] }] }, media: [{ id: "tts-" + sha, sha256: sha, mimeType: "audio/mpeg", byteLength: bytes.length, durationMs: 1000, data: bytes.toString("base64") }] };
+}
+async function pack(value) {
+  const zip = new JSZip(); zip.file("ppt/presentation.xml", "<presentation/>");
+  if (value) zip.file("customXml/item1.xml", '<teaching xmlns="urn:deckwise:native-teaching:1">' + JSON.stringify(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;") + "</teaching>");
+  return zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
+}
+test("native package independently verifies all teaching media and rejects missing/corrupted bytes", async () => {
+  const value = fixture();
+  assert.deepEqual(await readNativeTeachingPackage(await pack(value)), value);
+  assert.equal(await readNativeTeachingPackage(await pack()), undefined);
+  for (const change of [v => v.media[0].data = Buffer.from("bad").toString("base64"), v => v.media = [],
+    v => v.media.push(v.media[0]), v => v.identity.pages[0].pageId = "foreign"]) {
+    const bad = fixture(); change(bad); await assert.rejects(readNativeTeachingPackage(await pack(bad)));
+  }
+});
+test("explicit real Part A copy contains all verified teaching and assessment audio", { skip: !process.env.DECKWISE_NATIVE_REAL_FIXTURE }, async () => {
+  const value = await readNativeTeachingPackage(readFileSync(join(process.env.DECKWISE_NATIVE_REAL_FIXTURE, "native.pptx")));
+  const report = JSON.parse(readFileSync(join(process.env.DECKWISE_NATIVE_REAL_FIXTURE, "report.json"), "utf8"));
+  assert.equal(value.pages.length, report.pages); assert.equal(value.media.length, report.media);
+  assert.equal(value.media.reduce((sum, m) => sum + m.byteLength, 0), report.mediaBytes);
+});
+
+test("pre-migration generated Quiz metadata is retained before any manual question edit", async () => {
+  const value = fixture();
+  const quiz = { type: "quiz", interactionMode: "assessment_review", language: "zh-CN", questions: [{ id: "original", type: "single", question: "Choose",
+    options: [{ value: "A", label: "Hello", image: { src: "data:image/png;base64,aGVsbG8=", mimeType: "image/png" } }, { value: "B", label: "Bye" }], answer: ["B"], explanation: "Greeting", referenceAnswer: "Hello" }] };
+  value.generation = { pages: [{ pageId: "page", quiz }] };
+  const result = await readNativeTeachingPackage(await pack(value));
+  assert.deepEqual(result.assessments.page, quiz);
+  value.assessments = { page: { ...quiz, questions: [{ ...quiz.questions[0], question: "Manually edited" }] } };
+  assert.deepEqual((await readNativeTeachingPackage(await pack(value))).assessments, value.assessments);
+});
+
+test("saved source bindings remain portable while unsupported versions and private material fields fail", async () => {
+  const value = fixture(); value.enrichment = { schemaVersion: "deckwise-teaching-enrichment/1", originalPages: [{ pageId: "page", pageNumber: 1 }],
+    script: { sha256: "b".repeat(64), policy: "preserve", silentPageIds: [], segments: [{ id: "segment-1", text: "Hello", sourceLine: 2, pageId: "page", actionId: "speech" }] } };
+  assert.deepEqual((await readNativeTeachingPackage(await pack(value))).enrichment, value.enrichment);
+  value.enrichment.path = "/private/script.docx";
+  await assert.rejects(readNativeTeachingPackage(await pack(value)));
+  delete value.enrichment.path; value.enrichment.schemaVersion = "future";
+  await assert.rejects(readNativeTeachingPackage(await pack(value)));
+});

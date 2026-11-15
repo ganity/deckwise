@@ -60,8 +60,8 @@ test("the optional llm gateway uses the signed-in platform access token", () => 
   assert.doesNotMatch(sessionLaunch, /value: await resolvePlatformAccessToken\(\)/);
   assert.match(sessionLaunch, /const baseUrl = llmBaseUrl \?\?/);
   assert.doesNotMatch(sessionLaunch, /const llmBaseUrl = configuredLlmBaseUrl\(\);/);
-  assert.match(sidecar, /providerId === DECKWISE_MANAGED_PROVIDER_ID/);
-  assert.match(sidecar, /apiKey: await resolvePlatformAccessToken\(\)/);
+  assert.match(sidecar, /import \{ resolveCoursewareLlmAuth \} from "\.\.\/courseware-llm-auth"/);
+  assert.match(sidecar, /s\.setVendorAuthResolver\(async \(\{ sessionId, providerId \}\) =>\s*providerId === DECKWISE_MANAGED_PROVIDER_ID\s*\? resolveCoursewareLlmAuth\(\(\) => runtimeState\.host, sessionId, resolvePlatformAccessToken\)/);
   assert.match(main, /resolvePlatformAccessToken: \(\) => authSession\.resolveAccessToken\(\)/);
 });
 

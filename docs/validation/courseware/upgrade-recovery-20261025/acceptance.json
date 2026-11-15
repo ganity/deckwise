@@ -1,0 +1,43 @@
+{
+  "status": "PASS_LOCAL_FIXTURE_TRIAL",
+  "checkedAt": "2026-10-24T22:04:34.354803+00:00",
+  "branch": "feat/courseware-par-A",
+  "headCommit": "f9600d6293f2995bf72b77243b1723117c803e8c",
+  "knownOriginMain": "58a9c4f57203c93da3f590e426b42ebba1072fb6",
+  "remoteRefRefreshedThisRound": false,
+  "uncommittedProductChanges": true,
+  "sourceInputs": 1179,
+  "sourceInventoryAggregateSha256": "30a34f57abce1ebf4a62e60c2a8b62babbd43e61f441f28fd9ef97bafdcb57b4",
+  "affectedSourcesMatchPreGateIdentity": true,
+  "sourceInventoryUnchangedFromMidGateCaptureToPromotion": true,
+  "appImage": {
+    "path": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop/release/schema-notice-20261025/DeckWise-0.17.7.AppImage",
+    "bytes": 341003728,
+    "sha256": "be879f7ff15175936a3b48aef9c1adb2fe34b4a8493eb264c030343f7016520e"
+  },
+  "packagedElectronScenarios": 17,
+  "packagedSchemaNoticeChecks": 4,
+  "packagedMigrationSigkillChecks": 3,
+  "packagedHostUpgradeChecks": 5,
+  "paidCalls": false,
+  "externalServices": "Loopback identity/model/media fixtures and real separately served pinned WiseOffice",
+  "reportSha256": {
+    "chat-e2e/report.json": "c0294c92a207abc705d724585fa77abfe9c53db466814154a635b635034e0d8e",
+    "electron-final/report.json": "9dfac30af41671beed7959ce0788b6e145f21527dd81261f146e33be49ad5114",
+    "sigkill/report.json": "7f028c97fc58c444d05955ec9d6de817a3ea6481ebda4efb926bd91c203f9482",
+    "host/report.json": "c4e025b809ee753cb7088010d6465f6f3a5a3a51e8093f23a9ef65f77e512e76",
+    "package-check.json": "cb45b35161572ce7eb39fc5d225b28892872987cf284b25b60c4f77c829a482e",
+    "appimage-smoke.json": "4147adae7981bbceb488cca8480f1c4229b0912ff9b13782e288857628a95d66",
+    "office-check.json": "9d025056ad2763ed28a693f406f08cf7e8345c7ea43abd7122c500be829ee8e6",
+    "package-credentials.json": "b432ff0ecb887cfd69124ffa80d6b426efbbd065a42ef1bb8fd8570687a8532e"
+  },
+  "notAccepted": [
+    "Real teacher login and target service deployment",
+    "Real supplier output and representative lesson quality",
+    "Managed text atomic budget policy",
+    "Physical power-loss recovery and Windows/macOS qualification",
+    "Deferred team pointer recovery, simultaneous editing and virtual classroom",
+    "Complete repository gates, PR/main integration and final release"
+  ],
+  "cleanup": "Assistant-owned WiseOffice port4379 process3419685 stopped after tests; disposable Electron/Host tests exited; user services untouched"
+}

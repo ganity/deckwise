@@ -20,6 +20,8 @@ Each ADR includes:
 
 | ID | Title | Status |
 |---|---|---|
+| shared-teaching-enrichment | [Portable native teaching sources](shared-teaching-enrichment.md) | Implemented in Part A candidate |
+| courseware-media-bindings-and-requirements | [Verified media bindings and retained requirements](courseware-media-bindings-and-requirements.md) | Accepted |
 | subagent-model-fallback | [Ordered subagent model fallback](subagent-model-fallback.md) | Accepted for implementation |
 | subagent-model-opt-in | [Separate Subagent Model Opt-In from Definition Pins](subagent-model-opt-in.md) | Accepted for implementation |
 | 0001 | Use Electron as the desktop shell | Accepted |
@@ -311,3 +313,21 @@ Each ADR includes:
 | 0282 | [Retry and right-size the compaction summary before retained-tail recovery](0282-compaction-summary-retry-and-sizing.md) | Accepted (amends ADR 0049; issue #543) |
 | 0283 | [Use a bounded main-process bridge for native SVG editing](0283-bounded-main-process-bridge-for-native-svg-editing.md) | Accepted |
 | turn-process-and-thinking-display | [Turn process and thinking presentation](turn-process-and-thinking-display.md) | Accepted |
+| host-owned-courseware-projects | [Host-owned courseware projects and teaching records](host-owned-courseware-projects.md) | Accepted for courseware implementation |
+| provider-system-certificates | [Desktop sidecar uses the operating system trusted certificates](provider-system-certificates.md) | Accepted |
+| 0285 | [ADR 0285: `RACP-WS` transport in `packages/racp`](0285-racp-ws-transport.md) | Historical upstream context |
+| 0304 | [ADR 0304: Trust the network endpoints the user enters themselves](0304-user-supplied-endpoint-trust.md) | Historical upstream context |
+| 0284 | [ADR 0284: Headless runtime boundary in `packages/host-runtime`](0284-headless-runtime-boundary.md) | Historical upstream context |
+| 0300 | [ADR 0300: Host-owned encrypted portable configuration sync](0300-host-owned-encrypted-portable-configuration-sync.md) | Historical upstream context |
+| 0301 | [ADR 0301: Explicit append-only WebDAV compatibility mode](0301-explicit-append-only-webdav-compatibility-mode.md) | Historical upstream context |
+| playback-presentation-events | [Fixed playback presentation observers](playback-presentation-events.md) | Accepted for the independent player module |
+| 0305 | [Saved-page narration independent of Office preview](0305-saved-page-narration.md) | Accepted for courseware narration |
+| 0288 | [Load the Office Module in the Isolated Editor View](0288-isolated-office-module-entry.md) | Accepted |
+| courseware-bounded-recovery | [Bounded courseware recovery and original TTS results](courseware-bounded-recovery.md) | Accepted |
+| courseware-images-direct-llm-ha | [Direct llm-ha transport for courseware images](courseware-images-direct-llm-ha.md) | Accepted |
+| courseware-platform-delivery | [Separate complete courseware synchronization from platform publication](courseware-platform-delivery.md) | implemented locally, 2026-11-10; database migrations and live deployment remain separate |
+| courseware-portable-project-commits | [Portable courseware commits and authority migration](courseware-portable-project-commits.md) | proposed, 2026-10-29. File transactions and the strict portable teaching/media schema are implemented |
+| courseware-prepared-image-recovery | [Explicit recovery of unsubmitted courseware images](courseware-prepared-image-recovery.md) | Accepted |
+| courseware-saved-media-continuation | [Saved-courseware media continuation](courseware-saved-media-continuation.md) | Accepted |
+| courseware-video-user-gateway | [Courseware video uses the user gateway and direct CDN download](courseware-video-user-gateway.md) | accepted |
+| native-teaching-document-authority | [Native presentation teaching owns its saved document](native-teaching-document-authority.md) | implemented on `feat/native-teaching-implementation`, 2026-11-09 |

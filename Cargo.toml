@@ -5,4 +5,8 @@ resolver = "2"
 [workspace.package]
 edition = "2021"
 license = "LGPL-3.0-or-later"
-version = "0.17.7"
+version = "0.20.0"
+
+# Saved PPTX reads verify full-file hashes even in development builds.
+[profile.dev.package.sha2]
+opt-level = 3

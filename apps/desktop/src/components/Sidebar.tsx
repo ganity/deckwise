@@ -1288,8 +1288,7 @@ export function Sidebar({
 
   const createSession = async (options?: { projectPath?: string | null }) => {
     try {
-      await newSession(options);
-      focusComposer();
+      await useAppStore.getState().openNewTaskDialog(options);
     } catch (error) {
       reportError(error);
     }

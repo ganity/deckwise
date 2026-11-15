@@ -9,11 +9,15 @@
 
 ## 2. 矩阵
 
+> **增量说明：** 新增规范暂保留英文原文，已有中文译文继续保留；以下表格与英文源规格同步。
+
+
 | 许可 | 风险 | 允许的 API/功能 | 默认政策 | 注释 |
 |---|---|---|---|---|
 | `ui.panel` | 低 | 打开插件面板 | 安装时授予 | 几乎所有 UI 插件都需要 |
 | `ui.view` | 低 | `contributes.views` 在工作面板中列出并可打开 | 安装时授予 | 与面板窗口同级隔离：沙箱页面、按插件划分的会话分区、`net.domains` 出口限制。按激活范围过滤 |
 | `ui.theme` | 低 | `contributes.themes` CSS 已在“设置”中加载并提供 | 安装时授予 | CSS 由主机清理；它无法编写脚本。已声明的 `assets` 通过主机的只读 `plugin-asset:` 协议提供 |
+| `ui.settings` | low | `contributes.settingsDestinations` adds a sandboxed Settings entry in Extensions | Granted at install | Rendered only in host Extensions group; isolated view host with same sandbox as panel views (ADR 0261) |
 | `ui.window.appearance` | 低 | 该插件主题被选中时，用 `contributes.windowAppearance` 设置原生窗口背景 | 安装时授予 | 仅接受 `#rrggbb` / `#rrggbbaa`；按解析后的明暗生效，主题消失后回到宿主默认值。macOS 保持 vibrancy |
 | `clipboard.read` | 中等 | `clipboard.readText`、`clipboard.getHistory` | 首次使用时确认 | 可能会读取敏感信息和保留的剪贴板历史 |
 | `clipboard.write` | 中等 | `clipboard.writeText` | 首次使用时确认 | 防止剪贴板污染 |
@@ -26,10 +30,14 @@
 | `fs.delete.workspace` | 高 | — | 加载时降级为 `fs.delete` + `own: true` | 旧权限名；只有插件自己写过的文件才不用问 |
 | `agent.tool.register` | 高 | 注册代理工具 | 安装时确认 | 工具执行情况单独审核 |
 | `agent.prompt.inject` | 高 | 注入系统提示符；激活 `contributes.skills` | 默认拒绝/强确认 | 容易导致行为劫持 |
+| `composer.transform` | medium | `contributes.composerTransforms` and `onComposerTransform` | Confirm at install | Runs only after an explicit Composer action. Receives the draft and optional model key, not session history or separate attachment/file-reference metadata; request and result are capped at 100,000 characters and audited |
 | `agent.extension` | 高 | 在 agent 进程内运行 `contributes.agentExtensions` 模块 | 显式确认；v1.1 仅限本地导入和开发插件 | 与 agent 自身工具同等权限；插件沙箱不适用（规格 16） |
+| `renderer.extension` | high | `manifest.renderer` is evaluated inside the host renderer to mount UI slots; `rendererActions` and `rendererCallMethods` open the actions and `onRendererCall` methods that module may use | Explicit confirmation; local imports and development plugins only in v1.1, matching `agent.extension` | The module shares the host's own document, so a slot is a contract rather than a sandbox. A component may dispatch only the reviewed vocabulary (`plugin.call`, `composer.insertText`, `composer.readDraft`, `composer.replaceDraft`, `attachments.add` / `list` / `remove`), capped at 16, and `plugin.call` reaches only the calling plugin's own `onRendererCall` methods, capped at 32. Registrations are withdrawn when the plugin unloads; a self-drawn dialog lives in a layer the plugin opened itself |
 | `provider.register` | 高 | `contributes.providers` 成为原生 Provider 列表中的行，归插件所有并在每次加载时按 manifest 刷新 | 显式确认；v1.1 仅限本地导入和开发插件，与 `agent.extension` 一致 | 用户路径拒绝该行（`PROVIDER_OWNED_BY_PLUGIN`）；凭据仍存放在 Host secret store 的常规 provider 引用下；暂不启用 `oauth` 声明 |
+| `provider.oauth` | high | `onProviderOAuth`; host-rendered `pi.providers.oauth.prompt` / `notify` for a declared OAuth provider | Explicit confirmation | Required with `provider.register` for `authKind: "oauth"`. The callback can read and refresh only that contribution's encrypted credential. The Host keeps refresh tokens out of the renderer and Agent Runtime. Host-mediated callback egress still needs `net.fetch` and `manifest.net.domains`; plugin entry code itself is not an OS sandbox. One account is stored per provider contribution; sign out clears it |
 | `net.fetch` | 高 | `net.fetch` | 默认拒绝 | 限定在 `manifest.net.domains` 之内；列表为空或非法即完全不放行出网（§2A） |
 | `net.websocket` | 高 | `pi.net.websocket.connect` / `send` / `close`（套接字由宿主持有；每个插件最多 4 个，帧封顶 1 MiB） | 默认拒绝 | 与 `net.fetch` 一样被限制在 `manifest.net.domains` 之内；被拒绝的主机永远到不了传输层，插件卸载、被禁用或崩溃时每个套接字都会被关闭 |
+| `net.anyHost` | high | Any host-owned egress path (`net.fetch`, `net.websocket`, panel session, remote HTTP MCP) | Confirm at install | Lifts the `manifest.net.domains` allowlist for user-typed endpoints (self-hosted servers); cloud metadata endpoints stay refused; nothing prompts at request time |
 | `shell.openExternal` | 中等 | 打开外部链接 | 首次使用时确认 | 防止网络钓鱼链接 |
 | `mcp.server.local` | 高 | 生成清单中声明的 `transport: "stdio"` MCP 服务器 | 默认拒绝 | 运行本地可执行文件；其工具到达代理 |
 | `mcp.server.remote` | 高 | 连接 `transport: "http"` MCP 服务器 | 默认拒绝 | 将工具参数发送到第三方端点；非回环 HTTP 不加密 |
@@ -45,10 +53,12 @@
 | `models.list` | 中等 | `pi.models.list` | 安装时确认 | 仅已就绪的 provider/model 行；不含密钥 |
 | `project.create` | 高 | `pi.project.create` 及会话导入中的显式 `projectId` | 安装时确认 | 创建或复用持久项目记录但不激活工作区；只有显式传入 id 的导入会绑定项目 |
 | `session.read` | 高 | `pi.session.getLlmContext` | 安装时确认 | 仅限进行中的工具会话；带 compaction 的投影（D019 / D336） |
+| `session.autoTitle` | high | `pi.session.getAutoTitleContext`, `pi.session.setAutoTitle` | Confirm at install | First user prompt (≤1,000 chars) and first assistant reply (≤500 chars) only, for default-titled sessions; title writes are compare-and-set. It does not grant transcript reads |
 | `session.import` | 高 | `pi.session.import`、`pi.session.importBatch` | 安装时确认 | 只能导入插件声明来源；有大小和频率限制 |
 | `session.read.own` | 中等 | `pi.session.list`、`pi.session.get`、`pi.session.listMessages` | 安装时确认 | 只能读取本插件导入的会话；不能跨插件访问 |
 | `session.update.own` | 中等 | `pi.session.rename` | 安装时确认 | 只能重命名本插件拥有的活动导入会话 |
 | `session.delete.own` | 高 | `pi.session.delete` | 安装时确认 | 只能回收或清除本插件导入的会话；有频率限制 |
+| `usage.read` | medium | `pi.usage.listTurns` | Confirm at install | Read-only listing of completed-turn facts (per-turn token counters and identifiers, keyset-paginated); no message body and no write path |
 | `agent.complete` | 高 | `pi.agent.complete` | 安装时确认 | 宿主代发一次性补全；消耗用户额度；`includeSessionContext` 还需要 `session.read` |
 | `speech.adapter.register` | 高 | `pi.speech.registerAdapter` / `unregisterAdapter` | 安装时确认 | 注册语音协议。handle 留在插件进程；HTTP 计划由宿主用绑定密钥代发且必须同 origin |
 
@@ -128,6 +138,7 @@ Agent，在 Plan 中不可见。主机返回 `PLUGIN_DISABLED_IN_PLAN`
 | `agent.tool.register` | 为AI Agent提供可执行工具 | 向AI Agent提供可执行工具 |
 | `agent.prompt.inject` | 调整代理指令 | 调整智能体指令 |
 | `agent.extension` | 在 agent 内运行代码 | 在 agent 内运行代码 |
+| `renderer.extension` | Draw UI in chat slots | 在聊天插槽绘制界面 |
 | `net.fetch` | 访问网络 | 访问网络 |
 | `shell.openExternal` | 打开外部链接 | 打开外部链接 |
 | `ui.theme` | 提供一个主题 | 提供主题 |
@@ -145,7 +156,9 @@ Agent，在 Plan 中不可见。主机返回 `PLUGIN_DISABLED_IN_PLAN`
 | `session.read.own` | Read sessions imported by this plugin | 读取此插件导入的会话 |
 | `session.update.own` | Rename sessions imported by this plugin | 重命名此插件导入的会话 |
 | `session.delete.own` | Trash or purge sessions imported by this plugin | 将此插件导入的会话移入回收站或清除 |
+| `usage.read` | Read usage statistics | 读取用量统计 |
 | `agent.complete` | Run a one-shot completion with your models | 用你的模型发起一次补全 |
+| `composer.transform` | Transform text in the Composer | 转换输入框中的文本 |
 | `speech.adapter.register` | Register a speech adapter | 注册语音适配器 |
 | `audio.capture.background` | Use the microphone in the background | 后台使用麦克风 |
 | `audio.playback.background` | Play audio in the background | 后台播放声音 |

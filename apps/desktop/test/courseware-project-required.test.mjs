@@ -53,7 +53,6 @@ const { createQueueSlice } = load("../src/stores/slices/queue-slice.ts", {
   "../../lib/api": { api: { prompt: async (input) => prompts.push(input) } },
   "../../lib/queued-prompts": {},
   "../../lib/session-transcript": { optimisticUserMessage: (id, content) => ({ id, content }) },
-  "../../lib/work-panel-tabs": { toolWorkPanelTab: (id) => ({ id }) },
 });
 
 function fixture(overrides = {}) {
@@ -61,6 +60,7 @@ function fixture(overrides = {}) {
   const state = {
     activeSessionId: null, workspace: null, sessions: [], providers: [], page: "chat", retainedSessionIds: [],
     pendingPlans: {}, runningSessions: {}, messages: [], latestTurnResults: {}, sessionOutcomes: {},
+    workPanelTabs: [], activeWorkPanelTabId: null, workPanelOpen: false,
     showToast: (text) => notices.push(text),
     openProject: async () => { state.createProjectDialogOpen = true; },
     clearProject: () => assert.fail("rejection must preserve the current workspace"),
@@ -133,13 +133,54 @@ test("old temporary sessions cannot send, queue, or steer even with another work
   }
 });
 
-test("project-bound courseware submission still starts the workbench and reaches the prompt API", async () => {
+test("project-bound courseware submission reaches Chat without opening the workbench", async () => {
   const f = fixture({ activeSessionId: "course", sessions: [{ id: "course", projectPath: "/course" }] });
   prompts.length = 0;
   assert.equal(await createQueueSlice(f.deps).sendPrompt("make slides"), true);
   assert.equal(prompts[0].sessionId, "course");
   assert.equal(f.state.runningSessions.course, true);
   assert.equal(f.state.messages[0].content, "make slides");
-  assert.deepEqual(f.state.openedPanel, { sessionId: "course", tab: { id: "ppt" } });
+  assert.equal(f.state.openedPanel, undefined);
+  assert.equal(f.state.workPanelOpen, false);
   assert.deepEqual(f.notices, []);
+});
+
+test("Chat preserves editor visibility and selection, including background submissions", async () => {
+  for (const [resource, open, activeSessionId] of [
+    ["lesson.pptx", true, "course"],
+    ["lesson.docx", true, "course"],
+    ["lesson.pptx", false, "course"],
+    ["lesson.pptx", true, "other"],
+  ]) {
+    const f = fixture({ activeSessionId, sessions: [{ id: "course", projectPath: "/course" }],
+      workPanelTabs: [{ id: "editor", kind: "editor", resource }], activeWorkPanelTabId: "editor", workPanelOpen: open });
+    f.deps.runtime.sessionTranscriptCache = new Map();
+    prompts.length = 0;
+    assert.equal(await createQueueSlice(f.deps).sendPrompt("edit this slide", undefined, "course"), true);
+    assert.equal(prompts[0].sessionId, "course");
+    assert.equal(f.state.openedPanel, undefined);
+    assert.equal(f.state.workPanelOpen, open);
+    assert.equal(f.state.activeWorkPanelTabId, "editor");
+  }
+});
+
+test("Chat preserves the media canvas or retained workbench without stealing focus", async () => {
+  for (const [open, activeSessionId, activeWorkPanelTabId] of [
+    [true, "course", "media-canvas"],
+    [false, "course", "media-canvas"],
+    [true, "other", "media-canvas"],
+    [true, "course", "ppt"],
+  ]) {
+    const f = fixture({ activeSessionId, sessions: [{ id: "course", projectPath: "/course" }],
+      workPanelTabs: [{ id: "media-canvas", kind: "media-canvas" }, { id: "ppt", kind: "ppt" }],
+      activeWorkPanelTabId, workPanelOpen: open });
+    f.deps.runtime.sessionTranscriptCache = new Map();
+    prompts.length = 0;
+    assert.equal(await createQueueSlice(f.deps).sendPrompt("Change the selected canvas draft", undefined, "course"), true);
+    assert.equal(prompts[0].sessionId, "course");
+    assert.equal(f.state.runningSessions.course, true);
+    assert.equal(f.state.openedPanel, undefined);
+    assert.equal(f.state.workPanelOpen, open);
+    assert.equal(f.state.activeWorkPanelTabId, activeWorkPanelTabId);
+  }
 });

@@ -75,6 +75,7 @@
 - [05-change-checklist.md](/zh-CN/spec/06-delivery/05-change-checklist)
 - [06-release-runbook.md](/zh-CN/spec/06-delivery/06-release-runbook)
 - [07-remote-control-rollout.md](/zh-CN/spec/06-delivery/07-remote-control-rollout)
+- [courseware-platform-sync.md](/zh-CN/spec/06-delivery/courseware-platform-sync)
 
 ## 7. 插件
 - [README.md](/zh-CN/spec/07-plugins/README)
@@ -102,3 +103,18 @@
 
 ## ADR
 - [../adr/README.md](/adr/README)
+
+## 课件规格（英文原文镜像）
+
+- [课件 PPTX 解析](/zh-CN/spec/03-runtime/21-courseware-parser)
+- [课件数据契约](/zh-CN/spec/03-runtime/22-courseware-contract-v1)
+- [课件转换与播放运行时](/zh-CN/spec/03-runtime/22-courseware-runtime)
+- [课件原生 Chat 编辑](/zh-CN/spec/03-runtime/23-courseware-native-chat)
+- [PPTX 候选工具](/zh-CN/spec/03-runtime/23-ppt-candidate-tools)
+- [逐页讲解词候选](/zh-CN/spec/03-runtime/24-courseware-narration-candidates)
+- [课件源文件候选](/zh-CN/spec/03-runtime/25-courseware-source-candidates)
+- [课件固定快照与播放](/zh-CN/spec/03-runtime/26-courseware-fixed-snapshots)
+- [课件媒体鉴权与任务](/zh-CN/spec/03-runtime/27-courseware-authorized-media)
+- [WiseOffice 能力覆盖](/zh-CN/spec/03-runtime/28-courseware-docs-coverage)
+- [主 Chat 课件流程](/zh-CN/spec/03-runtime/29-courseware-chat-workflow)
+- [在线课件源文件审核](/zh-CN/spec/04-ux/12-courseware-online-source-review)

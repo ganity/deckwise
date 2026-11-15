@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "origin": "B54 source-size single-page PPTX candidates",
+  "maicTree": "61e2ca028078a8689c1c6c65d28fac8c3520b15d",
+  "pptxgenjsSourceTree": "a29a4d3702bcf14c984d317f1845502c061083bf",
+  "note": "Frozen source origins with recorded Desktop adaptations: import paths, scene compiler extraction of actual exported OOXML object IDs, corresponding mapping assertions, Desktop-authored compiler edge evidence, and verified locked-image preservation through redo/style batch. sourceSha256 retains each original input; sha256 records the current Desktop file. PPTXGenJS is the matching locally built 4.0.1 fork distribution; its original declarations use a .d.cts extension to type the CommonJS entry. No runtime MAIC checkout is required. The independent assessment-page save path reuses the existing PPTX package helpers through an exported namespace; original source hashes are retained. The canonical contract fingerprint is corrected to the already committed Desktop file (unchanged by this assessment work). The canonical snapshot was refreshed from current Part A shared source to retain bodyPageLimit validation (see canonical/SOURCE.json); its upstream sourceSha256 remains historical.",
+  "files": [
+    {
+      "source": "lib/generation/page-pptx-candidate.ts",
+      "sourceSha256": "5cb6b36b56fcdb228c252f4810c2581080ba24040019cc998fe0c0f164354519",
+      "path": "src/authoring/page-pptx-candidate.ts",
+      "sha256": "5e6513d56f2c1c87a391682ef0db93b20f7a949c3604949eb2e83d4db4ae5cdc"
+    },
+    {
+      "source": "lib/generation/page-candidate-baseline.ts",
+      "sourceSha256": "e0d313fe9985e1e71bc334caf45f507b65445ac578e5ff56dbbb00cb2a39bb4a",
+      "path": "src/authoring/page-candidate-baseline.ts",
+      "sha256": "e0d313fe9985e1e71bc334caf45f507b65445ac578e5ff56dbbb00cb2a39bb4a"
+    },
+    {
+      "source": "lib/generation/kindergarten/scene-to-pptx.ts",
+      "sourceSha256": "a66706ba7323852e84a4872fe7b531bba272c122cdb9ad2ba1fba50c2ecd89aa",
+      "path": "src/authoring/kindergarten/scene-to-pptx.ts",
+      "sha256": "5bd29de7246b4ecc28b510c862f09183a5c449ba34f95d92a7a8f5600a478b4a"
+    },
+    {
+      "source": "lib/generation/kindergarten/image2-pptist/contracts.ts",
+      "sourceSha256": "b88b80debab819825b61fd0b23c637b77813277bb5562eab9c8f6012419ed470",
+      "path": "src/authoring/kindergarten/image2-pptist/contracts.ts",
+      "sha256": "b88b80debab819825b61fd0b23c637b77813277bb5562eab9c8f6012419ed470"
+    },
+    {
+      "source": "tests/generation/page-candidate-fixtures.ts",
+      "sourceSha256": "062a9c2a2187e3dedcc77fad51ebdfbaf8db2ced3683651168ced07ff3851da1",
+      "path": "src/authoring/tests/page-candidate-fixtures.ts",
+      "sha256": "74efab8946067ec332bc14ca4fc434f42641e73a9497a2e699ef4bd657fa1917"
+    },
+    {
+      "source": "tests/generation/page-pptx-candidate.test.ts",
+      "sourceSha256": "0ccb4294d940cc77eeea620c1cbec61d87670f3ce7b26d50c93865d783ffb9fe",
+      "path": "src/authoring/tests/page-pptx-candidate.test.ts",
+      "sha256": "4cb8db0195aa33884defc110c15799a3e936ecc4edc401c58a3f6c8b4dfc05c7"
+    },
+    {
+      "source": "tests/generation/page-candidate-lineage.test.ts",
+      "sourceSha256": "6b2295c42efb2106e4756de8303cae5d85ed09205cff6849698c0cb9df2e56b3",
+      "path": "src/authoring/tests/page-candidate-lineage.test.ts",
+      "sha256": "5ee00c68b6bb278ef4aba021c1166f3fb63693fac6a25b3ce76627e9ff86b1db"
+    },
+    {
+      "source": "tests/generation/kindergarten/scene-to-pptx.test.ts",
+      "sourceSha256": "b54d7062cec99a65f4d43a78e4a4634836a9ec8feba3421b8a58616f028c97f8",
+      "path": "src/authoring/tests/kindergarten/scene-to-pptx.test.ts",
+      "sha256": "4944d0fed1d1f8ac5c8d460fc7d612c860c115dac2c1ccca15cb5257ac3c46fa"
+    },
+    {
+      "source": "tests/generation/kindergarten/scenes-to-pptx.test.ts",
+      "sourceSha256": "7b77586e0cf1a067f813b0e4773421a25713b6eae401701e0d02994b249ae3e6",
+      "path": "src/authoring/tests/kindergarten/scenes-to-pptx.test.ts",
+      "sha256": "a21255ed998f978e23fb6c3ffecde544259ff15b72911e95beee45918390bfdf"
+    },
+    {
+      "source": "Desktop-authored W10.2 native compiler edge regression",
+      "path": "src/authoring/tests/kindergarten/scene-edges.test.ts",
+      "sha256": "e0d75e0d47037f2094a3e7cea562232a4314fb5dd3d9115832ebf639e9660398"
+    },
+    {
+      "source": "packages/pptxgenjs/dist/pptxgen.cjs.js",
+      "sourceSha256": "7fe793154cca7867c8811f82902661d307c86ed865a4b56df387a0663e9cbfa8",
+      "path": "vendor/pptxgenjs/index.cjs",
+      "sha256": "7fe793154cca7867c8811f82902661d307c86ed865a4b56df387a0663e9cbfa8"
+    },
+    {
+      "source": "packages/pptxgenjs/types/index.d.ts",
+      "sourceSha256": "68d4b4934b8fa25de0d14aa00de5845ca51d0386d28c037b5afd5e64f1b21fa9",
+      "path": "vendor/pptxgenjs/index.d.cts",
+      "sha256": "68d4b4934b8fa25de0d14aa00de5845ca51d0386d28c037b5afd5e64f1b21fa9"
+    },
+    {
+      "source": "packages/pptxgenjs/package.json",
+      "sourceSha256": "a4fc694898ef6f7da4c5840b799b593a0a74e9e05b7490b2ac5ee144762db477",
+      "path": "vendor/pptxgenjs/origin-package.json",
+      "sha256": "a4fc694898ef6f7da4c5840b799b593a0a74e9e05b7490b2ac5ee144762db477"
+    },
+    {
+      "source": "https://raw.githubusercontent.com/gitbrent/PptxGenJS/v4.0.1/LICENSE",
+      "path": "vendor/pptxgenjs/LICENSE",
+      "sha256": "7a2bfe96150786ed1908b8e63f98ebab88875c1e79e28faff6649e0f11f77e52"
+    },
+    {
+      "source": "lib/generation/canonical-page-context.ts",
+      "sourceSha256": "c62be4f7dd9f6019d5902f2b242bd059f33bb65f8d0638cc156ef4e4532e81aa",
+      "path": "src/authoring/canonical-page-context.ts",
+      "sha256": "f4ad456aebf9805d96c8b458e368493f3fb05c9020d5c8fc371cce80650ccbe9"
+    },
+    {
+      "source": "lib/generation/page-style-batch-candidate.ts",
+      "sourceSha256": "cefb29e7943f84a29c9129cb4d0f93fb05abf98fbdf5be9f0e4e11b635ce1af0",
+      "path": "src/authoring/page-style-batch-candidate.ts",
+      "sha256": "56ca94ec4257ca36914f7d276384bdb6f1ae3425e65f0da619962886364c3d72"
+    },
+    {
+      "source": "Desktop-authored W11.2 verified saved-image preservation",
+      "path": "src/authoring/page-asset-locks.ts",
+      "sha256": "e1c8fbb76ae233d795366fad78856e227f4e8c0f075dd5f1b174c9c88c6f5b95"
+    },
+    {
+      "source": "lib/courseware/canonical/courseware-contract.ts",
+      "sourceSha256": "dd16a1562e64cb4010f461d1c4b4bb2389e9ac2c9c9059b01421ccbc491de297",
+      "path": "src/conversion/lib/courseware/canonical/courseware-contract.ts",
+      "sha256": "be713264f951996bfc34d4c3d73cafb887d4b2d4b5c694e5025619bfefe703f5"
+    }
+  ],
+  "batchOrigin": "B72 isolated confirmed-style batch; no server model or teaching runner",
+  "batchInputTree": "d935e62703aca506e87e2d4f6068a3548886ca8c",
+  "fadeSourceOrigin": "B81 read-only bounded fade-source inspection; no source write, model or permission grant",
+  "fadeSourceInputTree": "5eb401b317d3db05a8b2ee07e89783b7ea460590"
+}

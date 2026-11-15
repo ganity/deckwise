@@ -1,0 +1,44 @@
+name: Prepare pinned courseware inputs
+description: Build the paired Document integration and the runner's native PPTX worker
+runs:
+  using: composite
+  steps:
+    - name: Read immutable Document source
+      id: source
+      shell: bash
+      run: |
+        node --input-type=module <<'NODE'
+        import assert from 'node:assert/strict';
+        import { readFile, writeFile } from 'node:fs/promises';
+        const pin = JSON.parse(await readFile('apps/desktop/courseware-sources.json', 'utf8'));
+        assert.equal(pin.schemaVersion, 'deckwise-courseware-sources/1');
+        assert(/^[A-Za-z0-9_-]+\/[A-Za-z0-9_.-]+$/.test(pin.document.repository), 'Invalid Document repository');
+        assert(/^[a-f0-9]{40}$/.test(pin.document.commit), 'Document requires a full immutable commit SHA');
+        await writeFile(process.env.GITHUB_OUTPUT, `repository=${pin.document.repository}\ncommit=${pin.document.commit}\n`, { flag: 'a' });
+        NODE
+
+    - name: Checkout pinned Document
+      uses: actions/checkout@v7
+      with:
+        repository: ${{ steps.source.outputs.repository }}
+        ref: ${{ steps.source.outputs.commit }}
+        path: .courseware-inputs/document
+        persist-credentials: false
+
+    - name: Build Document dependencies
+      shell: bash
+      working-directory: .courseware-inputs/document
+      run: |
+        set -euo pipefail
+        pnpm install --frozen-lockfile
+        pnpm --recursive --filter '@ranuts/*' build
+
+    - name: Build paired editor and native worker
+      shell: bash
+      run: |
+        set -euo pipefail
+        node scripts/build-wiseoffice-maic.mjs .courseware-inputs/document .courseware-inputs/editor
+        node scripts/stage-wiseoffice.mjs .courseware-inputs/editor
+        node packages/courseware-runtime/scripts/stage-worker.mjs "$GITHUB_WORKSPACE/apps/desktop/resources/pptx-worker"
+        node scripts/courseware-release-inputs.mjs --freeze apps/desktop/resources/courseware-release-lock.json
+        node scripts/courseware-release-inputs.mjs --check apps/desktop/resources/courseware-release-lock.json

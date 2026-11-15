@@ -1,9 +1,11 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { chmod, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, extname, join } from "node:path";
 import { net } from "electron";
-import { DECKWISE_MANAGED_BASE_URL } from "@pi-desktop/shared";
+import { DECKWISE_MANAGED_BASE_URL, isCoursewareTeamAssetRef } from "@pi-desktop/shared";
+import { CoursewareMediaClient } from "./courseware-media";
+import { CoursewareOnlineEditingClient } from "./courseware-online-editing";
 import type {
   DesktopAuthDictionaryItem,
   DesktopAuthProfile,
@@ -11,6 +13,7 @@ import type {
   DesktopCoursewareImportInput,
   DesktopCoursewareImportResult,
   DesktopDocumentParseResult,
+  CoursewareTeamAssetRef,
 } from "@pi-desktop/shared";
 
 const DEFAULT_PLATFORM_BASE_URL = "https://trainwise.efrobot.com/api/backend";
@@ -53,6 +56,7 @@ type PresignedUpload = {
 
 type AuthSessionOptions = {
   dataDir: string;
+  mediaRelayHost?: { call(method: string, params: unknown): Promise<unknown> };
   onChanged: (state: DesktopAuthState) => void;
   log: (level: "info" | "warn", message: string) => void;
 };
@@ -137,6 +141,7 @@ function educationProfile(value: unknown): DesktopAuthProfile {
 }
 
 export class DesktopAuthSession {
+  readonly coursewareMedia: CoursewareMediaClient;
   private readonly sessionPath: string;
   private readonly legacySessionPath: string;
   private readonly baseUrl = platformBaseUrl();
@@ -146,14 +151,72 @@ export class DesktopAuthSession {
   private refreshInFlight: Promise<void> | null = null;
   private refreshTimer: NodeJS.Timeout | null = null;
   private restoreRetryTimer: NodeJS.Timeout | null = null;
+  private readonly stateListeners = new Set<(state: DesktopAuthState) => void>();
 
   constructor(private readonly options: AuthSessionOptions) {
     this.sessionPath = join(options.dataDir, "auth", "session.token");
     this.legacySessionPath = join(options.dataDir, "auth", "session.bin");
+    this.coursewareMedia = new CoursewareMediaClient({
+      relayJournal: async (method, key, value, expectedRevision) => {
+        const principal = this.getCoursewarePrincipal();
+        if (!this.options.mediaRelayHost) throw new Error("COURSEWARE_MEDIA_JOURNAL_UNAVAILABLE");
+        const result = await this.options.mediaRelayHost.call(`courseware.mediaRelay.${method}`, {
+          principalKey: principal.key, key, ...(method === "write" ? { value, expectedRevision } : {}),
+        });
+        principal.assertCurrent();
+        return result;
+      },
+      baseUrl: this.baseUrl,
+      imageBaseUrl: process.env.DECKWISE_LLM_BASE_URL?.trim() || DECKWISE_MANAGED_BASE_URL,
+      fetch: (url, init) => net.fetch(url instanceof URL ? url.toString() : url, init),
+      resolveAccessToken: () => this.resolveAccessToken(),
+      getPrincipal: () => this.state.status === "authenticated" && this.accessToken ? this.state.profile : null,
+    });
   }
 
   getState(): DesktopAuthState {
     return this.state;
+  }
+
+  onStateChanged(listener: (state: DesktopAuthState) => void): () => void {
+    this.stateListeners.add(listener);
+    return () => { this.stateListeners.delete(listener); };
+  }
+
+  getCoursewareOnlineClient(): CoursewareOnlineEditingClient {
+    return new CoursewareOnlineEditingClient({
+      baseUrl: this.baseUrl,
+      fetch: (url, init) => net.fetch(url instanceof URL ? url.toString() : url, init),
+      resolveAccessToken: () => this.resolveAccessToken(),
+      getPrincipal: () => this.state.status === "authenticated" && this.accessToken ? this.state.profile : null,
+    });
+  }
+
+  async joinCoursewareOnline(projectId: string, signal?: AbortSignal, clientId?: string) {
+    return this.getCoursewareOnlineClient().join(projectId, signal, clientId);
+  }
+
+  getCoursewarePrincipal(): { key: string; assertCurrent: () => void } {
+    const profile = this.state.status === "authenticated" && this.accessToken ? this.state.profile : null;
+    if (!profile || !Number.isSafeInteger(profile.tenantId) || profile.tenantId <= 0 ||
+        !Number.isSafeInteger(profile.userId) || profile.userId <= 0) throw new Error("COURSEWARE_MEDIA_AUTH_REQUIRED");
+    return {
+      key: createHash("sha256").update(JSON.stringify(["courseware-principal-v1", this.baseUrl, profile.tenantId, profile.userId])).digest("hex"),
+      assertCurrent: () => {
+        if (this.state.status !== "authenticated" || !this.accessToken || this.state.profile !== profile) throw new Error("COURSEWARE_MEDIA_AUTH_CHANGED");
+      },
+    };
+  }
+
+  async resolveTeamSceneImages(references: readonly CoursewareTeamAssetRef[], signal?: AbortSignal) {
+    signal?.throwIfAborted();
+    if (!Array.isArray(references) || !references.length || references.length > 202 ||
+        !references.every(isCoursewareTeamAssetRef)) throw new Error("COURSEWARE_MEDIA_INVALID_SCENE_ASSETS");
+    const captured = structuredClone(references);
+    const principal = this.getCoursewarePrincipal();
+    const media = this.coursewareMedia;
+    const { resolveCoursewareTeamPngs } = await import("./courseware-team-images");
+    return resolveCoursewareTeamPngs({ references: captured, principal, media, signal });
   }
 
   async resolveAccessToken(): Promise<string> {
@@ -373,6 +436,32 @@ export class DesktopAuthSession {
     });
   }
 
+  async coursewareDeliveryRequest<T>(action: "state" | "sync" | "publish", payload: Record<string, unknown>): Promise<T> {
+    const token = await this.resolveAccessToken();
+    const path = action === "state" ? `/courses/courseware-delivery/state?${new URLSearchParams({ documentId: String(payload.documentId) })}`
+      : action === "sync" ? "/courses/courseware-delivery/sync" : `/courses/${Number(payload.courseId)}/publish-status`;
+    return this.request<T>(path, { signal: AbortSignal.timeout(330000), method: action === "state" ? "GET" : action === "sync" ? "POST" : "PUT",
+      headers: { Authorization: `Bearer ${token}` }, ...(action === "state" ? {} : { body: JSON.stringify(action === "publish" ? { ...payload, courseId: undefined } : payload) }) });
+  }
+
+  async uploadCoursewareDelivery(bytes: Buffer): Promise<{ fileUrl: string; packageHash: string }> {
+    const principal = this.getCoursewarePrincipal();
+    if (!bytes.length || bytes.length > 256 * 1024 * 1024) throw new Error("Invalid courseware package size");
+    const packageHash = createHash("sha256").update(bytes).digest("hex"), name = `${packageHash}.zip`;
+    const token = await this.resolveAccessToken(); principal.assertCurrent();
+    const query = new URLSearchParams({ filename: name, fileSize: String(bytes.length), skipMaterial: "true" });
+    const target = await this.request<PresignedUpload>(`/courses/presign?${query}`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+    principal.assertCurrent();
+    const body = new FormData();
+    for (const [key, value] of Object.entries(target.fields ?? {})) if (value != null) body.append(key, String(value));
+    body.append("file", new Blob([new Uint8Array(bytes)], { type: "application/zip" }), name);
+    if (!target.uploadUrl || !target.ossUrl) throw new Error("Courseware upload target is unavailable");
+    const response = await net.fetch(target.uploadUrl, { method: "POST", body });
+    principal.assertCurrent();
+    if (!response.ok) throw new Error(`Courseware upload failed (${response.status})`);
+    return { fileUrl: target.ossUrl, packageHash };
+  }
+
   private async uploadLocalFile(path: string, extensions: readonly string[]): Promise<{
     name: string;
     fileUrl: string;
@@ -505,6 +594,7 @@ export class DesktopAuthSession {
 
   private setState(state: DesktopAuthState): DesktopAuthState {
     this.state = state;
+    for (const listener of this.stateListeners) listener(state);
     this.options.onChanged(state);
     return state;
   }

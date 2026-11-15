@@ -30,7 +30,7 @@ const [
   toolRow,
   composer,
 ] = await Promise.all([
-  read("../src/components/workpanel/PptMasterTab.tsx"),
+  read("../src/components/courseware/CoursewareChatWorkflow.tsx"),
   read("../src/stores/slices/queue-slice.ts"),
   read("../src/stores/slices/events-slice.ts"),
   read("../electron/main/builtin-skills.ts"),
@@ -57,12 +57,16 @@ const [
   read("../src/components/Composer.tsx"),
 ]);
 
-test("DeckWise only accepts PPTX courseware tasks and loads PPT Master", () => {
+const presentation = await read("../src/components/courseware/CoursewareChatPresentation.tsx");
+
+test("DeckWise only accepts PPTX courseware tasks and routes the selected skill", () => {
   assert.match(prompts, /specialized PPTX courseware creation agent/);
   assert.match(prompts, /not a general-purpose chat or coding assistant/);
   assert.match(prompts, /unrelated to creating or modifying PPTX courseware/);
   assert.match(agentIpc, /function deckWiseModelPrompt/);
-  assert.match(agentIpc, /PPT_MASTER_SKILL_ID/);
+  assert.match(agentIpc, /resolveCoursewareRoute/);
+  assert.match(agentIpc, /courseware\.task\.get/);
+  assert.match(agentIpc, /taskType === "scene"/);
   assert.match(agentIpc, /content: deckWiseModelPrompt\(req\.content\)/);
   assert.match(agentIpc, /const modelContent = deckWiseModelPrompt\(/);
   assert.match(agentIpc, /never mention Pi, PPT Master, skill ids/);
@@ -82,12 +86,27 @@ test("home quick starts prefill the composer without auto-sending", () => {
   assert.match(chatSurface, /清新插画风/);
 });
 
+test("the workspace preserves the chosen route without repeating task creation controls", async () => {
+  assert.match(panel, /coursewareWorkflowGet\(sessionId\)/);
+  assert.match(panel, /taskType === "plain"/);
+  assert.match(panel, /taskType === "import"/);
+  assert.match(panel, /coursewareImportPptx\(sessionId, picked\.token\)/);
+  assert.match(panel, /CoursewareChatImages/);
+  assert.match(panel, /PptEditorTab/);
+  assert.doesNotMatch(panel, /coursewareTaskSet/);
+  assert.match(agentIpc, /Teaching settings:/);
+  assert.match(agentIpc, /For kindergarten English, use 0–2 short English expressions/);
+});
+
 test("PPT Master asks only for genuinely missing input in at most three rounds", () => {
   assert.match(skill, /inspect the user's prompt and attached documents/);
   assert.match(skill, /at most three rounds/);
   assert.match(skill, /One `asktool` call is one clarification round/);
   assert.match(skill, /never ask extra questions merely to use the remaining rounds/);
   assert.match(skill, /proceed with conservative assumptions/);
+  assert.match(skill, /do not claim completion until both official checks exit 0/);
+  assert.match(skill, /project_manager\.py validate <project_path>/);
+  assert.match(skill, /notes\/total\.md must cover every page/);
 });
 
 test("fixed-identity design sheets guide new scene generation instead of slide placement", () => {
@@ -115,7 +134,6 @@ test("DeckWise startup skips native Pi history and uses its own data directory",
     pluginServices,
     pluginRuntime,
     hostMain,
-    marketplaceCatalog,
     ignoreRules,
   ]) {
     assert.match(source, /\.deckwise/);
@@ -123,14 +141,14 @@ test("DeckWise startup skips native Pi history and uses its own data directory",
   }
 });
 
-test("PPT tasks open PPT Master without workspace edits opening Review", () => {
-  assert.match(queue, /openWorkPanelTabForSession\(startedIn, toolWorkPanelTab\("ppt"\)\)/);
+test("Chat submission does not open a workbench and workspace edits do not open Review", () => {
+  assert.doesNotMatch(queue, /openWorkPanelTabForSession\(startedIn, toolWorkPanelTab\("ppt"\)\)/);
   assert.doesNotMatch(events, /shouldOpenReviewArtifact|toolWorkPanelTab\("review"\)/);
 });
 
 test("a new task never inherits another task's courseware project", () => {
-  assert.match(panel, /const projectPath = useMemo\(\(\) => referencedProject\(messages\), \[messages\]\)/);
-  assert.match(panel, /if \(!projectPath\) return;/);
+  assert.match(presentation, /const path = referencedProject\(messages, sourcePath\)/);
+  assert.match(presentation, /if \(!path\) return;/);
   assert.doesNotMatch(panel, /listDir\("\.deckwise-ppt\/projects"\)/);
 });
 
@@ -138,24 +156,37 @@ test("SVG preview opens in Browser and waits for explicit PPTX generation", () =
   assert.match(skill, /call ToolSearch for `browser`/);
   assert.match(skill, /Browser with `action=navigate`/);
   assert.match(skill, /Do not finalize or export PPTX until the user explicitly requests/);
-  assert.match(panel, /生成 PPT/);
-  assert.match(panel, /sendPrompt\(PPTX_EXPORT_PROMPT/);
+  assert.match(presentation, /coursewareWorkflow.buildPpt/);
+  assert.match(presentation, /coursewareWorkflow.exportPrompt/);
   assert.doesNotMatch(panel, /当前产物|开始生成/);
 });
 
-test("delivered PPT projects revise SVG as the only source and export a new PPTX", () => {
-  assert.match(skill, /SVG is the only source of truth/);
-  assert.match(skill, /official Revision Round/);
-  assert.match(skill, /immediately create a new timestamped PPTX export/);
-  assert.match(skill, /Never read changes back from a PPTX/);
-  assert.match(panel, /latestSvgMtime > pptx\.mtimeMs/);
-  assert.match(panel, /重新生成 PPT/);
-  assert.match(panel, /正在根据最新页面生成新版本 PPT/);
+const projectInspection = await read("../src/lib/ppt-master-project.ts");
+
+test("the workbench blocks PPTX export while the generated pages fail the final quality gate", () => {
+  assert.match(projectInspection, /svg_quality_report\.json/);
+  assert.match(projectInspection, /report\.summary\?\.errors !== 0/);
+  assert.match(projectInspection, /notes\.find\(.*total\.md/);
+  assert.match(presentation, /!!project.qualityIssue/);
+  assert.match(presentation, /coursewareWorkflow.repairPages/);
+  assert.match(presentation, /pptMasterRepairPrompt\(project\)/);
+  assert.match(projectInspection, /不要新建项目或丢弃现有页面/);
 });
 
-test("completed PPTX projects can be published with education metadata", () => {
-  assert.match(panel, /<CoursewareImportDialog/);
-  assert.match(panel, /发布到教学平台/);
+test("Office edits supersede SVG generation candidates", () => {
+  assert.match(skill, /Once Office editing starts/);
+  assert.match(skill, /load deckwise\/ppt-edit/);
+  assert.match(skill, /Never supersede Office edits with an older SVG export/);
+  assert.match(projectInspection, /latestInputMtime > pptx\.mtimeMs/);
+  assert.match(presentation, /needsPptxRegeneration/);
+  assert.match(presentation, /pagesChanged/);
+});
+
+test("completed PPTX projects can be published with education metadata", async () => {
+  assert.match(panel, /<CoursewareDeliveryActions/);
+  const delivery = await read("../src/components/courseware/CoursewareDeliveryActions.tsx");
+  assert.match(delivery, /coursewareDelivery.publish/);
+  assert.match(delivery, /api\.coursewareDelivery\(action, sessionId/);
   assert.match(importDialog, /firstLessonPlan/);
   assert.match(importDialog, /account\.dictionaries\?\.grades/);
   assert.match(importDialog, /account\.dictionaries\?\.subjects/);
@@ -170,4 +201,37 @@ test("completed PPTX projects can be published with education metadata", () => {
   assert.match(authSession, /sourceMaterial/);
   assert.match(authSession, /lessonPlan/);
   assert.match(authSession, /schoolStage:\s*"primary"/);
+});
+
+test("team projects use authenticated Desktop transport and appear in the work panel", async () => {
+  assert.match(protocol, /coursewareTeamProjects:\s*"deckwise\/courseware\/team\/projects"/);
+  assert.match(protocol, /coursewareTeamProjectCreate:\s*"deckwise\/courseware\/team\/project\/create"/);
+  assert.match(protocol, /coursewareTaskBindTeam:\s*"deckwise\/courseware\/task\/bind-team"/);
+  assert.match(protocol, /coursewareFixedShare:\s*"deckwise\/courseware\/fixed\/share"/);
+  assert.match(authIpc, /assertMainWindowSender\(event\)[\s\S]*coursewareMedia\.getTeamProjects\(\)/);
+  assert.match(rendererApi, /coursewareTeamProjects:\s*\(\)\s*=>\s*invoke<CoursewareTeamProject\[]>\(IPC\.invoke\.coursewareTeamProjects\)/);
+  const workPanel = await read("../src/components/workpanel/WorkPanel.tsx");
+  assert.match(workPanel, /toolWorkPanelTab\("team"\)/);
+  assert.match(workPanel, /activeTab\?\.kind === "team"/);
+  const teamTab = await read("../src/components/workpanel/TeamProjectsTab.tsx");
+  assert.match(teamTab, /api\.coursewareTeamProjects\(\)/);
+  assert.match(teamTab, /api\.coursewareTeamProjectCreate\(\)/);
+  assert.match(await read("../src/components/workpanel/CoursewarePlaybackPanel.tsx"), /coursewareFixedShare\(build\.previewId, teamProjectId, sessionId, teamChannel\)/);
+  assert.match(teamTab, /api\.coursewareTeamPlay\(project\.projectId, playChannel, "zh-CN"\)/);
+  assert.match(teamTab, /OWNER: "创建者"/);
+  assert.match(teamTab, /VIEWER: "只读"/);
+  const playbackIpc = await read("../electron/main/ipc/courseware-playback-ipc.ts");
+  assert.match(playbackIpc, /IPC\.invoke\.coursewareTeamPlay/);
+  assert.match(playbackIpc, /uploadAndPublishFixedBuild/);
+  const playbackPanel = await read("../src/components/workpanel/CoursewarePlaybackPanel.tsx");
+  assert.match(playbackPanel, /api\.coursewareFixedShare\(build\.previewId, teamProjectId, sessionId, teamChannel\)/);
+  assert.match(playbackIpc, /courseware\.snapshot\.onlineOrigin/);
+  assert.match(playbackIpc, /courseware\.fixedShare\.prepare/);
+  assert.match(playbackIpc, /courseware\.fixedShare\.complete/);
+  assert.match(playbackIpc, /courseware\.fixedShare\.get/);
+  assert.match(playbackIpc, /queryFixedBuildPublication/);
+  assert.doesNotMatch(playbackIpc, /host\.call\("courseware\.task\.bindTeam"/);
+  const player = await read("../electron/main/courseware-player-preview.ts");
+  assert.match(player, /downloadTeamFixedFile/);
+  assert.match(player, /downloadUrl: ""/);
 });

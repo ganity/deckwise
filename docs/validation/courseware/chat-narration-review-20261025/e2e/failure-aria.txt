@@ -1,0 +1,258 @@
+- complementary:
+  - button "首页": DeckWise
+  - button "收起侧边栏" [expanded]
+  - text: 课件
+  - button "项目与对话排序"
+  - button "新建课件"
+  - region "workspace":
+    - button "workspace" [expanded]
+    - text: /tmp/deckwise-chat-first-bi6ex7/workspace. 调整“workspace”顺序
+    - button "打开“workspace”的操作菜单"
+    - button "在此项目中新建任务"
+    - region:
+      - button "CHAT_FIRST_ORDINARY 给三年级制作一页英文圆形课件。正文：Circle / A"
+      - button "会话操作"
+      - button "请先记住：导入后将讲解改为适合三年级的短句。"
+      - button "会话操作"
+      - button "CHAT_FIRST_SCENE 为幼儿园英语制作一页花园形状课件，含逐页讲解。"
+      - button "会话操作"
+  - region "apps":
+    - button "apps" [expanded]
+    - text: /home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps. 调整“apps”顺序
+    - button "打开“apps”的操作菜单"
+    - button "打开项目并新建任务"
+    - region: 当前课件还没有对话
+  - button "设置"
+  - button "打开通知中心"
+  - status: 打开通知中心
+  - button "检查更新": v0.17.7
+- button "最小化"
+- button "最大化"
+- button "关闭"
+- toolbar "对话":
+  - text: CHAT_FIRST…
+  - button "新建任务"
+  - button "搜索"
+- separator "调整对话宽度"
+- separator "调整对话宽度"
+- navigation "对话大纲":
+  - button "用户消息"
+  - button "助手消息"
+  - button "用户消息"
+  - button "助手消息"
+  - button "用户消息"
+  - button "助手消息"
+  - button "用户消息"
+  - button "助手消息"
+  - button "用户消息"
+  - button "助手消息"
+- log:
+  - article "用户消息":
+    - text: CHAT_FIRST_ORDINARY 给三年级制作一页英文圆形课件。正文：Circle / A circle has no corners. 附简短讲解词，不需要图片生成、动画或语音。
+    - button "复制"
+    - button "编辑并重新发送"
+    - button "删除消息"
+  - article "助手消息":
+    - button "已处理 9s 9 个步骤"
+    - paragraph:
+      - text: CHAT_FIRST_ORDINARY_PREVIEW：
+      - link ".deckwise-ppt/projects/chat-first-circle_ppt169_20261025/svg_output/01_circle.svg":
+        - /url: .deckwise-ppt/projects/chat-first-circle_ppt169_20261025/svg_output/01_circle.svg
+    - text: chat-first-fixture
+    - button "复制"
+    - button "从此回复创建分支"
+    - button "重新生成"
+  - article "用户消息":
+    - text: 请继续修复当前课件生成结果，不要新建项目或丢弃现有页面。工作台检查发现：课件页面、规范或讲解修改后需要重新完成质量检查。以下是最终质量报告摘录，仅作待修数据：[]。请读取完整报告和官方规划文件参考格式，逐项修复页面、规划和素材引用，补齐每页讲解词并保存到项目。先运行官方
+    - button "project_manager.py — project_manager.py": project_manager.py
+    - text: validate 校验完整规划规范，再运行官方最终质量检查（使用 --canonical-authoring --stage final --json 更新项目
+    - button "svg_quality_report.json — validation/svg_quality_report.json": svg_quality_report.json
+    - text: ）；只有两项校验均退出 0 且讲解词已落盘后，才能报告预览完成，否则明确说明仍未完成。
+    - button "复制"
+    - button "编辑并重新发送"
+    - button "删除消息"
+  - article "助手消息":
+    - button "已处理 4s 5 个步骤"
+    - paragraph:
+      - text: CHAT_FIRST_ORDINARY_REPAIRED：
+      - link ".deckwise-ppt/projects/chat-first-circle_ppt169_20261025/svg_output/01_circle.svg":
+        - /url: .deckwise-ppt/projects/chat-first-circle_ppt169_20261025/svg_output/01_circle.svg
+    - text: chat-first-fixture
+    - button "复制"
+    - button "从此回复创建分支"
+    - button "重新生成"
+  - article "用户消息":
+    - text: 页面内容已确认，请完成最终检查并生成可编辑的 PPT 文件，无需再次确认。
+    - button "复制"
+    - button "编辑并重新发送"
+    - button "删除消息"
+  - article "助手消息":
+    - button "已处理 4s 5 个步骤"
+  - separator: 上下文已压缩 · 第 1 次 摘要生成失败 · 已保留近期上下文
+  - article "助手消息":
+    - paragraph: CHAT_FIRST_ORDINARY_EXPORTED：.deckwise-ppt/projects/chat-first-circle_ppt169_20261025/exports
+    - text: chat-first-fixture
+    - button "复制"
+    - button "从此回复创建分支"
+    - button "重新生成"
+  - article "用户消息":
+    - text: CHAT_FIRST_EDIT 在当前页加一句 Try drawing a circle.，不要自动保存。
+    - button "复制"
+    - button "编辑并重新发送"
+    - button "删除消息"
+  - article "助手消息":
+    - button "已处理 3s 5 个步骤"
+    - paragraph: CHAT_FIRST_EDIT_DONE：页面已修改，请保存。
+    - text: chat-first-fixture
+    - button "复制"
+    - button "从此回复创建分支"
+    - button "重新生成"
+  - article "用户消息":
+    - text: CHAT_FIRST_REWRITE 请改写本页讲解，短句、一个参与问题和简单英语鼓励。
+    - button "复制"
+    - button "编辑并重新发送"
+    - button "删除消息"
+  - article "助手消息":
+    - button "已处理 4s 4 个步骤"
+    - paragraph: CHAT_FIRST_REWRITE_DONE b384fe66-a1fe-48a5-a8f1-aed6b52ee268
+    - text: chat-first-fixture
+    - button "复制"
+    - button "从此回复创建分支"
+    - button "重新生成"
+- region "当前课件任务":
+  - strong: 当前课件任务
+  - status: 可以编辑
+  - button "预览与修改页面"
+  - button "打开 PPT 编辑"
+  - button "在 Chat 中继续"
+  - button "刷新状态"
+- textbox
+- button "添加文件"
+- button "允许课件助手在需要时联网检索资料。": 联网搜索
+- button "上下文剩余 100%，共 128K tokens": 100%
+- 'button "模型: chat-first-fixture. 推理等级: off"': chat-first-fixture
+- button "增强提示词" [disabled]
+- button "发送" [disabled]
+- complementary:
+  - separator "调整工作面板宽度"
+  - tablist "侧边面板标签":
+    - tab "chat-first-circle_20261025_033412.pptx" [selected]
+    - button "关闭chat-first-circle_20261025_033412.pptx"
+  - button "放大"
+  - tabpanel "chat-first-circle_20261025_033412.pptx":
+    - strong: chat-first-circle_20261025_033412.pptx
+    - status ".deckwise-ppt/projects/chat-first-circle_ppt169_20261025/exports/chat-first-circle_20261025_033412.pptx": 已保存 · Revision 2
+    - button "全屏编辑"
+    - button "保存到原文件"
+    - button "关闭 Office 编辑器"
+    - region "检查已保存版本":
+      - button "检查已保存版本"
+      - text: 不包含未保存的修改。
+      - status
+    - complementary "逐页讲解":
+      - region "重做前的页面底图":
+        - strong: 重做前的页面底图
+        - paragraph: 读取当前已保存页进行审核，不修改原课件。
+        - button "准备当前页底图"
+      - region "已审核图片":
+        - strong: 已审核图片
+        - text: 图片来源
+        - combobox "图片来源":
+          - option "团队项目" [selected]
+          - option "画布候选"
+        - text: 团队项目编号
+        - textbox "团队项目编号"
+        - text: 图片素材编号
+        - textbox "图片素材编号"
+        - button "预览图片" [disabled]
+      - strong: 逐页讲解
+      - paragraph: 仅编辑已保存且未改动的 PPTX。读取后讲解自动跟随切页；有未保存草稿或候选审核时暂停跟随，请先在原页处理。修改文字后需重新生成语音并复核提示效果。
+      - button "读取当前页讲解"
+      - button "审核已保存的 PPTX 变更"
+      - text: 候选稿 ID
+      - textbox "候选稿 ID"
+      - button "审阅候选稿" [disabled]
+      - region "讲解候选":
+        - text: Chat 回执中的候选编号
+        - textbox "Chat 回执中的候选编号"
+        - button "审阅候选" [disabled]
+      - paragraph: 第 1 页讲解
+      - group: 找回已删除页的讲解
+      - group: 最近的 Chat 修改记录
+      - status:
+        - strong: 页面修改记录
+        - code: 749a5b7b
+        - paragraph: 页面已保存；以下页面的讲解和效果仍需复核确认：1。
+      - group: 重做时保留图片
+      - text: 本页讲解要求（可选）
+      - textbox "本页讲解要求（可选）":
+        - /placeholder: 例如：缩短讲解、改得更活泼，或加入适合本年级的鼓励语。
+      - button "在主 Chat 重新生成本页讲解"
+      - paragraph: 停顿和等待不会被朗读；等待需教师明确继续。
+      - region "高亮与聚光":
+        - strong: 高亮与聚光
+        - paragraph: 固定播放器效果使用本讲解段的音频毫秒时间，不代表逐词对齐或原生 PowerPoint 动画。保存并确认页面后再生成固定预览。
+        - paragraph: 对象序号来自当前已保存页面的解析顺序，不是跨保存的稳定身份。请核对已保存页面，并在使用提示前检查固定预览。
+        - status: 编辑效果前请先确认当前已保存页面。勾选不能修复失效的对象关联。
+        - status: 添加效果前，请先为本讲解段采用固定音频。
+        - text: 讲解段
+        - combobox "讲解段" [disabled]:
+          - option "1. Look at this circle. Trace its round edge. It has no corners. Good!" [selected]
+        - group "添加提示":
+          - text: 添加提示 效果
+          - combobox "效果" [disabled]:
+            - option "高亮" [disabled] [selected]
+            - option "聚光" [disabled]
+          - paragraph: 选择当前已保存页面的对象
+          - checkbox "文本 · 对象 1" [disabled]
+          - text: 文本 · 对象 1
+          - checkbox "形状 · 对象 2" [disabled]
+          - text: 形状 · 对象 2
+          - checkbox "文本 · 对象 3" [disabled]
+          - text: 文本 · 对象 3
+          - checkbox "文本 · 对象 4" [disabled]
+          - text: 文本 · 对象 4 本段开始时间（毫秒）
+          - spinbutton "本段开始时间（毫秒）" [disabled]: "0"
+          - text: 本段结束时间（毫秒）
+          - spinbutton "本段结束时间（毫秒）" [disabled]: "1000"
+          - status: 请选择至少一个当前对象，以及结束晚于开始的整数时间区间（最多 3,600,000 毫秒）。
+          - checkbox "我已核对已保存页面中的这些对象，并审核本讲解段的时间区间。" [disabled]
+          - text: 我已核对已保存页面中的这些对象，并审核本讲解段的时间区间。
+          - button "添加提示" [disabled]
+      - text: 讲解段 1
+      - textbox "讲解段 1": Look at this circle. Trace its round edge. It has no corners. Good!
+      - text: 段后停顿（毫秒）
+      - spinbutton "段后停顿（毫秒）": "0"
+      - button "添加等待教师继续"
+      - button "添加讲解段"
+      - checkbox "锁定本页"
+      - text: 锁定本页
+      - button "确认本页教学内容"
+      - button "保存讲解" [disabled]
+      - button "放弃草稿" [disabled]
+      - status: 已保存到本地，发布前仍需复核。
+      - region "讲解配音":
+        - strong: 讲解配音
+        - paragraph: 新配音需先查看报价并确认费用；查询已有任务不会生成配音。
+        - button "读取本页配音任务"
+        - group "生成讲解配音":
+          - text: 生成讲解配音
+          - button "读取可用模型与音色"
+          - text: 讲解段
+          - combobox "讲解段":
+            - option "—" [selected]
+            - option "讲解段 1"
+          - text: 模型
+          - combobox "模型":
+            - option "—" [selected]
+          - text: 音色
+          - combobox "音色":
+            - option "—" [selected]
+          - button "查看报价（不扣费）" [disabled]
+      - region "课件预览":
+        - strong: 课件预览
+        - paragraph: 构建固定版本的本地预览。继续编辑前请关闭预览，编辑后重新构建。
+        - status: 还有 1 页未确认。
+        - status: 每段讲解词都需要匹配的已采用配音，配音齐全后才能构建播放预览。
+        - button "构建预览" [disabled]
+- button "切换侧边面板 Ctrl+J" [pressed]

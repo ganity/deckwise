@@ -1,0 +1,21 @@
+{
+  "version": "courseware-media-v1",
+  "taskId": "e7836be2-cf0b-4985-942b-9bf803adc431",
+  "idempotencyKey": "c1-e2e-local",
+  "requestHash": "14b90fe7980c1aab963724e475ae3b45bb2bd64eee0a5749dc2ad59ada5f1244",
+  "kind": "tts",
+  "model": "courseware-tts-v1",
+  "state": "ready",
+  "feeState": "settled",
+  "reservedPoints": 5,
+  "actualPoints": 5,
+  "receiptId": "courseware-media:e7836be2-cf0b-4985-942b-9bf803adc431",
+  "errorCode": null,
+  "assetRef": {
+    "assetId": "a0a65606-c9b8-424e-a53d-5ba51907d022",
+    "sha256": "ff1841dbe7125016304d5364a77707adb67e0931c7923555badb71f797b18580",
+    "mime": "audio/mpeg",
+    "byteLength": 8,
+    "downloadPath": "/courseware/media/tasks/e7836be2-cf0b-4985-942b-9bf803adc431/asset"
+  }
+}

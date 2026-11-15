@@ -1,0 +1,14 @@
+{
+  "command": [
+    "cargo",
+    "clippy",
+    "-p",
+    "host-core",
+    "--all-targets",
+    "--locked",
+    "--jobs",
+    "2"
+  ],
+  "exitCode": 0,
+  "status": "PASS"
+}

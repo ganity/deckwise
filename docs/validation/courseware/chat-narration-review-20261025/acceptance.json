@@ -1,0 +1,41 @@
+{
+  "status": "PASS_BOUNDED_MAIN_CHAT_NARRATION_REVIEW",
+  "appImage": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop/release/chat-narration-review-20261025/DeckWise-0.17.7.AppImage",
+  "appImageSha256": "fc3f55b17b44c456022884edcd1c55ec1a8b470576730b4d0214733c730576ae",
+  "appImageBytes": 340905405,
+  "sourceSha256": "848f7cebf9dc843c7f6c82e32c6d85ef6a94116d9fb5310edfa4f7683986e50f",
+  "productSources": 1122,
+  "sourceUnchangedDuringFinalBuildAndValidation": true,
+  "baseRevision": "58a9c4f57203c93da3f590e426b42ebba1072fb6",
+  "validationParent": "17af10c60523bbb8e00936c816ed88514d37b439",
+  "candidateBoundary": "Manifest-pinned local task worktree; final local commit preserves the tested product inputs. Not a PR integration gate.",
+  "targetedTests": 66,
+  "packagedChecks": 15,
+  "mainChatNarrationReview": true,
+  "cleanSidebarRefresh": true,
+  "modelFixtureRequests": 59,
+  "paidCalls": false,
+  "credentialFiles": 18955,
+  "credentialLinks": 1047,
+  "initialFailurePreserved": "e2e/report.json",
+  "finalReport": "e2e-final/report.json",
+  "office": {
+    "status": "PASS_PINNED_OFFICE_FILES",
+    "root": "/home/jhz/code/train/document-worktrees/courseware-par-A-preview/dist-w15-canvas-target-20261023",
+    "filesMatched": 2899,
+    "pinnedInventory": "/home/jhz/code/train/docs/validation/courseware/parallel/A/a-attention-delivery-20261023/office-inputs.json",
+    "pinnedInventoryAggregateSha256": "3694a6fd50420b8dd3010bb8daec45975d9b998f71f7808298e7905c466357d3",
+    "scope": "Separately served WiseOffice output; not embedded in AppImage."
+  },
+  "openAcceptance": [
+    "Real teacher/deployed managed-service calls",
+    "Representative generation and matching audio quality",
+    "Approved atomic managed-text budgets and fallback prices",
+    "Final release/PR integration gates; audio/playback/publication not rerun by this increment"
+  ],
+  "deferred": [
+    "Team collaboration and collaborative publication",
+    "W16",
+    "Chat master automation"
+  ]
+}

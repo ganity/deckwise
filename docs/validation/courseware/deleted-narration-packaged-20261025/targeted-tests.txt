@@ -1,0 +1,20 @@
+✔ deleted narration becomes an editable local draft before existing music without saving teaching (12.1334ms)
+✔ history cannot overwrite teaching or drafts: {"actions":[{"id":"speech","type":"speech","text":"Keep existing"}]} (3.349992ms)
+✔ history cannot overwrite teaching or drafts: {"changed":true} (1.029653ms)
+✔ history cannot overwrite teaching or drafts: {"locked":true} (0.926615ms)
+✔ history cannot overwrite teaching or drafts: {"enabled":false} (0.980269ms)
+✔ history cannot overwrite teaching or drafts: {"instruction":"Pending narration request"} (0.859085ms)
+✔ history is read on demand; explicit version and consent restore only an independent editable draft (13.241647ms)
+✔ selecting another history version revokes consent and stale selection handlers cannot restore it (9.247869ms)
+✔ view/project/source/teaching/page changes discard pending responses and confirmed old callbacks (4.479463ms)
+✔ disabled state fences loads, captured callbacks and in-flight results until a new explicit read (1.385863ms)
+✔ rejected reads show a generic translated error, recover explicitly, and empty/skipped results stay visible (1.338024ms)
+✔ unmount ignores late results and old restore callbacks; duplicate reads are bounded (1.264625ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 735.697637

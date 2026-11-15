@@ -1,0 +1,48 @@
+✖ a late shell subscriber receives the actual retained boot failure (5.786465ms)
+✔ a newer live recovery wins over a held stale status read (7.465716ms)
+✔ unmount fences the held read and a null initial status does not invent a failure (2.400313ms)
+✖ status read failure keeps live subscription and retained restart state does not replay success effects (1.898084ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 2
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 648.570765
+
+✖ failing tests:
+
+test at apps/desktop/test/host-status-subscription.test.mjs:28:1
+✖ a late shell subscriber receives the actual retained boot failure (5.786465ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+  + []
+  - [
+  -   'host-status-read'
+  - ]
+
+      at TestContext.<anonymous> (file:///home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop/test/host-status-subscription.test.mjs:31:10)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.start (node:internal/test_runner/test:1015:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ 'host-status-read' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/desktop/test/host-status-subscription.test.mjs:50:1
+✖ status read failure keeps live subscription and retained restart state does not replay success effects (1.898084ms)
+  Error: bridge closed
+      at TestContext.<anonymous> (file:///home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/apps/desktop/test/host-status-subscription.test.mjs:53:12)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:787:18)
+      at Test.postRun (node:internal/test_runner/test:1247:19)
+      at Test.run (node:internal/test_runner/test:1175:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:787:7)

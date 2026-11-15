@@ -3,6 +3,7 @@ import type {
   Mode,
   ProviderPublic,
   ThinkingLevel,
+  SessionThinkingLevel,
 } from "@pi-desktop/shared";
 import {
   initialThinkingLevelForBinding,
@@ -28,7 +29,7 @@ type UseComposerModelMenuOptions = {
   provider: ProviderPublic | undefined;
   modelId: string | undefined;
   thinkingProvider: ProviderPublic | null | undefined;
-  thinkingLevel: ThinkingLevel;
+  thinkingLevel: SessionThinkingLevel;
   controlsBlocked: boolean;
 };
 
@@ -138,7 +139,7 @@ export function useComposerModelMenu({
   useEffect(() => {
     if (!open || view !== "thinking") return;
     setThinkingHighlight(
-      thinkingLevel ? thinkingMenuLevels.indexOf(thinkingLevel) : -1,
+      thinkingLevel && thinkingLevel !== "omit" ? thinkingMenuLevels.indexOf(thinkingLevel) : -1,
     );
   }, [open, thinkingLevel, thinkingMenuLevels, view]);
 

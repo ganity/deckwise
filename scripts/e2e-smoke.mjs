@@ -290,6 +290,7 @@ async function main() {
     const escapePending = host.call("tools.execute", {
       sessionId: session.session.id,
       toolCallId: escapeToolCallId,
+      permissionScope: "ask",
       toolName: "Read",
       args: { path: "../outside.txt" },
       mode: "agent",

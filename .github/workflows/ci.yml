@@ -19,7 +19,7 @@ concurrency:
 jobs:
   js:
     name: JS build / typecheck / lint / architecture / test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -41,6 +41,13 @@ jobs:
       - name: Build workspace packages
         run: pnpm build:js
 
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Courseware workflow contract gate
+        run: pnpm test:courseware-workflow
+
       - name: Typecheck Desktop
         # Workspace dependency builds already run tsc; Vite does not check the app.
         run: pnpm --filter @pi-desktop/desktop typecheck
@@ -52,6 +59,9 @@ jobs:
         env:
           ARCHITECTURE_BASE: ${{ github.event.pull_request.base.sha || github.event.before || 'HEAD^' }}
         run: node scripts/check-architecture.mjs
+
+      - name: Install browser test runtime
+        run: pnpm --filter @pi-desktop/courseware-runtime exec playwright install --with-deps --only-shell chromium
 
       - name: Unit tests
         run: pnpm -r --if-present test

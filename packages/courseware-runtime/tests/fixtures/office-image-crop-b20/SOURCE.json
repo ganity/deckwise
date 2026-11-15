@@ -1,0 +1,72 @@
+{
+  "classification": "Actual B20 candidate and native Office-saved bytes. Teaching, logical mappings, ready states and unrelated existing WAV are authored test compositions, not immutable A Host exports or matching narration.",
+  "B20Evidence": "/home/jhz/code/train/docs/validation/courseware/parallel/B/b20-20261019",
+  "B20SourceTree": "522b2309b28e6f09c5a85e3b1aff7dd194ff2c2a",
+  "files": {
+    "candidate.pptx": {
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/B/b20-20261019/generation/page-candidate.pptx",
+      "sha256": "03597cd3d888c60c96ac4eabdba016ddb3f09087449b45cc09fe7d392e64040b"
+    },
+    "saved.pptx": {
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/B/b20-20261019/run-01/batch-office-saved.pptx",
+      "sha256": "de931a7bac294a25d3f6fed4c1d7a272d6b3d35e693ac1416d5cf54223072e7e"
+    },
+    "native-edited.pptx": {
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/B/b20-20261019/run-01/batch-native-edited.pptx",
+      "sha256": "171b07eb92835c4f414b5269893185eeede8389b5fd79fab9c3c8f9e59417a61"
+    }
+  },
+  "variants": {
+    "candidate": {
+      "imageElementId": "pptx_image_2",
+      "crop": [
+        [
+          10,
+          20
+        ],
+        [
+          70,
+          90
+        ]
+      ],
+      "fixedBuild": {
+        "outputDirectory": ".builds-desktop-b20-01",
+        "buildId": "1dedfb73dd259dd8f9c52bca413e02087c16f0488146b5127abe14b82c89bd38"
+      }
+    },
+    "saved": {
+      "imageElementId": "pptx_image_2",
+      "crop": [
+        [
+          10,
+          20
+        ],
+        [
+          70,
+          90
+        ]
+      ],
+      "fixedBuild": {
+        "outputDirectory": ".builds-desktop-b20-01",
+        "buildId": "467dc1420f79a1515d2f042ee9c6a60c76a4ca2143c100dc009656cbb859794a"
+      }
+    },
+    "native-edited": {
+      "imageElementId": "pptx_image_2",
+      "crop": [
+        [
+          10,
+          20
+        ],
+        [
+          70,
+          90
+        ]
+      ],
+      "fixedBuild": {
+        "outputDirectory": ".builds-desktop-b20-01",
+        "buildId": "a26a818e743b6f2c9440d64b4f02bc389c90674788d8fd7a44c85100372a89b0"
+      }
+    }
+  }
+}

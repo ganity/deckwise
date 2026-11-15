@@ -77,7 +77,7 @@ export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => 
   const runningSessions = useAppStore((s) => s.runningSessions);
   const refreshSessions = useAppStore((s) => s.refreshSessions);
   const selectSession = useAppStore((s) => s.selectSession);
-  const newSession = useAppStore((s) => s.newSession);
+  const newSession = useAppStore((s) => s.openNewTaskDialog);
   const setSettingsTab = useAppStore((s) => s.setSettingsTab);
   const setSettingsAnchor = useAppStore((s) => s.setSettingsAnchor);
   const setPage = useAppStore((s) => s.setPage);

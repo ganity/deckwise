@@ -1,0 +1,3513 @@
+{
+  "note": "Final owned source/resources only; runtime output and private dependencies excluded. Initial provenance preserves exact origin hashes.",
+  "files": {
+    "README.md": {
+      "sha256": "a700ca2643a099e83320225741d720949fe7379627eccce768f41bf89a4d0790",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "provenance.json": {
+      "sha256": "e64202c7a8f11cf758c38f154904149bb8d819931a24f0a5125cdb974f73893e",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "THIRD_PARTY.md": {
+      "sha256": "52f9c0a44a38f6d9264428a3494e24ba5374bce7eebfbed9145608315909cccf",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "package.json": {
+      "sha256": "b188f9aabe4a805b0c2c9ff0903c540137c9f529855854040b26d624c1a2a7dd",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    ".gitignore": {
+      "sha256": "6ab91b19c717706fdfa2264940f922175c008cde2c5d47f99402585f28fc3541",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "vitest.config.mts": {
+      "sha256": "ca6f9fb51bcf9865f22c8a2a665ca6e2a776339c91b273a57426ed77c22023e7",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "tsconfig.json": {
+      "sha256": "0f5f87ce15dff47835ffefbac8baf0f2e0bf94004283e0975a0c7853796db14c",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "pnpm-lock.yaml": {
+      "sha256": "c7a425835c196fd01146ed860ad4efccfef4987b63be8e6d55b8fc51d4e65360",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "tests/public-consumer.ts": {
+      "sha256": "5dbe568f04ade53823694ab16508ee57fcd6ca727c6101d20188001a07e4de31",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "tests/main.tsx": {
+      "sha256": "6898506ef5cf94381f25ce306cb50b8a10fe21781eec4556466c859737a2719f",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "tests/index.html": {
+      "sha256": "b84db8f3b29a73aa6221cd34132ff990d3fd9c8868ee4c1ca430afda2e009b61",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "scripts/verify-playback-browser.mjs": {
+      "sha256": "deffc4f2cd51a00e5e079fd2274566b4e865beeba97b9fd10c29154d9ac55fd3",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "scripts/playback-vite.config.mts": {
+      "sha256": "4fc9e7925c742b796ed60ae48ebcbecf47c306370ef34589dc55c8bfb9f1c94e",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "scripts/stage-worker.mjs": {
+      "sha256": "d8c3c435340815cfdd983c2d3d6671ca376fcde02b94e782b3fdbb0745dccc92",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "scripts/build.mjs": {
+      "sha256": "1db246b79931470f1a1a4695aff66d1e0d6e3730971290d01a583bcc1f7094b8",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "scripts/build-canonical.mjs": {
+      "sha256": "70815849d54300f7e2bcb6862524192c806093aacb108e1eaa78b7ced4ae32e3",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "src/player.css": {
+      "sha256": "8c282a289c1f42c7f16dfad841357e23a8341f48acd23c30c1be9bc1b7bf8395",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "src/node.ts": {
+      "sha256": "cd1f9ab0e49119c4b1d743587d46143bf516fd8d08abb1acae979b53c7f52990",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "src/player.ts": {
+      "sha256": "bea1ec9dbe4698e0ab53e4a8e301f41479fde72ed3e823d6a7a6084d24013ddb",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/README.md": {
+      "sha256": "db6e70693cf9c46cbcb9043b2a2ddee36025d4cadfda2f7c7440863e81fe1f8a",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/comic-neue-latin-400-normal.woff2": {
+      "sha256": "b7753f30f8bd4925cf48a2ffe936c52ff1f16fe441f8c0245acf046296ac590f",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/OFL-LXGW-WenKai.txt": {
+      "sha256": "932999b6451e2c5b61f93c9d9a34d22742f81e41a192d2ad65acc300ba942298",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/comic-neue-latin-700-normal.woff2": {
+      "sha256": "13e9f12e3a0239dcf740e1c7ff37be1cce9b87ead0ad9bce838da1202ac9f91c",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/lxgw-wenkai-500-normal.woff2": {
+      "sha256": "013fa90e3e7c3b30aeb0a5311ef92d9aee0d3def5817bc27c357198796d34306",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/OFL-Comic-Neue.txt": {
+      "sha256": "b726facc10345ba22b2e4531984186f2334f55540aacef3e7e1c785e19f581fd",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/OPEN_FONT_LICENSES.txt": {
+      "sha256": "8628bbbab2b36dda19aee4110b861a9b542fe59bb75b196ef9b2c3f0d4a363c7",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/dynapuff/index.css": {
+      "sha256": "24948d57ca0b83de979b1464813fad08115844a2a17be772cd0ed52cf757aef0",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/dynapuff/dynapuff-bold.ttf": {
+      "sha256": "b89e4f27a89bdd870b1c90118be6c2bbf4eca5eb5a2d28ced95d97434dda422e",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/comic-neue/comic-neue-latin-400-normal.woff2": {
+      "sha256": "b7753f30f8bd4925cf48a2ffe936c52ff1f16fe441f8c0245acf046296ac590f",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/comic-neue/index.css": {
+      "sha256": "10086eab0f8433adb493a49921d90cf68a82af570ade3130d3c8a9ffc6a09659",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/comic-neue/comic-neue-latin-700-normal.woff2": {
+      "sha256": "13e9f12e3a0239dcf740e1c7ff37be1cce9b87ead0ad9bce838da1202ac9f91c",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/lxgw-wenkai/LXGWWenKai-Regular.ttf": {
+      "sha256": "39ad71264b588165b469e35e6afb162a378dacd1f95348160240ba9038ac3009",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/lxgw-wenkai/index.css": {
+      "sha256": "931632af2ca1e607833ee3ae91d70fc992a38f2ade31dec8828abf8bd1e1567b",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/lxgw-wenkai/lxgw-wenkai-500-normal.woff2": {
+      "sha256": "013fa90e3e7c3b30aeb0a5311ef92d9aee0d3def5817bc27c357198796d34306",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/carlito/index.css": {
+      "sha256": "6e654eef85f4251fd42a1dbba63d57e32cace2a50edba6b23310e35b58e7ff65",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/index.css": {
+      "sha256": "6f81b9bba26d3956c0640f17c9db5f59675c185d9a5734a88c0e658806dbd5f5",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/index.css": {
+      "sha256": "c6242e809ab6cfb534f676099ea4f49063bd2559f6d3abdeb884efcd5ca75802",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/caladea/index.css": {
+      "sha256": "266fe153062c38505670b2704dacbb6247ccf60f88ecda645b5e40b1d2ea1abe",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/carlito/files/carlito-cyrillic-400-normal.woff2": {
+      "sha256": "cafc72cdaa5c4eb086a88bd8ca5f1c7ab71e28147817c384c3cec3f4465f18b9",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/carlito/files/carlito-greek-700-italic.woff2": {
+      "sha256": "af68eeff437b5ed9f0c7fba65df1f5c000c31ae97f84b2c97e1d328f6a051029",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/carlito/files/carlito-greek-ext-400-italic.woff2": {
+      "sha256": "5d249a2f9bdedd9fcc3e15a24c399bd8fa68d9401b2cc96f84f51ac9ae625af3",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/carlito/files/carlito-cyrillic-ext-700-normal.woff2": {
+      "sha256": "350e5de19d2a4e998a2f1e1875ea8bac4da2ecb3595115b96439d0a5ef56ff68",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/carlito/files/carlito-cyrillic-ext-400-normal.woff2": {
+      "sha256": "fcf4e79fab227061270f5e8a56f31528e936e46ae699a2aba8b078f0a967da04",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/carlito/files/carlito-latin-700-normal.woff2": {
+      "sha256": "af249cfe4107221070ff077c29a043004e8f2efea977dcbaaf217a24f3b7680e",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/carlito/files/carlito-greek-400-normal.woff2": {
+      "sha256": "9b91d375f8870a961a45f2b23da20b5242c584c839c143d16bff0aff47e09423",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/carlito/files/carlito-latin-400-normal.woff2": {
+      "sha256": "a29c4a4e61863753cf6a10831efaa05f849dcaa8f580422dbc41bc058c3b6b64",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/carlito/files/carlito-greek-700-normal.woff2": {
+      "sha256": "1fd4092f4f605d0f59bba93d65dba41629c0e410313d43ce460453a8ad35cd35",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/carlito/files/carlito-cyrillic-700-italic.woff2": {
+      "sha256": "c598f6c40db2091b66f82c6b5cd7d09d6f36ba1aa9bcca3cb25f4d829b1cbcba",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/carlito/files/carlito-greek-ext-400-normal.woff2": {
+      "sha256": "64436c9285fea73ff565dad6a70a67d8115a23cdee7871e59441c98ae4ec4cc1",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/carlito/files/carlito-greek-ext-700-normal.woff2": {
+      "sha256": "3294b4f6cbd92b29d246d3e34d09e787f957366a1ba3fea8b9dfaf983567dcdb",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/carlito/files/carlito-latin-700-italic.woff2": {
+      "sha256": "e1bbd00245b0b22d0c540413ac73a91f7afff587899260a683acec3564f06ac3",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/carlito/files/carlito-latin-ext-700-italic.woff2": {
+      "sha256": "768c03cb653619038eacf3522a6186c616c3183b597a7c24064e071c9712f488",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/carlito/files/carlito-latin-400-italic.woff2": {
+      "sha256": "6bbdd83c5797d207bd2027f2687a70e428513c56130feaad1ffc0a1a7ace7c07",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/carlito/files/carlito-cyrillic-400-italic.woff2": {
+      "sha256": "b1542998e5478497d26b48954dd6856abc9cdb5ff2312c8a8605e9ae5100124a",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/carlito/files/carlito-vietnamese-700-normal.woff2": {
+      "sha256": "e25d2d98eb5361bf9df83a5f53a73708042cf7d530d97d6b96ea7a2d831d65d5",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/carlito/files/carlito-latin-ext-400-normal.woff2": {
+      "sha256": "c62f0fc5db6a6c05165f542e6703d743d94a49312271de0876697f892bd5c14d",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/carlito/files/carlito-latin-ext-400-italic.woff2": {
+      "sha256": "8ebd4b55d954992bd302c1339e3be920459bb6de9e9c647b1f9a4717433f37b7",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/carlito/files/carlito-latin-ext-700-normal.woff2": {
+      "sha256": "ac72169e5c95728df58cd1cf18625228dd2fb7b49a0eb558d213a52529bdc4ce",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/carlito/files/carlito-cyrillic-700-normal.woff2": {
+      "sha256": "7a80bce01b6fb4ac4d8739488801a2c35d9a8c6c7c4c8f616cd799e2d711e163",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/carlito/files/carlito-vietnamese-400-normal.woff2": {
+      "sha256": "3cfac637f4b55fdec1bb978f16ce4ee8ce2fd686425d9f108dbb67fae0593d32",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/carlito/files/carlito-greek-ext-700-italic.woff2": {
+      "sha256": "04c446708f2bc45c312397afbe29e5c180cecda85fc3e5060fdd820a2e5c50f9",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/carlito/files/carlito-vietnamese-400-italic.woff2": {
+      "sha256": "b26d0b04b2ebc805e5f9bb80a4e6799579f49b8f4afaba4f3c8f7d3d4fb5d9a0",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/carlito/files/carlito-cyrillic-ext-700-italic.woff2": {
+      "sha256": "77eb6d495b3a9103755fa951546f758be3da6a62d950ad99a5ce91a7b1f71ef9",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/carlito/files/carlito-vietnamese-700-italic.woff2": {
+      "sha256": "d4240b5101adeb3b6be0a4a13c664077fdeb970a36005f863fb7a810d64e4c73",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/carlito/files/carlito-greek-400-italic.woff2": {
+      "sha256": "c0f736457516a4d280a4e2553f50223e070673757937ecc822c40d452c85156b",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/carlito/files/carlito-cyrillic-ext-400-italic.woff2": {
+      "sha256": "381456852a656be90a28c3e6b6fb4fd5030e6d5f1d178dfc0de01fcccf08452a",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-cyrillic-ext-400-italic.woff2": {
+      "sha256": "e173804be8e5f8a0f348e825ef1f587f011ee2f2ef0449a586a9ed7e64c23eec",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-cyrillic-400-normal.woff2": {
+      "sha256": "e6b3e2a71d7559649ea6634b70e0c60261a8326b672796420066569150f172c7",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-cyrillic-400-italic.woff2": {
+      "sha256": "1cb0bffde144abc942312fa1f17994989acddaba6bca435393b8e9815466b134",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-latin-700-normal.woff2": {
+      "sha256": "4132bff0c1156d037289c3372cab59f16e4b0967b71d6cd219ce67619d02de73",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-cyrillic-700-normal.woff2": {
+      "sha256": "db11013386cce35b289b2517de52b7a4bef92306058a795397404b8b2b040bb2",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-cyrillic-700-italic.woff2": {
+      "sha256": "736dc6459d5ae0c60c8807f38327ead5cd0b61ced48d81f462b3e75d2d123a7a",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-greek-ext-700-italic.woff2": {
+      "sha256": "eaa3c132225e8bfc5f1eaf26b83c18c0c4127e6de88856bd44ea6319a8fa0918",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-latin-400-normal.woff2": {
+      "sha256": "18505b57c8a016326da164a1e9a14e8d1c5081ae78e9fe7b57bb66a330ea4ef9",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-greek-ext-400-normal.woff2": {
+      "sha256": "c8fb21c904cfa9f8c680da0b9ef29af7e9514c7e4ea868a4e97a3f93454534a0",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-latin-ext-700-italic.woff2": {
+      "sha256": "53f875bb50e90e925214c081af4cf264ebbe88e9a744ff26d86c56b98df25bcb",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-vietnamese-700-italic.woff2": {
+      "sha256": "be8aea6f8ae805ea6e9a4b83c31e5d2f2f0a3262de7f592aa7a382e1d7fc837b",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-vietnamese-400-italic.woff2": {
+      "sha256": "9d94720132cc88505fac97c1acc335fe36cf1c7f2eebab10f3151eb2025a0b93",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-greek-700-normal.woff2": {
+      "sha256": "b5d67a19f36193728ac4d5d61865a026a2b78ef58b6799b30c56a33005a12006",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-greek-700-italic.woff2": {
+      "sha256": "ccda246a60ee0d5dab48a5fda365388cced8ac127d8e40db08dc79418b1f4ad4",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-greek-400-italic.woff2": {
+      "sha256": "7990fca0cfdec041abd96e20bff6b7092e5b08f5d30080b870e3e03f33cd6241",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-greek-ext-400-italic.woff2": {
+      "sha256": "2d38b53ebcc3acf4b9477f273c286274b72a4f615479f278abcf3428ce22ff21",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-hebrew-700-normal.woff2": {
+      "sha256": "256df943e517822c5fdb89d843d4fd1f6662d7c02a37c0744ddd276266ca223b",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-cyrillic-ext-400-normal.woff2": {
+      "sha256": "5007c0e3bfb261930761549c8ced704b216c6d48c65cd83aa60ba145cf0a629c",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-latin-700-italic.woff2": {
+      "sha256": "6b199a846d3766e7d35961162b6dc399cda36ff60d3f26ef022be685b609425e",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-latin-400-italic.woff2": {
+      "sha256": "55fe58e551b07fc6586e4e632d10ebf50339fe1f0f4ec97cb55a2abc7d18ff79",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-cyrillic-ext-700-italic.woff2": {
+      "sha256": "0a9d22f6e00dd2a66a0ae662c5e6a2ef725f0aa743bcf0b9add7cea4adca4842",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-greek-400-normal.woff2": {
+      "sha256": "29ab2eb1c91ca16ad9e767437eb205ff7b15c423b45e13e192b023b782c4a1b5",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-latin-ext-400-italic.woff2": {
+      "sha256": "b33d03f35f2f5121a6541c9ff9fd2e49c1cbb8599075ff7c91e06b772bf442c3",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-hebrew-700-italic.woff2": {
+      "sha256": "43647b27f5e5fe0b4ab47d953b83cc09b71e858c9c1092b58d878a6ef4346f0c",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-cyrillic-ext-700-normal.woff2": {
+      "sha256": "89ca8739fa63c4a91bdd5f096dfcdbf5392e5d0d59a0e3e8e0b54618705be784",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-latin-ext-700-normal.woff2": {
+      "sha256": "93772df0366bf272183c3b429ae37e0f5cb274f6de0a4c9661ba8d0d02d4d5c7",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-vietnamese-700-normal.woff2": {
+      "sha256": "a9204f5c97e8a95676b729bc0dc2b925acc71e3152c2b9df33dab27dbaff112c",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-hebrew-400-italic.woff2": {
+      "sha256": "b3f1dcf2b7e777229bf01e0b401d9f177cf22c70a19d8a69fbaa7156eb3ac9bc",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-hebrew-400-normal.woff2": {
+      "sha256": "14d9c69fd4d651d873915ce4235f8e343caffbab1285ce8c3773d12a324a1626",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-greek-ext-700-normal.woff2": {
+      "sha256": "5cc611cd19a930d95fb0e8b79c733c05270da1a78dd56a070d0db1970506a37e",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-vietnamese-400-normal.woff2": {
+      "sha256": "1a9f67bba0444f527d6d457e8384f0cfe993c2537c20cecd628c32cc2d77ab9e",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/tinos/files/tinos-latin-ext-400-normal.woff2": {
+      "sha256": "f125354040abb6f549e96a3431927eb39883ede50f2aafb725016ec716a01056",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-latin-700-italic.woff2": {
+      "sha256": "7ac046711b0716288354f50cf697d61743a101507e791547cf05d24db7fbaf22",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-hebrew-700-normal.woff2": {
+      "sha256": "9db23f52a231af5f7aa74ba079c66b1dc031c4bf02f17c5e0e42709d7539860d",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-latin-ext-700-normal.woff2": {
+      "sha256": "38adaadaf3c82ea0aaecd28626492fb0f99a75e619ed50c82646ca39993cc092",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-latin-ext-400-italic.woff2": {
+      "sha256": "00a451cd145f0214697ec65e89b536cb031938a154c6b8231a07c348b19b66e6",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-greek-ext-700-normal.woff2": {
+      "sha256": "1b270fe9b5b282b3a7fc3bc3345b57d28036d7566a3bad63c559137047beb264",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-greek-400-normal.woff2": {
+      "sha256": "f9b7f0a2caccdf05f7342dd61833e6de7c96c171ddf5482d40273e50c5409b17",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-hebrew-700-italic.woff2": {
+      "sha256": "1e03af4b0e64eed8655e192e1f93637e96e95e516f8257352449ce86f96daae2",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-cyrillic-400-italic.woff2": {
+      "sha256": "95de8c4ec46b5b2b40302029dd176072f10be804a00de97e3ba009e87a503c37",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-hebrew-400-italic.woff2": {
+      "sha256": "36f155b061b579a751471291566259b32e2d1bb18f52f81293c33e74b748318c",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-hebrew-400-normal.woff2": {
+      "sha256": "82e4c7cf66d966e4181917d190b43c172264d24ced3f4260069c4b501376a0e2",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-cyrillic-ext-400-italic.woff2": {
+      "sha256": "e251c33d0396c0a2c03382f98d569441baf416ca7a081d6c6946adaeec4d8b81",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-vietnamese-400-normal.woff2": {
+      "sha256": "00185435e658819da01732afc5ef7282fe60b45bad9128d1c7624bd90b9b17b3",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-vietnamese-700-italic.woff2": {
+      "sha256": "f99a61881971559444737ed9e64fd5de83c437d36a5f3e6fd38a18288f8a6b0f",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-latin-700-normal.woff2": {
+      "sha256": "63c3bc173bf483b579052da1a6532d84d65d0fbfdd081f1ce50d4fe895343625",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-greek-700-normal.woff2": {
+      "sha256": "b43d7daa679ed84ba9ab76200eb31039aeb23cf91708085d9e11a841d20f7889",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-cyrillic-ext-400-normal.woff2": {
+      "sha256": "a747d5be503b5e66ea9b5ea496d4a88397ca53ce22eeac1a8bf475679d210c10",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-vietnamese-400-italic.woff2": {
+      "sha256": "e5ad2b76634f0bae59f07e31818534b2dcd352ff8eafe969fcfd221109f35bde",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-greek-ext-400-italic.woff2": {
+      "sha256": "ddb23ebe057522904e804f3e5838ca126dacf3bb2d7692657f9f8b76ee976ad2",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-greek-ext-400-normal.woff2": {
+      "sha256": "b4856355262f55efc3fac2f526b17849adc7e8149311277e14fd7061d4697e3f",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-cyrillic-ext-700-normal.woff2": {
+      "sha256": "ba127bf2fa0c306e0df98b94e471d18ff1fcad7b6ffb09edd73b7842d44dc3d4",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-latin-ext-400-normal.woff2": {
+      "sha256": "486dc7aa9c2ea713284d3e6a4c046e5ca47940ec24bfe213b7f7a8b0d3d98ec6",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-latin-400-italic.woff2": {
+      "sha256": "1f797cdf757dc474a18e8b7378fb49eaab06f11c239ec40db6064cd5cb49febc",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-greek-700-italic.woff2": {
+      "sha256": "1e0347b6690543d5878310691990380cbd83613d1011a3906376d23eacff0176",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-cyrillic-700-normal.woff2": {
+      "sha256": "4fed6a9108d28887bf2ff125e4ee18aeceae99f7c6038e99ca2c76b8cb5afad1",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-cyrillic-ext-700-italic.woff2": {
+      "sha256": "e89605e1e2782cd4c81ecb573717e1e9f811813bd339d8fc7590e96294f4e817",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-vietnamese-700-normal.woff2": {
+      "sha256": "023847bd37b1ef5da11365632a3452bc95135b2aa3333a8d42074c5faa9dafae",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-latin-400-normal.woff2": {
+      "sha256": "fb542bb367b20289e71b682dc45d8f01de5b0a0658464db9053801f30e7c13a8",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-cyrillic-700-italic.woff2": {
+      "sha256": "e47a16f65d019fe91b7d1b2e1f964fe4173526ac2612dbf20cac51c94e8ca97e",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-greek-400-italic.woff2": {
+      "sha256": "0726f1ae7a61bdf0ae1da5ed84ce27e57e58f4d32fa9cbcdeb62c9c02615e19b",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-latin-ext-700-italic.woff2": {
+      "sha256": "2560a663d5783006594df49d96a55953dbec7816755be1f72865f001b8c94898",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-cyrillic-400-normal.woff2": {
+      "sha256": "7fab714f77d035b9ce1e78083cda36ca6498569aa7f059bd887edb1c16ae9079",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/cousine/files/cousine-greek-ext-700-italic.woff2": {
+      "sha256": "ab9917826953ac861c41368e28c05d62007359b59b2c1d52bdb9266255390040",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/caladea/files/caladea-latin-ext-400-italic.woff2": {
+      "sha256": "473da6227c03f28d0c8403f86bc4dcdeae6d54f6e5fc6ebb3c83e2e458e6128c",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/caladea/files/caladea-latin-400-italic.woff2": {
+      "sha256": "6d439cdc4db2e6cc3252e4dfec76438a4180ec872ff9394ce4dc8792d26d58d1",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/caladea/files/caladea-latin-400-normal.woff2": {
+      "sha256": "367a4c4dd45c762f6f680ccedbbf18be9d10e13b068aad2813ece1dba881369b",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/caladea/files/caladea-latin-ext-400-normal.woff2": {
+      "sha256": "cbc25eef5aa32ced1a47c7f2b537c52b99dacbd1f78a6fe5a124a898fee9b38d",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/caladea/files/caladea-latin-700-normal.woff2": {
+      "sha256": "6a6549b8ec8be5ad7db66f28dee13ea008710379e7bd992870eb2d7ac14c9c3a",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/caladea/files/caladea-latin-700-italic.woff2": {
+      "sha256": "097d08d9ec3e2304f083e066a72acae181f400832249a07b334f30a53c20ebc7",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/caladea/files/caladea-latin-ext-700-normal.woff2": {
+      "sha256": "30eaca73350d1096e2c9004614e9b5c05374815d1df55db931d2ed7e4d276a28",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource/caladea/files/caladea-latin-ext-700-italic.woff2": {
+      "sha256": "e650e20c2a58c6f0210aa41de0fb5d675c71af49f5c2d7a7c4cb04014786e032",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/index.css": {
+      "sha256": "3513996a16a3029f9b3daec3276f2c244e428f09a883f21a7c4ff6750daa7fbd",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/index.css": {
+      "sha256": "a1def7a1866d6e06fcf4124a065a22cb9d43d81d5e887c7c33a7e189095a7ab9",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/arimo/index.css": {
+      "sha256": "065dcf93278c0a9df3764ca38af0829413cbfcd81cdeaa1a148e30c5c22d9b59",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/index.css": {
+      "sha256": "205332cc81f92f5a73b2d732ef641204e3138fccbae08b40ce44814534796449",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-latin-ext-wght-normal.woff2": {
+      "sha256": "34b9c504cab7a73e37b746343a449132e56cf7b5481af2cb81dc74dcff25c956",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-greek-standard-normal.woff2": {
+      "sha256": "93c5ac80e25cda1cf289206c724027eeb187c9d398106f0079a912cbe80616ce",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-greek-ext-wght-italic.woff2": {
+      "sha256": "787fc783f35c913334445a7c4502bb272f94a8328426578776eac5e4ebd03ba1",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-vietnamese-standard-italic.woff2": {
+      "sha256": "d102ea2c86a59e30a0c647a30791e251bf6701492a50549d1cdcf8a643fbbc98",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-latin-standard-normal.woff2": {
+      "sha256": "2c295d99e26dcf357d4d01bcf270fd6924b600c9a13dd8c363ef114f4c6976fa",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-cyrillic-ext-opsz-italic.woff2": {
+      "sha256": "4ee1c3b9f5a9e1e6d0de25553e221995286c4f414d966ff88b044edbd2e2b44d",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-latin-ext-standard-italic.woff2": {
+      "sha256": "cd92c8740f77f482bcd39e831fa7b1445589e9203cc9edb39fd49435d8976257",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-vietnamese-opsz-italic.woff2": {
+      "sha256": "d102ea2c86a59e30a0c647a30791e251bf6701492a50549d1cdcf8a643fbbc98",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-vietnamese-opsz-normal.woff2": {
+      "sha256": "935ab355938e6cd9b5fa39f2c3250ee16f3b08807c65dc4162356b50dbc8c7a2",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-greek-ext-standard-normal.woff2": {
+      "sha256": "e0f32d9ee75a83f4031e1a7bc8926f962278e282d3535be7d8dbeb3bd62914b5",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-greek-opsz-normal.woff2": {
+      "sha256": "93c5ac80e25cda1cf289206c724027eeb187c9d398106f0079a912cbe80616ce",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-latin-ext-opsz-italic.woff2": {
+      "sha256": "cd92c8740f77f482bcd39e831fa7b1445589e9203cc9edb39fd49435d8976257",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-cyrillic-ext-standard-normal.woff2": {
+      "sha256": "e3a8d2d7497a325b85c2e0c9d931ba1741415d23d1f828ebc5ce8c116dab44e8",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-cyrillic-opsz-normal.woff2": {
+      "sha256": "e1dea13a93c69f52837e370541ffe132508352666e9288ab910f2c422f4b9b50",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-cyrillic-standard-normal.woff2": {
+      "sha256": "e1dea13a93c69f52837e370541ffe132508352666e9288ab910f2c422f4b9b50",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-latin-ext-wght-italic.woff2": {
+      "sha256": "71254244ccb1ec21e14db3480fef6f6826d1136dc4aca1c7d3ca7ce31294fcce",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-cyrillic-ext-wght-normal.woff2": {
+      "sha256": "ca157063339ac4ad418f214f3abfed119b0798ab4d377386ce5c9e5a7a435ebd",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-latin-wght-italic.woff2": {
+      "sha256": "7291b5970da2237441273c03b424a504b70b18f09791473fab99687dcc314720",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-latin-ext-opsz-normal.woff2": {
+      "sha256": "5e6d4fe9d9f4bff8b2a2469d25ab19576bb85331e22c6ed51398e16f95d56a9c",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-cyrillic-ext-opsz-normal.woff2": {
+      "sha256": "e3a8d2d7497a325b85c2e0c9d931ba1741415d23d1f828ebc5ce8c116dab44e8",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-greek-wght-italic.woff2": {
+      "sha256": "29e273a42cac8240f37fbdd94c684f8a255e61c8076942d9b8f18a0e2c014991",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-vietnamese-wght-normal.woff2": {
+      "sha256": "5c66f9e07e90c6d4ac4922cc68d60de26c17b1858e677fb5e603fce3952b3ff2",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-greek-ext-standard-italic.woff2": {
+      "sha256": "f21ed36275ab20b74f0301ca70abf63cc3ab7addd294665486f946a09465e243",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-cyrillic-opsz-italic.woff2": {
+      "sha256": "cd3d9beabd6f8b1fe8726281516753faf2b6abbc1b0c22e68d148f81a597d9eb",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-latin-ext-standard-normal.woff2": {
+      "sha256": "5e6d4fe9d9f4bff8b2a2469d25ab19576bb85331e22c6ed51398e16f95d56a9c",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-greek-ext-opsz-normal.woff2": {
+      "sha256": "e0f32d9ee75a83f4031e1a7bc8926f962278e282d3535be7d8dbeb3bd62914b5",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-vietnamese-standard-normal.woff2": {
+      "sha256": "935ab355938e6cd9b5fa39f2c3250ee16f3b08807c65dc4162356b50dbc8c7a2",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-greek-ext-wght-normal.woff2": {
+      "sha256": "6e9e020a25f9b56d418f2c085b1d3c09725a4da23fe693a5b463064606732190",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-latin-opsz-normal.woff2": {
+      "sha256": "2c295d99e26dcf357d4d01bcf270fd6924b600c9a13dd8c363ef114f4c6976fa",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-greek-wght-normal.woff2": {
+      "sha256": "1be3448e292fbf05ffe176fe1e43f135013d50b1e7d324ad1a558f623d3bb6f6",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-greek-opsz-italic.woff2": {
+      "sha256": "94fd1ce2533a7db49fac13877633836edee820d2af40a0f1929d30c06e9dcacb",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-latin-opsz-italic.woff2": {
+      "sha256": "c58f9d530baa7e96355f444502eca739d5eefa0f328f3d635b73648373214629",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-vietnamese-wght-italic.woff2": {
+      "sha256": "1991ed5832eb07f7523f22a843ca9a8aa83c51c8e87062ce77794855d2f5dee8",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-greek-ext-opsz-italic.woff2": {
+      "sha256": "f21ed36275ab20b74f0301ca70abf63cc3ab7addd294665486f946a09465e243",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2": {
+      "sha256": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-greek-standard-italic.woff2": {
+      "sha256": "94fd1ce2533a7db49fac13877633836edee820d2af40a0f1929d30c06e9dcacb",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-cyrillic-ext-standard-italic.woff2": {
+      "sha256": "4ee1c3b9f5a9e1e6d0de25553e221995286c4f414d966ff88b044edbd2e2b44d",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-latin-standard-italic.woff2": {
+      "sha256": "c58f9d530baa7e96355f444502eca739d5eefa0f328f3d635b73648373214629",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-cyrillic-ext-wght-italic.woff2": {
+      "sha256": "39689184132e9fba8fb1066f429125d14445352a566f47f4edcae7c3c90e486d",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-cyrillic-wght-normal.woff2": {
+      "sha256": "71d5ee93cc1e9f1d520a3a8b66456de18c7879d8df09d57fcd2eaff75fef0075",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-cyrillic-wght-italic.woff2": {
+      "sha256": "47d42151dff6d13f1c2b9a1f278290f625593c1f01c89612ee4ae7f063167f7a",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/inter/files/inter-cyrillic-standard-italic.woff2": {
+      "sha256": "cd3d9beabd6f8b1fe8726281516753faf2b6abbc1b0c22e68d148f81a597d9eb",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-41-wght-normal.woff2": {
+      "sha256": "0f39f0bbe9a7a450b994c3c3bd9aa0627ae2dea8d36b67fc5a3554830f28005e",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-107-wght-normal.woff2": {
+      "sha256": "2a55b026bb206504dc94a3fa0d58a1f2af2b9b4c3daf6dd988519458e7404876",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-39-wght-normal.woff2": {
+      "sha256": "ef454fca50875c2536bfbcf4e0b540f456c012a61d08ff778ea4e3e640bd938b",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-40-wght-normal.woff2": {
+      "sha256": "5392252c91bd0707d647df33a9a279501a029388c7882a0ad420a40b760e5a62",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-72-wght-normal.woff2": {
+      "sha256": "713d2bb29db38602e97e272bdafa666c5b426b7b779dbf3beb32313fd95b8551",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-21-wght-normal.woff2": {
+      "sha256": "c56fed07baa5368c483c00d7963847caf0f9aff18bc78561fe8b14db7171b572",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-51-wght-normal.woff2": {
+      "sha256": "6e0e93e30ac6e513ffdb1e5ddc50337e81c5f33d54bc3bb0e044113f228f5727",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-77-wght-normal.woff2": {
+      "sha256": "cfabb52e72825965ec66b18bc1bab646d150206f2a3aa6d4fa6f29040058515e",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-87-wght-normal.woff2": {
+      "sha256": "50751cd23b3787eff2af23d3b9676b13cb5263e750a72fd258328f5812520b08",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-113-wght-normal.woff2": {
+      "sha256": "1594e53f4ab5fe067f7ba108b65a71ed07b2fb9da68af01349b4966c871e4d36",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-38-wght-normal.woff2": {
+      "sha256": "60bae2b9a8bf65e1b4c1a06d529079cea1824bbab0a37840469f24b698880aab",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-86-wght-normal.woff2": {
+      "sha256": "09248b343e7220ab8786b907c2d75aaf6d1a54830822070a0ab012ec03a02bb1",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-74-wght-normal.woff2": {
+      "sha256": "365512ffc9e2717c81cf5d9af42646426d657d5494b4fd04501a5beb0af6f2e7",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-cyrillic-wght-normal.woff2": {
+      "sha256": "d6e6ed7b0a14b508f94072aea3bb29abe236fd012ba6174b49292a6c900718e6",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-43-wght-normal.woff2": {
+      "sha256": "7e94834579a87ac5bbeae3c8d0cfc33206d7e0fc85e7c59568f75358fb000c44",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-105-wght-normal.woff2": {
+      "sha256": "f43c00b1e7e213add01d19eecf6ef2e8a96f7087b46b908df407490b72fe09d9",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-79-wght-normal.woff2": {
+      "sha256": "a5fdbb67e3dadebda5b447c1707fe47a2d9e40f095fb22dedc63aadf969d6609",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-45-wght-normal.woff2": {
+      "sha256": "6b583a41d620c6b504ce9d451fdbb8e08d073b2573e46d444820959647d7f3e0",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-27-wght-normal.woff2": {
+      "sha256": "dc5909d502de13c096a9d4b6f674433f2da1ef62f71cce1e3f43be499f1a4a52",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-48-wght-normal.woff2": {
+      "sha256": "cad6d79ef7a000ed533559c080e92351797bb90d800243fa3a25c7064a3ce93e",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-59-wght-normal.woff2": {
+      "sha256": "f69a03144d47d4987530030eceff2c2c4e37388ce5e45976a7a15f4dcd849d30",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-85-wght-normal.woff2": {
+      "sha256": "d8f48bbf844eadbaa2e3db648ed6889ccb8083572437eb6f0f717f9097b9e45b",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-103-wght-normal.woff2": {
+      "sha256": "ae54f03733db84abcacd43c967c9d6afd647f0a1579ef3b595a807bd24f76a2f",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-106-wght-normal.woff2": {
+      "sha256": "1a6cc82f2ce03f8bbc6c78ad27bb79d1319dbabb6a016499d9042073acabcc0e",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-90-wght-normal.woff2": {
+      "sha256": "5968dd127304a59f1e2ea36b875f3702dadb0a229bc87a9053727c26807a15dc",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-84-wght-normal.woff2": {
+      "sha256": "60e71123f0b838bf4fd52cb5de5e3d6af8e48c8f7f32481a39da625d1e63fd2e",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-28-wght-normal.woff2": {
+      "sha256": "93daeb451edfe65dad18a468cc90933d6a5fc79e9411ce28027bacbfd7bfa0b8",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-80-wght-normal.woff2": {
+      "sha256": "0a97bd54c22add0ce1fd54256f20bcafa92b8db870b3f80cefd3672da29eb3ae",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-latin-wght-normal.woff2": {
+      "sha256": "2ac76686e472db28292edcc26bcc201a3b40b08b2615db7e75e03d07ab853017",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-35-wght-normal.woff2": {
+      "sha256": "0eb731d70aa1f4966dfffab308b3fb11975886fd5375f45ce6b16f1eaebafb83",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-82-wght-normal.woff2": {
+      "sha256": "45f3ed82e9bd8231532b58a0de47d0b26fbe8e4ceba610615903e346e5213263",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-78-wght-normal.woff2": {
+      "sha256": "2101d62af080d6803513f4fe5d91aba6831b61bc95ed172dace75caa2a5b8c2d",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-6-wght-normal.woff2": {
+      "sha256": "aba77127699e71bc7d13fd80c4eaaebcb5065862590f6dfbb05ba14bb0c0d2d8",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-61-wght-normal.woff2": {
+      "sha256": "90a9d9858975f1c073521af5df9a7286356ff78397d274cfe7b64cb97f719920",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-67-wght-normal.woff2": {
+      "sha256": "a4557ab88bbc6bb5272d315402d2448f92a7e53bdf3e89f1d839e95e5b67999a",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-83-wght-normal.woff2": {
+      "sha256": "bf628db08549cbf5090c3486717d5121d48af1d82c79b6ab181ed9b49ba5e31b",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-vietnamese-wght-normal.woff2": {
+      "sha256": "9826143bb6278155de4f76910fd6ec34fe450385dd0d85df10e4497bb174eac7",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-97-wght-normal.woff2": {
+      "sha256": "91923c87f9f32c46056285e69b1009fbb71c0bd27a1a1f9d386bc9248217606f",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-31-wght-normal.woff2": {
+      "sha256": "b9df2ce5d328a524975728c051385e14c1c823798e084c1227101ed4acc6174a",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-109-wght-normal.woff2": {
+      "sha256": "16b43b96dc859eaf9b6f2ee884c9976318d6b55720ae72b118f9ec77582361d6",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-114-wght-normal.woff2": {
+      "sha256": "f402c381cb2eb5c6d1e65a8bae7629b5cb97faaa42759af6874f6d33fcc98273",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-99-wght-normal.woff2": {
+      "sha256": "7bf7c8fd9809004cba36338a94c338cffbce66069c2b091a7472e0b4dfa6b041",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-24-wght-normal.woff2": {
+      "sha256": "03de62bc4c94fcf00ad2a87ed76731c95b0852b0b41c9028844e1a05c06082c0",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-68-wght-normal.woff2": {
+      "sha256": "bca8897bbf2ee33d854e2d2cb19a31c66d549c2eb585af439e905378486df29e",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-56-wght-normal.woff2": {
+      "sha256": "373d1b4d724f4ee5fa02eb5ee5474033a914a990d966f2abbb36c96682e5e993",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-47-wght-normal.woff2": {
+      "sha256": "a491a10a853d1fb3480d4471a275fd8824726b0e1a795fe8a98eb946001ac80e",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-55-wght-normal.woff2": {
+      "sha256": "c940bed82b2192c9a436af93a8ae990c9e66d1384376f56878c3906c6de35353",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-22-wght-normal.woff2": {
+      "sha256": "4e943fdd06982ac9a81d192846dab76a2797321c990774600dc65ff8fe1d4e68",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-115-wght-normal.woff2": {
+      "sha256": "1bd7a4092909a57cf3f2df1f983980fa45d37f0f77b038a31785719fc9580668",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-100-wght-normal.woff2": {
+      "sha256": "10d846c3e11659c57d906ae2ab9a9d418e0aaa36b99a991a09aca8e5bd6e3c64",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-102-wght-normal.woff2": {
+      "sha256": "98eb7841a02d362b6b92646644d54e9a3ed296e931799f342acc76f844024328",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-111-wght-normal.woff2": {
+      "sha256": "8164af476b514e30654ecf3aa34edeecbad209782f4b026964032e4f594a2881",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-36-wght-normal.woff2": {
+      "sha256": "b36a86aa9d07ae91a379ef0661f723c323677fb9106457318b1194d5c5f7cbc9",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-118-wght-normal.woff2": {
+      "sha256": "9a03bacc0425e420573fa8ba6b4a1468ebfe8860ef2243e41a646dee45b67b54",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-latin-ext-wght-normal.woff2": {
+      "sha256": "b07e7e5e090ed9220e5fd4afc6a22339a77f63f79f1f7ac010e3b05a8849c5ce",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-88-wght-normal.woff2": {
+      "sha256": "45cb9a16cbc13eff333b49bfa5c63f0478078ac6bdc327de9d69bdb6cdd8ce2b",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-75-wght-normal.woff2": {
+      "sha256": "f0e12f7e577876bf2d554e924f0a2bbce375b647d885a568b37dd5b042133ad1",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-117-wght-normal.woff2": {
+      "sha256": "44c0c56034f2906014cd0082c42cef587cd4e2eb24983aca2a10d9805a0f26f6",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-108-wght-normal.woff2": {
+      "sha256": "4665f9383f65a4fb003c53808f5b91d1e93fcccd3d2d8c799cfda6e3d14656d7",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-52-wght-normal.woff2": {
+      "sha256": "6f05dd92f2f040024ed6f401c03a78ec8f8058313ecab04b6ff195a0041a4a5a",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-42-wght-normal.woff2": {
+      "sha256": "2db79fd3aa1d48c07e30664553e9d1ddb9fc4c23fdf02d48c63e094ebf275a5d",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-5-wght-normal.woff2": {
+      "sha256": "405f96fc00f5de66a11045874d0964dcb4230122f820771ee13dd329895074d8",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-53-wght-normal.woff2": {
+      "sha256": "039698b9bc16db3439b86528c88c369086ed237f7baa13873ca33a0922edce18",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-69-wght-normal.woff2": {
+      "sha256": "52740303931d8b85ab9529076bf835aeaf877c56e47aead612281bc128318282",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-65-wght-normal.woff2": {
+      "sha256": "24f7302e65f8adaec36d642aa8caf68cdf4c50c91e54f75e9e535382366766b4",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-112-wght-normal.woff2": {
+      "sha256": "675553f67dda471ccc684b734a07db465fb6bb9ec1ce5a70b6d6b0f9a36a7a26",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-29-wght-normal.woff2": {
+      "sha256": "d4ba29a42d58e9c71f523225d6c2257e231e4d3fe92b720bbcbf99dd08add33c",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-57-wght-normal.woff2": {
+      "sha256": "a8e46481396f2a9e4ac4875b64645f26e4e9ff185a8503c2402c2bc9bf46219c",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-34-wght-normal.woff2": {
+      "sha256": "ba9fbd7fdbf7cce92c1a95946a7ad7b10ff9d3098403174b2b2b11ba6b282eb0",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-58-wght-normal.woff2": {
+      "sha256": "4fb8ac1d7a95c72aa66de7673a352e3e8b9046ffa90c444d0f961221f7052e40",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-116-wght-normal.woff2": {
+      "sha256": "2392f5989457174e847cc69a4eff0ff80f5ac744b8f1fe29b0b1925299cb0a0e",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-30-wght-normal.woff2": {
+      "sha256": "106e18d90034e75630790ad203bc69850747bf96c0a398b96bd88bcaa81e9480",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-91-wght-normal.woff2": {
+      "sha256": "30691665669ee807f465d552b3247cd41f9097020662bc43f28dbaf243cbd883",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-54-wght-normal.woff2": {
+      "sha256": "2263f0841a3499dd34793a4b21c831760bcae5582b047cbcab0b55cf9b105ab5",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-104-wght-normal.woff2": {
+      "sha256": "ebda2b19fc7a325ab200e073d3152ef8761dd2e3fc6f4a36c757792ba393264e",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-73-wght-normal.woff2": {
+      "sha256": "c5cbbb60e77f863af35524ec5a6674f5ce15735f05746923caa8d07e99b55886",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-62-wght-normal.woff2": {
+      "sha256": "854a14f63241e795bc8a17e64d472f09c834a02f9b59258637063aabca530070",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-63-wght-normal.woff2": {
+      "sha256": "9d345b17ad128918a7d4eea67714a376f8840ffdc82b77da8dbc416071491f65",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-66-wght-normal.woff2": {
+      "sha256": "5c818243ce70b138c5e7edd2798f92d311d8d9158eb60bad6c4f5cebe4d46fc6",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-98-wght-normal.woff2": {
+      "sha256": "26b9dec17f125371d5f5089f89de39094a11f98ffebb061011158d7e4aa602d0",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-110-wght-normal.woff2": {
+      "sha256": "3616d3502701dcdf867d0c850ef50cbf19e1613b283a238fe4f8ea0c91908c6d",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-89-wght-normal.woff2": {
+      "sha256": "ba142270184772c2bbc1985bf88e42d05e9462b14163001b8c253765c3f1d55e",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-119-wght-normal.woff2": {
+      "sha256": "28858c6c597253c4488e0ce1bddf52d6bb5464ebcf981927ea5c7269b5c1dc17",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-4-wght-normal.woff2": {
+      "sha256": "92b93561d8af27754352918934377dc09ecbf91d2d65a0951fb1d60895367330",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-25-wght-normal.woff2": {
+      "sha256": "9fa23b6cf30829d06600bda44f2b5d31880d088ef9bd5626aaf4557941457c10",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-71-wght-normal.woff2": {
+      "sha256": "6b91a10abb4a03d31c63d528f6ef6b0fcdf4dbe7c030d67e1943f6139c115d73",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-50-wght-normal.woff2": {
+      "sha256": "80938d29c0efdbd634308ac52ecbbda6707a0b3e3b7d1c84e197c28a6c8c837b",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-26-wght-normal.woff2": {
+      "sha256": "158a0be2cbba07d17824a5ba52319a3f914c59857f4bd70a332596bbe1b1128f",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-37-wght-normal.woff2": {
+      "sha256": "5b42c53aa93cc2a7fd855c85a5ca733d4da8d06984df8b4c9b2b76ce1090bc80",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-44-wght-normal.woff2": {
+      "sha256": "3f116c05fbb0abc3fba86bb85b4426eca3a41650d2763ed4c5b31fe8b28f752e",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-81-wght-normal.woff2": {
+      "sha256": "5945538dcbfc11c1db2d573e1a0889c33b90b45d8445cb9ce1f18b38db36336c",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-64-wght-normal.woff2": {
+      "sha256": "ab7aef1b30a10f6643f3271cb55e64c49e6d8c4b91a2e68287196cde66ad7614",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-23-wght-normal.woff2": {
+      "sha256": "e50204d9c99dee1b284a8f5c9508295fe6209c54e089ba7146813360d9c17713",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-33-wght-normal.woff2": {
+      "sha256": "a1e18c863c00ab7e6f17fddcc42b193fb94ccb5e3e01ee394a189c149aef447e",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-46-wght-normal.woff2": {
+      "sha256": "1581af3bbb4e78f52db3b1078a85595e0ffa30ee334b7dbb49baf42ba9fbb28a",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-76-wght-normal.woff2": {
+      "sha256": "f0dbe158fa641cc4297af81a4d44d2a9a2b775a32a96d4f665d62820ee2e6562",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-70-wght-normal.woff2": {
+      "sha256": "b677122aea77998b4b6c991cc0268585a48690a9347bd17057ac589728176c5d",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-32-wght-normal.woff2": {
+      "sha256": "87fdad598fb7ab598784e43f87f1da2c5476f88e4a5a9aba56abc73973449a42",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-101-wght-normal.woff2": {
+      "sha256": "139765926260131beb5763bb8474d5441c7a504f62257cacd5b569ee39d119e4",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-49-wght-normal.woff2": {
+      "sha256": "ca078411ddf19a164747d6e2220b0b2022f08e1682a1dc660a8902da13f2b0e0",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-serif-sc/files/noto-serif-sc-60-wght-normal.woff2": {
+      "sha256": "952351694a0ada3a721a73decd3afeac99fac4637e0dbd2af987c7e147205ff1",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/arimo/files/arimo-latin-wght-italic.woff2": {
+      "sha256": "bc7513e48d544c96200a2e9f4887c4d6f966cc4e40c3276018f8e32965fde6b8",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/arimo/files/arimo-hebrew-wght-normal.woff2": {
+      "sha256": "94eed35ce9f3633ff12a454f70025261b954a0b117ce609c6c56c75f4790c146",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/arimo/files/arimo-vietnamese-wght-italic.woff2": {
+      "sha256": "7eb26deb86d59c55a4fe6d6204a6c77c818a9c48e26c6272f2f95c5203c462ee",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/arimo/files/arimo-greek-ext-wght-normal.woff2": {
+      "sha256": "c4a93f2f4af8b4d3c9bb64a8fc893863aaa462081df42f870c2f28a8393c8f5c",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/arimo/files/arimo-latin-ext-wght-italic.woff2": {
+      "sha256": "3b766b3730dc6e3148471338aad38b1e3096b140478fb33a94549dce9b2dbe27",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/arimo/files/arimo-latin-wght-normal.woff2": {
+      "sha256": "6a22ce0b2709c7e856a8bd9bbf31b0f7695caeeeb03915b0212d6d959e9bc1b9",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/arimo/files/arimo-greek-wght-italic.woff2": {
+      "sha256": "0bcf983731d7718057e18e573e2ef7b338eb0b868bef4605ed86a843e4a577c2",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/arimo/files/arimo-hebrew-wght-italic.woff2": {
+      "sha256": "ddea6f193c7688809a0bac1aee8297d5aaf19f068060e017ae93cc0573e9676d",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/arimo/files/arimo-cyrillic-ext-wght-normal.woff2": {
+      "sha256": "116c8243fb4f477a5e0f6e0b7054eb36be978a33ac9dcf21dcbdd43a74b2d024",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/arimo/files/arimo-vietnamese-wght-normal.woff2": {
+      "sha256": "f215261017b160044cca014f1909b9bb6204a1cda4b4655a24da1926d27be59a",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/arimo/files/arimo-greek-ext-wght-italic.woff2": {
+      "sha256": "d0d58d4b3d98166123ec683ba937cdfe8186466dfa0cbc4447a8134935b853f7",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/arimo/files/arimo-cyrillic-wght-normal.woff2": {
+      "sha256": "12a472a87e335eda68eca7c1af94e564f09df8b53118560fa64c823b8bba1ee2",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/arimo/files/arimo-greek-wght-normal.woff2": {
+      "sha256": "a03b385f002e0a9f5ef810a64e85d77e3dc6bf2e9e0a4628e53be94fe4b7509e",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/arimo/files/arimo-cyrillic-ext-wght-italic.woff2": {
+      "sha256": "d7c2d236e93b629cda1d0483556c12dfd8df14ede64640d5093922ee7058edee",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/arimo/files/arimo-latin-ext-wght-normal.woff2": {
+      "sha256": "6cf5e4f8fef6852b53daaca585a370ec7adf5df077c2f714425c7c20ae9f59f1",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/arimo/files/arimo-cyrillic-wght-italic.woff2": {
+      "sha256": "6f034e5920ad72978d0a8a09f17a3c8c44a7a6d6fad1447fbe7f43ed986ead91",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-101-wght-normal.woff2": {
+      "sha256": "e189b81fc22ca6afcf03a1fcbf8fad93e8272a502d4b23241900113d9ddbe51a",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-100-wght-normal.woff2": {
+      "sha256": "ad5f29028d5699a59688d807fda531f23cb2c1ecd7815495853bbae8e75b8646",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-56-wght-normal.woff2": {
+      "sha256": "a3e4a78929826930956ef1e3b3c1c329815d75c88f67296c4ffeac203e2cb544",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-latin-ext-wght-normal.woff2": {
+      "sha256": "e316201f3fc493d191136a3ea728d184227b9651aea2bb38e279c45ef58646a7",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-71-wght-normal.woff2": {
+      "sha256": "3298bed30dc8d23323c0ba9cab32aa4088d39f5316d126b5cbdabd56884a5f01",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-5-wght-normal.woff2": {
+      "sha256": "e64f57937e3ae4feb9dd073d6a5257a74fda82575060718a162c95c8c09ef2ae",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-26-wght-normal.woff2": {
+      "sha256": "be8386e7bd7facfe78886db838ece2fac15056ef9ea6c48d631054460cd37c6f",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-60-wght-normal.woff2": {
+      "sha256": "3657f66babdf6aff2d2ca3cbadf7bcdce820bda6be7c765d909afee8e74dad5c",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-29-wght-normal.woff2": {
+      "sha256": "ff21d8fcc60ce39145c09da40c66f190dbb52b4b5ae6de1861dcaf15f87ef497",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-98-wght-normal.woff2": {
+      "sha256": "ffded4e7fd560d935f847ddd084187a049bbaca55d1deea9d2e6daf153cdea5b",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-35-wght-normal.woff2": {
+      "sha256": "bd98226c8e0aa80876366386a23e909087df5d6b570f48b2366a8849a3ca137b",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-105-wght-normal.woff2": {
+      "sha256": "8d8b4e6f4a00621d2be4279e9ba4b07cded89ab6d4018d9b87d2116867ead335",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-latin-wght-normal.woff2": {
+      "sha256": "c1d919c8701a86ed7f33a8044f7c4e5675db2fce8b754091e97b2c0792f9782c",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-99-wght-normal.woff2": {
+      "sha256": "54e302c23f11a8fd518f0948183800ac954315067f0990eed41b9c91e55761ef",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-67-wght-normal.woff2": {
+      "sha256": "a6b0e11c4c761ffda2e693d037f1384af67b6a338f81a8c0fcd7aa4eea9a177c",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-47-wght-normal.woff2": {
+      "sha256": "b05afdd32b3bf722adac4b2c936a3c3390fb4b6b8adc20a132a0b42cb9c23e83",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-48-wght-normal.woff2": {
+      "sha256": "c9585f7d070700be0435c1014761af37cd512faa68ffc33341d1e4634abed682",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-107-wght-normal.woff2": {
+      "sha256": "a42eff5010de7b0d6922a14734dd06c9b495655ac6e4397506f44c8e3eaee10c",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-cyrillic-wght-normal.woff2": {
+      "sha256": "5932d441e7126669016ce303fb19247ff258622291f13069124eb9b91304bbf9",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-68-wght-normal.woff2": {
+      "sha256": "65b77f1fe9d68dae692578370f64b50ace8469fcf737b34d8b4cdfabed344f23",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-49-wght-normal.woff2": {
+      "sha256": "4943895a4dfa5dcf427429a13e1c56bb3fd344c1dd7b1ad927b9d6743e358ac0",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-58-wght-normal.woff2": {
+      "sha256": "56ae1a59a32e4a258336c6d100d5288f3d1ece6f9e4f2bb3ec0548c289ede761",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-34-wght-normal.woff2": {
+      "sha256": "38aa326b4c84902a342b4225a452a7ca3ac32ebf40792663d7db2013c22bee9d",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-83-wght-normal.woff2": {
+      "sha256": "4a60a1ccba9052841d6f22a1d8d84a553184689b1de4c3dc6bcaa654c2c91ef6",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-113-wght-normal.woff2": {
+      "sha256": "614ab8f616352583f92cc2130fe8812c5aaaa8560b3828de45eefb318be7b503",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-103-wght-normal.woff2": {
+      "sha256": "bafbd591af6493fface8ee91ca8701cd227f18b1636c5a380c1dbd84cd79b92d",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-23-wght-normal.woff2": {
+      "sha256": "38d0df21ac374e938a5c885f50a80b7be2dbab9a34803462a4f2c6c6fa777128",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-65-wght-normal.woff2": {
+      "sha256": "8daa61282fb62a111c17f896b12429a43a3d60bd5f2eceb8c5a4f7d57a26d83c",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-59-wght-normal.woff2": {
+      "sha256": "7a377a40e99fd9bc3b1eb38517f08c4ac09520437bed24c3d3a39e2b64ff0ee9",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-30-wght-normal.woff2": {
+      "sha256": "1f76f6ffded00b9ead063038ebfd5019ad334ffeb7035dda3aa33f4dd1bb7adc",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-21-wght-normal.woff2": {
+      "sha256": "c1409c43e55ecff21bd7eee9327e71a6f4c66449842861b368dcdfe14445aab3",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-37-wght-normal.woff2": {
+      "sha256": "8df409a4e0a237c21db73608de96e2ae49c53de50826098d050a0e2cca867836",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-73-wght-normal.woff2": {
+      "sha256": "e7ac1d4930eabd781b541d961576a89b49580cdf336ca2413e0eb7709b41e72a",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-32-wght-normal.woff2": {
+      "sha256": "0cda750d7d04a4e12e4b2ea1d78c0a3ec430b5c07e02b87064e809ff75d76998",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-108-wght-normal.woff2": {
+      "sha256": "91882203459867be07157e9c8d433372b65cd4ce484fda26b97b05ed2cf6290d",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-109-wght-normal.woff2": {
+      "sha256": "a91f8b038e5ce10805a173a293484c8c49552c275cf901cdf21324d6dca3ed17",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-53-wght-normal.woff2": {
+      "sha256": "767b7b9864658d91d81787ebeac555cb9d67ec920002845061516dd87fa1b95f",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-22-wght-normal.woff2": {
+      "sha256": "77037ed42ff4e7b0e5cc296cabe4f0580d1d518239a4a067c00ff8097f60819f",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-106-wght-normal.woff2": {
+      "sha256": "bae74acc629d2e7484c66fd9bb0614df5bf3e98c39811d9e7e9222845a1c4b62",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-66-wght-normal.woff2": {
+      "sha256": "6479166925eb462be1a74ad446099719e8021949abf5c3eafefd9ad290836b9c",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-86-wght-normal.woff2": {
+      "sha256": "6d3ac3e20959dbcb9c0f4fbe786a2fc4040f565577b35a13275959eec27a9ae0",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-36-wght-normal.woff2": {
+      "sha256": "0db1ca695a491d372060eba39ae66b1816457e8992698fbaacd35cc0f7786658",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-87-wght-normal.woff2": {
+      "sha256": "0eeffd5daad5c17bba306e06e89e93ac563a497c806c0fa1d4c3a53a8ffa4225",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-31-wght-normal.woff2": {
+      "sha256": "e6c25be1bb08a63a0f4cd0cea425fc90b65df538be8505e3cf4010bec2853b64",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-78-wght-normal.woff2": {
+      "sha256": "7d4afb70f641781cfe859e18b81b5b641fb76872fb44760e9314e76fa6b42e3f",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-45-wght-normal.woff2": {
+      "sha256": "8cdb9903f770db21bd3d17eab6a1dd7d302b47f7eab059b2ff814d9593ce2526",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-25-wght-normal.woff2": {
+      "sha256": "f760b7a3871d214d421b378faa2e27a763bc632000f983964a837f2323665f1d",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-114-wght-normal.woff2": {
+      "sha256": "cf7b8344807a316e8db054500a2b44ad9346ffa00763fec203ab5aa1c99ff602",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-91-wght-normal.woff2": {
+      "sha256": "382f72b98d4bb9d7006109efa128aedf846904490b52a5d4f1db151a73718faf",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-72-wght-normal.woff2": {
+      "sha256": "6597209ca97077267b65fc072819325eb5a6d3787791d193cc481b3a71fb1b76",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-61-wght-normal.woff2": {
+      "sha256": "23919a2eb11d25dd3a78c020ecc337c9c72b8ca760412f5b4cd567cc43b776ba",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-104-wght-normal.woff2": {
+      "sha256": "b0bf80ced89dd61bc3c1427c23203b44413dfef6aafb50da905ab28a7937a923",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-80-wght-normal.woff2": {
+      "sha256": "db887159ca6e46f3f2787f7a1037940805bb7db727fd3a7ee2bdf9fb47f74469",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-88-wght-normal.woff2": {
+      "sha256": "b1d9582dfa2684636af41b19f0e2b397f8200337e0302dcaac3638ad431b7000",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-54-wght-normal.woff2": {
+      "sha256": "4cd00537a46f6f1acaf2762a59176e059062d7259217a8a85a589df775531ea6",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-62-wght-normal.woff2": {
+      "sha256": "a901edf25bc1cfae0fc4c474fce9f8783e93a46b9e88a1cb1cb1301feb1cbdb2",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-79-wght-normal.woff2": {
+      "sha256": "5798753a721bb4eccbf7d9ca923d2496524009a6c27c4bfc36e2b27f0251ee59",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-75-wght-normal.woff2": {
+      "sha256": "d9a4bb7bcc2be578e52835906301f04f6caf285ffcd299065521830529532fd6",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-51-wght-normal.woff2": {
+      "sha256": "fd4df1f02c2cb4d7db99d2d35225561f9695483f5f829e0f6667adac4bbe7ff6",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-52-wght-normal.woff2": {
+      "sha256": "06999a39c4c3a7ea279822ec42aeaf7e2f99d4047e4f8b7c48254158b7e293fa",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-85-wght-normal.woff2": {
+      "sha256": "e87e0a1342e1778c69040e768b5ad1d615068cec94579ba0176a875cb4170bde",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-74-wght-normal.woff2": {
+      "sha256": "1f0287be83a28e7ac104beb7f1b12ea6c0f327dd2dcd50033fb11c4aba123734",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-82-wght-normal.woff2": {
+      "sha256": "8c5094c3785fd04f84142ebc0362d835cce48e56b13e90d9900ddce5f9fe060f",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-70-wght-normal.woff2": {
+      "sha256": "a99d55c00e4f95b79ccc545fcd5464428edb7127670eaed421003473fd4ede7f",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-63-wght-normal.woff2": {
+      "sha256": "92f56f713cc0b62f1cbbbc3533b957cff5d2db2abdb4b45a173564011d217ddc",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-89-wght-normal.woff2": {
+      "sha256": "8b437aeb9e9fcb5aa31bd8565986f92cb7c43dbf1ac3763531b8b384fcda7290",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-110-wght-normal.woff2": {
+      "sha256": "bbca9081655c45233a25c4cca030c47ebcf2e156eeedd48110836658adb31fa0",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-102-wght-normal.woff2": {
+      "sha256": "941c0c2971fc1d6d1e36c3d40d74e6a133ad02f58f0bc3a9cb265d8a60f3eb31",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-39-wght-normal.woff2": {
+      "sha256": "272d6d0e153f56e8ab7d9412ca1e8581c06ce371641cf863859a0ab01751c1ea",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-27-wght-normal.woff2": {
+      "sha256": "4895abcaddbd162e48a212dd75c270d3ba1706519f527dff5fd7ec47dfa64dfd",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-40-wght-normal.woff2": {
+      "sha256": "5b9ef1ed48420aa7b9da1fbc18c4a4dfd3d4edf1c6b8aab89cf12b40913335a3",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-119-wght-normal.woff2": {
+      "sha256": "b3b2374881f4cd93f239820dfd91f0fde8d52f8f92ba2888f7ab9cba21e4d7eb",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-38-wght-normal.woff2": {
+      "sha256": "672d2d994994a3c39072fbbc4a40f0e25424ab2ff36ec63f3b55849d1ab8a650",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-90-wght-normal.woff2": {
+      "sha256": "83b0a59e0a5e045a44b1819d98795bee83684f746844f6fc4ebf448db3d53d39",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-69-wght-normal.woff2": {
+      "sha256": "b34f765cbbf4d02e71cc0d3ea9d488ad4a9da2bcea08f4c84a74e6ec82877f06",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-55-wght-normal.woff2": {
+      "sha256": "0118ec5d8c30b1971a59ec5982f3eeee3e687a40ef5b79108e99e5d82fa67aa9",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-vietnamese-wght-normal.woff2": {
+      "sha256": "cba3d00c8db989f0f0c3c7c48b1672468d9cb3c8c06514fc5cf1bb82ddccae7e",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-33-wght-normal.woff2": {
+      "sha256": "b9732b5606bd87c51942e5f56270d26495f2bc22a157493725417af2c70c265e",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-116-wght-normal.woff2": {
+      "sha256": "a98dc5a726f82141f74a827c443e120709a12fe737fabacf2530927a275fce0d",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-115-wght-normal.woff2": {
+      "sha256": "fb29957c7adccb9a89e34fb28d3d1c7d12bd7401f80c0dba6e1c9e5259cb3262",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-57-wght-normal.woff2": {
+      "sha256": "7623501009e4a6db7c2d5a635f57099da3e78de33fa85cccdf8d3c1596064ccb",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-4-wght-normal.woff2": {
+      "sha256": "9fafd93ac77b81ffdeeb30c31e7d5911eb5b6a0a976b54c6e418eec8701a97e2",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-76-wght-normal.woff2": {
+      "sha256": "5a019946bcadcec6e510d2786b1a490a8ca4442c849e3fbf6251bdc06a7e1f47",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-42-wght-normal.woff2": {
+      "sha256": "ec0014830db682b682120085e07476df857d016fa7bb1b4bb3dfe82113819a10",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-28-wght-normal.woff2": {
+      "sha256": "82540b6201a9b9ade19206b3e6e9ba65038e6ab5d8b61952352d87b92978f967",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-77-wght-normal.woff2": {
+      "sha256": "7c445e85d04f5319eda4b07329a71f5e468fb7906547d34150b819916d2f6d31",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-64-wght-normal.woff2": {
+      "sha256": "4929c9f39a5a4bd941050c7358e1556e57cef901b8c75503453e62c23ede281c",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-111-wght-normal.woff2": {
+      "sha256": "372be010ac0e87cb12065a861da39821104a43d68345a62ca95d3d3e2fb2c269",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-24-wght-normal.woff2": {
+      "sha256": "8fa21e7e457acf3e8ca2e0561d5df4dd26cf0824a27a721c2b831b202e88e195",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-41-wght-normal.woff2": {
+      "sha256": "30aee47f660fd88a68fee63052ce8f3746e78e606813de686b710692d7610529",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-50-wght-normal.woff2": {
+      "sha256": "13e51063d7743cfe2d533620860719890426ef12f6fe036d50b3c1a8f41508e7",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-112-wght-normal.woff2": {
+      "sha256": "34a4580239eae8dc54b726a1e1e9fec266e74225b112063ed93b412d54b97ccd",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-46-wght-normal.woff2": {
+      "sha256": "6590d0a6fe94571cfb84a6d9536e0f58b6a6164643ffa339d3c1788835c96147",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-81-wght-normal.woff2": {
+      "sha256": "71e5743bbd225b3d80426f1b9e1d45c61fa7265aa453e2d22181944ec52569ff",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-43-wght-normal.woff2": {
+      "sha256": "43df2b5dad9bb8353549d68023297605443f251f1f846a9cb2e5363b84aacd0b",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-6-wght-normal.woff2": {
+      "sha256": "17e15c4f0a5bfd92e65a65d285833633f2cc8d4a51a8ba6a2080663989123d7e",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-97-wght-normal.woff2": {
+      "sha256": "5e52856457c5cdaba991d72419e6f419f6627a5231b674275b8152f691328a33",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-118-wght-normal.woff2": {
+      "sha256": "76c9ddb85ae4578cccd35ae4f6e6bbffaa2c8c2aec0fea17d3c17c84a3c6f7d1",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-117-wght-normal.woff2": {
+      "sha256": "d94b5af0c14838af99bf9855f91e851878726558531ddef5bd2100b70dfbe90c",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-44-wght-normal.woff2": {
+      "sha256": "acaa6195041b1a928d35c7e80365a4e653ffc5cba556c0a1443ee3a561228eb8",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "assets/courseware-fonts/fonts/@fontsource-variable/noto-sans-sc/files/noto-sans-sc-84-wght-normal.woff2": {
+      "sha256": "3ed54e59ef4758e3cf1f81d9dd5ac9197ba8a7071ec8c0d69e2d52b2a2826be6",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "vendor/origin/maic-LICENSE": {
+      "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "vendor/pptxtojson/index.d.ts": {
+      "sha256": "3ca4f5e3a158fb07371d928c068bcaf355db8c0561bc52541056c341f6518d28",
+      "origin": "patched-pptxtojson-2.1.0",
+      "source": "index.d.ts",
+      "adapted": false
+    },
+    "vendor/pptxtojson/LICENSE": {
+      "sha256": "565053ed6d0ff6a9fdfb968e2df00a38fae1fcddb9eeea73fc7c65d21e3d28fe",
+      "origin": "patched-pptxtojson-2.1.0",
+      "source": "LICENSE",
+      "adapted": false
+    },
+    "vendor/pptxtojson/index.cjs": {
+      "sha256": "363757ae5696ea349068eb7b3df6071c71243bfec9288b06eea4b2e9740f3b02",
+      "origin": "patched-pptxtojson-2.1.0",
+      "source": "index.cjs",
+      "adapted": false
+    },
+    "tests/fixtures/fixed-courseware/lesson-r8.pptx": {
+      "sha256": "e3f7e210183ff6fe8b14e7c88a378fe08a50ec51c0d0815194c5c1246612e8d7",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "tests/fixtures/fixed-courseware/snapshot-effects.json": {
+      "sha256": "b0ca03fe8d7fad607022ce960d5289fb39f219fa6415a37671609b116fa4e4ce",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "tests/fixtures/fixed-courseware/canonical-desktop.json": {
+      "sha256": "d127ffae5e465b231861466aa77d531e5c9d873b7ad590f6d2daba363d09bc45",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "tests/fixtures/fixed-courseware/snapshot.json": {
+      "sha256": "1412c2ecde11474d86506c0824b830a293c8c55a965702e4c3e9d90622cd8e44",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "tests/fixtures/fixed-courseware/canonical-animations.json": {
+      "sha256": "8e59b5468b5e764b1e2d94a20a7ca043f8f586ccb52c1862dd4fc4c4687260e9",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "tests/fixtures/fixed-courseware/snapshot-animations.json": {
+      "sha256": "b9fe9d9d824f3cc2c6f92c12c6c3638026ff497a0b3352e9a3672a44e30efd4c",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "tests/fixtures/fixed-courseware/page-3.wav": {
+      "sha256": "49f8ac278d71c0d1dbf205971f990f48e7473bcd3d81cc01b38541e5f8ad912b",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "tests/fixtures/fixed-courseware/page-2.wav": {
+      "sha256": "15c0d47fa3d8c1437dc9941104f49cae72eea6048df6fefa317e1a68d9f24452",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "tests/fixtures/fixed-courseware/page-1.wav": {
+      "sha256": "6de9e485a91d85dbb61aa8d24ef25ab19c8404f008475bb5139900e580f87985",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "tests/fixtures/contracts/pptx-timeline-v1.json": {
+      "sha256": "c41cb1afa1e8354fbd8316f1a15d176839db8106fb650920d09ed53b604ad8b6",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "src/player/mount-fixed-build.tsx": {
+      "sha256": "93cd20a961050c3e57bc1e787b8cc84d711e82d47849f5993960dcc7f5d648bd",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "src/player/labels.ts": {
+      "sha256": "919e205709ed59495f9a216b545a9889f31d51d631d0d7f85b9a513e8e6b3ba0",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "src/conversion/lib/logger.ts": {
+      "sha256": "93dc1dbbe532faacb0c9c058f18e733f47139fef7f0cc67197545f1aec5200b4",
+      "origin": "conversion",
+      "source": "lib/logger.ts",
+      "adapted": false
+    },
+    "src/conversion/lib/courseware-fonts.ts": {
+      "sha256": "349fe4b65aee91960e763be6f3afae7f3f4528fff3e604f40c72df195a26abcf",
+      "origin": "conversion",
+      "source": "lib/courseware-fonts.ts",
+      "adapted": false
+    },
+    "src/conversion/scripts/pptx-byte-worker.ts": {
+      "sha256": "f73297fc3b12e29cc74fd30ef6f6f6ca20043b78f643a642f46581727559dd12",
+      "origin": "conversion",
+      "source": "scripts/pptx-byte-worker.ts",
+      "adapted": false
+    },
+    "src/conversion/configs/shapes.ts": {
+      "sha256": "5580e3427aa6d9a2c519d111599eb1254a2d4b718670269761b596c7dfeb8276",
+      "origin": "conversion",
+      "source": "configs/shapes.ts",
+      "adapted": true
+    },
+    "src/conversion/lib/utils/scene-title.ts": {
+      "sha256": "46bd719aee5af15b7c3dadc264418129a349d9637aed5ca3fb277b752a99c3b0",
+      "origin": "conversion",
+      "source": "lib/utils/scene-title.ts",
+      "adapted": false
+    },
+    "src/conversion/lib/interaction/types.ts": {
+      "sha256": "266b7590fb651d3303540b2adfe962ddf2052e66a2859c57a7df0c67189de6fb",
+      "origin": "conversion",
+      "source": "lib/interaction/types.ts",
+      "adapted": true
+    },
+    "src/conversion/lib/pbl/types.ts": {
+      "sha256": "0eb9935b739c218e0c2c1d2e03f0017c24aac5f265765f9768ff0b1c5f5e1a5b",
+      "origin": "conversion",
+      "source": "lib/pbl/types.ts",
+      "adapted": false
+    },
+    "src/conversion/lib/courseware/fixed-build.ts": {
+      "sha256": "334f9254611626b4fd1d70840a2508859b6e298bf01d906fe7235c4ed9d1c77b",
+      "origin": "conversion",
+      "source": "lib/courseware/fixed-build.ts",
+      "adapted": true
+    },
+    "src/conversion/lib/courseware/adapt-canonical-snapshot.ts": {
+      "sha256": "43f66c35248272adbf96a02d973d148a5f7ff2c03e414b27ffb848cdc2c276f8",
+      "origin": "conversion",
+      "source": "lib/courseware/adapt-canonical-snapshot.ts",
+      "adapted": false
+    },
+    "src/conversion/lib/courseware/fixed-build-input.ts": {
+      "sha256": "ca7ee427f07a7c8ce143a969cadbe91c52aee6755ef5fc9cb878e447a184247d",
+      "origin": "conversion",
+      "source": "lib/courseware/fixed-build-input.ts",
+      "adapted": false
+    },
+    "src/conversion/lib/import/constants.ts": {
+      "sha256": "899846feaf8d02a5e39277233901ffc3a8a10d50e6bdbd7e55c8c8ab68130b7d",
+      "origin": "conversion",
+      "source": "lib/import/constants.ts",
+      "adapted": true
+    },
+    "src/conversion/lib/import/types.ts": {
+      "sha256": "b109f24fb28f7d075ecfe9325c014cf8016c6975cf1c1bf5d6924ab46f6eb603",
+      "origin": "conversion",
+      "source": "lib/import/types.ts",
+      "adapted": false
+    },
+    "src/conversion/lib/types/generation.ts": {
+      "sha256": "c64692a40ec0b9c36d2f6e0c569e6365b4dab22b2dbfa8028a1f9f72cd4bc2f1",
+      "origin": "conversion",
+      "source": "lib/types/generation.ts",
+      "adapted": true
+    },
+    "src/conversion/lib/types/action.ts": {
+      "sha256": "9de9fd845d8c0bb4ef62c43c767e3a193a806cf744f0a8979bed03a9b4393775",
+      "origin": "conversion",
+      "source": "lib/types/action.ts",
+      "adapted": true
+    },
+    "src/conversion/lib/types/stage.ts": {
+      "sha256": "1d269d179c319ff5057033936e2f6b939b25e46225c09d5605e34ebf6a7ab2b7",
+      "origin": "conversion",
+      "source": "lib/types/stage.ts",
+      "adapted": true
+    },
+    "src/conversion/lib/types/pdf.ts": {
+      "sha256": "72aaeebc322fa399380344de753bbebedc2f28163ef52d88731078bc7445d793",
+      "origin": "conversion",
+      "source": "lib/types/pdf.ts",
+      "adapted": false
+    },
+    "src/conversion/lib/types/slides.ts": {
+      "sha256": "f65b2e858185aab0ebe759c8591f6f1b3ae3e0ed54e6977d0c9b5a2c51e3d813",
+      "origin": "conversion",
+      "source": "lib/types/slides.ts",
+      "adapted": false
+    },
+    "src/conversion/lib/courseware/canonical/SOURCE.json": {
+      "sha256": "b2ed80d6d1397c4512d0168b890f403a3ca89e971642b5ea3fe98d8eeb4b03c8",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "src/conversion/lib/courseware/canonical/courseware-contract.ts": {
+      "sha256": "dd16a1562e64cb4010f461d1c4b4bb2389e9ac2c9c9059b01421ccbc491de297",
+      "origin": "conversion",
+      "source": "lib/courseware/canonical/courseware-contract.ts",
+      "adapted": false
+    },
+    "src/conversion/lib/courseware/canonical/courseware-contract.fixtures/stale-write.json": {
+      "sha256": "f3072afd96ddbfbbf0d747ed8af627fe9eb091cf2be18639cb8873b30603a384",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "src/conversion/lib/courseware/canonical/courseware-contract.fixtures/references.json": {
+      "sha256": "cf6b9df7e19e7e7d7b77068d581ad035d874d44d8c4adf88be697749e71841e8",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "src/conversion/lib/courseware/canonical/courseware-contract.fixtures/accepted.json": {
+      "sha256": "936cde4e26303b5997110f93430055e1445f6b0676d2f40678918bfa8208a805",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "src/conversion/lib/import/pptx/pptx-import-asset-registry.ts": {
+      "sha256": "a0768f03a57eec4d72812b8aa047b28c9130bfa33a0e9cec75d03d40dd10813f",
+      "origin": "conversion",
+      "source": "lib/import/pptx/pptx-import-asset-registry.ts",
+      "adapted": true
+    },
+    "src/conversion/lib/import/pptx/saved-source-identity.ts": {
+      "sha256": "94c63ac092d0b052da3751d3e968164e718006aaaf5d124cd724e05e649186df",
+      "origin": "conversion",
+      "source": "lib/import/pptx/saved-source-identity.ts",
+      "adapted": true
+    },
+    "src/conversion/lib/import/pptx/identity.ts": {
+      "sha256": "c34ae56ec65764c40606ed4c7849a5e4b42c258a58359f72620d8fded200c09a",
+      "origin": "conversion",
+      "source": "lib/import/pptx/identity.ts",
+      "adapted": false
+    },
+    "src/conversion/lib/import/pptx/pptx-zip-package.ts": {
+      "sha256": "30d90528c9d5a9dead2604a57cfa604d6ae0ae02232c72ecff9dad4e91df003b",
+      "origin": "conversion",
+      "source": "lib/import/pptx/pptx-zip-package.ts",
+      "adapted": false
+    },
+    "src/conversion/lib/import/pptx/import-pptx-from-buffer.ts": {
+      "sha256": "bbf2c5c28374e36cea2c7666538527e65cb70d31ebf92f0d3929e162068121bb",
+      "origin": "conversion",
+      "source": "lib/import/pptx/import-pptx-from-buffer.ts",
+      "adapted": true
+    },
+    "src/conversion/lib/import/geometry/normalize-viewport.ts": {
+      "sha256": "f1f3ced92dd3da07b9001612e65b01cb1981878938a8f909f4db32a3be37ed20",
+      "origin": "conversion",
+      "source": "lib/import/geometry/normalize-viewport.ts",
+      "adapted": false
+    },
+    "src/conversion/lib/import/mappers/import-ir-to-classroom.ts": {
+      "sha256": "c10d8aff8fa1fd77199534023516b7db9042cf853e54d8a4c4cd9959bfec6dba",
+      "origin": "conversion",
+      "source": "lib/import/mappers/import-ir-to-classroom.ts",
+      "adapted": true
+    },
+    "src/conversion/lib/import/narration/text-normalizer.ts": {
+      "sha256": "1f9bdea3611d909c8a9e4775bfc96e0975130413406b2bc776f618f8b04d94e0",
+      "origin": "conversion",
+      "source": "lib/import/narration/text-normalizer.ts",
+      "adapted": false
+    },
+    "src/conversion/lib/import/pptx/animation/parse-pptx-timing.ts": {
+      "sha256": "b020efdaf099ef9a92d35af3b10d73954c2ac6a8bd156b92fd09cf7ed88880eb",
+      "origin": "conversion",
+      "source": "lib/import/pptx/animation/parse-pptx-timing.ts",
+      "adapted": true
+    },
+    "src/conversion/tests/courseware/adapt-canonical-snapshot.test.ts": {
+      "sha256": "31d6a7c132a7a3986b191ffc6031f57857bf89a634ea197dfedccdc4d5601a0f",
+      "origin": "conversion",
+      "source": "tests/courseware/adapt-canonical-snapshot.test.ts",
+      "adapted": true
+    },
+    "src/conversion/tests/courseware/fixed-build.test.ts": {
+      "sha256": "536f83bc65a21d13cfbb207dc376b138b5f18f06fe6d961f4be51a078271a48e",
+      "origin": "conversion",
+      "source": "tests/courseware/fixed-build.test.ts",
+      "adapted": true
+    },
+    "src/conversion/tests/import/pptx/saved-source-identity.test.ts": {
+      "sha256": "5121606c913c61f3893642a73216d2b7bdeeeb00b3ea3d6e7ea0788dbce4cce4",
+      "origin": "conversion",
+      "source": "tests/import/pptx/saved-source-identity.test.ts",
+      "adapted": true
+    },
+    "src/conversion/tests/import/pptx/identity.test.ts": {
+      "sha256": "6f3766b8628fbe04adf8a7f5344682e1d2d76d4276ac4bcf072dc9fbe8e96954",
+      "origin": "conversion",
+      "source": "tests/import/pptx/identity.test.ts",
+      "adapted": true
+    },
+    "src/player/lib/logger.ts": {
+      "sha256": "1d28e087a8c2ef51b4b69a12218d87999c4fcaad4db19a9f84f8d072768f8d25",
+      "origin": "player",
+      "source": "lib/logger.ts",
+      "adapted": false
+    },
+    "src/player/lib/courseware-fonts.ts": {
+      "sha256": "7cc6c5c5ee7eda16c6962e33afba7b3a9fd82ff004989cf6ab728806813640bc",
+      "origin": "player",
+      "source": "lib/courseware-fonts.ts",
+      "adapted": false
+    },
+    "src/player/lib/imported-slide-fonts.ts": {
+      "sha256": "0f5ac62b23747acd4df76c148c2869da3bf26a17eece3677ec8134cc97c14da3",
+      "origin": "player",
+      "source": "lib/imported-slide-fonts.ts",
+      "adapted": true
+    },
+    "src/player/lib/sanitize-slide-html.ts": {
+      "sha256": "e22bc42baa55ad492c99cf4b9976b82311d36a866a314d034e6476c5fdf8c4b1",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "src/player/configs/image-clip.ts": {
+      "sha256": "0460a62219b9d44d4cc00ab59cde928d0f4111c50f5f20f17c120042a3b2737b",
+      "origin": "player",
+      "source": "configs/image-clip.ts",
+      "adapted": false
+    },
+    "src/player/lib/utils/geometry.ts": {
+      "sha256": "e45d1ca2488e7bc91ff83e1009d284ea78d7fde20977162144c22124f5751d4c",
+      "origin": "player",
+      "source": "lib/utils/geometry.ts",
+      "adapted": true
+    },
+    "src/player/lib/utils/media-trim.ts": {
+      "sha256": "b67d4132c234e3e963c0851e4cf1212d24d75b403f8cb06bb3ef5ae5a88e0c5e",
+      "origin": "player",
+      "source": "lib/utils/media-trim.ts",
+      "adapted": true
+    },
+    "src/player/lib/utils/media-trim.test.ts": {
+      "sha256": "0d71105a3950386201c6c725a5f4e62a67bc43f73c482fdb81b649cc9f980bd9",
+      "origin": "player",
+      "source": "lib/utils/media-trim.test.ts",
+      "adapted": true
+    },
+    "src/player/lib/utils/element.ts": {
+      "sha256": "f0779fa66b1136b2a3d4334275e1560f1c5b6fc56b2056aeec4fd5291b64d55b",
+      "origin": "player",
+      "source": "lib/utils/element.ts",
+      "adapted": true
+    },
+    "src/player/lib/utils/audio-player.ts": {
+      "sha256": "16bf13733344cbdb6acdb58f9a7186567644120e1f798166cebae537636f82e9",
+      "origin": "player",
+      "source": "lib/utils/audio-player.ts",
+      "adapted": true
+    },
+    "src/player/lib/utils/playback-storage.ts": {
+      "sha256": "6adb256c387348435cfd90093eaa5350a5f23759edc2deb5320f03dc2ebd6b85",
+      "origin": "player",
+      "source": "lib/utils/playback-storage.ts",
+      "adapted": true
+    },
+    "src/player/lib/utils/media-ducking.test.ts": {
+      "sha256": "c16a8c163cd84bc2b94c90cc91d47f5cb7e83a2b9506ec8777ca682a58045344",
+      "origin": "player",
+      "source": "lib/utils/media-ducking.test.ts",
+      "adapted": false
+    },
+    "src/player/lib/utils/audio-player.test.ts": {
+      "sha256": "82e52ced76f2f29f4c78099998b9b43a46074981c39b8fb1e7c9a2bea7370513",
+      "origin": "player",
+      "source": "lib/utils/audio-player.test.ts",
+      "adapted": true
+    },
+    "src/player/lib/utils/media-ducking.ts": {
+      "sha256": "15c24c4a80eff9544e038beb98d07a47f0ef9ebc19cd5be8f49dfe0040dcdb95",
+      "origin": "player",
+      "source": "lib/utils/media-ducking.ts",
+      "adapted": false
+    },
+    "src/player/lib/playback/speech-cue-scheduler.test.ts": {
+      "sha256": "849e58dbe8c70afe500e76ef3aa9608c13f8ecb82a84f88301e8272dc33617e5",
+      "origin": "player",
+      "source": "lib/playback/speech-cue-scheduler.test.ts",
+      "adapted": true
+    },
+    "src/player/lib/playback/playback-core.ts": {
+      "sha256": "62e4a73b3b7cd5d2691ed488c4b74fac98f01e8a584669516b1857881cda8acf",
+      "origin": "player",
+      "source": "lib/playback/playback-core.ts",
+      "adapted": true
+    },
+    "src/player/lib/playback/element-animation.ts": {
+      "sha256": "8fe99429b3d79f70b8b7d58ec1879f3ca3be9e7125b772577d41efdd1e8251c9",
+      "origin": "player",
+      "source": "lib/playback/element-animation.ts",
+      "adapted": true
+    },
+    "src/player/lib/playback/pptx-timeline.test.ts": {
+      "sha256": "00c89f6df86b5f9e7090b28c47773f10efdc14592aa86de0cc19c5dde9ca0bb8",
+      "origin": "player",
+      "source": "lib/playback/pptx-timeline.test.ts",
+      "adapted": true
+    },
+    "src/player/lib/playback/element-animation.test.ts": {
+      "sha256": "bb209478375fcedbb2a9889d34a1cf0d77d0e28777e27a22a3b994b13b06533d",
+      "origin": "player",
+      "source": "lib/playback/element-animation.test.ts",
+      "adapted": true
+    },
+    "src/player/lib/playback/action-groups.test.ts": {
+      "sha256": "2192674a6267fc16043a0167703c39479d95bbc24581055301c74428212a376c",
+      "origin": "player",
+      "source": "lib/playback/action-groups.test.ts",
+      "adapted": true
+    },
+    "src/player/lib/playback/speech-cue-scheduler.ts": {
+      "sha256": "e77c095095177f60f13820081d291ac0d858815054922c243022693332bf190c",
+      "origin": "player",
+      "source": "lib/playback/speech-cue-scheduler.ts",
+      "adapted": true
+    },
+    "src/player/lib/playback/pptx-timeline.ts": {
+      "sha256": "fb5d34350ed36807d5ac6fe7b9c914d91b5cd0101cc2b3064958bac71b27d12a",
+      "origin": "player",
+      "source": "lib/playback/pptx-timeline.ts",
+      "adapted": true
+    },
+    "src/player/lib/playback/playback-core.test.ts": {
+      "sha256": "ba78f702a8bf1503cd7c7aaf7b03084c4034d7ef5b89bec36ab43ae94ab4ef97",
+      "origin": "player",
+      "source": "lib/playback/playback-core.test.ts",
+      "adapted": true
+    },
+    "src/player/lib/playback/action-groups.ts": {
+      "sha256": "7cfae3240cbb5df02fb01b86e0c516194c7a3616d45ca0786048c2b976ca9921",
+      "origin": "player",
+      "source": "lib/playback/action-groups.ts",
+      "adapted": true
+    },
+    "src/player/lib/playback/types.ts": {
+      "sha256": "edf7f51e2bc4e766c360b4ae47a821b72aa0d9247051f41c84248a26f3912231",
+      "origin": "player",
+      "source": "lib/playback/types.ts",
+      "adapted": true
+    },
+    "src/player/lib/bilingual/embedded-text.ts": {
+      "sha256": "0334a6cce16a8083926bdc2de81ce894cbf70c04978f8e65c9874d040230c9aa",
+      "origin": "player",
+      "source": "lib/bilingual/embedded-text.ts",
+      "adapted": true
+    },
+    "src/player/lib/pbl/types.ts": {
+      "sha256": "a86bf05f6a9d9068cfb7d3de4e7c70fc4af277e16ef3025b04f65a845578b479",
+      "origin": "player",
+      "source": "lib/pbl/types.ts",
+      "adapted": false
+    },
+    "src/player/lib/courseware/load-fixed-build.test.ts": {
+      "sha256": "a52bb3ab3fd31b27339372ac7787fc440f99e20f0761380ad6d0cc0a22e9e8ef",
+      "origin": "player",
+      "source": "lib/courseware/load-fixed-build.test.ts",
+      "adapted": true
+    },
+    "src/player/lib/courseware/fixed-animation-style.ts": {
+      "sha256": "4656bdb10343e755c9a06673632bc3e0528c2da47cb4e91b1d1c1509e3652197",
+      "origin": "player",
+      "source": "lib/courseware/fixed-animation-style.ts",
+      "adapted": true
+    },
+    "src/player/lib/courseware/media-task-asset-resolver.ts": {
+      "sha256": "a1faec81e0315d3e2f38b76187f91c5af1a2edbefd688b7c15f46d60fc576de3",
+      "origin": "player",
+      "source": "lib/courseware/media-task-asset-resolver.ts",
+      "adapted": false
+    },
+    "src/player/lib/courseware/media-task-asset-resolver.test.ts": {
+      "sha256": "a19e4b0c26082d8640e21de69f9a7ebcced5c458715263cc147056ad646cb947",
+      "origin": "player",
+      "source": "lib/courseware/media-task-asset-resolver.test.ts",
+      "adapted": true
+    },
+    "src/player/lib/courseware/fixed-animation-style.test.ts": {
+      "sha256": "84395a520a23ecd6fb8645ffa94df0f0847cab78bfde6b1fc7296027eeff454a",
+      "origin": "player",
+      "source": "lib/courseware/fixed-animation-style.test.ts",
+      "adapted": false
+    },
+    "src/player/lib/courseware/load-fixed-build.ts": {
+      "sha256": "1a710deddb8e05dd0bbdb0d15ed845affd206dc526e45a3b93c005e681520409",
+      "origin": "player",
+      "source": "lib/courseware/load-fixed-build.ts",
+      "adapted": true
+    },
+    "src/player/lib/hooks/use-slide-background-style.ts": {
+      "sha256": "7c6c035a0dc5f5b051e8837c5d7711d9e175e5478453b2d4d3e623e77d6a435b",
+      "origin": "player",
+      "source": "lib/hooks/use-slide-background-style.ts",
+      "adapted": true
+    },
+    "src/player/lib/types/action.ts": {
+      "sha256": "706fa2e03b2d6766e1ccd64c76b04c5ea4a3ba3f3edc13d05f0c5008d608f4e2",
+      "origin": "player",
+      "source": "lib/types/action.ts",
+      "adapted": false
+    },
+    "src/player/lib/types/stage.ts": {
+      "sha256": "9f8b05e01e9ec9ce36ee1c4f55a35f3f9b38aa45a70006ce7426a9fdef27e74a",
+      "origin": "player",
+      "source": "lib/types/stage.ts",
+      "adapted": true
+    },
+    "src/player/lib/types/bilingual.ts": {
+      "sha256": "32f6edcb984f45703b1f3292bcf9fce16e86165805e2339c489b6c0716ca39eb",
+      "origin": "player",
+      "source": "lib/types/bilingual.ts",
+      "adapted": false
+    },
+    "src/player/lib/types/slides.ts": {
+      "sha256": "5fc19acce3dcb8a171e078ac674b71e88f8bcc4391f4055c6220690239bb1844",
+      "origin": "player",
+      "source": "lib/types/slides.ts",
+      "adapted": false
+    },
+    "src/player/tests/fixtures/fixed-playback/media-tasks/task-submission-unknown.json": {
+      "sha256": "b95a9f274c2a0bdf6a96349cab270d04a64cd7b7b4ad18252169fdc8a094d9d4",
+      "origin": "player",
+      "source": "tests/fixtures/fixed-playback/media-tasks/task-submission-unknown.json",
+      "adapted": false
+    },
+    "src/player/tests/fixtures/fixed-playback/media-tasks/SOURCE.json": {
+      "sha256": "433e55d313d1df4e32914da6c0ee5a9a2bf9c98637a9e78d384fb2ec73de23ff",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "src/player/tests/fixtures/fixed-playback/media-tasks/task-ready.json": {
+      "sha256": "a08c51f53eb82a7b7f0612dd716ea9f47310955b2e8f08e68d87d360a3545170",
+      "origin": "player",
+      "source": "tests/fixtures/fixed-playback/media-tasks/task-ready.json",
+      "adapted": false
+    },
+    "src/player/tests/fixtures/fixed-playback/media-tasks/submit-success.json": {
+      "sha256": "4ed54b52261bc43533f20e77d840a277d55772509ea9769c93314fcb2a9b45e2",
+      "origin": "player",
+      "source": "tests/fixtures/fixed-playback/media-tasks/submit-success.json",
+      "adapted": false
+    },
+    "src/player/components/ui/button.tsx": {
+      "sha256": "fa8717e87b196a5fdc869b4a81c9a2ca31f835a3d4b5121f8c621025d59a4e16",
+      "origin": "player",
+      "source": "components/ui/button.tsx",
+      "adapted": true
+    },
+    "src/player/components/courseware/FixedCoursewarePlayer.tsx": {
+      "sha256": "4561d364fa8cf6eadd5e84dccbd2c7212521e484329240a4f906c409ebe0be2b",
+      "origin": "player",
+      "source": "components/courseware/FixedCoursewarePlayer.tsx",
+      "adapted": true
+    },
+    "src/player/components/courseware/FixedMediaElement.tsx": {
+      "sha256": "f422f03b0f78cfb8b0445b836ae51cb050c7ba5a09fabb9eb7bc8c296de41b18",
+      "origin": "player",
+      "source": "components/courseware/FixedMediaElement.tsx",
+      "adapted": true
+    },
+    "src/player/components/courseware/FixedSlide.tsx": {
+      "sha256": "eed80bd99e256b85a40a91303b0b3502310e9adc23888fe12a6dab27bb5b1cbc",
+      "origin": "player",
+      "source": "components/courseware/FixedSlide.tsx",
+      "adapted": true
+    },
+    "src/player/components/courseware/FixedVisualEffects.tsx": {
+      "sha256": "83bbeceb445faaf252b90149d62dd2b6e3f282452c481c9015e7ae9e2c30ec6e",
+      "origin": "player",
+      "source": "components/courseware/FixedVisualEffects.tsx",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/Editor/spotlightGeometry.ts": {
+      "sha256": "d8bcb02c5de56d65266d4bffb1125594c5d5ab6d08ab6001ab14aa03d860b7a6",
+      "origin": "player",
+      "source": "components/slide-renderer/Editor/spotlightGeometry.ts",
+      "adapted": false
+    },
+    "src/player/components/slide-renderer/components/SlideViewport.tsx": {
+      "sha256": "b05fd89edd4e575e2ba0d3e6e8ca6edfb641c2cd2f87cfce67e13236c3ab70a6",
+      "origin": "player",
+      "source": "components/slide-renderer/components/SlideViewport.tsx",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/Editor/Canvas/ViewportBackground.tsx": {
+      "sha256": "15ec5bd663b93e077db363bc7ff9e0b4e7e235b1a54403251a04fc74b0db0522",
+      "origin": "player",
+      "source": "components/slide-renderer/Editor/Canvas/ViewportBackground.tsx",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/components/element/ElementOutline.tsx": {
+      "sha256": "a1f1bf7a95c88aadff486021a72532b4657c839708649a4c3fedc183740d9019",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ElementOutline.tsx",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/components/element/StaticTextContent.tsx": {
+      "sha256": "18367b5dd2f8b8a27bb91fdc79101abd4e1548eefabf6586b50a6cb0ed75ec62",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/StaticTextContent.tsx",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/components/element/TableElement/tableUtils.ts": {
+      "sha256": "9290375a34ffeba5464a35b0d519f7a68553144c9d9de50c7dd71bd8c8fe9a50",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/TableElement/tableUtils.ts",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/components/element/TableElement/StaticTable.tsx": {
+      "sha256": "1494812308e6fc15d45b4b9436ce140fd22b277e21e5a23b5a88faf9a313a120",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/TableElement/StaticTable.tsx",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/components/element/TableElement/BaseTableElement.tsx": {
+      "sha256": "a82a8bb4fd9473f2e00bb30e06c07b1247d28299364eb92ce29be165ffb667c7",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/TableElement/BaseTableElement.tsx",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/components/element/LatexElement/LatexElementVisual.tsx": {
+      "sha256": "6c046a00af2e466c01ea330b111afca5c314592035fcb519e4d6be9bee5f6eb4",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/LatexElement/LatexElementVisual.tsx",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/components/element/LatexElement/BaseLatexElement.tsx": {
+      "sha256": "95a3bf91806b1dd035b02dc02a49b47932b0b6002067b2a07b05ed94a0d990d2",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/LatexElement/BaseLatexElement.tsx",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/components/element/ImageElement/ImageElementVisual.tsx": {
+      "sha256": "b2e82f6e1ee109e9d72e4f07c48984624f1b5ee51829f8d5d64419ca5791a333",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ImageElement/ImageElementVisual.tsx",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/components/element/ImageElement/useClipImage.ts": {
+      "sha256": "63ae29c1f9dd55777e6c576962e8bcb02bfbfdc465c303cf5b31c18b365a6610",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ImageElement/useClipImage.ts",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/components/element/ImageElement/useFilter.ts": {
+      "sha256": "69bb1c66feec483ff1561222989f4b7c425c01fbd4ad8054fe7cc747a5d742de",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ImageElement/useFilter.ts",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/components/element/ShapeElement/BaseShapeElement.tsx": {
+      "sha256": "91605d5551fb578130b5da81c541f04624948e1eaee761300c4b29ee21f8e9e1",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ShapeElement/BaseShapeElement.tsx",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/components/element/ShapeElement/shape-text-layout.ts": {
+      "sha256": "a1c7e4c572d2e3885155614f90581d4ca2437dcd4b035d0691e100da55e142be",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ShapeElement/shape-text-layout.ts",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/components/element/ShapeElement/shape-path-transform.ts": {
+      "sha256": "78c5e91f48d63a463370638cfde96af65d81274a11bf7b248d63accccd7fa9b6",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ShapeElement/shape-path-transform.ts",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/components/element/ShapeElement/GradientDefs.tsx": {
+      "sha256": "1fa7808f3ff49eabf3db08a93013363579ef0ea34a63ee7620d792d7b068e44d",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ShapeElement/GradientDefs.tsx",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/components/element/ShapeElement/RectangularPatternImage.tsx": {
+      "sha256": "de40bfb93d282c6e386f0995d0fa00b072cf37cd4a6047c9de38e06da82b99a8",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ShapeElement/RectangularPatternImage.tsx",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/components/element/ShapeElement/PatternDefs.tsx": {
+      "sha256": "bd5dc47546de99fccb37cbd868ec27a5a15902da4963a16b42506b421fd7d6cd",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ShapeElement/PatternDefs.tsx",
+      "adapted": false
+    },
+    "src/player/components/slide-renderer/components/element/hooks/useElementShadow.ts": {
+      "sha256": "7c325914173c5f41f935fc22719b71f44fd6cbf2e1af9813207152dee04a5b13",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/hooks/useElementShadow.ts",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/components/element/hooks/useElementFill.ts": {
+      "sha256": "34f58c59167faaff459637e92433600d95e25189640f245aa5b622439f58aaea",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/hooks/useElementFill.ts",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/components/element/hooks/useElementFlip.ts": {
+      "sha256": "2f837e2751231517f392e9f87263aa63550bece2559a9652e693969f62f663ad",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/hooks/useElementFlip.ts",
+      "adapted": false
+    },
+    "src/player/components/slide-renderer/components/element/hooks/useElementOutline.ts": {
+      "sha256": "ead0d6c3064a98466728c980ceffca4f4871b889bf1b72a5c20eeff3ff5f40d1",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/hooks/useElementOutline.ts",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/components/element/ChartElement/chartOption.ts": {
+      "sha256": "84a7a4c70d26928a5d09ee33465e69b5dc0a8e75818e12c9f2b5e00b919062ab",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ChartElement/chartOption.ts",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/components/element/ChartElement/BaseChartElement.tsx": {
+      "sha256": "75d43723bb42350b894f657a4f412fa08e594d4c3ad0aef3173dade0cf2b49a0",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ChartElement/BaseChartElement.tsx",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/components/element/ChartElement/Chart.tsx": {
+      "sha256": "a8dd800aa86e90bf5b816b8d71848ff9f40c9c096790fe239b52c6baaffde35d",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ChartElement/Chart.tsx",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/components/element/LineElement/LinePointMarker.tsx": {
+      "sha256": "3ddd10bad16505b6f049d065e590a8ed44026b506a363c55d457f32e2dde9053",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/LineElement/LinePointMarker.tsx",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/components/element/LineElement/LineElementVisual.tsx": {
+      "sha256": "f1023831a2ed0efe42e156fa4a5ba14117debe350d040d28119580949ada2452",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/LineElement/LineElementVisual.tsx",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/components/element/LineElement/BaseLineElement.tsx": {
+      "sha256": "09968add2704100111d9013cf41ccf7e38f960a9affdc4aa1ac49f0bb7ea0dd1",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/LineElement/BaseLineElement.tsx",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/components/element/TextElement/TextElementFrame.tsx": {
+      "sha256": "ba54b758d59b65dbcbc445738bc044fe4b7fceb96893c2324a3667a5b65a4be0",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/TextElement/TextElementFrame.tsx",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/components/element/TextElement/BaseTextElement.tsx": {
+      "sha256": "edf4901fc51fad87e9ac8932f78c543bd6e53d437da9e6a202bd8a00797deb69",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/TextElement/BaseTextElement.tsx",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/components/element/ImageElement/ImageOutline/image-ellipse-outline.tsx": {
+      "sha256": "b17f391660a1c4705d470c7847ebee152822325e3d2d28356d68b17a29af5a23",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ImageElement/ImageOutline/image-ellipse-outline.tsx",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/components/element/ImageElement/ImageOutline/index.tsx": {
+      "sha256": "4eaa7c393ba7f07ec5c312a71291c2eee1e544b3291c30756e21363e6fbb2169",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ImageElement/ImageOutline/index.tsx",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/components/element/ImageElement/ImageOutline/image-rect-outline.tsx": {
+      "sha256": "22b236d443e023f8f4f8c23bb2a6a29bf2778e375fddbdb97c4b9421899ccf8e",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ImageElement/ImageOutline/image-rect-outline.tsx",
+      "adapted": true
+    },
+    "src/player/components/slide-renderer/components/element/ImageElement/ImageOutline/image-polygon-outline.tsx": {
+      "sha256": "484aa16f000911397b53cdcf53f8b05dd215fc03262f99db896ca08b634bb65d",
+      "origin": "player",
+      "source": "components/slide-renderer/components/element/ImageElement/ImageOutline/image-polygon-outline.tsx",
+      "adapted": true
+    },
+    ".gitattributes": {
+      "sha256": "7e6d2287fb4fb1ac46105cd34fd8fc44d6488720d9f90a7b160e12c474cc08aa",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "scripts/playback-browser.mjs": {
+      "sha256": "12e976dda09fab095c8ba210be26a688c3dc71dcebb4eb46dc9f65efb7141fd0",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "scripts/playback-electron.cjs": {
+      "sha256": "32278598d1ee5716a09d3f611c1d0ecad9a4ab1cc8f9773e575a9fc6eddb7317",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "src/conversion/tests/courseware/fixed-build-cancellation.test.ts": {
+      "sha256": "702746c0f8d37454265a6c47f9eb3c23368b3f38811892ff318d879decee9d97",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "tests/fixtures/office-lineage-b7/SOURCE.json": {
+      "sha256": "28755ff70f36d9a19f017c8bca1e03af7705ee9e7c9212adbdaf0f001a0e5fbf",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "tests/fixtures/office-lineage-b7/copied-page.pptx": {
+      "sha256": "c024dff826936cce872cfdb73bf3a4a83e3fccf1ffe60faaea13f6f3888350f1",
+      "origin": "B7-test-only-pinned-input",
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/B/b7-20261019/run-production-02/copied-page.pptx",
+      "adapted": false
+    },
+    "tests/fixtures/office-lineage-b7/reordered.pptx": {
+      "sha256": "d62df8d6334ee96b59b39816c63fd28b54575aef181a82b856bd5990cf9cce9b",
+      "origin": "B7-test-only-pinned-input",
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/B/b7-20261019/run-production-02/reordered.pptx",
+      "adapted": false
+    },
+    "tests/fixtures/office-lineage-b7/native-lineage.json": {
+      "sha256": "f75bbe335eff2ff4226f8a425c0c1f49e5bd91db945e790882c83f6c754fa216",
+      "origin": "B7-test-only-pinned-input",
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/B/b7-20261019/run-production-02/native-lineage.json",
+      "adapted": false
+    },
+    "tests/fixtures/office-lineage-b7/copied-page.pptx.receipt.json": {
+      "sha256": "6678deb966f398f9a22def929603d9ead180c8eb049827e7ade158c709604ab5",
+      "origin": "B7-test-only-pinned-input",
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/B/b7-20261019/run-production-02/copied-page.pptx.receipt.json",
+      "adapted": false
+    },
+    "tests/fixtures/office-lineage-b7/reordered.pptx.receipt.json": {
+      "sha256": "fd8af0249807377fb18502427e88d868a9ec7133f5ef81faab8569465ff0dbf2",
+      "origin": "B7-test-only-pinned-input",
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/B/b7-20261019/run-production-02/reordered.pptx.receipt.json",
+      "adapted": false
+    },
+    "tests/fixtures/office-lineage-b7/b7-ppt-editor-bridge.ts": {
+      "sha256": "27ab403081cc79eed59d6d7fa073cc0a8664183d52942b10994783fb74b0eb9e",
+      "origin": "B7-test-only-pinned-input",
+      "source": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-B/packages/shared/src/ppt-editor-bridge.ts",
+      "adapted": false
+    },
+    "tests/fixtures/office-lineage-b7/reordered-lineage.json": {
+      "sha256": "5a363cb27b4f01b5c650e9fd0b388a7b688f6439afb334f36975f3b53952a0e2",
+      "origin": "B7-test-only-pinned-input",
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/B/b7-20261019/run-production-02/reordered-lineage.json",
+      "adapted": false
+    },
+    "tests/fixtures/office-lineage-b7/source.pptx": {
+      "sha256": "c5f9392ea1a93f6616e30d23f0be421d58c6e30337670433b0d27baee4ee4cc0",
+      "origin": "B7-test-only-pinned-input",
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/B/b3-20261019/source-copy.pptx",
+      "adapted": false
+    },
+    "tests/fixtures/office-lineage-b7/native-edited.pptx": {
+      "sha256": "29c51b63ca130e44768d8c2d12b267c3de8b51d04085fb061542b3b8d95d0853",
+      "origin": "B7-test-only-pinned-input",
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/B/b7-20261019/run-production-02/native-edited.pptx",
+      "adapted": false
+    },
+    "tests/fixtures/office-lineage-b7/source-mapping.json": {
+      "sha256": "d5b9e19e194f71917edabe5499edc60d350efcd9aab92f1641d6308ada012634",
+      "origin": "B7-test-only-pinned-input",
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/B/b7-20261019/d-production-02/native-mapping-fixture.json",
+      "adapted": false
+    },
+    "tests/fixtures/office-lineage-b7/native-edited.pptx.receipt.json": {
+      "sha256": "a7b727b61928f20708179e0a7f9f09fba593483ef357781df2b7c461db2b385b",
+      "origin": "B7-test-only-pinned-input",
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/B/b7-20261019/run-production-02/native-edited.pptx.receipt.json",
+      "adapted": false
+    },
+    "src/conversion/tests/courseware/office-lineage.test.ts": {
+      "sha256": "9c767d8ba941314786b3964c0530eec5b6b273a03bfe67de32d1344bd7c6df78",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "tests/fixtures/media-task-c1-http/SOURCE.json": {
+      "sha256": "0893d786d73602e7997eab6a734eb95b3b664535efcd6cd7d8ca75b6cd7d6579",
+      "origin": "desktop-test-fixture",
+      "source": null,
+      "adapted": false
+    },
+    "tests/fixtures/media-task-c1-http/asset.png": {
+      "sha256": "55ccf93d4cdfb394363c73b6eae96c8d5e50e5e46d969e710bcc1833f6acef1f",
+      "origin": "desktop-test-fixture",
+      "source": null,
+      "adapted": false
+    },
+    "tests/fixtures/media-task-c1-http/fresh-task-ready.json": {
+      "sha256": "de701830d5bf40a8e79e54391f4e49b4cb7b5b8b72613296fbdf774e21378006",
+      "origin": "desktop-test-fixture",
+      "source": null,
+      "adapted": false
+    },
+    "tests/fixtures/media-task-c1-http/task-ready.json": {
+      "sha256": "7b0a969b8621246675a054e17288b6a730145dac5ca3e9ca305f987b9c1a976f",
+      "origin": "desktop-test-fixture",
+      "source": null,
+      "adapted": false
+    },
+    "src/conversion/tests/courseware/a8-narration.test.ts": {
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false,
+      "sha256": "057f1b9b9f1af568dba42c403d9813cbb9abc3d7c5815f633c1ac5fd57ac41ec"
+    },
+    "tests/fixtures/a8-narration/chat-generated-review.json": {
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false,
+      "sha256": "c8ff93fe1e0a26a6770e5a112e2e93de1e814f4faa789dfa7df692fd5b703f77"
+    },
+    "tests/fixtures/a8-narration/SOURCE.json": {
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false,
+      "sha256": "ec04c33c33808984ea6c326399e605363c6bb052ac2777d3ffbda42e9106171d"
+    },
+    "tests/fixtures/a8-narration/canonical-fixed-audio.json": {
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false,
+      "sha256": "976e3ad9c479f9efb017c73d6f778aed5cfad127f51981caef9e89f21d424b36"
+    },
+    "tests/fixtures/a8-narration/source-pause-project.json": {
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false,
+      "sha256": "7ee03c7201cae9b946ad4e4784245b2092b10077893dca3fac1dc57561635343"
+    },
+    "src/conversion/tests/courseware/office-text-format.test.ts": {
+      "sha256": "270c427a127852feae6830cf2701a64838bea3f06c07d2c41c1012c837a8cec2",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "tests/fixtures/office-text-format-b15/SOURCE.json": {
+      "sha256": "ff75ae70bc8743ead270dfa19d4bd30aa293f74857fa5ddcad6d1e9ad6dc26fd",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "tests/fixtures/office-text-format-b15/canonical-original.json": {
+      "sha256": "fdeafdcaaeea0018c7e0a89217dc6a28bef177f7cb0ecfdb8ee79a72752514be",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "tests/fixtures/office-text-format-b15/canonical-cross-run.json": {
+      "sha256": "b67d09152a82363d8de5be4094a7c157154b549ad420359d11d7be87c5107900",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "tests/fixtures/office-text-format-b15/canonical-partial.json": {
+      "sha256": "c229536fc8d20db65aa8f519d05fd3983385ac9c1107a7563df6c5c66bc9a792",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "tests/fixtures/office-text-format-b15/original.pptx": {
+      "sha256": "4ef70dd8edabd41dbc2e2c916f8e75e843f9be2ddc503accf3857f1112d5962e",
+      "origin": "B15-frozen-native-save",
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/B/b11-20261019/generation-final/source.pptx",
+      "adapted": false
+    },
+    "tests/fixtures/office-text-format-b15/partial.pptx": {
+      "sha256": "d916bc90bb130d2799be91f95bf9c9c4c1b4f3c9ea7834829f8abdad043a0f11",
+      "origin": "B15-frozen-native-save",
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/B/b15-20261019/run-03/mouse-partial-saved.pptx",
+      "adapted": false
+    },
+    "tests/fixtures/office-text-format-b15/cross-run.pptx": {
+      "sha256": "8f95bd156219e0c375da111c6582fb4ea74ae2abfb202b3c547b6e31abe388e1",
+      "origin": "B15-frozen-native-save",
+      "source": "/home/jhz/code/train/docs/validation/courseware/parallel/B/b15-20261019/run-03/mouse-cross-run-saved.pptx",
+      "adapted": false
+    },
+    "ADR-playback-presentation-events.md": {
+      "sha256": "90e6b103008f199df10960fa91add8fdc9c05d65bbffbf786003c8f4fc1093d7",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "scripts/verify-office-crop-browser.mjs": {
+      "sha256": "22ca823a7cc55f4cb6670f554f026ea65654fd802e835ce23afd800bdcd0de8c",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "tests/fixtures/office-image-crop-b20/SOURCE.json": {
+      "sha256": "5ea36984da80e0b0e12b2a794dd1b8006f76ff9a949c6e2eee7df9126b9480ad",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "tests/fixtures/office-image-crop-b20/canonical-saved.json": {
+      "sha256": "1b60e339dbc3a05f779cf0e4c973e122c3d537053c71a66ebafef33b410334a5",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "tests/fixtures/office-image-crop-b20/candidate.pptx": {
+      "sha256": "03597cd3d888c60c96ac4eabdba016ddb3f09087449b45cc09fe7d392e64040b",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "tests/fixtures/office-image-crop-b20/canonical-native-edited.json": {
+      "sha256": "54d02e2d6d40ac2a0a6a9838bf83de04e599c2e97c953581c2953da633fa5418",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "tests/fixtures/office-image-crop-b20/saved.pptx": {
+      "sha256": "de931a7bac294a25d3f6fed4c1d7a272d6b3d35e693ac1416d5cf54223072e7e",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "tests/fixtures/office-image-crop-b20/native-edited.pptx": {
+      "sha256": "171b07eb92835c4f414b5269893185eeede8389b5fd79fab9c3c8f9e59417a61",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "tests/fixtures/office-image-crop-b20/canonical-candidate.json": {
+      "sha256": "5dd2a58a602c4f984b2b33c0eeb1368c59c217b793c296c63e8732fe8d3c8f7b",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "src/player/lib/courseware/load-team-fixed-build.ts": {
+      "sha256": "f15f9500b0a511c9d29b82792e59f9351b8c6ddd1a8fda54f2d86ef5261ec5c3",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "src/player/lib/courseware/load-team-fixed-build.test.ts": {
+      "sha256": "22b2538bdcd81ba0d7839cf115a0e71d5227c933e61621a664c6d32922090ee0",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "tests/fixtures/team-fixed-files-c2b/fixed-playback.json": {
+      "sha256": "4e79147dfefcbf90280e11cd573d68c388c065df3817b03d6cea4346a599e765",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "tests/fixtures/team-fixed-files-c2b/SOURCE.json": {
+      "sha256": "49ff3998d36020b9b6335bf589f93d533aa1c03e92baf16efe25831f2f21d0b3",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "ADR-team-fixed-build-consumption.md": {
+      "sha256": "fd0a00c11bd79de8ac49d31344af38cafa838af21739e78f39ba15941576cb56",
+      "origin": "desktop-addition-or-local-resource",
+      "source": null,
+      "adapted": false
+    },
+    "vendor/pptxtojson/index.cjs.map": {
+      "sha256": "2d2576ea4c5771ab16051609162a55398c2087b07e587176ff13e220dfad9f16",
+      "origin": "patched-pptxtojson-2.1.0",
+      "source": "index.cjs.map",
+      "adapted": false
+    }
+  },
+  "omittedExtractionFiles": [
+    "src/player/lib/utils/cn.ts",
+    "src/player/lib/utils/index.ts"
+  ]
+}

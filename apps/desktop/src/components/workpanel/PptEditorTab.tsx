@@ -1,28 +1,39 @@
 import { getOfficeExtension, OFFICE_FORMATS } from "@pi-desktop/shared";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { api, type PptEditorState } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
 import { IconCheck, IconClose, IconExternal, IconFileText, IconPanelMaximize, IconPanelRestore, IconRefresh } from "../icons";
 import { WorkTabEmpty } from "./WorkTabEmpty";
+import { PptxInspectionPanel } from "./PptxInspectionPanel";
 
 export function PptEditorTab({
   path,
   mimeType,
   tabId,
   maximized = false,
+  blocked = false,
   onToggleMaximize,
+  actions,
+  reviewPanel,
+  storyPanel,
 }: {
   path: string;
   mimeType?: string;
   tabId: string;
   maximized?: boolean;
+  blocked?: boolean;
   onToggleMaximize?: () => void;
+  actions?: ReactNode;
+  reviewPanel?: ReactNode;
+  storyPanel?: ReactNode;
 }) {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const openRequest = useRef(0);
   const [state, setState] = useState<PptEditorState>({ status: "opening", path });
+  const [sidebar, setSidebar] = useState<"inspection" | "story" | null>(null);
   const closeTab = useAppStore((store) => store.closeWorkPanelTab);
+  const sessionId = useAppStore((store) => store.activeSessionId);
   const { t } = useTranslation();
 
   const openEditor = useCallback(() => {
@@ -32,26 +43,42 @@ export function PptEditorTab({
       (next) => {
         if (openRequest.current !== request) return;
         setState(next);
-        void api.pptEditorSetVisible(true);
       },
       (error) => {
         if (openRequest.current === request) setState({ status: "error", path, canRetry: true, message: String(error) });
       },
     );
-  }, [path, mimeType]);
+  }, [path, mimeType, sessionId]);
 
   useEffect(() => api.onPptEditorState(setState), []);
 
   useEffect(() => {
-    openEditor();
+    // Native views composite above renderer dialogs, regardless of CSS z-index.
+    void api.pptEditorSetVisible(!blocked && ["ready", "saved", "saving"].includes(state.status));
+  }, [blocked, state.status]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const sync = () => void api.pptEditorConfigureUi({ theme: root.dataset.theme === "dark" ? "dark" : "light" })
+      .catch(error => useAppStore.getState().showToast(String(error)));
+    const observer = new MutationObserver(sync);
+    observer.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+    sync();
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    // Cancel transient mounts before starting a native open (React StrictMode).
+    const openTimer = setTimeout(openEditor, 0);
     return () => {
+      clearTimeout(openTimer);
       ++openRequest.current;
       void api.pptEditorSetVisible(false);
       setTimeout(() => {
         const stillOpen = useAppStore
           .getState()
-          .workPanelTabs.some((tab) => tab.id === tabId);
-        if (!stillOpen) void api.pptEditorClose();
+          .workPanelTabs.some((tab) => tab.id === tabId || tab.resource === path);
+        if (!stillOpen) void api.pptEditorClose().catch((error) => useAppStore.getState().showToast(String(error)));
       }, 0);
     };
   }, [openEditor, tabId]);
@@ -74,6 +101,7 @@ export function PptEditorTab({
     };
     const observer = new ResizeObserver(report);
     observer.observe(surface);
+    if (surface.parentElement?.parentElement) observer.observe(surface.parentElement.parentElement);
     window.addEventListener("resize", report);
     report();
     return () => {
@@ -84,39 +112,62 @@ export function PptEditorTab({
   }, []);
 
   const close = () => {
-    void api.pptEditorClose();
-    closeTab(tabId);
+    void api.pptEditorClose().then(() => closeTab(tabId)).catch((error) => useAppStore.getState().showToast(String(error)));
   };
   const extension = getOfficeExtension(path, mimeType);
   const saveCopy = extension && OFFICE_FORMATS[extension].saveExt !== extension;
   const busy = state.status === "opening" || state.status === "saving";
 
   return (
-    <div className="ppt-editor-tab">
+    <div className={`ppt-editor-tab${sidebar && extension === "pptx" ? " has-inspection" : ""}`}>
       <div className="ppt-editor-toolbar">
         <div className="ppt-editor-document">
-          <strong>{path.split("/").at(-1) || path}</strong>
-          <span role="status" title={state.savedPath}>{state.status === "error" ? state.message || t("panel.pptEditor.error") : state.status === "opening" ? t("panel.pptEditor.loading") : state.status === "saving" ? t("panel.pptEditor.saving") : state.status === "saved" ? t("panel.pptEditor.saved", { revision: state.revision ?? "—" }) : t("panel.pptEditor.revision", { revision: state.revision ?? "—" })}{state.status === "saved" && saveCopy && state.savedPath ? ` · ${state.savedPath}` : ""}</span>
+          <span role="status" title={state.savedPath}>{state.status === "error" ? state.message || t("panel.pptEditor.error") : state.status === "opening" ? t("panel.pptEditor.loading") : state.status === "saving" ? t("panel.pptEditor.saving") : state.dirty ? t("panel.pptEditor.unsaved") : state.status === "saved" ? t("panel.pptEditor.savedToFile") : t("panel.pptEditor.opened")}{state.status === "saved" && saveCopy && state.savedPath ? ` · ${state.savedPath}` : ""}</span>
         </div>
-        <button type="button" onClick={() => onToggleMaximize?.()}>
+        {state.teachingProgress && <span className="courseware-teaching-progress" role="status">
+          {t("coursewareWorkflow.teachingProgress", state.teachingProgress)}
+        </span>}
+        {extension === "pptx" && state.module && <button type="button" aria-pressed={state.teachingOpen !== false}
+          disabled={!state.nativeTeaching} onClick={() => { void api.pptEditorConfigureUi({ teachingOpen: state.teachingOpen === false })
+            .catch(error => useAppStore.getState().showToast(String(error))); }}>{t("panel.pptEditor.teachingFlow")}</button>}
+        {extension === "pptx" && storyPanel && <button type="button" aria-expanded={sidebar === "story"} onClick={() => setSidebar(value => value === "story" ? null : "story")}>{t("coursewareStory.title")}</button>}
+        {extension === "pptx" && <button type="button" aria-expanded={sidebar === "inspection"} onClick={() => setSidebar(value => value === "inspection" ? null : "inspection")}>{t("panel.pptEditor.inspection")}</button>}
+        {actions}
+        <button type="button" aria-pressed={maximized} disabled={!onToggleMaximize} onClick={() => onToggleMaximize?.()}>
           {maximized ? <IconPanelRestore size={13} /> : <IconPanelMaximize size={13} />}
-          {maximized ? t("panel.pptEditor.restore") : t("panel.pptEditor.maximize")}
+          {maximized ? t("panel.pptEditor.returnToChat") : t("panel.pptEditor.focus")}
         </button>
-        <button type="button" disabled={busy || state.status === "error" || state.readOnly} onClick={() => void api.pptEditorSave()}>
+        <button type="button" className="ppt-editor-save" disabled={busy || !state.canSave || state.readOnly} onClick={() => void api.pptEditorSave().catch((error) => useAppStore.getState().showToast(String(error)))}>
           <IconCheck size={13} /> {t(saveCopy ? "panel.pptEditor.saveCopy" : "panel.pptEditor.save")}
         </button>
-        <button type="button" className="icon" aria-label={t("panel.pptEditor.close")} onClick={close}>
+        {tabId !== "ppt" && <button type="button" className="icon" disabled={busy} aria-label={t("panel.pptEditor.close")} onClick={close}>
           <IconClose size={14} />
-        </button>
+        </button>}
       </div>
-      <div ref={surfaceRef} className="ppt-editor-surface">
-        {state.status === "opening" && <WorkTabEmpty icon={IconFileText} title={t("panel.pptEditor.loading")} />}
+      {extension === "pptx" && sidebar && <aside className="ppt-editor-review" aria-label={t(sidebar === "story" ? "coursewareStory.title" : "panel.pptEditor.inspection")}>
+        <header className="ppt-editor-review-heading">
+          <strong>{t(sidebar === "story" ? "coursewareStory.title" : "panel.pptEditor.inspection")}</strong>
+          <button type="button" className="btn btn-ghost" aria-label={t("common.close")} onClick={() => setSidebar(null)}><IconClose size={16} /></button>
+        </header>
+        <div className="ppt-editor-review-content">
+        {sidebar === "story" ? storyPanel : <>
+        <PptxInspectionPanel key={path} revision={state.revision} enabled={!busy && !state.readOnly && (state.status === "ready" || state.status === "saved")} />
+        {reviewPanel}
+        </>}
+        </div>
+      </aside>}
+      <div className="ppt-editor-body">
+      <div ref={surfaceRef} className="ppt-editor-surface" aria-busy={state.status === "opening"}>
+        {state.status === "opening" && <WorkTabEmpty icon={IconFileText} title={t("panel.pptEditor.loading")}>
+          <span className="ppt-editor-loading-dots" aria-hidden="true"><i /><i /><i /></span>
+        </WorkTabEmpty>}
         {state.status === "error" && (
           <WorkTabEmpty icon={IconFileText} title={t("panel.pptEditor.error")} body={state.message}>
             <button type="button" className="btn btn-secondary" onClick={() => void api.fsOpen(path)}><IconExternal size={14} /> {t("panel.files.openExternally")}</button>
             {state.canRetry && <button type="button" className="btn btn-secondary" onClick={() => openEditor()}><IconRefresh size={14} /> {t("panel.pptEditor.retry")}</button>}
           </WorkTabEmpty>
         )}
+      </div>
       </div>
     </div>
   );

@@ -1,0 +1,52 @@
+{
+  "status": "ready",
+  "previewId": "c285b39e-7b5b-48d7-843e-7a62e7a6b523",
+  "snapshot": {
+    "assetIds": [
+      "voice-1"
+    ],
+    "mappingRevision": "875f8c5e-44e4-47fc-b959-acaf034c79ab",
+    "projectId": "office-snapshot-e2e",
+    "snapshotId": "snapshot-1",
+    "source": {
+      "revision": "c3aeaeb94308615b2af2529db1cdbd76f85b18fd14714e5ebd10adb9ccad37f3",
+      "sha256": "c3aeaeb94308615b2af2529db1cdbd76f85b18fd14714e5ebd10adb9ccad37f3"
+    },
+    "teachingRevision": "e85b4574-4ebe-4d14-ac3c-6045fc84b00e"
+  },
+  "buildRef": {
+    "buildId": "2fa4460490b8bc6cf9a804d2fe578c6612db0bcb60306c5bde775023b273cc12",
+    "packageSha256": "2fa4460490b8bc6cf9a804d2fe578c6612db0bcb60306c5bde775023b273cc12",
+    "snapshotId": "snapshot-1"
+  },
+  "report": {
+    "ready": true,
+    "reviewedWarningCodes": [
+      "PPTX_NOTES_MASTER_UNVERIFIED"
+    ],
+    "visualFidelity": "NOT_VERIFIED",
+    "diagnostics": [
+      {
+        "code": "PPTX_NOTES_MASTER_UNVERIFIED",
+        "severity": "warning",
+        "message": "PPTX 包含备注母版，当前仅提取逐页备注，未验证母版版式与样式的保留情况，须人工核对"
+      }
+    ],
+    "capabilities": {
+      "staticSlides": "limited",
+      "fixedNarration": true,
+      "teacherWait": true,
+      "transitions": false,
+      "objectAnimations": false,
+      "spotlight": false
+    },
+    "sourceSha256": "c3aeaeb94308615b2af2529db1cdbd76f85b18fd14714e5ebd10adb9ccad37f3",
+    "sourceRevision": "c3aeaeb94308615b2af2529db1cdbd76f85b18fd14714e5ebd10adb9ccad37f3",
+    "teachingRevision": "e85b4574-4ebe-4d14-ac3c-6045fc84b00e",
+    "mappingRevision": "875f8c5e-44e4-47fc-b959-acaf034c79ab",
+    "converter": {
+      "version": "maic-pptx-import-ir/1",
+      "manifestSha256": "3324dc03cad28ea34280a76a3d723c9288f0834da43bcce85d8ec9f8dbf4320c"
+    }
+  }
+}

@@ -15,6 +15,9 @@ disagrees, so a green `check:release-docs` is a precondition, not a substitute.
 | `release.mjs` | `node scripts/release.mjs <version> [--tag]` | Bump every workspace version surface, commit, and optionally create the `vX.Y.Z` tag the Release workflow builds from |
 | `check-release-docs.mjs` | `pnpm check:release-docs` | Verify the changelog, its test list, `APP_VERSION`, workspace versions, Cargo versions, and both README release lines agree |
 | `check-agent-policy-sync.mjs` | `pnpm check:agent-policy` | Verify `AGENTS.md` and `CLAUDE.md` share the same `Policy-Sync` token, cross-references, and non-negotiable policy anchors |
+| `check-courseware-workflow.mjs` | `pnpm test:courseware-workflow` | Mandatory provider-free courseware contracts in CI and Release verification; native editor acceptance runs separately |
+| `check-courseware-regression.mjs` | `pnpm test:courseware-regression` | Require three distinct 1–6-page fixtures, installed reference dependencies and a new `DECKWISE_E2E_OUTPUT`; run Electron/native background edits and real Host/Quiz consumer parity, retain identities and reject drift; source regression only |
+| `check-maic-courseware-parity.mjs` | `node scripts/check-maic-courseware-parity.mjs --preflight` | Check reference sources and installed dependencies before Electron starts; set `MAIC_SERVER_ROOT` and `MAIC_CLOUD_WEB_ROOT` for nondefault reference checkouts; preflight is not acceptance |
 | `check-marketplace-catalog.mjs` | `pnpm check:marketplace -- --url <url> --plugin <id>` | Marketplace catalog preflight; rejects a version record missing a checksum, package URL, size, or permissions, and a catalog `author` that is not a string |
 | `check-style-tokens.mjs` | run by the desktop `lint` script | Fail renderer styles that hardcode values instead of design-system tokens |
 
@@ -23,9 +26,12 @@ disagrees, so a green `check:release-docs` is a precondition, not a substitute.
 | Script | Alias | Purpose |
 |---|---|---|
 | `prepare-ppt-master.mjs` | `pnpm --filter @pi-desktop/desktop run prepare:ppt-master` | Stage the pinned PPT Master skill in `apps/desktop/dist/ppt-master`; explicit `--output` paths resolve from the working directory |
+| `courseware-release-inputs.mjs` | `node scripts/courseware-release-inputs.mjs --freeze <new-lock.json>` / `--check <lock.json>` | Verify paired editor/worker bytes and pin target/revisions/hashes; packaging hooks consume the lock in release mode; input verification alone is not acceptance |
+| `stage-wiseoffice.mjs` | `pnpm --filter @pi-desktop/desktop check:wiseoffice` | Verify all inventoried files in the staged MAIC-integrated editor before packaging |
 | `release-macos.sh` | `scripts/release-macos.sh` | Signed and notarized local native macOS release lane. Requires `MAC_SIGNING_IDENTITY` and Apple notarization credentials; local package and distribution lanes remain unsigned when no signing identity is configured. |
 | `staple-macos-release-dmg.sh` | `scripts/staple-macos-release-dmg.sh [release-dir]` | Attach Apple's notarization ticket (`xcrun stapler staple`) to the single DMG a native macOS job produced; run by the Release workflow when `sign_macos` is set |
 | `verify-macos-release.sh` | `scripts/verify-macos-release.sh [release-dir]` | Fail unless the one `DeckWise.app` and DMG under the release directory are Developer ID-signed, notarized, and stapled; run by the Release workflow after stapling |
+| `check-courseware-package-credentials.mjs` | `node --experimental-strip-types scripts/check-courseware-package-credentials.mjs --resources <dir> --output <report> [--fixed-build <dir>]` | Scan package signatures and fixed-build allowlisted files, including bounded PPTX decompression; known signatures and embedded-archive limits remain explicit. |
 | `export-linux-asar.mjs` | `node scripts/export-linux-asar.mjs` | Copy the Linux `linux-unpacked/resources/app.asar` into the versioned release asset used for system-Electron repackaging |
 | `create-download-manifest.mjs` | `node scripts/create-download-manifest.mjs <directory> <version> [--mac-signed]` | Validate all seven installers and generate the download page's version, sizes, filenames, and signing status |
 | `check-linux-host-glibc.mjs` | `node scripts/check-linux-host-glibc.mjs [bin]` | Fail a Linux host-core binary whose needed glibc is above 2.35 |
@@ -87,3 +93,23 @@ then removes that run's staging files. Actions artifact storage is not used.
 The release workflow defaults to unsigned macOS artifacts; manually dispatch
 it with `sign_macos: true` to opt into signing and notarization. See the [release
 runbook](../docs/spec/06-delivery/06-release-runbook.md).
+
+
+### Saved-page narration without editor navigation
+
+Run `scripts/e2e-courseware-saved-narration.mjs` with Electron, passing
+`SOURCE.pptx STAGED_WORKER.mjs OUTPUT_DIRECTORY` and setting
+`PI_DESKTOP_HOST_BIN` to the current Host binary. Build agent-runtime first.
+Local `libreoffice` and `pdftoppm` enable full-page visual evidence; embedded
+images are the fallback. The gate uses deterministic model callbacks and actual
+Main/Host parsing, candidate adoption and restart, without paid calls or an
+editor window. It writes `result.json` and `host.log`; it does not assess real
+model quality. Use a fresh test output directory and temporary storage.
+
+### Tolerant transcript reads
+
+Transcript and revision readers skip malformed records, decode invalid UTF-8
+best effort, and preserve physical byte offsets for bounded reads. Torn tails
+are excluded without rewriting user data. Regression coverage lives in
+`crates/host-core/src/transcripts_layout_tests.rs` and
+`scripts/e2e-transcript-cache.mjs` (upstream `80dc767b0`).

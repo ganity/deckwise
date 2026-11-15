@@ -149,6 +149,17 @@ test("the built-in skill ships as a packaged resource with a dev fallback", () =
   assert.match(builtinSrc, /resources\/skills/);
 });
 
+test("courseware generation, import and editing skills are registered and packaged", () => {
+  for (const name of ["ppt-edit", "ppt-import", "scene-courseware"]) {
+    const body = readFileSync(join(desktopRoot, `resources/skills/${name}/SKILL.md`), "utf8");
+    assert.match(body, /^---\nname: /);
+    assert.match(builtinSrc, new RegExp(`\\"${name}\\"`));
+  }
+  assert.match(builtinSrc, /readBuiltinSkill\(`\$\{name\}\/SKILL\.md`\)/);
+  assert.match(builtinSrc, /id: `deckwise\/\$\{name\}`/);
+  assert.ok(packageJson.build.extraResources.some((entry) => entry.from === "resources/skills" && entry.to === "skills"));
+});
+
 test("the built-in skill documents the constraints a plugin author will hit", () => {
   assert.match(skillDoc, /^---\n/);
   assert.match(skillDoc, /description: /);
@@ -190,7 +201,7 @@ test("only PluginCheck is available outside agent mode", () => {
   assert.doesNotMatch(nonAgentBranch, /PluginScaffold|PluginPack/);
   assert.match(
     builder.slice(agentBranchStart),
-    /tools\.push\("PluginScaffold", "PluginPack"\)/,
+    /tools\.push\("PluginScaffold", "PluginPack"[,)]/,
   );
 });
 

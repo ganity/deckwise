@@ -72,6 +72,7 @@
 - [05-change-checklist.md](06-delivery/05-change-checklist.md)
 - [06-release-runbook.md](06-delivery/06-release-runbook.md)
 - [07-remote-control-rollout.md](06-delivery/07-remote-control-rollout.md)
+- [courseware-platform-sync.md](06-delivery/courseware-platform-sync.md)
 
 ## 7. Plugins
 - [README.md](07-plugins/README.md)
@@ -99,3 +100,18 @@
 
 ## ADR
 - [../adr/README.md](../adr/README.md)
+
+## Courseware specifications
+
+- [21-courseware-parser](03-runtime/21-courseware-parser.md)
+- [22-courseware-contract-v1](03-runtime/22-courseware-contract-v1.md)
+- [22-courseware-runtime](03-runtime/22-courseware-runtime.md)
+- [23-courseware-native-chat](03-runtime/23-courseware-native-chat.md)
+- [23-ppt-candidate-tools](03-runtime/23-ppt-candidate-tools.md)
+- [24-courseware-narration-candidates](03-runtime/24-courseware-narration-candidates.md)
+- [25-courseware-source-candidates](03-runtime/25-courseware-source-candidates.md)
+- [26-courseware-fixed-snapshots](03-runtime/26-courseware-fixed-snapshots.md)
+- [27-courseware-authorized-media](03-runtime/27-courseware-authorized-media.md)
+- [28-courseware-docs-coverage](03-runtime/28-courseware-docs-coverage.md)
+- [29-courseware-chat-workflow](03-runtime/29-courseware-chat-workflow.md)
+- [12-courseware-online-source-review](04-ux/12-courseware-online-source-review.md)

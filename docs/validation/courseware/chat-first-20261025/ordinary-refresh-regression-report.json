@@ -1,0 +1,163 @@
+{
+  "status": "PASS_CHAT_FIRST_PLAN_ASSETS_COMPILE_AND_WISEOFFICE",
+  "checks": [
+    "The actual new-task dialog transfers a reviewed brief to Chat without sending or opening a workbench",
+    "The main Chat saves and reviews a real plan without mounting the secondary controls",
+    "Plan approval actually advances Agent tools to a prepared image and an unchecked quote",
+    "A full Desktop restart restores approval and the prepared intent without replay or spend",
+    "Each explicit image review advances the same Chat until the actual compiler saves an editable PPTX",
+    "The Chat artifact action opens real WiseOffice with separate objects and the planned narration",
+    "An import task can discuss requirements in Chat before file selection",
+    "The Chat picker can cancel and then import the original PPTX into WiseOffice without the generation form",
+    "Ordinary PPT creation uses the same dialog and does not submit an unsent brief"
+  ],
+  "directory": "/tmp/deckwise-chat-first-8kPP9M",
+  "paidCalls": false,
+  "identityFixture": true,
+  "modelFixture": true,
+  "mediaFixture": true,
+  "sandbox": "--no-sandbox",
+  "generated": {
+    "path": "/tmp/deckwise-chat-first-8kPP9M/workspace/.deckwise-ppt/generated/b4c1dde348c484f55057bdb89a221051099daa7a7d53991f51cb5dac666d7689.pptx",
+    "sha256": "b4c1dde348c484f55057bdb89a221051099daa7a7d53991f51cb5dac666d7689",
+    "compiledPages": 1,
+    "fixtureSubmissions": 3,
+    "projectId": "office-b4c1dde348c484f55057bdb89a221051099daa7a-b00413fd6b6c"
+  },
+  "imported": {
+    "sessionId": "ddd0af36-be0a-4d26-93a0-d065b4dc435f",
+    "sourceSha256": "b4c1dde348c484f55057bdb89a221051099daa7a7d53991f51cb5dac666d7689",
+    "pickerFixture": true
+  },
+  "modelRequests": 23,
+  "mediaRequests": [
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models/scene-image/quote",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models/scene-image/quote",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/tasks/confirmed",
+      "method": "POST"
+    },
+    {
+      "path": "/courseware/media/tasks/chat-first-image-1",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/tasks/chat-first-image-1",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/tasks/chat-first-image-1/asset",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models/scene-image/quote",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/tasks/confirmed",
+      "method": "POST"
+    },
+    {
+      "path": "/courseware/media/tasks/chat-first-image-2",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/tasks/chat-first-image-2",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/tasks/chat-first-image-2/asset",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models/scene-image/quote",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/tasks/confirmed",
+      "method": "POST"
+    },
+    {
+      "path": "/courseware/media/tasks/chat-first-image-3",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/tasks/chat-first-image-3",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/tasks/chat-first-image-3/asset",
+      "method": "GET"
+    },
+    {
+      "path": "/courseware/media/models",
+      "method": "GET"
+    }
+  ]
+}

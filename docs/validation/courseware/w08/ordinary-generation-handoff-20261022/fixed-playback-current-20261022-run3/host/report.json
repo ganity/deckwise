@@ -1,0 +1,11 @@
+{
+  "status": "FAIL",
+  "checks": [],
+  "temp": "/tmp/deckwise-snapshots-rDb1D3",
+  "sourceHash": "c3aeaeb94308615b2af2529db1cdbd76f85b18fd14714e5ebd10adb9ccad37f3",
+  "audioHash": "c726d333dd159a31423f3480dbb1c5c4a9dfcd30efe1f7e12ade390dc92e8908",
+  "audioFixtureOnly": true,
+  "paidCalls": false,
+  "electronUi": false,
+  "error": "Error: {\"code\":1002,\"message\":\"Invalid PPTX runtime installation\",\"data\":{\"errorCode\":\"INVALID_PARAMS\"}}\n    at Interface.<anonymous> (file:///home/jhz/code/train/deckwise-desktop-worktrees/courseware-par-A/scripts/e2e-courseware-snapshots.mjs:59:39)\n    at Interface.emit (node:events:508:28)\n    at [_onLine] [as _onLine] (node:internal/readline/interface:465:12)\n    at [_normalWrite] [as _normalWrite] (node:internal/readline/interface:647:22)\n    at Socket.ondata (node:internal/readline/interface:263:23)\n    at Socket.emit (node:events:508:28)\n    at addChunk (node:internal/streams/readable:563:12)\n    at readableAddChunkPushByteMode (node:internal/streams/readable:514:3)\n    at Readable.push (node:internal/streams/readable:394:5)\n    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)"
+}

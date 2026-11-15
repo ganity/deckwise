@@ -23,7 +23,7 @@ test("prompt enhancement uses the typed main-process bridge", () => {
   assert.match(main, /handle\(IPC\.invoke\.promptEnhance/);
   assert.match(main, /enhancePromptDraft\(/);
   assert.match(main, /sessionId: launchSessionId/);
-  assert.match(main, /resolveAuth: \(\) => launch\.providerId === DECKWISE_MANAGED_PROVIDER_ID\s*\? resolvePlatformAccessToken\(\)\.then\(\(apiKey\) => \(\{ apiKey \}\)\)\s*: vendorOAuth\.resolveAuth\(launch\.providerId\)/);
+  assert.match(main, /resolveAuth: \(\) => launch\.providerId === DECKWISE_MANAGED_PROVIDER_ID\s*\? resolveCoursewareLlmAuth\(getHost, sessionId \|\| undefined, resolvePlatformAccessToken\)\s*: vendorOAuth\.resolveAuth\(launch\.providerId\)/);
   assert.match(runtime, /completeOneShot\(/);
   assert.match(oneShot, /createProviderRetryStream/);
   assert.match(oneShot, /models\.streamSimple/);

@@ -1,0 +1,14 @@
+export { compileSceneToPptx, compileScenesToPptx } from './authoring/kindergarten/scene-to-pptx';
+export { editablePptxSceneSchema } from './authoring/kindergarten/image2-pptist/contracts';
+export { generatePagePptxCandidate, createPageCandidateLineage } from './authoring/page-pptx-candidate';
+export { pageCandidateBaselineSchema, candidateHash, PageCandidateError, type PageCandidateBaseline } from './authoring/page-candidate-baseline';
+export { generatePageStyleBatchCandidate, pageStyleBatchConfirmationSchema } from './authoring/page-style-batch-candidate';
+export { coursewarePageBaseline, type CoursewarePageContext } from './authoring/canonical-page-context';
+export { inspectPageFadeSource, type PageFadeSourceInput } from './authoring/page-pptx-candidate';
+export { compileSceneCoursewareCandidate } from './authoring/scene-courseware-candidate';
+export { inspectPageImageAssets, type PreservedPageImage } from './authoring/page-asset-locks';
+export { prepareAssessmentPage, assessmentPptxScene, assessmentBackground, syncClassroomPptx } from './authoring/classroom-pptx';
+export { createMaicInteractionCanvas } from './maic-interaction-canvas';
+export { assessmentSvg } from './authoring/assessment-svg';
+export { syncSpeechAnimations, type SpeechMotionPage } from './authoring/speech-animations';
+export { packNativeTeachingPptx } from './authoring/native-teaching-pptx';

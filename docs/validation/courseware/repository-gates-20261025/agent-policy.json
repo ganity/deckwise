@@ -1,0 +1,8 @@
+{
+  "command": [
+    "pnpm",
+    "check:agent-policy"
+  ],
+  "exitCode": 0,
+  "status": "PASS"
+}

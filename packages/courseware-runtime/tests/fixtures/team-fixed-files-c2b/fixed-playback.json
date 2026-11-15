@@ -1,0 +1,106 @@
+{
+  "code": 200,
+  "data": {
+    "pointer": {
+      "projectId": "d35d26f6-7e1d-4945-b132-9329f6732137",
+      "channel": "shared",
+      "buildId": "9082a5339704131de1147dddd7fe2fe9de3cbc3e8c0fafec83b498df6f59087e",
+      "snapshotId": "fixed-r8",
+      "packageSha256": "9082a5339704131de1147dddd7fe2fe9de3cbc3e8c0fafec83b498df6f59087e",
+      "version": 1
+    },
+    "fixedBuild": {
+      "build": {
+        "buildId": "9082a5339704131de1147dddd7fe2fe9de3cbc3e8c0fafec83b498df6f59087e",
+        "snapshotId": "fixed-r8",
+        "packageSha256": "9082a5339704131de1147dddd7fe2fe9de3cbc3e8c0fafec83b498df6f59087e"
+      },
+      "manifestSha256": "37d11a986d2370f58463ac1710684528b33b6c7075e57bf5b191c1843ee5715b",
+      "files": [
+        {
+          "file": {
+            "path": "assets/15c0d47fa3d8c1437dc9941104f49cae72eea6048df6fefa317e1a68d9f24452.wav",
+            "sha256": "15c0d47fa3d8c1437dc9941104f49cae72eea6048df6fefa317e1a68d9f24452",
+            "mimeType": "audio/wav",
+            "byteLength": 259278
+          },
+          "downloadUrl": "http://127.0.0.1:33669/courseware-fixed-files/courseware/900172/d35d26f6-7e1d-4945-b132-9329f6732137/fixed-builds/9082a5339704131de1147dddd7fe2fe9de3cbc3e8c0fafec83b498df6f59087e/37d11a986d2370f58463ac1710684528b33b6c7075e57bf5b191c1843ee5715b/assets/15c0d47fa3d8c1437dc9941104f49cae72eea6048df6fefa317e1a68d9f24452.wav?Expires=1792424396&OSSAccessKeyId=test-only&Signature=kyD%2Bxynawbm5f%2FMVuepZ2L5MFeA%3D"
+        },
+        {
+          "file": {
+            "path": "assets/49f8ac278d71c0d1dbf205971f990f48e7473bcd3d81cc01b38541e5f8ad912b.wav",
+            "sha256": "49f8ac278d71c0d1dbf205971f990f48e7473bcd3d81cc01b38541e5f8ad912b",
+            "mimeType": "audio/wav",
+            "byteLength": 268878
+          },
+          "downloadUrl": "http://127.0.0.1:33669/courseware-fixed-files/courseware/900172/d35d26f6-7e1d-4945-b132-9329f6732137/fixed-builds/9082a5339704131de1147dddd7fe2fe9de3cbc3e8c0fafec83b498df6f59087e/37d11a986d2370f58463ac1710684528b33b6c7075e57bf5b191c1843ee5715b/assets/49f8ac278d71c0d1dbf205971f990f48e7473bcd3d81cc01b38541e5f8ad912b.wav?Expires=1792424396&OSSAccessKeyId=test-only&Signature=0LzjGSS7QqhIB5n9TT4TAKfgmW0%3D"
+        },
+        {
+          "file": {
+            "path": "assets/6de9e485a91d85dbb61aa8d24ef25ab19c8404f008475bb5139900e580f87985.wav",
+            "sha256": "6de9e485a91d85dbb61aa8d24ef25ab19c8404f008475bb5139900e580f87985",
+            "mimeType": "audio/wav",
+            "byteLength": 285918
+          },
+          "downloadUrl": "http://127.0.0.1:33669/courseware-fixed-files/courseware/900172/d35d26f6-7e1d-4945-b132-9329f6732137/fixed-builds/9082a5339704131de1147dddd7fe2fe9de3cbc3e8c0fafec83b498df6f59087e/37d11a986d2370f58463ac1710684528b33b6c7075e57bf5b191c1843ee5715b/assets/6de9e485a91d85dbb61aa8d24ef25ab19c8404f008475bb5139900e580f87985.wav?Expires=1792424396&OSSAccessKeyId=test-only&Signature=4zpgSx0wkFuXEtDn8IKBsVo3qGk%3D"
+        },
+        {
+          "file": {
+            "path": "assets/a20668c1b68d88f30d9da8bf91fa538acf13f775dbba9566ae358f4512c2e5a9.mp4",
+            "sha256": "a20668c1b68d88f30d9da8bf91fa538acf13f775dbba9566ae358f4512c2e5a9",
+            "mimeType": "video/mp4",
+            "byteLength": 755918
+          },
+          "downloadUrl": "http://127.0.0.1:33669/courseware-fixed-files/courseware/900172/d35d26f6-7e1d-4945-b132-9329f6732137/fixed-builds/9082a5339704131de1147dddd7fe2fe9de3cbc3e8c0fafec83b498df6f59087e/37d11a986d2370f58463ac1710684528b33b6c7075e57bf5b191c1843ee5715b/assets/a20668c1b68d88f30d9da8bf91fa538acf13f775dbba9566ae358f4512c2e5a9.mp4?Expires=1792424396&OSSAccessKeyId=test-only&Signature=lbw7dwxpwwo8mkyfa8TE3mEphqg%3D"
+        },
+        {
+          "file": {
+            "path": "assets/eda715cfa5bfee179f178a4c3c8aa63ea72eedac9ef6dd3a8d29e67eda80b069.png",
+            "sha256": "eda715cfa5bfee179f178a4c3c8aa63ea72eedac9ef6dd3a8d29e67eda80b069",
+            "mimeType": "image/png",
+            "byteLength": 4979
+          },
+          "downloadUrl": "http://127.0.0.1:33669/courseware-fixed-files/courseware/900172/d35d26f6-7e1d-4945-b132-9329f6732137/fixed-builds/9082a5339704131de1147dddd7fe2fe9de3cbc3e8c0fafec83b498df6f59087e/37d11a986d2370f58463ac1710684528b33b6c7075e57bf5b191c1843ee5715b/assets/eda715cfa5bfee179f178a4c3c8aa63ea72eedac9ef6dd3a8d29e67eda80b069.png?Expires=1792424396&OSSAccessKeyId=test-only&Signature=7RaohJceMMMiMnCv0nWL5s%2Bp%2Fbc%3D"
+        },
+        {
+          "file": {
+            "path": "manifest.json",
+            "sha256": "37d11a986d2370f58463ac1710684528b33b6c7075e57bf5b191c1843ee5715b",
+            "mimeType": "application/json",
+            "byteLength": 1326
+          },
+          "downloadUrl": "http://127.0.0.1:33669/courseware-fixed-files/courseware/900172/d35d26f6-7e1d-4945-b132-9329f6732137/fixed-builds/9082a5339704131de1147dddd7fe2fe9de3cbc3e8c0fafec83b498df6f59087e/37d11a986d2370f58463ac1710684528b33b6c7075e57bf5b191c1843ee5715b/manifest.json?Expires=1792424396&OSSAccessKeyId=test-only&Signature=Sg%2FJvE672sOw%2FOS3uyLhU99BxiI%3D"
+        },
+        {
+          "file": {
+            "path": "package.json",
+            "sha256": "9082a5339704131de1147dddd7fe2fe9de3cbc3e8c0fafec83b498df6f59087e",
+            "mimeType": "application/json",
+            "byteLength": 12700
+          },
+          "downloadUrl": "http://127.0.0.1:33669/courseware-fixed-files/courseware/900172/d35d26f6-7e1d-4945-b132-9329f6732137/fixed-builds/9082a5339704131de1147dddd7fe2fe9de3cbc3e8c0fafec83b498df6f59087e/37d11a986d2370f58463ac1710684528b33b6c7075e57bf5b191c1843ee5715b/package.json?Expires=1792424396&OSSAccessKeyId=test-only&Signature=Zniwla6DODn1uT0fuO4aaPsVCZo%3D"
+        },
+        {
+          "file": {
+            "path": "report.json",
+            "sha256": "ac5807ad23674ade89ee3cdffde06034efa0cf6b4821644efc0269d4f0325892",
+            "mimeType": "application/json",
+            "byteLength": 1141
+          },
+          "downloadUrl": "http://127.0.0.1:33669/courseware-fixed-files/courseware/900172/d35d26f6-7e1d-4945-b132-9329f6732137/fixed-builds/9082a5339704131de1147dddd7fe2fe9de3cbc3e8c0fafec83b498df6f59087e/37d11a986d2370f58463ac1710684528b33b6c7075e57bf5b191c1843ee5715b/report.json?Expires=1792424396&OSSAccessKeyId=test-only&Signature=iGm%2BFTv4OywZP%2B2y%2BG4PqY009Tc%3D"
+        },
+        {
+          "file": {
+            "path": "source.pptx",
+            "sha256": "e3f7e210183ff6fe8b14e7c88a378fe08a50ec51c0d0815194c5c1246612e8d7",
+            "mimeType": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            "byteLength": 797110
+          },
+          "downloadUrl": "http://127.0.0.1:33669/courseware-fixed-files/courseware/900172/d35d26f6-7e1d-4945-b132-9329f6732137/fixed-builds/9082a5339704131de1147dddd7fe2fe9de3cbc3e8c0fafec83b498df6f59087e/37d11a986d2370f58463ac1710684528b33b6c7075e57bf5b191c1843ee5715b/source.pptx?Expires=1792424396&OSSAccessKeyId=test-only&Signature=hyaYBuPHSPS4fNcaBmL6QviGnk8%3D"
+        }
+      ],
+      "expiresAt": "2026-10-19T15:39:56.432Z"
+    }
+  },
+  "message": "success"
+}

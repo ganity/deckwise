@@ -292,7 +292,7 @@ test("PPTX and Browser editing surfaces expose an in-app full-screen mode", () =
   assert.match(appSource, /sidebarCollapsed=\{workPanelMaximized \|\| sidebarCollapsed\}/);
   assert.match(panelSource, /<PptEditorTab[\s\S]*maximized=\{maximized\}/);
   assert.match(panelSource, /onToggleMaximize=\{onToggleMaximize\}/);
-  assert.match(pptEditorSource, /maximized \? t\("panel\.pptEditor\.restore"\) : t\("panel\.pptEditor\.maximize"\)/);
+  assert.match(pptEditorSource, /maximized \? t\("panel\.pptEditor\.returnToChat"\) : t\("panel\.pptEditor\.focus"\)/);
 });
 
 test("internal blank pages still let launcher rows open tools", () => {

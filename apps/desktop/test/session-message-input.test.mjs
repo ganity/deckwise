@@ -59,17 +59,19 @@ test("collaboration dispatch cannot acquire human edit, regenerate or attachment
   }
 });
 
-test("prompt IPC persists original session text, skips slash expansion and binds its durable ID", async () => {
+for (const viewingHint of [undefined, null, "another-session", "target"]) test(`prompt IPC preserves the native owner unless its foreground hint matches (${viewingHint})`, async () => {
   const handlers = new Map();
   const calls = [];
   const events = [];
   const sidecarCalls = [];
+  let viewingSessionId = "foreground-courseware";
   const host = {
     async call(method, params) {
       calls.push({ method, params });
       if (method === "session.collaboration.message") return { message };
       if (method === "settings.get") return {};
       if (method === "session.get") return { session: { id: "target", messages: [] } };
+      if (method === "courseware.task.get") return { task: { taskType: "plain" } };
       if (method === "session.beginTurn") return { turnId: "turn-1" };
       if (method === "session.appendMessage") return {};
       assert.fail(`unexpected RPC ${method}`);
@@ -93,12 +95,13 @@ test("prompt IPC persists original session text, skips slash expansion and binds
     }),
     acquireSessionOperation: async () => () => { released = true; },
     finishTurn: async () => { assert.fail("the prompt should succeed"); },
-    emitAgentEvent: (event) => events.push(event), setNotificationViewingSessionId() {},
+    emitAgentEvent: (event) => events.push(event), setNotificationViewingSessionId(id) { viewingSessionId = id; },
     optionalWorkspaceRoot: async () => { assert.fail("session text must not expand slash commands"); },
     composerCommandService: { buildComposerCommands: async () => { assert.fail("session text must not expand slash commands"); } },
     loadComposerTemplatesCached: async () => { assert.fail("session text must not expand slash commands"); },
   });
-  assert.deepEqual(await handlers.get(IPC.invoke.agentPrompt)(request), { accepted: true, turnId: "turn-1" });
+  assert.deepEqual(await handlers.get(IPC.invoke.agentPrompt)({ ...request, viewingSessionId: viewingHint }), { accepted: true, turnId: "turn-1" });
+  assert.equal(viewingSessionId, viewingHint === "target" ? "target" : "foreground-courseware", "background prompts must preserve the native editor's foreground owner");
   const begin = calls.find((entry) => entry.method === "session.beginTurn");
   assert.equal(begin.params.sessionMessageId, message.id);
   const row = calls.find((entry) => entry.method === "session.appendMessage").params.message;

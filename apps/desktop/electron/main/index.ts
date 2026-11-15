@@ -18,7 +18,6 @@ import {
   APP_VERSION,
   ErrorCodes as SharedErrorCodes,
   IPC,
-  IPC_WHITELIST,
   isActiveInProject,
   type ActivationScope,
   type AgentEventEnvelope,
@@ -61,7 +60,11 @@ import {
 } from "./bootstrap/window";
 import { registerApplicationActivation } from "./bootstrap/app-activation";
 import type { RuntimeState } from "./runtime/context";
+import { createRendererEventSender } from "./runtime/renderer-events";
 import { createHostRuntime } from "./runtime/host";
+import type { PptEditorChatBridge } from "./ppt-editor-chat";
+import { CoursewareMediaCanvasCoordinator } from "./courseware-media-canvas";
+import { CoursewareChatWorkflow } from "./courseware-chat-workflow";
 import { createSidecarRuntime } from "./runtime/sidecar";
 import { createEventPersistence } from "./runtime/event-persistence";
 import { createPlanRuntime, type PlanRuntimeState } from "./runtime/plans";
@@ -374,6 +377,7 @@ const windowLifecycleState: WindowLifecycleState = {
 };
 
 const runtimeState: RuntimeState = {
+  hostStatus: null,
   get host() {
     return host;
   },
@@ -395,6 +399,13 @@ const runtimeState: RuntimeState = {
 };
 
 let applicationLifecycle: ReturnType<typeof createApplicationLifecycle> | null = null;
+const sendToRenderer = createRendererEventSender({
+  getWindow: () => mainWindow,
+  state: runtimeState,
+  onPluginChanged: () => applicationLifecycle?.applyNativeThemeSource({
+    theme: applicationAppearanceState.appThemePreference,
+  }),
+});
 let launcherRuntime: ReturnType<typeof createLauncher> | null = null;
 let closeBehaviorRuntime: ReturnType<typeof createCloseBehaviorRuntime> | null = null;
 const showPluginLauncherForLifecycle = (): Promise<void> => {
@@ -482,6 +493,10 @@ const logger = new Logger(
 );
 const authSession = new DesktopAuthSession({
   dataDir,
+  mediaRelayHost: { call: (method, params) => {
+    if (!host) throw new Error("COURSEWARE_MEDIA_JOURNAL_UNAVAILABLE");
+    return host.call(method, params);
+  } },
   onChanged: (state) => sendToRenderer(IPC.event.authChanged, state),
   log: (level, message) => logger.app("runtime", level, message),
 });
@@ -610,6 +625,7 @@ const pluginServices = createPluginServices({
   },
   vendorOAuth,
   resolvePlatformAccessToken: () => authSession.resolveAccessToken(),
+  resolveTeamSceneImages: (references, signal) => authSession.resolveTeamSceneImages(references, signal),
   agentExtensions,
 });
 const {
@@ -646,6 +662,8 @@ const {
   listRuntimeProviders,
 } = providerCatalogRuntime;
 
+let pptEditorChat: PptEditorChatBridge | undefined;
+let coursewareChatWorkflow: CoursewareChatWorkflow | undefined;
 const createdSessionLaunchRuntime = createSessionLaunchRuntime({
   runtimeState,
   logger,
@@ -657,6 +675,7 @@ const createdSessionLaunchRuntime = createSessionLaunchRuntime({
   modelsDevCatalog,
   listRuntimeProviders,
   getWorkspacePath: currentWorkspacePath,
+  capturePptEditor: async (sessionId) => pptEditorChat?.capture(sessionId),
   pluginActiveInProject,
   bindingForModel,
   modelsDevModelFor,
@@ -756,33 +775,6 @@ function isHostUnavailable(error: unknown): boolean {
     (error as { errorCode?: string } | null | undefined)?.errorCode ===
     ErrorCodes.HOST_UNAVAILABLE
   );
-}
-
-/** Pull the user's MCP server records from host-core into the local runtime. */
-function sendToRenderer(channel: string, payload: unknown) {
-  if (channel === IPC.event.pluginChanged) {
-    applicationLifecycle?.applyNativeThemeSource({
-      theme: applicationAppearanceState.appThemePreference,
-    });
-  }
-  if (!IPC_WHITELIST.has(channel)) return;
-  const window = mainWindow;
-  if (
-    !window ||
-    window.isDestroyed() ||
-    window.webContents.isDestroyed()
-  ) {
-    return;
-  }
-  try {
-    window.webContents.send(channel, payload);
-  } catch {
-    // The renderer's main frame can be disposed — the window closed while the
-    // app keeps running (macOS dock, resident tray) or a teardown race where
-    // webContents.isDestroyed() has not flipped yet — before the send reaches
-    // it. Notifying a gone frame is routine teardown, never an error:
-    // supervision must keep running with no window attached.
-  }
 }
 
 let appliedMenuSettings: string | null = null;
@@ -994,6 +986,9 @@ const planRuntimeState: PlanRuntimeState = {
 const scheduledRunsBySession = new Map<string, string>();
 /** Session currently rendered on the chat page; focus remains Main-owned. */
 let notificationViewingSessionId: string | null = null;
+const mediaCanvas = new CoursewareMediaCanvasCoordinator(
+  () => host, () => notificationViewingSessionId, async () => currentWorkspacePath(),
+);
 /** Preserve tool metadata until the result is persisted at tool_end. Subagent
  * calls also carry their attribution, which is what lets a permission request
  * name the delegate that asked (ADR 0062). */
@@ -1025,6 +1020,7 @@ const {
   shouldCreateTaskNotification,
   lockAbortReason,
   isTurnDispatchable,
+  stopTurnDispatch,
   isSessionBusy,
   isStaleTerminalEvent,
 } = sessionCoordination;
@@ -1149,6 +1145,7 @@ const sidecarRuntime = createSidecarRuntime({
   inflightCheckpointer,
   finishTurn,
   isStaleTerminalEvent,
+  isTurnDispatchable,
   finishApprovedExecution,
   superviseRestart,
   isQuitting: () => quitting,
@@ -1171,6 +1168,15 @@ emitAgentEvent = sidecarRuntime.emitAgentEvent;
 const { wireSidecar, startSidecar } = sidecarRuntime;
 
 const { wireHost, startHost } = createHostRuntime({
+  executePptEditorTool: async (...args) => {
+    if (args[1].startsWith("courseware_story_") || args[1].startsWith("courseware_workflow_") || args[1].startsWith("courseware_scene_") || args[1].startsWith("courseware_media_") || args[1].startsWith("courseware_narration_") || args[1].startsWith("courseware_activity_") || args[1] === "courseware_requirements_update" || args[1] === "courseware_presentation_adopt" || args[1] === "courseware_presentation_prepare") {
+      if (!coursewareChatWorkflow) throw new Error("Courseware workflow is unavailable");
+      return coursewareChatWorkflow.execute(...args);
+    }
+    if (args[1].startsWith("courseware_canvas_")) return mediaCanvas.execute(...args);
+    if (!pptEditorChat) throw new Error("PPT editor bridge is unavailable");
+    return pptEditorChat.execute(...args);
+  },
   runtimeState,
   dataDir,
   logger,
@@ -1221,7 +1227,22 @@ function registerIpc() {
     getSidecar: () => sidecar,
     getAgentHostBridge: () => agentHostBridge,
     authSession,
+    mediaCanvas,
+    getHostStatus: () => runtimeState.hostStatus,
     registerDocumentCleanup,
+    sceneGeneration: { resolveModel: pluginServices.resolveSceneModel, build: pluginServices.buildSceneCourseware, stage: pluginServices.stageSceneCourseware },
+    completeNarration: async (input: Parameters<typeof pluginServices.complete>[0]) => {
+      const result = await pluginServices.complete(input);
+      if (input.sessionId) addActiveTurnUsage(input.sessionId, result.usage);
+      return result;
+    },
+    completeScene: async (input: Parameters<typeof pluginServices.completeScene>[0]) => {
+      const result = await pluginServices.completeScene(input);
+      addActiveTurnUsage(input.sessionId, result.usage);
+      return result;
+    },
+    onPptEditorChatReady: (bridge: PptEditorChatBridge) => { pptEditorChat = bridge; },
+    onCoursewareWorkflowReady: (workflow: CoursewareChatWorkflow) => { coursewareChatWorkflow = workflow; },
     getNotificationViewingSessionId: () => notificationViewingSessionId,
     setNotificationViewingSessionId: (sessionId: string | null) => {
       notificationViewingSessionId = sessionId;
@@ -1233,6 +1254,7 @@ function registerIpc() {
     dataDir,
     activeTurns,
     isTurnDispatchable,
+    stopTurnDispatch,
     sessionProjects,
     persistenceOutbox,
     logger,
@@ -1361,6 +1383,7 @@ registerApplicationStartup({
   activeTurns,
   isSessionBusy,
   getHost: () => host,
+  getViewingSessionId: () => notificationViewingSessionId,
   getMainWindow: () => mainWindow,
   sendToRenderer,
   applyDevelopmentBranding,
