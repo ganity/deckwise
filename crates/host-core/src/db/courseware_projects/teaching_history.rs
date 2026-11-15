@@ -19,7 +19,9 @@ fn projection(page: &CoursewarePage) -> Option<(Vec<Value>, usize, usize)> {
             }
             "video_slot" if video::valid_slot(action) => {
                 let mut restored = json!({"id":uuid::Uuid::new_v4().to_string(), "type":"video_slot", "prompt":action["prompt"]});
-                if let Some(seconds) = action.get("durationSeconds") { restored["durationSeconds"] = seconds.clone(); }
+                if let Some(seconds) = action.get("durationSeconds") {
+                    restored["durationSeconds"] = seconds.clone();
+                }
                 actions.push(restored);
             }
             "video_clip" if video::valid_clip(action) => {

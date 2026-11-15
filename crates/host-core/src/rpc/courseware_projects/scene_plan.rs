@@ -18,9 +18,17 @@ pub(super) struct Plan {
     pub(super) title: String,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "textMode")]
     pub(super) text_mode: Option<TextMode>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "storySha256")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "storySha256"
+    )]
     pub(super) story_sha256: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "bodyPageLimit")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "bodyPageLimit"
+    )]
     pub(super) body_page_limit: Option<usize>,
     pub(super) pages: Vec<Page>,
     #[serde(
@@ -59,9 +67,17 @@ pub(super) struct Page {
     pub(super) visible_text: Vec<String>,
     pub(super) visual_intent: String,
     pub(super) narration: String,
-    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "crate::db::courseware_projects::present_option")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::db::courseware_projects::present_option"
+    )]
     pub(super) quiz: Option<Value>,
-    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "crate::db::courseware_projects::present_option")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::db::courseware_projects::present_option"
+    )]
     pub(super) teaching: Option<crate::db::courseware_projects::scene_teaching::Teaching>,
 }
 
@@ -240,7 +256,10 @@ pub(super) async fn handle(
         .kv_get(TASK_NAMESPACE, &session_id)
         .map_err(error)?
         .ok_or_else(|| invalid("Select a scene task first"))?;
-    if task["taskType"] != "scene" || (sha256.is_some() && (task.get("generatedPath").is_some() || task.get("canonicalProjectId").is_some())) {
+    if task["taskType"] != "scene"
+        || (sha256.is_some()
+            && (task.get("generatedPath").is_some() || task.get("canonicalProjectId").is_some()))
+    {
         return Err(invalid("Scene approval requires an ungenerated scene task"));
     }
     let key = key(&root, &session_id)?;
@@ -254,7 +273,11 @@ pub(super) async fn handle(
             return Err(invalid(format!("Plan bodyPageLimit must match the saved body-page requirement {limit}; Quiz and checkpoint pages are additional, not deducted")));
         }
     }
-    let tx = state.db.conn().unchecked_transaction().map_err(|e| error(e.into()))?;
+    let tx = state
+        .db
+        .conn()
+        .unchecked_transaction()
+        .map_err(|e| error(e.into()))?;
     story::bind(&state, &session_id, plan.story_sha256.as_deref())?;
     let next = json!({"sha256":sha256, "plan":plan, "educationContext":task["educationContext"]});
     if current.as_ref() != Some(&next) {
@@ -326,11 +349,17 @@ mod tests {
             let wrong_bytes = serde_json::to_vec(&wrong).unwrap();
             std::fs::write(&path, &wrong_bytes).unwrap();
             let rejected = crate::rpc::handle_request(
-                state.clone(), "courseware.scenePlan.approve",
-                json!({"sessionId":session.id, "sha256":hash(&wrong_bytes)}), tx.clone(),
-            ).await.unwrap_err();
+                state.clone(),
+                "courseware.scenePlan.approve",
+                json!({"sessionId":session.id, "sha256":hash(&wrong_bytes)}),
+                tx.clone(),
+            )
+            .await
+            .unwrap_err();
             assert!(rejected.message.contains("saved body-page requirement 8"));
-            assert!(!has_approval(&*state.lock().await, &root.to_string_lossy(), &session.id).unwrap());
+            assert!(
+                !has_approval(&*state.lock().await, &root.to_string_lossy(), &session.id).unwrap()
+            );
         }
         std::fs::write(&path, &bytes).unwrap();
         let saved = crate::rpc::handle_request(
@@ -526,23 +555,48 @@ mod tests {
             "teaching":{"pageType":"slide","phase":"opening","objective":"See circle","durationSeconds":30,
                 "requiredObjects":["circle"],"requiredEffects":["spotlight","highlight","animation"]}
         })).unwrap();
-        assert_eq!(page.source_hash().unwrap(), "sha256:0816c74ab1d3254de8c975238166ad1c1fcaad70500587d39dfc3d0838a39602");
+        assert_eq!(
+            page.source_hash().unwrap(),
+            "sha256:0816c74ab1d3254de8c975238166ad1c1fcaad70500587d39dfc3d0838a39602"
+        );
     }
 
     #[test]
     fn independent_quiz_plan_hash_and_interaction_reference_fields_match_main() {
         let quiz = json!({"title":"Question","visibleText":[],"visualIntent":"A class","narration":"","quiz":{"questions":[{"answer":["A"],"id":"q","options":[{"label":"Hello","value":"A"},{"label":"Bye","value":"B"}],"question":"Greeting?","type":"single"}],"type":"quiz"},"teaching":{"pageType":"quiz","phase":"practice","objective":"Greet","durationSeconds":30,"requiredObjects":[]}});
         let page: Page = serde_json::from_value(quiz.clone()).unwrap();
-        assert_eq!(page.source_hash().unwrap(), "sha256:3cbe5084391199b114451d8ded7e5ff76d26f702ca210fabda3d09a3cfd25a21");
+        assert_eq!(
+            page.source_hash().unwrap(),
+            "sha256:3cbe5084391199b114451d8ded7e5ff76d26f702ca210fabda3d09a3cfd25a21"
+        );
         let interaction = json!({"title":"Discuss","visibleText":[],"visualIntent":"A class","narration":"","teaching":{"pageType":"interactive","phase":"practice","objective":"Greet","durationSeconds":30,"requiredObjects":[],"question":{"text":"Say hello","response":{"kind":"discussion","options":[],"answerIndices":[]},"referenceAnswer":{"summary":"Hello","keyPoints":["greeting"]},"constraintPrompt":"Only greetings"}}});
         let root = tempfile::tempdir().unwrap();
         let path = root.path().join(".deckwise-ppt/scenes/chat-a/plan.json");
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-        let bytes = serde_json::to_vec(&json!({"title":"Mixed","pages":[quiz,interaction]})).unwrap();
-        std::fs::write(&path,&bytes).unwrap();
-        let plan = read_plan(root.path().to_str().unwrap(),"chat-a",&hex::encode(sha2::Sha256::digest(&bytes))).unwrap();
+        let bytes =
+            serde_json::to_vec(&json!({"title":"Mixed","pages":[quiz,interaction]})).unwrap();
+        std::fs::write(&path, &bytes).unwrap();
+        let plan = read_plan(
+            root.path().to_str().unwrap(),
+            "chat-a",
+            &hex::encode(sha2::Sha256::digest(&bytes)),
+        )
+        .unwrap();
         assert!(plan.pages[0].teaching.as_ref().unwrap().question.is_none());
-        assert_eq!(plan.pages[1].teaching.as_ref().unwrap().question.as_ref().unwrap().reference_answer.as_ref().unwrap().summary,"Hello");
+        assert_eq!(
+            plan.pages[1]
+                .teaching
+                .as_ref()
+                .unwrap()
+                .question
+                .as_ref()
+                .unwrap()
+                .reference_answer
+                .as_ref()
+                .unwrap()
+                .summary,
+            "Hello"
+        );
     }
 
     #[test]
@@ -551,13 +605,19 @@ mod tests {
         let path = root.path().join(".deckwise-ppt/scenes/chat-a/plan.json");
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         let question = json!({"id":"q", "type":"single", "question":"Choose", "options":[{"value":"A","label":"Hello"},{"value":"B","label":"Bye"}],"answer":["A"]});
-        let mut second = question.clone(); second["id"] = json!("second");
+        let mut second = question.clone();
+        second["id"] = json!("second");
         let plan = json!({"title":"Mixed", "pages":[{"title":"Quiz","visibleText":[],"visualIntent":"Question cards","narration":"",
             "quiz":{"type":"quiz","interactionMode":"assessment_review","questions":[question,second]},
             "teaching":{"pageType":"quiz","phase":"practice","objective":"Choose","durationSeconds":30,"requiredObjects":[]}}]});
         let bytes = serde_json::to_vec(&plan).unwrap();
         std::fs::write(path, &bytes).unwrap();
-        assert!(read_plan(root.path().to_str().unwrap(), "chat-a", &hex::encode(sha2::Sha256::digest(&bytes))).is_err());
+        assert!(read_plan(
+            root.path().to_str().unwrap(),
+            "chat-a",
+            &hex::encode(sha2::Sha256::digest(&bytes))
+        )
+        .is_err());
     }
 
     #[test]
@@ -569,10 +629,22 @@ mod tests {
         let quiz = json!({"title":"Quiz","visibleText":[],"visualIntent":"Cards","narration":"",
             "quiz":{"type":"quiz","questions":[{"id":"q","type":"single","question":"Choose","options":[{"value":"A","label":"Hello"},{"value":"B","label":"Bye"}],"answer":["A"]}]},
             "teaching":{"pageType":"quiz","phase":"practice","objective":"Choose","durationSeconds":30,"requiredObjects":[]}});
-        for (pages, valid) in [(json!([body, quiz, body]), true), (json!([body, body, quiz]), false), (json!([quiz, body, body]), false)] {
+        for (pages, valid) in [
+            (json!([body, quiz, body]), true),
+            (json!([body, body, quiz]), false),
+            (json!([quiz, body, body]), false),
+        ] {
             let bytes = serde_json::to_vec(&json!({"title":"Lesson","pages":pages})).unwrap();
             std::fs::write(&path, &bytes).unwrap();
-            assert_eq!(read_plan(root.path().to_str().unwrap(), "chat-a", &hex::encode(sha2::Sha256::digest(&bytes))).is_ok(), valid);
+            assert_eq!(
+                read_plan(
+                    root.path().to_str().unwrap(),
+                    "chat-a",
+                    &hex::encode(sha2::Sha256::digest(&bytes))
+                )
+                .is_ok(),
+                valid
+            );
         }
     }
 
@@ -587,10 +659,17 @@ mod tests {
         for kind in ["single", "multiple", "judge"] {
             page["teaching"]["question"]["response"] = if kind == "judge" {
                 json!({"kind":kind,"options":["True","False"],"answerIndices":[0]})
-            } else { json!({"kind":kind,"options":["mum","dad","brother","sister"],"answerIndices":[2]}) };
+            } else {
+                json!({"kind":kind,"options":["mum","dad","brother","sister"],"answerIndices":[2]})
+            };
             let bytes = serde_json::to_vec(&json!({"title":"Family","pages":[page]})).unwrap();
             std::fs::write(&path, &bytes).unwrap();
-            assert!(read_plan(root.path().to_str().unwrap(), "chat-a", &hex::encode(sha2::Sha256::digest(&bytes))).is_err());
+            assert!(read_plan(
+                root.path().to_str().unwrap(),
+                "chat-a",
+                &hex::encode(sha2::Sha256::digest(&bytes))
+            )
+            .is_err());
         }
         page["narration"] = json!("");
         page["teaching"]["pageType"] = json!("quiz");
@@ -599,7 +678,12 @@ mod tests {
         page["teaching"].as_object_mut().unwrap().remove("question");
         let bytes = serde_json::to_vec(&json!({"title":"Family","pages":[page]})).unwrap();
         std::fs::write(&path, &bytes).unwrap();
-        assert!(read_plan(root.path().to_str().unwrap(), "chat-a", &hex::encode(sha2::Sha256::digest(&bytes))).is_ok());
+        assert!(read_plan(
+            root.path().to_str().unwrap(),
+            "chat-a",
+            &hex::encode(sha2::Sha256::digest(&bytes))
+        )
+        .is_ok());
     }
 
     #[cfg(unix)]

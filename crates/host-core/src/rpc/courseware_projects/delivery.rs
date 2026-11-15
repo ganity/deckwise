@@ -94,11 +94,9 @@ mod tests {
                 .unwrap(),
             intent
         );
-        assert!(
-            handle(state.clone(), "courseware.delivery.write", write)
-                .await
-                .is_err()
-        );
+        assert!(handle(state.clone(), "courseware.delivery.write", write)
+            .await
+            .is_err());
         let mut other = key.clone();
         other["principal"] = json!("b".repeat(64));
         assert_eq!(

@@ -9,150 +9,24 @@ mod drafts;
 mod materials;
 mod media_canvas;
 mod media_relay;
-mod native_save;
 mod native_generation;
+mod native_save;
 mod online_source_review;
 mod portable;
 mod presentation;
 mod scene_images;
 mod scene_plan;
-pub(super) mod story;
 mod snapshots;
 mod source_adoption;
 mod source_candidates;
+pub(super) mod story;
 mod teaching_history;
 mod tts;
 mod video;
 mod workflow;
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct PageTextParams {
-    session_id: String,
-    job_id: String,
-    page_number: usize,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct GetParams {
-    session_id: String,
-    project_id: String,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct TaskSetParams {
-    session_id: String,
-    task_type: String,
-    #[serde(default)]
-    story_first: bool,
-    #[serde(default)]
-    education_context: Option<crate::db::courseware_projects::CoursewareEducationContext>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct TaskGetParams {
-    session_id: String,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct TaskEducationParams {
-    session_id: String,
-    expected_education_context: crate::db::courseware_projects::CoursewareEducationContext,
-    education_context: crate::db::courseware_projects::CoursewareEducationContext,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct TaskBindTeamParams {
-    session_id: String,
-    team_project_id: String,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct TaskAttachImportParams {
-    session_id: String,
-    path: String,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct TaskAttachGeneratedParams {
-    session_id: String,
-    path: String,
-    project_id: String,
-    source_sha256: String,
-    #[serde(default)]
-    scene_proof: Option<scene_images::GenerationProof>,
-}
-
-const TASK_NAMESPACE: &str = "coursewareTask.v1";
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct OpenSavedParams {
-    session_id: String,
-    job_id: String,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct InitializeGeneratedParams {
-    session_id: String,
-    job_id: String,
-    source_sha256: String,
-    title: String,
-    narrations: Vec<String>,
-    #[serde(default)]
-    scene_proof: Option<scene_images::GenerationProof>,
-    #[serde(default)]
-    scene_mapping: Option<crate::db::courseware_projects::scene_objects::GeneratedSceneMapping>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct AdoptReviewParams {
-    session_id: String,
-    job_id: String,
-    review_id: String,
-    bindings: Vec<Option<String>>,
-    #[serde(default)]
-    effect_bindings: Vec<Value>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct WriteParams {
-    session_id: String,
-    write: TeachingWrite,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct LockParams {
-    session_id: String,
-    project_id: String,
-    page_id: String,
-    expected_source_revision: String,
-    expected_teaching_revision: String,
-    locked: bool,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct ConfirmParams {
-    session_id: String,
-    project_id: String,
-    page_id: String,
-    expected_source_revision: String,
-    expected_teaching_revision: String,
-    #[serde(default)]
-    resolution: Option<crate::db::courseware_projects::chat_changes::ResolutionRequest>,
-}
+mod params;
+use params::*;
 
 fn error(error: anyhow::Error) -> JsonRpcError {
     let message = error.to_string();
@@ -189,9 +63,20 @@ pub(super) async fn handle(
 ) -> Result<Value, JsonRpcError> {
     let invalid = |error: serde_json::Error| rpc_err(1002, error.to_string(), "INVALID_PARAMS");
     match method {
-        "courseware.story.get" | "courseware.story.begin" | "courseware.story.save" | "courseware.story.decide" => story::handle(state, method, params).await,
-        "courseware.delivery.read" | "courseware.delivery.write" => delivery::handle(state, method, params).await,
-        "courseware.classroom.mediaScope" | "courseware.classroom.refresh" | "courseware.classroom.source" | "courseware.classroom.create" | "courseware.classroom.get" | "courseware.classroom.write" | "courseware.classroom.snapshot" => classroom::handle(state, method, params).await,
+        "courseware.story.get"
+        | "courseware.story.begin"
+        | "courseware.story.save"
+        | "courseware.story.decide" => story::handle(state, method, params).await,
+        "courseware.delivery.read" | "courseware.delivery.write" => {
+            delivery::handle(state, method, params).await
+        }
+        "courseware.classroom.mediaScope"
+        | "courseware.classroom.refresh"
+        | "courseware.classroom.source"
+        | "courseware.classroom.create"
+        | "courseware.classroom.get"
+        | "courseware.classroom.write"
+        | "courseware.classroom.snapshot" => classroom::handle(state, method, params).await,
         "courseware.workflow.get" | "courseware.workflow.checkpoint" => {
             workflow::handle(state, method, params).await
         }
@@ -292,7 +177,13 @@ pub(super) async fn handle(
                 ));
             }
             if p.story_first {
-                if p.task_type == "import" { return Err(rpc_err(1002,"Import does not support story creation","COURSEWARE_INVALID")); }
+                if p.task_type == "import" {
+                    return Err(rpc_err(
+                        1002,
+                        "Import does not support story creation",
+                        "COURSEWARE_INVALID",
+                    ));
+                }
                 task["storyFirst"] = json!(true);
             }
             let session = crate::sessions::get_session(&state.db, &p.session_id)
@@ -318,7 +209,9 @@ pub(super) async fn handle(
                 ));
             }
             if current.as_ref().is_some_and(|value| {
-                value.get("importPath").is_some() || value.get("generatedPath").is_some() || value.get("canonicalProjectId").is_some()
+                value.get("importPath").is_some()
+                    || value.get("generatedPath").is_some()
+                    || value.get("canonicalProjectId").is_some()
             }) {
                 return Err(rpc_err(
                     1008,
@@ -361,8 +254,14 @@ pub(super) async fn handle(
                     "COURSEWARE_CONFLICT",
                 ));
             }
-            if task["storyFirst"] == true && story::read(&state,&p.session_id)?.is_some_and(|story| story["bound"] == true) {
-                return Err(rpc_err(1008,"Story-bound courseware requires a new task for requirement changes","COURSEWARE_CONFLICT"));
+            if task["storyFirst"] == true
+                && story::read(&state, &p.session_id)?.is_some_and(|story| story["bound"] == true)
+            {
+                return Err(rpc_err(
+                    1008,
+                    "Story-bound courseware requires a new task for requirement changes",
+                    "COURSEWARE_CONFLICT",
+                ));
             }
             let current: crate::db::courseware_projects::CoursewareEducationContext = match task
                 .get("educationContext")
@@ -521,7 +420,10 @@ pub(super) async fn handle(
                 .kv_get(TASK_NAMESPACE, &p.session_id)
                 .map_err(error)?
                 .ok_or_else(|| rpc_err(1002, "Select a scene task first", "COURSEWARE_INVALID"))?;
-            if task["taskType"] != "scene" || task.get("importPath").is_some() || task.get("canonicalProjectId").is_some() {
+            if task["taskType"] != "scene"
+                || task.get("importPath").is_some()
+                || task.get("canonicalProjectId").is_some()
+            {
                 return Err(rpc_err(
                     1008,
                     "Generated source requires a scene task",
@@ -578,10 +480,16 @@ pub(super) async fn handle(
                 .ok_or_else(|| {
                     rpc_err(1007, "Generated project not found", "COURSEWARE_NOT_FOUND")
                 })?;
-            let assessments = state.db.courseware_assessment_page_ids(&root, &project).map_err(error)?;
+            let assessments = state
+                .db
+                .courseware_assessment_page_ids(&root, &project)
+                .map_err(error)?;
             if project.task_type != "scene"
                 || project.source.sha256 != p.source_sha256
-                || project.pages.iter().any(|page| page.actions.is_empty() && !assessments.contains(&page.page_id))
+                || project
+                    .pages
+                    .iter()
+                    .any(|page| page.actions.is_empty() && !assessments.contains(&page.page_id))
             {
                 return Err(rpc_err(
                     1008,
@@ -625,11 +533,19 @@ pub(super) async fn handle(
         "courseware.mediaRelay.scope" => {
             #[derive(Deserialize)]
             #[serde(rename_all = "camelCase", deny_unknown_fields)]
-            struct ScopeParams { session_id: String }
+            struct ScopeParams {
+                session_id: String,
+            }
             let p: ScopeParams = serde_json::from_value(params).map_err(invalid)?;
             let state = state.lock().await;
             workspace(&state, &p.session_id)?;
-            serde_json::to_value(state.db.courseware_media_submission_scope(&p.session_id).map_err(error)?).map_err(|e| error(e.into()))
+            serde_json::to_value(
+                state
+                    .db
+                    .courseware_media_submission_scope(&p.session_id)
+                    .map_err(error)?,
+            )
+            .map_err(|e| error(e.into()))
         }
         "courseware.mediaRelay.read" | "courseware.mediaRelay.write" => {
             media_relay::handle(state, method, params).await
@@ -643,7 +559,9 @@ pub(super) async fn handle(
         | "courseware.tts.audio.stage"
         | "courseware.tts.audio.get"
         | "courseware.tts.audio.adopt" => tts::handle(state, method, params).await,
-        "courseware.nativeSave.prepare" | "courseware.nativeSave.resolve" | "courseware.nativeSave.forPath" => native_save::handle(state, method, params).await,
+        "courseware.nativeSave.prepare"
+        | "courseware.nativeSave.resolve"
+        | "courseware.nativeSave.forPath" => native_save::handle(state, method, params).await,
         "courseware.project.copy" => portable::handle(state, params).await,
         "courseware.project.restore" => portable::restore(state, params).await,
         "courseware.project.attach" => portable::attach(state, params).await,
@@ -789,9 +707,10 @@ pub(super) async fn handle(
                 || p.title.encode_utf16().count() > 500
                 || p.narrations.is_empty()
                 || p.narrations.len() > 100
-                || p.narrations
-                    .iter()
-                    .any(|text| p.scene_proof.is_none() && text.trim().is_empty() || text.encode_utf16().count() > 2500)
+                || p.narrations.iter().any(|text| {
+                    p.scene_proof.is_none() && text.trim().is_empty()
+                        || text.encode_utf16().count() > 2500
+                })
             {
                 return Err(rpc_err(
                     1002,
@@ -841,8 +760,7 @@ pub(super) async fn handle(
                         "COURSEWARE_CONFLICT",
                     ));
                 }
-                for (mapped, (index, planned)) in mapping.pages.iter().zip(native_pages)
-                {
+                for (mapped, (index, planned)) in mapping.pages.iter().zip(native_pages) {
                     if mapped.slide_id != format!("scene-{:03}", index + 1)
                         || mapped.source_hash != planned.source_hash()?
                     {

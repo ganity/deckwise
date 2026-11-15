@@ -523,21 +523,36 @@ async fn music_adoption_replaces_its_authored_slot_without_moving_or_duplicating
     let (dir, state, mut selection, _) = exported().await;
     {
         let guard = state.lock().await;
-        let project = guard.db.get_courseware_project(dir.path().to_str().unwrap(), "course-01").unwrap().unwrap();
+        let project = guard
+            .db
+            .get_courseware_project(dir.path().to_str().unwrap(), "course-01")
+            .unwrap()
+            .unwrap();
         let mut actions = project.pages[0].actions.clone();
         actions.push(json!({"id":"song-slot","type":"music_slot","title":"Hello song","prompt":"Sing Hello"}));
         actions.push(json!({"id":"after-song","type":"speech","text":"What did you hear?"}));
-        let saved = guard.db.write_courseware_teaching(dir.path().to_str().unwrap(), &crate::db::courseware_projects::TeachingWrite {
-            project_id: project.project_id.clone(), page_id: project.pages[0].page_id.clone(),
-            expected_source_revision: project.source.revision.clone(), expected_teaching_revision: project.teaching_revision.clone(), actions,
-        }).unwrap();
+        let saved = guard
+            .db
+            .write_courseware_teaching(
+                dir.path().to_str().unwrap(),
+                &crate::db::courseware_projects::TeachingWrite {
+                    project_id: project.project_id.clone(),
+                    page_id: project.pages[0].page_id.clone(),
+                    expected_source_revision: project.source.revision.clone(),
+                    expected_teaching_revision: project.teaching_revision.clone(),
+                    actions,
+                },
+            )
+            .unwrap();
         selection["expectedTeachingRevision"] = json!(saved.teaching_revision);
     }
     selection["slotId"] = json!("song-slot");
     let adopted = call(&state, "adopt", selection.clone()).await.unwrap();
-    let actions = adopted["project"]["pages"][0]["actions"].as_array().unwrap();
-    assert_eq!(actions[actions.len()-2]["id"], "song-slot");
-    assert_eq!(actions[actions.len()-2]["type"], "audio_clip");
+    let actions = adopted["project"]["pages"][0]["actions"]
+        .as_array()
+        .unwrap();
+    assert_eq!(actions[actions.len() - 2]["id"], "song-slot");
+    assert_eq!(actions[actions.len() - 2]["type"], "audio_clip");
     assert_eq!(actions.last().unwrap()["id"], "after-song");
     assert_eq!(actions.iter().filter(|a| a["id"] == "song-slot").count(), 1);
     assert_eq!(adopted, call(&state, "adopt", selection).await.unwrap());

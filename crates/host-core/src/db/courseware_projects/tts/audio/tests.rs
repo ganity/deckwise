@@ -771,8 +771,12 @@ fn missing_focus_repair_reuses_verified_audio_and_preserves_all_existing_actions
     addition.as_object_mut().unwrap().remove("visualCues");
     addition["attention"] = json!({"type":"spotlight","objectIds":[target],"animation":"pulse"});
     overwrite.actions = vec![addition];
-    let extended = db.repair_required_teaching(root, &seed, &repaired, &overwrite).unwrap();
-    let effects = extended.pages[0].actions[0]["visualCues"].as_array().unwrap();
+    let extended = db
+        .repair_required_teaching(root, &seed, &repaired, &overwrite)
+        .unwrap();
+    let effects = extended.pages[0].actions[0]["visualCues"]
+        .as_array()
+        .unwrap();
     assert_eq!(effects.len(), 3);
     assert_eq!(effects[0], repaired.pages[0].actions[0]["visualCues"][0]);
     assert_eq!(effects[1]["effect"]["type"], "element_animation");

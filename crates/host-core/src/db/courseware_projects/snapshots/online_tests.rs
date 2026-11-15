@@ -290,19 +290,60 @@ fn native_import_is_immutable_and_never_creates_a_mutable_project_or_online_orig
     let (parsed, project, mapping) = input(&db, root);
     let mut mapping = mapping;
     mapping["pages"][0]["groups"] = json!([{ "objectId": "native-group", "sourceShapeId": "77" }]);
-    let local_before = db.courseware_project_context(root, "office-snapshot-test").unwrap();
-    let record = db.import_native_courseware_snapshot(root, &parsed, "native-1", project.clone(), &mapping, super::tests::assets()).unwrap();
+    let local_before = db
+        .courseware_project_context(root, "office-snapshot-test")
+        .unwrap();
+    let record = db
+        .import_native_courseware_snapshot(
+            root,
+            &parsed,
+            "native-1",
+            project.clone(),
+            &mapping,
+            super::tests::assets(),
+        )
+        .unwrap();
     assert!(record.native_teaching);
-    assert_eq!(record.mapping()["pages"][0]["groups"], mapping["pages"][0]["groups"]);
-    assert!(!db.is_online_courseware_snapshot(root, &project.project_id, "native-1").unwrap());
-    assert!(db.get_courseware_project(root, &project.project_id).unwrap().is_none());
-    assert_eq!(db.courseware_project_context(root, "office-snapshot-test").unwrap(), local_before);
-    let mut changed = project.clone(); changed.pages[0].actions[0]["text"] = json!("Changed native narration");
-    assert!(db.import_native_courseware_snapshot(root, &parsed, "native-1", changed, &mapping, super::tests::assets()).is_err());
+    assert_eq!(
+        record.mapping()["pages"][0]["groups"],
+        mapping["pages"][0]["groups"]
+    );
+    assert!(!db
+        .is_online_courseware_snapshot(root, &project.project_id, "native-1")
+        .unwrap());
+    assert!(db
+        .get_courseware_project(root, &project.project_id)
+        .unwrap()
+        .is_none());
+    assert_eq!(
+        db.courseware_project_context(root, "office-snapshot-test")
+            .unwrap(),
+        local_before
+    );
+    let mut changed = project.clone();
+    changed.pages[0].actions[0]["text"] = json!("Changed native narration");
+    assert!(db
+        .import_native_courseware_snapshot(
+            root,
+            &parsed,
+            "native-1",
+            changed,
+            &mapping,
+            super::tests::assets()
+        )
+        .is_err());
     drop(db);
     let reopened = Database::open_in_dir(dir.path()).unwrap();
-    let restored = reopened.get_courseware_snapshot(root, &project.project_id, "native-1").unwrap();
+    let restored = reopened
+        .get_courseware_snapshot(root, &project.project_id, "native-1")
+        .unwrap();
     assert!(restored.native_teaching);
-    assert_eq!(restored.mapping()["pages"][0]["groups"], mapping["pages"][0]["groups"]);
-    assert!(reopened.get_courseware_project(root, &project.project_id).unwrap().is_none());
+    assert_eq!(
+        restored.mapping()["pages"][0]["groups"],
+        mapping["pages"][0]["groups"]
+    );
+    assert!(reopened
+        .get_courseware_project(root, &project.project_id)
+        .unwrap()
+        .is_none());
 }

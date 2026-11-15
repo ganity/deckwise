@@ -39,7 +39,9 @@ impl Database {
             issues.push(issue);
         };
         for (i, page) in project.pages.iter().enumerate() {
-            if assessments.contains(&page.page_id) { continue; }
+            if assessments.contains(&page.page_id) {
+                continue;
+            }
             let speeches: Vec<_> = page
                 .actions
                 .iter()
@@ -48,7 +50,9 @@ impl Database {
             if speeches.is_empty()
                 || speeches.iter().any(|a| {
                     a["text"].as_str().is_none_or(|s| s.trim().is_empty())
-                        || (project.task_type == "scene" || requirements.is_some()) && !native_saved && a["source"] != "generated"
+                        || (project.task_type == "scene" || requirements.is_some())
+                            && !native_saved
+                            && a["source"] != "generated"
                             && a["id"].as_str().is_some_and(|id| {
                                 id.strip_prefix("narration-").is_some_and(|s| {
                                     !s.is_empty() && s.bytes().all(|c| c.is_ascii_digit())
@@ -70,16 +74,32 @@ impl Database {
                 };
                 add(page, i + 1, code, repair, Some(&action["id"]));
             }
-            if let Some(teaching) = requirements.as_ref().and_then(|r| r["pages"].as_array())
-                .and_then(|pages| pages.iter().find(|p| p["pageId"] == page.page_id)) {
-                for effect in teaching["teaching"]["requiredEffects"].as_array().into_iter().flatten() {
-                    let satisfied = page.actions.iter().any(|action| {
-                        let pending = &action["attention"];
-                        (effect == "animation" && pending["animation"].is_string() || pending["type"] == *effect)
-                            || action["visualCues"].as_array().into_iter().flatten().any(|cue|
-                                cue["effect"]["type"] == *effect || effect == "animation" && cue["effect"]["type"] == "element_animation")
-                    });
-                    if !satisfied { add(page, i + 1, "EFFECT_MISSING", "narration", None); }
+            if let Some(teaching) = requirements
+                .as_ref()
+                .and_then(|r| r["pages"].as_array())
+                .and_then(|pages| pages.iter().find(|p| p["pageId"] == page.page_id))
+            {
+                for effect in teaching["teaching"]["requiredEffects"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                {
+                    let satisfied =
+                        page.actions.iter().any(|action| {
+                            let pending = &action["attention"];
+                            (effect == "animation" && pending["animation"].is_string()
+                                || pending["type"] == *effect)
+                                || action["visualCues"].as_array().into_iter().flatten().any(
+                                    |cue| {
+                                        cue["effect"]["type"] == *effect
+                                            || effect == "animation"
+                                                && cue["effect"]["type"] == "element_animation"
+                                    },
+                                )
+                        });
+                    if !satisfied {
+                        add(page, i + 1, "EFFECT_MISSING", "narration", None);
+                    }
                 }
             }
         }
@@ -96,7 +116,9 @@ impl Database {
                     }
                     continue;
                 };
-                if assessments.contains(&page.page_id) { continue; }
+                if assessments.contains(&page.page_id) {
+                    continue;
+                }
                 let teaching = &expected["teaching"];
                 let question = &teaching["question"];
                 if !question.is_null() {
@@ -140,9 +162,10 @@ impl Database {
                     issues.push(json!({"pageId":page.page_id,"pageNumber":i+1,"code":"MUSIC_MISSING","repair":"narration","repairable":!page.locked}));
                 }
             }
-            if !native_saved && scene["pages"]
-                .as_array()
-                .is_some_and(|pages| pages.len() != project.pages.len())
+            if !native_saved
+                && scene["pages"]
+                    .as_array()
+                    .is_some_and(|pages| pages.len() != project.pages.len())
             {
                 issues.push(
                     json!({"code":"PAGE_COUNT_MISMATCH","repair":"source","repairable":false}),

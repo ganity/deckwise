@@ -174,21 +174,33 @@ pub(super) async fn handle(
         source["mapping"] = context["mapping"].clone();
         if let Some(pages) = source["mapping"]["pages"].as_array_mut() {
             for page in pages {
-                if let Some(original) = context["sceneObjects"]["pages"].as_array().and_then(|items|
-                    items.iter().find(|item| item["pageId"] == page["pageId"])) {
-                    if original["planPageId"].is_string() { page["planPageId"] = original["planPageId"].clone(); }
+                if let Some(original) = context["sceneObjects"]["pages"]
+                    .as_array()
+                    .and_then(|items| items.iter().find(|item| item["pageId"] == page["pageId"]))
+                {
+                    if original["planPageId"].is_string() {
+                        page["planPageId"] = original["planPageId"].clone();
+                    }
                 }
             }
         }
         source["project"] = json!(project);
         let mut assets = source["assets"].as_array().cloned().unwrap_or_default();
         // Use the same provenance checks as editable-course export, including generated media.
-        let media = state.db.portable_courseware_content(
-            &root, &seed, &project.source.revision, &project.teaching_revision,
-        ).map_err(error)?.media;
+        let media = state
+            .db
+            .portable_courseware_content(
+                &root,
+                &seed,
+                &project.source.revision,
+                &project.teaching_revision,
+            )
+            .map_err(error)?
+            .media;
         for asset in media {
-            let (path, size) = crate::courseware::snapshot_assets::verify(&state.data_dir, &asset.sha256)
-                .map_err(error)?;
+            let (path, size) =
+                crate::courseware::snapshot_assets::verify(&state.data_dir, &asset.sha256)
+                    .map_err(error)?;
             if size != asset.byte_length {
                 return Err(rpc_err(1008, "Native media changed", "COURSEWARE_CONFLICT"));
             }
@@ -332,7 +344,8 @@ mod tests {
         .await
         .is_err());
         write["expectedRevision"] = result["revision"].clone();
-        write["classroom"]["scenes"][0]["content"]["questions"][0]["question"] = json!("Updated question");
+        write["classroom"]["scenes"][0]["content"]["questions"][0]["question"] =
+            json!("Updated question");
         let saved = crate::rpc::handle_request(
             state.clone(),
             "courseware.classroom.write",

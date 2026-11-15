@@ -22,36 +22,114 @@ fn native_saved_current_object_evidence_does_not_reassociate_original_layers() {
         let root = dir.path().to_str().unwrap();
         let db = Database::open_in_dir(dir.path()).unwrap();
         let s = seed();
-        let project = db.open_identified_courseware_project_with_metadata(root, &s, "scene", None).unwrap();
-        db.initialize_generated_scene_objects(root, &project, &mapping(&s)).unwrap();
-        db.initialize_generated_narration(root, &project.project_id, &s.sha256, "Lesson", &["Saved text.".into()]).unwrap();
-        let original = db.kv_get(SCENE_OBJECTS_NAMESPACE, &storage_key(root, &project.project_id).unwrap()).unwrap();
+        let project = db
+            .open_identified_courseware_project_with_metadata(root, &s, "scene", None)
+            .unwrap();
+        db.initialize_generated_scene_objects(root, &project, &mapping(&s))
+            .unwrap();
+        db.initialize_generated_narration(
+            root,
+            &project.project_id,
+            &s.sha256,
+            "Lesson",
+            &["Saved text.".into()],
+        )
+        .unwrap();
+        let original = db
+            .kv_get(
+                SCENE_OBJECTS_NAMESPACE,
+                &storage_key(root, &project.project_id).unwrap(),
+            )
+            .unwrap();
         let mut identity = s.identity.as_ref().unwrap().value().clone();
         identity["sourceSha256"] = json!("b".repeat(64));
-        let output = SavedProjectSeed { project_id: s.project_id.clone(), pages: s.pages, sha256: "b".repeat(64), identity: Some(SavedSourceIdentity::parse(&serde_json::to_vec(&identity).unwrap()).unwrap()) };
-        let proof = native_save::NativeLineage {
-            protocol: "deckwise-office-page-lineage/1".into(), project_id: "f".repeat(64),
-            document_id: "doc".into(), session_id: "session".into(), save_request_id: "save".into(),
-            source_sha256: s.sha256.clone(), output_sha256: output.sha256.clone(),
-            opened_page_tokens: vec!["page".into()], page_tokens: vec![page_token.into()],
-            objects: vec![vec![]], animation_unchanged: vec![false],
+        let output = SavedProjectSeed {
+            project_id: s.project_id.clone(),
+            pages: s.pages,
+            sha256: "b".repeat(64),
+            identity: Some(
+                SavedSourceIdentity::parse(&serde_json::to_vec(&identity).unwrap()).unwrap(),
+            ),
         };
-        let receipt = db.prepare_native_save(root, "/lesson.pptx", &output, &proof).unwrap();
-        db.resolve_native_save(root, receipt["saveId"].as_str().unwrap(), &output.sha256).unwrap();
-        let saved = db.get_courseware_project(root, &project.project_id).unwrap().unwrap();
-        let context = db.courseware_project_context(root, &project.project_id).unwrap();
+        let proof = native_save::NativeLineage {
+            protocol: "deckwise-office-page-lineage/1".into(),
+            project_id: "f".repeat(64),
+            document_id: "doc".into(),
+            session_id: "session".into(),
+            save_request_id: "save".into(),
+            source_sha256: s.sha256.clone(),
+            output_sha256: output.sha256.clone(),
+            opened_page_tokens: vec!["page".into()],
+            page_tokens: vec![page_token.into()],
+            objects: vec![vec![]],
+            animation_unchanged: vec![false],
+        };
+        let receipt = db
+            .prepare_native_save(root, "/lesson.pptx", &output, &proof)
+            .unwrap();
+        db.resolve_native_save(root, receipt["saveId"].as_str().unwrap(), &output.sha256)
+            .unwrap();
+        let saved = db
+            .get_courseware_project(root, &project.project_id)
+            .unwrap()
+            .unwrap();
+        let context = db
+            .courseware_project_context(root, &project.project_id)
+            .unwrap();
         let issues = context["completion"]["issues"].as_array().unwrap();
-        assert!(!issues.iter().any(|i| i["code"] == "PAGE_MISSING" || i["code"] == "PAGE_COUNT_MISMATCH"));
-        assert_eq!(issues.iter().any(|i| i["code"] == "NARRATION_MISSING"), page_token == "replacement");
-        let object_id = context["savedObjects"]["pages"][0]["objects"][0]["objectId"].as_str().unwrap();
-        let evidence = SceneSemanticEvidence { object_id: object_id.into(), role: "Observed object".into(), aliases: vec![], text: "".into(), teaching_target: true };
-        db.save_scene_semantic_evidence(root, &saved, &saved.pages[0].page_id, &[evidence.clone()]).unwrap();
-        let mut foreign = evidence.clone(); foreign.object_id = "unknown-object".into();
-        assert!(db.save_scene_semantic_evidence(root, &saved, &saved.pages[0].page_id, &[evidence, foreign]).is_err());
-        assert_eq!(original, db.kv_get(SCENE_OBJECTS_NAMESPACE, &storage_key(root, &project.project_id).unwrap()).unwrap());
-        db.kv_set("coursewareNativeSaveWarnings.v1", &storage_key(root, &project.project_id).unwrap(), &json!({"sourceSha256":s.sha256})).unwrap();
-        let evidence = SceneSemanticEvidence { object_id: object_id.into(), role: "Stale save".into(), aliases: vec![], text: "".into(), teaching_target: true };
-        assert!(db.save_scene_semantic_evidence(root, &saved, &saved.pages[0].page_id, &[evidence]).is_err());
+        assert!(!issues
+            .iter()
+            .any(|i| i["code"] == "PAGE_MISSING" || i["code"] == "PAGE_COUNT_MISMATCH"));
+        assert_eq!(
+            issues.iter().any(|i| i["code"] == "NARRATION_MISSING"),
+            page_token == "replacement"
+        );
+        let object_id = context["savedObjects"]["pages"][0]["objects"][0]["objectId"]
+            .as_str()
+            .unwrap();
+        let evidence = SceneSemanticEvidence {
+            object_id: object_id.into(),
+            role: "Observed object".into(),
+            aliases: vec![],
+            text: "".into(),
+            teaching_target: true,
+        };
+        db.save_scene_semantic_evidence(root, &saved, &saved.pages[0].page_id, &[evidence.clone()])
+            .unwrap();
+        let mut foreign = evidence.clone();
+        foreign.object_id = "unknown-object".into();
+        assert!(db
+            .save_scene_semantic_evidence(
+                root,
+                &saved,
+                &saved.pages[0].page_id,
+                &[evidence, foreign]
+            )
+            .is_err());
+        assert_eq!(
+            original,
+            db.kv_get(
+                SCENE_OBJECTS_NAMESPACE,
+                &storage_key(root, &project.project_id).unwrap()
+            )
+            .unwrap()
+        );
+        db.kv_set(
+            "coursewareNativeSaveWarnings.v1",
+            &storage_key(root, &project.project_id).unwrap(),
+            &json!({"sourceSha256":s.sha256}),
+        )
+        .unwrap();
+        let evidence = SceneSemanticEvidence {
+            object_id: object_id.into(),
+            role: "Stale save".into(),
+            aliases: vec![],
+            text: "".into(),
+            teaching_target: true,
+        };
+        assert!(db
+            .save_scene_semantic_evidence(root, &saved, &saved.pages[0].page_id, &[evidence])
+            .is_err());
     }
 }
 
@@ -144,11 +222,23 @@ fn mapping_errors_identify_counts_separately_from_page_metadata() {
     let s = seed();
     let mut bad = mapping(&s);
     bad.pages[0].elements.pop();
-    let error = bad.validate_source(s.identity.as_ref().unwrap()).unwrap_err().to_string();
-    assert!(error.contains("page 1 (scene-001): exported 3, parsed 4"), "{error}");
+    let error = bad
+        .validate_source(s.identity.as_ref().unwrap())
+        .unwrap_err()
+        .to_string();
+    assert!(
+        error.contains("page 1 (scene-001): exported 3, parsed 4"),
+        "{error}"
+    );
     bad.pages[0].slide_part = "ppt/slides/slide2.xml".into();
-    let error = bad.validate_source(s.identity.as_ref().unwrap()).unwrap_err().to_string();
-    assert!(error.contains("invalid scene page metadata at page 1 (scene-001)"), "{error}");
+    let error = bad
+        .validate_source(s.identity.as_ref().unwrap())
+        .unwrap_err()
+        .to_string();
+    assert!(
+        error.contains("invalid scene page metadata at page 1 (scene-001)"),
+        "{error}"
+    );
 }
 
 #[test]
@@ -319,32 +409,64 @@ fn semantic_evidence_survives_restart_without_changing_identities_or_static_poli
     {
         let db = Database::open(&path).unwrap();
         let s = seed();
-        let project = db.open_identified_courseware_project_with_metadata(root, &s, "scene", None).unwrap();
+        let project = db
+            .open_identified_courseware_project_with_metadata(root, &s, "scene", None)
+            .unwrap();
         let mut original = mapping(&s);
         original.pages[0].elements[0].animation_policy = Some("static".into());
-        db.initialize_generated_scene_objects(root, &project, &original).unwrap();
-        let before = db.courseware_project_context(root, &project.project_id).unwrap();
-        let ids = before["sceneObjects"]["pages"][0]["objects"].as_array().unwrap();
-        let evidence = vec![SceneSemanticEvidence {
-            object_id: ids[0]["objectId"].as_str().unwrap().into(), role: "Monkey Munchy".into(),
-            aliases: vec!["小猴".into(), "Munchy".into()], text: "".into(), teaching_target: true,
-        }, SceneSemanticEvidence {
-            object_id: ids[1]["objectId"].as_str().unwrap().into(), role: "Decoration".into(),
-            aliases: vec![], text: "".into(), teaching_target: false,
-        }];
-        db.save_scene_semantic_evidence(root, &project, &project.pages[0].page_id, &evidence).unwrap();
-        saved = db.courseware_project_context(root, &project.project_id).unwrap();
+        db.initialize_generated_scene_objects(root, &project, &original)
+            .unwrap();
+        let before = db
+            .courseware_project_context(root, &project.project_id)
+            .unwrap();
+        let ids = before["sceneObjects"]["pages"][0]["objects"]
+            .as_array()
+            .unwrap();
+        let evidence = vec![
+            SceneSemanticEvidence {
+                object_id: ids[0]["objectId"].as_str().unwrap().into(),
+                role: "Monkey Munchy".into(),
+                aliases: vec!["小猴".into(), "Munchy".into()],
+                text: "".into(),
+                teaching_target: true,
+            },
+            SceneSemanticEvidence {
+                object_id: ids[1]["objectId"].as_str().unwrap().into(),
+                role: "Decoration".into(),
+                aliases: vec![],
+                text: "".into(),
+                teaching_target: false,
+            },
+        ];
+        db.save_scene_semantic_evidence(root, &project, &project.pages[0].page_id, &evidence)
+            .unwrap();
+        saved = db
+            .courseware_project_context(root, &project.project_id)
+            .unwrap();
         assert_eq!(before["mapping"], saved["mapping"]);
         let objects = &saved["sceneObjects"]["pages"][0]["objects"];
         assert_eq!(objects[0]["element"]["semanticRole"], "Monkey Munchy");
-        assert_eq!(objects[0]["element"]["spokenAliases"], json!(["Munchy", "小猴"]));
+        assert_eq!(
+            objects[0]["element"]["spokenAliases"],
+            json!(["Munchy", "小猴"])
+        );
         assert_eq!(objects[0]["element"]["animationPolicy"], "static");
         assert_eq!(objects[1]["element"]["animationPolicy"], "static");
         let mut invalid = evidence[0].clone();
         invalid.object_id = "foreign-object".into();
-        assert!(db.save_scene_semantic_evidence(root, &project, &project.pages[0].page_id, &[invalid]).is_err());
-        assert_eq!(saved, db.courseware_project_context(root, &project.project_id).unwrap());
+        assert!(db
+            .save_scene_semantic_evidence(root, &project, &project.pages[0].page_id, &[invalid])
+            .is_err());
+        assert_eq!(
+            saved,
+            db.courseware_project_context(root, &project.project_id)
+                .unwrap()
+        );
     }
     let db = Database::open(&path).unwrap();
-    assert_eq!(saved, db.courseware_project_context(root, &seed().project_id).unwrap());
+    assert_eq!(
+        saved,
+        db.courseware_project_context(root, &seed().project_id)
+            .unwrap()
+    );
 }

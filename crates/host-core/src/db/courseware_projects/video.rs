@@ -76,9 +76,13 @@ fn id(s: &str) -> bool {
 }
 pub(super) fn valid_slot(action: &Value) -> bool {
     action["type"] == "video_slot"
-        && action.as_object().is_some_and(|a| a.len() == 3 || a.len() == 4 && a.contains_key("durationSeconds"))
+        && action
+            .as_object()
+            .is_some_and(|a| a.len() == 3 || a.len() == 4 && a.contains_key("durationSeconds"))
         && action["id"].as_str().is_some_and(id)
-        && action.get("durationSeconds").is_none_or(|v| v.as_u64().is_some_and(|n| (4..=30).contains(&n)))
+        && action
+            .get("durationSeconds")
+            .is_none_or(|v| v.as_u64().is_some_and(|n| (4..=30).contains(&n)))
         && action["prompt"]
             .as_str()
             .is_some_and(|s| !s.trim().is_empty() && s.encode_utf16().count() <= 4000)
@@ -205,8 +209,10 @@ impl Intent {
                     && !page.locked
                     && page.actions.iter().any(|action| {
                         action["id"] == self.slot_id
-                            && (valid_slot(action) && action["prompt"] == self.prompt
-                                && action["durationSeconds"].as_u64().map(|n| n as u32) == self.duration_seconds
+                            && (valid_slot(action)
+                                && action["prompt"] == self.prompt
+                                && action["durationSeconds"].as_u64().map(|n| n as u32)
+                                    == self.duration_seconds
                                 || valid_clip(action)
                                     && self
                                         .asset
@@ -405,12 +411,18 @@ impl Database {
             .find(|page| page.page_id == page_id && !page.locked)
             .ok_or_else(|| anyhow!("COURSEWARE_CONFLICT: video page missing or locked"))?;
         let intents = self.list_courseware_videos(workspace, project_id, principal)?;
-        if let Some(saved) = intents.iter()
-            .find(|intent| {
-                intent.page_id == page_id && intent.slot_id == slot_id && intent.matches(&project)
-                    && !intents.iter().any(|next| next.intent_id == format!("retry-{}", hex::encode(Sha256::digest(intent.intent_id.as_bytes()))))
-            })
-        {
+        if let Some(saved) = intents.iter().find(|intent| {
+            intent.page_id == page_id
+                && intent.slot_id == slot_id
+                && intent.matches(&project)
+                && !intents.iter().any(|next| {
+                    next.intent_id
+                        == format!(
+                            "retry-{}",
+                            hex::encode(Sha256::digest(intent.intent_id.as_bytes()))
+                        )
+                })
+        }) {
             anyhow::ensure!(
                 saved.model == model,
                 "COURSEWARE_CONFLICT: recover the original video model before preparing another"
@@ -448,18 +460,40 @@ impl Database {
         tx.commit()?;
         Ok(intent)
     }
-    pub fn retry_courseware_video(&self, workspace: &str, project_id: &str, principal: &str, intent_id: &str) -> Result<Intent> {
+    pub fn retry_courseware_video(
+        &self,
+        workspace: &str,
+        project_id: &str,
+        principal: &str,
+        intent_id: &str,
+    ) -> Result<Intent> {
         self.ensure_no_source_adoption(workspace)?;
         let original = self.get_courseware_video(workspace, project_id, principal, intent_id)?;
-        let retry_id = format!("retry-{}", hex::encode(Sha256::digest(intent_id.as_bytes())));
-        let project = self.get_courseware_project(workspace, project_id)?.ok_or_else(|| anyhow!("COURSEWARE_NOT_FOUND: project not found"))?;
+        let retry_id = format!(
+            "retry-{}",
+            hex::encode(Sha256::digest(intent_id.as_bytes()))
+        );
+        let project = self
+            .get_courseware_project(workspace, project_id)?
+            .ok_or_else(|| anyhow!("COURSEWARE_NOT_FOUND: project not found"))?;
         let intents = self.list_courseware_videos(workspace, project_id, principal)?;
-        if let Some(existing) = intents.iter().find(|i| i.intent_id == retry_id && i.matches(&project)) {
+        if let Some(existing) = intents
+            .iter()
+            .find(|i| i.intent_id == retry_id && i.matches(&project))
+        {
             return Ok(existing.clone());
         }
-        anyhow::ensure!(original.matches(&project) && original.phase == "submitted" && original.task_ref.is_some() && original.asset.is_none(),
-            "COURSEWARE_CONFLICT: video retry target changed or is already satisfied");
-        anyhow::ensure!(intents.len() < 1000 && !intents.iter().any(|i| i.intent_id == retry_id), "COURSEWARE_CONFLICT: video retry changed or journal is full");
+        anyhow::ensure!(
+            original.matches(&project)
+                && original.phase == "submitted"
+                && original.task_ref.is_some()
+                && original.asset.is_none(),
+            "COURSEWARE_CONFLICT: video retry target changed or is already satisfied"
+        );
+        anyhow::ensure!(
+            intents.len() < 1000 && !intents.iter().any(|i| i.intent_id == retry_id),
+            "COURSEWARE_CONFLICT: video retry changed or journal is full"
+        );
         let mut retried = original;
         retried.intent_id = retry_id;
         retried.idempotency_key = format!("video-{}", retried.intent_id);

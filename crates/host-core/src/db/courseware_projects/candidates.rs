@@ -76,17 +76,16 @@ fn narration(actions: &[Value]) -> Result<()> {
 fn replaceable_narration(actions: &[Value]) -> Result<Vec<Value>> {
     actions
         .iter()
-        .filter(|a| a["type"] != "audio_clip" && a["type"] != "video_clip" && a["type"] != "music_slot")
+        .filter(|a| {
+            a["type"] != "audio_clip" && a["type"] != "video_clip" && a["type"] != "music_slot"
+        })
         .map(|action| {
             let mut clean = action.clone();
             if action["type"] == "speech" {
                 if let Some(cues) = action.get("visualCues") {
-                    let cues = cues
-                        .as_array()
-                        .filter(|c| c.len() <= 200)
-                        .ok_or_else(|| {
-                            anyhow!("COURSEWARE_INVALID: unsupported previous effects")
-                        })?;
+                    let cues = cues.as_array().filter(|c| c.len() <= 200).ok_or_else(|| {
+                        anyhow!("COURSEWARE_INVALID: unsupported previous effects")
+                    })?;
                     for cue in cues {
                         reviews::effects::cue_targets(cue)?;
                     }
@@ -369,11 +368,19 @@ impl Database {
                 .map(|p| &p["teaching"])
                 .ok_or_else(|| anyhow!("COURSEWARE_INVALID: page requirements missing"))?;
             write.actions = repair_required_actions(&retained, &write.actions, teaching)?;
-            if write.actions.iter().any(|a| a.get("attention").is_some() && a.get("audioAssetId").is_some()) {
+            if write
+                .actions
+                .iter()
+                .any(|a| a.get("attention").is_some() && a.get("audioAssetId").is_some())
+            {
                 let audio = self.portable_audio(workspace, &current)?;
                 let local = self.portable_courseware_media_entries(workspace, &current)?;
                 for action in &mut write.actions {
-                    let Some(intent) = action.get("attention").cloned().filter(|_| action.get("audioAssetId").is_some()) else {
+                    let Some(intent) = action
+                        .get("attention")
+                        .cloned()
+                        .filter(|_| action.get("audioAssetId").is_some())
+                    else {
                         continue;
                     };
                     let duration = audio.iter()
@@ -389,7 +396,11 @@ impl Database {
                     let anchor = if cues.is_empty() {
                         action["id"].as_str().unwrap_or_default().to_owned()
                     } else {
-                        format!("{}-repair-{}", action["id"].as_str().unwrap_or_default(), cues.len())
+                        format!(
+                            "{}-repair-{}",
+                            action["id"].as_str().unwrap_or_default(),
+                            cues.len()
+                        )
                     };
                     cues.extend(attention::cues(&intent, &anchor, duration)?);
                     action["visualCues"] = serde_json::json!(cues);
@@ -667,10 +678,16 @@ impl Database {
                 || action["type"] == "video_slot"
                 || action["type"] == "video_clip"
         }) {
-            if let Some(position) = write.actions.iter().position(|a| a["type"] == "music_slot" && a["id"] == clip["id"]) {
+            if let Some(position) = write
+                .actions
+                .iter()
+                .position(|a| a["type"] == "music_slot" && a["id"] == clip["id"])
+            {
                 write.actions[position] = clip.clone();
             } else {
-                write.actions.insert(index.min(write.actions.len()), clip.clone());
+                write
+                    .actions
+                    .insert(index.min(write.actions.len()), clip.clone());
             }
         }
         let project = self.write_courseware_teaching(workspace, &write)?;

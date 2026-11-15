@@ -11,9 +11,12 @@ pub(super) fn targets(value: &Value) -> Result<Vec<String>> {
                 .keys()
                 .all(|key| ["type", "objectIds", "animation"].contains(&key.as_str())))
             && matches!(value["type"].as_str(), Some("highlight" | "spotlight"))
-            && value
-                .get("animation")
-                .is_none_or(|effect| matches!(effect.as_str(), Some("fadeIn" | "pulse" | "zoomIn" | "slideInLeft" | "slideInRight" | "gentleRotate")))
+            && value.get("animation").is_none_or(|effect| matches!(
+                effect.as_str(),
+                Some(
+                    "fadeIn" | "pulse" | "zoomIn" | "slideInLeft" | "slideInRight" | "gentleRotate"
+                )
+            ))
             && ids.is_some_and(|ids| (1..=8).contains(&ids.len())),
         "COURSEWARE_INVALID: invalid speech attention"
     );
@@ -58,7 +61,10 @@ pub(super) fn cues(value: &Value, action_id: &str, duration_ms: u64) -> Result<V
             );
         }
         // Reveal before focusing; a very short speech still gets a valid final focus interval.
-        if matches!(effect.as_str(), Some("fadeIn" | "zoomIn" | "slideInLeft" | "slideInRight")) {
+        if matches!(
+            effect.as_str(),
+            Some("fadeIn" | "zoomIn" | "slideInLeft" | "slideInRight")
+        ) {
             focus["atMs"] = json!(end.min(duration_ms - 1));
         }
     }
@@ -86,7 +92,10 @@ impl Database {
             .collect();
         if project.task_type != "scene"
             || page.locked
-            || page.actions.iter().any(|a| matches!(a["type"].as_str(), Some("video_slot" | "music_slot")))
+            || page
+                .actions
+                .iter()
+                .any(|a| matches!(a["type"].as_str(), Some("video_slot" | "music_slot")))
             || speeches.is_empty()
             || speeches.iter().any(|a| {
                 a["source"] != "generated"

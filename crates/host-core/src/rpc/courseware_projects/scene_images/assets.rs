@@ -157,9 +157,16 @@ pub(super) async fn handle(
         .ok_or_else(|| rpc_err(1007, "Scene image intent not found", "COURSEWARE_NOT_FOUND"))?;
     if method == "courseware.sceneImage.reference.get" {
         verify_reference(&intents, &intents[index])?;
-        let reference = intents[index].request.reference_image.as_ref().ok_or_else(|| invalid("Reference required"))?;
-        let (path, length) = snapshot_assets::verify(&state.data_dir, &reference.sha256).map_err(error)?;
-        if length != reference.byte_length as u64 { return Err(conflict("Archived reference length differs")); }
+        let reference = intents[index]
+            .request
+            .reference_image
+            .as_ref()
+            .ok_or_else(|| invalid("Reference required"))?;
+        let (path, length) =
+            snapshot_assets::verify(&state.data_dir, &reference.sha256).map_err(error)?;
+        if length != reference.byte_length as u64 {
+            return Err(conflict("Archived reference length differs"));
+        }
         let mut result = intents[index].view(current.as_deref());
         result["path"] = json!(path);
         return Ok(result);
@@ -218,7 +225,8 @@ pub(super) async fn handle(
                     if i.target == target {
                         i.selected = i.intent_id == intent_id;
                     } else if matches!(target, Target::VisualMaster {})
-                        || matches!(target, Target::CleanPlate {}) && matches!(i.target, Target::Layer { .. })
+                        || matches!(target, Target::CleanPlate {})
+                            && matches!(i.target, Target::Layer { .. })
                     {
                         // Keep archived assets, but never compile layers from the previous design.
                         i.selected = false;

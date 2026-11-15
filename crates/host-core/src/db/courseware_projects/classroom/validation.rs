@@ -353,12 +353,22 @@ pub(super) fn invalidate_edited_audio(previous: &Value, next: &mut Value) {
     let teaching_hash = |scene: &Value| {
         use sha2::Digest;
         let ids = scene["metadata"]["nativeTeachingActionIds"].as_array()?;
-        let actions = scene["actions"].as_array()?.iter().filter(|a| ids.contains(&a["id"]))
-            .map(|a| { let mut a = a.clone(); if a["type"] == "speech" {
-                a.as_object_mut().unwrap().remove("audioId");
-                a.as_object_mut().unwrap().remove("audioUrl");
-            } a }).collect::<Vec<_>>();
-        Some(hex::encode(sha2::Sha256::digest(serde_json::to_vec(&actions).ok()?)))
+        let actions = scene["actions"]
+            .as_array()?
+            .iter()
+            .filter(|a| ids.contains(&a["id"]))
+            .map(|a| {
+                let mut a = a.clone();
+                if a["type"] == "speech" {
+                    a.as_object_mut().unwrap().remove("audioId");
+                    a.as_object_mut().unwrap().remove("audioUrl");
+                }
+                a
+            })
+            .collect::<Vec<_>>();
+        Some(hex::encode(sha2::Sha256::digest(
+            serde_json::to_vec(&actions).ok()?,
+        )))
     };
     let mut changed_actions = HashSet::new();
     if let Some(scenes) = next.get_mut("scenes").and_then(Value::as_array_mut) {
@@ -369,8 +379,8 @@ pub(super) fn invalidate_edited_audio(previous: &Value, next: &mut Value) {
             let Some(old) = old else {
                 continue;
             };
-            let synchronized = teaching_hash(scene).is_some_and(|hash|
-                scene["metadata"]["nativeTeachingActionsHash"] == hash);
+            let synchronized = teaching_hash(scene)
+                .is_some_and(|hash| scene["metadata"]["nativeTeachingActionsHash"] == hash);
             let checkpoint_fields = |s: &Value| {
                 s["actions"].as_array().into_iter().flatten().filter(|a| a["type"] == "interaction_checkpoint").map(|a| json!({"id":a["id"],"question":a["question"],"referenceAnswer":a["referenceAnswer"],"constraintPrompt":a["constraintPrompt"]})).collect::<Vec<_>>()
             };

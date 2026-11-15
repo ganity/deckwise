@@ -2,8 +2,8 @@ use super::*;
 use crate::courseware::{snapshot_assets, source_candidates};
 use crate::db::courseware_projects::snapshots::{Asset, SnapshotRecord};
 
-mod online;
 mod native;
+mod online;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -60,7 +60,9 @@ fn files(data_dir: &Path, record: SnapshotRecord) -> anyhow::Result<Value> {
     }
     let mut value = json!({"snapshot":record.snapshot,"project":record.project,"mapping":record.mapping(),
         "sourcePath":source_path,"assets":assets});
-    if record.native_teaching { value["nativeTeaching"] = json!(true); }
+    if record.native_teaching {
+        value["nativeTeaching"] = json!(true);
+    }
     Ok(value)
 }
 
@@ -69,7 +71,9 @@ pub(super) async fn handle(
     method: &str,
     params: Value,
 ) -> Result<Value, JsonRpcError> {
-    if method == "courseware.snapshot.importNative" { return native::handle(state, params).await; }
+    if method == "courseware.snapshot.importNative" {
+        return native::handle(state, params).await;
+    }
     if method == "courseware.snapshot.importOnline" {
         return online::handle(state, params).await;
     }

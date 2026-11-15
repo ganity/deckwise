@@ -1,8 +1,8 @@
 //! Native save receipts bind runtime identities to a verified export before replacing live bytes.
 use super::*;
 use crate::courseware::{identity::SavedSourceIdentity, SavedProjectSeed};
-use std::collections::{HashMap, HashSet};
 use serde_json::json;
+use std::collections::{HashMap, HashSet};
 
 fn tokens_valid(token: &str) -> bool {
     valid_id(token)
@@ -68,8 +68,13 @@ impl Journal {
 }
 
 impl Database {
-    pub(super) fn has_native_save_receipt(&self, workspace: &str, project: &CoursewareProject) -> Result<bool> {
-        Ok(self.kv_get(WARNINGS, &storage_key(workspace, &project.project_id)?)?
+    pub(super) fn has_native_save_receipt(
+        &self,
+        workspace: &str,
+        project: &CoursewareProject,
+    ) -> Result<bool> {
+        Ok(self
+            .kv_get(WARNINGS, &storage_key(workspace, &project.project_id)?)?
             .is_some_and(|value| value["sourceSha256"] == project.source.sha256))
     }
 
@@ -124,7 +129,11 @@ impl Database {
         self.prepare_native_save_with_classroom(workspace, path, seed, proof, None)
     }
     pub fn prepare_native_save_with_classroom(
-        &self, workspace: &str, path: &str, seed: &SavedProjectSeed, proof: &NativeLineage,
+        &self,
+        workspace: &str,
+        path: &str,
+        seed: &SavedProjectSeed,
+        proof: &NativeLineage,
         classroom: Option<&ClassroomSave>,
     ) -> Result<Value> {
         let tx = self.conn.unchecked_transaction()?;
@@ -148,7 +157,8 @@ impl Database {
                 && values.iter().collect::<HashSet<_>>().len() == values.len()
         };
         let native_identity = proof.protocol == "deckwise-office-page-lineage/2";
-        let shape_id_valid = |id: &str| !id.is_empty() && id.len() <= 10 && id.bytes().all(|b| b.is_ascii_digit());
+        let shape_id_valid =
+            |id: &str| !id.is_empty() && id.len() <= 10 && id.bytes().all(|b| b.is_ascii_digit());
         anyhow::ensure!(
             (proof.protocol == "deckwise-office-page-lineage/1" || native_identity)
                 && valid_id(&proof.save_request_id)
@@ -172,8 +182,11 @@ impl Database {
                         && (if native_identity {
                             item.shape_id.as_deref().is_some_and(&shape_id_valid)
                                 && item.source_shape_id.as_deref().is_none_or(&shape_id_valid)
-                                && (item.source_shape_id.is_none() || item.source_page_token.is_some())
-                        } else { item.shape_id.is_none() && item.source_shape_id.is_none() })
+                                && (item.source_shape_id.is_none()
+                                    || item.source_page_token.is_some())
+                        } else {
+                            item.shape_id.is_none() && item.source_shape_id.is_none()
+                        })
                         && item
                             .source_name
                             .as_ref()
@@ -186,8 +199,14 @@ impl Database {
         );
         if native_identity {
             for objects in &proof.objects {
-                let ids: HashSet<_> = objects.iter().map(|item| item.shape_id.as_deref()).collect();
-                anyhow::ensure!(ids.len() == objects.len(), "COURSEWARE_INVALID: duplicate native output identity");
+                let ids: HashSet<_> = objects
+                    .iter()
+                    .map(|item| item.shape_id.as_deref())
+                    .collect();
+                anyhow::ensure!(
+                    ids.len() == objects.len(),
+                    "COURSEWARE_INVALID: duplicate native output identity"
+                );
             }
         }
         let old_pages = old["pages"]
@@ -229,9 +248,15 @@ impl Database {
                 let name = object["sourceObjectName"].as_str().unwrap_or("");
                 let matches: Vec<_> = proof.objects[index]
                     .iter()
-                    .filter(|item| if native_identity {
-                        item.shape_id.as_deref().is_some_and(|id| object["sourceShapeId"] == id)
-                    } else { !name.is_empty() && item.name == name })
+                    .filter(|item| {
+                        if native_identity {
+                            item.shape_id
+                                .as_deref()
+                                .is_some_and(|id| object["sourceShapeId"] == id)
+                        } else {
+                            !name.is_empty() && item.name == name
+                        }
+                    })
                     .collect();
                 let candidate = if matches.len() == 1 {
                     let item = matches[0];
@@ -244,9 +269,13 @@ impl Database {
                                 .iter()
                                 .filter(|old| {
                                     (if native_identity {
-                                        item.source_shape_id.as_deref().is_some_and(|id| old["sourceShapeId"] == id)
+                                        item.source_shape_id
+                                            .as_deref()
+                                            .is_some_and(|id| old["sourceShapeId"] == id)
                                     } else {
-                                        item.source_name.as_deref().is_some_and(|name| old["sourceObjectName"] == name)
+                                        item.source_name
+                                            .as_deref()
+                                            .is_some_and(|name| old["sourceObjectName"] == name)
                                     }) && old["type"] == object["type"]
                                 })
                                 .collect();
@@ -313,28 +342,76 @@ impl Database {
         SavedSourceIdentity::parse(&serde_json::to_vec(&identity)?)?;
         if let Some(save) = classroom {
             let previous = self.courseware_classroom(workspace, &baseline.project_id, None)?;
-            let scenes = save.classroom["scenes"].as_array().ok_or_else(|| anyhow!("COURSEWARE_INVALID: scenes missing"))?;
-            anyhow::ensure!(scenes.len() == next.pages.len(), "COURSEWARE_INVALID: scene/page count differs");
+            let scenes = save.classroom["scenes"]
+                .as_array()
+                .ok_or_else(|| anyhow!("COURSEWARE_INVALID: scenes missing"))?;
+            anyhow::ensure!(
+                scenes.len() == next.pages.len(),
+                "COURSEWARE_INVALID: scene/page count differs"
+            );
             for (page, scene) in next.pages.iter_mut().zip(scenes) {
-                let old_scene = previous["classroom"]["scenes"].as_array().into_iter().flatten()
+                let old_scene = previous["classroom"]["scenes"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
                     .find(|old| old["metadata"]["nativePageId"] == page.page_id);
-                let speech_text = |scene: &Value| scene["actions"].as_array().into_iter().flatten()
-                    .filter(|a| a["type"] == "speech" && !scene["metadata"]["assessmentSpeechIds"].as_object()
-                        .is_some_and(|ids| ids.values().any(|id| *id == a["id"])))
-                    .map(|a| a["text"].clone()).collect::<Vec<_>>();
+                let speech_text = |scene: &Value| {
+                    scene["actions"]
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .filter(|a| {
+                            a["type"] == "speech"
+                                && !scene["metadata"]["assessmentSpeechIds"]
+                                    .as_object()
+                                    .is_some_and(|ids| ids.values().any(|id| *id == a["id"]))
+                        })
+                        .map(|a| a["text"].clone())
+                        .collect::<Vec<_>>()
+                };
                 // An unrelated canonical edit must not roll back newer native narration/audio.
-                if old_scene.is_some_and(|old| speech_text(old) == speech_text(scene)) { continue; }
+                if old_scene.is_some_and(|old| speech_text(old) == speech_text(scene)) {
+                    continue;
+                }
                 // Keep native-only media/actions. Speech edits share the canonical text baseline.
                 let assessment_ids = scene["metadata"]["assessmentSpeechIds"].as_object();
-                let existing: Vec<_> = page.actions.iter().filter(|action| action["type"] == "speech").cloned().collect();
-                let speeches: Vec<Value> = scene["actions"].as_array().into_iter().flatten()
-                    .filter(|action| action["type"] == "speech" && !assessment_ids.is_some_and(|ids| ids.values().any(|id| *id == action["id"])))
+                let existing: Vec<_> = page
+                    .actions
+                    .iter()
+                    .filter(|action| action["type"] == "speech")
+                    .cloned()
+                    .collect();
+                let speeches: Vec<Value> = scene["actions"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter(|action| {
+                        action["type"] == "speech"
+                            && !assessment_ids
+                                .is_some_and(|ids| ids.values().any(|id| *id == action["id"]))
+                    })
                     .enumerate()
-                    .map(|(index, action)| existing.iter().find(|old| old["id"] == action["id"] && old["text"] == action["text"])
-                        .or_else(|| existing.get(index).filter(|old| old["text"] == action["text"]))
-                        .cloned().unwrap_or_else(|| json!({"id":action["id"],"type":"speech","text":action["text"]}))).collect();
+                    .map(|(index, action)| {
+                        existing
+                            .iter()
+                            .find(|old| old["id"] == action["id"] && old["text"] == action["text"])
+                            .or_else(|| {
+                                existing
+                                    .get(index)
+                                    .filter(|old| old["text"] == action["text"])
+                            })
+                            .cloned()
+                            .unwrap_or_else(
+                                || json!({"id":action["id"],"type":"speech","text":action["text"]}),
+                            )
+                    })
+                    .collect();
                 if existing != speeches {
-                    let position = page.actions.iter().position(|action| action["type"] == "speech").unwrap_or(0);
+                    let position = page
+                        .actions
+                        .iter()
+                        .position(|action| action["type"] == "speech")
+                        .unwrap_or(0);
                     page.actions.retain(|action| action["type"] != "speech");
                     let position = position.min(page.actions.len());
                     page.actions.splice(position..position, speeches);
@@ -350,8 +427,17 @@ impl Database {
             .filter(|(i, _)| proof.animation_unchanged[*i])
             .map(|(_, page)| page.page_id.clone())
             .collect();
-        let classroom = classroom.map(|save| self.prepare_native_classroom(workspace, &baseline, &next,
-            &save.expected_revision, &save.classroom)).transpose()?;
+        let classroom = classroom
+            .map(|save| {
+                self.prepare_native_classroom(
+                    workspace,
+                    &baseline,
+                    &next,
+                    &save.expected_revision,
+                    &save.classroom,
+                )
+            })
+            .transpose()?;
         let journal = Journal {
             save_id: uuid::Uuid::new_v4().to_string(),
             source_path: path.into(),
@@ -528,8 +614,11 @@ impl Database {
             )?;
             if let Some(document) = &journal.classroom {
                 self.kv_set(classroom::DOCUMENTS, &project_key, document)?;
-                self.kv_set(classroom::REVISIONS,
-                    &serde_json::to_string(&(&project_key, &document["revision"]))?, document)?;
+                self.kv_set(
+                    classroom::REVISIONS,
+                    &serde_json::to_string(&(&project_key, &document["revision"]))?,
+                    document,
+                )?;
             }
         }
         journal.status = if commit { "committed" } else { "cancelled" }.into();

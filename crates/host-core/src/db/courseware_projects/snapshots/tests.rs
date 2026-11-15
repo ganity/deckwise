@@ -617,11 +617,18 @@ fn saved_teaching_snapshot_needs_no_per_page_confirmation() {
     let root = dir.path().to_str().unwrap();
     let db = Database::open_in_dir(dir.path()).unwrap();
     let p = ready(&db, root);
-    let edited = db.write_courseware_teaching(root, &TeachingWrite {
-        project_id: p.project_id.clone(), page_id: p.pages[0].page_id.clone(),
-        expected_source_revision: p.source.revision.clone(),
-        expected_teaching_revision: p.teaching_revision.clone(), actions: p.pages[0].actions.clone(),
-    }).unwrap();
+    let edited = db
+        .write_courseware_teaching(
+            root,
+            &TeachingWrite {
+                project_id: p.project_id.clone(),
+                page_id: p.pages[0].page_id.clone(),
+                expected_source_revision: p.source.revision.clone(),
+                expected_teaching_revision: p.teaching_revision.clone(),
+                actions: p.pages[0].actions.clone(),
+            },
+        )
+        .unwrap();
     assert_eq!(edited.pages[0].review_state, "review");
     let frozen = capture(&db, root, &edited).unwrap();
     assert_eq!(frozen.project.pages[0].actions, edited.pages[0].actions);

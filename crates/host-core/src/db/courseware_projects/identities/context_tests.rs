@@ -87,7 +87,10 @@ fn context_is_read_only_current_canonical_and_stable_after_restart() {
         assert!(objects["pages"][0]["objects"][0]
             .get("importElementId")
             .is_none());
-        assert_eq!(objects["pages"][0]["objects"][0]["sourceShapeId"], "1951970051");
+        assert_eq!(
+            objects["pages"][0]["objects"][0]["sourceShapeId"],
+            "1951970051"
+        );
         assert_eq!(expected["saveWarnings"], json!([]));
         assert_eq!(rows(&db), before);
     }

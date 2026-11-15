@@ -1,21 +1,31 @@
 use super::*;
 
 #[tokio::test]
-async fn desktop_pins_provider_parameters_and_normalized_reference_without_changing_reviewed_source() {
+async fn desktop_pins_provider_parameters_and_normalized_reference_without_changing_reviewed_source(
+) {
     let mut f = Fixture::new().await;
     let master = f.submitted("image-model", "scene-001").await;
-    assert_eq!(master["intent"]["request"]["parameters"], json!({"image_size":"1280x800","quality":"high"}));
+    assert_eq!(
+        master["intent"]["request"]["parameters"],
+        json!({"image_size":"1280x800","quality":"high"})
+    );
     let mut stage = f.stage(&master);
-    let mut source_bytes = STANDARD.decode(stage["bytesBase64"].as_str().unwrap()).unwrap();
+    let mut source_bytes = STANDARD
+        .decode(stage["bytesBase64"].as_str().unwrap())
+        .unwrap();
     source_bytes.resize(9 * 1024 * 1024, 0);
     stage["bytesBase64"] = json!(STANDARD.encode(&source_bytes));
     stage["asset"]["byteLength"] = json!(source_bytes.len());
     stage["asset"]["sha256"] = json!(hex::encode(Sha256::digest(&source_bytes)));
     let source = stage["asset"]["sha256"].clone();
-    f.call("courseware.sceneImage.asset.stage", stage).await.unwrap();
+    f.call("courseware.sceneImage.asset.stage", stage)
+        .await
+        .unwrap();
     let mut adopt = f.operation(&master);
     adopt["expectedSelectedIntentId"] = Value::Null;
-    f.call("courseware.sceneImage.asset.adopt", adopt).await.unwrap();
+    f.call("courseware.sceneImage.asset.adopt", adopt)
+        .await
+        .unwrap();
     let mut prepare = f.prepare();
     prepare["model"] = json!("seedream-layers");
     prepare["target"] = json!({"kind":"cleanPlate"});
@@ -26,17 +36,46 @@ async fn desktop_pins_provider_parameters_and_normalized_reference_without_chang
     prepare["referenceInput"] = json!({"sourceSha256":source,"bytesBase64":STANDARD.encode(jpeg)});
     let mut forged = prepare.clone();
     forged["referenceInput"]["sourceSha256"] = json!("a".repeat(64));
-    assert!(f.call("courseware.sceneImage.prepare", forged).await.is_err());
-    let layer = f.call("courseware.sceneImage.prepare", prepare.clone()).await.unwrap();
+    assert!(f
+        .call("courseware.sceneImage.prepare", forged)
+        .await
+        .is_err());
+    let layer = f
+        .call("courseware.sceneImage.prepare", prepare.clone())
+        .await
+        .unwrap();
     assert_eq!(layer["intent"]["sourceReferenceImage"]["sha256"], source);
-    assert_eq!(layer["intent"]["sourceReferenceImage"]["byteLength"], source_bytes.len());
-    assert_eq!(layer["intent"]["request"]["referenceImage"]["sha256"], hex::encode(Sha256::digest(jpeg)));
-    assert_eq!(layer["intent"]["request"]["parameters"], json!({"size":"2K","output_format":"png","response_format":"url","watermark":false}));
+    assert_eq!(
+        layer["intent"]["sourceReferenceImage"]["byteLength"],
+        source_bytes.len()
+    );
+    assert_eq!(
+        layer["intent"]["request"]["referenceImage"]["sha256"],
+        hex::encode(Sha256::digest(jpeg))
+    );
+    assert_eq!(
+        layer["intent"]["request"]["parameters"],
+        json!({"size":"2K","output_format":"png","response_format":"url","watermark":false})
+    );
     f.restart().await;
-    let saved = f.call("courseware.sceneImage.reference.get", f.operation(&layer)).await.unwrap();
-    assert_eq!(std::fs::read(saved["path"].as_str().unwrap()).unwrap(), jpeg);
-    assert_eq!(f.call("courseware.sceneImage.prepare", prepare).await.unwrap(), layer);
-    let original = f.call("courseware.sceneImage.asset.get", f.operation(&master)).await.unwrap();
+    let saved = f
+        .call("courseware.sceneImage.reference.get", f.operation(&layer))
+        .await
+        .unwrap();
+    assert_eq!(
+        std::fs::read(saved["path"].as_str().unwrap()).unwrap(),
+        jpeg
+    );
+    assert_eq!(
+        f.call("courseware.sceneImage.prepare", prepare)
+            .await
+            .unwrap(),
+        layer
+    );
+    let original = f
+        .call("courseware.sceneImage.asset.get", f.operation(&master))
+        .await
+        .unwrap();
     assert_eq!(original["intent"]["asset"]["sha256"], source);
 }
 
@@ -44,10 +83,14 @@ async fn desktop_pins_provider_parameters_and_normalized_reference_without_chang
 async fn explicit_decomposition_retry_uses_maic_prompt_and_keeps_legacy_receipt_and_reference() {
     let mut f = Fixture::new().await;
     let master = f.submitted("image-model", "scene-001").await;
-    f.call("courseware.sceneImage.asset.stage", f.stage(&master)).await.unwrap();
+    f.call("courseware.sceneImage.asset.stage", f.stage(&master))
+        .await
+        .unwrap();
     let mut adopt = f.operation(&master);
     adopt["expectedSelectedIntentId"] = Value::Null;
-    f.call("courseware.sceneImage.asset.adopt", adopt).await.unwrap();
+    f.call("courseware.sceneImage.asset.adopt", adopt)
+        .await
+        .unwrap();
     let mut prepare = f.prepare();
     prepare["target"] = json!({"kind":"cleanPlate"});
     prepare["referenceIntentId"] = master["intent"]["intentId"].clone();
@@ -55,9 +98,19 @@ async fn explicit_decomposition_retry_uses_maic_prompt_and_keeps_legacy_receipt_
     let parent = f.submit(prepare.clone()).await;
     let legacy = {
         let state = f.state.lock().await;
-        let key = storage_key(f.root.to_str().unwrap(), &Scope { session_id: f.session.clone(), principal_key: "a".repeat(64) }).unwrap();
+        let key = storage_key(
+            f.root.to_str().unwrap(),
+            &Scope {
+                session_id: f.session.clone(),
+                principal_key: "a".repeat(64),
+            },
+        )
+        .unwrap();
         let mut intents = load(&state, &key).unwrap();
-        let intent = intents.iter_mut().find(|intent| intent.intent_id == parent["intent"]["intentId"].as_str().unwrap()).unwrap();
+        let intent = intents
+            .iter_mut()
+            .find(|intent| intent.intent_id == parent["intent"]["intentId"].as_str().unwrap())
+            .unwrap();
         intent.request.input = "Legacy extra decomposition instructions".into();
         intent.request_hash = intent.request.hash();
         intent.task_ref.as_mut().unwrap().request_hash = intent.request_hash.clone();
@@ -65,15 +118,42 @@ async fn explicit_decomposition_retry_uses_maic_prompt_and_keeps_legacy_receipt_
         save(&state, &key, &intents).unwrap();
         legacy
     };
-    let retry = f.call("courseware.sceneImage.retry", f.operation(&legacy)).await.unwrap();
+    let retry = f
+        .call("courseware.sceneImage.retry", f.operation(&legacy))
+        .await
+        .unwrap();
     assert_eq!(retry["intent"]["request"]["input"], prompts::LAYER_PROMPT);
-    assert_eq!(retry["intent"]["request"]["referenceImage"], legacy["intent"]["request"]["referenceImage"]);
-    assert_eq!(retry["intent"]["referenceIntentId"], master["intent"]["intentId"]);
-    assert_ne!(retry["intent"]["requestHash"], legacy["intent"]["requestHash"]);
-    assert_eq!(f.call("courseware.sceneImage.get", f.operation(&legacy)).await.unwrap(), legacy);
+    assert_eq!(
+        retry["intent"]["request"]["referenceImage"],
+        legacy["intent"]["request"]["referenceImage"]
+    );
+    assert_eq!(
+        retry["intent"]["referenceIntentId"],
+        master["intent"]["intentId"]
+    );
+    assert_ne!(
+        retry["intent"]["requestHash"],
+        legacy["intent"]["requestHash"]
+    );
+    assert_eq!(
+        f.call("courseware.sceneImage.get", f.operation(&legacy))
+            .await
+            .unwrap(),
+        legacy
+    );
     f.restart().await;
-    assert_eq!(f.call("courseware.sceneImage.retry", f.operation(&legacy)).await.unwrap(), retry);
-    assert_eq!(f.call("courseware.sceneImage.prepare", prepare).await.unwrap(), retry);
+    assert_eq!(
+        f.call("courseware.sceneImage.retry", f.operation(&legacy))
+            .await
+            .unwrap(),
+        retry
+    );
+    assert_eq!(
+        f.call("courseware.sceneImage.prepare", prepare)
+            .await
+            .unwrap(),
+        retry
+    );
 }
 
 #[tokio::test]
@@ -120,9 +200,11 @@ async fn long_approved_later_page_fits_master_prompt_without_revising_the_plan()
     let mut f = Fixture::new().await;
     let mut plan: Value = serde_json::from_slice(&std::fs::read(f.path()).unwrap()).unwrap();
     let art = "Soft hand-painted watercolor, warm light and layered paper texture. ".repeat(6);
-    let characters = "Five original animal friends with distinct shapes, outfits and faces. ".repeat(5);
+    let characters =
+        "Five original animal friends with distinct shapes, outfits and faces. ".repeat(5);
     let setting = "A bright kindergarten room with calm wall art and a deep floor. ".repeat(3);
-    let story = "The animal friends take turns greeting each other around the classroom. ".repeat(10);
+    let story =
+        "The animal friends take turns greeting each other around the classroom. ".repeat(10);
     plan["visualBible"] = json!({"artDirection":art,"characters":characters,"setting":setting});
     plan["pages"][1]["visualIntent"] = json!(story);
     plan["pages"][1]["visibleText"] = json!(["Hello!", "Good morning!", "早上好"]);
@@ -456,7 +538,10 @@ fn reference_request_hash_matches_desktop_and_java_fixture_without_changing_lega
         "44ecfadd1f67a10194854070a668f25f21da00c98905a78465c6f68bc4523da5"
     );
     request.parameters = Some(json!({"quality":"high","image_size":"1280x800"}));
-    assert_eq!(request.hash(), "4e7b648731d7c0830a04c077e45abe21f364705992c136b2a86d4808dac14240");
+    assert_eq!(
+        request.hash(),
+        "4e7b648731d7c0830a04c077e45abe21f364705992c136b2a86d4808dac14240"
+    );
     request.parameters = None;
     request.reference_image = Some(ReferenceImage {
         sha256: "d8aeb7b31114535bbf9035568464d5eb3dadfabaa70525a487d2c04571203426".into(),

@@ -4,9 +4,7 @@ use crate::db::courseware_projects::{snapshots::Asset, TeachingWrite};
 
 #[tokio::test]
 async fn chat_audit_adds_no_manual_approval_to_authorized_fixed_share() {
-    use crate::db::courseware_projects::chat_changes::{
-        OperationRequest, Plan, PlanItem,
-    };
+    use crate::db::courseware_projects::chat_changes::{OperationRequest, Plan, PlanItem};
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().to_str().unwrap();
     let (state, session, selection) = setup(dir.path());
@@ -47,11 +45,19 @@ async fn chat_audit_adds_no_manual_approval_to_authorized_fixed_share() {
         p
     };
     let prepared = call(state.clone(), "courseware.fixedShare.prepare", request)
-        .await.unwrap();
+        .await
+        .unwrap();
     assert!(prepared["intent"].is_object());
     let state = state.lock().await;
-    assert!(state.db.get_courseware_snapshot(root, &project.project_id, "snapshot-1").is_ok());
-    let audit = state.db.courseware_project_context(root, &project.project_id).unwrap()["chatChanges"][0].clone();
+    assert!(state
+        .db
+        .get_courseware_snapshot(root, &project.project_id, "snapshot-1")
+        .is_ok());
+    let audit = state
+        .db
+        .courseware_project_context(root, &project.project_id)
+        .unwrap()["chatChanges"][0]
+        .clone();
     assert!(audit.get("resolution").is_none());
     assert_eq!(audit["plan"]["items"][0]["status"], "not-recorded");
 }

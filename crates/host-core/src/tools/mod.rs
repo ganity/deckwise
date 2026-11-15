@@ -1011,7 +1011,9 @@ pub fn is_desktop_dispatched(tool_name: &str) -> bool {
         )
         || matches!(
             tool_name,
-            "courseware_story_begin" | "courseware_story_save" | "courseware_workflow_get"
+            "courseware_story_begin"
+                | "courseware_story_save"
+                | "courseware_workflow_get"
                 | "courseware_scene_plan_submit"
                 | "courseware_media_context"
                 | "courseware_media_prepare"

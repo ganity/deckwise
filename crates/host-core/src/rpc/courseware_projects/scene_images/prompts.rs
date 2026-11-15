@@ -135,7 +135,15 @@ mod tests {
             }]
         })).unwrap();
         for compact in [false, true] {
-            let prompt = build_variant(&plan, &plan.pages[0], &Target::VisualMaster {}, false, false, "", compact);
+            let prompt = build_variant(
+                &plan,
+                &plan.pages[0],
+                &Target::VisualMaster {},
+                false,
+                false,
+                "",
+                compact,
+            );
             assert!(prompt.contains("NO readable text"));
             assert!(prompt.contains("editable PowerPoint text"));
             assert!(!prompt.contains("render each exact string once"));
@@ -143,7 +151,8 @@ mod tests {
         }
         assert!(serde_json::from_value::<scene_plan::Plan>(json!({
             "title":"Invalid", "textMode":"raster", "pages":[]
-        })).is_err());
+        }))
+        .is_err());
     }
 
     #[test]
@@ -187,7 +196,17 @@ mod tests {
             "",
         );
         assert_eq!(decomposition, LAYER_PROMPT);
-        assert_eq!(build(&plan, &plan.pages[0], &Target::CleanPlate {}, true, true, "Legacy instructions"), LAYER_PROMPT);
+        assert_eq!(
+            build(
+                &plan,
+                &plan.pages[0],
+                &Target::CleanPlate {},
+                true,
+                true,
+                "Legacy instructions"
+            ),
+            LAYER_PROMPT
+        );
         assert!(decomposition.contains("整块载体连同上面的文字一起分离"));
         assert!(!decomposition.contains("Remove every readable title"));
         let mut page: scene_plan::Page = serde_json::from_value(json!({"title":"Quiet scene", "visibleText":[], "visualIntent":"A landscape", "narration":"Listen"})).unwrap();

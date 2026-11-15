@@ -591,16 +591,33 @@ async fn real_parser_copy_preserves_adopted_local_audio_without_original_profile
             .create_courseware_project(fresh.path().to_str().unwrap(), &project)
             .unwrap();
     }
-    let mut changed = source.clone();
-    let end = changed
-        .windows(4)
-        .rposition(|bytes| bytes == b"PK\x05\x06")
+    // A ZIP comment changes bytes but preserves the named inventory and is safely recovered.
+    // Change real slide text so this case requires explicit source reconciliation.
+    let changed_path = fresh.path().join("lesson.pptx");
+    let output = std::process::Command::new(std::env::var("DECKWISE_PPTX_NODE").unwrap())
+        .current_dir(repo.join("packages/courseware-runtime"))
+        .args([
+            "-e",
+            r#"
+const fs = require('node:fs'), assert = require('node:assert/strict'), JSZip = require('jszip');
+(async () => {
+  const path = process.argv[1], zip = await JSZip.loadAsync(fs.readFileSync(path));
+  const part = 'ppt/slides/slide1.xml', before = await zip.file(part).async('string');
+  const after = before.replace(/(<a:t[^>]*>)[^<]*/, '$1Changed lesson text');
+  assert.notEqual(after, before); zip.file(part, after);
+  fs.writeFileSync(path, await zip.generateAsync({ type: 'nodebuffer' }));
+})().catch(error => { console.error(error); process.exitCode = 1; });
+"#,
+        ])
+        .arg(&changed_path)
+        .output()
         .unwrap();
-    let comment = b"isolated native save";
-    changed.truncate(end + 22);
-    changed[end + 20..end + 22].copy_from_slice(&(comment.len() as u16).to_le_bytes());
-    changed.extend_from_slice(comment);
-    std::fs::write(fresh.path().join("lesson.pptx"), &changed).unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let changed = std::fs::read(&changed_path).unwrap();
     let next = fresh
         .path()
         .join(".deckwise-ppt/revisions/fresh-copy/r0002/lesson.pptx");

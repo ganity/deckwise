@@ -77,8 +77,7 @@ fn resolve(
 }
 
 #[test]
-fn chat_audit_needs_no_manual_closure_for_snapshots_and_preserves_history_after_restart(
-) {
+fn chat_audit_needs_no_manual_closure_for_snapshots_and_preserves_history_after_restart() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().to_str().unwrap();
     let db = Database::open_in_dir(dir.path()).unwrap();
@@ -93,16 +92,15 @@ fn chat_audit_needs_no_manual_closure_for_snapshots_and_preserves_history_after_
     )
     .unwrap();
     let r = declare(&db, root, &p, "turn-1");
-    db
-        .capture_courseware_snapshot(
-            root,
-            &seed,
-            "without-manual-closure",
-            &p.source.revision,
-            &p.teaching_revision,
-            vec![]
-        )
-        .unwrap();
+    db.capture_courseware_snapshot(
+        root,
+        &seed,
+        "without-manual-closure",
+        &p.source.revision,
+        &p.teaching_revision,
+        vec![],
+    )
+    .unwrap();
     assert!(db
         .get_courseware_snapshot(root, &p.project_id, "old")
         .is_ok());
@@ -253,6 +251,13 @@ fn declared_chat_resolution_refuses_forgery_races_storage_failure_and_hidden_his
             .len(),
         10
     );
-    db.capture_courseware_snapshot(root, &seed, "without-history-closure",
-        &closed.source.revision, &closed.teaching_revision, vec![]).unwrap();
+    db.capture_courseware_snapshot(
+        root,
+        &seed,
+        "without-history-closure",
+        &closed.source.revision,
+        &closed.teaching_revision,
+        vec![],
+    )
+    .unwrap();
 }

@@ -107,9 +107,14 @@ impl Database {
             .as_ref()
             .ok_or_else(|| anyhow!("COURSEWARE_INVALID: missing declaration"))?
             .page_id;
-        anyhow::ensure!(if original.pages.iter().any(|page| &page.page_id == target) { page_id == target }
-            else { true },
-            "COURSEWARE_CONFLICT: review the requested page");
+        anyhow::ensure!(
+            if original.pages.iter().any(|page| &page.page_id == target) {
+                page_id == target
+            } else {
+                true
+            },
+            "COURSEWARE_CONFLICT: review the requested page"
+        );
         let next = self.review_courseware_page(
             workspace,
             project_id,

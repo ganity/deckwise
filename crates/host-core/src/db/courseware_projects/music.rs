@@ -78,10 +78,15 @@ fn hash(value: &str) -> bool {
 }
 
 pub fn valid_slot(action: &Value) -> bool {
-    action["type"] == "music_slot" && action.as_object().is_some_and(|a| a.len() == 4)
+    action["type"] == "music_slot"
+        && action.as_object().is_some_and(|a| a.len() == 4)
         && action["id"].as_str().is_some_and(valid_id)
-        && action["prompt"].as_str().is_some_and(|s| !s.trim().is_empty() && s.encode_utf16().count() <= 4000)
-        && action["title"].as_str().is_some_and(|s| !s.trim().is_empty() && s.encode_utf16().count() <= 100)
+        && action["prompt"]
+            .as_str()
+            .is_some_and(|s| !s.trim().is_empty() && s.encode_utf16().count() <= 4000)
+        && action["title"]
+            .as_str()
+            .is_some_and(|s| !s.trim().is_empty() && s.encode_utf16().count() <= 100)
 }
 
 pub fn valid_clip(action: &Value) -> bool {
@@ -398,13 +403,20 @@ impl Database {
             .find(|page| page.page_id == selection.page_id)
             .ok_or_else(|| anyhow!("COURSEWARE_PAGE_NOT_FOUND: music target page not found"))?;
         let mut actions = page.actions.clone();
-        let action_id = selection.slot_id.clone().unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+        let action_id = selection
+            .slot_id
+            .clone()
+            .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
         let clip = serde_json::json!({"id":action_id,"type":"audio_clip","audioAssetId":asset.id});
         if let Some(slot_id) = &selection.slot_id {
-            let index = actions.iter().position(|a| a["id"] == *slot_id && valid_slot(a))
+            let index = actions
+                .iter()
+                .position(|a| a["id"] == *slot_id && valid_slot(a))
                 .ok_or_else(|| anyhow!("COURSEWARE_CONFLICT: music slot changed or was removed"))?;
             actions[index] = clip;
-        } else { actions.push(clip); }
+        } else {
+            actions.push(clip);
+        }
         let saved = self.write_courseware_teaching(
             workspace,
             &TeachingWrite {

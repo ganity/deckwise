@@ -8,11 +8,23 @@ pub struct Teaching {
     pub objective: String,
     pub duration_seconds: u64,
     pub required_objects: Vec<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "present_option")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_option"
+    )]
     pub required_effects: Option<Vec<String>>,
-    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "present_option")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_option"
+    )]
     pub question: Option<Question>,
-    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "present_option")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_option"
+    )]
     pub music: Option<Music>,
     #[serde(
         default,
@@ -26,36 +38,72 @@ pub struct Teaching {
 pub struct Question {
     pub text: String,
     pub response: question::Response,
-    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "present_option")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_option"
+    )]
     pub reference_answer: Option<ReferenceAnswer>,
-    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "present_option")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_option"
+    )]
     pub constraint_prompt: Option<String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct ReferenceAnswer { pub summary: String, pub key_points: Vec<String> }
+pub struct ReferenceAnswer {
+    pub summary: String,
+    pub key_points: Vec<String>,
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct Music { pub purpose: String, pub prompt: String }
+pub struct Music {
+    pub purpose: String,
+    pub prompt: String,
+}
 impl Teaching {
     pub fn valid(&self) -> bool {
         let text = |s: &str, n| !s.trim().is_empty() && s.encode_utf16().count() <= n;
-        matches!(self.page_type.as_str(), "slide" | "quiz" | "interactive" | "pbl")
-            && matches!(self.phase.as_str(), "opening" | "explore" | "practice" | "review")
-            && text(&self.objective, 1000) && (5..=1800).contains(&self.duration_seconds)
+        matches!(
+            self.page_type.as_str(),
+            "slide" | "quiz" | "interactive" | "pbl"
+        ) && matches!(
+            self.phase.as_str(),
+            "opening" | "explore" | "practice" | "review"
+        ) && text(&self.objective, 1000)
+            && (5..=1800).contains(&self.duration_seconds)
             && self.required_objects.len() <= 30
             && self.required_objects.iter().all(|s| text(s, 200))
-            && self.required_objects.iter().collect::<std::collections::HashSet<_>>().len() == self.required_objects.len()
-            && self.required_effects.as_ref().is_none_or(|effects| effects.len() <= 3
-                && effects.iter().all(|s| matches!(s.as_str(), "highlight" | "spotlight" | "animation"))
-                && effects.iter().collect::<std::collections::HashSet<_>>().len() == effects.len())
-            && (matches!(self.page_type.as_str(), "slide" | "quiz") || self.question.is_some())
             && self
-                .question
-                .as_ref()
-                .is_none_or(|q| text(&q.text, 160) && q.response.valid()
-                    && q.reference_answer.as_ref().is_none_or(|r| text(&r.summary, 4000) && r.key_points.len() <= 20 && r.key_points.iter().all(|p| text(p, 500)))
-                    && q.constraint_prompt.as_ref().is_none_or(|p| text(p, 4000)))
+                .required_objects
+                .iter()
+                .collect::<std::collections::HashSet<_>>()
+                .len()
+                == self.required_objects.len()
+            && self.required_effects.as_ref().is_none_or(|effects| {
+                effects.len() <= 3
+                    && effects
+                        .iter()
+                        .all(|s| matches!(s.as_str(), "highlight" | "spotlight" | "animation"))
+                    && effects
+                        .iter()
+                        .collect::<std::collections::HashSet<_>>()
+                        .len()
+                        == effects.len()
+            })
+            && (matches!(self.page_type.as_str(), "slide" | "quiz") || self.question.is_some())
+            && self.question.as_ref().is_none_or(|q| {
+                text(&q.text, 160)
+                    && q.response.valid()
+                    && q.reference_answer.as_ref().is_none_or(|r| {
+                        text(&r.summary, 4000)
+                            && r.key_points.len() <= 20
+                            && r.key_points.iter().all(|p| text(p, 500))
+                    })
+                    && q.constraint_prompt.as_ref().is_none_or(|p| text(p, 4000))
+            })
             && self
                 .music
                 .as_ref()
@@ -100,7 +148,11 @@ mod tests {
         let parsed: Teaching = serde_json::from_value(effects.clone()).unwrap();
         assert!(parsed.valid());
         assert_eq!(serde_json::to_value(parsed).unwrap(), effects);
-        for invalid in [json!(["animation", "animation"]), json!(["unknown"]), Value::Null] {
+        for invalid in [
+            json!(["animation", "animation"]),
+            json!(["unknown"]),
+            Value::Null,
+        ] {
             effects["requiredEffects"] = invalid;
             assert!(!serde_json::from_value::<Teaching>(effects.clone()).is_ok_and(|t| t.valid()));
         }

@@ -54,7 +54,8 @@ fn required_focus_repair_preserves_existing_cues_and_audio() {
             "effect":{"type":"spotlight","elementId":"portrait","elementIds":[]}}]});
     let mut proposed = original.clone();
     proposed["attention"] = json!({"type":"highlight","objectIds":["word"],"animation":"pulse"});
-    let repaired = repair_required_actions(&[original.clone()], &[proposed.clone()], &json!({})).unwrap();
+    let repaired =
+        repair_required_actions(&[original.clone()], &[proposed.clone()], &json!({})).unwrap();
     assert_eq!(repaired, vec![proposed.clone()]);
     proposed["id"] = json!("different-speech");
     assert!(repair_required_actions(&[original], &[proposed], &json!({})).is_err());
@@ -686,8 +687,11 @@ fn direct_narration_accepts_empty_saved_visual_cues() {
     let root = dir.path().to_str().unwrap();
     let db = Database::open_in_dir(dir.path()).unwrap();
     let (mut project, seed, write) = fixture();
-    project.pages[0].actions = vec![json!({"id":"old", "type":"speech", "text":"Saved explanation", "visualCues":[]})];
+    project.pages[0].actions =
+        vec![json!({"id":"old", "type":"speech", "text":"Saved explanation", "visualCues":[]})];
     db.create_courseware_project(root, &project).unwrap();
-    let saved = db.save_generated_narration(root, &seed, &project, &write).unwrap();
+    let saved = db
+        .save_generated_narration(root, &seed, &project, &write)
+        .unwrap();
     assert_eq!(saved.pages[0].actions, write.actions);
 }

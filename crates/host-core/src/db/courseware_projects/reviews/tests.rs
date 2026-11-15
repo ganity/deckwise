@@ -3,7 +3,12 @@ use serde_json::json;
 
 #[test]
 fn generated_attention_uses_decoded_audio_and_auto_readies_only_generated_scenes() {
-    for (task_type, generated, music_pending) in [("scene", true, false), ("scene", true, true), ("scene", false, false), ("import", true, false)] {
+    for (task_type, generated, music_pending) in [
+        ("scene", true, false),
+        ("scene", true, true),
+        ("scene", false, false),
+        ("import", true, false),
+    ] {
         use crate::db::courseware_projects::tts::{audio::Audio, Selection, TaskRef};
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().to_str().unwrap();
@@ -33,7 +38,9 @@ fn generated_attention_uses_decoded_audio_and_auto_readies_only_generated_scenes
             write.actions.push(json!({"id":"second-speech","type":"speech","text":"Now compare.","source":"generated","attention":{"type":"spotlight","objectIds":[target],"animation":"pulse"}}));
         }
         if music_pending {
-            write.actions.push(json!({"id":"song","type":"music_slot","title":"Sing","prompt":"Hello song"}));
+            write.actions.push(
+                json!({"id":"song","type":"music_slot","title":"Sing","prompt":"Hello song"}),
+            );
         }
         let valid = write.actions[0]["attention"].clone();
         write.actions[0]["attention"]["objectIds"] = json!(["invented"]);

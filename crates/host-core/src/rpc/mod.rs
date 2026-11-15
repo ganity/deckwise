@@ -1593,7 +1593,8 @@ async fn execute_plugin_tool(
         } => None,
     };
     if !matches!(&outcome, Some(Ok(Ok(_))))
-        && (tools::is_ppt_editor_tool(&p.tool_name) || p.tool_name == "courseware_media_assessments")
+        && (tools::is_ppt_editor_tool(&p.tool_name)
+            || p.tool_name == "courseware_media_assessments")
     {
         emit_notification(
             tx,
@@ -1996,7 +1997,10 @@ async fn handle_request(
         | "courseware.snapshot.get"
         | "courseware.snapshot.onlineOrigin"
         | "courseware.teaching.confirm"
-        | "courseware.story.get" | "courseware.story.begin" | "courseware.story.save" | "courseware.story.decide"
+        | "courseware.story.get"
+        | "courseware.story.begin"
+        | "courseware.story.save"
+        | "courseware.story.decide"
         | "courseware.teaching.setLock" => courseware_projects::handle(state, method, params).await,
         "courseware.parseStart" => {
             let p: crate::courseware::StartParams = serde_json::from_value(params)

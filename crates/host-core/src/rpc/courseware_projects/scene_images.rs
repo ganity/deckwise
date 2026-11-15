@@ -1,7 +1,7 @@
 use super::*;
 use crate::db::courseware_projects::tts::{request_hash, Phase, RejectedRequest, Request, TaskRef};
-use sha2::{Digest, Sha256};
 use base64::Engine as _;
+use sha2::{Digest, Sha256};
 
 pub(super) mod assets;
 mod prompts;
@@ -233,12 +233,21 @@ impl ImageRequest {
             Some(self.input.as_str()),
             None,
         ];
-        let length = self.reference_image.as_ref().map(|r| r.byte_length.to_string());
+        let length = self
+            .reference_image
+            .as_ref()
+            .map(|r| r.byte_length.to_string());
         if let Some(reference) = &self.reference_image {
-            fields.extend([Some(reference.sha256.as_str()), Some(reference.mime_type.as_str()), length.as_deref()]);
+            fields.extend([
+                Some(reference.sha256.as_str()),
+                Some(reference.mime_type.as_str()),
+                length.as_deref(),
+            ]);
         }
         let parameters = self.parameters.as_ref().map(Value::to_string);
-        if let Some(parameters) = &parameters { fields.push(Some(parameters.as_str())); }
+        if let Some(parameters) = &parameters {
+            fields.push(Some(parameters.as_str()));
+        }
         for field in fields {
             match field {
                 Some(value) => {
@@ -289,8 +298,15 @@ impl Intent {
                 .as_ref()
                 .is_some_and(|r| !r.valid() || r.byte_length > 8 * 1024 * 1024)
             || self.request.reference_image.is_some() != self.reference_intent_id.is_some()
-            || self.source_reference_image.as_ref().is_some_and(|r| !r.valid()
-                || self.request.kind != "image-layers" || self.request.reference_image.as_ref().is_none_or(|wire| wire.mime_type != "image/jpeg"))
+            || self.source_reference_image.as_ref().is_some_and(|r| {
+                !r.valid()
+                    || self.request.kind != "image-layers"
+                    || self
+                        .request
+                        .reference_image
+                        .as_ref()
+                        .is_none_or(|wire| wire.mime_type != "image/jpeg")
+            })
             || self
                 .reference_intent_id
                 .as_ref()
@@ -322,127 +338,16 @@ impl Intent {
     }
 }
 
-fn selected_reference<'a>(
-    intents: &'a [Intent],
-    plan: &str,
-    page: &str,
-    id: &str,
-) -> Result<&'a assets::ImageAsset, JsonRpcError> {
-    intents
-        .iter()
-        .find(|i| {
-            i.intent_id == id
-                && i.plan_sha256 == plan
-                && i.page_id == page
-                && i.selected
-                && matches!(i.target, Target::VisualMaster {})
-        })
-        .and_then(|i| i.asset.as_ref())
-        .filter(|a| matches!(a.mime_type.as_str(), "image/png" | "image/jpeg"))
-        .ok_or_else(|| conflict("Selected reviewed reference image changed or is unsupported"))
-}
-
-/// Canvas references pin an owned archive, independently of later scene selection.
-pub(super) fn canvas_reference(
-    state: &AppState,
-    root: &str,
-    session_id: &str,
-    principal_key: &str,
-    intent_id: &str,
-    sha256: &str,
-) -> Result<(ReferenceImage, std::path::PathBuf, Value), JsonRpcError> {
-    let key = storage_key(
-        root,
-        &Scope {
-            session_id: session_id.into(),
-            principal_key: principal_key.into(),
-        },
-    )?;
-    let intents = load(state, &key)?;
-    let asset = intents
-        .iter()
-        .find(|i| i.intent_id == intent_id)
-        .and_then(|i| i.asset.as_ref())
-        .filter(|asset| {
-            asset.sha256 == sha256 && matches!(asset.mime_type.as_str(), "image/png" | "image/jpeg")
-        })
-        .ok_or_else(|| invalid("Canvas reference must be an owned archived PNG or JPEG"))?;
-    let (path, length) = crate::courseware::snapshot_assets::verify(&state.data_dir, &asset.sha256)
-        .map_err(error)?;
-    if length != asset.byte_length as u64 {
-        return Err(invalid("Canvas reference length changed"));
-    }
-    Ok((
-        ReferenceImage {
-            sha256: asset.sha256.clone(),
-            mime_type: asset.mime_type.clone(),
-            byte_length: asset.byte_length,
-        },
-        path,
-        serde_json::to_value(asset).map_err(|e| error(e.into()))?,
-    ))
-}
-
-fn verify_reference(intents: &[Intent], intent: &Intent) -> Result<(), JsonRpcError> {
-    if let (Some(id), Some(reference)) =
-        (&intent.reference_intent_id, intent.source_reference_image.as_ref().or(intent.request.reference_image.as_ref()))
-    {
-        let page = if matches!(intent.target, Target::VisualMaster {}) {
-            let reference = intents.iter().find(|item| item.intent_id == *id)
-                .ok_or_else(|| conflict("Selected course style reference changed"))?;
-            if intent.page_id == reference.page_id {
-                return Err(invalid("The representative page cannot reference itself"));
-            }
-            &reference.page_id
-        } else {
-            &intent.page_id
-        };
-        let asset = selected_reference(intents, &intent.plan_sha256, page, id)?;
-        if asset.sha256 != reference.sha256
-            || asset.mime_type != reference.mime_type
-            || asset.byte_length != reference.byte_length
-        {
-            return Err(conflict("Selected reviewed reference image changed"));
-        }
-    }
-    Ok(())
-}
-
-fn verify_decomposition_selection(intents: &[Intent], clean: &Intent) -> Result<(), JsonRpcError> {
-    let foregrounds: Vec<_> = intents
-        .iter()
-        .filter(|i| {
-            i.selected
-                && i.plan_sha256 == clean.plan_sha256
-                && i.page_id == clean.page_id
-                && matches!(i.target, Target::Layer { .. })
-        })
-        .collect();
-    if clean.request.kind == "image-layers" {
-        verify_reference(intents, clean)?;
-        let group: Vec<_> = intents
-            .iter()
-            .filter(|i| i.task_ref == clean.task_ref && matches!(i.target, Target::Layer { .. }))
-            .collect();
-        if group.is_empty()
-            || group.iter().any(|i| !i.selected)
-            || foregrounds.iter().any(|i| i.task_ref != clean.task_ref)
-        {
-            return Err(conflict(
-                "Review and select every foreground from the same decomposition",
-            ));
-        }
-    } else if foregrounds.iter().any(|i| i.request.kind == "image-layers") {
-        return Err(conflict(
-            "Decomposed foregrounds require their original base plate",
-        ));
-    }
-    Ok(())
-}
+mod references;
+pub(super) use references::canvas_reference;
+use references::{selected_reference, verify_decomposition_selection, verify_reference};
 
 fn current_plan(state: &AppState, root: &str, scope: &Scope) -> Option<String> {
     let task = state.db.kv_get(TASK_NAMESPACE, &scope.session_id).ok()??;
-    if task["taskType"] != "scene" || task.get("generatedPath").is_some() || task.get("canonicalProjectId").is_some() {
+    if task["taskType"] != "scene"
+        || task.get("generatedPath").is_some()
+        || task.get("canonicalProjectId").is_some()
+    {
         return None;
     }
     let approval = scene_plan::approval(state, root, &scope.session_id).ok()??;
@@ -488,8 +393,17 @@ pub(super) fn verify_generation(
     if expected.len() != proof.selected_intent_ids.len() || expected != actual {
         return Err(conflict("Reviewed scene asset selection changed"));
     }
-    let pages: std::collections::HashSet<_> = plan.pages.iter().enumerate()
-        .filter(|(_, page)| page.quiz.is_none() && !page.teaching.as_ref().is_some_and(|teaching| teaching.question.is_some()))
+    let pages: std::collections::HashSet<_> = plan
+        .pages
+        .iter()
+        .enumerate()
+        .filter(|(_, page)| {
+            page.quiz.is_none()
+                && !page
+                    .teaching
+                    .as_ref()
+                    .is_some_and(|teaching| teaching.question.is_some())
+        })
         .map(|(index, _)| format!("scene-{:03}", index + 1))
         .collect();
     for page_id in &pages {
@@ -639,7 +553,9 @@ pub(super) async fn handle(
             None,
             None,
         ),
-        "courseware.sceneImage.get" | "courseware.sceneImage.begin" | "courseware.sceneImage.retry" => {
+        "courseware.sceneImage.get"
+        | "courseware.sceneImage.begin"
+        | "courseware.sceneImage.retry" => {
             let p: Operation = serde_json::from_value(params).map_err(decode)?;
             (
                 Scope {
@@ -700,10 +616,26 @@ pub(super) async fn handle(
             .filter(|n| p.page_id == format!("scene-{n:03}") && *n > 0)
             .and_then(|n| plan.pages.get(n - 1))
             .ok_or_else(|| invalid("Invalid scene image page"))?;
-        if page.quiz.is_some() || page.teaching.as_ref().is_some_and(|teaching| teaching.question.is_some()) {
-            return Err(invalid("Quiz and checkpoint pages use native templates, not generated slide images"));
+        if page.quiz.is_some()
+            || page
+                .teaching
+                .as_ref()
+                .is_some_and(|teaching| teaching.question.is_some())
+        {
+            return Err(invalid(
+                "Quiz and checkpoint pages use native templates, not generated slide images",
+            ));
         }
-        let first_visual_page = plan.pages.iter().position(|page| page.quiz.is_none() && !page.teaching.as_ref().is_some_and(|teaching| teaching.question.is_some()))
+        let first_visual_page = plan
+            .pages
+            .iter()
+            .position(|page| {
+                page.quiz.is_none()
+                    && !page
+                        .teaching
+                        .as_ref()
+                        .is_some_and(|teaching| teaching.question.is_some())
+            })
             .map(|index| format!("scene-{:03}", index + 1))
             .ok_or_else(|| invalid("This plan has no visual teaching pages"))?;
         if !p.target.valid()
@@ -780,24 +712,45 @@ pub(super) async fn handle(
             },
         };
         let source_reference_image = if let Some(encoded) = &p.reference_input {
-            let source = request.reference_image.as_ref().ok_or_else(|| invalid("Reference required"))?;
-            if !p.decomposition || source.sha256 != encoded.source_sha256
-                || encoded.bytes_base64.len() > (8usize * 1024 * 1024).div_ceil(3) * 4 {
+            let source = request
+                .reference_image
+                .as_ref()
+                .ok_or_else(|| invalid("Reference required"))?;
+            if !p.decomposition
+                || source.sha256 != encoded.source_sha256
+                || encoded.bytes_base64.len() > (8usize * 1024 * 1024).div_ceil(3) * 4
+            {
                 return Err(invalid("Invalid normalized reference source"));
             }
             let codec = base64::engine::general_purpose::STANDARD;
-            let bytes = codec.decode(&encoded.bytes_base64).map_err(|_| invalid("Invalid normalized reference"))?;
-            if bytes.len() < 5 || bytes.len() > 8 * 1024 * 1024
-                || !bytes.starts_with(b"\xff\xd8\xff") || !bytes.ends_with(b"\xff\xd9")
-                || codec.encode(&bytes) != encoded.bytes_base64 {
+            let bytes = codec
+                .decode(&encoded.bytes_base64)
+                .map_err(|_| invalid("Invalid normalized reference"))?;
+            if bytes.len() < 5
+                || bytes.len() > 8 * 1024 * 1024
+                || !bytes.starts_with(b"\xff\xd8\xff")
+                || !bytes.ends_with(b"\xff\xd9")
+                || codec.encode(&bytes) != encoded.bytes_base64
+            {
                 return Err(invalid("Invalid normalized reference JPEG"));
             }
             let source = source.clone();
-            let wire = ReferenceImage { sha256: hex::encode(Sha256::digest(&bytes)), mime_type: "image/jpeg".into(), byte_length: bytes.len() };
-            crate::courseware::snapshot_assets::archive_bytes(&state.data_dir, &wire.sha256, &bytes).map_err(error)?;
+            let wire = ReferenceImage {
+                sha256: hex::encode(Sha256::digest(&bytes)),
+                mime_type: "image/jpeg".into(),
+                byte_length: bytes.len(),
+            };
+            crate::courseware::snapshot_assets::archive_bytes(
+                &state.data_dir,
+                &wire.sha256,
+                &bytes,
+            )
+            .map_err(error)?;
             request.reference_image = Some(wire);
             Some(source)
-        } else { None };
+        } else {
+            None
+        };
         let request_hash = request.hash();
         if let Some(index) = intents.iter().rposition(|i| {
             i.phase != Phase::Rejected
@@ -908,16 +861,27 @@ pub(super) async fn handle(
         .ok_or_else(|| rpc_err(1007, "Scene image intent not found", "COURSEWARE_NOT_FOUND"))?;
     if method == "courseware.sceneImage.retry" {
         let original = &intents[index];
-        if current.as_deref() != Some(&original.plan_sha256) || original.phase != Phase::Submitted
-            || original.task_ref.is_none() || original.asset.is_some() || original.selected {
-            return Err(conflict("Only a current submitted request without an adopted asset can have a new attempt"));
+        if current.as_deref() != Some(&original.plan_sha256)
+            || original.phase != Phase::Submitted
+            || original.task_ref.is_none()
+            || original.asset.is_some()
+            || original.selected
+        {
+            return Err(conflict(
+                "Only a current submitted request without an adopted asset can have a new attempt",
+            ));
         }
         verify_reference(&intents, original)?;
-        let retry_id = format!("retry-{}", hex::encode(Sha256::digest(original.intent_id.as_bytes())));
+        let retry_id = format!(
+            "retry-{}",
+            hex::encode(Sha256::digest(original.intent_id.as_bytes()))
+        );
         if let Some(existing) = intents.iter().find(|i| i.intent_id == retry_id) {
             return Ok(existing.view(current.as_deref()));
         }
-        if intents.len() >= MAX_INTENTS { return Err(conflict("Scene image journal is full")); }
+        if intents.len() >= MAX_INTENTS {
+            return Err(conflict("Scene image journal is full"));
+        }
         let mut retry = original.clone();
         retry.intent_id = retry_id;
         if retry.request.kind == "image-layers" {

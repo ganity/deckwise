@@ -27,10 +27,16 @@ pub struct Snapshot {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct NativeGroup { pub object_id: String, pub source_shape_id: String }
+pub struct NativeGroup {
+    pub object_id: String,
+    pub source_shape_id: String,
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct NativeGroupPage { pub page_id: String, pub groups: Vec<NativeGroup> }
+pub struct NativeGroupPage {
+    pub page_id: String,
+    pub groups: Vec<NativeGroup>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -70,15 +76,31 @@ impl SnapshotRecord {
         let mut group_ids = std::collections::HashSet::new();
         let mut group_pages = std::collections::HashSet::new();
         for page in &self.native_groups {
-            anyhow::ensure!(self.native_teaching && group_pages.insert(&page.page_id)
-                && self.project.pages.iter().any(|p| p.page_id == page.page_id) && page.groups.len() <= 10000,
-                "COURSEWARE_INVALID: invalid native group page");
+            anyhow::ensure!(
+                self.native_teaching
+                    && group_pages.insert(&page.page_id)
+                    && self.project.pages.iter().any(|p| p.page_id == page.page_id)
+                    && page.groups.len() <= 10000,
+                "COURSEWARE_INVALID: invalid native group page"
+            );
             let mut source_ids = std::collections::HashSet::new();
             for group in &page.groups {
-                anyhow::ensure!(valid_id(&group.object_id) && valid_id(&group.source_shape_id)
-                    && group_ids.insert(&group.object_id) && source_ids.insert(&group.source_shape_id)
-                    && !self.identity["pages"].as_array().unwrap().iter().any(|p| p["objects"].as_array().unwrap().iter().any(|o| o["logicalId"] == group.object_id)),
-                    "COURSEWARE_INVALID: invalid native group identity");
+                anyhow::ensure!(
+                    valid_id(&group.object_id)
+                        && valid_id(&group.source_shape_id)
+                        && group_ids.insert(&group.object_id)
+                        && source_ids.insert(&group.source_shape_id)
+                        && !self.identity["pages"]
+                            .as_array()
+                            .unwrap()
+                            .iter()
+                            .any(|p| p["objects"]
+                                .as_array()
+                                .unwrap()
+                                .iter()
+                                .any(|o| o["logicalId"] == group.object_id)),
+                    "COURSEWARE_INVALID: invalid native group identity"
+                );
             }
         }
         let mut ids = std::collections::HashSet::new();
@@ -198,16 +220,47 @@ impl Database {
         mapping: &Value,
         assets: Vec<Asset>,
     ) -> Result<SnapshotRecord> {
-        self.import_bound_courseware_snapshot(workspace, parsed, snapshot_id, project, mapping, assets, true)
+        self.import_bound_courseware_snapshot(
+            workspace,
+            parsed,
+            snapshot_id,
+            project,
+            mapping,
+            assets,
+            true,
+        )
     }
 
-    pub fn import_native_courseware_snapshot(&self, workspace: &str, parsed: &crate::courseware::source_candidates::ParsedOutput,
-        snapshot_id: &str, project: CoursewareProject, mapping: &Value, assets: Vec<Asset>) -> Result<SnapshotRecord> {
-        self.import_bound_courseware_snapshot(workspace, parsed, snapshot_id, project, mapping, assets, false)
+    pub fn import_native_courseware_snapshot(
+        &self,
+        workspace: &str,
+        parsed: &crate::courseware::source_candidates::ParsedOutput,
+        snapshot_id: &str,
+        project: CoursewareProject,
+        mapping: &Value,
+        assets: Vec<Asset>,
+    ) -> Result<SnapshotRecord> {
+        self.import_bound_courseware_snapshot(
+            workspace,
+            parsed,
+            snapshot_id,
+            project,
+            mapping,
+            assets,
+            false,
+        )
     }
 
-    fn import_bound_courseware_snapshot(&self, workspace: &str, parsed: &crate::courseware::source_candidates::ParsedOutput,
-        snapshot_id: &str, project: CoursewareProject, mapping: &Value, mut assets: Vec<Asset>, online: bool) -> Result<SnapshotRecord> {
+    fn import_bound_courseware_snapshot(
+        &self,
+        workspace: &str,
+        parsed: &crate::courseware::source_candidates::ParsedOutput,
+        snapshot_id: &str,
+        project: CoursewareProject,
+        mapping: &Value,
+        mut assets: Vec<Asset>,
+        online: bool,
+    ) -> Result<SnapshotRecord> {
         project.validate_online()?;
         parsed.validate()?;
         anyhow::ensure!(
@@ -223,7 +276,10 @@ impl Database {
         if !online {
             for page in leaf_mapping["pages"].as_array_mut().unwrap() {
                 if let Some(groups) = page.as_object_mut().unwrap().remove("groups") {
-                    native_groups.push(NativeGroupPage { page_id: page["pageId"].as_str().unwrap_or("").into(), groups: serde_json::from_value(groups)? });
+                    native_groups.push(NativeGroupPage {
+                        page_id: page["pageId"].as_str().unwrap_or("").into(),
+                        groups: serde_json::from_value(groups)?,
+                    });
                 }
             }
         }
@@ -248,15 +304,15 @@ impl Database {
         let tx = self.conn.unchecked_transaction()?;
         self.persist_courseware_snapshot(workspace, &record)?;
         if online {
-        self.kv_set(
-            ONLINE_SNAPSHOTS,
-            &key(
-                workspace,
-                &record.snapshot.project_id,
-                &record.snapshot.snapshot_id,
-            )?,
-            &serde_json::to_value(&record.snapshot)?,
-        )?;
+            self.kv_set(
+                ONLINE_SNAPSHOTS,
+                &key(
+                    workspace,
+                    &record.snapshot.project_id,
+                    &record.snapshot.snapshot_id,
+                )?,
+                &serde_json::to_value(&record.snapshot)?,
+            )?;
         }
         tx.commit()?;
         Ok(record)
