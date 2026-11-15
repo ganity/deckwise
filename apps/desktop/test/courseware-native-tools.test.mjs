@@ -22,6 +22,62 @@ new Function("require", "exports", ts.transpileModule(readFileSync(new URL("../e
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
 }).outputText)(id => id === "./ppt-editor-handshake" ? handshake : id === "@pi-desktop/courseware-runtime/node" ? runtime : id === "@pi-desktop/shared" ? shared : id === "./courseware-native-materials" ? materials : id === "./courseware-native-activities" ? activities : id === "./courseware-native-audio-recovery" ? recovery : require(id), exports);
 const { CoursewareNativeTools } = exports;
+test("full-deck recovery defers implicit saves until all original orders are adopted", async () => {
+  const f = setup();
+  f.project.pages[0].actions.push({ id: "extra", type: "speech", text: "More detail" });
+  let pending = false, saves = 0;
+  const route = async (op, args, n = 1) => {
+    assert.equal(op, "open");
+    return { value: structuredClone({ viewId: `native.page${n}`, pageId: `page${n}`, pageNumber: n, project: f.project }) };
+  };
+  const save = async () => {
+    if (pending) { f.project.source.sha256 = "b".repeat(64); pending = false; saves++; }
+  };
+  const teaching = { async native(...args) { await save(); return route(...args); } };
+  const audio = { async execute(op, args, n, view) {
+    if (op === "tts:list") return view.project.pages[n - 1].actions.map(a => ({ intentId: `original-${a.id}`, actionId: a.id, current: true, model: "voice", voice: null }));
+    if (op === "tts:status") return { task: { state: "ready" } };
+    assert.equal(op, "tts:adopt", "Recovery must not prepare, quote or submit");
+    const action = f.project.pages[n - 1].actions.find(a => `original-${a.id}` === args.intentId);
+    action.audioAssetId = `audio-${action.id}`; f.project.teachingRevision += "a"; pending = true;
+  } };
+  const tools = new CoursewareNativeTools(teaching, {}, audio, route, () => "chat", undefined, undefined, undefined, save);
+  const result = (await tools.execute("chat", "courseware_media_refresh", { kind: "tts", recover: true, sourceSha256: f.project.source.sha256 }, () => true)).value;
+  assert.deepEqual(result.failures, []);
+  assert.equal(result.audioReady, true);
+  assert.equal(result.saved, true);
+  assert.equal(saves, 1);
+  assert.equal(result.sourceSha256, "b".repeat(64));
+  assert.equal(result.pages.length, 3);
+  const status = (await tools.execute("chat", "courseware_media_context", {}, () => true)).value;
+  assert.equal(status.audioReady, true);
+  assert.equal(status.completion.counts.audioReady, 3);
+  assert.equal(status.completion.counts.audioMissing, 0);
+  assert.deepEqual(status.jobs, []);
+});
+test("full-deck recovery still rejects an external source change between original orders", async () => {
+  const f = setup(); let adopts = 0;
+  const route = async (op, _args, n = 1) => {
+    assert.equal(op, "open");
+    return { value: structuredClone({ viewId: `native.page${n}`, pageId: `page${n}`, pageNumber: n, project: f.project }) };
+  };
+  const audio = { async execute(op, _args, n) {
+    if (op === "tts:list") return [{ intentId: `original${n}`, actionId: `speech${n}`, current: true }];
+    if (op === "tts:status") return { task: { state: "ready" } };
+    assert.equal(op, "tts:adopt", "Recovery must not purchase replacement audio");
+    adopts++; f.project.pages[0].actions[0].audioAssetId = "original-audio";
+    f.project.source.sha256 = "e".repeat(64);
+  } };
+  const tools = new CoursewareNativeTools({ native: route }, {}, audio, route, () => "chat");
+  const result = (await tools.execute("chat", "courseware_media_refresh", {
+    kind: "tts", recover: true, sourceSha256: f.project.source.sha256,
+  }, () => true)).value;
+  assert.equal(adopts, 1);
+  assert.equal(result.audioReady, false);
+  assert.equal(result.saved, false);
+  assert.match(result.failures[0].error, /Native source changed/);
+  assert.equal(f.project.pages[1].actions[0].audioAssetId, undefined);
+});
 function setup() {
   const project = { schemaVersion: "deckwise-courseware/1", projectId: "native", taskType: "plain", title: "Native", source: { revision: "rev", sha256: "a".repeat(64) },
     teachingRevision: "rev", pages: [1, 2].map(n => ({ pageId: "page" + n, locked: false, reviewState: "review", actions: [{ id: "speech" + n, type: "speech", text: "Native page " + n }] })) };
@@ -140,7 +196,7 @@ test("scene acceptance reports missing narration and unresolved required object 
   const context = (await tools.execute("chat", "courseware_media_context", {}, () => true)).value;
   assert.equal(context.completion.ready, false);
   assert(context.completion.issues.some(issue => issue.pageNumber === 1 && issue.code === "NARRATION_MISSING"));
-  assert(context.completion.issues.some(issue => issue.pageNumber === 1 && issue.code === "OBJECT_REQUIREMENT_UNRESOLVED" && /unresolved/.test(issue.message)));
+  assert(context.completion.warnings.some(issue => issue.pageNumber === 1 && issue.code === "OBJECT_BINDING_ADVISORY"));
   assert(context.completion.issues.some(issue => issue.pageNumber === 1 && issue.code === "EFFECT_MISSING"));
 });
 
@@ -527,7 +583,7 @@ test("retained audio resolves pending native attention without any provider call
   assert.equal(f.project.pages[0].actions[0].audioAssetId, "kept");
 });
 
-test('native teaching readiness is identical across context tools and excludes optional option images', async () => {
+test('native teaching readiness is identical across context tools and requires pending option images', async () => {
   const f = setup();for (const page of f.project.pages) page.actions[0].audioAssetId = 'existing';
   const view = { viewId: 'native.page1', pageId: 'page1', pageNumber: 1, project: f.project };
   let targets = [{ kind: 'image', sceneId: 'page1', questionId: 'q', optionValue: 'A' }];
@@ -536,7 +592,7 @@ test('native teaching readiness is identical across context tools and excludes o
   const tools = new CoursewareNativeTools({ native: async () => ({ value: view }) }, {}, audio, async () => ({ value: view }), () => 'chat', undefined, undefined, undefined, undefined, assessment);
   for (const name of ['courseware_narration_context', 'courseware_media_context']) {
     const result = (await tools.execute('chat', name, {}, () => true)).value;
-    assert.equal(result.teachingReady, true, name);assert.equal(result.completion.ready, true, name);
+    assert.equal(result.teachingReady, false, name);assert.equal(result.completion.ready, false, name);
     assert.equal(result.assessmentMedia.ready, false);assert.deepEqual(result.assessmentMedia.targets, targets);
   }
   targets = [{ kind: 'tts', sceneId: 'page1', actionId: 'missing-reading' }];
@@ -641,6 +697,29 @@ test('complete media still fails completion when shared playback preflight finds
   assert.equal(inspections, 1, 'Do not reparse a whole deck while media is still being generated');
 });
 
+for (const type of ['video_slot', 'music_slot']) test(`pending ${type} without a submitted job still allows media catalog/status reads`, async () => {
+  const f = setup(); for (const page of f.project.pages) page.actions[0].audioAssetId = 'adopted';
+  const pending = { id: 'pending', type, prompt: 'A short teaching clip', title: 'Teaching' };
+  f.project.pages[0].actions.push(pending);
+  const view = { viewId: 'v', pageId: 'page1', pageNumber: 1, project: f.project };
+  const route = async () => ({ value: view }); let inspections = 0;
+  const models = [{ model: 'seedance', voices: [], providerDefaultVoice: false, supportsReferenceImage: true }];
+  const tools = new CoursewareNativeTools({ native: route }, {}, { execute: async () => [] }, route, () => 'chat',
+    { jobs: async () => [], models: async () => models }, undefined, undefined, undefined, undefined, undefined, async () => {
+      inspections++;
+      assert(!f.project.pages.some(page => page.actions.some(action => action.type.endsWith('_slot'))),
+        'Playback parsing cannot consume an unfilled media slot');
+      return { ready: true, sourceSha256: f.project.source.sha256, diagnostics: [], issues: [] };
+    });
+  const context = (await tools.execute('chat', 'courseware_media_context', { kind: 'video' }, () => true)).value;
+  assert.equal(inspections, 0); assert.equal(context.audioReady, true); assert.equal(context.teachingReady, false);
+  assert.deepEqual(context.models, models); assert.deepEqual(context.jobs, []);
+  assert.equal(context.pages[0].actions.at(-1).type, type);
+  f.project.pages[0].actions.pop();
+  const complete = (await tools.execute('chat', 'courseware_media_context', {}, () => true)).value;
+  assert.equal(inspections, 1); assert.equal(complete.playbackPreflight.ready, true);
+});
+
 test('a required object description resolves to unique verified semantics without renaming the source', async () => {
   const f = setup(); for (const page of f.project.pages) page.actions[0].audioAssetId = 'adopted';
   const view = { viewId: 'v', pageId: 'page1', pageNumber: 1, project: f.project,
@@ -648,11 +727,34 @@ test('a required object description resolves to unique verified semantics withou
     teachingObjects: [{ objectId: 'title', name: 'Title', aliases: ['Circle heading'], role: 'Title text carrier containing the word Circle', status: 'mapped', effectTargetEligible: true }] };
   const route = async () => ({ value: view });
   const tools = new CoursewareNativeTools({native:route}, {}, {execute:async()=>[]}, route, ()=>'chat');
-  const read = async () => (await tools.execute('chat', 'courseware_media_context', {}, () => true)).value;
+  const read = async (name = 'courseware_media_context') => (await tools.execute('chat', name, {}, () => true)).value;
   assert(!(await read()).completion.issues.some(issue => issue.code === 'OBJECT_REQUIREMENT_UNRESOLVED'));
   view.teachingObjects.push({...view.teachingObjects[0],objectId:'ambiguous'});
-  const unresolved = (await read()).completion.issues.find(issue => issue.code === 'OBJECT_REQUIREMENT_UNRESOLVED');
-  assert.equal(unresolved.repairable, true); assert.equal(unresolved.repair, 'narration');
+  const media = await read(), narration = await read('courseware_narration_context');
+  assert(media.completion.warnings.some(issue => issue.code === 'OBJECT_BINDING_ADVISORY'));
+  assert(narration.completion.warnings.some(issue => issue.code === 'OBJECT_BINDING_ADVISORY'));
+  assert.equal(media.completion.ready, true);
+  assert.equal(narration.completion.ready, true);
+});
+
+for (const taskType of ['plain', 'import', 'scene']) test(`${taskType}: appearance names and background props do not block otherwise complete teaching`, async () => {
+  const f = setup(); f.project.taskType = taskType;
+  for (const page of f.project.pages) page.actions[0].audioAssetId = 'adopted';
+  const view = { viewId: 'v', pageId: 'page1', pageNumber: 1, project: f.project,
+    teachingRequirements: [{ pageId: 'page1', teaching: { pageType: 'slide', phase: 'practice', objective: 'Say flying the kite', durationSeconds: 30, requiredObjects: ['燕形风筝', '公园长椅'] } }],
+    teachingObjects: [{ objectId: 'kite', name: '红黄菱形风筝', aliases: ['风筝', 'kite'], status: 'mapped', effectTargetEligible: true },
+      { objectId: 'background', name: 'park background', aliases: ['公园长椅'], status: 'mapped', effectTargetEligible: false }] };
+  const route = async () => ({ value: view });
+  const tools = new CoursewareNativeTools({ native: route }, {}, { execute: async () => [] }, route, () => 'chat');
+  const result = (await tools.execute('chat', 'courseware_media_context', {}, () => true)).value;
+  assert.equal(result.completion.ready, true, JSON.stringify(result.completion));
+  assert(result.completion.warnings.some(w => w.code === 'OBJECT_BINDING_ADVISORY'));
+  assert.deepEqual(view.teachingObjects[0].aliases, ['风筝', 'kite']);
+  f.project.pages[0].actions[0].visualCues = [{ id: 'unsafe', atMs: 0, endMs: 1000,
+    effect: { type: 'spotlight', elementId: 'missing-object' } }];
+  const unsafe = (await tools.execute('chat', 'courseware_media_context', {}, () => true)).value;
+  assert.equal(unsafe.completion.ready, false);
+  assert(unsafe.completion.issues.some(issue => issue.code === 'EFFECT_TARGET_MISSING'));
 });
 
 test('native assessment audio omissions expose repairable actions instead of an empty blocked completion', async () => {
@@ -671,4 +773,28 @@ test('native assessment audio omissions expose repairable actions instead of an 
   assert.equal((await read()).completion.issues[0].repairable, false);
   f.project.pages[1].actions[0].audioAssetId = 'saved-question';
   assert.equal((await read()).completion.ready, true);
+});
+
+test('inserting after a Quiz reviews the mapped source page rather than the insertion anchor', async () => {
+  const f = setup();
+  const facts = 'Your front is ahead, your back is behind. Your left hand is left and your right hand is right.';
+  const enrichment = { originalPages: [], sources: [], plan: { sha256: 'c'.repeat(64), units: [
+    { id: 'practice', title: 'Show directions', evidence: 'Show the directions.', kind: 'checkpoint', pageIds: ['page1'] },
+  ] } };
+  const view = { project: f.project, viewId: 'native.page2', pageId: 'page2', pageNumber: 2, enrichment,
+    enrichmentCapabilities: { version: 1 } };
+  let reviewed;
+  const result = await activities.insertNativeActivity({ view, check() {},
+    teaching: { async native(op, args, n) {
+      assert.equal(op, 'narration-context');
+      return { value: { view: { ...view, pageId: 'page' + n, pageNumber: n }, editor: { editGeneration: 1 },
+        text: n === 1 ? facts : 'Which direction is ahead? A. Front B. Back', evidence: { width: 1280, height: 720 } } };
+    } },
+    args: { apply: false, unitId: 'practice', afterPageId: 'page2', question: 'Show front, back, left and right.',
+      response: { kind: 'practice', options: [], answerIndices: [] }, referenceEvidence: 'Show the directions.',
+      referenceAnswer: { summary: 'Use your body and hands to show the four directions.', keyPoints: ['Left hand is left.'] } },
+    review: async data => { reviewed = data; assert.equal(data.pageText, facts); },
+  });
+  assert.equal(result.preview, true);
+  assert.deepEqual(reviewed.savedNarration, ['Native page 1']);
 });

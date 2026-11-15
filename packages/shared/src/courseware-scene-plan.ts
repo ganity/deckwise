@@ -20,6 +20,8 @@ export type CoursewareScenePlanPage = {
 
 /** A validated generation draft, not the authoritative teaching of an open PPTX. */
 export type CoursewareScenePlanSnapshot = {
+  /** Missing on legacy plans whose reviewed lettering is already baked into image assets. */
+  textMode?: "native";
   storySha256?: string;
   relativePath: string;
   sha256: string;

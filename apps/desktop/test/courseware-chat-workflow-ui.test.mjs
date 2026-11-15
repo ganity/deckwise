@@ -113,6 +113,7 @@ async function fixture(t, component, props, overrides = {}, translate = key => k
     if (id === "./icons") return { IconClose: "icon" };
     if (id === "./CoursewareChatPresentation") return { CoursewareChatPresentation: "plain-presentation" };
     if (id === "./CoursewareImportStart") return { CoursewareImportStart: "import-start" };
+    if (id === "./CoursewareDeliveryActions") return { CoursewareDeliveryActions: "delivery-actions" };
     if (id === "./CoursewareChatImages") return { CoursewareChatImages: "scene-images" };
     if (id === "./CoursewareChatNarration" || id === "./CoursewareChatPptxCandidates") return {};
     if (id === "./CoursewareSceneThumbnail") return { CoursewareSceneThumbnail: "scene-thumbnail" };
@@ -611,7 +612,7 @@ test("main Chat offers visual preparation only after a PPTX source exists", asyn
     node.props.onActiveChange(false); f.render();
     assert.equal(f.store.coursewareTeachingRefresh, undefined, "Idle mount must not start a competing teaching read");
     node.props.onActiveChange(true); f.render();
-    assert(f.button("publish").props.disabled);
+    assert(f.nodes().find(node => node.type === "delivery-actions").props.disabled);
     node.props.onActiveChange(false); f.render();
     assert.equal(f.store.coursewareTeachingRefresh.reread, true);
     assert.equal(f.calls.filter(call => call[0] === "editor").length, 0);
@@ -867,7 +868,7 @@ test("a saved PPT mounts the real editor component while the Agent continues tea
   assert.equal(editor.props.tabId, "ppt");
   assert(!f.button("openEditor")); assert(!f.button("continue"));
   assert(!f.nodes().some(node => node.type === "scene-images"));
-  assert(f.button("publish").props.disabled);
+  assert(f.nodes().find(node => node.type === "delivery-actions").props.disabled);
   await f.click("refresh");
   assert.equal(f.nodes().find(node => node.type === "ppt-editor").props.path, editor.props.path);
 });
@@ -1024,6 +1025,32 @@ test("a failed image status stays with its task while other pages continue refre
 const teachingStory = { schemaVersion: 1, revision: 1, sha256: "c".repeat(64), approvedSha256: null, bound: false, educationContext: {}, draft: {
   title: "Rainbow rescue", summary: "Find the colors", setting: "A garden", objectives: ["Name red"], characters: [{ name: "Robin", description: "A round robot" }],
   beats: [{ id: "find", title: "Find red", event: "Find the ball", objective: "Name red", activity: "Sort colors" }], assumptions: [] } };
+test("changed teaching requirements offer story revision instead of an impossible confirmation", async t => {
+  const story = { ...structuredClone(teachingStory), educationContext: { grade: "K2" } };
+  const f = await fixture(t, "CoursewareChatWorkflow", { sessionId: "chat" }, {
+    async coursewareWorkflowGet() { return { task: { taskType: "scene", storyFirst: true, educationContext: { grade: "K3" } }, story, plan: null }; },
+    async coursewareStoryDecision() { assert.fail("An outdated story must not be submitted for confirmation"); },
+  });
+  assert(!f.nodes().some(node => node.type === "button" && node.props.children === "coursewareStory.approve"));
+  assert(f.nodes().some(node => node.props?.children === "coursewareStory.requirementsChanged"));
+  const revise = f.nodes().find(node => node.type === "button" && node.props.children === "coursewareStory.update");
+  assert(revise);
+  revise.props.onClick(); revise.props.onClick(); await f.flush();
+  assert.equal(f.calls.filter(call => call[0] === "prompt" && call[1] === "coursewareStory.updatePrompt").length, 1);
+  assert.equal(story.revision, 1);
+});
+
+test("a confirmed story with later visual settings resumes without asking for approval again", async t => {
+  const story = { ...structuredClone(teachingStory), approvedSha256: teachingStory.sha256 };
+  const f = await fixture(t, "CoursewareChatWorkflow", { sessionId: "chat" }, {
+    async coursewareWorkflowGet() { return { task: { taskType: "scene", storyFirst: true, educationContext: { visualStyle: "Park illustration", bodyPageLimit: 8 } }, story, plan: null }; },
+    async coursewareStoryDecision() { assert.fail("The original confirmation is still valid"); },
+  });
+  assert(!f.nodes().some(node => node.type === "button" && node.props.children === "coursewareStory.approve"));
+  assert(!f.nodes().some(node => node.props?.children === "coursewareStory.requirementsChanged"));
+  await f.click("resume");
+  assert(f.calls.some(call => call[0] === "prompt" && call[1] === "coursewareStory.continuePrompt"));
+});
 for (const taskType of ["plain", "scene"]) test(`story review confirms the exact version and resumes the selected ${taskType} route`, async t => {
   let story = structuredClone(teachingStory);
   const f = await fixture(t, "CoursewareChatWorkflow", { sessionId: "chat" }, {

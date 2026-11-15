@@ -13,6 +13,7 @@ export function createNativeAssessmentMedia(input: {
   getHost: ConstructorParameters<typeof CoursewareClassroomImages>[0]["getHost"];
   getWorkspace: ConstructorParameters<typeof CoursewareClassroomImages>[0]["getWorkspace"];
   assertOwned: (sessionId: string) => void;
+  review: ConstructorParameters<typeof CoursewareClassroomImages>[0]["review"];
 }) {
   const { teaching, classroom, ...services } = input;
   const tts = new CoursewareClassroomTts({ ...services, decodeAudio: decodeCoursewareAudio,

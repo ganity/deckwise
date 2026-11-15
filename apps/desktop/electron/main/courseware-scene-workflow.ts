@@ -35,7 +35,7 @@ export async function assembleSceneCourse(input: {
   const visuals = await services.resolve({ pages: captured.plan.pages.filter(page => !page.quiz && !page.teaching?.question), assignments: captured.assignments, canvas: captured.canvas, signal });
   await check();
   const deck = await services.build({ sessionId: captured.sessionId, modelKey: captured.modelKey,
-    thinkingLevel: captured.thinkingLevel, pages: captured.plan.pages, visuals, canvas: captured.canvas, signal });
+    thinkingLevel: captured.thinkingLevel, textMode: captured.plan.textMode, pages: captured.plan.pages, visuals, canvas: captured.canvas, signal });
   await check();
   return services.stage({ workspace: captured.workspace, sessionId: captured.sessionId,
     title: captured.plan.title, pptx: deck.pptx, teaching: deck.teaching, canonicalClassroom: deck.canonicalClassroom,

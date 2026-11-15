@@ -64,7 +64,7 @@ export class CoursewareSceneGeneration {
       });
       await assertCurrent();
       const deck = await this.services.build({ sessionId, modelKey: selected.modelKey,
-        thinkingLevel: selected.thinkingLevel, pages: selected.plan.pages, visuals, canvas, signal });
+        thinkingLevel: selected.thinkingLevel, textMode: selected.plan.textMode, pages: selected.plan.pages, visuals, canvas, signal });
       await assertCurrent();
       const result = await this.services.stage({ workspace: selected.workspace, sessionId,
         title: selected.plan.title, pptx: deck.pptx, teaching: deck.teaching, sceneMapping: deck.mapping, canonicalClassroom: deck.canonicalClassroom, signal,

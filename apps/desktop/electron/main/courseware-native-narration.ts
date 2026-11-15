@@ -9,9 +9,9 @@ export type NativeNarrationRetryState = Map<string, { attempts: number; error?: 
 type Result = Awaited<ReturnType<typeof generateSavedNarrationBatch>>;
 /** Feed the shared visual grounding and course planner from the live document. */
 type NativeNarrationInput = {
-  teaching: CoursewareTeachingCoordinator; sessionId: string; selected: number[]; instruction: string;
+  teaching: CoursewareTeachingCoordinator; sessionId: string; selected: number[]; instruction: string; speechCount?: number;
   model: { modelKey: string; thinkingLevel?: string }; complete: NarrationComplete; completeVision?: SceneComplete;
-  canDispatch(): boolean; assertModel(): Promise<void>; repairRequiredTeaching?: boolean;
+  canDispatch(): boolean; assertModel(): Promise<void>; repairRequiredTeaching?: boolean; repairObjectsOnly?: boolean;
   contentFailures?: Map<string, string>;
   retryState?: NativeNarrationRetryState;
   persist?: () => Promise<void>;
@@ -57,7 +57,11 @@ export async function generateNativeNarration(input: NativeNarrationInput): Prom
     if (!savedPages.some(p => p.pageNumber === pageNumber) && !failures.some(p => p.pageNumber === pageNumber))
       failures.push({ pageNumber, error: "Not started after an earlier batch failed; resume only unfinished pages" });
   }
-  return { savedPages, failures, diagnostics, applied: savedPages.some(p => !p.retained), saved: savedPages.length === requested.length, audioReady: false };
+  const audioReady = input.repairObjectsOnly === true && savedPages.length === requested.length && requested.every(number => {
+    const speech = original.view.project.pages[number - 1].actions.filter(action => action.type === "speech");
+    return speech.length > 0 && speech.every(action => typeof action.audioAssetId === "string");
+  });
+  return { savedPages, failures, diagnostics, applied: savedPages.some(p => !p.retained), saved: savedPages.length === requested.length, audioReady };
 }
 
 async function generateNativeNarrationBatch(input: NativeNarrationInput, original: Capture): Promise<Result> {
@@ -160,12 +164,13 @@ async function generateNativeNarrationBatch(input: NativeNarrationInput, origina
       }
       const project = structuredClone(initial);
       for (const page of project.pages) {
+        if (input.repairObjectsOnly) continue;
         page.actions = page.actions.filter(a => a.type !== "native_animation");
         for (const action of page.actions) delete action.durationMs;
       }
-      const contentKey = (n: number) => createHash("sha256").update(JSON.stringify([owner, input.sessionId, input.model,
+      const contentKey = (n: number) => createHash("sha256").update(JSON.stringify(["visual-tolerance/1", owner, input.sessionId, input.model,
         captures[n - 1].view.pageId, initial.pages[n - 1].actions, captures[n - 1].text, captures[n - 1].evidence, hashes.get(n),
-        captures[n - 1].view.teachingRequirements, captures[n - 1].view.enrichment, !!input.repairRequiredTeaching])).digest("hex");
+        captures[n - 1].view.teachingRequirements, captures[n - 1].view.enrichment, !!input.repairRequiredTeaching, !!input.repairObjectsOnly])).digest("hex");
       const blocked = selected.flatMap(pageNumber => {
         const key = contentKey(pageNumber), contentError = input.contentFailures?.get(key), state = input.retryState?.get(key);
         const exhausted = state?.error ?? (state && state.attempts >= 3 ? "Page narration attempt budget exhausted for this user turn" : undefined);
@@ -180,8 +185,8 @@ async function generateNativeNarrationBatch(input: NativeNarrationInput, origina
       result = await generateSavedNarrationBatch({
         host: { async call() { throw new Error("Native narration cannot use a Host teaching mirror"); } },
         sessionId: input.sessionId, jobId: "native", project, bytes: new Uint8Array(), selected: requested,
-        instruction: input.instruction, model: input.model, complete: input.complete, completeVision: input.completeVision,
-        repairRequiredTeaching: input.repairRequiredTeaching, canDispatch: input.canDispatch,
+        instruction: input.instruction, speechCount: input.speechCount, model: input.model, complete: input.complete, completeVision: input.completeVision,
+        repairRequiredTeaching: input.repairRequiredTeaching, repairObjectsOnly: input.repairObjectsOnly, canDispatch: input.canDispatch,
         beforeGenerate: pageNumber => {
           const key = contentKey(pageNumber), state = input.retryState?.get(key) ?? { attempts: 0 };
           if (state.attempts >= 3) throw Object.assign(new Error(state.error ?? "Page narration attempt budget exhausted for this user turn; correct the page or start a new explicit request"),

@@ -514,7 +514,7 @@ test("saved video recovers an uncertain original task and only adopts decoded ar
   const page = { pageId: "p1", locked: false, actions: [{ id: "slot", type: "video_slot", prompt: "A turning square" }] };
   const project = { projectId: "project", source: { revision: "r1", sha256: sha }, teachingRevision: "t1", pages: [page] };
   const intent = { intentId: "video-intent", principalKey, projectId: "project", pageId: "p1", slotId: "slot", source: clone(project.source),
-    model: "video", prompt: "A turning square", idempotencyKey: "video-key", requestHash: "c".repeat(64), phase: "prepared", taskRef: null, asset: null };
+    model: "video", prompt: "A turning square", durationSeconds: 8, idempotencyKey: "video-key", requestHash: "c".repeat(64), phase: "prepared", taskRef: null, asset: null };
   let posts = 0, found = false, ready = false, decoded = 0;
   const bytes = Buffer.alloc(24); bytes.write("ftyp", 4);
   const assetSha = crypto.createHash("sha256").update(bytes).digest("hex");
@@ -531,7 +531,7 @@ test("saved video recovers an uncertain original task and only adopts decoded ar
     return { intent: clone(intent) };
   } } };
   const auth = { getCoursewarePrincipal: () => ({ key: principalKey, assertCurrent() {} }), coursewareMedia: { video: {
-    quote: async () => ({}), submit: async (key, request, quote, projectId, check, admit) => { await check(); await admit(); posts++; throw new Error("COURSEWARE_MEDIA_TRANSPORT_FAILED"); },
+    quote: async (_model, seconds) => { assert.equal(seconds, 8); return {}; }, submit: async (key, request, quote, projectId, check, admit, seconds) => { assert.equal(seconds, 8); await check(); await admit(); posts++; throw new Error("COURSEWARE_MEDIA_TRANSPORT_FAILED"); },
     find: async () => found ? task() : null, get: async () => task(), download: async () => ({ task: task(), bytes }),
   } } };
   const decode = async data => { assert.deepEqual(data, bytes); decoded++; return { durationMs: 5000, width: 1280, height: 720 }; };

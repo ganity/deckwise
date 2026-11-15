@@ -62,7 +62,7 @@ async function inspect(zip: JSZip, slidePart: string) {
     if (!reason) {
       const part = path.posix.resolve('/', path.posix.dirname(slidePart), rel!.target).slice(1);
       const media = zip.file(part), bytes = media && await media.async('nodebuffer');
-      if (!part.startsWith('ppt/media/') || !bytes || bytes.length > 8 * 1024 * 1024 ||
+      if (!part.startsWith('ppt/media/') || !bytes || bytes.length > 32 * 1024 * 1024 ||
         !(bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])) || bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255)) reason = 'Unsupported or missing embedded PNG/JPEG bytes';
       else assetSha256 = digest(bytes);
     }

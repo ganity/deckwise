@@ -260,7 +260,15 @@ audio before the original response, keeps it for seven days, and retains the
 request claim without expiry. Legacy unknown results are never fabricated.
 Deployment/storage requirements and failure limits are documented in
 [the recovery ADR](../../adr/courseware-bounded-recovery.md).
-Successful page results remain saved when other pages fail. Planned video uses a quoted five-second supplier task; an unknown submit receipt stays query-only, and a ready MP4 is decoded, Host-archived and attached to its saved page before the turn can complete.
+Successful page results remain saved when other pages fail. Planned video submits through the user-authenticated llm-ha Seedance gateway with a frozen quote and idempotency key; model-native options use supplier defaults unless explicitly supplied. An unknown submit receipt stays query-only. Once ready, Electron Main downloads the short-lived CDN URL directly without forwarding user/provider credentials, validates and decodes MP4 up to the Host RPC's bounded 40 MiB archive limit, then Host archives and attaches it to the saved page before the turn can complete.
+
+Video CDN domains require no whitelist in llm-ha or Desktop. Legacy Seedance
+`asset_origins` settings are ignored, and editing them must not invalidate
+existing video receipts or repeat generation/reservation. Desktop accepts the
+supplier's signed HTTPS URL with its full query, retains response-origin
+consistency and credential-free transport, refuses redirects and embedded URL
+credentials, and verifies the MP4 before archive. Image-origin policies remain
+unchanged.
 
 | Capability | Current automatic scene/saved workflow | Remaining boundary |
 | --- | --- | --- |
@@ -272,7 +280,7 @@ Successful page results remain saved when other pages fail. Planned video uses a
 | Music | Planned sequential slot; generation, export, verification and in-place playable clip adoption | Continuous multi-track background mixing is not implemented |
 | Highlight and spotlight | Mapped narration intent resolved against decoded speech duration | Final executable snapshot/player verification remains |
 | Animation and interaction | Seven bounded motion effects; typed objective/open questions; native WiseOffice projection on teaching-page load | Open responses use teacher evaluation; arbitrary MAIC HTML activities are not implemented |
-| Video and sound | Saved five-second video slots, quoted async supplier tasks, owner-bound Host receipts and verified MP4 archive | Live supplier and packaged playback acceptance remain |
+| Video and sound | Saved video slots, quoted Seedance tasks through llm-ha's user gateway, owner-bound Host receipts, direct CDN download and verified MP4 archive | Live supplier and packaged playback acceptance remain |
 
 Desktop modes are ordinary generation, scene generation and PPT import. They
 share one PPTX editor and baseline teaching features. Scene mode supports both

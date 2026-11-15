@@ -73,6 +73,11 @@ export class CoursewareMediaTransport {
   protected async imageJson(path: string, principal: object, signal?: AbortSignal, init: RequestInit = {}): Promise<unknown> {
     return this.json(path, principal, signal, init, 30_000, true);
   }
+  protected async gatewayJson(path: string, principal: object, signal?: AbortSignal, init: RequestInit = {}): Promise<unknown> {
+    const response = await this.receive(path, principal, signal, 64 * 1024, init, "application/json", 30_000, true, false);
+    if (response.mime !== "application/json") throw invalid();
+    return mediaEnvelope(response.bytes);
+  }
   protected async json(path: string, principal: object, signal?: AbortSignal, init: RequestInit = {}, timeoutMs = 30_000, image = false): Promise<unknown> {
     const response = await this.receive(path, principal, signal, 64 * 1024, init, "application/json, audio/wav, audio/mpeg", timeoutMs, image);
     if (response.mime !== "application/json") throw invalid();

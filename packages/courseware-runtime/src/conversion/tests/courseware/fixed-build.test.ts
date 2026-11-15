@@ -619,18 +619,29 @@ it('archives edited native quiz images and loads the result as a quiz with the s
   loaded.dispose();
 }, 30000);
 
-it('uses the saved activity question as its playback heading instead of an inferred answer option', async () => {
+it('preserves saved page titles and uses the activity question instead of an answer option', async () => {
   const candidate = structuredClone(input);
   candidate.teaching.pages[0].actions = candidate.teaching.pages[0].actions.filter(action => action.type !== 'interaction_checkpoint');
   candidate.teaching.pages[0].actions.push({ id: 'quiz-wait', type: 'interaction_checkpoint',
     checkpointKind: 'chapter_summary', checkpointId: 'quiz', chapterId: 'chapter',
     chapterTitle: 'Recognize two by choosing B', question: 'Which number is two?',
     referenceAnswer: { summary: 'Two', keyPoints: [] }, context: { chapterSummary: 'Numbers', sourceSceneIds: [] } });
-  const built = await buildFixedCourseware(candidate, { workerDirectory, outputDirectory });
+  const built = await buildFixedCourseware(candidate, { workerDirectory, outputDirectory, nativePageTitles: {
+    [candidate.mapping.pages[0].pageId]: 'Hidden teacher objective',
+    [candidate.mapping.pages[1].pageId]: 'Saved lesson heading',
+  } });
   const bytes = await readFile(path.join(built.directory, 'package.json'));
   const loaded = await loadFixedBuild(bytes, built.buildId, async asset => readFile(path.join(built.directory, asset.path)));
   try {
     expect(loaded.scenes[0].title).toBe('Which number is two?');
-    expect(loaded.scenes[1].title).toBe(JSON.parse(await readFile(path.join(valid.directory, 'package.json'), 'utf8')).pages[1].title);
+    expect(loaded.scenes[1].title).toBe('Saved lesson heading');
   } finally { loaded.dispose(); }
 }, 30000);
+
+it('validates the final archived package with the player before publication', async () => {
+  const destination = path.join(outputDirectory, 'corrupt-final');
+  await expect(buildFixedCourseware(input, { workerDirectory, outputDirectory: destination,
+    onConverted: async ({ directory, assets }) => { await writeFile(path.join(directory, assets[0].path), new Uint8Array([0])); },
+  })).rejects.toThrow('ASSET_HASH_MISMATCH');
+  expect((await readdir(destination)).filter(name => !name.startsWith('.'))).toEqual([]);
+});

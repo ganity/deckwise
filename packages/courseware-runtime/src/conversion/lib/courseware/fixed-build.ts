@@ -1,3 +1,4 @@
+import { loadFixedBuild } from '../../../player/lib/courseware/load-fixed-build';
 import { tmpdir } from 'node:os';
 import { inspectNativePlayback } from './native-playback-preflight';
 import { maicQuizSchema } from "../../../maic-classroom";
@@ -209,7 +210,7 @@ export function validateFixedMapping(input: FixedBuildInput, ir: SlideIR) {
 /** Builds only caller-owned fixed bytes. Never changes a source file or a previous valid build. */
 export async function buildFixedCourseware(
   raw: unknown,
-  options: { workerDirectory: string; outputDirectory: string; signal?: AbortSignal; nativeAssessments?: Record<string, unknown>;
+  options: { workerDirectory: string; outputDirectory: string; signal?: AbortSignal; nativeAssessments?: Record<string, unknown>; nativePageTitles?: Record<string, string>;
     onConverted?: (value: { ir: SlideIR; input: FixedBuildInput; directory: string;
       assets: Array<{ id: string; path: string; sha256: string; mimeType: string }> }) => Promise<void> },
 ) {
@@ -340,7 +341,7 @@ export async function buildFixedCourseware(
       return {
         ...(quiz ? { quiz } : {}),
         pageId: mapping.pageId,
-        title: actions.find(action => action.type === 'interaction_checkpoint' && action.checkpointKind === 'chapter_summary')?.question || scene.title,
+        title: actions.find(action => action.type === 'interaction_checkpoint' && action.checkpointKind === 'chapter_summary')?.question || options.nativePageTitles?.[mapping.pageId] || scene.title,
         slide: canvas,
         objects: [...mapping.objects, ...groups.map(group => ({ objectId: group.objectId, importElementId: group.element.id }))],
         actions,
@@ -399,6 +400,10 @@ export async function buildFixedCourseware(
     const payload = { schemaVersion: 'deckwise-playback/1', report, pages, assets };
     const packageJson = canonicalJson(payload);
     const packageHash = sha256(packageJson);
+    // Validate the bytes and archived assets with the exact loader used by playback before publishing.
+    const verified = await loadFixedBuild(Buffer.from(packageJson), packageHash,
+      async asset => readFile(path.join(staging, safeRelative(asset.path))), options.signal);
+    verified.dispose();
     // Absolute paths and worker run timings do not contribute to content identity.
     const buildId = packageHash;
     await writeFile(path.join(staging, 'package.json'), packageJson);

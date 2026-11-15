@@ -490,6 +490,8 @@ test("compiler failure is scoped to its plan and never hides preserved assets", 
 
 test("scene plan submission returns validated draft status without approving or generating", async () => {
   const f = fixture(); f.plan.approvedSha256 = null;
+  await assert.rejects(f.execute("courseware_scene_plan_submit"), /textMode/);
+  f.plan.textMode = "native";
   const result = await f.execute("courseware_scene_plan_submit");
   assert.equal(result.validated, true);
   assert.equal(result.awaitingPlanApproval, true);

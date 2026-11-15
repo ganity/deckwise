@@ -30,6 +30,7 @@ export function createBackgroundCoursewareEditor(ipcMain: IpcMain) {
 /** Only execution context varies; native mutation, media jobs, CAS and playback checks stay shared. */
 export function createCoursewareDocumentRuntime(input: {
   editor: PptEditorController; scope: CoursewareDocumentScope; background: boolean;
+  review: import("./courseware-classroom-images").QuizImageReview;
   auth: DesktopAuthSession; complete: NarrationComplete; resolveModel?: CandidateModelResolver;
   activeTurns: ReadonlyMap<string, string>; getHost: () => CoursewareDocumentScope["host"] | null;
 }) {
@@ -54,7 +55,7 @@ export function createCoursewareDocumentRuntime(input: {
   const classroom = new CoursewareClassroomCoordinator({ native: (operation, args) => teaching.native(operation, args, typeof args.pageNumber === "number" ? args.pageNumber : undefined),
     getHost: input.getHost, getSessionId: getSession, getWorkspace, assertOwned,
     openProject: sessionId => teaching.open(sessionId) });
-  const { assessments } = createNativeAssessmentMedia({ teaching, classroom, auth: input.auth, getHost: input.getHost, getWorkspace, assertOwned });
+  const { assessments } = createNativeAssessmentMedia({ teaching, classroom, auth: input.auth, getHost: input.getHost, getWorkspace, assertOwned, review: input.review });
   const preflight = new NativePlaybackPreflight();
   const save = new CoursewareNativeSave(input.getHost, getSession, async () => scope.workspace, assertOwned,
     operation => teaching.duringNativeSave(operation));

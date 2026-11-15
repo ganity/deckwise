@@ -3,9 +3,23 @@ import { describe, expect, it } from "vitest";
 import { COURSEWARE_CONTRACT_VERSION, type CoursewareProject } from "@pi-desktop/shared";
 import { candidateHash } from "./page-candidate-baseline.js";
 import { generateNarrationWrite } from "./narration-write.js";
-import { pageNarrationOutputSchema, sceneSpeechTarget } from "./page-narration-candidate.js";
+import { generatePageNarrationCandidate, pageNarrationOutputSchema, sceneSpeechTarget } from "./page-narration-candidate.js";
 
 describe("page narration source", () => {
+  it("preserves an explicit speech count through focus normalization and rejects a mismatching model reply", async () => {
+    const baseline = { projectId: "project", documentId: "doc", pageId: "page", sourceRevision: "R1", sourceHash: candidateHash("pptx"),
+      teachingRevision: "T1", contentHash: candidateHash("Cat Dog"), clean: true, readOnly: false, manualLocked: false };
+    const input = { baseline, pageText: "Cat Dog", instruction: "Use exactly two teaching moves", speechCount: 2, sceneTeaching: true,
+      evidence: { notes: "", visualSummary: "Two animals", objects: [
+        { objectId: "cat", kind: "image", text: "", bbox: [0, 0, 100, 100], aliases: ["cat"] },
+        { objectId: "dog", kind: "image", text: "", bbox: [100, 0, 100, 100], aliases: ["dog"] },
+      ] }, getCurrentBaseline: async () => baseline };
+    const blocks = [{ type: "speech", text: "Look here. This is a cat.", attention: { type: "spotlight", objectIds: ["cat"] } },
+      { type: "speech", text: "This is a dog." }];
+    const result = await generatePageNarrationCandidate({ ...input, generate: async () => ({ blocks }) });
+    expect(result.narration.blocks.filter(block => block.type === "speech").map(block => block.text)).toEqual(blocks.map(block => block.text));
+    await expect(generatePageNarrationCandidate({ ...input, generate: async () => ({ blocks: blocks.slice(0, 1) }) })).rejects.toThrow(/exactly 2 speech/u);
+  });
   it.each(["plain", "import", "scene"] as const)("keeps a named portrait eligible beside a full sentence carrier in %s", async taskType => {
     const project: CoursewareProject = { schemaVersion: COURSEWARE_CONTRACT_VERSION, projectId: "project", taskType, title: "Family",
       source: { revision: "R1", sha256: candidateHash("pptx") }, teachingRevision: "T1",
@@ -125,12 +139,13 @@ describe("page narration source", () => {
         return { insertions: [
           { afterSpeechId: "speech", block: { type: "interaction", question: question.text, response: question.response,
             referenceAnswer: { summary: "Hello", keyPoints: ["Hello is a greeting"] } } },
-          { afterSpeechId: "speech", block: { type: "video", prompt: "A silent wave" } },
+          { afterSpeechId: "speech", block: { type: "video", prompt: "A silent wave", durationSeconds: 8 } },
         ] };
       } };
     const result = await generateNarrationWrite(input);
     expect(result.write.actions[0]).toEqual(speech);
     expect(result.write.actions.map(a => a.type)).toEqual(["speech", "interaction_checkpoint", "video_slot"]);
+    expect(result.write.actions[2].durationSeconds).toBe(8);
     project.pages[0].actions = result.write.actions;
     const repeated = await generateNarrationWrite(input);
     expect(repeated.write.actions).toEqual(result.write.actions);
@@ -764,4 +779,15 @@ it.each(['plain', 'import', 'scene'] as const)('matches a %s multiline name/valu
     expect(sceneSpeechTarget(speech, objects, 'pencil-price')?.objectId).not.toBe('pencil-price');
   }
   await expect(generate('铅笔，标价是5元。')).rejects.toThrow(/do not match this speech/);
+});
+
+it('matches spoken currency amounts to their explicit teaching-card label without mixing denominations', () => {
+ const objects = [
+  { objectId: 'one', kind: 'text', text: '1元教学示意卡片', bbox: [0, 0, 100, 50] },
+  { objectId: 'five', kind: 'text', text: '一个5角示意卡片', bbox: [100, 0, 100, 50] },
+ ];
+ expect(sceneSpeechTarget('这张卡片上写着1元。', objects)?.objectId).toBe('one');
+ expect(sceneSpeechTarget('这张卡片上写着5角。', objects)?.objectId).toBe('five');
+ expect(sceneSpeechTarget('这张卡片上写着11元。', objects)).toBeUndefined();
+ expect(sceneSpeechTarget('这张卡片上写着1角。', objects)).toBeUndefined();
 });

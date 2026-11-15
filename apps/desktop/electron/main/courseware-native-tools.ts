@@ -4,7 +4,7 @@ import { recoverNativeAudio } from "./courseware-native-audio-recovery";
 import { adoptNativeMaterials, type NativeMaterials } from "./courseware-native-materials";
 import { createHash } from "node:crypto";
 import { waitForPptEditorTeachingReady } from "./ppt-editor-handshake";
-import { inspectCoursewareEnrichment, inspectCoursewareTeaching, isCoursewareAttentionCue, isCoursewareSceneTeaching, isCoursewareProject, type CoursewareTeachingView } from "@pi-desktop/shared";
+import { resolveCoursewareRequiredObjects, inspectCoursewareEnrichment, inspectCoursewareTeaching, isCoursewareAttentionCue, isCoursewareSceneTeaching, isCoursewareProject, type CoursewareTeachingView } from "@pi-desktop/shared";
 import type { CoursewareCandidateCoordinator } from "./courseware-candidates";
 import type { CoursewareNativeAudio } from "./courseware-native-audio";
 import type { CoursewareTeachingCoordinator } from "./courseware-teaching";
@@ -112,6 +112,8 @@ export class CoursewareNativeTools {
       }
       return { value: await adoptNativeMaterials({ teaching: this.teaching, view, materials: supplied as NativeMaterials, check }) };
     }
+    if (input.repairObjectsOnly !== undefined && (typeof input.repairObjectsOnly !== "boolean" || input.repairObjectsOnly && input.repairRequiredTeaching !== true))
+      throw new Error("Objects-only repair requires repairRequiredTeaching:true");
     if (name === "courseware_narration_propose" && (!Array.isArray(input.pageNumbers) || input.pageNumbers.length > 5))
       throw new Error("Narration generation accepts at most 5 pages per tool call. Submit only the next unfinished batch, await its saved result, then read fresh context/sourceSha256 before continuing");
     const numbers = input.pageNumbers ?? project.pages.map((_, index) => index + 1);
@@ -167,26 +169,18 @@ export class CoursewareNativeTools {
         musicClips: actions.filter(a => a.type === "audio_clip").length, musicPending: actions.filter(a => a.type === "music_slot").length,
         questions: actions.filter(a => a.type === "interaction_checkpoint" && a.checkpointKind === "chapter_summary").length };
       const jobs = [], unresolvedOriginals = [];
-      if (name === "courseware_media_context") for (const page of pages) {
+      const requiredObjectBindings = [];
+      const objectWarnings = [];
+      for (const page of pages) {
         const current = (await this.route("open", {}, page.pageNumber))!.value as CoursewareTeachingView;
         const planned = teachingByPage.get(page.pageId);
         const mapped = (current.teachingObjects ?? []).filter(object => object.status === "mapped");
         if (planned?.requiredObjects.length) {
-          const normalize = (value: string) => value.normalize("NFKC").replace(/\s+/gu, "").toLocaleLowerCase();
-          const tokens = (value: string) => value.normalize("NFKC").toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
-          const missing = planned.requiredObjects.filter(name => {
-            const eligible = mapped.filter(object => object.effectTargetEligible);
-            if (eligible.some(object => [object.name, ...(object.aliases ?? [])].some(alias => normalize(alias) === normalize(name)))) return false;
-            // Verified semantics may describe "Circle title text carrier" as "Title text carrier containing Circle".
-            // Require every whole word and one unique target; never infer a missing visual from a name mismatch.
-            const required = tokens(name);
-            return !required.length || eligible.filter(object => {
-              const observed = new Set(tokens([object.name, object.role ?? "", ...(object.aliases ?? [])].join(" ")));
-              return required.every(word => observed.has(word));
-            }).length !== 1;
-          });
-          if (missing.length) requiredIssues.push({ code: "OBJECT_REQUIREMENT_UNRESOLVED", pageNumber: page.pageNumber, pageId: page.pageId,
-            repair: "narration", repairable: !page.locked, message: `Page ${page.pageNumber} has unresolved required object descriptions: ${missing.join(", ")}. Recheck the current visual evidence and save exact required-object aliases only on verified targets. If the visual is actually absent, report a source repair; do not invent it.` });
+          const resolved = resolveCoursewareRequiredObjects(planned.requiredObjects, mapped);
+          requiredObjectBindings.push({ pageId: page.pageId, pageNumber: page.pageNumber, requirements: resolved });
+          const missing = resolved.filter(binding => !binding.resolved).map(binding => binding.requirement);
+          if (missing.length) objectWarnings.push({ code: "OBJECT_BINDING_ADVISORY", pageNumber: page.pageNumber, pageId: page.pageId,
+            message: `Planned descriptions are not independently bound: ${missing.join(", ")}. This is advisory; narrate the actual picture and bind effects only to verified eligible targets. Visual grounding checks essential teaching content separately. Do not regenerate images or invent aliases to match design details.` });
         }
         const validTargetIds = new Set(mapped.filter(object => object.effectTargetEligible).map(object => object.objectId));
         for (const action of page.actions.filter(a => a.type === "speech")) {
@@ -202,6 +196,7 @@ export class CoursewareNativeTools {
             pageNumber: page.pageNumber, pageId: page.pageId, actionId: String(action.id), repair: "narration", repairable: !page.locked,
             message: `Page ${page.pageNumber} narration ${String(action.id)} targets ${objectId}, which is not a currently mapped graphic or independent text object on this page.` });
         }
+        if (name !== "courseware_media_context") continue;
         const intents = await this.audio.execute("tts:list", { viewId: current.viewId, expectedTeachingRevision: current.project.teachingRevision }, page.pageNumber, current) as Array<{ intentId: string; actionId: string; current: boolean; audioReady: boolean }>;
         check();
         if (this.video) { jobs.push(...await this.video.jobs(page.pageNumber, current)); check(); }
@@ -214,11 +209,11 @@ export class CoursewareNativeTools {
           else jobs.push(job);
         }
       }
-      const playback = name === "courseware_media_context" && pages.length === project.pages.length && pages.every(page => page.audioReady) && !jobs.length
+      const playback = name === "courseware_media_context" && pages.length === project.pages.length && pages.every(page => page.teachingReady) && !jobs.length
         ? await this.playbackPreflight?.(view, check) : undefined;
       check();
       for (const issue of playback?.issues ?? []) {
-        const repairable = ["EFFECT_BINDING_MISMATCH", "EFFECT_TARGET_UNSUPPORTED", "ANIMATION_TARGET_CONFLICT"].includes(issue.code) &&
+        const repairable = ["EFFECT_BINDING_MISMATCH", "EFFECT_TARGET_UNSUPPORTED", "ANIMATION_TARGET_CONFLICT", "NATIVE_SPEECH_ANIMATION_MISSING"].includes(issue.code) &&
           !project.pages.find(page => page.pageId === issue.pageId)?.locked;
         requiredIssues.push({ ...issue, repair: repairable ? "narration" : "source", repairable });
       }
@@ -228,11 +223,10 @@ export class CoursewareNativeTools {
         : name === "courseware_media_context" && input.kind === "video" ? await this.video?.models() : undefined;
       check();
       const assessmentMedia = await this.assessments({ mode: "context" }, view, check) as { ready: boolean; targets?: Array<{ kind: string }> };
-      // Option artwork is optional; both context tools use the same required-audio status.
-      const assessmentReady = assessmentMedia.ready || Array.isArray(assessmentMedia.targets) && assessmentMedia.targets.every(target => target.kind === "image");
+      const assessmentReady = assessmentMedia.ready;
       return { value: { nativeTeaching: true, ...(playback ? { playbackPreflight: playback } : {}), ...(materials ? { materials } : {}), ...(assessmentMedia ? { assessmentMedia } : {}), projectId: project.projectId, sourceRevision: project.source.revision, sourceSha256: project.source.sha256,
-        teachingRevision: project.teachingRevision, educationContext: project.educationContext,
-        enrichment: { ...enrichment, policy: view.enrichment?.script?.policy, originalPages: view.enrichment?.originalPages, plan: view.enrichment?.plan, unmatchedSegments: view.enrichment?.script?.segments.filter(s => !s.pageId).map(s => ({ id: s.id, sourceLine: s.sourceLine })) }, quality, completion: { counts, ready: !requiredIssues.length && assessmentReady, issues: requiredIssues, sourceSha256: project.source.sha256, teachingRevision: project.teachingRevision },
+        teachingRevision: project.teachingRevision, educationContext: project.educationContext, requiredObjectBindings,
+        enrichment: { ...enrichment, policy: view.enrichment?.script?.policy, originalPages: view.enrichment?.originalPages, plan: view.enrichment?.plan, unmatchedSegments: view.enrichment?.script?.segments.filter(s => !s.pageId).map(s => ({ id: s.id, sourceLine: s.sourceLine })) }, quality, completion: { counts, ready: !requiredIssues.length && assessmentReady, issues: requiredIssues, warnings: objectWarnings, sourceSha256: project.source.sha256, teachingRevision: project.teachingRevision },
         ...(models ? { models } : {}), videoReady: !pages.some(p => p.actions.some(a => a.type === "video_slot")), pageCount: project.pages.length, pages, jobs, unresolvedOriginals,
         narrationReady: enrichment.ready && pages.every(p => p.narrationReady), audioReady: pages.every(p => p.audioReady), teachingReady: !requiredIssues.length && pages.every(p => p.teachingReady) && assessmentReady } };
     }
@@ -241,10 +235,11 @@ export class CoursewareNativeTools {
       if (input.pageNumber !== undefined || input.intentId !== undefined || input.intentIds !== undefined || input.retryFailed !== undefined ||
           input.model !== undefined && typeof input.model !== "string" ||
           input.voice !== undefined && input.voice !== null && typeof input.voice !== "string") throw new Error("Invalid full-deck audio recovery scope");
-      return { value: await recoverNativeAudio({ teaching: this.teaching, audio: this.audio, view, pageNumbers: numbers,
+      return { value: await recoverNativeAudio({ route: this.route, audio: this.audio, view, pageNumbers: numbers,
         model: input.model as string | undefined, voice: input.voice as string | null | undefined, check }) };
     }
     if (name === "courseware_narration_propose") {
+      if (input.speechCount !== undefined && (!Number.isInteger(input.speechCount) || Number(input.speechCount) < 1 || Number(input.speechCount) > 100 || input.repairRequiredTeaching)) throw new Error("Exact speech count requires a narration rewrite with a count from 1 to 100");
       if (typeof input.instruction !== "string" || !input.instruction.trim() || input.instruction.length > 8000) throw new Error("Invalid narration instruction");
       if (numbers.some(n => view.enrichment?.script?.silentPageIds.includes(project.pages[n - 1].pageId)))
         throw new Error("This page is intentionally silent; change its source policy before generating speech");
@@ -253,7 +248,7 @@ export class CoursewareNativeTools {
         if (numbers.some(n => protectedIds.has(project.pages[n - 1].pageId))) throw new Error("Accepted script is protected; use verbatim repair or explicitly revise its source policy");
       }
       const result = await this.candidates.proposeNativeNarrationBatch(sessionId, numbers, input.instruction, canDispatch, input.repairRequiredTeaching === true,
-        this.ensureSaved ? () => this.ensureSaved!(sessionId, canDispatch) : undefined);
+        this.ensureSaved ? () => this.ensureSaved!(sessionId, canDispatch) : undefined, input.repairObjectsOnly === true, input.speechCount as number | undefined);
       return { value: { ...result, saved: false, pages: result.savedPages.map(page => ({ ...page, applied: true, saved: false })) } };
     }
     if (!["courseware_media_prepare", "courseware_media_refresh"].includes(name) || !["tts", "video", "music"].includes(String(input.kind)) ||

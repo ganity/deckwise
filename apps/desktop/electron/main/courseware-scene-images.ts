@@ -40,7 +40,7 @@ function checked(value: Journal, intentId?: string): Journal {
       (i.sourceReferenceImage !== undefined && (i.request?.kind !== "image-layers" || i.request.referenceImage?.mimeType !== "image/jpeg" ||
         Object.keys(i.sourceReferenceImage).sort().join(",") !== "byteLength,mimeType,sha256" || !hash(i.sourceReferenceImage.sha256) ||
         !["image/png", "image/jpeg"].includes(i.sourceReferenceImage.mimeType) || !Number.isSafeInteger(i.sourceReferenceImage.byteLength) ||
-        i.sourceReferenceImage.byteLength < 1 || i.sourceReferenceImage.byteLength > 8 * 1024 * 1024)) ||
+        i.sourceReferenceImage.byteLength < 1 || i.sourceReferenceImage.byteLength > 32 * 1024 * 1024)) ||
       !/^scene-[0-9]{3}$/u.test(i.pageId) || !["image", "image-layers"].includes(i.request?.kind) || !id(i.request.model) ||
       (i.request.kind === "image-layers" && (!i.request.referenceImage || (i.target?.kind ?? "visualMaster") === "visualMaster")) ||
       (i.request.referenceImage !== undefined && (!id(i.referenceIntentId) || !hash(i.request.referenceImage.sha256) ||

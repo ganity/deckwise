@@ -5,6 +5,7 @@ import { promisify } from 'node:util';
 import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
+import { crc32 } from 'node:zlib';
 import { candidateHash } from '../page-candidate-baseline';
 import { inspectPageImageAssets } from '../page-asset-locks';
 import { generatePagePptxCandidate } from '../page-pptx-candidate';
@@ -29,6 +30,17 @@ export async function fixture() {
 }
 
 describe('locked page images', () => {
+  it('keeps an embedded image above eight MiB eligible for preservation', async () => {
+    const f = await fixture(), zip = await JSZip.loadAsync(f.sourcePptx);
+    const chunk = Buffer.alloc(9 * 1024 * 1024 + 12);
+    chunk.writeUInt32BE(chunk.length - 12); chunk.write('caBX', 4);
+    chunk.writeUInt32BE(crc32(chunk.subarray(4, -4)), chunk.length - 4);
+    const bytes = Buffer.concat([png.subarray(0, -12), chunk, png.subarray(-12)]);
+    zip.file('ppt/media/locked.png', bytes);
+    const [image] = await inspectPageImageAssets(await zip.generateAsync({ type: 'nodebuffer' }), f.part);
+    expect(image).toMatchObject({ eligible: true, assetSha256: candidateHash(bytes).slice(7) });
+  });
+
   it('inspects and preserves a real Office-saved plain image without counting slide transitions as objects', async () => {
     // Captured from the real Main controller and compiled Office bridge. Office
     // writes mc:AlternateContent containing p:transition after p:cSld/spTree.

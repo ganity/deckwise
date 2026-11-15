@@ -7,7 +7,7 @@ type Media = { id: string; sha256: string; mimeType: string; byteLength: number;
 export type NativeTeachingPackage = { schemaVersion: "deckwise-native-teaching/1"; documentId: string; revision: string;
   enrichment?: import("@pi-desktop/shared").CoursewareEnrichment;
   assessments?: Record<string, unknown>;
-  generation?: { pages?: Array<{ pageId: string; quiz?: unknown }> };
+  generation?: { pages?: Array<{ pageId: string; title?: string; teaching?: { objective?: string }; quiz?: unknown }> };
   pages: CoursewareProject["pages"]; media: Media[]; identity: { pages: Array<{ pageId: string; objects: unknown[] }> } };
 const namespace = "urn:deckwise:native-teaching:1";
 const invalid = () => new Error("Invalid native teaching package");

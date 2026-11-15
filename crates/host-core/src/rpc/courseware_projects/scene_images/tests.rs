@@ -492,6 +492,29 @@ async fn scene_image_invalid_targets_and_instructions_never_prepare_a_request() 
 }
 
 #[tokio::test]
+async fn scene_image_above_eight_mib_archives_original_bytes_and_survives_restart() {
+    let mut f = Fixture::new().await;
+    let submitted = f.submitted("image-model", "scene-001").await;
+    let mut stage = f.stage(&submitted);
+    let mut bytes = STANDARD.decode(stage["bytesBase64"].as_str().unwrap()).unwrap();
+    bytes.resize(9 * 1024 * 1024, 0);
+    stage["asset"]["byteLength"] = json!(bytes.len());
+    stage["asset"]["sha256"] = json!(hex::encode(Sha256::digest(&bytes)));
+    stage["bytesBase64"] = json!(STANDARD.encode(&bytes));
+    let mut metadata: assets::ImageAsset = serde_json::from_value(stage["asset"].clone()).unwrap();
+    metadata.byte_length = 32 * 1024 * 1024;
+    assert!(metadata.valid());
+    metadata.byte_length += 1;
+    assert!(!metadata.valid());
+    let saved = f.call("courseware.sceneImage.asset.stage", stage).await.unwrap();
+    assert_eq!(std::fs::read(saved["path"].as_str().unwrap()).unwrap(), bytes);
+    f.restart().await;
+    let reopened = f.call("courseware.sceneImage.asset.get", f.operation(&submitted)).await.unwrap();
+    assert_eq!(saved["intent"]["asset"], reopened["intent"]["asset"]);
+    assert_eq!(std::fs::read(reopened["path"].as_str().unwrap()).unwrap(), bytes);
+}
+
+#[tokio::test]
 async fn scene_image_archive_preview_selection_survive_restart_and_corruption_is_not_repaired() {
     let mut f = Fixture::new().await;
     let submitted = f.submitted("image-model", "scene-001").await;

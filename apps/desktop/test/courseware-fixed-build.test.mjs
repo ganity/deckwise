@@ -12,7 +12,7 @@ class FixedBuildError extends Error {
 function setup() {
   const snapshot = { snapshotId: "snap-1", projectId: "project-1", source: { revision: "R1", sha256: "a".repeat(64) },
     teachingRevision: "T1", mappingRevision: "M1", assetIds: [] };
-  let session = "chat-1", workspace = "/workspace", host, resolveWorkspace = async () => workspace;
+  let session = "chat-1", workspace = "/workspace", host, nativePackage, resolveWorkspace = async () => workspace;
   const calls = [], builds = [], canonicalBuilds = [];
   let canonical = { projectId: "project-1", revision: null, sourceRevision: "R1", classroom: null };
   let convert = async () => ({ buildId: "b".repeat(64), packageHash: "b".repeat(64), directory: "/private/build",
@@ -25,7 +25,7 @@ function setup() {
   const module = { exports: {} };
   new Function("require", "exports", outputText)((id) => {
     if (id === "@pi-desktop/shared") return shared;
-    if (id === "./courseware-native-package") return { readNativeTeachingPackage: async () => undefined };
+    if (id === "./courseware-native-package") return { readNativeTeachingPackage: async () => nativePackage };
     if (id === "node:crypto") return { randomUUID: () => crypto.randomUUID(), createHash: () => ({ update: () => ({ digest: () => "a".repeat(64) }) }) };
     if (id === "node:fs/promises") return { readFile: async () => Buffer.from("worker manifest") };
     if (id === "node:path") return { join: (...parts) => parts.join("/") };
@@ -41,7 +41,7 @@ function setup() {
   const coordinator = new module.exports.CoursewareFixedBuildCoordinator(() => host, () => resolveWorkspace(), () => session, "/trusted/worker", "/private/builds");
   return { coordinator, snapshot, calls, builds, canonicalBuilds, canonical: value => { canonical = value; }, select: { sessionId: "chat-1", projectId: "project-1", snapshotId: "snap-1" },
     convert: (fn) => { convert = fn; }, session: (value) => { session = value; }, workspace: (value) => { workspace = value; },
-    host: (value) => { host = value; }, resolveWorkspace: (fn) => { resolveWorkspace = fn; } };
+    host: (value) => { host = value; }, nativePackage: value => { nativePackage = value; }, resolveWorkspace: (fn) => { resolveWorkspace = fn; } };
 }
 
 test("only a finite Host snapshot selection reaches the builder; paths stay Main-private", async () => {
@@ -146,11 +146,17 @@ test("cancel during workspace lookup prevents a late build from starting", async
 
 test("native immutable exports build without reading or refreshing a mutable classroom", async () => {
   const f = setup();
+  f.nativePackage({ pages: [{ pageId: 'page-1' }, { pageId: 'page-2' }], generation: { pages: [
+    { pageId: 'page-1', title: 'Recognize ice, water and vapor', teaching: { objective: 'Recognize ice, water and vapor' } },
+    { pageId: 'page-2', title: 'States change with temperature', teaching: { objective: 'Explain temperature changes' } },
+    null, { pageId: 'foreign-page', title: 'Not in the saved lesson' },
+  ] } });
   f.host({ async call(method, selection) {
     assert.equal(method, "courseware.snapshot.get"); assert.deepEqual(selection, f.select);
     return { snapshot: f.snapshot, project: { native: true }, mapping: {}, sourcePath: "/private/native.pptx", assets: [], nativeTeaching: true };
   } });
   const ready = await f.coordinator.build(f.select);
   assert.equal(ready.status, "ready"); assert.equal(f.builds.length, 1); assert.equal(f.canonicalBuilds.length, 0);
+  assert.deepEqual(f.builds[0].options.nativePageTitles, { 'page-2': 'States change with temperature' });
   await f.coordinator.selected(ready.previewId);
 });

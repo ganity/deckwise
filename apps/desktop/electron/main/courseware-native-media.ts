@@ -67,8 +67,7 @@ export class CoursewareNativeMedia {
     // Reuse needs current service permission, but never creates or downloads media.
     const task = await this.auth.coursewareMedia.video.get(intent.taskRef);
     if (task.kind !== "video" || task.state !== "ready" || task.feeState !== "settled" || task.model !== intent.model ||
-      task.taskId !== intent.taskRef.taskId || task.requestHash !== intent.taskRef.requestHash || task.idempotencyKey !== intent.taskRef.idempotencyKey ||
-      task.assetRef?.sha256 !== intent.asset.sha256 || task.assetRef.mime !== "video/mp4" || task.assetRef.byteLength !== intent.asset.byteLength) throw invalid();
+      task.taskId !== intent.taskRef.taskId || task.requestHash !== intent.taskRef.requestHash || task.idempotencyKey !== intent.taskRef.idempotencyKey) throw invalid();
     await c.check();
     return this.teaching.reuseVideo({ viewId: c.input.viewId, expectedTeachingRevision: c.input.expectedTeachingRevision, principalKey: c.principal.key, intentId, actionId, assetId: `video-${intent.asset.sha256}` });
   }
@@ -113,7 +112,7 @@ export class CoursewareNativeMedia {
     await check();
     const { asset, path } = stored;
     if (!asset || !/^[a-f0-9]{64}$/u.test(asset.sha256) || !Number.isSafeInteger(asset.byteLength) || asset.byteLength < 1 ||
-        asset.byteLength > 16 * 1024 * 1024 || typeof path !== "string" || !isAbsolute(path) || basename(path) !== `${asset.sha256}.bin`) throw invalid();
+        asset.byteLength > 40 * 1024 * 1024 || typeof path !== "string" || !isAbsolute(path) || basename(path) !== `${asset.sha256}.bin`) throw invalid();
     const file = await open(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
     let bytes: Buffer;
     try {

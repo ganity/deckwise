@@ -62,6 +62,23 @@ async function payload() {
   };
 }
 afterEach(() => vi.restoreAllMocks());
+it("loads imported connector geometry without a rectangular height while rejecting malformed geometry", async () => {
+  const original = await payload();
+  const connector = { id: "arrow", type: "line", left: 367.188, top: 181.25, width: 4.5,
+    start: [0, 0], end: [143.75, 0], color: "#F2A03D", style: "solid", points: ["", "arrow"] };
+  const load = async (element: unknown) => {
+    const candidate = { ...original, pages: [{ ...original.pages[0], objects: [{ objectId: "logical-arrow", importElementId: "arrow" }],
+      slide: { ...original.pages[0].slide, elements: [element] } }] };
+    const bytes = encode(candidate);
+    return loadFixedBuild(bytes, await digestBytes(bytes), async () => audio);
+  };
+  const loaded = await load(connector);
+  expect(loaded.scenes[0].content).toMatchObject({ type: "slide", canvas: { elements: [connector] } });
+  loaded.dispose();
+  for (const element of [{ ...connector, end: [143.75] }, { ...connector, start: ["0", 0] },
+    { ...connector, width: -1 }, { ...connector, type: "shape" }])
+    await expect(load(element)).rejects.toThrow("PACKAGE_SCHEMA_INVALID");
+});
 it("loads a distinct verified audio clip and rejects missing or non-audio assets", async () => {
   const original = await payload();
   const candidate = { ...original, report: { ...original.report, capabilities: { ...original.report.capabilities, teachingAudioClips: "sequential/1" } }, pages: [{ ...original.pages[0], actions: [{ id: "music", type: "audio_clip", audioAssetId: "voice" }] }] };
@@ -480,7 +497,7 @@ it("binds speech effects through logical object IDs and refuses undeclared effec
       async () => audio,
     ),
   ).rejects.toThrow("EFFECT_CAPABILITY_MISMATCH");
-  value.pages[0].slide.elements[0].type = "line";
+  Object.assign(value.pages[0].slide.elements[0], { type: "line", start: [0, 0], end: [100, 0] });
   await expect(load()).rejects.toThrow("EFFECT_TARGET_UNSUPPORTED");
   value.pages[0].slide.elements[0].type = "shape";
   value.pages[0].actions[0].visualCues[0].endMs = 50;

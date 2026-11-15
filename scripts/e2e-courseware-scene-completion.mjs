@@ -38,7 +38,7 @@ try {
   await writeFile(join(output, "electron.log"), log);
   const passed = [...log.matchAll(/^✔ /gmu)].length;
   const failed = [...log.matchAll(/^✖ /gmu)].length;
-  const report = { status: exitCode === 0 && passed === 16 && failed === 0 ? "PASS" : "FAIL", exitCode, passed, failed, testFile,
+  const report = { status: exitCode === 0 && passed === 17 && failed === 0 ? "PASS" : "FAIL", exitCode, passed, failed, testFile,
     electronVersion: (await readFile(join(root, "apps/desktop/node_modules/electron/dist/version"), "utf8")).trim(),
     realElectronPngDecoder: true, realPiAiTransport: true, localProviderStandIn: true, realProvider: false,
     bundledSceneCompiler: true, sourceCanvases: ["16:9", "4:3"],

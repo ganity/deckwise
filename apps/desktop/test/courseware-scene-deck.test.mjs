@@ -70,6 +70,20 @@ test("compilation rejects added native text rather than duplicating image letter
   finally { nativeText = false; }
 });
 
+test("native text plans compile exact editable lettering over textless artwork", async () => {
+  nativeText = true;
+  try {
+    const deck = await buildSceneCourseDeck({ ...input, textMode: "native" }, async () => ({ text: "" }), authoring);
+    const JSZip = requireCourseware("jszip");
+    const zip = await JSZip.loadAsync(deck.pptx);
+    const xml = await zip.file("ppt/slides/slide1.xml").async("string");
+    assert.match(xml, /<a:t>Hello<\/a:t>/);
+    const texts = deck.canonicalClassroom.scenes[0].content.canvas.elements.filter(e => e.type === "text");
+    assert.equal(texts.length, 1);
+    assert.match(texts[0].content, /Hello/);
+  } finally { nativeText = false; }
+});
+
 test("a scene cannot silently drop a reviewed foreground or lettering image", async () => {
   const withForegrounds = visuals.map(visual => ({ ...visual, images: [
     { assetIds: ["master"], bytes: background }, { assetIds: ["clean"], bytes: background },

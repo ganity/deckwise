@@ -1,3 +1,4 @@
+import { createQuizImageReview } from "../courseware-quiz-image-review";
 import { CoursewareDocumentTools } from "../courseware-document-tools";
 import { createCoursewareDocumentRuntime, createBackgroundCoursewareEditor } from "../courseware-document-runtime";
 import { createNativeAssessmentMedia } from "../courseware-native-assessment-media";
@@ -183,8 +184,9 @@ export function registerPptEditorIpc(input: {
     return delivery.execute(payload);
   });
 
+  const reviewQuizImage = createQuizImageReview(input.completeScene, input.resolveModel);
   const { tts: classroomTts, images: classroomImages, assessments: assessmentMedia } = createNativeAssessmentMedia({
-    teaching, classroom, auth: input.authSession, getHost, getWorkspace: getWorkspaceRoot, assertOwned: assertClassroomOwner });
+    teaching, classroom, auth: input.authSession, getHost, getWorkspace: getWorkspaceRoot, assertOwned: assertClassroomOwner, review: reviewQuizImage });
   input.onAssessmentMediaReady?.({ execute: async (sessionId, args, canDispatch) => {
     const native = await documentTools.execute(sessionId, "courseware_media_assessments", args, canDispatch);
     if (native) return native.value as Awaited<ReturnType<CoursewareAssessmentMedia["execute"]>>;
@@ -200,7 +202,7 @@ export function registerPptEditorIpc(input: {
     if ((live && (!args || typeof args !== "object" || Reflect.get(args, "mode") !== "context")) || !input.savedNarration)
       return assessmentMedia.execute(sessionId, args, canDispatch);
     return executeSavedAssessmentMedia({ sessionId, args, canDispatch, getHost, saved: input.savedNarration,
-      auth: input.authSession, decodeAudio: decodeCoursewareAudio });
+      auth: input.authSession, decodeAudio: decodeCoursewareAudio, review: reviewQuizImage });
   } });
   for (const [channel, method] of [[IPC.invoke.coursewareClassroomImageModels, "models"], [IPC.invoke.coursewareClassroomImageQuote, "quote"],
     [IPC.invoke.coursewareClassroomImageSubmit, "submit"], [IPC.invoke.coursewareClassroomImageRefresh, "refresh"]] as const) {
@@ -303,7 +305,7 @@ export function registerPptEditorIpc(input: {
   const documentTools = new CoursewareDocumentTools({ getHost, editor,
     createBackground: () => createBackgroundCoursewareEditor(registrar.ipcMain),
     createTools: (targetEditor, scope) => createCoursewareDocumentRuntime({ editor: targetEditor, scope,
-      background: targetEditor !== editor, auth: input.authSession, complete: input.completeNarration,
+      background: targetEditor !== editor, review: reviewQuizImage, auth: input.authSession, complete: input.completeNarration,
       resolveModel: input.resolveModel, activeTurns: input.activeTurns, getHost }) });
   input.onNativeTeachingReady?.(documentTools);
   editor.nativeTeaching = createNativeTeachingHandler({ teaching, tts, classroom, classroomTts, classroomImages,

@@ -84,6 +84,19 @@ it('preserves opaque teaching revisions and accepts education context without mu
   expect(adaptCanonicalSnapshot(project, f.snapshot, f.files).teaching.revision).toBe(revision);
   expect(JSON.stringify(project)).toBe(before);
 });
+it('accepts the body-page limit emitted by all Desktop generation paths', () => {
+  const f = fixture();
+  for (const taskType of ['plain', 'scene', 'import']) {
+    const project = { ...f.project, taskType, educationContext: { bodyPageLimit: 3 } };
+    expect(isCoursewareProject(project)).toBe(true);
+    expect(adaptCanonicalSnapshot(project, f.snapshot, f.files, { nativeTeaching: true }))
+      .toEqual(read(path.resolve('tests/fixtures/fixed-courseware/snapshot.json')));
+  }
+  for (const bodyPageLimit of [0, 31, 1.5, '3', null]) {
+    expect(() => adaptCanonicalSnapshot({ ...f.project, educationContext: { bodyPageLimit } },
+      f.snapshot, f.files)).toThrow('CANONICAL_SNAPSHOT_INVALID');
+  }
+});
 it('rejects stricter canonical envelopes before the fixed-file adapter', () => {
   const f = fixture();
   const page = f.project.pages[0];

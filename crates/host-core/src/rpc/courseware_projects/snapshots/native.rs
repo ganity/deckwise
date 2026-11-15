@@ -11,6 +11,19 @@ struct Import {
     project: CoursewareProject, identity: Value, assets: Vec<FixedAsset>,
 }
 
+fn native_object_id(object: &Value, bound: &[Value]) -> Result<Value, JsonRpcError> {
+    // Inherited artwork keeps its verified parser identity, never a slide-shape alias.
+    if !object["sourceShapeId"].is_string() && object["logicalId"].is_string() &&
+        object["importElementId"].as_str().is_some_and(|id| id.starts_with("pptx_fallback_layout_") || id.starts_with("pptx_fallback_master_")) {
+        if let Some(id) = object["logicalId"].as_str().and_then(|id| id.strip_prefix("object:")) {
+            return Ok(json!(format!("inherited-{id}")));
+        }
+    }
+    let matches: Vec<_> = bound.iter().filter(|o| o["sourceShapeId"].is_string() && o["sourceShapeId"] == object["sourceShapeId"]).collect();
+    if matches.len() != 1 { return Err(rpc_err(1002, "Ambiguous native shape identity", "COURSEWARE_CONFLICT")); }
+    Ok(matches[0]["logicalId"].clone())
+}
+
 // An immutable export snapshot never becomes a second editable teaching project.
 pub(super) async fn handle(state: Arc<Mutex<AppState>>, params: Value) -> Result<Value, JsonRpcError> {
     let mut p: Import = serde_json::from_value(params).map_err(|e| rpc_err(1002, e.to_string(), "INVALID_PARAMS"))?;
@@ -62,9 +75,7 @@ pub(super) async fn handle(state: Arc<Mutex<AppState>>, params: Value) -> Result
         if native["pageId"] != page.page_id { return Err(rpc_err(1002, "Native objects changed", "COURSEWARE_CONFLICT")); }
         let mut mapped = Vec::new();
         for object in objects {
-            let matches: Vec<_> = bound.iter().filter(|o| o["sourceShapeId"].is_string() && o["sourceShapeId"] == object["sourceShapeId"]).collect();
-            if matches.len() != 1 { return Err(rpc_err(1002, "Ambiguous native shape identity", "COURSEWARE_CONFLICT")); }
-            mapped.push(json!({"objectId": matches[0]["logicalId"], "importElementId": object["importElementId"]}));
+            mapped.push(json!({"objectId": native_object_id(object, bound)?, "importElementId": object["importElementId"]}));
         }
         // A parsed leaf carries its source group ancestry. Preserve group aliases separately;
         // the fixed builder verifies membership against these exact source bytes and derives bounds.
@@ -82,4 +93,22 @@ pub(super) async fn handle(state: Arc<Mutex<AppState>>, params: Value) -> Result
     let record = state.db.import_native_courseware_snapshot(&root, &parsed, &p.snapshot_id, p.project, &mapping,
         p.assets.into_iter().map(|a| a.asset).collect()).map_err(error)?;
     files(&state.data_dir, record).map_err(error)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn inherited_artwork_retains_parser_identity_without_binding_to_slide_shapes() {
+        let bound = vec![json!({"sourceShapeId":"7", "logicalId":"native-title"})];
+        for kind in ["layout", "master"] {
+            let object = json!({"importElementId":format!("pptx_fallback_{kind}_shape_7"), "logicalId":"object:parsed"});
+            assert_eq!(native_object_id(&object, &bound).unwrap(), json!("inherited-parsed"));
+        }
+        assert_eq!(native_object_id(&json!({"sourceShapeId":"7"}), &bound).unwrap(), json!("native-title"));
+        assert!(native_object_id(&json!({"importElementId":"unidentified_slide_shape", "logicalId":"object:parsed"}), &bound).is_err());
+        assert!(native_object_id(&json!({"sourceShapeId":"missing"}), &bound).is_err());
+        assert!(native_object_id(&json!({"sourceShapeId":"7"}), &[bound[0].clone(), bound[0].clone()]).is_err());
+    }
 }

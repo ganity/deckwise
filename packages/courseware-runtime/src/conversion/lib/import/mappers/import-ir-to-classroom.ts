@@ -563,7 +563,8 @@ function deriveSlideTitle(
   index: number,
   fallback?: string,
 ): string {
-  const titleElement = page.elements.find(
+  const namedTitle = page.elements.find(element => /^(?:page[-_])?title$/i.test(element.sourceObjectName ?? "") && element.content && isUsableSlideTitle(stripHtml(element.content).trim()));
+  const titleElement = namedTitle ?? page.elements.find(
     (element) =>
       element.textType === 'title' &&
       element.content &&
@@ -573,7 +574,7 @@ function deriveSlideTitle(
   return (
     title ||
     deriveProminentTextTitle(page) ||
-    (index === 0 ? fallback : undefined) ||
+    (index === 0 && fallback && !/^(?:source|document|untitled)(?:\.pptx)?$/i.test(fallback) ? fallback : undefined) ||
     `第 ${index + 1} 页`
   );
 }

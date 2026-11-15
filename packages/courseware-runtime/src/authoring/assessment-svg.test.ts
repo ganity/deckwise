@@ -27,6 +27,8 @@ it('keeps mixed-language questions intact across editable SVG lines without reve
   parser.write(svg).close();
   expect(text).toBe(question);
   expect(lines).toBeGreaterThan(1);
+  expect(svg).toContain('id="interaction_question" data-deckwise-preserve-object="1"');
+  expect(svg).toMatch(/<text id="interaction_chapter_title"[^>]*>Family<\/text>/);
   expect(svg).not.toContain('SECRET');
   expect(svg).not.toMatch(/<image|<animate|<script/);
   const checkpoint = scene.actions![0];

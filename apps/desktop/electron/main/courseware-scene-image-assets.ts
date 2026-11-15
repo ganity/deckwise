@@ -80,7 +80,7 @@ export function isSceneImageAsset(value: unknown): value is CoursewareSceneImage
   const v = value as CoursewareSceneImageAsset;
   return typeof v.sha256 === "string" && /^[a-f0-9]{64}$/u.test(v.sha256) &&
     ["image/png", "image/jpeg", "image/webp"].includes(v.mimeType) &&
-    Number.isSafeInteger(v.byteLength) && v.byteLength > 0 && v.byteLength <= 8 * 1024 * 1024 &&
+    Number.isSafeInteger(v.byteLength) && v.byteLength > 0 && v.byteLength <= MAX_SUPPLIER_IMAGE_BYTES &&
     Number.isSafeInteger(v.width) && Number.isSafeInteger(v.height) &&
     v.width > 0 && v.width <= 4096 && v.height > 0 && v.height <= 4096 &&
     (v.sourceZIndex === undefined || (Number.isSafeInteger(v.sourceZIndex) && v.sourceZIndex >= 1 && v.sourceZIndex <= 1_000_000)) &&
@@ -167,15 +167,6 @@ function decodeSceneImageItems(data: Record<string, unknown>[], taskRef: Coursew
     if (png.length < 33 || png.length > MAX_SUPPLIER_IMAGE_BYTES || png.toString("base64") !== item.b64_json) throw invalid();
     total += png.length;
     if (total > MAX_LAYER_BYTES) throw new Error("COURSEWARE_SCENE_IMAGE_LAYER_BUNDLE_TOO_LARGE");
-    // Supplier provenance can exceed the archive cap; re-encode without resizing pixels.
-    if (png.length > 8 * 1024 * 1024 && png.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex"))) {
-      const width = png.readUInt32BE(16), height = png.readUInt32BE(20);
-      if (width < 1 || width > 4096 || height < 1 || height > 4096) throw invalid();
-      const image = nativeImage.createFromBuffer(png);
-      if (image.isEmpty() || image.getSize().width !== width || image.getSize().height !== height) throw invalid();
-      png = image.toPNG();
-      if (png.length < 33) throw invalid();
-    }
     // MAIC normalizes the base to PNG; native Seedream may return a JPEG base and PNG foregrounds.
     if (item.z_index === 0 && png.subarray(0, 3).equals(Buffer.from([255, 216, 255]))) {
       const [width, height] = jpegSize(png);

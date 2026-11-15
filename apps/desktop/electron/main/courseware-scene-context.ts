@@ -77,7 +77,7 @@ export function captureCoursewareSceneImages(input: readonly CoursewareSceneImag
       !Array.isArray(asset.assetIds) ||
       !asset.assetIds.length ||
       !(asset.bytes instanceof Uint8Array) ||
-      asset.bytes.length > 8 * 1024 * 1024 ||
+      asset.bytes.length > 32 * 1024 * 1024 ||
       typeof asset.sha256 !== "string" ||
       !/^[a-f0-9]{64}$/u.test(asset.sha256) ||
       !Number.isInteger(asset.width) ||

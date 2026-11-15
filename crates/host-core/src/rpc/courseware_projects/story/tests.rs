@@ -5,21 +5,24 @@ fn draft() -> Value {
     "beats":[{"id":"find","title":"Find red","event":"Find a ball","objective":"Name red","activity":"Sort objects"}],"assumptions":[]})
 }
 #[test]
-fn story_approval_ignores_only_pagination_settings() {
+fn story_approval_ignores_only_production_settings() {
     assert!(same_story_requirements(
         &Value::Null,
-        &json!({"bodyPageLimit":10})
+        &json!({"bodyPageLimit":10,"visualStyle":"Watercolor"})
     ));
     assert!(same_story_requirements(
         &json!({"grade":"K2","bodyPageLimit":8}),
-        &json!({"grade":"K2","bodyPageLimit":10})
+        &json!({"grade":"K2","bodyPageLimit":10,"visualStyle":"Watercolor"})
     ));
     for (key, value) in [
         ("schoolStage", json!("primary")),
         ("grade", json!("K3")),
         ("subject", json!("math")),
         ("fullEnglishTeaching", json!(true)),
-        ("visualStyle", json!("Watercolor")),
+        ("textbookVersion", json!("New edition")),
+        ("chapter", json!("Colors")),
+        ("lessonType", json!("Review")),
+        ("customSubjectName", json!("Art")),
     ] {
         let saved = json!({"grade":"K2"});
         let mut changed = saved.clone();

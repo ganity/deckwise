@@ -133,16 +133,24 @@ export class CoursewareFixedBuildCoordinator {
       }, { nativeTeaching });
       try {
         let nativeAssessments: Record<string, unknown> | undefined;
+        let nativePageTitles: Record<string, string> | undefined;
         if (nativeTeaching) {
           const sourcePath = Reflect.get(raw, "sourcePath");
           if (typeof sourcePath !== "string") throw new Error("Native snapshot source unavailable");
           const bytes = await readFile(sourcePath);
           if (createHash("sha256").update(bytes).digest("hex") !== snapshot.source.sha256) throw new Error("Native snapshot source changed");
-          nativeAssessments = (await readNativeTeachingPackage(bytes))?.assessments;
+          const carrier = await readNativeTeachingPackage(bytes);
+          nativeAssessments = carrier?.assessments;
+          nativePageTitles = Object.fromEntries((Array.isArray(carrier?.generation?.pages) ? carrier.generation.pages : []).flatMap(page =>
+            // Older Master exports used the internal objective as a placeholder title.
+            page && typeof page.pageId === "string" && carrier!.pages.some(saved => saved.pageId === page.pageId) &&
+              typeof page.title === "string" && page.title.trim() && page.title.length <= 2000 && page.title.trim() !==
+              (typeof page.teaching?.objective === "string" ? page.teaching.objective.trim() : undefined)
+              ? [[page.pageId, page.title]] : []));
         }
         const build = await buildFixedCourseware(input, {
           workerDirectory: this.workerDirectory, outputDirectory: this.outputDirectory, signal: owner.abort.signal,
-          ...(nativeAssessments ? { nativeAssessments } : {}),
+          ...(nativeAssessments ? { nativeAssessments } : {}), ...(nativePageTitles ? { nativePageTitles } : {}),
         });
         await this.assertOwner(owner);
         const previewId = randomUUID();

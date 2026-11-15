@@ -149,8 +149,9 @@ fn attached(task: &Value) -> bool {
 fn same_story_requirements(saved: &Value, current: &Value) -> bool {
     let content_settings = |value: &Value| {
         let mut settings = value.as_object().cloned().unwrap_or_default();
-        // Story beats are not slides; pagination remains a live production constraint.
+        // Pagination and illustration style belong to later production, not story review.
         settings.remove("bodyPageLimit");
+        settings.remove("visualStyle");
         settings
     };
     content_settings(saved) == content_settings(current)
@@ -367,6 +368,16 @@ pub(super) async fn handle(
             return Err(conflict("Story changed; review the latest version"));
         }
         match p.action.as_str() {
+            "approve"
+                if !same_story_requirements(
+                    &current["educationContext"],
+                    &task["educationContext"],
+                ) =>
+            {
+                return Err(conflict(
+                    "Teaching requirements changed; update the saved story in Chat before confirming it",
+                ))
+            }
             "approve"
                 if current["draft"].is_object()
                     && same_story_requirements(

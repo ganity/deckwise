@@ -278,6 +278,7 @@ impl Database {
     }
 
     /// Generated narration replaces teaching directly; legacy candidates remain readable.
+    #[cfg(test)]
     pub fn save_generated_narration(
         &self,
         workspace: &str,

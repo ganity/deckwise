@@ -1,5 +1,20 @@
 # Fixed courseware snapshots
 
+## Product status update (2026-11-13)
+
+Portable courseware and team publication are **TBD**: their product definitions,
+user workflows, playback destinations and relationship to the standalone fixed
+player await user decision. The existing snapshot, export, sharing and player
+descriptions below document implementation; they do not define an approved
+workflow or justify retaining the standalone player. This status change does
+not alter existing code, packages or publication records.
+
+Desktop PPT playback acceptance uses WiseOffice's native teaching slideshow.
+Standalone fixed-player results cannot substitute for that acceptance. See the
+[ADR status update](../../adr/host-owned-courseware-projects.md#2026-11-13-portable-courseware-and-team-publication--tbd).
+
+## Implementation history
+
 Status: A16 implements private Host snapshot
 capture/export. A17 adds Main-owned fixed build IPC and a separate sandboxed
 Desktop player for an already persisted snapshot. A18 adds visible snapshot,
@@ -74,6 +89,12 @@ text and reference one supplied fixed audio ID; duplicate, missing, unrelated or
 invalid assets reject. Currently only WAV/MPEG/OGG/MP4/WebM audio MIME declarations
 are admitted. Other action details, render bindings and playable media remain
 the D build/loader's validation responsibility.
+
+The fixed loader preserves PPTist connector geometry: line elements use finite
+`start`/`end` coordinate pairs and a nonnegative stroke `width`; they do not
+require a rectangular `height`. Other element types still require finite,
+nonnegative width and height. Lines remain ineligible for speech focus and
+object animation targets.
 
 ### Independent pinned online input (W14.2 Host seam)
 
@@ -527,3 +548,26 @@ Docs connections. Resolution is read-only and does not create a snapshot, update
 the live source or teaching, adopt audio, build or publish. An active review
 blocks pause/native resume until clear. See the
 [editor interaction contract](../04-ux/12-courseware-online-source-review.md).
+
+Generation preflight validates converted page geometry with the fixed player's
+slide schema before reporting readiness. Final fixed builds invoke the actual
+`loadFixedBuild` loader against staged package bytes and staged asset bytes,
+then dispose its temporary URLs before publication. Schema, asset hash and
+binding failures prevent a published build; a source/mapping preflight alone is
+not sufficient final acceptance.
+
+Inherited layout and master artwork keeps its geometry and appearance but carries
+no slide-local shape ID or group ancestry. Native snapshots bind these render-only
+elements to the verified parser fingerprint (`inherited-<object hash>`), while
+slide objects still require exactly one native identity match. Generation preflight
+uses the same distinction; inherited artwork cannot impersonate a teaching target.
+Parser errors also block generation readiness. A plain theme `bg1` fill on a
+notes/handout master remains a review warning; custom artwork or fills still block.
+
+Playback headings prefer a saved native generation title, excluding the old
+Master placeholder that merely repeats its internal learning objective; independent
+checkpoint questions take priority to avoid exposing an internal answer/objective.
+For imported pages without saved titles, actual named title frames take priority
+over a misclassified body label, and generic internal filenames use a page label.
+Audio priming uses a managed `audio/wav` Blob URL, revoked on retry or destruction,
+so it works under the existing `media-src blob:` policy without weakening CSP.

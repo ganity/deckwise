@@ -15,7 +15,7 @@ it('enters final reporting from a ready tool result without waiting for the mode
   const execute = vi.fn(async () => ({ content: [], details: snapshot }));
   const instruction = await continuation.finish(turn, { execute, canWait: () => true });
   expect(continuation.reportOnly).toBe(true);
-  expect(instruction).toContain('completed');
+  expect(instruction).toContain('checks are complete');
   expect(instruction!.length).toBeLessThan(10000);
 });
 
@@ -100,7 +100,7 @@ it('repairs missing focus through the preserving delta path before final reporti
   const result = await continuation.finish({ context: { messages: [] }, newMessages: [], message,
     toolResults: [{ role: 'toolResult', toolCallId: 'activate', toolName: 'courseware_media_context', content: [], isError: false, timestamp: 0, details: snapshot() }] },
     { execute, canWait: () => true });
-  expect(result).toContain('completed');
+  expect(result).toContain('checks are complete');
   expect(execute).toHaveBeenCalledWith('courseware_narration_propose', expect.objectContaining({ pageNumbers: [6], repairRequiredTeaching: true }), undefined);
   expect(execute.mock.calls.some(([name]) => name.includes('media_prepare'))).toBe(false);
 });
@@ -253,4 +253,26 @@ it('stops automatic generation for unmatched fixed scripts or lesson-plan activi
   expect(report).toContain('cannot be repaired automatically');
   expect(report).toContain('SCRIPT_UNMATCHED');
   expect(execute).toHaveBeenCalledTimes(1);
+});
+
+it('repairs compound object evidence independently without regenerating speech or paid media', async () => {
+  const continuation = new CoursewareTurnContinuation();
+  let repaired = false;
+  const snapshot = () => ({ sourceSha256: 'a'.repeat(64), jobs: [], narrationReady: true, audioReady: true, teachingReady: true,
+    completion: { ready: repaired, issues: repaired ? [] : [{ pageNumber: 2, pageId: 'page', code: 'OBJECT_REQUIREMENT_UNRESOLVED', repair: 'objects', repairable: true }] } });
+  const message: AgentTurnContext['message'] = { role: 'assistant', api: 'openai-completions', provider: 'fixture', model: 'fixture', timestamp: 0,
+    content: [{ type: 'toolCall', id: 'activate', name: 'courseware_media_context', arguments: { continueTeaching: true } }], stopReason: 'toolUse',
+    usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } };
+  const execute = vi.fn(async (name: string) => {
+    if (name === 'courseware_narration_propose') { repaired = true; return { content: [], details: { saved: true } }; }
+    return { content: [], details: snapshot() };
+  });
+  await continuation.finish({ context: { messages: [] }, newMessages: [], message,
+    toolResults: [{ role: 'toolResult', toolCallId: 'activate', toolName: 'courseware_media_context', content: [], isError: false, timestamp: 0, details: snapshot() }] },
+    { execute, canWait: () => true });
+  const result = await continuation.finish({ context: { messages: [] }, newMessages: [], toolResults: [],
+    message: { ...message, stopReason: 'stop', content: [{ type: 'text', text: 'Done' }] } }, { execute, canWait: () => true });
+  expect(result).toContain('checks are complete');
+  expect(execute).toHaveBeenCalledWith('courseware_narration_propose', expect.objectContaining({ pageNumbers: [2], repairRequiredTeaching: true, repairObjectsOnly: true }), undefined);
+  expect(execute.mock.calls.some(([name]) => name.includes('media_prepare'))).toBe(false);
 });

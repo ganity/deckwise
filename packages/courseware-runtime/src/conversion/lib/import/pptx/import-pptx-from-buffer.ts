@@ -6260,11 +6260,18 @@ async function extractSlideLayoutRenderableElements(
   return [
     ...masterElements,
     ...(backgroundElement ? [backgroundElement] : []),
-    ...elements.map((element) => ({
-      ...element,
-      id: `pptx_fallback_layout_${element.id.replace(/^pptx_fallback_/, '')}`,
-      imageRole: element.type === 'image' ? 'background' : element.imageRole,
-    })),
+    ...elements.map((element) => {
+      // Layout shape ids, like master ids, belong to another OOXML part.
+      const inheritedElement = { ...element };
+      delete inheritedElement.sourceShapeId;
+      delete inheritedElement.sourceGroupShapeIds;
+      delete inheritedElement.sourceOrder;
+      return {
+        ...inheritedElement,
+        id: `pptx_fallback_layout_${element.id.replace(/^pptx_fallback_/, '')}`,
+        imageRole: element.type === 'image' ? 'background' : element.imageRole,
+      };
+    }),
   ];
 }
 
@@ -8390,9 +8397,12 @@ async function recordPptxAuxiliaryMasterWarnings(
     if (mediaContext.warningKeys.has(key)) continue;
     const xml = await readZipText(zip, path);
     if (!xml) continue;
+    const background = firstTagXml(xml, 'p:bgPr');
+    const backgroundColor = firstTagXml(firstDirectChildTagXml(background ?? '', 'a:solidFill') ?? '', 'a:schemeClr') ?? '';
+    const defaultBackground = extractXmlAttr(backgroundColor, 'val') === 'bg1' && !/<a:(?!schemeClr\b)/.test(backgroundColor);
     // shortcut: placeholder-only text/style changes remain review warnings; expand when master rendering is supported.
     const customContent = Boolean(
-      firstTagXml(xml, 'p:bgPr') ||
+      background && !defaultBackground ||
       /<p:(?:pic|graphicFrame|cxnSp)\b/.test(xml) ||
       collectXmlBlocks(xml, 'p:sp').some((shape) => {
         if (!firstTagXml(shape, 'p:ph')) return true;

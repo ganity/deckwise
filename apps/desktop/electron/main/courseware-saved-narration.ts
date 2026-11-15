@@ -103,12 +103,15 @@ export class CoursewareSavedNarration {
   async execute(sessionId: string, name: string, args: unknown, canDispatch: () => boolean): Promise<unknown> {
     if (!record(args) || !["courseware_narration_context", "courseware_narration_propose"].includes(name)) throw new Error("Invalid saved narration request");
     const input = structuredClone(args), propose = name === "courseware_narration_propose";
-    if (Object.keys(input).some(k => !(propose ? ["pageNumbers", "sourceSha256", "instruction", "repairRequiredTeaching"] : ["pageNumbers"]).includes(k)) ||
+    if (Object.keys(input).some(k => !(propose ? ["pageNumbers", "sourceSha256", "instruction", "speechCount", "repairRequiredTeaching", "repairObjectsOnly"] : ["pageNumbers"]).includes(k)) ||
         (propose && (typeof input.instruction !== "string" || !input.instruction.trim() || input.instruction.length > 8000 || typeof input.sourceSha256 !== "string" || !/^[a-f0-9]{64}$/u.test(input.sourceSha256))))
       throw new Error("Invalid saved narration arguments");
     if (propose && (!Array.isArray(input.pageNumbers) || input.pageNumbers.length > 5))
       throw new Error("Narration generation accepts at most 5 pages per tool call. Save the next unfinished batch and read fresh context/sourceSha256 before continuing");
+    if (input.speechCount !== undefined && (!Number.isInteger(input.speechCount) || Number(input.speechCount) < 1 || Number(input.speechCount) > 100 || input.repairRequiredTeaching)) throw new Error("Exact speech count requires a narration rewrite with a count from 1 to 100");
     if (input.repairRequiredTeaching !== undefined && typeof input.repairRequiredTeaching !== "boolean") throw new Error("Invalid teaching repair mode");
+    if (input.repairObjectsOnly !== undefined && typeof input.repairObjectsOnly !== "boolean") throw new Error("Invalid object repair mode");
+    if (input.repairObjectsOnly) throw new Error("Object-only repair requires the ready native PPTX editor; reopen the saved PPTX and retry without regenerating narration");
     return this.withSaved(sessionId, canDispatch, async ({ host, jobId, project, bytes, check }) => {
       const numbers = input.pageNumbers;
       if ((propose || numbers !== undefined) && (!Array.isArray(numbers) || !numbers.length || numbers.length > 100 ||
@@ -180,7 +183,7 @@ export class CoursewareSavedNarration {
         await check();
       };
       const result = await generateSavedNarrationBatch({ host, sessionId, jobId, project, bytes, selected: bodySelected, approvedPlan,
-        instruction: input.instruction as string, repairRequiredTeaching: input.repairRequiredTeaching === true, model, complete: this.complete, completeVision: this.completeVision,
+        instruction: input.instruction as string, speechCount: input.speechCount as number | undefined, repairRequiredTeaching: input.repairRequiredTeaching === true, model, complete: this.complete, completeVision: this.completeVision,
         current, cache: this.pageEvidenceCache, canDispatch });
       return { ...result, skippedPages };
     });

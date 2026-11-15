@@ -316,13 +316,19 @@ test("queued scene dispatch rechecks its approved plan before the paid request",
 
 test("one confirmed decomposition archives its base and foreground with the same receipt after coordinator restart", async t => {
   const f = await fixture(t), master = await f.priced();
-  await f.coordinator.submitConfirmed(master.payload); f.ready();
+  const chunk = Buffer.alloc(9 * 1024 * 1024 + 12);
+  chunk.writeUInt32BE(chunk.length - 12); chunk.write("caBX", 4);
+  chunk.writeUInt32BE(crc32(chunk.subarray(4, -4)), chunk.length - 4);
+  const source = Buffer.concat([png.subarray(0, -12), chunk, png.subarray(-12)]);
+  await f.coordinator.submitConfirmed(master.payload); f.ready(source); f.downloadBytes(source);
   await f.coordinator.archive(f.operation(master.view));
   await f.coordinator.adopt({ ...f.operation(master.view), expectedSelectedIntentId: null });
   f.media.getLayerModels = async () => [{ model: "layers-model", supportsReferenceImage: true }];
   const prepared = await f.prepare({ model: undefined, target: { kind: "cleanPlate" }, referenceIntentId: master.view.intentId });
   assert.equal(prepared.decomposition, true);
   assert.equal(prepared.model, "layers-model");
+  assert.equal(prepared.referenceImage.sha256, digest(source));
+  assert.equal(prepared.referenceImage.byteLength, source.length);
   Object.assign(f.quote, { kind: "image-layers", model: "layers-model" });
   const quote = await f.coordinator.quote(f.operation(prepared));
   await f.coordinator.submitConfirmed({ ...f.operation(prepared), quoteId: quote.quoteId });
@@ -987,7 +993,7 @@ test("supplier layer URLs download in Desktop without credentials and retain nat
   await assert.rejects(assetHelpers.downloadSceneImageBundle(bundle, taskRef), /BUNDLE_TOO_LARGE/);
 });
 
-test("oversized supplier PNG metadata is normalized before the eight MiB archive boundary", async () => {
+test("supplier PNGs above eight MiB retain their exact bytes through download and validation", async () => {
   const chunk = Buffer.alloc(9 * 1024 * 1024 + 12);
   chunk.writeUInt32BE(chunk.length - 12); chunk.write("caBX", 4);
   chunk.writeUInt32BE(crc32(chunk.subarray(4, -4)), chunk.length - 4);
@@ -1002,12 +1008,14 @@ test("oversized supplier PNG metadata is normalized before the eight MiB archive
     { taskId: "gw-metadata", idempotencyKey: randomUUID(), requestHash: "a".repeat(64) }, async image => staged.push(image));
   assert.equal(images.length, 2);
   for (const image of staged) {
-    assert.equal(image.bytesBase64, png.toString("base64"));
-    assert.equal(image.asset.byteLength, png.length);
-    assert.equal(image.asset.sha256, digest(png));
+    assert.equal(digest(Buffer.from(image.bytesBase64, "base64")), digest(supplier));
+    assert.equal(image.asset.byteLength, supplier.length);
+    assert.equal(image.asset.sha256, digest(supplier));
   }
   assert.deepEqual(await sharp(supplier).raw().toBuffer(), await sharp(png).raw().toBuffer());
-  assert.equal(assetHelpers.isSceneImageAsset({ ...staged[0].asset, byteLength: supplier.length }), false);
+  assert.equal(assetHelpers.isSceneImageAsset({ ...staged[0].asset, byteLength: 32 * 1024 * 1024 }), true);
+  assert.equal(assetHelpers.isSceneImageAsset({ ...staged[0].asset, byteLength: 32 * 1024 * 1024 + 1 }), false);
+  assert(context.captureCoursewareSceneImages([{ ...staged[0].asset, assetIds: ["large-background"], bytes: supplier }])[0].bytes.equals(supplier));
 });
 
 test("native layer bundles above 16 MiB retain every provider pixel within Host RPC bounds", () => {

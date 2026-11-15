@@ -822,16 +822,14 @@ function pathInstructionScope(path: string): string {
 }
 
 /**
- * Appended for one automatic re-run after a turn that produced nothing the
- * user can see. Two shapes were observed: a wholly empty response, and a
- * finished conclusion written into reasoning while the visible text stayed
- * empty. The same nudge covers both, because both need the same next move.
+ * Appended for one automatic re-run after empty output or tool markup that
+ * never executed. Only a real tool call can continue unfinished work.
  */
 const SILENT_TURN_NUDGE = [
   "<no_output_recovery>",
-  "Your previous turn ended with no visible text and no tool call, so the user saw nothing happen.",
+  "Your previous turn ended with no usable answer or real tool call. Text containing tool markup did not execute.",
   "Your reasoning is never shown to the user. If you already reached the answer, state it now in plain text.",
-  "Otherwise continue the unfinished work, starting with one sentence about what you are doing.",
+  "Otherwise continue the unfinished work using the real tool-call interface, never DSML/XML or JSON tool markup in text.",
   "</no_output_recovery>",
 ].join("\n");
 
@@ -855,13 +853,24 @@ const PROGRESS_TURN_NUDGE = [
  * assistant text (`to=multi_tool_use.parallel code:{"tool_uses":[…]}`) instead
  * of real tool calls. PI-Desktop has no such tool, so the whole batch lands as
  * prose and silently does nothing — the turn looks finished while no work ran.
- * Rare (2 occurrences across 255 recorded sessions) but indistinguishable from
- * a stuck agent when it happens.
+ * DSML fragments from other providers have the same failure mode.
  */
 export function looksLikePseudoToolCall(text: string): boolean {
   return (
-    text.includes("multi_tool_use.parallel") || text.includes('{"tool_uses":')
+    /^\s*(?:to=multi_tool_use[.]parallel\b|\{\s*"tool_uses"\s*:)/u.test(text) ||
+    /<[/]｜{1,2}DSML｜{1,2}\s*(?:calls|invoke|parameter)>\s*$/u.test(text)
   );
+}
+
+/** Providers can serialize an otherwise empty content array as visible JSON text. */
+function emptySerializedAnswer(text: string, depth = 0): boolean {
+  if (!text.trim()) return true;
+  if (depth >= 3 || !text.trim().startsWith("[")) return false;
+  try {
+    const blocks: unknown = JSON.parse(text);
+    return Array.isArray(blocks) && blocks.every(block => isRecord(block) &&
+      block.type === "text" && typeof block.text === "string" && emptySerializedAnswer(block.text, depth + 1));
+  } catch { return false; }
 }
 
 /**
@@ -8352,11 +8361,11 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
             this.providerTransientRetryAttempt = 0;
             this.providerRateLimitRetryAttempt = 0;
           }
-          // Re-run an invisible answer once before surfacing a finished turn.
+          // Re-run unusable output once before surfacing a finished turn.
           const silence =
             !failed &&
             !aborted &&
-            responseText.trim().length === 0 &&
+            (emptySerializedAnswer(responseText) || looksLikePseudoToolCall(responseText)) &&
             !messageRequestsTools(event.message);
           // A completion notice needs no acknowledgement, so its own reply may
           // stay silent (D446). The exception covers exactly that reply: the
@@ -8400,7 +8409,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
               {
                 code: "EMPTY_MODEL_RESPONSE",
                 message:
-                  "The model ended its turn without producing any output",
+                  "The model ended without a usable answer or real tool call after one recovery attempt",
                 retriable: true,
               },
               "stream",
@@ -8601,6 +8610,8 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
           const endedAt = Date.now();
           const activeTool = this.activeToolCalls.get(event.toolCallId);
           this.activeToolCalls.delete(event.toolCallId);
+          // Real progress replenishes one empty-response retry; consecutive empty replies still stop.
+          if (activeTool && !event.isError) this.silentTurnRerunAttempted = false;
           if (
             this.activeToolCalls.size === 0 &&
             !this.disposed &&
@@ -9032,13 +9043,21 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
             return { turnId: this.turnId };
           }
         } else if (this.automaticCompactionWouldExceedHardLimit([incomingUserMessage])) {
-          this.failBeforeProviderRequest(incomingUserMessage, {
-            code: "CONTEXT_TOO_LARGE",
-            message:
-              "The pending prompt still exceeds the safe model context budget after compaction",
-            retriable: false,
-          });
-          return { turnId: this.turnId };
+          // An early checkpoint can fit on its own but leave no room for this prompt.
+          await this.runCompaction("overflow", false);
+          if (this.compactionAborted) {
+            this.keepPreflightUserMessage(incomingUserMessage);
+            throw turnAbortedError("Turn aborted while compacting context");
+          }
+          if (this.automaticCompactionWouldExceedHardLimit([incomingUserMessage])) {
+            this.failBeforeProviderRequest(incomingUserMessage, {
+              code: "CONTEXT_TOO_LARGE",
+              message:
+                "The pending prompt still exceeds the safe model context budget after compaction",
+              retriable: false,
+            });
+            return { turnId: this.turnId };
+          }
         }
       }
       if (

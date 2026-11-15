@@ -65,7 +65,10 @@ describe("AudioPlayer", () => {
       constructor() { const audio = new FakeAudio(); created.push(audio); return audio as unknown as HTMLAudioElement; }
     } as unknown as typeof Audio;
     const player = new AudioPlayer();
+    const revoke = vi.spyOn(URL, 'revokeObjectURL');
     player.prime(); await Promise.resolve();
+    const primeUrl = created[0].src;
+    expect(primeUrl).toMatch(/^blob:/);
     await player.play('first', 'blob:first');
     player.stop();
     await player.play('second', 'blob:second');
@@ -75,6 +78,7 @@ describe("AudioPlayer", () => {
     player.destroy();
     expect(created[0].paused).toBe(true);
     expect(created[0].src).toBe('');
+    expect(revoke).toHaveBeenCalledWith(primeUrl);
     expect(created[0].listenerCount('ended')).toBe(0);
   });
 

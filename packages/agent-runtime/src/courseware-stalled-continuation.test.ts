@@ -14,6 +14,34 @@ const activation: AgentTurnContext = { ...closing, message: { ...closing.message
 ] }, toolResults: [{ role: "toolResult", toolCallId: "start", toolName: "courseware_media_context",
   timestamp: 0, content: [], isError: false, details: { sourceSha256 } }] };
 
+it("bounds repeated identical courseware previews and allows a real page navigation or SVG repair", async () => {
+  const continuation = new CoursewareTurnContinuation();
+  const controls = { execute: vi.fn(), canWait: () => true };
+  const turn = (name: string, args: { [key: string]: string | boolean }, details: AgentTurnContext["toolResults"][number]["details"]): AgentTurnContext => ({ ...closing,
+    message: { ...closing.message, stopReason: "toolUse", content: [{ type: "toolCall", id: "probe", name, arguments: args }] },
+    toolResults: [{ role: "toolResult", toolCallId: "probe", toolName: name, timestamp: 0, content: [], isError: false, details }] });
+  await continuation.finish(turn("courseware_workflow_get", {}, { task: { taskType: "plain" } }), controls);
+  const args = { action: "screenshot" }, image = { images: [{ mimeType: "image/png", data: "same-slide" }] };
+  await continuation.finish(turn("Browser", args, image), controls);
+  await continuation.finish(turn("Browser", args, image), controls);
+  expect(await continuation.finish(turn("Browser", args, image), controls)).toContain("identical");
+  expect(continuation.draftWriteError("Browser", args)).toContain("preview");
+  expect(continuation.draftWriteError("Write", { path: "lesson/02.svg", content: "fixed" })).toBeUndefined();
+  await continuation.finish(turn("Browser", { action: "click", selector: "#next" }, { ok: true }), controls);
+  expect(continuation.draftWriteError("Browser", args)).toBeUndefined();
+  await continuation.finish(turn("Browser", args, { images: [{ data: "different-slide" }] }), controls);
+  expect(continuation.draftWriteError("Browser", args)).toBeUndefined();
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await continuation.finish(turn("Browser", { action: "click", selector: "#next" }, { ok: true }), controls);
+    await continuation.finish(turn("Browser", args, image), controls);
+  }
+  await continuation.finish(turn("Browser", { action: "navigate", url: "http://localhost/lesson#3" }, { ok: true }), controls);
+  expect(continuation.draftWriteError("Browser", args)).toContain("five identical previews");
+  await continuation.finish(turn("Write", { path: "lesson/02.svg", content: "fixed" }, { ok: true }), controls);
+  expect(continuation.draftWriteError("Browser", args)).toBeUndefined();
+  expect(controls.execute).not.toHaveBeenCalled();
+});
+
 it("rereads native source after each page adoption before refreshing the next original", async () => {
   const continuation = new CoursewareTurnContinuation();
   let adopted = 0;
@@ -82,16 +110,16 @@ it("bounds native exception reconciliation and reports the local stage without b
   } finally { vi.useRealTimers(); }
 });
 
-it("accepts native completion when only optional assessment images remain", async () => {
+it.each([false, true])("requires missing native assessment images regardless of legacy completion (ready=%s)", async ready => {
   const continuation = new CoursewareTurnContinuation();
   const controls = { canWait: () => true, execute: vi.fn(async () => ({ content: [], details: {
     nativeTeaching: true, sourceSha256, narrationReady: true, audioReady: true, teachingReady: true,
-    completion: { ready: true, issues: [] }, jobs: [],
+    completion: { ready, issues: [] }, jobs: [],
     assessmentMedia: { ready: false, targets: [{ kind: "image", sceneId: "quiz", optionValue: "A" }] },
   } })) };
   await continuation.finish(activation, controls);
-  expect(await continuation.finish(closing, controls)).toContain("Saved courseware content, media and teaching checks are complete");
-  expect(controls.execute.mock.calls).toHaveLength(1);
+  expect(await continuation.finish(closing, controls)).toContain("multiple-choice option images");
+  expect(continuation.reportOnly).toBe(false);
 });
 
 it("queries an unknown original once, finishes independent music, then exits unfinished", async () => {
@@ -352,13 +380,13 @@ it('repairs an unresolved semantic alias within the active turn without replayin
   const continuation = new CoursewareTurnContinuation(); let repaired = false;
   const execute = vi.fn(async (name: string, args: Record<string, unknown>) => {
     if (name === 'courseware_narration_propose') {
-      expect(args).toMatchObject({pageNumbers:[2],repairRequiredTeaching:true});
-      expect(args.instruction).toContain('exact planned name as an alias');
+      expect(args).toMatchObject({pageNumbers:[2],repairRequiredTeaching:true,repairObjectsOnly:true});
+      expect(args.instruction).toContain('counted collections require the stated number of distinct real targets');
       repaired = true; return {content:[],details:{saved:true}};
     }
     expect(name).toBe('courseware_media_context');
     return {content:[],details:{nativeTeaching:true,sourceSha256,narrationReady:true,audioReady:true,teachingReady:repaired,jobs:[],
-      completion:{ready:repaired,issues:repaired?[]:[{code:'OBJECT_REQUIREMENT_UNRESOLVED',pageId:'p2',pageNumber:2,repairable:true,repair:'narration'}]}}};
+      completion:{ready:repaired,issues:repaired?[]:[{code:'OBJECT_REQUIREMENT_UNRESOLVED',pageId:'p2',pageNumber:2,repairable:true,repair:'objects'}]}}};
   });
   const controls={execute,canWait:()=>true};
   await continuation.finish(activation,controls);

@@ -130,7 +130,7 @@ test("approved Quiz and checkpoint plan compiles and stages every physical page 
     getImage: async ref => tasks.get(ref.idempotencyKey),
     downloadImage: async ref => ({task:tasks.get(ref.idempotencyKey),bytes:imageBytes}),
   } };
-  const media = args => executeSavedAssessmentMedia({sessionId,args,canDispatch:()=>true,getHost:()=>host,saved:savedNarration,auth,
+  const media = args => executeSavedAssessmentMedia({sessionId,args,canDispatch:()=>true,getHost:()=>host,saved:savedNarration,auth,review:async()=>{},
     decodeAudio:async()=>{throw Error('Unexpected TTS decode');}});
   const pending = await media({mode:'context',kind:'image'});
   assert.equal(pending.ready,false); assert.equal(pending.targets.length,4);

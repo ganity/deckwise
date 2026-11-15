@@ -775,6 +775,14 @@ contract and the Host-owned-courseware ADR.
 
 ### Native enrichment extension
 
+Full-deck original-audio recovery reads through the guarded native router without
+flushing a pending save between adoptions. Each speech still checks the original
+source hash, project/page/action identity, text and current revision. Commit and
+read back once after the batch; retain partial successful writes and expose
+failures separately from `saved` and `audioReady`. A fresh media-context read must
+report the adopted audio count and exclude attached original orders from `jobs`.
+Recovery never prepares, quotes or purchases replacement audio.
+
 The native carrier optionally carries `enrichment` with schema version
 `deckwise-teaching-enrichment/1`. The cross-process types/validator live in
 `packages/shared/src/courseware-enrichment.ts`; the paired document reader uses
@@ -783,3 +791,18 @@ and the extension separately from the strict courseware project projection.
 Unknown extension versions and unexpected/private fields fail before writes.
 The existing carrier remains `deckwise-native-teaching/1`. See
 [the compatibility ADR](../../adr/shared-teaching-enrichment.md).
+
+### Silent responses after real tool progress (2026-11-15)
+
+An empty/malformed model response gets one automatic continuation using the saved
+conversation and tool results. A successfully executed real tool replenishes that
+single retry for the next provider response; a failed tool or another consecutive
+empty reply does not. Repeated unusable responses end with retriable
+`EMPTY_MODEL_RESPONSE`. The existing error-row Continue action starts a new turn
+in the same session; it does not rewind successful tool work. Provider recovery
+never directly replays a paid media submission. Media tools still reconcile the
+original task and its idempotency key before adoption.
+
+Regression: `runtime.test.ts` covers successful/failed tool results between two
+empty responses, one visible terminal event, retained tool results and exactly
+one tool execution. Existing consecutive-failure tests retain the retry bound.

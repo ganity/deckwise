@@ -173,8 +173,9 @@ export function isCoursewareTeachingHistory(value: unknown): value is Courseware
         (!Object.hasOwn(action, "source") || (typeof action.source === "string" && ["notes", "external", "original", "light_rewrite", "generated"].includes(action.source))) &&
         (!Object.hasOwn(action, "pauseAfterMs") || count(action.pauseAfterMs, 30_000));
       if (action.type === "delay") return fields(action, ["id", "type", "durationMs"]) && count(action.durationMs, 30_000);
-      if (action.type === "video_slot") return fields(action, ["id", "type", "prompt"]) && id(action.id) &&
-        typeof action.prompt === "string" && !!action.prompt.trim() && action.prompt.length <= 4000;
+      if (action.type === "video_slot") return fields(action, ["id", "type", "prompt"], ["durationSeconds"]) && id(action.id) &&
+        typeof action.prompt === "string" && !!action.prompt.trim() && action.prompt.length <= 4000 &&
+        (action.durationSeconds === undefined || Number.isInteger(action.durationSeconds) && Number(action.durationSeconds) >= 4 && Number(action.durationSeconds) <= 30);
       return isCoursewareInteractionCheckpoint(action);
     });
   });

@@ -32,3 +32,13 @@ export function isCoursewareStory(value: unknown): value is CoursewareStory {
 export function storyNeedsApproval(story: CoursewareStoryState | null | undefined): boolean {
   return !!story && (!story.draft || !story.sha256 || story.sha256 !== story.approvedSha256);
 }
+
+// Keep aligned with Host's same_story_requirements; Host owns approval decisions.
+export function coursewareStoryRequirementsMatch(
+  saved: CoursewareEducationContext | null | undefined,
+  current: CoursewareEducationContext | null | undefined,
+): boolean {
+  const before: Record<string, unknown> = { ...saved }, after: Record<string, unknown> = { ...current };
+  return [...new Set([...Object.keys(before), ...Object.keys(after)])].every(key =>
+    key === "bodyPageLimit" || key === "visualStyle" || before[key] === after[key]);
+}

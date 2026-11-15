@@ -18,6 +18,8 @@ pub struct Intent {
     pub bound_source: Option<CoursewareSource>,
     pub model: String,
     pub prompt: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub duration_seconds: Option<u32>,
     pub idempotency_key: String,
     pub request_hash: String,
     pub phase: String,
@@ -48,10 +50,10 @@ impl VideoAsset {
     pub fn validate(&self) -> Result<()> {
         anyhow::ensure!(
             hash(&self.sha256)
-                && (12..=16 * 1024 * 1024).contains(&self.byte_length)
-                && (1..=30_000).contains(&self.duration_ms)
-                && (1..=4096).contains(&self.width)
-                && (1..=4096).contains(&self.height),
+                && (12..=40 * 1024 * 1024).contains(&self.byte_length)
+                && self.duration_ms > 0
+                && (1..=16_384).contains(&self.width)
+                && (1..=16_384).contains(&self.height),
             "COURSEWARE_INVALID: invalid decoded video"
         );
         Ok(())
@@ -74,8 +76,9 @@ fn id(s: &str) -> bool {
 }
 pub(super) fn valid_slot(action: &Value) -> bool {
     action["type"] == "video_slot"
-        && action.as_object().is_some_and(|a| a.len() == 3)
+        && action.as_object().is_some_and(|a| a.len() == 3 || a.len() == 4 && a.contains_key("durationSeconds"))
         && action["id"].as_str().is_some_and(id)
+        && action.get("durationSeconds").is_none_or(|v| v.as_u64().is_some_and(|n| (4..=30).contains(&n)))
         && action["prompt"]
             .as_str()
             .is_some_and(|s| !s.trim().is_empty() && s.encode_utf16().count() <= 4000)
@@ -135,6 +138,7 @@ impl Intent {
                     .is_none_or(|s| hash(&s.sha256) && id(&s.revision))
                 && !self.prompt.trim().is_empty()
                 && self.prompt.encode_utf16().count() <= 4000
+                && self.duration_seconds.is_none_or(|n| (4..=30).contains(&n))
                 && self.idempotency_key == format!("video-{}", self.intent_id)
                 && self.idempotency_key.len() <= 96
                 && self.request_hash == request_hash(&self.model, &self.prompt)
@@ -202,6 +206,7 @@ impl Intent {
                     && page.actions.iter().any(|action| {
                         action["id"] == self.slot_id
                             && (valid_slot(action) && action["prompt"] == self.prompt
+                                && action["durationSeconds"].as_u64().map(|n| n as u32) == self.duration_seconds
                                 || valid_clip(action)
                                     && self
                                         .asset
@@ -432,6 +437,7 @@ impl Database {
             model: model.into(),
             request_hash: request_hash(model, &prompt),
             prompt,
+            duration_seconds: slot["durationSeconds"].as_u64().map(|n| n as u32),
             phase: "prepared".into(),
             task_ref: None,
             submission_scope: None,

@@ -58,6 +58,17 @@ test("real Main/Host saves and reviews a topic-only story, then hands each route
     view=await workflow.read(sessionId);
     assert.equal(view.task.educationContext.bodyPageLimit,10);
     assert.equal(view.story.approvedSha256,saved.story.sha256,"Saving the body-page budget must retain the user's story approval");
+    const confirmedStory = structuredClone(view.story);
+    await workflow.execute(sessionId,"courseware_requirements_update",{
+      expectedEducationContext:view.task.educationContext,
+      educationContext:{...view.task.educationContext,visualStyle:"Clean park illustration"},
+    },()=>true);
+    view=await workflow.read(sessionId);
+    assert.equal(view.story.approvedSha256,saved.story.sha256,"A visual-style choice must not hide an already confirmed story");
+    assert.equal(view.story.revision,confirmedStory.revision);
+    assert.deepEqual(view.story.draft,confirmedStory.draft);
+    await host.call("courseware.story.decide",{sessionId,expectedRevision:view.story.revision,sha256:view.story.sha256,action:"approve"});
+    assert(!shared.storyNeedsApproval((await workflow.read(sessionId)).story));
     const prompt=coursewareStoryPrompt(view.story,taskType);
     assert(prompt.includes(storyDraft.title)); assert(prompt.includes(view.story.sha256));
     assert.match(prompt,/exactly one question per Quiz page/);

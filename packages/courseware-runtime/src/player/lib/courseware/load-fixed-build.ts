@@ -100,14 +100,13 @@ const actionSchema = z.union([
     .strict(),
   z.object({ id, type: z.literal("interaction_checkpoint"), checkpointId: id, checkpointKind: z.literal("teacher_continue") }).strict(),
 ]);
-const elementSchema = z
+const rectangularElementSchema = z
   .object({
     id,
     type: z.enum([
       "text",
       "shape",
       "image",
-      "line",
       "chart",
       "table",
       "latex",
@@ -120,6 +119,13 @@ const elementSchema = z
     height: z.number().finite().nonnegative(),
   })
   .passthrough();
+// PPTist lines use endpoint geometry; width is stroke thickness, not a box width.
+const elementSchema = z.union([rectangularElementSchema, z.object({
+  id, type: z.literal("line"), left: z.number().finite(), top: z.number().finite(),
+  width: z.number().finite().nonnegative(), height: z.number().finite().nonnegative().optional(),
+  start: z.tuple([z.number().finite(), z.number().finite()]),
+  end: z.tuple([z.number().finite(), z.number().finite()]),
+}).passthrough()]);
 const payloadSchema = z
   .object({
     schemaVersion: z.literal("deckwise-playback/1"),
@@ -194,6 +200,8 @@ const payloadSchema = z
     assets: z.array(assetSchema),
   })
   .strict();
+/** Shared by generation preflight; the player remains the package validation authority. */
+export const fixedSlideSchema = payloadSchema.shape.pages.element.shape.slide;
 export type FixedAsset = z.infer<typeof assetSchema>;
 export type FixedPayload = z.infer<typeof payloadSchema>;
 export interface FixedVisualCue {
@@ -410,7 +418,7 @@ export async function loadFixedBuild(
         ...(page.nativeTimeline?.steps.flatMap(step => step.items.map(item => item.elementId)) ?? [])]);
       for (const step of page.nativeTimeline?.steps ?? []) for (const item of step.items) {
         const target = sourceElements.find(element => element.id === item.elementId);
-        check(target && ['text', 'shape', 'image'].includes(target.type) && target.width > 0 && target.height > 0,
+        check(target && target.type !== 'line' && ['text', 'shape', 'image'].includes(target.type) && target.width > 0 && target.height > 0,
           "NATIVE_ANIMATION_TARGET_UNSUPPORTED");
       }
       const wrappers = page.nativeTimeline?.groups ?? [];
@@ -439,7 +447,7 @@ export async function loadFixedBuild(
       if (page.nativeAnimations) {
         for (const step of page.nativeAnimations.steps) {
           const target = sourceElements.find(element => element.id === step.elementId);
-          check(target && ["text", "shape", "image"].includes(target.type) && target.width > 0 && target.height > 0 &&
+          check(target && target.type !== 'line' && ["text", "shape", "image"].includes(target.type) && target.width > 0 && target.height > 0 &&
             !(Array.isArray(target.sourceGroupShapeIds) && target.sourceGroupShapeIds.length), "NATIVE_ANIMATION_TARGET_UNSUPPORTED");
         }
         nativeAnimations.set(page.pageId, page.nativeAnimations);

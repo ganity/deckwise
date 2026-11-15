@@ -83,6 +83,7 @@ export class CoursewareChatWorkflow {
     if (name === "courseware_scene_plan_submit") {
       if (Object.keys(input).length || view.task?.taskType !== "scene" || view.task.generated || !view.plan)
         throw new Error("Write a valid scene plan for this ungenerated Chat before submitting it");
+      if (!view.plan.approvedSha256 && view.plan.textMode !== "native") throw new Error('New scene plans require textMode:"native" for editable slide text; update the draft before review');
       return { validated: true, awaitingPlanApproval: view.plan.approvedSha256 !== view.plan.sha256, ...view };
     }
     if (name === "courseware_presentation_adopt" || name === "courseware_presentation_prepare") {

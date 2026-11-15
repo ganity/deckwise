@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { storyNeedsApproval, coursewareSceneBodyPageCount, type CoursewareWorkflowView } from "@pi-desktop/shared";
+import { coursewareStoryRequirementsMatch, storyNeedsApproval, coursewareSceneBodyPageCount, type CoursewareWorkflowView } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
 import { useAppStore } from "../../stores/app-store";
 import { CoursewareSourceVisuals } from "../workpanel/CoursewareSourceVisuals";
@@ -95,6 +95,7 @@ function Workflow({ sessionId, panelBlocked = false, maximized, onToggleMaximize
 
 
   const story = view?.story;
+  const storyRequirementsChanged = !!story?.draft && !coursewareStoryRequirementsMatch(story.educationContext, view?.task?.educationContext);
   const storyDecision = (action: "approve" | "disable") => run(async valid => {
     if (!story) return;
     const result = await api.coursewareStoryDecision(sessionId, story.revision, story.sha256, action);
@@ -122,8 +123,11 @@ function Workflow({ sessionId, panelBlocked = false, maximized, onToggleMaximize
       {!!story.draft.assumptions.length && <><h4>{t("coursewareStory.assumptions")}</h4><ul>{story.draft.assumptions.map(item => <li key={item}>{item}</li>)}</ul></>}
     </div> : <p>{t("coursewareStory.empty")}</p>}
     <p>{t(story.bound ? "coursewareStory.bound" : "coursewareStory.revise")}</p>
+    {storyRequirementsChanged && <p role="status">{t("coursewareStory.requirementsChanged")}</p>}
     {!story.bound && <footer className="courseware-plan-footer">
-      {storyNeedsApproval(story) && <button type="button" disabled={blocked || !story.draft} onClick={() => void storyDecision("approve")}>{t("coursewareStory.approve")}</button>}
+      {storyRequirementsChanged ? <button type="button" disabled={blocked} onClick={() => void run(async () => {
+        if (!await useAppStore.getState().sendPrompt(t("coursewareStory.updatePrompt"), undefined, sessionId)) throw new Error(t("coursewareWorkflow.sendFailed"));
+      })}>{t("coursewareStory.update")}</button> : storyNeedsApproval(story) && <button type="button" disabled={blocked || !story.draft} onClick={() => void storyDecision("approve")}>{t("coursewareStory.approve")}</button>}
       <button type="button" disabled={blocked} onClick={() => void storyDecision("disable")}>{t("coursewareStory.disable")}</button>
     </footer>}
     {!storyNeedsApproval(story) && <button type="button" disabled={blocked} onClick={() => void run(async () => {

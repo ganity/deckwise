@@ -2,7 +2,7 @@ use super::*;
 use crate::courseware::snapshot_assets;
 use base64::{engine::general_purpose::STANDARD, Engine};
 
-const MAX_BYTES: usize = 8 * 1024 * 1024;
+const MAX_BYTES: usize = 32 * 1024 * 1024;
 
 #[derive(Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

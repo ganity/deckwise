@@ -65,6 +65,25 @@ function fixture(taskType, issues = [], requirePortrait = false, pageCount = 1) 
 }
 
 for (const taskType of ["plain", "import", "scene"]) {
+  test(`${taskType}: harmless visual differences keep narration and truthful object names`, async () => {
+    const f = fixture(taskType, [{ kind: "visual_variation", message: "The kite is diamond-shaped rather than swallow-shaped; flying a kite is still teachable." }]);
+    f.input.instruction = "Say I am flying the kite";
+    const host = f.input.host.call;
+    f.input.host.call = async (...args) => {
+      const result = await host(...args);
+      if (args[0] === "courseware.project.context") Object.assign(result.teachingRequirements[0].teaching,
+        { objective: "Say I am flying the kite", requiredObjects: ["燕形风筝", "公园长椅"] });
+      return result;
+    };
+    const result = await generateSavedNarrationBatch(f.input);
+    assert.equal(result.saved, true, JSON.stringify(result.failures));
+    assert.match(result.diagnostics.map(d => d.message).join("\n"), /diamond-shaped/);
+    assert.match(f.requests[0].system, /shape.*color.*position/i);
+    const observation = JSON.parse(f.requests[0].data);
+    assert.equal(observation.teaching.objective, taskType === "import" ? "" : "Say I am flying the kite");
+    assert.equal(observation.instruction, "Say I am flying the kite");
+  });
+
   test(`${taskType}: a missing required picture stops narration before saving or TTS`, async () => {
     const f = fixture(taskType, [{ kind: "missing_required_content", message: "The required family portrait is missing; only labels are visible." }], true);
     const result = await generateSavedNarrationBatch(f.input);
@@ -86,6 +105,24 @@ for (const taskType of ["plain", "import", "scene"]) {
     assert.equal(f.sourceEvidence.notes, "Six people are in this family photo.");
   });
 }
+
+for (const [objective, requirement, message] of [
+  ['Recognize a circle', 'circle', 'The required circle is absent; the picture shows a triangle.'],
+  ['Count exactly three apples', '三个苹果', 'The counting task requires three apples but only two are visible.'],
+]) test(`visual tolerance preserves essential content checks: ${objective}`, async () => {
+  const f = fixture('plain', [{ kind: 'missing_required_content', message }], true);
+  const host = f.input.host.call;
+  f.input.host.call = async (...args) => {
+    const result = await host(...args);
+    if (args[0] === 'courseware.project.context') Object.assign(result.teachingRequirements[0].teaching,
+      { objective, requiredObjects: [requirement] });
+    return result;
+  };
+  const result = await generateSavedNarrationBatch(f.input);
+  assert.equal(result.saved, false);
+  assert.equal(f.writes.length, 0);
+  assert(result.failures.some(f => f.error.includes(message)));
+});
 
 test("invalid visual JSON gets one format repair without reclassifying a missing picture", async () => {
   const f = fixture("plain", [{ kind: "missing_required_content", message: "The required portrait is absent." }], true);
@@ -619,7 +656,7 @@ test('native import with mapped separate activities repairs unrequested body que
   assert.deepEqual(f.writes[0].actions.map(a => a.type), ['speech']);
 });
 
-test('native narration offers leaf objects without treating their parent group as another picture', async () => {
+test('native narration grounds parent groups but excludes decorative text wrappers as targets', async () => {
   const f = nativeRecoveryFixture(), native = f.input.teaching.native, vision = f.input.completeVision;
   f.input.teaching.native = async (...args) => {
     const result = await native(...args);
@@ -627,11 +664,14 @@ test('native narration offers leaf objects without treating their parent group a
     return result;
   };
   f.input.completeVision = async request => {
-    assert.deepEqual(JSON.parse(request.data).objects.map(o => o.objectId), ['word1']);
-    return vision(request);
+    assert.deepEqual(JSON.parse(request.data).objects.map(o => o.objectId), ['word1', 'group']);
+    const result = await vision(request), observed = JSON.parse(result.text);
+    Object.assign(observed.objects.find(o => o.objectId === 'group'), { role: 'Decorative text wrapper', aliases: ['frame'], teachingTarget: false });
+    return { text: JSON.stringify(observed) };
   };
   const result = await f.run();
   assert.equal(result.saved, true, JSON.stringify(result.failures));
+  assert.equal(f.writes[0].actions[0].text, 'Read father.');
 });
 
 test('native effect repair keeps saved durations local to each page when speech IDs repeat', async () => {
@@ -963,25 +1003,35 @@ for (const taskType of ["plain", "import", "scene"]) test(`${taskType}: assessme
   assert.equal(f.visions.length, 0); assert.equal(f.plans.length, 0); assert.equal(f.writes.length, 0);
 });
 
-test('native group targets and source names reach visual grounding instead of leaving only a halo', async () => {
+test('content groups with internal lettering still reach grounding instead of leaving only a halo or label', async () => {
   const f = fixture('plain');
   const original = f.input.host.call;
   f.input.host.call = async (method, args) => {
     if (method === 'courseware.pageEvidence') return { ...f.sourceEvidence, elements: [
       ...f.sourceEvidence.elements,
       { id: 'circle', kind: 'group', name: 'p01-circle-shape', text: '', bbox: [300, 100, 200, 200] },
+      { id: 'letter', kind: 'text', text: 'N', bbox: [350, 150, 30, 30] },
       { id: 'halo', kind: 'shape', name: 'p01-spotlight-halo', text: '', bbox: [250, 50, 300, 300] },
     ] };
     const result = await original(method, args);
     if (method === 'courseware.project.context') result.mapping.pages[0].objects.push(
-      { objectId: 'circle-id', importElementId: 'circle' }, { objectId: 'halo-id', importElementId: 'halo' });
+      { objectId: 'circle-id', importElementId: 'circle' }, { objectId: 'letter-id', importElementId: 'letter' }, { objectId: 'halo-id', importElementId: 'halo' });
     return result;
   };
   f.input.completeVision = async request => {
     const data = JSON.parse(request.data);
     assert.equal(data.objects.find(o => o.objectId === 'circle-id')?.kind, 'group');
     assert.equal(data.objects.find(o => o.objectId === 'halo-id')?.name, 'p01-spotlight-halo');
-    return { text: JSON.stringify({summary:'Circle and label', objects:data.objects.map(o=>({objectId:o.objectId,role:o.name || 'label',aliases:[o.name || 'father mother'],text:o.text,teachingTarget:o.objectId==='label'})),issues:[]}) };
+    return { text: JSON.stringify({summary:'Circle and label', objects:data.objects.map(o=>({objectId:o.objectId,role:o.name || 'label',aliases:[o.name || 'father mother'],text:o.text,teachingTarget:['label', 'circle-id'].includes(o.objectId)})),issues:[]}) };
+  };
+  const complete = f.input.complete;
+  f.input.complete = async request => {
+    const data = JSON.parse(request.messages[0].content);
+    if (data.evidence) {
+      assert(data.evidence.objects.some(o => o.objectId === 'circle-id'));
+      assert(!data.evidence.objects.some(o => o.objectId === 'halo-id'));
+    }
+    return complete(request);
   };
   const result = await generateSavedNarrationBatch(f.input);
   assert.equal(result.saved, true, JSON.stringify(result.failures));
@@ -1008,11 +1058,73 @@ test("visual existence review receives object requirements, not effects that nar
   const vision = f.input.completeVision;
   f.input.completeVision = async request => {
     const data = JSON.parse(request.data);
-    assert.deepEqual(data.teaching, { requiredObjects: ["father mother"] });
+    assert.deepEqual(data.teaching, { objective: "Highlight father mother and fade in the label", requiredObjects: ["father mother"] });
     assert.equal(data.approvedPage, undefined);
     assert.match(request.system, /effects are generated after this observation/i);
     return vision(request);
   };
   const result = await generateSavedNarrationBatch(f.input);
   assert.equal(result.saved, true, JSON.stringify(result.failures));
+});
+
+test('objects-only repair updates visual semantics without any narration model call or action changes', async () => {
+  const f = fixture('plain');
+  const actions = [{ id: 'speech', type: 'speech', text: 'Father and mother.', audioAssetId: 'audio', durationMs: 1200,
+    visualCues: [{ id: 'focus', atMs: 0, endMs: 1200, effect: { type: 'highlight', elementIds: ['label'] } }] }];
+  f.input.project.pages[0].actions = structuredClone(actions);
+  f.input.repairRequiredTeaching = true; f.input.repairObjectsOnly = true;
+  f.input.complete = async () => assert.fail('Object repair must not call narration or planning');
+  f.input.native = { context: await f.input.host.call('courseware.project.context'),
+    evidence: async () => f.sourceEvidence,
+    visuals: { page: async () => ({ images: [{ assetIds: ['p'], bytes: new Uint8Array([1]), width: 1280, height: 720, sha256: 'a'.repeat(64) }], imageBindings: [] }), dispose: async () => {} },
+    save: async (expected, pageNumber, saved, semantics) => {
+      assert.deepEqual(saved, actions); assert.equal(semantics[0].objectId, 'label');
+      assert.deepEqual(semantics[0].aliases, ['father mother']);
+      return (await f.input.host.call('courseware.narration.save', { write: { pageId: expected.pages[pageNumber - 1].pageId, actions: saved } })).project;
+    } };
+  f.input.native.context.teachingRequirements[0].teaching.requiredObjects = ['燕形风筝', '公园长椅'];
+  const result = await generateSavedNarrationBatch(f.input);
+  assert.equal(result.saved, true, JSON.stringify(result.failures));
+  assert.match(result.diagnostics.map(d => d.message).join('\n'), /Object binding advisory/);
+  assert.equal(f.writes.length, 1); assert.deepEqual(f.writes[0].actions, actions);
+});
+
+test('native object-only repair reports retained audio as ready without rewriting actions', async () => {
+  const f = nativeRecoveryFixture();
+  f.state.afterWrite = (n, project) => {
+    for (const action of project.pages[n - 1].actions.filter(a => a.type === 'speech')) {
+      action.audioAssetId = 'adopted'; action.durationMs = 1200;
+    }
+  };
+  assert.equal((await f.run()).saved, true);
+  const before = (await f.input.teaching.native('narration-context', {}, 1)).value.view.project.pages[0].actions;
+  f.input.repairRequiredTeaching = true; f.input.repairObjectsOnly = true;
+  f.input.complete = async () => assert.fail('Retained audio cannot require speech or planning generation');
+  const result = await f.run();
+  assert.equal(result.saved, true, JSON.stringify(result.failures));
+  assert.equal(result.audioReady, true);
+  assert.deepEqual(f.writes.at(-1).actions, before);
+});
+
+test('object-only repair can verify a counted content group without renaming its text label', async () => {
+  const f = nativeRecoveryFixture(), native = f.input.teaching.native, vision = f.input.completeVision;
+  f.input.repairObjectsOnly = true; f.input.repairRequiredTeaching = true;
+  f.input.teaching.native = async (...args) => {
+    const result = await native(...args);
+    if (args[0] === 'narration-context') {
+      result.value.evidence.objects.push({ objectId: 'column', kind: 'group', text: '', bbox: [0, 0, 300, 200] });
+      result.value.view.teachingRequirements = [{ pageId: 'p1', teaching: { pageType: 'slide', phase: 'explore', objective: 'Observe a column', durationSeconds: 30, requiredObjects: ['一个状态列'] } }];
+    }
+    return result;
+  };
+  f.input.complete = async () => assert.fail('Group evidence repair cannot regenerate speech');
+  f.input.completeVision = async request => {
+    assert.deepEqual(JSON.parse(request.data).objects.map(o => o.objectId), ['word1', 'column']);
+    const result = await vision(request), data = JSON.parse(result.text);
+    data.objects.find(o => o.objectId === 'column').aliases = ['状态列'];
+    return { text: JSON.stringify(data) };
+  };
+  const result = await f.run();
+  assert.equal(result.saved, true, JSON.stringify(result.failures));
+  assert.deepEqual(f.writes[0].actions, []);
 });

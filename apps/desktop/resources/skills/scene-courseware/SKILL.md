@@ -20,7 +20,7 @@ Before approval, create/revise the planning draft below and ask the user to revi
 5. Read workflow readiness; when no blockers remain, call `courseware_scene_compile`. It builds editable page objects and saves each page's planned narration. For an authorized complete teaching course, pass `continueTeaching:true`; omit it when the user only wants PPTX. PPTX is an intermediate, and its initial outline narration is not detailed teaching or synthesized speech.
 6. For a complete teaching course, read `courseware_media_context` with `continueTeaching:true`, including when resuming an already compiled course. Generate missing detailed narration for all required pages together with `courseware_narration_propose`. Preserve already saved detailed narration/audio unless regeneration was requested. Read the TTS catalog, use actual speech IDs, and call `courseware_media_prepare` for missing speech audio. Use a real configured voice. Original pending jobs are refreshed and verified output is automatically archived and adopted without page navigation or per-result confirmation.
 7. Where the lesson requires music, use the music catalog and real lyrics/instrumental options. Music preparation continues through candidate generation, export, byte verification and saved-page audio-clip adoption. Refresh its original generation job; the service also recovers the original export. Do not purchase replacement exports for uncertain submissions. A receipt or preview is not saved playable music.
-8. Retain required video in `teaching.video` with purpose and prompt. Detailed narration includes a video block that saves a `video_slot`. Read `courseware_media_context` with `kind:video`, then prepare that slot using `courseware_media_prepare` with its saved action ID and a configured model. Refresh the original job through verified MP4 download, actual decode, Host archive and automatic `video_clip` adoption. Each task creates one five-second clip. A missing model or failed task is an error to report; an unknown submission remains query-only.
+8. Retain required video in `teaching.video` with purpose and prompt. Detailed narration includes a video block that saves a `video_slot`. Read `courseware_media_context` with `kind:video`, then prepare that slot using `courseware_media_prepare` with its saved action ID and a configured model. Refresh the original job through verified MP4 download, actual decode, Host archive and automatic `video_clip` adoption. Each task creates one clip; leave duration, ratio, resolution and audio settings to provider defaults unless specified. A missing model or failed task is an error to report; an unknown submission remains query-only.
 
 ### Cover corrections before style confirmation
 
@@ -58,7 +58,7 @@ When narration validation fails, batch only the failed pages and retain saved su
 
 Media concurrency is independent by type: TTS 10, images 5, layer decomposition 5, music generation 2, music export 2 and video 2. Waiting in a queue is still prepared; only admitted dispatch begins a submission. Unknown originals keep their identities. Ambiguous legacy bindings require an explicit resolution, not another purchase.
 
-The saved-source tools complete TTS, music and planned five-second videos through verified archive/adoption. Body narration generates mapped highlight/spotlight intent and finite fadeIn/pulse object motion; independent checkpoint pages own teacher-led questions and reference answers. Verified speech audio supplies timing; generated scene pages become ready automatically after Host validates actions, targets and adopted media receipts, with no unresolved video slot. The fixed player waits for a mounted video to end before resuming. Full MAIC motion parity and automatic answer grading remain unsupported. Canvas drafts remain metadata; only verified adopted media count as playable output. Preserve requested stages and report actual missing capabilities without inventing output or asking for redundant confirmation.
+The saved-source tools complete TTS, music and planned video slots through verified archive/adoption; leave clip duration, aspect ratio, resolution and audio settings to model defaults unless explicitly specified. Body narration generates mapped highlight/spotlight intent and finite fadeIn/pulse object motion; independent checkpoint pages own teacher-led questions and reference answers. Verified speech audio supplies timing; generated scene pages become ready automatically after Host validates actions, targets and adopted media receipts, with no unresolved video slot. The fixed player waits for a mounted video to end before resuming. Full MAIC motion parity and automatic answer grading remain unsupported. Canvas drafts remain metadata; only verified adopted media count as playable output. Preserve requested stages and report actual missing capabilities without inventing output or asking for redundant confirmation.
 
 ## Planning draft
 
@@ -69,6 +69,7 @@ Use the exact current-Chat planning file supplied by the Host. If it exists, rea
 ```json
 {
   "title": "Lesson title",
+  "textMode": "native",
   "bodyPageLimit": 1,
   "visualBible": {
     "artDirection": "Requested medium, materials, palette and lighting",
@@ -81,7 +82,7 @@ Use the exact current-Chat planning file supplied by the Host. If it exists, rea
       "visibleText": [
         "Hello"
       ],
-      "visualIntent": "Friend waves in the classroom; the greeting word is on a separate text carrier.",
+      "visualIntent": "Friend waves in the classroom; reserve clear space for the editable greeting text.",
       "narration": "Look at our friend. How can you greet them?",
       "teaching": {
         "pageType": "slide",
@@ -97,7 +98,7 @@ Use the exact current-Chat planning file supplied by the Host. If it exists, rea
         },
         "video": {
           "purpose": "Demonstrate the greeting gesture",
-          "prompt": "A five-second silent demonstration of Friend waving in the approved classroom style"
+          "prompt": "A silent demonstration of Friend waving in the approved classroom style"
         }
       }
     },
@@ -182,7 +183,7 @@ Route explicit single-choice, multiple-choice and true/false assessment to Quiz,
 
 For interactive/pbl pages, save teaching.question with text, response, referenceAnswer:{summary,keyPoints} and optional constraintPrompt. This becomes a distinct interaction_checkpoint, with an editable question and feedback guidance. text is at most 160 characters; the compiler adds a separate editable question text frame, so omit the question from visibleText and image lettering. Keep reference answers and grading guidance in referenceAnswer/constraintPrompt, outside visibleText, raster lettering and spoken narration. response contains exactly kind (short_answer|discussion|practice|pbl), options:[] and answerIndices:[]. Preserve an explicitly requested response kind: a requested short-answer question uses short_answer even when the teacher handles it orally. These planning hints do not become a custom response form on the MAIC checkpoint. Omit page.quiz on these pages. Ordinary slide pages retain the activity illustrations, rules and narration. Put the student-response question on an additional standalone checkpoint page, never in body narration actions. For example, Freeze game rules and characters on mats stay on a body slide; asking the student to say a sentence becomes the following checkpoint. Assessment pages use a recognizable Quiz or classroom-interaction placeholder and their dedicated question editor.
 
-Include music only on pages that require it, with exactly purpose (at most 500 characters) and prompt (at most 4000); put lyrics and style in prompt. Include video only when required, with exactly purpose (at most 500 characters) and prompt (at most 4000), describing one five-second silent demonstration. Free-text mentions alone do not retain executable question, music or video requirements. Legacy plans may omit teaching.
+Include music only on pages that require it, with exactly purpose (at most 500 characters) and prompt (at most 4000); put lyrics and style in prompt. Include video only when required, with exactly purpose (at most 500 characters) and prompt (at most 4000), describing one focused silent demonstration without imposing duration or output settings. Free-text mentions alone do not retain executable question, music or video requirements. Legacy plans may omit teaching.
 
 Preserve every lesson-required character, name and prop; do not cap their count. A page teaching five animals and all five names must show them all. Specify required subjects and their teaching roles in visualIntent and exact names in visibleText when needed. Do not add unrequested subjects, duplicate portraits/badges, extra text carriers or decorative props. The visual bible describes identities, not a cast list for every page. Preserve the requested style and setting; build atmosphere with depth, light, color and materials rather than extra objects.
 
@@ -192,8 +193,10 @@ For a page-specific request, preserve the remaining pages and their order. For a
 
 Follow the Host's age, grade, subject and language policies independently of this entry. Keep student-facing words in visibleText and only spoken teacher sentences in narration. Put unspoken teaching operations, participation and waiting intent in visualIntent; the planning JSON does not encode executable waits. Classroom pauses and teacher continuation use the existing teaching controls after the PPTX is opened.
 
-The visual master is a complete teaching-page design with the exact approved visibleText, title hierarchy, composition and main visual. Follow the MAIC visual-master rules: one focal action, a developed full-canvas environment with depth, light and texture, and independent non-overlapping subjects and text. Preserve requested art direction; avoid stiff lineups, empty header bands and generic slot templates unless the lesson requires them. The preview must show the intended text as part of the image; the separate text list is for checking exact wording. Keep narration off the slide. Use the MAIC decomposition prompt unchanged: separate foreground subjects and complete text carriers with their lettering intact; preserve environment decorations in the base. Compile the returned base and every foreground image at its supplied bounds and stacking as separate PPTX image objects. All lettering remains in image pixels; do not erase it or reconstruct native text, shapes or extra copies. visibleText is semantic/planning context. Internal page titles add no displayed copy. Existing generated images remain unchanged until regeneration is requested.
+New plans use root `textMode:"native"`. The visual master contains the complete teaching illustration with clear space reserved for approved `visibleText`, but no lettering or text carriers. Follow the MAIC composition rules: one focal action, developed full-canvas environment with depth, light and texture, independent non-overlapping subjects and readable text areas. Preserve the requested art direction and keep narration off the slide. Use the decomposition prompt unchanged, then preserve the returned base and every foreground image at the supplied bounds and stacking. The compiler creates exactly one editable native text object for each approved display string and validates its wording. Internal page titles add no displayed copy.
 
-Request resolved assets through the authorized Host services, then compile the validated scene directly into separate PNG image layers, including text carriers. The current compiler requires PNG assets, matching canvas dimensions and unique object IDs. It rejects missing/duplicated image layers and added native text or other objects. Do not flatten the whole page to claim editability. No advanced chart, master or animation editing is implied.
+Approved legacy plans without `textMode` retain lettering in their reviewed image layers. Do not change their text mode or regenerate paid assets during a retry. Converting legacy artwork requires explicitly regenerating textless art; otherwise duplicate lettering would remain in pixels. Never claim legacy raster text is individually editable.
+
+Use authorized Host services for assets, then compile separate PNG image layers and, for native mode, native text. Matching canvas dimensions, unique object IDs, every reviewed foreground and exact approved text are required. No flattening, invented copy, shapes or connectors. When the user gives an exact number of narration blocks, forward it as `speechCount` to `courseware_narration_propose`; animation focus changes must not silently increase that count.
 
 Produce editable PPTX, logical object mapping, assets and saved page teaching with automatic validation. SVG, if used, is an intermediate candidate only. After opening in WiseOffice, use `deckwise/ppt-edit` and the latest PPTX baseline for further changes.

@@ -5,7 +5,12 @@ async fn desktop_pins_provider_parameters_and_normalized_reference_without_chang
     let mut f = Fixture::new().await;
     let master = f.submitted("image-model", "scene-001").await;
     assert_eq!(master["intent"]["request"]["parameters"], json!({"image_size":"1280x800","quality":"high"}));
-    let stage = f.stage(&master);
+    let mut stage = f.stage(&master);
+    let mut source_bytes = STANDARD.decode(stage["bytesBase64"].as_str().unwrap()).unwrap();
+    source_bytes.resize(9 * 1024 * 1024, 0);
+    stage["bytesBase64"] = json!(STANDARD.encode(&source_bytes));
+    stage["asset"]["byteLength"] = json!(source_bytes.len());
+    stage["asset"]["sha256"] = json!(hex::encode(Sha256::digest(&source_bytes)));
     let source = stage["asset"]["sha256"].clone();
     f.call("courseware.sceneImage.asset.stage", stage).await.unwrap();
     let mut adopt = f.operation(&master);
@@ -24,6 +29,7 @@ async fn desktop_pins_provider_parameters_and_normalized_reference_without_chang
     assert!(f.call("courseware.sceneImage.prepare", forged).await.is_err());
     let layer = f.call("courseware.sceneImage.prepare", prepare.clone()).await.unwrap();
     assert_eq!(layer["intent"]["sourceReferenceImage"]["sha256"], source);
+    assert_eq!(layer["intent"]["sourceReferenceImage"]["byteLength"], source_bytes.len());
     assert_eq!(layer["intent"]["request"]["referenceImage"]["sha256"], hex::encode(Sha256::digest(jpeg)));
     assert_eq!(layer["intent"]["request"]["parameters"], json!({"size":"2K","output_format":"png","response_format":"url","watermark":false}));
     f.restart().await;

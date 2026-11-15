@@ -28,6 +28,7 @@ corresponding lifecycle has been implemented.
 
 ## Consequences
 
+
 The optional `educationContext.visualStyle` keeps scene style requirements in the
 same Host-owned task/project context and existing revision-checked requirements
 update. No extra style store, route or database migration is introduced. New
@@ -349,10 +350,19 @@ native Quiz implementation. The native adapter owns PPT animation readiness,
 pause/resume and temporary schedule restoration. Page-entry effects can run
 beside narration; only explicit speech bindings wait on their owned effects.
 
-Keep the fixed player for portable courseware and team builds. Those callers
-cannot be removed until a portable native PPT renderer exists. This does not
-claim that arbitrary native effects can be published through the finite portable
-animation projection; unsupported publication remains an explicit limitation.
+### 2026-11-13: Portable courseware and team publication — TBD
+
+The product definitions, user workflows and playback destinations for portable
+courseware and team publication are pending user decision. Their relationship
+to the standalone fixed player is also TBD. This supersedes the earlier claim
+that these features require retaining that player until a portable native PPT
+renderer exists; that requirement was not confirmed by the user.
+
+Existing packages, APIs and playback code record implementation only, not an
+approved product workflow or a decision to retain or remove the standalone
+player. Desktop PPT playback and its acceptance continue through WiseOffice's
+native teaching slideshow. This documentation change does not modify code,
+stored courseware or existing publication data.
 
 ### 2026-11-14: Document-scoped native execution
 

@@ -483,3 +483,13 @@ test("activity review checks the question against real page context and rejects 
   assert(request.system.includes('activityPage.visibleText'));
   assert(request.system.includes('Reading prices on this page requires prices on the activity page'));
 });
+
+test("activity review leaves room for model reasoning before its bounded JSON verdict", async () => {
+  const coordinator = new CoursewareCandidateCoordinator({}, async input => {
+    // The real provider used 1,822 reasoning tokens before its 155-token verdict.
+    return { text: input.maxOutputTokens !== undefined && input.maxOutputTokens < 1977
+      ? 'We need answer JSON {valid, reason}. Need evaluate proposed teaching question'
+      : JSON.stringify({ valid: true, reason: 'Supported by the source.' }) };
+  }, undefined, async () => ({ modelKey: 'review/model' }));
+  await coordinator.reviewNativeActivity('chat', { question: 'Show left and right.' }, () => true);
+});

@@ -13,6 +13,7 @@ type Host = { call<T>(method: string, params: unknown): Promise<T> };
 export async function executeSavedAssessmentMedia(input: {
   sessionId: string; args: unknown; canDispatch(): boolean; getHost(): Host | null;
   saved: CoursewareSavedNarration; auth: Pick<DesktopAuthSession, "getCoursewarePrincipal" | "coursewareMedia">;
+  review: import("./courseware-classroom-images").QuizImageReview;
   decodeAudio(bytes: Buffer, mime: "audio/wav" | "audio/mpeg"): Promise<number>;
 }) {
   const { sessionId } = input, host = input.getHost();
@@ -45,6 +46,6 @@ export async function executeSavedAssessmentMedia(input: {
   const tts = new CoursewareClassroomTts({ auth: input.auth, open: () => classroom.open({ sessionId }),
     getHost: input.getHost, getWorkspace: workspace, assertOwned, decodeAudio: input.decodeAudio });
   const images = new CoursewareClassroomImages({ auth: input.auth, classroom, getHost: input.getHost,
-    getWorkspace: workspace, assertOwned });
+    getWorkspace: workspace, assertOwned, review: input.review });
   return new CoursewareAssessmentMedia(classroom, tts, images).execute(sessionId, input.args, input.canDispatch);
 }

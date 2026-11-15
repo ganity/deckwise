@@ -1,16 +1,16 @@
 import type { CoursewareTeachingView } from "@pi-desktop/shared";
 import type { CoursewareNativeAudio } from "./courseware-native-audio";
-import type { CoursewareTeachingCoordinator } from "./courseware-teaching";
 
 type Intent = { intentId: string; actionId: string; current: boolean; model: string; voice: string | null };
 type Status = { phase: string; task: { state: string; errorCode?: string | null } | null };
 
 /** Recover original orders only. No quote, purchase, or replacement request is made here. */
 export async function recoverNativeAudio(input: {
-  teaching: CoursewareTeachingCoordinator; audio: CoursewareNativeAudio; view: CoursewareTeachingView;
+  route(operation: string, args: Record<string, unknown>, page: number): Promise<{ value: unknown } | undefined>;
+  audio: CoursewareNativeAudio; view: CoursewareTeachingView;
   pageNumbers: number[]; model?: string; voice?: string | null; check(): void;
 }) {
-  const { teaching, audio, view, check } = input;
+  const { route, audio, view, check } = input;
   const pages: Array<{ pageId: string; pageNumber: number; actionId: string; intentId?: string; applied: boolean; audioReady: boolean; state: string }> = [];
   const results: Array<{ job: { kind: "tts"; sourceSha256: string; pageNumber: number; intentId: string }; applied: boolean; saved: boolean; media: Status }> = [];
   const failures: Array<{ pageId: string; actionId?: string; intentId?: string; error: string }> = [];
@@ -19,12 +19,13 @@ export async function recoverNativeAudio(input: {
     for (const speech of original.actions.filter(a => a.type === "speech")) {
       try {
         check();
-        const root = (await teaching.native("open"))?.value as CoursewareTeachingView | undefined;
+        // Coordinator reads flush pending saves; keep one source revision until the batch is committed.
+        const root = (await route("open", {}, 1))?.value as CoursewareTeachingView | undefined;
         if (!root || root.project.projectId !== view.project.projectId || root.project.source.sha256 !== view.project.source.sha256)
           throw new Error("Native source changed during audio recovery");
         const pageNumber = root.project.pages.findIndex(p => p.pageId === original.pageId) + 1;
         if (!pageNumber) throw new Error("Native recovery page was deleted");
-        const current = (await teaching.native("open", {}, pageNumber))?.value as CoursewareTeachingView | undefined;
+        const current = (await route("open", {}, pageNumber))?.value as CoursewareTeachingView | undefined;
         if (!pageNumber || !current || current.pageId !== original.pageId || current.project.projectId !== view.project.projectId ||
             current.project.source.sha256 !== view.project.source.sha256) throw new Error("Native recovery page changed");
         const page = current.project.pages.find(p => p.pageId === original.pageId)!;
@@ -34,9 +35,9 @@ export async function recoverNativeAudio(input: {
         if (row.audioReady) {
           if (action.attention !== undefined) {
             if (current.readOnly || page.locked) throw new Error("Attention repair target is read-only or locked");
-            await teaching.native("write", { viewId: current.viewId, expectedTeachingRevision: current.project.teachingRevision, actions: page.actions }, pageNumber);
+            await route("write", { viewId: current.viewId, expectedTeachingRevision: current.project.teachingRevision, actions: page.actions }, pageNumber);
             check();
-            const repaired = (await teaching.native("open", {}, pageNumber))?.value as CoursewareTeachingView | undefined;
+            const repaired = (await route("open", {}, pageNumber))?.value as CoursewareTeachingView | undefined;
             const retained = repaired?.project.pages.find(p => p.pageId === original.pageId)?.actions.find(a => a.id === action.id);
             if (!retained || retained.text !== action.text || retained.audioAssetId !== action.audioAssetId || retained.attention !== undefined)
               throw new Error("Saved audio attention was not resolved; preserve the original audio and inspect native context");
@@ -65,7 +66,7 @@ export async function recoverNativeAudio(input: {
       } catch (error) {
         check();
         // Adoption can succeed before its journal reply fails. Save provable native output.
-        const reread = (await teaching.native("open").catch(() => undefined))?.value as CoursewareTeachingView | undefined;
+        const reread = (await route("open", {}, 1).catch(() => undefined))?.value as CoursewareTeachingView | undefined;
         check();
         const page = reread?.project.pages.find(p => p.pageId === original.pageId);
         const action = page?.actions.find(a => a.id === speech.id && a.type === "speech" && a.text === speech.text);

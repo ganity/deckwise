@@ -6,7 +6,7 @@ import { coursewareMediaSubmissionProject } from "./courseware-media-scope";
 import type { SavedCourseware } from "./courseware-saved-narration";
 
 export type SavedVideoIntent = { intentId: string; principalKey: string; projectId: string; pageId: string; slotId: string;
-  boundSource?: { revision: string; sha256: string }; source: { revision: string; sha256: string }; model: string; prompt: string; idempotencyKey: string; requestHash: string;
+  boundSource?: { revision: string; sha256: string }; source: { revision: string; sha256: string }; model: string; prompt: string; durationSeconds?: number; idempotencyKey: string; requestHash: string;
   phase: "prepared" | "submission-unknown" | "submitted" | "adopted"; taskRef: CoursewareTaskRef | null;
   submissionScope: { sessionId: string; teamProjectId: string | null } | null;
   placements?: Array<{ pageId: string; actionId: string }>;
@@ -40,6 +40,7 @@ export async function savedVideo(input: Record<string, unknown>, saved: SavedCou
     if (intent.intentId !== coursewareRetryIntentId(original.intentId) || intent.requestHash !== original.requestHash ||
         intent.prompt !== original.prompt || intent.model !== original.model || intent.pageId !== original.pageId ||
         intent.slotId !== original.slotId || intent.projectId !== original.projectId || intent.principalKey !== original.principalKey ||
+        (intent.durationSeconds ?? 5) !== (original.durationSeconds ?? 5) ||
         JSON.stringify(intent.boundSource ?? intent.source) !== JSON.stringify(original.boundSource ?? original.source) || intent.idempotencyKey === original.idempotencyKey)
       throw new Error("COURSEWARE_MEDIA_INVALID_VIDEO_INTENT");
     await check();
@@ -51,7 +52,9 @@ export async function savedVideo(input: Record<string, unknown>, saved: SavedCou
   const params = { ...scope, intentId: intent.intentId };
   let task;
   if (intent.phase === "prepared") {
-    const quote = await client.quote(intent.model); await check();
+    const durationSeconds = intent.durationSeconds ?? 5;
+    if (!Number.isInteger(durationSeconds) || durationSeconds < 4 || durationSeconds > 30) throw new Error("COURSEWARE_MEDIA_INVALID_VIDEO_INTENT");
+    const quote = await client.quote(intent.model, durationSeconds); await check();
     const admit = async () => {
       const begun = (await saved.host.call<{ intent: SavedVideoIntent }>("courseware.video.begin", params)).intent;
       await check();
@@ -59,11 +62,12 @@ export async function savedVideo(input: Record<string, unknown>, saved: SavedCou
         if (begun[key] !== intent[key]) throw new Error("COURSEWARE_MEDIA_INVALID_VIDEO_INTENT");
       if (begun.phase !== "submission-unknown" || JSON.stringify(begun.boundSource ?? begun.source) !== JSON.stringify(intent.boundSource ?? intent.source))
         throw new Error("COURSEWARE_MEDIA_INVALID_VIDEO_INTENT");
+      if ((begun.durationSeconds ?? 5) !== durationSeconds) throw new Error("COURSEWARE_MEDIA_INVALID_VIDEO_INTENT");
       const teamProjectId = coursewareMediaSubmissionProject(begun.submissionScope, sessionId);
       intent = begun;
       return teamProjectId;
     };
-    try { task = await client.submit(intent.idempotencyKey, { kind: "video", model: intent.model, input: intent.prompt }, quote, undefined, check, admit); }
+    try { task = await client.submit(intent.idempotencyKey, { kind: "video", model: intent.model, input: intent.prompt }, quote, undefined, check, admit, durationSeconds); }
     catch (error) {
       await check();
       if (!(error instanceof Error) || !["COURSEWARE_MEDIA_TRANSPORT_FAILED", "COURSEWARE_MEDIA_WAIT_CANCELLED"].includes(error.message)) throw error;

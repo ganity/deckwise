@@ -24,10 +24,22 @@ export async function insertNativeActivity(input: {
   } | undefined;
   input.check();
   if (!capture || JSON.stringify(capture.view.project) !== JSON.stringify(view.project)) throw new Error("Native activity target changed");
+  const sourceIds = unit.pageIds.length ? unit.pageIds : [args.afterPageId];
+  const sourceText: string[] = [], savedNarration: unknown[] = [];
+  for (const pageId of sourceIds) {
+    const index = view.project.pages.findIndex(page => page.pageId === pageId);
+    if (index < 0) throw new Error("Mapped activity source page is unavailable");
+    const source = index === after ? capture :
+      (await input.teaching.native("narration-context", {}, index + 1))?.value as typeof capture;
+    input.check();
+    if (!source || JSON.stringify(source.view.project) !== JSON.stringify(view.project)) throw new Error("Native activity source changed");
+    sourceText.push(source.text);
+    savedNarration.push(...view.project.pages[index].actions.filter(action => action.type === "speech").map(action => action.text));
+  }
   if (typeof args.question !== "string" || !args.question.trim() || args.question.length > 160) throw new Error("question must be 1-160 characters; retain the requested response.kind");
   if (!isCoursewareQuestionResponse(args.response)) throw new Error("Invalid response: short_answer/discussion/practice/pbl require options:[] and answerIndices:[]; never change the requested kind to repair these fields");
   if (typeof args.referenceEvidence !== "string" || !args.referenceEvidence.trim() || args.referenceEvidence.length > 4000 ||
-      ![capture.text, ...plan!.units.map(u => u.evidence)].some(text => text.includes(String(args.referenceEvidence))))
+      ![...sourceText, ...plan!.units.map(u => u.evidence)].some(text => text.includes(String(args.referenceEvidence))))
     throw new Error(`referenceEvidence must be one exact source quote, not concatenated or paraphrased text. Accepted unit evidence: ${unit.evidence}. Keep response.kind unchanged`);
   const suppliedAnswer = args.referenceAnswer;
   if (suppliedAnswer !== undefined && (!suppliedAnswer || typeof suppliedAnswer !== "object" || Array.isArray(suppliedAnswer) ||
@@ -50,7 +62,7 @@ export async function insertNativeActivity(input: {
     throw new Error("The selected answer is not backed by the supplied exact evidence");
   await input.review?.({ activityTitle: unit.title, question: args.question, response, referenceAnswer, referenceEvidence: args.referenceEvidence,
     activityPage: { independent: true, visibleText: [args.question, ...response.options] },
-    pageText: capture.text, savedNarration: view.project.pages[after].actions.filter(a => a.type === "speech").map(a => a.text),
+    pageText: sourceText.join("\n"), savedNarration,
     planEvidence: unit.evidence });
   input.check();
   const identity = createHash("sha256").update(plan!.sha256 + ":" + unit.id).digest("hex").slice(0, 40);

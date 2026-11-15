@@ -35,7 +35,9 @@ export function assessmentSvg(scene: MaicClassroom['scenes'][number], canvas: { 
       if (size <= minimum) throw new Error(`Assessment text exceeds its fixed layout: ${element.id}`);
       size = Math.max(minimum, size - 1);
     }
-    return `<text id="${id}" x="${x}" y="${y + size}" font-family="${escape(font)}" font-size="${size}" font-weight="${style.fontWeight ?? 400}" fill="${escape(style.color)}" xml:space="preserve">${lines.map((line, index) => `<tspan x="${x}" dy="${index ? size * (style.lineHeight ?? 1.3) : 0}">${escape(line)}</tspan>`).join('')}</text>`;
+    const preserveObject = lines.length > 1 ? ' data-deckwise-preserve-object="1"' : '';
+    const content = lines.length === 1 ? escape(lines[0]) : lines.map((line, index) => `<tspan x="${x}" dy="${index ? size * (style.lineHeight ?? 1.3) : 0}">${escape(line)}</tspan>`).join('');
+    return `<text id="${id}"${preserveObject} x="${x}" y="${y + size}" font-family="${escape(font)}" font-size="${size}" font-weight="${style.fontWeight ?? 400}" fill="${escape(style.color)}" xml:space="preserve">${content}</text>`;
   });
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}" font-family="Noto Sans SC" data-pptx-page-role="content"><rect id="background" data-pptx-role="background" width="${canvas.width}" height="${canvas.height}" fill="#FFFFFF"/><g id="assessment" data-pptx-bounds="0 0 ${canvas.width} ${canvas.height}">${elements.join('')}</g></svg>\n`;
 }

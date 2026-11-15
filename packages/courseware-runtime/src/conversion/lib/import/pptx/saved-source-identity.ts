@@ -59,6 +59,10 @@ const identitySchema = z
   .strict();
 export type SavedSourceIdentity = z.infer<typeof identitySchema>;
 
+export function savedSourceObjectId(sourceSha256: string, pageId: string, importElementId: string) {
+  return `object:${fingerprint([sourceSha256, pageId, importElementId])}`;
+}
+
 function requireIdentity(value: unknown, code: string): asserts value {
   if (!value) throw new Error(code);
 }
@@ -144,7 +148,7 @@ export async function exportSavedSourceIdentity(
         ...content
       } = element;
       objects.push({
-        logicalId: `object:${fingerprint([sourceSha256, page.id, importElementId])}`,
+        logicalId: savedSourceObjectId(sourceSha256, page.id, importElementId),
         importElementId,
         type: element.type,
         sourceShapeId,

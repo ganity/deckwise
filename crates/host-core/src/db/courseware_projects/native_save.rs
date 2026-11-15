@@ -113,6 +113,7 @@ impl Database {
         )?;
         Ok((journal.source_path == path).then(|| journal.receipt()))
     }
+    #[cfg(test)]
     pub fn prepare_native_save(
         &self,
         workspace: &str,

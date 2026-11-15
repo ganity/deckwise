@@ -106,7 +106,9 @@ fn build_variant(
         ));
     }
     if matches!(target, Target::VisualMaster {}) {
-        if page.visible_text.is_empty() {
+        if plan.text_mode.is_some() {
+            prompt.push_str("\nAuthoritative native-text contract: render NO readable text, letters, words, labels or glyphs anywhere in this artwork. Display copy is added later as editable PowerPoint text, never image pixels. Reserve calm clear space for the title and learning copy without drawing lettering or text carriers. This overrides any request for artwork lettering above or in page context.");
+        } else if page.visible_text.is_empty() {
             prompt.push_str("\nAuthoritative display text: this page has no display text. Render no readable text.");
         } else {
             let text = serde_json::to_string(&page.visible_text).expect("serializable text");
@@ -124,6 +126,25 @@ fn build_variant(
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn native_text_mode_keeps_generated_art_textless_and_legacy_mode_is_unchanged() {
+        let plan: scene_plan::Plan = serde_json::from_value(json!({
+            "title":"Magnets", "textMode":"native", "pages":[{
+                "title":"Find iron", "visibleText":["Iron"], "visualIntent":"A red magnet", "narration":"Listen"
+            }]
+        })).unwrap();
+        for compact in [false, true] {
+            let prompt = build_variant(&plan, &plan.pages[0], &Target::VisualMaster {}, false, false, "", compact);
+            assert!(prompt.contains("NO readable text"));
+            assert!(prompt.contains("editable PowerPoint text"));
+            assert!(!prompt.contains("render each exact string once"));
+            assert!(!prompt.contains("render only these exact readable text targets"));
+        }
+        assert!(serde_json::from_value::<scene_plan::Plan>(json!({
+            "title":"Invalid", "textMode":"raster", "pages":[]
+        })).is_err());
+    }
 
     #[test]
     fn complete_master_uses_literal_text_and_preserves_user_art_direction_without_narration() {

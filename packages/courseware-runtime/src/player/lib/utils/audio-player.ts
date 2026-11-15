@@ -30,6 +30,7 @@ export function isExpectedAudioPlaybackInterruption(error: unknown): boolean {
 export class AudioPlayer {
   private audio: HTMLAudioElement | null = null;
   private primedAudio: HTMLAudioElement | null = null;
+  private primeUrl: string | null = null;
   private onEndedCallback: (() => void) | null = null;
   private onErrorCallback: ((error: Error) => void) | null = null;
   private muted: boolean = false;
@@ -43,9 +44,11 @@ export class AudioPlayer {
   /** Call from a user gesture before delayed native animations; reuse this admitted element. */
   public prime(): void {
     if (this.primedAudio) return;
+    if (this.primeUrl) URL.revokeObjectURL(this.primeUrl);
     const audio = new Audio();
     this.primedAudio = audio;
-    audio.src = 'data:audio/wav;base64,UklGRsQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+    this.primeUrl = URL.createObjectURL(new Blob([Uint8Array.from(atob('UklGRsQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'), char => char.charCodeAt(0))], { type: 'audio/wav' }));
+    audio.src = this.primeUrl;
     void audio.play().then(() => { if (this.audio !== audio) audio.pause(); }).catch(() => {
       if (this.primedAudio === audio && this.audio !== audio) this.primedAudio = null;
     });
@@ -210,6 +213,8 @@ export class AudioPlayer {
     this.primedAudio?.removeAttribute("src");
     this.primedAudio?.load();
     this.primedAudio = null;
+    if (this.primeUrl) URL.revokeObjectURL(this.primeUrl);
+    this.primeUrl = null;
     this.onEndedCallback = null;
     this.onErrorCallback = null;
   }

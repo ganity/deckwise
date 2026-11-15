@@ -470,7 +470,7 @@ test("local focus repair needs neither whole-deck planning nor evidence from unr
   assert.deepEqual(f.project.pages.slice(1), peers);
 });
 
-test("approved activity repair does not receive the conflicting body-lecture prohibition", async () => {
+test("repair rejects invalid inline assessment metadata on a body slide before generation", async () => {
   const question = { text: "Which greeting?", response: { kind: "single", options: ["Hello", "Bye"], answerIndices: [0] } };
   let generated = false;
   const f = await fixture({ scene: true, pageCount: 1, teachingPages: [{ pageId: "page-1", teaching: {
@@ -482,9 +482,10 @@ test("approved activity repair does not receive the conflicting body-lecture pro
   f.project.pages[0].actions = [{ id: "saved-speech", type: "speech", text: "Already paid narration.", source: "generated", audioAssetId: `tts-${"c".repeat(64)}` }];
   const result = await f.execute("courseware_narration_propose", { pageNumbers: [1], sourceSha256: f.project.source.sha256,
     instruction: "Repair the required activity", repairRequiredTeaching: true });
-  assert(generated);
-  assert.equal(result.saved, true);
-  assert.deepEqual(f.project.pages[0].actions.map(a => a.type), ["speech", "interaction_checkpoint"]);
+  assert.equal(generated, false);
+  assert.equal(result.saved, false);
+  assert.match(result.failures[0].error, /Body narration repair cannot insert a question; use a separate assessment page/);
+  assert.deepEqual(f.project.pages[0].actions.map(a => a.type), ["speech"]);
 });
 
 
@@ -575,4 +576,14 @@ test("legacy narration also rejects oversized tool calls before parsing or gener
   const before = f.calls.length;
   await assert.rejects(f.execute("courseware_narration_propose",{pageNumbers:Array.from({length:56},(_,i)=>i+1),sourceSha256:"a".repeat(64),instruction:"Teach"}),/at most 5 pages/);
   assert.equal(f.calls.length,before); assert.equal(f.saved.length,0);
+});
+
+
+test("saved narration forwards an exact speech count without silently splitting it", async () => {
+  const output = JSON.stringify({ blocks: [{ type: "speech", text: "First thought. Still the first block." }, { type: "speech", text: "Second block." }] });
+  const f = await fixture({ pageCount: 1, pageOutputs: { "Page 1": [output] } });
+  const result = await f.execute("courseware_narration_propose", { pageNumbers: [1], sourceSha256: f.project.source.sha256, instruction: "Exactly two speech blocks", speechCount: 2 });
+  assert.equal(result.saved, true);
+  assert.equal(f.project.pages[0].actions.filter(a => a.type === "speech").length, 2);
+  await assert.rejects(f.execute("courseware_narration_propose", { pageNumbers: [1], sourceSha256: f.project.source.sha256, instruction: "Repair", speechCount: 2, repairRequiredTeaching: true }), /requires a narration rewrite/);
 });

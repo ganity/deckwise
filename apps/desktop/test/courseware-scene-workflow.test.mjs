@@ -31,12 +31,14 @@ function setup(input, after = () => {}) {
 
 test("approved plan and authorized assets flow through compilation to durable Host handoff", async () => {
   const input = makeInput(), f = setup(input);
+  input.plan.textMode = "native";
   input.sceneProof = { planSha256: "a".repeat(64), principalKey: "b".repeat(64), selectedIntentIds: ["image-1"] };
   const result = await assembleSceneCourse(input, f.services, async () => {});
   assert.deepEqual(f.calls.map(([name]) => name), ["resolve", "build", "stage"]);
   assert.equal(f.calls[0][1].pages[0].pageId, "scene-001");
   assert.equal(f.calls[1][1].visuals, f.visuals);
   assert.equal(f.calls[1][1].modelKey, "provider/model");
+  assert.equal(f.calls[1][1].textMode, "native");
   assert.equal(f.calls[2][1].pptx, f.deck.pptx);
   assert.deepEqual(f.calls[2][1].sceneMapping, f.deck.mapping);
   assert.deepEqual(f.calls[2][1].sceneProof, input.sceneProof);

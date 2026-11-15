@@ -1,7 +1,7 @@
 # Main Chat courseware generation
 
 Scene compilation accepts all verified selected assets in the approved plan without an aggregate byte ceiling. Individual image validation and compiler canvas fitting remain in force; compiler copies of native cropped foregrounds fit their mapped display bounds without enlargement. The final playable package retains its existing output-size validation.
-When every foreground has a native placement, compilation uses those coordinates and supplier labels directly. It does not ask a model to reconstruct the image lettering or invent replacement layout metadata.
+When every foreground has a native placement, compilation preserves those coordinates and supplier labels. New plans require `textMode:"native"`: art is textless, and compilation adds exactly one native text frame per approved display string. The text layout pass cannot reposition reviewed images. Already approved legacy plans without the mode retain their reviewed raster lettering and paid asset identities.
 Saved teaching continuation remains available after compilation without an active Office editor binding. Native canvas edits still use the existing editor binding checks.
 
 Status: implemented locally. Source Electron/Host/Agent-to-WiseOffice plain,
@@ -287,7 +287,7 @@ a saved PPT is not a claim of complete teaching readiness. Candidate reviews and
 source-visual approval move into the workspace's collapsible review area, retaining
 their existing draft, revision and permission checks. Ordinary projects retain
 SVG preview, quality repair and explicit export; imports open their saved source.
-Images remain images: embedded lettering is not promised as editable text.
+Images remain images: existing embedded lettering is not promised as editable text. New scene plans use separate native text frames; legacy art is not silently converted.
 
 Renderer validation: `scripts/e2e-courseware-workspace.mjs` exercises the actual
 components with isolated IPC/media fixtures, including 520px width, the two
@@ -534,8 +534,9 @@ publication or packaged-release acceptance is claimed. Evidence is recorded in
 
 Seedream layer decomposition follows the MAIC native images/generations request
 with layer_decomposition, PNG/2K output and URL results. Host reuses MAIC's
-foreground/environment prompt unchanged. Lettering remains in its returned image
-layers; compilation never erases it or reconstructs native text.
+foreground/environment prompt unchanged. New native-text plans supply textless
+masters and add editable copy during compilation. Approved legacy plans keep
+lettering in their returned image layers; retries never erase or duplicate it.
 A returned JPEG base is normalized to PNG before archive; foreground PNG bounds
 and stacking are preserved. The gateway distinguishes executing `submitting`
 from terminal `submission_unknown` and persists safe error codes for provider
@@ -549,7 +550,29 @@ calls. Neither operation sends generation requests.
 
 Layer delivery: llm-ha preserves the supplier URL result and metadata without downloading layer images. Desktop downloads public HTTPS layers without credentials or redirects, bounds response sizes, validates the images, and archives them locally. Legacy inline Base64 bundles remain readable. A failed download retries delivery from the existing receipt, never generation.
 
-Native layer delivery uses the Electron default session for both DNS safety checks and image fetching. A group is bounded to 44 MiB raw and 60 MiB JSON, preserving the existing 64 MiB Host frame; the per-image 8 MiB and 4096×4096 validation still applies. Oversized groups report COURSEWARE_SCENE_IMAGE_LAYER_BUNDLE_TOO_LARGE rather than a generic asset failure.
+Native layer delivery uses the Electron default session for both DNS safety checks and image fetching. A group is bounded to 44 MiB raw and 60 MiB JSON, preserving the existing 64 MiB Host frame. Individual archived scene images accept up to 32 MiB and 4096×4096 pixels across download, Main validation, Host persistence and compiler reads. PNG results preserve supplier bytes; crossing the former 8 MiB boundary does not re-encode images. Reference uploads retain their separate provider input limit. URL groups stage one image at a time, so increasing the image limit does not require increasing the Host frame. Oversized groups report COURSEWARE_SCENE_IMAGE_LAYER_BUNDLE_TOO_LARGE rather than a generic asset failure.
+
+### Visual tolerance during teaching completion
+
+All three authoring paths use the same visual-grounding policy. Planned object
+names are candidate semantic identities, not an exact illustration checklist.
+The teaching objective and explicit user constraints determine essential content.
+Differences in shape, color, clothing, position or scenery are advisory when they
+do not change that content; for example, a diamond kite supports an English
+lesson about flying a kite despite a swallow-shaped kite in the illustration plan.
+Narration describes actual pixels and must never attach a false planned alias.
+Shape, color, count and position remain strict when those properties are taught
+or tested. A genuinely missing essential picture still stops the affected page.
+
+Visual observations return `visual_variation` for harmless differences. Main
+retains those diagnostics and continues narration/TTS. A background prop does not
+need an independent effect target. Objects-only repair saves verified semantics
+without changing speech/audio even when some planned descriptions remain unbound.
+Completion exposes these as `OBJECT_BINDING_ADVISORY` warnings, not failed teaching
+requirements; actual missing/invalid effect targets remain blocking issues.
+Visual-policy cache versions prevent older observations and failures from being
+reused after this policy changes. Existing source files, approved plans and media
+are preserved; an appearance variation never requires paid image regeneration.
 
 ### Planning review presentation
 
@@ -557,6 +580,12 @@ The planning review uses a numbered page outline, with the first page expanded b
 
 
 ## Host completion acceptance and resumable repair
+
+Native `completion.ready` and automatic saved-course continuation require
+`assessmentMedia.ready`. Missing Quiz option images remain unfinished even when
+narration/audio/effects pass and `completion.issues` is empty. Refresh original
+pending image receipts; terminal or unknown originals block completion without
+automatically buying replacements. Both native context tools expose the same gate.
 
 A complete saved-course request uses Host-derived `completion.ready`, in addition
 to narration/audio/teaching/video readiness. `completion.issues` checks detailed
@@ -1022,17 +1051,21 @@ saves without advancing twice. Only the main-window UI can confirm the exact
 revision/hash; model tools cannot approve. Until confirmation, Host tool admission
 allows story planning and reads but blocks page/media/shell/file production.
 Content requirements changes invalidate effective story approval. Saving or
-changing only `educationContext.bodyPageLimit` preserves the exact story hash
-and approval: story events are independent of pagination. The current task's
+changing only `educationContext.bodyPageLimit` or `visualStyle` preserves the exact
+story hash and approval: pagination and illustration style belong to later
+production stages. The current task's
 page budget overrides the story snapshot's suggested count and remains checked
 by scene-plan approval. This also restores previously confirmed stories whose
-approval was only hidden by a later page-budget save; no draft or approval is
+approval was only hidden by a later page-budget or illustration-style save; no draft or approval is
 rewritten. Reading or restoring state never generates content. Cancellation
 retains saved successful work.
 
 The workspace displays objectives, characters, events, activities, proposed
 settings and assessment references. Users revise via Chat or choose direct
-generation before production; a failed continuation send retains the saved
+generation before production. When teaching requirements such as grade or subject
+change, the workspace offers a Chat action to update the story instead of a
+confirmation that Host would reject. The revised story still requires explicit
+user review. A failed continuation send retains the saved
 confirmation and offers resume. Both routes receive the exact approved snapshot.
 PPT Master retains its existing content/design/SVG/quality/preview/explicit-export
 pipeline and is instructed to archive the story as source material. Its first
@@ -1098,6 +1131,22 @@ capping. Responses truncation reported as `length` or `max_output_tokens` is
 terminal for the generic transport retry controller; it must not spend ten
 retries on the same deterministic length failure. A terminal truncation remains
 an unfinished turn and never certifies saved narration, TTS or course completion.
+
+A new user prompt that still exceeds the hard budget after threshold compaction
+gets one overflow compaction attempt, then the same hard-budget check. Stop aborts
+this attempt; an oversized request retains its user message and fails before
+provider dispatch. Context limits are never bypassed.
+
+Assistant text containing leaked DSML/tool-call markup is not executed as code or
+accepted as a completed tool operation. Like an empty answer, a serialized array
+of whitespace-only text blocks triggers one bounded recovery through the real
+tool interface. A second unusable answer reports `EMPTY_MODEL_RESPONSE` instead
+of ending successfully. Real tool-calling turns remain valid without visible text.
+
+Narration targeting accepts a currency denomination as the short label of an
+explicit text teaching card (for example, `1元教学示意卡片`). Numeric boundaries and
+unique-object checks still reject different denominations or ambiguous targets;
+this does not infer identities for empty containers or images without evidence.
 
 ### Single-question Quiz pages
 
@@ -1173,6 +1222,11 @@ Undo/Redo and source save. Answer evidence must occur in the accepted plan or
 real page text; objective answer labels must be contained in it. Identical visible
 question candidates require explicit identity reconciliation instead of insertion.
 Confirmed existing activities are reused, including after an uncertain reply.
+Insertion position and evidence source are separate: a later activity inserted
+after a Quiz is reviewed against the plan unit's mapped original pages and their
+saved narration. The preceding Quiz is not its factual source. Assessment review
+uses the selected model's normal output budget so reasoning cannot exhaust a
+small verdict-only cap; the existing timeout and owner/model fences still apply.
 
 Both tools retain current Chat/turn/source/teaching/editor-generation fences and
 require a capable editor. Partial script writes save successful pages and report
@@ -1271,6 +1325,10 @@ this lane remains concurrent. It does not introduce an additional provider queue
 Once native narration audio is complete and no original media job is pending,
 `courseware_media_context` parses the saved PPTX and validates its effects with
 the same `projectPlaybackAnimations` resolver used by fixed conversion. Results
+are deferred while any video/music slot or unresolved attention remains, even
+when that slot has not been submitted and the media job list is empty. Catalog
+and status reads must remain available so the missing media can be generated.
+Preflight results
 are cached only for the exact saved source hash. The source and teaching revision
 are checked after asynchronous work. This does not create a publication snapshot,
 purchase media, or prove natural audio completion. Errors carry page IDs/numbers;
@@ -1286,11 +1344,30 @@ rewritten. Source PPTX bytes remain untouched. Multi-part speech pulse/rotation
 uses the same shared-center wrappers as native group timing; it is not projected
 as independent component transforms. Group-only wrappers have no click steps.
 
-Required-object descriptions are resolved against verified eligible object names,
-aliases and roles, with every whole word and a unique target required for the
-role-based match. An unresolved description is not proof that a visual is absent.
-The existing visual review can verify and save its planned alias, within the
-normal repair budget; actual missing visual content still requires source repair.
+Required-object descriptions resolve against verified eligible names, aliases
+and roles. Compound descriptions bind each actual member independently; a counted
+collection needs exactly that many distinct targets with its singular alias.
+A compound may include repeated real labels; a standalone description still
+requires a unique match. Quoted label text matches its verified visible name
+without requiring a fabricated label suffix. Both context tools check bindings.
+A collective alias on one member cannot satisfy the collection. Context returns
+per-requirement bindings and expected counts for diagnosis. New plans use atomic
+object descriptions. A quoted conjunction within a literal title remains literal.
+
+An unresolved description is not proof that a visual is absent. Context reports
+it as `OBJECT_BINDING_ADVISORY`, not a completion blocker or an automatic repair
+request. Visual observation distinguishes harmless appearance differences from
+missing content essential to the teaching objective. Only the latter blocks
+narration. Actual speech effects must still bind to valid eligible objects.
+Explicit `repairObjectsOnly:true` with `repairRequiredTeaching:true` reobserves
+at most five selected pages and saves only verified semantics while preserving
+actions, durations and adopted audio exactly. It reports unresolved descriptions
+as advisories without inventing aliases or purchasing replacement media. This
+verification includes actual content groups even when their child labels are
+separately mapped; a column heading cannot stand in for its whole column. Normal
+narration keeps its existing leaf-target filtering. Successful object-only
+repair reports preserved audio readiness instead of marking adopted audio as
+missing. The existing bounded repair budget still applies.
 
 Release/test candidates must contain the rebuilt WiseOffice bundle as well as the
 desktop main process, player/converter and agent-runtime. A desktop-only rebuild

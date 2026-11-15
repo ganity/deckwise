@@ -38,7 +38,8 @@ async function fixture(t, taskType = 'scene') {
       questions: [{ id: 'q', type: 'single', question: 'Which animal meows?', options: [{ value: 'A', label: 'Cat' }, { value: 'B', label: 'Dog' }], answer: ['A'] }] }, actions: [] }],
   } };
   const args = { sessionId: 's', projectId: 'p', expectedRevision: 'r1', expectedSourceRevision: 's1', sceneId: 'quiz', questionId: 'q', optionValue: 'A', model: 'm' };
-  let principalKey = 'owner', submitted = 0;
+  let principalKey = 'owner', submitted = 0, reviewValid = true;
+  const reviewed = [], requests = [];
   const tasks = new Map(), calls = [];
   const host = { async call(method, payload) {
     calls.push(method);
@@ -63,7 +64,7 @@ async function fixture(t, taskType = 'scene') {
       return task ?? null;
     },
     async submitConfirmedImage(key, request, quote, signal, projectId, check, admit) {
-      await check(); assert.equal(await admit(), 'team'); submitted++;
+      await check(); assert.equal(await admit(), 'team'); submitted++; requests.push(request);
       const fields = [request.kind, request.model, request.input, null];
       const canonical = fields.reduce((text, value) => `${text}:${value === null ? -1 : value.length}:${value ?? ''}`, 'courseware-media-v1');
       const task = { taskId: 'task', state: 'running', requestHash: crypto.createHash('sha256').update(canonical).digest('hex') };
@@ -74,8 +75,9 @@ async function fixture(t, taskType = 'scene') {
   };
   const coordinator = new CoursewareClassroomImages({ classroom, auth: { coursewareMedia: media,
     getCoursewarePrincipal: () => { const captured = principalKey; return { key: captured, assertCurrent() { assert.equal(captured, principalKey); } }; } },
-    getHost: () => host, getWorkspace: async () => root, assertOwned: session => assert.equal(session, 's') });
-  return { root, args, coordinator, classroom, tasks, calls, get view() { return view; }, get submitted() { return submitted; },
+    getHost: () => host, getWorkspace: async () => root, assertOwned: session => assert.equal(session, 's'),
+    review: async input => { reviewed.push(input); if (!reviewValid) throw Error('Quiz image contradicts the option'); } });
+  return { root, args, coordinator, classroom, tasks, calls, requests, reviewed, rejectReview: () => { reviewValid = false; }, get view() { return view; }, get submitted() { return submitted; },
     principal: value => { principalKey = value; }, revision: value => { view.revision = value; } };
 }
 
@@ -133,4 +135,34 @@ test('image quote cannot cross principal, classroom revision, question or option
   await assert.rejects(f.coordinator.refresh(f.args), /Classroom changed/);
   assert.equal(f.submitted, 0);
   assert.equal(f.calls.includes('courseware.classroom.write'), false);
+});
+
+
+test('neutral option art is reviewed before adoption and a rejected result never triggers another purchase', async t => {
+  const f = await fixture(t), quote = await f.coordinator.quote(f.args);
+  await f.coordinator.submit({ ...f.args, quoteId: quote.quote.quoteId });
+  assert.match(f.requests[0].input, /neutral/i);
+  assert.doesNotMatch(f.requests[0].input, /Which animal meows/);
+  const task = f.tasks.get(quote.key); task.state = 'ready';
+  task.assetRef = { mime: 'image/png', byteLength: png.length, sha256: crypto.createHash('sha256').update(png).digest('hex') };
+  f.rejectReview();
+  await assert.rejects(f.coordinator.refresh(f.args), /contradicts/);
+  assert.equal(f.reviewed.length, 1);
+  assert.equal(f.reviewed[0].option.label, 'Cat');
+  assert.equal(f.view.classroom.scenes[0].content.questions[0].options[0].image, undefined);
+  assert.equal(f.submitted, 1);
+});
+
+test('an existing legacy prompt task can be refreshed and reused after the prompt correction', async t => {
+  const f = await fixture(t);
+  const prompt = 'Create one clear educational illustration for a classroom multiple-choice question. Lesson: Lesson. Question: Which animal meows?. Illustrate option A: Cat. Do not include letters, words, labels, borders, or multiple panels. Compose a centered square image appropriate for this lesson.';
+  const hash = value => crypto.createHash('sha256').update(value).digest('hex');
+  const requestHash = hash(['image', 'm', prompt, null].reduce((text, field) => `${text}:${field === null ? -1 : field.length}:${field ?? ''}`, 'courseware-media-v1'));
+  const key = `maic-${hash(JSON.stringify(['owner', 'p', 'quiz', 'q', 'A', requestHash]))}`;
+  f.tasks.set(key, { taskId: 'legacy-task', state: 'running', requestHash });
+  const quote = await f.coordinator.quote(f.args);
+  const reused = await f.coordinator.submit({ ...f.args, quoteId: quote.quote.quoteId });
+  assert.equal(reused.task.taskId, 'legacy-task');
+  assert.equal(f.submitted, 0);
+  assert.equal((await f.coordinator.refresh(f.args)).task.taskId, 'legacy-task');
 });

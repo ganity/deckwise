@@ -216,7 +216,8 @@ test("Reviewed private assets reach actual model transport/compiler with separat
   const coordinator = new CoursewareSceneGeneration({ async captureSelected() { return captured; } }, {
     build: request => f.services.buildSceneCourseware(request),
     async stage(request) {
-      staged++; assert.deepEqual(request.sceneProof, proof); assert.deepEqual(request.teaching, [{ pageId: "scene-001", narration: pages[0].narration }]);
+      staged++; assert.deepEqual(request.sceneProof, proof); assert.deepEqual(request.teaching, [{ pageId: "scene-001", title: pages[0].title,
+        narration: pages[0].narration, teaching: undefined, quiz: undefined }]);
       await request.assertCurrent();
       const zip = await JSZip.loadAsync(request.pptx), slide = await zip.file("ppt/slides/slide1.xml").async("string");
       assert(!slide.includes("<a:t>"), "decomposed lettering stays in image pixels");
@@ -278,6 +279,18 @@ test("Actual Electron decodes, pins and deduplicates PNG aliases without history
   assert(!Object.hasOwn(context, "tools"));
 });
 
+test("Actual Electron accepts original scene PNGs above eight MiB without re-encoding", () => {
+  const chunk = Buffer.alloc(9 * 1024 * 1024 + 12);
+  chunk.writeUInt32BE(chunk.length - 12); chunk.write("caBX", 4);
+  chunk.writeUInt32BE(crc32(chunk.subarray(4, -4)), chunk.length - 4);
+  const bytes = Buffer.concat([png.subarray(0, -12), chunk, png.subarray(-12)]);
+  const captured = scene.captureCoursewareSceneImages([{ ...image(), bytes, sha256: digest(bytes) }]);
+  assert.equal(captured[0].bytes.length, bytes.length);
+  assert.equal(captured[0].sha256, digest(bytes));
+  assert(captured[0].bytes.equals(bytes));
+  assert(!nativeImage.createFromBuffer(captured[0].bytes).isEmpty());
+});
+
 test("Invalid, oversized, animated and mismatched PNG inputs reject before model dispatch", async () => withModel(async f => {
   for (const change of ["hash", "size", "truncated", "trailing", "decoder", "crc", "animated", "duplicate", "many", "system", "pixels", "bytes"]) {
     const request = input(); request.images = [image()];
@@ -296,7 +309,7 @@ test("Invalid, oversized, animated and mismatched PNG inputs reject before model
     if (change === "many") request.images = Array.from({ length: 203 }, (_, i) => image(`image-${i}`));
     if (change === "system") request.system = "x".repeat(65537);
     if (change === "pixels") { asset.width = 4096; asset.height = 4096; }
-    if (change === "bytes") asset.bytes = Buffer.alloc(8 * 1024 * 1024 + 1);
+    if (change === "bytes") asset.bytes = Buffer.alloc(32 * 1024 * 1024 + 1);
     if (["truncated", "trailing", "decoder", "crc", "animated", "bytes"].includes(change)) asset.sha256 = digest(asset.bytes);
     await assert.rejects(f.services.completeScene(request), /COURSEWARE_SCENE_INVALID_INPUT/, change);
   }

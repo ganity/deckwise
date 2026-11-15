@@ -35,7 +35,7 @@ it.each([true, false])("checkpoints adoption before native updates and preserves
   source = "b".repeat(64); ready = true;
   if (verified && state.checkpoint) state.checkpoint = { ...state.checkpoint, sourceSha256: source, revision: state.checkpoint.revision + 1 };
   if (verified) {
-    await expect(continuation.finish(turn(false), controls)).resolves.toContain("completed");
+    await expect(continuation.finish(turn(false), controls)).resolves.toContain("checks are complete");
     expect(state.checkpoint).toMatchObject({ status: "completed", sourceSha256: source });
   } else {
     await expect(continuation.finish(turn(false), controls)).resolves.toContain("COURSEWARE_CONFLICT");
@@ -63,5 +63,5 @@ it("continues native generated files across verified saves without opening a leg
   ] };
   await continuation.finish(adopted, controls);
   source = "b".repeat(64); ready = true;
-  expect(await continuation.finish({ ...adopted, message, toolResults: [] }, controls)).toContain("completed");
+  expect(await continuation.finish({ ...adopted, message, toolResults: [] }, controls)).toContain("checks are complete");
 });

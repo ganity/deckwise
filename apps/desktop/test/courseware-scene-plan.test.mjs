@@ -268,7 +268,8 @@ test("production Main Chat forwards the same MAIC policy and actual scene skill 
     assert.doesNotMatch(content, excluded);
     assert(content.includes(planning.sceneCourseTeachingPolicy(education)));
     assert(content.includes(sceneSkill));
-    assert.match(content, /planned five-second video slots/);
+    assert.match(content, /planned video slots/);
+    assert.doesNotMatch(content, /five-second video|five second video/);
     assert.match(content, /courseware_media_context\(kind:video\)/);
     assert.match(content, /teacher-led questions with reference answers/);
     assert.doesNotMatch(content, /not generated video|video generation\/postprocessing\/mounting chain remain incomplete/);
@@ -511,4 +512,13 @@ test("scene normalization retains required effects and includes them in the page
   const changed = parseSceneCoursePlan(JSON.stringify(draft));
   assert.notEqual(first.pages[0].sourceHash, changed.pages[0].sourceHash);
   assert.equal(changed.pages[0].pageId, first.pages[0].pageId);
+});
+
+
+test("new plans select editable text while legacy approved plans remain unchanged", async () => {
+  const legacy = parseSceneCoursePlan(answer);
+  assert.equal(legacy.textMode, undefined);
+  assert.equal(parseSceneCoursePlan(JSON.stringify({ ...JSON.parse(answer), textMode: "native" })).textMode, "native");
+  assert.throws(() => parseSceneCoursePlan(JSON.stringify({ ...JSON.parse(answer), textMode: "raster" })), /textMode|Invalid scene/);
+  assert.equal((await createSceneCoursePlan(input, async () => ({ text: answer }))).textMode, "native");
 });

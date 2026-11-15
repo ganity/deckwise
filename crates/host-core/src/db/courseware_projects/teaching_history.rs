@@ -18,7 +18,9 @@ fn projection(page: &CoursewarePage) -> Option<(Vec<Value>, usize, usize)> {
                 actions.push(json!({"id":uuid::Uuid::new_v4().to_string(), "type":"delay", "durationMs":action["durationMs"]}));
             }
             "video_slot" if video::valid_slot(action) => {
-                actions.push(json!({"id":uuid::Uuid::new_v4().to_string(), "type":"video_slot", "prompt":action["prompt"]}));
+                let mut restored = json!({"id":uuid::Uuid::new_v4().to_string(), "type":"video_slot", "prompt":action["prompt"]});
+                if let Some(seconds) = action.get("durationSeconds") { restored["durationSeconds"] = seconds.clone(); }
+                actions.push(restored);
             }
             "video_clip" if video::valid_clip(action) => {
                 // Archived video remains historical until its saved source can be rebound.

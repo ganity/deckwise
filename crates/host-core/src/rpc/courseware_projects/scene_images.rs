@@ -147,7 +147,7 @@ impl ReferenceImage {
     pub(super) fn valid(&self) -> bool {
         valid_hash(&self.sha256)
             && matches!(self.mime_type.as_str(), "image/png" | "image/jpeg")
-            && (1..=8 * 1024 * 1024).contains(&self.byte_length)
+            && (1..=32 * 1024 * 1024).contains(&self.byte_length)
     }
 }
 
@@ -287,7 +287,7 @@ impl Intent {
                 .request
                 .reference_image
                 .as_ref()
-                .is_some_and(|r| !r.valid())
+                .is_some_and(|r| !r.valid() || r.byte_length > 8 * 1024 * 1024)
             || self.request.reference_image.is_some() != self.reference_intent_id.is_some()
             || self.source_reference_image.as_ref().is_some_and(|r| !r.valid()
                 || self.request.kind != "image-layers" || self.request.reference_image.as_ref().is_none_or(|wire| wire.mime_type != "image/jpeg"))

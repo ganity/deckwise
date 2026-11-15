@@ -49,8 +49,8 @@ can leave a complete immutable package; Host must recheck its signal and capture
 session/source/teaching state before adopting a returned build reference. This
 does not replace A's snapshot ownership or adoption CAS.
 
-The canonical Project/Snapshot module and fixtures are the exact published A1a
-source, SHA-256 `dd16a1562e64cb4010f461d1c4b4bb2389e9ac2c9c9059b01421ccbc491de297`.
+The canonical Project/Snapshot module and fixtures are an exact copy of Desktop's
+shared contract, with current file hashes and refresh details in `canonical/SOURCE.json`.
 They remain a pinned private consumer copy until A combines the shared package.
 Do not introduce another public teaching schema. Internal PPTist/ImportIR types
 retain upstream representations. `provenance.json` identifies extracted source;

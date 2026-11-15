@@ -3,7 +3,7 @@ import { videoRequestHash, type VideoRequest } from "./courseware-video-media";
 import type { CoursewareTaskRef, CoursewareTeachingView } from "@pi-desktop/shared";
 import type { DesktopAuthSession } from "./auth-session";
 type Host = { call<T>(method: string, params: unknown): Promise<T> };
-type Intent = { id: string; actionId: string; pageId: string; request: VideoRequest; key: string; hash: string;
+type Intent = { id: string; actionId: string; pageId: string; request: VideoRequest; durationSeconds?: number; key: string; hash: string;
   phase: "prepared" | "submission-unknown" | "submitted"; ref: CoursewareTaskRef | null };
 type Journal = { revision: number; value: { intents: Intent[] } };
 type Route = (operation: string, args: Record<string, unknown>, page: number) => Promise<{ value: unknown } | undefined>;
@@ -57,27 +57,32 @@ export class CoursewareNativeVideo {
       const slot = page.actions.find(a => a.id === input.actionId && ["video_slot", "video_clip"].includes(String(a.type)));
       if (!slot || typeof slot.prompt !== "string" || !slot.prompt.trim() || slot.prompt.length > 4000 ||
           typeof input.model !== "string" || !/^[\w.-]{1,128}$/.test(input.model)) throw new Error("Native video slot/model unavailable");
-      intent = intents.find(i => i.pageId === page.pageId && i.actionId === slot.id && i.request.input === slot.prompt && i.phase !== "prepared");
+      const durationSeconds = Number(slot.durationSeconds ?? 5);
+      if (!Number.isInteger(durationSeconds) || durationSeconds < 4 || durationSeconds > 30) throw new Error("Invalid native video duration");
+      intent = intents.find(i => i.pageId === page.pageId && i.actionId === slot.id && i.request.input === slot.prompt &&
+        (i.durationSeconds ?? 5) === durationSeconds && i.phase !== "prepared");
       if (!intent) {
         if (intents.length >= 1000) throw new Error("Native video journal full");
         const request: VideoRequest = { kind: "video", model: input.model, input: slot.prompt };
-        intent = { id: randomUUID(), actionId: String(slot.id), pageId: page.pageId, request, key: randomUUID(), hash: videoRequestHash(request), phase: "prepared", ref: null };
+        intent = { id: randomUUID(), actionId: String(slot.id), pageId: page.pageId, request, durationSeconds, key: randomUUID(), hash: videoRequestHash(request), phase: "prepared", ref: null };
         intents.push(intent); await save();
       }
     } else intent = intents.find(i => i.id === input.intentId && i.pageId === page.pageId);
     if (!prepare && intent?.phase === "prepared") throw new Error("Video task has not been submitted");
-    if (!intent || !page.actions.some(a => a.id === intent!.actionId && a.prompt === intent!.request.input)) throw new Error("Native video task is stale");
+    if (!intent || !page.actions.some(a => a.id === intent!.actionId && a.prompt === intent!.request.input &&
+      Number(a.durationSeconds ?? 5) === (intent!.durationSeconds ?? 5))) throw new Error("Native video task is stale");
     const job = { kind: "video", intentId: intent.id, pageNumber, sourceSha256: view.project.source.sha256 };
     if (this.running.has(intent.id)) throw new Error("Native video operation already in progress");
     this.running.add(intent.id);
     try {
       let task;
       if (intent.phase === "prepared") {
-        const quote = await client.quote(intent.request.model); await check();
+        const durationSeconds = intent.durationSeconds ?? 5;
+        const quote = await client.quote(intent.request.model, durationSeconds); await check();
         task = await client.submit(intent.key, intent.request, quote, undefined, check, async () => {
           await check(); const scope = await host.call<{ teamProjectId: string | null }>("courseware.mediaRelay.scope", { sessionId });
           intent!.phase = "submission-unknown"; await save(); return scope.teamProjectId ?? undefined;
-        });
+        }, durationSeconds);
       } else task = intent.ref ? await client.get(intent.ref) : await client.find({ idempotencyKey: intent.key, requestHash: intent.hash });
       if (!task) return { job, saved: false, recovery: "unknown", state: "submission_unknown" };
       if (task.requestHash !== intent.hash || task.idempotencyKey !== intent.key || task.model !== intent.request.model) throw new Error("Invalid native video receipt");

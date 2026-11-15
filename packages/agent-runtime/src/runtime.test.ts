@@ -657,6 +657,12 @@ describe("DesktopAgentRuntime configuration matching", () => {
     expect(
       looksLikePseudoToolCall("I will read the file and then run the tests."),
     ).toBe(false);
+    expect(looksLikePseudoToolCall('继续</｜DSML｜ invoke></｜DSML｜ calls>')).toBe(true);
+    expect(looksLikePseudoToolCall('<｜｜DSML｜｜ calls>\n<｜｜DSML｜｜ invoke name="TodoWrite">\n</｜｜DSML｜｜ invoke>\n</｜｜DSML｜｜ calls>')).toBe(true);
+    expect(looksLikePseudoToolCall('Example:\n```xml\n</｜｜DSML｜｜ calls>\n```')).toBe(false);
+    expect(looksLikePseudoToolCall('The provider leaked `multi_tool_use.parallel` as text.')).toBe(false);
+    expect(looksLikePseudoToolCall('The closing marker is `</｜DSML｜ calls>`.')).toBe(false);
+    expect(looksLikePseudoToolCall('Example:\n```xml\n</｜DSML｜ calls>\n```')).toBe(false);
   });
 
   it("preserves host failure diagnostics while marking the agent tool result", async () => {
@@ -5609,7 +5615,8 @@ describe("DesktopAgentRuntime assistant thinking events", () => {
     await runtime.dispose();
   });
 
-  it("recovers a silent turn with one automatic re-run", async () => {
+  it.each(["", '继续</｜DSML｜ invoke></｜DSML｜ calls>', '[{"type":"text","text":"\\n\\n"}]',
+    JSON.stringify([{ type: "text", text: JSON.stringify([{ type: "text", text: "\n\n" }]) }])])("recovers an unusable answer with one automatic re-run: %s", async text => {
     const onEvent = vi.fn();
     const runtime = createRuntime({ onEvent });
     const agent = (runtime as any).agent;
@@ -5617,7 +5624,7 @@ describe("DesktopAgentRuntime assistant thinking events", () => {
     // The observed shape: a full conclusion in reasoning, empty visible text,
     // no tool call — the turn ends and the user sees nothing.
     const silentMessage = assistantMessage({
-      content: [{ type: "thinking", thinking: "the answer is provider B" }],
+      content: text ? [{ type: "text", text }] : [{ type: "thinking", thinking: "the answer is provider B" }],
     });
     const recoveredMessage = assistantMessage({
       content: [{ type: "text", text: "provider B, because …" }],
@@ -5685,12 +5692,13 @@ describe("DesktopAgentRuntime assistant thinking events", () => {
     await runtime.dispose();
   });
 
-  it("reports an empty response when the re-run stays silent", async () => {
+  it.each(["", '继续</｜DSML｜ invoke></｜DSML｜ calls>', '[{"type":"text","text":"\\n\\n"}]',
+    JSON.stringify([{ type: "text", text: JSON.stringify([{ type: "text", text: "\n\n" }]) }])])("reports an unusable response after one recovery attempt: %s", async text => {
     const onEvent = vi.fn();
     const runtime = createRuntime({ onEvent });
     const agent = (runtime as any).agent;
     const handleAgentEvent = (runtime as any).handleAgentEvent.bind(runtime);
-    const silentMessage = assistantMessage({ content: [] });
+    const silentMessage = assistantMessage({ content: text ? [{ type: "text", text }] : [] });
 
     agent.prompt = vi.fn(async () => {
       agent.state.messages = [
@@ -5742,6 +5750,48 @@ describe("DesktopAgentRuntime assistant thinking events", () => {
     // An assistant message with nothing in it is not worth resending.
     expect((runtime as any).fullEntries).toHaveLength(0);
 
+    await runtime.dispose();
+  });
+
+  it.each([false, true])("only replenishes silent recovery after a successful executed tool (error=%s)", async isError => {
+    const onEvent = vi.fn();
+    const runtime = createRuntime({ onEvent });
+    const agent = (runtime as any).agent;
+    const handle = (runtime as any).handleAgentEvent.bind(runtime);
+    const silent = assistantMessage({ content: [] });
+    const toolTurn = assistantMessage({ content: [{ type: "toolCall", id: "original-call", name: "Read", arguments: {} }], stopReason: "toolUse" });
+    const end = async () => { await handle({ type: "turn_end" }); await handle({ type: "agent_end", messages: [] }); };
+    const answer = async (message: any) => {
+      agent.state.messages.push(message);
+      await handle({ type: "message_start", message }); await handle({ type: "message_end", message });
+    };
+    agent.prompt = vi.fn(async () => {
+      agent.state.messages = [{ role: "user", content: "continue", timestamp: 1 }];
+      await answer(silent); await end();
+    });
+    agent.waitForIdle = vi.fn(async () => undefined);
+    let attempts = 0;
+    agent.continue = vi.fn(async () => {
+      await handle({ type: "agent_start" }); await handle({ type: "turn_start" });
+      if (++attempts === 1) {
+        await answer(toolTurn);
+        await handle({ type: "tool_execution_start", toolCallId: "original-call", toolName: "Read", args: {} });
+        const result = { content: [{ type: "text", text: "saved progress" }] };
+        await handle({ type: "tool_execution_end", toolCallId: "original-call", toolName: "Read", result, isError });
+        agent.state.messages.push({ role: "toolResult", toolCallId: "original-call", toolName: "Read", ...result, isError, timestamp: 2 });
+        await answer(silent);
+      } else {
+        expect(agent.state.messages.some((m: any) => m.role === "toolResult" && m.toolCallId === "original-call")).toBe(true);
+        await answer(assistantMessage({ content: [{ type: "text", text: "Done" }] }));
+      }
+      await end();
+    });
+    await runtime.prompt("continue", "user-1");
+    expect(agent.continue).toHaveBeenCalledTimes(isError ? 1 : 2);
+    const events = onEvent.mock.calls.map(([envelope]) => (envelope as any).event);
+    expect(events.filter(e => e.type === "tool_end")).toHaveLength(1);
+    expect(events.some(e => e.type === "error" && e.error.code === "EMPTY_MODEL_RESPONSE")).toBe(isError);
+    expect(events.filter(e => e.type === "agent_end")).toHaveLength(1);
     await runtime.dispose();
   });
 
@@ -7210,6 +7260,54 @@ describe("DesktopAgentRuntime per-turn context protection", () => {
         error: expect.objectContaining({ code: "CONTEXT_TOO_LARGE" }),
       }),
     );
+    await runtime.dispose();
+  });
+
+  it.each([false, true])("tries one overflow compaction when the pending prompt still exceeds the threshold checkpoint (still oversized=%s)", async stillOversized => {
+    const onEvent = vi.fn();
+    const runtime = createRuntime({ onEvent });
+    const agent = (runtime as any).agent;
+    agent.prompt = vi.fn(async () => undefined);
+    agent.waitForIdle = vi.fn(async () => undefined);
+    vi.spyOn(runtime as any, "automaticCompactionNeeded").mockReturnValue(true);
+    vi.spyOn(runtime as any, "automaticCompactionWouldExceedHardLimit")
+      .mockReturnValueOnce(true).mockReturnValue(stillOversized);
+    const compact = vi.spyOn(runtime as any, "runCompaction").mockResolvedValue(true);
+
+    await runtime.prompt("continue the saved task", "user-preflight-repair");
+
+    expect(compact.mock.calls).toEqual([["threshold", false], ["overflow", false]]);
+    expect(agent.prompt).toHaveBeenCalledTimes(stillOversized ? 0 : 1);
+    const errors = onEvent.mock.calls.map(([envelope]) => (envelope as any).event)
+      .filter(event => event.type === "error");
+    if (stillOversized) {
+      expect(errors).toContainEqual(expect.objectContaining({
+        error: expect.objectContaining({ code: "CONTEXT_TOO_LARGE" }),
+      }));
+      expect((runtime as any).fullEntries).toContainEqual(expect.objectContaining({
+        id: "user-preflight-repair", message: expect.objectContaining({ content: "continue the saved task" }),
+      }));
+    } else expect(errors).toEqual([]);
+    await runtime.dispose();
+  });
+
+  it("preserves Stop and the pending user message during overflow preflight recovery", async () => {
+    const onEvent = vi.fn();
+    const runtime = createRuntime({ onEvent });
+    const agent = (runtime as any).agent;
+    agent.prompt = vi.fn();
+    vi.spyOn(runtime as any, "automaticCompactionNeeded").mockReturnValue(true);
+    vi.spyOn(runtime as any, "automaticCompactionWouldExceedHardLimit").mockReturnValue(true);
+    vi.spyOn(runtime as any, "runCompaction").mockResolvedValueOnce(true).mockImplementationOnce(async () => {
+      (runtime as any).compactionAborted = true;
+      return false;
+    });
+
+    await expect(runtime.prompt("stop this request", "user-overflow-stop")).rejects.toMatchObject({ name: "AbortError" });
+
+    expect(agent.prompt).not.toHaveBeenCalled();
+    expect((runtime as any).fullEntries).toContainEqual(expect.objectContaining({ id: "user-overflow-stop" }));
+    expect(onEvent.mock.calls.map(([envelope]) => (envelope as any).event).some(event => event.type === "error")).toBe(false);
     await runtime.dispose();
   });
 

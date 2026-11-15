@@ -21,8 +21,14 @@ when the session/project changes. Export remains subject to its existing gates.
 WiseOffice owns desktop native PPT rendering. Quiz grading and interaction
 responses/reference answers reuse shared runtime components, removing the
 Desktop adapter's handwritten Quiz implementation. The shared playback core and
-audio clock remain in use. Preserve portable/team playback; removing that player
-would break those consumers. See the matching host-owned-courseware ADR entry.
+audio clock remain in use.
+
+Product status update (2026-11-13): portable courseware, team publication and
+their playback workflows are **TBD**. Do not infer a requirement to retain the
+standalone player from the existing consumers or the evidence below. The earlier
+preservation rationale is superseded by the matching
+[host-owned-courseware ADR update](../adr/host-owned-courseware-projects.md#2026-11-13-portable-courseware-and-team-publication--tbd).
+Desktop PPT playback acceptance uses WiseOffice's native teaching slideshow.
 
 ## Evidence
 

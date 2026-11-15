@@ -185,6 +185,7 @@ fn valid_hash(hash: &str) -> bool {
 
 impl ProjectCommitStore {
     /// The caller supplies an authorized existing project directory, never a renderer path.
+    #[cfg(test)]
     pub fn open(root: &Path) -> Result<Self> {
         Self::from_directory(Directory::open(&root.canonicalize()?)?)
     }

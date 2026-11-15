@@ -16,6 +16,8 @@ struct ApproveParams {
 #[serde(deny_unknown_fields)]
 pub(super) struct Plan {
     pub(super) title: String,
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "textMode")]
+    pub(super) text_mode: Option<TextMode>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "storySha256")]
     pub(super) story_sha256: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "bodyPageLimit")]
@@ -28,6 +30,12 @@ pub(super) struct Plan {
         deserialize_with = "read_visual_bible"
     )]
     pub(super) visual_bible: Option<VisualBible>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub(super) enum TextMode {
+    Native,
 }
 
 fn read_visual_bible<'de, D: serde::Deserializer<'de>>(

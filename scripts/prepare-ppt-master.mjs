@@ -84,6 +84,36 @@ async function localSkillRoot() {
 
 
 async function patchPptMaster(skillRoot) {
+  const flattenPath = join(skillRoot, "scripts", "svg_finalize", "flatten_tspan.py");
+  if (await exists(flattenPath)) {
+    let flatten = await readFile(flattenPath, "utf8");
+    const splitMode = `        if merge_paragraphs:\n            paragraph = classify_paragraph_block(\n                text_el,\n                preserve_line_breaks=preserve_line_breaks,\n            )`;
+    const preserveMode = `        preserve_object = text_el.get("data-deckwise-preserve-object") == "1"\n        if merge_paragraphs or preserve_object:\n            paragraph = classify_paragraph_block(\n                text_el,\n                preserve_line_breaks=preserve_line_breaks or preserve_object,\n            )`;
+    if (!flatten.includes('text_el.get("data-deckwise-preserve-object")')) {
+      if (!flatten.includes(splitMode)) throw new Error("PPT Master text identity patch anchor not found");
+      flatten = flatten.replace(splitMode, preserveMode);
+      flatten = flatten.replace(
+        `                    synthetic_first=synthetic_first,\n                )\n                changed = True\n                continue`,
+        `                    synthetic_first=synthetic_first,\n                )\n                text_el.attrib.pop("data-deckwise-preserve-object", None)\n                changed = True\n                continue\n            if preserve_object:\n                raise ValueError(\n                    f"Unable to preserve DeckWise text object {text_el.get('id')!r}"\n                )`,
+      );
+      if (!flatten.includes('Unable to preserve DeckWise text object')) {
+        throw new Error("PPT Master text identity validation patch did not apply");
+      }
+      await writeFile(flattenPath, flatten);
+    }
+
+    const testPath = join(skillRoot, "scripts", "tests", "test_native_export_guards.py");
+    if (await exists(testPath)) {
+      let tests = await readFile(testPath, "utf8");
+      if (!tests.includes("test_deckwise_assessment_text_keeps_object_identity")) {
+        const anchor = "    def test_line_starter_dx_is_consumed_once_and_small_dy_still_splits(self) -> None:\n";
+        const regression = `    def test_deckwise_assessment_text_keeps_object_identity(self) -> None:\n        tree = ET.ElementTree(ET.fromstring(\n            '<svg xmlns="http://www.w3.org/2000/svg"><text id="assessment-q" '\n            'data-deckwise-preserve-object="1" x="100" y="120" font-size="20">'\n            '<tspan x="100" dy="0">First line</tspan>'\n            '<tspan x="100" dy="26">Second line</tspan></text></svg>'\n        ))\n        self.assertTrue(flatten_text_with_tspans(tree))\n        text = tree.getroot().find('{http://www.w3.org/2000/svg}text')\n        self.assertIsNotNone(text)\n        self.assertEqual(text.get('id'), 'assessment-q')\n        self.assertIsNone(text.get('data-deckwise-preserve-object'))\n        self.assertEqual(''.join(text.itertext()), 'First lineSecond line')\n        self.assertEqual(len(tree.getroot().findall('{http://www.w3.org/2000/svg}text')), 1)\n\n`;
+        if (!tests.includes(anchor)) throw new Error("PPT Master identity regression test anchor not found");
+        await writeFile(testPath, tests.replace(anchor, `${regression}${anchor}`));
+      }
+    }
+  }
+
   // Planning must distinguish identity references before the provided-asset fast path.
   const referencePolicy = `## DeckWise Fixed-identity Reference Policy (mandatory)
 

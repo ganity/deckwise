@@ -8,12 +8,13 @@ type Visuals = { pageId: string; visualMasterAssetId: string; cleanPlateAssetId:
   foregroundPlacements?: { assetId: string; bboxPx: [number, number, number, number]; zIndex?: number; semanticRole?: string }[] };
 const hash = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 
-/** Preserve decomposed images as independently editable PPTX objects, including lettering. */
+/** New plans use native lettering over textless art; legacy reviewed image lettering stays intact. */
 export async function buildSceneCourseDeck(input: {
   sessionId: string;
   modelKey: string;
   thinkingLevel?: string;
   pages: SceneCoursePlanPage[];
+  textMode?: "native";
   visuals: Visuals[];
   canvas: { width: number; height: number };
   signal?: AbortSignal;
@@ -55,7 +56,8 @@ export async function buildSceneCourseDeck(input: {
     const nativePlacements = visual.foregroundPlacements;
     const completeNative = nativePlacements?.length === foregrounds.length && foregrounds.length > 0 &&
       foregrounds.every(image => nativePlacements.some(placement => image.assetIds.includes(placement.assetId)));
-    const result = completeNative ? {
+    const nativeText = input.textMode === "native";
+    const result = completeNative && (!nativeText || !page.visibleText.length) ? {
       scene: { version: 1, slideId: page.pageId, sourceHash: page.sourceHash, canvas: input.canvas,
         visualMasterAssetId: visual.visualMasterAssetId, cleanPlateAssetId: visual.cleanPlateAssetId,
         elements: nativePlacements.map((placement, index) => ({ id: placement.assetId, type: "image_layer",
@@ -64,11 +66,15 @@ export async function buildSceneCourseDeck(input: {
       assets: Object.fromEntries(visual.images.flatMap(image => image.assetIds.map(id => [id, image.bytes]))),
     } : await generate({ pageId: page.pageId, sourceHash: page.sourceHash,
       pageText: page.visibleText.join("\n"),
-      instruction: `Build this page from the supplied image layers only. Page context (not extra display text): ${page.title}. Visual intent: ${page.visualIntent}. Treat the visual master as the design authority: preserve its composition and all lettering exactly as rendered in the decomposed image pixels. Use only image_layer elements, one per supplied foreground, including text carriers. Do not create native_text, shapes, connectors or replacement lettering. These approved child-facing strings are already in the images and are semantic context only: ${JSON.stringify(page.visibleText)}. Do not redesign, duplicate, omit or flatten the layers. Teacher narration is separate and must not appear on the slide.`,
+      instruction: nativeText
+        ? `Build this page from the supplied textless image layers and native_text. Page context: ${page.title}. Visual intent: ${page.visualIntent}. Keep every supplied foreground as one image_layer at its original position. Add exactly one native_text for each approved display string, preserving exact characters and punctuation: ${JSON.stringify(page.visibleText)}. Place readable text in clear space without covering subjects or other text. Use hierarchy, contrast and an appropriate font size. Do not create shapes, connectors, raster lettering, extra text or teacher narration. Teacher narration is separate and must not appear on the slide.`
+        : `Build this page from the supplied image layers only. Page context (not extra display text): ${page.title}. Visual intent: ${page.visualIntent}. Treat the visual master as the design authority: preserve its composition and all lettering exactly as rendered in the decomposed image pixels. Use only image_layer elements, one per supplied foreground, including text carriers. Do not create native_text, shapes, connectors or replacement lettering. These approved child-facing strings are already in the images and are semantic context only: ${JSON.stringify(page.visibleText)}. Do not redesign, duplicate, omit or flatten the layers. Teacher narration is separate and must not appear on the slide.`,
       canvas: input.canvas, schema: authoring.editablePptxSceneSchema }, signal);
     const scene = authoring.editablePptxSceneSchema.parse(result.scene);
-    if (scene.elements.some(element => element.type !== "image_layer"))
+    if (scene.elements.some(element => element.type !== "image_layer" && !(nativeText && element.type === "native_text")))
       throw new Error(`Scene pages use decomposed image layers only: ${page.pageId}`);
+    if (nativeText && JSON.stringify(scene.elements.filter(element => element.type === "native_text").map(element => element.content).sort()) !== JSON.stringify([...page.visibleText].sort()))
+      throw new Error(`Scene native text must match every approved display string exactly once: ${page.pageId}`);
     const layers = visual.images.filter(image => !image.assetIds.includes(visual.visualMasterAssetId) &&
       !image.assetIds.includes(visual.cleanPlateAssetId));
     const placed = scene.elements.filter(element => element.type === "image_layer");
@@ -132,7 +138,7 @@ export async function buildSceneCourseDeck(input: {
         const [left, top, width, height] = element.bboxPx;
         const escaped = element.content.replace(/[&<>"']/g, value => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[value]!));
         return { id: element.id, type: "text", left, top, width, height, rotate: 0,
-          content: `<p><span style="font-size: 28px; color: #111827;">${escaped}</span></p>`, defaultFontName: element.style.fontFace, defaultColor: element.style.color };
+          content: `<p style="text-align:${element.style.align};"><span style="font-size:${element.style.fontSizePt / 0.72}px;color:${element.style.color};font-weight:${element.style.fontWeight ?? 400};">${escaped}</span></p>`, defaultFontName: element.style.fontFace, defaultColor: element.style.color };
       }
       if (element.type !== "image_layer") throw new Error("Generated PPTist requires image layers or bound question text");
       const bytes = assets[element.assetId];

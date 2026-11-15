@@ -44,10 +44,16 @@ export class CoursewareTurnContinuation {
   private imageRetries = new Set<string>();
   private mediaRetries = new Set<string>();
   private assessmentJobs = new Map<string, Record<string, unknown>>();
+  private coursewareTask = false;
+  private previewReads = new Map<string, number>();
+  private previewBlocked = false;
+  private previewStalled = false;
 
   get reportOnly(): boolean { return this.stopped; }
 
   draftWriteError(name: string, args: Record<string, unknown>): string | undefined {
+    if (this.previewBlocked && name === "Browser" && ["screenshot", "snapshot", "console"].includes(String(args.action)))
+      return "Repeated unchanged preview reads are blocked. Use an actual page click/navigation, repair the existing SVG, or continue finalize/export from the saved project. A URL hash alone may not change the displayed slide. After five identical previews, fix the existing source before another visual read. Do not create another project.";
     if (!scenePlanPath(args.path ?? args.file_path)) return;
     if (name === "Edit" && this.planRepairPending)
       return "The scene draft failed validation. Read the current draft and use one complete Write with corrected JSON, preserving all required fields and user requirements. Partial Edit repairs are disabled until validation succeeds.";
@@ -91,6 +97,10 @@ export class CoursewareTurnContinuation {
     this.imageRetries.clear();
     this.mediaRetries.clear();
     this.assessmentJobs.clear();
+    this.coursewareTask = false;
+    this.previewReads.clear();
+    this.previewBlocked = false;
+    this.previewStalled = false;
   }
 
   private matchesPlan(snapshot: Record<string, unknown>): boolean {
@@ -102,6 +112,22 @@ export class CoursewareTurnContinuation {
   private observe(turn: AgentTurnContext): void {
     for (const result of turn.toolResults) {
       const write = turn.message.content.find(block => block.type === "toolCall" && block.id === result.toolCallId);
+      if (!result.isError && result.toolName === "courseware_workflow_get" && record(result.details) && record(result.details.task)) this.coursewareTask = true;
+      if (this.coursewareTask && !result.isError) {
+        if (["Write", "Edit"].includes(result.toolName)) { this.previewReads.clear(); this.previewBlocked = false; }
+        if (result.toolName === "Browser" && write?.type === "toolCall") {
+          if (["navigate", "click", "fill", "evaluate", "cdp"].includes(String(write.arguments.action)) &&
+              ![...this.previewReads.values()].some(count => count >= 5)) this.previewBlocked = false;
+          if (write.arguments.action === "screenshot") {
+            const images = result.content.filter(block => block.type === "image");
+            const key = progressKey(images.length ? images : record(result.details) ? result.details.images ?? result.details : result.content);
+            const count = (this.previewReads.get(key) ?? 0) + 1;
+            if (this.previewReads.size >= 32 && !this.previewReads.has(key)) this.previewReads.delete(this.previewReads.keys().next().value!);
+            this.previewReads.set(key, count);
+            if (count >= 3) { this.previewBlocked = true; this.previewStalled = true; }
+          }
+        }
+      }
       const path = write?.type === "toolCall" ? write.arguments.path ?? write.arguments.file_path : undefined;
       // Shell arguments can merely read a reference plan; explicit submission covers shell-authored drafts.
       if (!result.isError && ["Write", "Edit"].includes(result.toolName) && scenePlanPath(path)) {
@@ -180,6 +206,10 @@ export class CoursewareTurnContinuation {
       return;
     }
     this.observe(turn);
+    if (this.previewStalled && controls.canWait() && turn.message.stopReason !== "error" && turn.message.stopReason !== "aborted") {
+      this.previewStalled = false;
+      return "Three identical courseware previews show no visual progress. Do not screenshot this unchanged page again. If the page is wrong, repair its existing SVG; if it is correct, continue the same project's finalize/export. To inspect a different slide, click the actual viewer navigation or screenshot its exact SVG path; changing a URL hash is not proof of navigation. Preserve all saved assets and do not restart generation.";
+    }
     if (this.planning && controls.canWait() && turn.message.stopReason !== "error" && turn.message.stopReason !== "aborted" &&
         (!turn.message.content.some(block => block.type === "toolCall") || turn.toolResults.some(result =>
           result.toolName === "courseware_scene_plan_submit" || !result.isError && ["Write", "Edit"].includes(result.toolName)))) {
@@ -211,7 +241,8 @@ export class CoursewareTurnContinuation {
     const readyResult = this.savedGoal ? [...turn.toolResults].reverse().find(result =>
       !result.isError && result.toolName === "courseware_media_context" && record(result.details) &&
       Array.isArray(result.details.jobs) && !result.details.jobs.length &&
-      record(result.details.completion) && result.details.completion.ready === true) : undefined;
+      record(result.details.completion) && result.details.completion.ready === true &&
+      !(record(result.details.assessmentMedia) && result.details.assessmentMedia.ready === false)) : undefined;
     if (!this.active || turn.message.stopReason === "error" || turn.message.stopReason === "aborted" || !controls.canWait()) return;
     const execute = async (name: string, args: Record<string, unknown>) => {
       signal?.throwIfAborted();
@@ -377,10 +408,15 @@ export class CoursewareTurnContinuation {
           }
           if (this.savedGoal === "jobs") { this.reset(); return; }
           const completion = record(snapshot.completion) ? snapshot.completion : undefined;
-          if (completion && completion.ready !== true) {
+          if (completion && completion.ready !== true && !(
+            record(snapshot.assessmentMedia) && snapshot.assessmentMedia.ready === false &&
+            Array.isArray(completion.issues) && completion.issues.length === 0)) {
             const allIssues = Array.isArray(completion.issues) ? completion.issues : [];
-            const batchPages = new Set([...new Set(allIssues.filter(record).map(issue => issue.pageNumber).filter(Number.isInteger))].slice(0, 5));
-            const issues = allIssues.filter(issue => !record(issue) || !Number.isInteger(issue.pageNumber) || batchPages.has(issue.pageNumber));
+            // Resolve object evidence separately so an alias repair never rewrites speech or audio.
+            const objectsOnly = allIssues.some(issue => record(issue) && issue.code === "OBJECT_REQUIREMENT_UNRESOLVED");
+            const repairIssues = objectsOnly ? allIssues.filter(issue => record(issue) && issue.code === "OBJECT_REQUIREMENT_UNRESOLVED") : allIssues;
+            const batchPages = new Set([...new Set(repairIssues.filter(record).map(issue => issue.pageNumber).filter(Number.isInteger))].slice(0, 5));
+            const issues = repairIssues.filter(issue => !record(issue) || !Number.isInteger(issue.pageNumber) || batchPages.has(issue.pageNumber));
             if (requiredRepairFailed) {
               await save("blocked"); this.stop();
               return "Required teaching repair failed. Saved acceptance still has missing requirements. Report the affected pages and preserved successful assets; do not repeat the failed repair or claim completion.\n" + JSON.stringify(coursewareStatusSummary(snapshot));
@@ -396,14 +432,16 @@ export class CoursewareTurnContinuation {
             await save("running");
             const missingNarrationOnly = issues.every(issue => record(issue) && issue.code === "NARRATION_MISSING");
             if (missingNarrationOnly || snapshot.narrationReady === true && issues.every(issue => record(issue) &&
-                ["QUESTION_MISSING", "QUESTION_TYPE_MISMATCH", "MUSIC_MISSING", "VIDEO_MISSING", "EFFECT_MISSING", "EFFECT_TARGET_MISSING", "OBJECT_REQUIREMENT_UNRESOLVED", "EFFECT_BINDING_MISMATCH", "EFFECT_TARGET_UNSUPPORTED", "ANIMATION_TARGET_CONFLICT"].includes(String(issue.code)))) {
+                ["QUESTION_MISSING", "QUESTION_TYPE_MISMATCH", "MUSIC_MISSING", "VIDEO_MISSING", "EFFECT_MISSING", "EFFECT_TARGET_MISSING", "OBJECT_REQUIREMENT_UNRESOLVED", "EFFECT_BINDING_MISMATCH", "EFFECT_TARGET_UNSUPPORTED", "ANIMATION_TARGET_CONFLICT", "NATIVE_SPEECH_ANIMATION_MISSING"].includes(String(issue.code)))) {
               const pageNumbers = [...new Set(issues.flatMap(issue => record(issue) && Number.isInteger(issue.pageNumber) ? [issue.pageNumber] : []))];
               if (pageNumbers.length) {
                 try {
                   const repaired = await execute("courseware_narration_propose", { sourceSha256: this.sourceSha256, pageNumbers,
                     ...(missingNarrationOnly ? {} : { repairRequiredTeaching: true }),
+                    ...(objectsOnly ? { repairObjectsOnly: true } : {}),
                     instruction: missingNarrationOnly
                       ? "Generate narration candidates only for these non-silent pages that have no saved speech. Use the current saved page text, independently mapped editable objects, retained lesson plan and adjacent-page context. Do not invent content that is absent; preserve every other page and all existing assets."
+                      : objectsOnly ? "Verify only the required objects on these pages from current visual evidence. Bind each member of a compound description independently; counted collections require the stated number of distinct real targets. Never paste a collective description onto one member. Preserve all saved actions, speech, audio and effects exactly. If any required member is absent, report the source issue instead of inventing an alias."
                       : "Restore only missing approved teaching/effect bindings on these pages. Preserve existing speech text verbatim and in order, audio and media. Bind effects only to verified current page objects. For unresolved required-object descriptions, verify the current page visually and save the exact planned name as an alias only on its real target. If absent, report the source issue instead. Follow retained logical-page requirements." });
                   if (repaired.saved !== true) {
                     const failure = Array.isArray(repaired.failures) ? repaired.failures.find(record) : undefined;
@@ -432,8 +470,7 @@ export class CoursewareTurnContinuation {
             return instruction;
           }
           const quality = record(snapshot.quality) ? snapshot.quality : undefined;
-          if (record(snapshot.assessmentMedia) && snapshot.assessmentMedia.ready === false &&
-              !(snapshot.nativeTeaching === true && completion?.ready === true)) {
+          if (record(snapshot.assessmentMedia) && snapshot.assessmentMedia.ready === false) {
             const context = snapshot.assessmentMedia;
             if (this.assessmentJobs.size) {
               for (const [key, request] of this.assessmentJobs) {

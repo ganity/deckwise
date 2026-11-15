@@ -29,6 +29,14 @@ const { CoursewareMediaClient } = media;
 const { musicRequestHash } = await loadCoursewareMedia("courseware-music-request");
 const sha = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const input = { kind: "tts", model: "courseware-tts-v1", input: "Good! 小朋友😀", voice: "teacher_1" };
+const canonical = value => Array.isArray(value) ? `[${value.map(canonical).join(",")}]` :
+  value && typeof value === "object" ? `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(",")}}` : JSON.stringify(value);
+function videoHash(value) {
+  const fields = [value.kind, value.model, value.input, null];
+  if (value.referenceImage) fields.push(value.referenceImage.sha256, value.referenceImage.mimeType, String(value.referenceImage.byteLength));
+  if (value.parameters) fields.push(canonical(value.parameters));
+  return sha("courseware-media-v1" + fields.map(field => field === null ? ":-1:" : `:${field.length}:${field}`).join(""));
+}
 function hashRequest(value) {
   let canonical = "courseware-media-v1";
   for (const field of [value.kind, value.model, value.input, value.voice ?? null]) canonical += `:${field === null ? -1 : field.length}:${field ?? ""}`;
@@ -71,7 +79,7 @@ test("media types have independent limits and async jobs retain their own slots"
       counts[body.kind]++;
       const value = { ...ready(body, key), taskId: `task-${key}`, kind: body.kind, state: "submitted", assetRef: null,
         feeState: "reserved", actualPoints: null, receiptId: null,
-        requestHash: body.kind.startsWith("music") ? musicRequestHash(body) : hashRequest(body) };
+        requestHash: body.kind.startsWith("music") ? musicRequestHash(body) : body.kind === "video" ? videoHash(body) : hashRequest(body) };
       tasks.set(key, value);
       if (Object.values(counts).reduce((a, b) => a + b, 0) === Object.values(limits).reduce((a, b) => a + b, 0)) releaseFirst();
       return json(value);
@@ -865,24 +873,61 @@ test("actual DesktopAuthSession login, private transport, restart/replay and log
 });
 
 
-test("video uses the quoted original task and verifies MP4 integrity on Platform", async () => {
-  const input = { kind: "video", model: "scene-video", input: "小朋友😀 watches a turning square" };
-  const bytes = Buffer.alloc(24); bytes.write("ftyp", 4);
-  const task = { ...ready(input, "video-key"), kind: "video", assetRef: { assetId: "clip", sha256: sha(bytes), mime: "video/mp4", byteLength: bytes.length,
-    downloadPath: "/courseware/media/tasks/task-1/asset" } };
-  const quote = { ...imageQuote(), kind: "video", model: input.model };
-  const f = setup(async url => url.endsWith("/asset") ? new Response(bytes, { headers: { "content-type": "video/mp4" } }) : json(task));
-  const result = await f.client.video.submit("video-key", input, quote);
-  assert.equal(result.requestHash, hashRequest(input));
-  assert.deepEqual(JSON.parse(f.calls[0][1].body).request, input);
+for (const assetOrigin of [
+  "https://ark-content-generation-cn-beijing.tos-cn-beijing.volces.com",
+  "https://ark-acg-cn-beijing.tos-cn-beijing.volces.com",
+  "https://supplier-cdn.example.com",
+]) {
+test(`video uses llm-ha user gateway and downloads without credentials from ${assetOrigin}`, async () => {
+  const input = { kind: "video", model: "scene-video", input: "小朋友😀 watches a turning square",
+    parameters: { duration: 8, ratio: "adaptive", resolution: "720p", generate_audio: true } };
+  const bytes = Buffer.alloc(17 * 1024 * 1024); bytes.write("ftyp", 4);
+  const videoUrl = `${assetOrigin}/clip.mp4?signature=temporary`;
+  const task = { version: "courseware-media-v1", taskId: "gw-video-1", idempotencyKey: "video-key", requestHash: videoHash(input),
+    kind: "video", model: input.model, state: "ready", feeState: "settled", reservedPoints: 64, actualPoints: 64,
+    receiptId: "courseware-media:gw-video-1", errorCode: null, assetRef: null, videoUrl,
+    assetOrigin };
+  assert.equal(videoHash(input), "1dfb82b6e0d46c2e2c7db9d611fca45c051048502d4aad58c64aafd13317257b");
+  assert.equal(videoHash({ kind: "video", model: "scene", input: "A child waves hello",
+    parameters: { duration: 7, ratio: "adaptive", resolution: "1080p", generate_audio: true } }),
+    "5868a9fb225ab4f81b5010e906e5351c33dd621347ba3dad78731dcce85b3426");
+  const { parameters, ...savedInput } = input;
+  assert.equal(videoHash(savedInput), "349da0215e3285b231c2ae71e9ca60f435c0b18c265f73524bb4d03cb4cdb22e");
+  const quote = { ...imageQuote(), kind: "video", model: input.model, maxPoints: 64 };
+  const calls = [];
+  const f = setup(async (url, init) => {
+    calls.push([url, init]);
+    if (url === videoUrl) {
+      assert.equal(new Headers(init.headers).get("Authorization"), null);
+      assert.equal(init.credentials, "omit");
+      assert.equal(init.redirect, "error");
+      return new Response(bytes, { headers: { "content-type": "video/mp4", "content-length": String(bytes.length) } });
+    }
+    if (url.includes("/quote?")) return json(quote);
+    return json(task);
+  }, "https://gateway.test/v1");
+  await f.client.video.quote(input.model, 8);
+  assert(calls.some(([url]) => url.endsWith("/quote?kind=video&durationSeconds=8")));
+  const result = await f.client.video.submit("video-key", input, quote, undefined, undefined, undefined, 8);
+  assert.equal(result.requestHash, videoHash(input));
+  assert.deepEqual(JSON.parse(calls.find(([, init]) => init.method === "POST")[1].body).request, input);
+  assert.equal(JSON.parse(calls.find(([, init]) => init.method === "POST")[1].body).confirmation.durationSeconds, 8);
   assert.deepEqual((await f.client.video.download(reference(task))).bytes, bytes);
   assert.equal((await f.client.video.find(reference(task))).taskId, task.taskId);
-  assert.equal(f.calls.filter(([, init]) => init.method === "POST").length, 1);
-  assert(f.calls.every(([url]) => new URL(url).origin === "https://platform.test"));
-  const invalid = setup(async url => url.endsWith("/asset") ? new Response(Buffer.alloc(24), { headers: { "content-type": "video/mp4" } }) : json(task));
-  await assert.rejects(invalid.client.video.download(reference(task)), /INTEGRITY_ERROR/);
+  assert.equal(calls.filter(([url]) => url === videoUrl).length, 1);
+  assert(calls.filter(([url]) => url !== videoUrl).every(([url, init]) => new URL(url).origin === "https://gateway.test" &&
+    /^Bearer private-access-/.test(init.headers.get("Authorization"))));
+  for (const bad of [
+    { videoUrl: "https://attacker.example/clip.mp4", assetOrigin },
+    { videoUrl: "http://supplier-cdn.example.com/clip.mp4", assetOrigin: "http://supplier-cdn.example.com" },
+    { videoUrl: "https://user:pass@supplier-cdn.example.com/clip.mp4", assetOrigin: "https://supplier-cdn.example.com" },
+  ]) {
+    const invalid = setup(async () => json({ ...task, ...bad }), "https://gateway.test/v1");
+    await assert.rejects(invalid.client.video.download(reference(task)), /INVALID_RESPONSE/);
+  }
   await assert.rejects(f.client.video.submit("video-key", input, { ...quote, kind: "image" }), /INVALID_RESPONSE/);
 });
+}
 
 test("image task preserves an opaque upstream failure response and asks the gateway for details", async () => {
   const upstreamResponse = { status: 400, contentType: "application/json", requestId: "provider-original",
