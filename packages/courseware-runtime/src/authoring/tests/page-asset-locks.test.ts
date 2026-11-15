@@ -133,7 +133,7 @@ describe('locked page images', () => {
     const f=await fixture(), temporary=await mkdtemp(path.join(os.tmpdir(),'locked-image-worker-'));
     try {
       const result=await generatePagePptxCandidate({...f,target:{pageId:f.baseline.pageId,slidePart:f.part},instruction:'New style',preservedImages:[f.lock],getCurrentBaseline:async()=>f.baseline,generate:async()=>({scene:f.scene,assets:f.assets})});
-      const worker=path.resolve('../../apps/desktop/resources/pptx-worker/pptx-worker.mjs');
+      const worker=path.join(path.resolve(process.env.DECKWISE_NATIVE_WORKER_DIRECTORY ?? '../../apps/desktop/resources/pptx-worker'), 'pptx-worker.mjs');
       const parse=async(name:string,bytes:Uint8Array)=>{
         const input=path.join(temporary,`${name}.pptx`),output=path.join(temporary,name);await writeFile(input,bytes);
         await promisify(execFile)(process.execPath,[worker,input,output],{maxBuffer:2*1024*1024});

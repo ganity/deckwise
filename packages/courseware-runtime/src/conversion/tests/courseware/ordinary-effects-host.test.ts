@@ -16,7 +16,7 @@ it.skipIf(!hostTestBinary)('loads actual Host-bound plain/import attention targe
   const directory = await mkdtemp(path.join(os.tmpdir(), 'ordinary-effects-host-'));
   try {
     const fixture = path.resolve('tests/fixtures/fixed-courseware');
-    const workerDirectory = path.resolve('../../apps/desktop/resources/pptx-worker');
+    const workerDirectory = path.resolve(process.env.DECKWISE_NATIVE_WORKER_DIRECTORY ?? '../../apps/desktop/resources/pptx-worker');
     const sourcePath = path.join(fixture, 'lesson-r8.pptx');
     const parsed = path.join(directory, 'parsed');
     await execute(process.execPath, [path.join(workerDirectory, 'pptx-worker.mjs'), sourcePath, parsed],

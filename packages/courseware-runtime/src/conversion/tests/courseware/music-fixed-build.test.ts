@@ -9,7 +9,7 @@ import { loadFixedBuild } from '../../../player/lib/courseware/load-fixed-build'
 
 it('adapts, builds and loads verified sequential music beside unchanged narration', async () => {
   const fixture = path.resolve('tests/fixtures/fixed-courseware');
-  const workerDirectory = path.resolve('../../apps/desktop/resources/pptx-worker');
+  const workerDirectory = path.resolve(process.env.DECKWISE_NATIVE_WORKER_DIRECTORY ?? '../../apps/desktop/resources/pptx-worker');
   const temporary = await mkdtemp(path.join(os.tmpdir(), 'fixed-music-'));
   try {
     const raw = JSON.parse(await readFile(path.join(fixture, 'canonical-desktop.json'), 'utf8'));
