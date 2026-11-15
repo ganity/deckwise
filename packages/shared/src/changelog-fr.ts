@@ -2,6 +2,11 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const frEntries: ChangelogEntry[] = [
   {
+    version: "0.20.4",
+    date: "2026-11-16",
+    highlights: ["Corrige la lecture des fichiers imbriqués de l’archive lors de la vérification du paquet Windows."],
+  },
+  {
     version: "0.20.3",
     date: "2026-11-16",
     highlights: ["Corrige la vérification de l’installateur Windows après l’ajout de l’assistant d’élévation NSIS."],

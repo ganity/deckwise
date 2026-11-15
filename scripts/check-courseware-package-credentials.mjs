@@ -113,7 +113,8 @@ export async function scanPackage(resources) {
         await inspect(name, createReadStream(path));
         if (name.endsWith(".asar")) {
           asar.uncache(path);
-          for (const member of asar.listPackage(path).map(normalize).sort()) {
+          // ASAR resolves nested members using the host path separator.
+          for (const member of asar.listPackage(path).map(name => name.replace(/^[\\/]+/, "")).sort()) {
             const stat = asar.statFile(path, member, false);
             if (stat.files) continue;
             const memberName = name + "!/" + normalize(member);
