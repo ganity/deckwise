@@ -26,6 +26,11 @@ async function run(name, command, args, timeout = 240_000) {
   return log;
 }
 try {
+  await run("ppt-master-stage", pnpm, ["--filter", "@pi-desktop/desktop", "prepare:ppt-master"]);
+  const python = join(root, "apps/desktop/dist/runtime/current/python", process.platform === "win32" ? "python.exe" : "bin/python3");
+  if (!existsSync(python)) await run("python-stage", pnpm, ["--filter", "@pi-desktop/desktop", "build:python-runtime"]);
+  await run("python-dependencies", python, [join(root, "apps/desktop/runtime/python/verify-deps.py")]);
+  env.DECKWISE_PYTHON = python;
   for (const path of [worker, join(root, "packages/shared/dist/index.js"), join(root, "packages/agent-runtime/dist/index.js"), join(pptMaster, "scripts/svg_to_pptx.py")])
     assert(existsSync(path), `Missing current workspace build: ${path}`);
   await run("host-build", "cargo", ["build", "-p", "host-core", "--locked"]);

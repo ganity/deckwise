@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { createHash } from "node:crypto";
-import { cp, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, readdir, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -411,9 +411,12 @@ async function main() {
   const local = await localSkillRoot();
   if (local) {
     await assertSkillRoot(local);
-    await rm(output, { recursive: true, force: true });
-    await mkdir(dirname(output), { recursive: true });
-    await cp(local, output, { recursive: true });
+    const sameSource = resolve(local) === output || (await exists(output) && await realpath(local) === await realpath(output));
+    if (!sameSource) {
+      await rm(output, { recursive: true, force: true });
+      await mkdir(dirname(output), { recursive: true });
+      await cp(local, output, { recursive: true });
+    }
     await patchPptMaster(output);
     console.log(`PPT Master staged from local checkout at ${output}`);
     return;

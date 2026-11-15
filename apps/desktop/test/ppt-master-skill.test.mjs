@@ -1,10 +1,25 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { register } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import ts from "typescript";
+
+test("preparing an already configured PPT Master directory preserves its input", () => {
+  const root = mkdtempSync(join(tmpdir(), "ppt-master-in-place-"));
+  try {
+    for (const directory of ["scripts", "workflows"]) mkdirSync(join(root, directory));
+    for (const file of ["SKILL.md", "scripts/attribution_guard.py", "workflows/routing.md", "sentinel"])
+      writeFileSync(join(root, file), "preserved");
+    execFileSync(process.execPath, [fileURLToPath(new URL("../../../scripts/prepare-ppt-master.mjs", import.meta.url)), "--output", root], {
+      env: { ...process.env, DECKWISE_PPT_MASTER_SKILL_ROOT: root }, stdio: "pipe",
+    });
+    assert.equal(readFileSync(join(root, "sentinel"), "utf8"), "preserved");
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
 
 register(new URL("./helpers/ts-import-hooks.mjs", import.meta.url));
 const { builtinSkills, loadBuiltinSkillBody } = await import("../electron/main/builtin-skills.ts");
