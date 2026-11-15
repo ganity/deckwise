@@ -19,12 +19,21 @@ new Function("require", "exports", ts.transpileModule(semanticsSource, {
   throw new Error(id);
 }, semantics.exports);
 
+const effects = {};
+new Function("require", "exports", ts.transpileModule(await readFile(new URL("../electron/main/courseware-teaching-effects.ts", import.meta.url), "utf8"), {
+  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+}).outputText)((id) => {
+  if (id === "@pi-desktop/shared") return shared;
+  throw new Error(id);
+}, effects);
+
 const source = await readFile(new URL("../electron/main/courseware-teaching.ts", import.meta.url), "utf8");
 const { outputText } = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } });
 const module = { exports: {} };
 new Function("require", "exports", outputText)((id) => {
   if (id === "@pi-desktop/shared") return shared;
   if (id === "./courseware-scene-object-view") return semantics.exports;
+  if (id === "./courseware-teaching-effects") return effects;
   if (id === "node:crypto") return { randomUUID: () => crypto.randomUUID() };
   if (id === "node:timers/promises") return { setTimeout: async () => {} };
   throw new Error(id);

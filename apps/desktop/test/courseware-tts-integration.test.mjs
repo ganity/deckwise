@@ -141,6 +141,7 @@ test("legacy receipt compatibility through Electron Main/auth + durable Host res
   await load("courseware-media");
   const { DesktopAuthSession } = await load("auth-session");
   await load("courseware-scene-object-view");
+  await load("courseware-teaching-effects");
   const { CoursewareTeachingCoordinator } = await load("courseware-teaching");
   await load("courseware-media-scope");
   const { CoursewareTtsCoordinator } = await load("courseware-tts");
