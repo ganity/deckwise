@@ -95,8 +95,9 @@ The separate pinned Office output still matches all 2,899 files
 unchanged from the mid-gate inventory capture to promotion, and affected source
 hashes match the pre-gate package identity. The package remains `f9600d629` plus
 working changes; remote main was not refreshed and no merge/release is claimed.
-The [single trial entry](../../../../../../docs/validation/courseware/parallel/A/current-trial.md)
-now points to this artifact. Earlier AppImages and failed reports remain historical.
+The historical single trial entry, `docs/validation/courseware/parallel/A/current-trial.md`,
+pointed to this artifact; that entry is not included in this checkout.
+Earlier AppImages and failed reports remain historical.
 
 ## Validation and limits
 

@@ -43,8 +43,9 @@ narration review/adoption, candidate review exit, fade preview/adoption and rest
 The new package also passes four late-login/reload/schema-notice checks and the
 actual AppImage launcher/payload smoke. The packaged Host hash is identical to
 the predecessor's migration/SIGKILL evidence; those drills were not rerun.
-The [single trial entry](../../../../../../docs/validation/courseware/parallel/A/current-trial.md)
-now identifies the newer [matched Chat-redo package](../chat-redo-package-20261025/README.md).
+The historical single trial entry, `docs/validation/courseware/parallel/A/current-trial.md`,
+identified the newer [matched Chat-redo package](../chat-redo-package-20261025/README.md).
+That trial entry is not included in this checkout.
 This package and its evidence remain unchanged.
 
 ## Test and documentation repairs

@@ -6,7 +6,7 @@ remaining import automatic effect gap. The provider-free results below remain th
 record of the earlier qualification run.
 
 Date: 2026-11-10. Status: implementation delivered in Part A; local qualification passed.
-Full external/corpus qualification remains open in [Plan 008](../../plans/008-shared-teaching-enrichment.md).
+Full external/corpus qualification remains open in repository Plan 008 (`plans/008-shared-teaching-enrichment.md`, outside the documentation site).
 
 ## 1. Delivered behavior
 

@@ -106,8 +106,9 @@ The new AppImage is
 `1ae9725ae35dac79a3376c85acebf4b1ee02fadce8bb48aea173fa22a569aa36`.
 [`package/acceptance.json`](package/acceptance.json) pins the working changes,
 known fork base, source inventory, artifact and exact passing reports.
-The [single trial entry](../../../../../../docs/validation/courseware/parallel/A/current-trial.md)
-contains the matching separate Office output and launch instructions.
+The historical single trial entry, `docs/validation/courseware/parallel/A/current-trial.md`,
+recorded the matching separate Office output and launch instructions. That entry
+is not included in this checkout.
 
 - [`package/package-check.json`](package/package-check.json): 597 ASAR files
   and current Host/Agent/worker/resources match. Unchanged Python/PPT Master

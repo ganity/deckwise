@@ -2,7 +2,8 @@
 
 **PASS: six actual packaged Electron/Office groups**, plus 12 targeted component/
 parent-integration tests. This closes the pending packaged recovery interaction
-from [the source increment](../../../../../../docs/validation/courseware/w06/deleted-page-teaching-20261024/README.md).
+from the historical source increment, `docs/validation/courseware/w06/deleted-page-teaching-20261024/README.md`,
+which is not included in this checkout.
 It does not close all W06.1 or Plan 007 requirements.
 
 ## Verified path

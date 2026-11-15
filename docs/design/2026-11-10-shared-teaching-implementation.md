@@ -1,6 +1,6 @@
 # Shared teaching enrichment: implementation approach
 
-Status: implemented in the Part A candidate; [execution evidence](2026-11-10-shared-teaching-evidence.md) records qualification. Behavior is defined in the [design](2026-11-10-shared-teaching-design.md); implementation tasks and gates are in the [execution plan](../../plans/008-shared-teaching-enrichment.md).
+Status: implemented in the Part A candidate; [execution evidence](2026-11-10-shared-teaching-evidence.md) records qualification. Behavior is defined in the [design](2026-11-10-shared-teaching-design.md); implementation tasks and gates are in repository plan `plans/008-shared-teaching-enrichment.md`, outside the documentation site.
 
 ## 1. Chosen approach
 

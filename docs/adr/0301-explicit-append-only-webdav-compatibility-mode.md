@@ -3,7 +3,7 @@
 > Historical upstream decision restored to resolve an existing specification citation.
 > This record does not enable an unimplemented fork capability; current code and specifications remain authoritative.
 
-- Status: Superseded by [S3-only configuration backup and sync](s3-only-configuration-backup-sync.md)
+- Status: Superseded by the upstream S3-only configuration backup and sync decision (not included in this fork)
 - Date: 2026-09-22
 - Amends: ADR 0300
 

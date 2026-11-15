@@ -3,7 +3,7 @@
 Status: implemented in the Part A candidate. See the [implementation evidence](2026-11-10-shared-teaching-evidence.md) for exact local qualification and external limits.
 Date: 2026-11-10. Workspace: `feat/courseware-par-A`.
 
-Read this document for intended behavior, the [implementation approach](2026-11-10-shared-teaching-implementation.md) for code ownership and migration, and the [execution plan](../../plans/008-shared-teaching-enrichment.md) for ordered tasks and acceptance gates.
+Read this document for intended behavior, the [implementation approach](2026-11-10-shared-teaching-implementation.md) for code ownership and migration, and the repository execution plan `plans/008-shared-teaching-enrichment.md` for ordered tasks and acceptance gates. The plan lives outside the documentation site.
 
 ## 1. Product outcome
 
