@@ -153,7 +153,7 @@ pnpm run tsc
 ```
 
 The generation regression uses `fixture-generation` and
-`DECKWISE_TEACHING_PREVIEW_FILE=.../editor-bundle-delivery/.deckwise/teaching-preview.mjs`
+`DECKWISE_TEACHING_PREVIEW_FILE=.../editor-bundle-delivery/deckwise-runtime/teaching-preview.mjs`
 on port 4293. The Quiz picture parity regression uses the distinct
 `/home/jhz/deckwise-validation/native-parity-final-fixes` two-page fixture on port 4292.
 They are intentionally different fixtures; do not substitute the three-page lesson.

@@ -30,7 +30,7 @@ node scripts/stage-wiseoffice.mjs /absolute/wiseoffice/dist /absolute/new-wiseof
 ```
 
 The staging script bundles the current desktop teaching-preview entry under
-`.deckwise/teaching-preview.mjs` and inventories its exact bytes with the editor.
+`deckwise-runtime/teaching-preview.mjs` and inventories its exact bytes with the editor.
 The installed directory is `apps/desktop/resources/wiseoffice`; retain the old
 directory before replacing it with the staged one. The manifest must name the
 pinned editor commit, report `dirty: false`, and match every file size and SHA-256.

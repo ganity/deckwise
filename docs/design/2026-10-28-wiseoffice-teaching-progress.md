@@ -190,7 +190,7 @@ reads native audio time; pause, buffering, seek, end and cleanup reuse that cloc
 Native PPT animations still use WiseOffice's animation controls.
 
 Desktop staging bundles the shared browser-only scheduler and spotlight geometry
-into `.deckwise/teaching-preview.mjs`, including bytes and SHA in the resource
+into `deckwise-runtime/teaching-preview.mjs`, including bytes and SHA in the resource
 inventory. WiseOffice loads this same-origin resource lazily; there is no server,
 new dependency, generation request or filesystem path returned to the editor.
 

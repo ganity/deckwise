@@ -187,12 +187,12 @@ contextBridge.exposeInMainWorld('deckwiseEditorHost', {
       })`);
     }
     console.log("LOCAL_EDITOR_THEME_SYNCED", JSON.stringify({ light: "theme-white", dark: "theme-dark" }));
-    const previewPrimitives = await previewFrame.executeJavaScript(`import('/.deckwise/teaching-preview.mjs').then(m =>
+    const previewPrimitives = await previewFrame.executeJavaScript(`import('/deckwise-runtime/teaching-preview.mjs').then(m =>
       typeof m.SpeechCueScheduler === 'function' && typeof m.createTeachingTimelinePreview === 'function' && m.buildEvenOddPath([{x:1,y:2,w:3,h:4}]).includes('M 1 2'))`);
     assert.equal(previewPrimitives, true, "Local shared teaching preview primitives did not load");
     const audioFixture = readFileSync(join(desktop, "test/fixtures/courseware-tts-tone.mp3")).toString("base64");
     const mediaPreview = await previewFrame.executeJavaScript(`(async () => {
-      const { createTeachingTimelinePreview } = await import('/.deckwise/teaching-preview.mjs');
+      const { createTeachingTimelinePreview } = await import('/deckwise-runtime/teaching-preview.mjs');
       const url = URL.createObjectURL(new Blob([Uint8Array.from(atob('${audioFixture}'), c => c.charCodeAt(0))], { type: 'audio/mpeg' }));
       let preview, timer;
       try {

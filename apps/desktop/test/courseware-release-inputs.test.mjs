@@ -35,7 +35,7 @@ async function fixture(t) {
     desktopCommit: "b".repeat(40), desktopDirty: false };
   await bundle("apps/desktop/resources/wiseoffice", "deckwise-bundle.json", integration, {
     "module.html": "editor", "sdkjs/slide/sdk-all-min.js": "sdk", "web-apps/apps/presentationeditor/main/index.html": "presentation",
-    "sdkjs/common/wasm/x2t/x2t.wasm.br": "wasm", ".deckwise/teaching-preview.mjs": "preview",
+    "sdkjs/common/wasm/x2t/x2t.wasm.br": "wasm", "deckwise-runtime/teaching-preview.mjs": "preview",
     "deckwise-maic-integration.json": JSON.stringify(integration),
   });
   await bundle("apps/desktop/resources/pptx-worker", "manifest.json", {

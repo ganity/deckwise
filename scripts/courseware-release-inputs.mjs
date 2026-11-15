@@ -76,7 +76,7 @@ export async function inspectCoursewareInputs(root, { platform = process.platfor
     marker.desktopCommit === wise.manifest.desktopCommit && marker.desktopDirty === wise.manifest.desktopDirty,
     "Rebuild WiseOffice with Desktop integration provenance before packaging");
   for (const path of ["module.html", "sdkjs/slide/sdk-all-min.js", "web-apps/apps/presentationeditor/main/index.html",
-    "sdkjs/common/wasm/x2t/x2t.wasm.br", ".deckwise/teaching-preview.mjs"])
+    "sdkjs/common/wasm/x2t/x2t.wasm.br", "deckwise-runtime/teaching-preview.mjs"])
     assert(wise.manifest.files.some(file => file.path === path), `Missing WiseOffice resource: ${path}`);
   const worker = await verifyInventory(join(resources, "pptx-worker"), "manifest.json");
   assert(["LOCAL_LINUX_WORKER_BUNDLE", "LOCAL_NATIVE_WORKER_BUNDLE"].includes(worker.manifest.status), "Invalid worker status");

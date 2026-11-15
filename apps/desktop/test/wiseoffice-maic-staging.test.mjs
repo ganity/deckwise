@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { scanPackage } from "../../../scripts/check-courseware-package-credentials.mjs";
 
 const script = fileURLToPath(new URL("../../../scripts/stage-wiseoffice.mjs", import.meta.url));
 async function fixture(t) {
@@ -31,7 +32,8 @@ test("MAIC staging pins the transformed editor provenance and every bundled file
   const receipt = JSON.parse(await readFile(join(f.output, "deckwise-bundle.json"), "utf8"));
   assert.equal(receipt.contentEditor, "maic"); assert.equal(receipt.commit, marker.commit); assert.equal(receipt.dirty, false);
   assert.equal(receipt.desktopCommit, marker.desktopCommit); assert.equal(receipt.desktopDirty, false);
-  assert(receipt.files.some(file => file.path === ".deckwise/teaching-preview.mjs"));
+  assert(receipt.files.some(file => file.path === "deckwise-runtime/teaching-preview.mjs"));
+  assert.equal((await scanPackage(f.output)).passed, true, "Public preview resources must not ship under private user-state paths");
   for (const file of receipt.files) {
     const bytes = await readFile(join(f.output, file.path));
     assert.equal(bytes.length, file.bytes); assert.equal(createHash("sha256").update(bytes).digest("hex"), file.sha256);

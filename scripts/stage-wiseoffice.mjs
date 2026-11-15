@@ -96,7 +96,7 @@ try {
   const { build } = await import("../packages/courseware-runtime/node_modules/esbuild/lib/main.js");
   await build({
     entryPoints: [fileURLToPath(new URL("../packages/courseware-runtime/src/teaching-preview.ts", import.meta.url))],
-    outfile: join(temporary, ".deckwise/teaching-preview.mjs"),
+    outfile: join(temporary, "deckwise-runtime/teaching-preview.mjs"),
     bundle: true, platform: "browser", format: "esm", target: "chrome130",
     define: { "process.env": "{}" },
   });
