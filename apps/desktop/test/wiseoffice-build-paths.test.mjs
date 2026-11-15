@@ -18,6 +18,7 @@ for (const [platform, paths, root] of [
     for (const [file, marker] of [["embed-api.ts", "embed"], ["deckwise-teaching-sidebar.ts", "sidebar"], ["deckwise-teaching-flow.ts", "flow"]]) {
       const id = `${root.replaceAll("\\", "/")}/lib/${file}`;
       assert.deepEqual(transform("source", id), { code: `${marker}:source`, map: null });
+      assert.deepEqual(transform("first\r\nsecond\r\n", id), { code: `${marker}:first\nsecond\n`, map: null }, "Windows checkouts must match the LF integration templates");
       assert.equal(transform("source", `${id}.unrelated`), undefined);
     }
     assert.deepEqual([...applied].sort(), ["embed", "flow", "sidebar"]);

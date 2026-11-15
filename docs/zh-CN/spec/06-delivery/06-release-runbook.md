@@ -55,12 +55,13 @@ Windows 可执行文件和原生窗口图标中使用 `build/icon.ico`。渲染�
 
 PR 和 main CI 保留完整构建、类型检查、lint、架构检查与测试。Release 首先查找本仓库
 main 分支 push 触发、提交 SHA 与本次发布完全一致且已成功完成的 `ci.yml`，再确认
-JS 和 Rust 两项任务均成功。只有这些证据可以代替重复验证，Release 摘要记录来源链接。
+JS、Rust 和原生 Windows 配套编辑器集成三项任务均成功。只有这些证据可以代替重复验证，Release 摘要记录来源链接。
 缺少记录、查询失败、失败或跳过的任务，以及 PR、fork、其他提交的结果，均回退到原有
 完整 Release 验证。应在 main CI 完成后推送发布 tag，避免重复执行。
 原生编译、配套 Office 集成、最终安装包完整性及 Linux AppImage 验收始终执行。
 Vite 的模块 ID 在所有系统都使用正斜杠；MAIC 集成会统一 Windows 路径分隔符，
-并要求三个转换全部应用。
+并将 CRLF 源码换行符转换为 LF，要求三个转换全部应用。CI 在 Windows 上实际构建
+配套编辑器和原生 Worker，让检出环境差异在发布前阻止合并。
 
 ### 课件输入与验收证据
 

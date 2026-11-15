@@ -342,3 +342,12 @@ else if (flags.includes("-r")) {
     await rm(root, { recursive: true, force: true });
   }
 });
+
+
+test("CI qualifies the real Windows paired editor before release reuse", () => {
+  const job = ciWorkflowSource.match(/^  windows-courseware:\n[\s\S]*?(?=^  js:)/m)?.[0];
+  assert(job);
+  assert.match(job, /runs-on: windows-latest/);
+  assert.match(job, /uses: \.\/.github\/actions\/prepare-courseware/);
+  assert.match(job, /run: node --test apps\/desktop\/test\/wiseoffice-build-paths.test.mjs/);
+});
