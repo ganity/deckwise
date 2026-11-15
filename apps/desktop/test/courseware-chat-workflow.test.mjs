@@ -490,14 +490,23 @@ test("compiler failure is scoped to its plan and never hides preserved assets", 
 
 test("scene plan submission returns validated draft status without approving or generating", async () => {
   const f = fixture(); f.plan.approvedSha256 = null;
-  await assert.rejects(f.execute("courseware_scene_plan_submit"), /textMode/);
-  f.plan.textMode = "native";
   const result = await f.execute("courseware_scene_plan_submit");
   assert.equal(result.validated, true);
   assert.equal(result.awaitingPlanApproval, true);
   assert.equal(result.plan.sha256, f.plan.sha256);
+  assert.equal(result.plan.textMode, undefined);
   assert(!f.calls.some(([name]) => ["compile", "generate", "courseware.scenePlan.approve"].includes(name)));
   await assert.rejects(f.execute("courseware_scene_plan_submit", { approve: true }), /valid scene plan/);
+});
+
+test("scene submission rejects a new textless plan but preserves an approved native plan", async () => {
+  const f = fixture(); f.plan.approvedSha256 = null; f.plan.textMode = "native";
+  await assert.rejects(f.execute("courseware_scene_plan_submit"), /omit textMode/);
+  f.plan.approvedSha256 = f.plan.sha256;
+  const result = await f.execute("courseware_scene_plan_submit");
+  assert.equal(result.plan.textMode, "native");
+  assert.equal(result.plan.approvedSha256, f.plan.sha256);
+  assert(!f.calls.some(([name]) => ["compile", "generate", "courseware.scenePlan.approve"].includes(name)));
 });
 
 test("whole-scene pipeline requires the selected approved cover and explicit exclusive flag", async () => {

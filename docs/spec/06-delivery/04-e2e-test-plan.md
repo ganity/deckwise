@@ -18419,6 +18419,27 @@ Native authoring parity continuation:
 
 Use different lesson topics for scene, presentation and real-PPT import, with no more than six final pages per lesson. Keep original import pages and verify new assessments are independent pages. Capture the user prompts, review approvals, interventions, saved PPTX, reopened teaching data, fixed-build diagnostics and actual player results. A resumed or corrected run is not an uninterrupted generation success.
 
+### E2E-COURSEWARE-scene-image-lettering
+
+- Preconditions: a new Scene task with approved display strings, fixture image
+  assets containing that lettering, and decomposition bounds; no paid provider.
+- Steps: create the plan without `textMode`, save and approve the exact draft,
+  compile the selected image layers, then inspect the actual PPTX and canonical
+  classroom. Also submit a stale native-mode draft and resume an already approved
+  native-mode plan.
+- Expected: new planning requests text inside the image, new native-mode drafts
+  require correction, and approval accepts image-lettering plans. Compiled body
+  pages retain lettering image bytes and geometry without native text duplicates.
+  Approved native-mode plans retain their mode and hashes. Independent Quiz and
+  checkpoint questions retain their structured/editable presentation.
+- Spec: `03-runtime/29-courseware-chat-workflow.md`.
+- Acceptance: provider-free automated coverage in Desktop
+  `courseware-scene-plan`, `courseware-scene-draft`, `courseware-scene-deck`,
+  `courseware-chat-workflow`, the real Electron scene-completion gate and Host
+  `scene_images::prompts::tests`. Real image quality and packaged-client playback
+  require separate acceptance.
+- Milestone: maintenance. Status: automated regression; no paid generation claim.
+
 - Include native connector arrows in a Master body page. After save/reopen,
   build and open the actual fixed player: valid endpoint-based lines without
   rectangular height must render. Missing/nonfinite endpoints and missing

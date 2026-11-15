@@ -8,7 +8,7 @@ type Visuals = { pageId: string; visualMasterAssetId: string; cleanPlateAssetId:
   foregroundPlacements?: { assetId: string; bboxPx: [number, number, number, number]; zIndex?: number; semanticRole?: string }[] };
 const hash = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 
-/** New plans use native lettering over textless art; legacy reviewed image lettering stays intact. */
+/** Scene lettering stays in image layers; approved native-text plans retain their mode during recovery. */
 export async function buildSceneCourseDeck(input: {
   sessionId: string;
   modelKey: string;

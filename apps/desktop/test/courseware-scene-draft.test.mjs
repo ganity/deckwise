@@ -10,7 +10,7 @@ import test from "node:test";
 register(new URL("./helpers/ts-import-hooks.mjs", import.meta.url));
 const { approveSceneCourseDraft, readSceneCourseDraft } = await import("../electron/main/courseware-scene-draft.ts");
 const { sceneCoursePlanRelativePath } = await import("../electron/main/courseware-scene-plan.ts");
-const draft = { title: "Greetings", textMode: "native", pages: [{ title: "Hello", visibleText: ["Hello"],
+const draft = { title: "Greetings", pages: [{ title: "Hello", visibleText: ["Hello"],
   visualIntent: "Two friends waving", narration: "Say hello. Good!" }] };
 
 async function fixture(t) {
@@ -153,11 +153,18 @@ test("nonfile drafts reject without waiting for a named-pipe writer", { skip: pr
 });
 
 
-test("new drafts require editable text before approval while an already approved legacy draft can resume", async t => {
-  const f = await fixture(t), legacy = { ...draft }; delete legacy.textMode;
-  await f.save("chat-a", JSON.stringify(legacy));
+test("new drafts approve image lettering and an already approved native draft can resume unchanged", async t => {
+  const f = await fixture(t);
+  await f.save("chat-a");
   const { plan } = await readSceneCourseDraft(f.host, { sessionId: "chat-a" });
-  await assert.rejects(approveSceneCourseDraft(f.host, { sessionId: "chat-a", sha256: plan.sha256 }), /textMode/);
-  f.approvals.set("chat-a", { sha256: plan.sha256, plan: legacy });
   assert.equal((await approveSceneCourseDraft(f.host, { sessionId: "chat-a", sha256: plan.sha256 })).plan.textMode, undefined);
+  const native = { ...draft, textMode: "native" };
+  const path = await f.save("chat-b", JSON.stringify(native));
+  const { plan: saved } = await readSceneCourseDraft(f.host, { sessionId: "chat-b" });
+  await assert.rejects(approveSceneCourseDraft(f.host, { sessionId: "chat-b", sha256: saved.sha256 }), /omit textMode/);
+  f.approvals.set("chat-b", { sha256: saved.sha256, plan: native });
+  const resumed = await approveSceneCourseDraft(f.host, { sessionId: "chat-b", sha256: saved.sha256 });
+  assert.equal(resumed.plan.textMode, "native");
+  assert.equal(resumed.plan.sha256, saved.sha256);
+  assert.equal(await readFile(path, "utf8"), JSON.stringify(native));
 });
