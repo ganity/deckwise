@@ -71,6 +71,9 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Install browser test runtime
+        run: pnpm --filter @pi-desktop/courseware-runtime exec playwright install --with-deps --only-shell chromium
+
       - name: Unit tests
         run: pnpm -r --if-present test
 

@@ -62,6 +62,14 @@ test("CI does not typecheck workspace dependencies twice", () => {
   assert.doesNotMatch(ciWorkflowSource, /run: pnpm typecheck/);
 });
 
+test("CI and release verification install the matching browser before UI unit tests", () => {
+  for (const source of [ciWorkflowSource, releaseWorkflowSource]) {
+    const install = source.indexOf("run: pnpm --filter @pi-desktop/courseware-runtime exec playwright install --with-deps --only-shell chromium");
+    const tests = source.indexOf("run: pnpm -r --if-present test");
+    assert(install > 0 && install < tests, "Fresh runners need the runtime package's Chromium and system libraries");
+  }
+});
+
 test("release runners validate tags without a separate job barrier", () => {
   assert.doesNotMatch(releaseWorkflowSource, /^  validate:/m);
   assert.doesNotMatch(releaseWorkflowSource, /^    needs: validate$/m);
