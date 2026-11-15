@@ -229,25 +229,26 @@ try {
     await editor().getByRole("button", { name: `${position + 1}. Quiz · ${assessment.title}`, exact: true }).click();
     assert.equal((await read()).classroom.scenes[position].content.interactionMode, "assessment_review");
     const forms = () => editor().locator("fieldset.maic-question");
+    const questionType = index => forms().nth(index).getByRole("combobox").filter({ has: page.locator('option[value="judge"]') });
     report.assessmentEditor = await editor().evaluate(element => ({
       selected: element.querySelector('[aria-current="page"]')?.textContent,
       questionForms: element.querySelectorAll("fieldset.maic-question").length,
       selectLabels: [...element.querySelectorAll("label")].filter(label => label.querySelector("select")).map(label => label.textContent),
     }));
     assert.equal(report.assessmentEditor.questionForms, 3, "Existing multi-question assessment must remain editable");
-    await forms().nth(0).getByLabel(/^题型/).selectOption("multiple");
+    await questionType(0).selectOption("multiple");
     await waitSaved(c => c.scenes[position].content.questions[0].type === "multiple");
     for (const value of ["A", "B"]) {
       await setCorrectAnswer(forms().nth(0), value);
       await waitSaved(c => c.scenes[position].content.questions[0].answer.includes(value));
     }
     page.once("dialog", dialog => dialog.accept());
-    await forms().nth(1).getByLabel(/^题型/).selectOption("judge");
+    await questionType(1).selectOption("judge");
     await waitSaved(c => c.scenes[position].content.questions[1].type === "judge");
     await setCorrectAnswer(forms().nth(1), "T");
     await waitSaved(c => c.scenes[position].content.questions[1].answer[0] === "T");
     page.once("dialog", dialog => dialog.accept());
-    await forms().nth(2).getByLabel(/^题型/).selectOption("short_answer");
+    await questionType(2).selectOption("short_answer");
     await waitSaved(c => c.scenes[position].content.questions[2].type === "short_answer");
     await forms().nth(2).getByLabel("参考答案", { exact: true }).fill("Hello, my name is Pandy.");
     await waitSaved(c => c.scenes[position].content.questions[2].referenceAnswer?.includes("Pandy"));
@@ -339,6 +340,7 @@ try {
   report.status = "PASS";
 } catch (error) {
   report.status = "FAIL"; report.error = error.stack; process.exitCode = 1;
+  console.error(error.stack ?? String(error));
   if (page && !page.isClosed()) await page.screenshot({ path: join(out, "failure.png") }).catch(() => {});
   if (page && !page.isClosed()) {
     await writeFile(join(out, "failure-dom.html"), await editor().innerHTML().catch(() => "Editor unavailable"));

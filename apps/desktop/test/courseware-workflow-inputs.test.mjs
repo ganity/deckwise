@@ -32,6 +32,10 @@ test("release runners prepare pinned Document and native worker inputs before pa
     assert(workflow.indexOf("courseware-artifact-checksums.mjs") > workflow.indexOf("xvfb-run"), "Checksums must include final acceptance evidence");
   }
   const linux = await read(".github/workflows/linux-package.yml");
+  const failureEvidence = linux.split("- name: Preserve failed package acceptance evidence")[1]?.split("- name:")[0];
+  assert(failureEvidence, "Failed runtime checks must retain diagnostic evidence");
+  assert.match(failureEvidence, /if: failure\(\)/);
+  assert.match(failureEvidence, /path: \$\{\{ runner\.temp \}\}\/courseware-package-acceptance/);
   for (const artifact of ["*.AppImage", "*.deb", "*.rpm", "courseware-*.json", "SHA256SUMS-*.txt"])
     assert(linux.includes(`apps/desktop/release/${artifact}`), `Missing downloadable ${artifact}`);
 });

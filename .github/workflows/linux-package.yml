@@ -76,6 +76,15 @@ jobs:
           xvfb-run -a node scripts/e2e-maic-courseware.mjs
           cp "$DECKWISE_E2E_OUTPUT/report.json" apps/desktop/release/courseware-acceptance-linux-x64.json
 
+      - name: Preserve failed package acceptance evidence
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: courseware-acceptance-linux-x64-failure
+          if-no-files-found: ignore
+          retention-days: 7
+          path: ${{ runner.temp }}/courseware-package-acceptance
+
       - name: Record final artifact checksums
         run: node scripts/courseware-artifact-checksums.mjs
 
