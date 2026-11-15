@@ -2,6 +2,11 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const esEntries: ChangelogEntry[] = [
   {
+    version: "0.20.5",
+    date: "2026-11-16",
+    highlights: ["Restaura el texto dentro de las imágenes de escenas y conserva las lecciones aprobadas y los recursos al reintentar."],
+  },
+  {
     version: "0.20.4",
     date: "2026-11-16",
     highlights: ["Corrige la inspección de archivos anidados del archivo de la aplicación en Windows."],

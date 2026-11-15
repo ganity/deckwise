@@ -29,6 +29,11 @@ export type ChangelogEntry = {
 
 const enEntries: ChangelogEntry[] = [
   {
+    version: "0.20.5",
+    date: "2026-11-16",
+    highlights: ["Restore text inside generated Scene images while preserving approved lessons and retry assets."],
+  },
+  {
     version: "0.20.4",
     date: "2026-11-16",
     highlights: ["Fix Windows package inspection for nested application archive files."],
@@ -878,6 +883,11 @@ const enEntries: ChangelogEntry[] = [
 
 const zhCNEntries: ChangelogEntry[] = [
   {
+    version: "0.20.5",
+    date: "2026-11-16",
+    highlights: ["恢复场景课件图片内文字生成，保留已批准课件及重试素材。"],
+  },
+  {
     version: "0.20.4",
     date: "2026-11-16",
     highlights: ["修复 Windows 安装包检查无法读取应用归档中多层目录文件的问题。"],
@@ -1726,6 +1736,11 @@ const zhCNEntries: ChangelogEntry[] = [
 ];
 
 const zhTWEntries: ChangelogEntry[] = [
+  {
+    version: "0.20.5",
+    date: "2026-11-16",
+    highlights: ["恢復場景課件圖片內文字生成，保留已核准課件及重試素材。"],
+  },
   {
     version: "0.20.4",
     date: "2026-11-16",
