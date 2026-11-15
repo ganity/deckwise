@@ -262,7 +262,7 @@ the original task, charge bound and audio before Host adoption. MAIC persists
 audio before the original response, keeps it for seven days, and retains the
 request claim without expiry. Legacy unknown results are never fabricated.
 Deployment/storage requirements and failure limits are documented in
-[the recovery ADR](../../adr/courseware-bounded-recovery.md).
+[the recovery ADR](/adr/courseware-bounded-recovery.md).
 Successful page results remain saved when other pages fail. Planned video submits through the user-authenticated llm-ha Seedance gateway with a frozen quote and idempotency key; model-native options use supplier defaults unless explicitly supplied. An unknown submit receipt stays query-only. Once ready, Electron Main downloads the short-lived CDN URL directly without forwarding user/provider credentials, validates and decodes MP4 up to the Host RPC's bounded 40 MiB archive limit, then Host archives and attaches it to the saved page before the turn can complete.
 
 Video CDN domains require no whitelist in llm-ha or Desktop. Legacy Seedance
@@ -289,8 +289,8 @@ Desktop modes are ordinary generation, scene generation and PPT import. They
 share one PPTX editor and baseline teaching features. Scene mode supports both
 kindergarten and primary; stage influences pedagogy, never basic capability.
 Video and music are driven by actual lesson requirements. Do not infer that only primary needs interaction or that video replaces
-object animation. See [the inspected MAIC workflows](../../validation/courseware/maic-stage-workflows-20261027.md)
-and [the saved-media decision](../../adr/courseware-saved-media-continuation.md).
+object animation. See the historical `docs/validation/courseware/maic-stage-workflows-20261027.md` report
+and [the saved-media decision](/adr/courseware-saved-media-continuation.md).
 No full-parity claim follows from transport or TTS/music tests alone.
 
 ## Scene teaching readiness (2026-10-27)
@@ -313,7 +313,7 @@ rejected consistently by Host, portable-project validation, fixed compiler and
 fixed loader. Native PPT animation ownership remains exclusive. An exact verified
 SDK timing mirror of generated speech cues is treated as one owner by the fixed
 compiler; changed behavior is not recognized merely by its preset ID. See the
-[implementation boundaries and acceptance evidence](../../design/2026-10-30-scene-teaching-parity.md).
+[implementation boundaries and acceptance evidence](/design/2026-10-30-scene-teaching-parity.md).
 Source association preserves the explicit logical object references.
 
 The existing scene vision pass returns a bounded summary and per-object roles,
@@ -370,7 +370,7 @@ submission, status and original assets. Platform authenticates users and provide
 billing quotes, reservations and settlement; supplier inputs and image task data
 stay in llm-ha. Provider keys and actual models are configured there. Main uses
 its existing managed llm-ha URL / `DECKWISE_LLM_BASE_URL`, while TTS/music keep
-their existing Platform routes. See [the routing decision](../../adr/courseware-images-direct-llm-ha.md).
+their existing Platform routes. See [the routing decision](/adr/courseware-images-direct-llm-ha.md).
 
 Master images use the native MXAPI async adapter. `image-layers` uses Seedream
 5.0 Pro with `layer_decomposition:true` and the exact selected visual-master
@@ -1756,4 +1756,4 @@ Verified native saves atomically rebind unchanged logical music/video targets.
 Music targets carry project/page/action/source identity; video keeps an optional
 current binding alongside its immutable original source. Ambiguous legacy music
 orders remain visible and block automatic replacement. See the
-[binding compatibility decision](../../adr/courseware-media-bindings-and-requirements.md).
+[binding compatibility decision](/adr/courseware-media-bindings-and-requirements.md).

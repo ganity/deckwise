@@ -286,7 +286,7 @@ Desktop modes are ordinary generation, scene generation and PPT import. They
 share one PPTX editor and baseline teaching features. Scene mode supports both
 kindergarten and primary; stage influences pedagogy, never basic capability.
 Video and music are driven by actual lesson requirements. Do not infer that only primary needs interaction or that video replaces
-object animation. See [the inspected MAIC workflows](../../validation/courseware/maic-stage-workflows-20261027.md)
+object animation. See the historical `docs/validation/courseware/maic-stage-workflows-20261027.md` report
 and [the saved-media decision](../../adr/courseware-saved-media-continuation.md).
 No full-parity claim follows from transport or TTS/music tests alone.
 
