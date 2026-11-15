@@ -29,6 +29,14 @@ export type ChangelogEntry = {
 
 const enEntries: ChangelogEntry[] = [
   {
+    version: "0.20.1",
+    date: "2026-11-15",
+    highlights: [
+      "Fix Windows installer builds so the integrated teaching editor is applied correctly.",
+      "Reuse successful main CI for the exact release commit to avoid repeating full tests before packaging.",
+    ],
+  },
+  {
     version: "0.20.0",
     date: "2026-11-15",
     highlights: [
@@ -852,6 +860,14 @@ const enEntries: ChangelogEntry[] = [
 
 const zhCNEntries: ChangelogEntry[] = [
   {
+    version: "0.20.1",
+    date: "2026-11-15",
+    highlights: [
+      "修复 Windows 安装包构建时教学编辑器集成未应用的问题。",
+      "发布时复用同一提交已通过的 main CI，减少打包前重复执行完整测试。",
+    ],
+  },
+  {
     version: "0.20.0",
     date: "2026-11-15",
     highlights: [
@@ -1674,6 +1690,14 @@ const zhCNEntries: ChangelogEntry[] = [
 ];
 
 const zhTWEntries: ChangelogEntry[] = [
+  {
+    version: "0.20.1",
+    date: "2026-11-15",
+    highlights: [
+      "修復 Windows 安裝包建置時教學編輯器整合未套用的問題。",
+      "發佈時重用同一提交已通過的 main CI，減少打包前重複執行完整測試。",
+    ],
+  },
   {
     version: "0.20.0",
     date: "2026-11-15",

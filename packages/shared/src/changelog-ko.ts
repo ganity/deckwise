@@ -2,6 +2,14 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const koEntries: ChangelogEntry[] = [
   {
+    version: "0.20.1",
+    date: "2026-11-15",
+    highlights: [
+      "Windows 설치 패키지 빌드에서 교육 편집기 통합이 올바르게 적용되도록 수정합니다.",
+      "동일한 릴리스 커밋에서 성공한 main CI를 재사용하여 패키징 전 전체 테스트의 중복 실행을 줄입니다.",
+    ],
+  },
+  {
     version: "0.20.0",
     date: "2026-11-15",
     highlights: [

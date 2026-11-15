@@ -2,6 +2,14 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const deEntries: ChangelogEntry[] = [
   {
+    version: "0.20.1",
+    date: "2026-11-15",
+    highlights: [
+      "Windows-Installationspakete binden den integrierten Lehrinhaltseditor wieder korrekt ein.",
+      "Erfolgreiche main-CI für denselben Release-Commit wird wiederverwendet, um vollständige Tests vor dem Paketbau nicht zu wiederholen.",
+    ],
+  },
+  {
     version: "0.20.0",
     date: "2026-11-15",
     highlights: [

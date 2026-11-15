@@ -2,6 +2,14 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const frEntries: ChangelogEntry[] = [
   {
+    version: "0.20.1",
+    date: "2026-11-15",
+    highlights: [
+      "Corrige la compilation des installateurs Windows pour intégrer correctement l’éditeur pédagogique.",
+      "Réutilise la CI main réussie du même commit de version pour éviter de répéter tous les tests avant la création des paquets.",
+    ],
+  },
+  {
     version: "0.20.0",
     date: "2026-11-15",
     highlights: [

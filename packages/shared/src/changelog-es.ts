@@ -2,6 +2,14 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const esEntries: ChangelogEntry[] = [
   {
+    version: "0.20.1",
+    date: "2026-11-15",
+    highlights: [
+      "Corrige la compilación de instaladores de Windows para integrar correctamente el editor didáctico.",
+      "Reutiliza la CI de main aprobada para el mismo commit de versión y evita repetir todas las pruebas antes del empaquetado.",
+    ],
+  },
+  {
     version: "0.20.0",
     date: "2026-11-15",
     highlights: [
