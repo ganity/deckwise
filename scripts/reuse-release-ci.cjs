@@ -16,7 +16,7 @@ async function reuseReleaseCi({ github, context, core }) {
       const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
         ...repo, run_id: run.id, filter: "latest", per_page: 100,
       });
-      if (!["JS build / typecheck / lint / architecture / test", "Rust host-core format / lint / test"]
+      if (!["JS build / typecheck / lint / architecture / test", "Rust host-core format / lint / test", "Windows paired courseware integration"]
         .every(name => jobs.some(job => job.name === name && job.status === "completed" && job.conclusion === "success"))) continue;
       await core.summary.addRaw(`Reused successful main CI for ${context.sha}: ${run.html_url}\n`).write();
       core.setOutput("reused", "true");

@@ -2,6 +2,14 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const koEntries: ChangelogEntry[] = [
   {
+    version: "0.20.2",
+    date: "2026-11-16",
+    highlights: [
+      "교육 편집기 통합 시 Windows 소스의 줄바꿈 형식을 올바르게 처리합니다.",
+      "설치 패키지를 게시하기 전에 CI에서 Windows 편집기와 네이티브 변환 도구를 실제로 빌드합니다.",
+    ],
+  },
+  {
     version: "0.20.1",
     date: "2026-11-15",
     highlights: [

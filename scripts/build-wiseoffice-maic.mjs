@@ -22,6 +22,8 @@ await build({
   esbuild: { jsx: "automatic" },
   resolve: { alias: [{ find: "deckwise-quiz-live", replacement: fileURLToPath(new URL("./wiseoffice-quiz-live.mjs", import.meta.url)) }, { find: "deckwise-native-assessment", replacement: fileURLToPath(new URL("../apps/desktop/src/components/workpanel/mount-native-assessment.tsx", import.meta.url)) }, { find: "@", replacement: root }, ...workspaceSourceAliases(root)] },
   plugins: [{ name: "deckwise-maic-content-editor", enforce: "pre", transform(code, id) {
+    // Windows Document checkouts may use CRLF; integration templates use LF.
+    code = code.replaceAll("\r\n", "\n");
     if (id === join(root, "lib/embed-api.ts").replaceAll("\\", "/")) {
       applied.add("embed"); return { code: maicEmbedSource(code), map: null };
     }

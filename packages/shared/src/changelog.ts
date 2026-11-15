@@ -29,6 +29,14 @@ export type ChangelogEntry = {
 
 const enEntries: ChangelogEntry[] = [
   {
+    version: "0.20.2",
+    date: "2026-11-16",
+    highlights: [
+      "Handle Windows source line endings when integrating the teaching editor.",
+      "Build the paired editor and native worker on Windows in CI before publishing installers.",
+    ],
+  },
+  {
     version: "0.20.1",
     date: "2026-11-15",
     highlights: [
@@ -860,6 +868,14 @@ const enEntries: ChangelogEntry[] = [
 
 const zhCNEntries: ChangelogEntry[] = [
   {
+    version: "0.20.2",
+    date: "2026-11-16",
+    highlights: [
+      "修复 Windows 源码换行符导致教学编辑器集成失败的问题。",
+      "在 CI 中实际构建 Windows 配套编辑器与原生转换工具，提前验证安装包输入。",
+    ],
+  },
+  {
     version: "0.20.1",
     date: "2026-11-15",
     highlights: [
@@ -1690,6 +1706,14 @@ const zhCNEntries: ChangelogEntry[] = [
 ];
 
 const zhTWEntries: ChangelogEntry[] = [
+  {
+    version: "0.20.2",
+    date: "2026-11-16",
+    highlights: [
+      "修復 Windows 原始碼換行符號導致教學編輯器整合失敗的問題。",
+      "在 CI 中實際建置 Windows 配套編輯器與原生轉換工具，提前驗證安裝包輸入。",
+    ],
+  },
   {
     version: "0.20.1",
     date: "2026-11-15",

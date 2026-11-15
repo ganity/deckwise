@@ -2,6 +2,14 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const esEntries: ChangelogEntry[] = [
   {
+    version: "0.20.2",
+    date: "2026-11-16",
+    highlights: [
+      "Admite los finales de línea de Windows al integrar el editor didáctico.",
+      "La CI compila el editor compatible y el conversor nativo en Windows antes de publicar los instaladores.",
+    ],
+  },
+  {
     version: "0.20.1",
     date: "2026-11-15",
     highlights: [

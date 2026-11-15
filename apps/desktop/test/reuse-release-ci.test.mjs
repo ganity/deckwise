@@ -5,7 +5,7 @@ import { reuseReleaseCi } from "../../../scripts/reuse-release-ci.cjs";
 const sha = "a".repeat(40);
 const validRun = { id: 12, head_sha: sha, head_branch: "main", event: "push", status: "completed", conclusion: "success",
   path: ".github/workflows/ci.yml", repository: { full_name: "ganity/deckwise" }, head_repository: { full_name: "ganity/deckwise" }, html_url: "https://github.com/ganity/deckwise/actions/runs/12" };
-const validJobs = ["JS build / typecheck / lint / architecture / test", "Rust host-core format / lint / test"]
+const validJobs = ["JS build / typecheck / lint / architecture / test", "Rust host-core format / lint / test", "Windows paired courseware integration"]
   .map(name => ({ name, status: "completed", conclusion: "success" }));
 async function check(runs = [validRun], jobs = validJobs, failure) {
   const outputs = [], summaries = [], messages = [];

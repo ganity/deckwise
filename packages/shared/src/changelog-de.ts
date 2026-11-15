@@ -2,6 +2,14 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const deEntries: ChangelogEntry[] = [
   {
+    version: "0.20.2",
+    date: "2026-11-16",
+    highlights: [
+      "Windows-Zeilenenden werden bei der Integration des Lehrinhaltseditors korrekt verarbeitet.",
+      "CI erstellt den abgestimmten Editor und den nativen Worker unter Windows vor der Veröffentlichung.",
+    ],
+  },
+  {
     version: "0.20.1",
     date: "2026-11-15",
     highlights: [

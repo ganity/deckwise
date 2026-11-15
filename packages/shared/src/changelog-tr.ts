@@ -2,6 +2,14 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const trEntries: ChangelogEntry[] = [
   {
+    version: "0.20.2",
+    date: "2026-11-16",
+    highlights: [
+      "Öğretim düzenleyicisi bütünleştirilirken Windows kaynak satır sonlarını doğru işler.",
+      "Kurulum paketleri yayımlanmadan önce CI, Windows üzerinde eşleştirilmiş düzenleyiciyi ve yerel dönüştürücüyü derler.",
+    ],
+  },
+  {
     version: "0.20.1",
     date: "2026-11-15",
     highlights: [

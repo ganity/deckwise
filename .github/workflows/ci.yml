@@ -17,6 +17,36 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  windows-courseware:
+    name: Windows paired courseware integration
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      DECKWISE_COURSEWARE_RELEASE: '1'
+      DECKWISE_COURSEWARE_LOCK: ${{ github.workspace }}/apps/desktop/resources/courseware-release-lock.json
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Prepare workspace dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile
+          pnpm --filter '@pi-desktop/desktop^...' --fail-if-no-match build
+
+      - name: Check Windows transform paths and line endings
+        run: node --test apps/desktop/test/wiseoffice-build-paths.test.mjs
+
+      - name: Build and verify paired editor and native worker
+        uses: ./.github/actions/prepare-courseware
+
   js:
     name: JS build / typecheck / lint / architecture / test
     runs-on: ubuntu-24.04
