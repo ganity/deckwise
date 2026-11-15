@@ -2,6 +2,16 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const trEntries: ChangelogEntry[] = [
   {
+    version: "0.20.0",
+    date: "2026-11-15",
+    highlights: [
+      "Normal üretim, sahne üretimi veya PPT içe aktarma ile ders içeriği oluşturun; öğretim içeriği düzenlenebilir sunumda saklanır.",
+      "Anlatımları, Quiz sorularını, yanıt görsellerini ve öğretim medyasını düzenleyin; kaydedin, yeniden açın ve dersin tamamını oynatın.",
+      "Bağımsız ders sohbetlerini ön veya arka planda düzenlemeyle sürdürün ve kesilen çalışmayı özgün görevleri üzerinden kurtarın.",
+      "Eşleştirilmiş Office kaynakları, yerel dönüştürme araçları ve bütünlük denetimleriyle kurulum paketlerinin güvenilirliğini artırın.",
+    ],
+  },
+  {
     version: "0.17.7",
     date: "2026-10-13",
     highlights: [

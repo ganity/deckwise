@@ -29,6 +29,16 @@ export type ChangelogEntry = {
 
 const enEntries: ChangelogEntry[] = [
   {
+    version: "0.20.0",
+    date: "2026-11-15",
+    highlights: [
+      "Create courseware through ordinary generation, scene generation or PPT import, with teaching content saved in the editable presentation.",
+      "Edit narration, Quiz questions, answer images and teaching media, then save, reopen and play the complete lesson.",
+      "Continue independent courseware chats with foreground or background editing and recover interrupted work through its original tasks.",
+      "Improve installer reliability with paired Office resources, native conversion tools and package integrity checks.",
+    ],
+  },
+  {
     version: "0.17.7",
     date: "2026-10-13",
     highlights: [
@@ -842,6 +852,16 @@ const enEntries: ChangelogEntry[] = [
 
 const zhCNEntries: ChangelogEntry[] = [
   {
+    version: "0.20.0",
+    date: "2026-11-15",
+    highlights: [
+      "支持普通生成、场景生成和 PPT 导入，教学内容随可编辑课件一同保存。",
+      "编辑讲解词、Quiz 题目、答案图片和教学媒体，支持保存重开及完整课程播放。",
+      "独立课件会话支持前台或后台编辑，中断后通过原任务恢复进度。",
+      "集成配套 Office 资源和原生转换工具，加强安装包完整性校验与构建可靠性。",
+    ],
+  },
+  {
     version: "0.17.7",
     date: "2026-10-13",
     highlights: [
@@ -1654,6 +1674,16 @@ const zhCNEntries: ChangelogEntry[] = [
 ];
 
 const zhTWEntries: ChangelogEntry[] = [
+  {
+    version: "0.20.0",
+    date: "2026-11-15",
+    highlights: [
+      "支援一般生成、場景生成和 PPT 匯入，教學內容隨可編輯課件一同儲存。",
+      "編輯講解詞、Quiz 題目、答案圖片和教學媒體，支援儲存重開及完整課程播放。",
+      "獨立課件對話支援前景或背景編輯，中斷後透過原任務恢復進度。",
+      "整合配套 Office 資源和原生轉換工具，加強安裝包完整性驗證與建置可靠性。",
+    ],
+  },
   {
     version: "0.17.7",
     date: "2026-10-13",

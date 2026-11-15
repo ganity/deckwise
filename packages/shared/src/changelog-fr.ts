@@ -2,6 +2,16 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const frEntries: ChangelogEntry[] = [
   {
+    version: "0.20.0",
+    date: "2026-11-15",
+    highlights: [
+      "Créez des supports de cours par génération classique, par scènes ou par importation PPT, avec le contenu pédagogique enregistré dans la présentation modifiable.",
+      "Modifiez les narrations, les questions de Quiz, les images de réponse et les médias pédagogiques, puis enregistrez, rouvrez et lisez toute la leçon.",
+      "Poursuivez des conversations de cours indépendantes avec édition au premier plan ou en arrière-plan et reprenez le travail interrompu via les tâches initiales.",
+      "Améliorez la fiabilité des installateurs grâce à des ressources Office compatibles, des outils de conversion natifs et des contrôles d’intégrité.",
+    ],
+  },
+  {
     version: "0.17.7",
     date: "2026-10-13",
     highlights: [

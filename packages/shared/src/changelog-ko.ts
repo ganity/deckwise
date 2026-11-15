@@ -2,6 +2,16 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const koEntries: ChangelogEntry[] = [
   {
+    version: "0.20.0",
+    date: "2026-11-15",
+    highlights: [
+      "일반 생성, 장면 생성 또는 PPT 가져오기로 강의 자료를 만들고 편집 가능한 프레젠테이션에 교육 내용을 함께 저장합니다.",
+      "해설, Quiz 문항, 정답 이미지와 교육 미디어를 편집하고 저장한 뒤 다시 열어 전체 수업을 재생합니다.",
+      "독립적인 강의 대화를 전경 또는 백그라운드 편집으로 이어가고 원래 작업을 통해 중단된 진행 상황을 복구합니다.",
+      "호환되는 Office 리소스, 네이티브 변환 도구와 무결성 검사로 설치 패키지의 안정성을 높입니다.",
+    ],
+  },
+  {
     version: "0.17.7",
     date: "2026-10-13",
     highlights: [

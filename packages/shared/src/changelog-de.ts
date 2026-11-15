@@ -2,6 +2,16 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const deEntries: ChangelogEntry[] = [
   {
+    version: "0.20.0",
+    date: "2026-11-15",
+    highlights: [
+      "Lehrmaterial durch normale Erstellung, Szenenerstellung oder PPT-Import erstellen; Lehrinhalte werden in der bearbeitbaren Präsentation gespeichert.",
+      "Erläuterungen, Quizfragen, Antwortbilder und Lehrmedien bearbeiten, speichern, erneut öffnen und die gesamte Lektion abspielen.",
+      "Unabhängige Kurs-Chats im Vordergrund oder Hintergrund bearbeiten und unterbrochene Arbeit über die ursprünglichen Aufgaben fortsetzen.",
+      "Zuverlässigere Installationspakete mit abgestimmten Office-Ressourcen, nativen Konvertierungswerkzeugen und Integritätsprüfungen.",
+    ],
+  },
+  {
     version: "0.17.7",
     date: "2026-10-13",
     highlights: [

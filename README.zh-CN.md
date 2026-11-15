@@ -596,7 +596,7 @@ PI-Desktop 在此基础上增加了：
 
 PI-Desktop 目前仍处于 Early Preview，并在高频迭代。
 
-当前 **0.17.x** DeckWise 在桌面工作台、流式智能体、工作区工具、项目会话及跨平台打包的基础上，新增 PPTX 课件生成与修改、原生 SVG 幻灯片编辑、完整尺寸截图和托管 AI 提供商。已有能力包括：
+当前 **0.20.x** DeckWise 扩展普通生成、场景生成和 PPT 导入，支持原生教学内容、讲解配音、Quiz 编辑、媒体恢复及经过校验的跨平台打包。已有能力包括：
 
 - Desktop Shell
 - Streaming Agent Runtime
