@@ -37,47 +37,69 @@ concurrency:
 
 jobs:
   verify:
-    # Same gate as ci.yml. A tag push does not trigger ci.yml, so without this
-    # job a broken tree could be built and published untested.
+    # Reuse completed main CI for this exact commit, otherwise run the full gate.
     name: Verify (build / typecheck / lint / test)
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
     steps:
       - uses: actions/checkout@v7
 
+      - name: Reuse successful CI for this release commit
+        id: ci
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { reuseReleaseCi } = require('./scripts/reuse-release-ci.cjs');
+            await reuseReleaseCi({ github, context, core });
+
       - uses: pnpm/action-setup@v6
+        if: steps.ci.outputs.reused != 'true'
 
       - uses: actions/setup-node@v7
+        if: steps.ci.outputs.reused != 'true'
         with:
           node-version: 24
           cache: pnpm
 
       - uses: dtolnay/rust-toolchain@stable
+        if: steps.ci.outputs.reused != 'true'
 
       - uses: Swatinem/rust-cache@v2
+        if: steps.ci.outputs.reused != 'true'
 
       - name: Install dependencies
+        if: steps.ci.outputs.reused != 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Build workspace packages
+        if: steps.ci.outputs.reused != 'true'
         run: pnpm build:js
 
       - name: Typecheck Desktop
+        if: steps.ci.outputs.reused != 'true'
         run: pnpm --filter @pi-desktop/desktop typecheck
 
       - name: Courseware workflow contract gate
+        if: steps.ci.outputs.reused != 'true'
         run: pnpm test:courseware-workflow
 
       - name: Lint
+        if: steps.ci.outputs.reused != 'true'
         run: pnpm lint
 
       - name: Install browser test runtime
+        if: steps.ci.outputs.reused != 'true'
         run: pnpm --filter @pi-desktop/courseware-runtime exec playwright install --with-deps --only-shell chromium
 
       - name: Unit tests
+        if: steps.ci.outputs.reused != 'true'
         run: pnpm -r --if-present test
 
       - name: Rust host-core test
+        if: steps.ci.outputs.reused != 'true'
         run: cargo test -p host-core --locked
 
   build:

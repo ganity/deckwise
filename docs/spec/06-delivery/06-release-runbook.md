@@ -54,6 +54,20 @@ when macOS `iconutil` is available, without overwriting the canonical source.
 3. Rust toolchain and pnpm workspace installed. The Rust toolchain must run on
    the native macOS runner: arm64 for Apple Silicon or x86_64 for Intel.
 
+### CI verification reuse
+
+PR and main CI retain the full build, typecheck, lint, architecture and test
+checks. Release first looks up a completed successful `ci.yml` run from a push
+to this repository's main branch for the exact release commit, then verifies
+that its JS and Rust jobs both succeeded. Only that evidence can replace the
+repeat verification job; the run URL is recorded in the Release summary.
+Missing, unavailable, failed, skipped, PR, fork and different-commit results
+fall back to the full existing Release verification. Push the release tag after
+main CI completes to avoid repeating it. Native compilation, paired Office
+integration, final package integrity and Linux AppImage acceptance always run.
+Vite transform IDs use forward slashes on every OS; MAIC integration normalizes
+Windows filesystem paths before matching and requires all three transforms.
+
 ### Courseware inputs and evidence
 
 Courseware packages require a paired MAIC-integrated Document build and a native

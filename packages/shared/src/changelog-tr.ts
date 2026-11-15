@@ -2,6 +2,14 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const trEntries: ChangelogEntry[] = [
   {
+    version: "0.20.1",
+    date: "2026-11-15",
+    highlights: [
+      "Windows kurulum paketi derlemelerinde öğretim düzenleyicisinin doğru şekilde bütünleştirilmesini sağlar.",
+      "Paketleme öncesi tüm testleri tekrarlamamak için aynı sürüm commit’indeki başarılı main CI sonucunu yeniden kullanır.",
+    ],
+  },
+  {
     version: "0.20.0",
     date: "2026-11-15",
     highlights: [

@@ -124,6 +124,18 @@ test("release builds are gated on the CI checks and least-privilege permissions"
   assert.match(publishJob, /^    permissions:\n      contents: write$/m);
 });
 
+test("release reuse cannot bypass verification without same-commit CI evidence", () => {
+  const verify = releaseWorkflowSource.match(/^  verify:\n[\s\S]*?(?=^  build:)/m)?.[0];
+  assert(verify);
+  assert.match(verify, /permissions:\n      contents: read\n      actions: read/);
+  assert.match(verify, /id: ci\n        uses: actions\/github-script@v8/);
+  assert.match(verify, /require\('\.\/scripts\/reuse-release-ci\.cjs'\)/);
+  const fallback = verify.slice(verify.indexOf("      - uses: pnpm/action-setup"));
+  for (const step of fallback.split(/(?=^      - )/m).filter(value => value.trim())) {
+    assert.match(step, /if: steps\.ci\.outputs\.reused != 'true'/, "Every original verify step must run when evidence is unavailable");
+  }
+});
+
 test("release artifacts use isolated OSS staging instead of Actions storage", () => {
   assert.doesNotMatch(releaseWorkflowSource, /actions\/(?:upload|download)-artifact/);
   assert.match(releaseWorkflowSource, /OSS_STAGING_PREFIX: oss:\/\/trainwise\/deckwise\/builds\/\$\{\{ github\.run_id \}\}\/\$\{\{ matrix\.artifact \}\}/);

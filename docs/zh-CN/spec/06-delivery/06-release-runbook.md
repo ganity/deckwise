@@ -51,6 +51,17 @@ Windows 可执行文件和原生窗口图标中使用 `build/icon.ico`。渲染�
 3. 安装 Rust 工具链和 pnpm 工作区。Rust 必须在 macOS 本机运行器上运行：
    Apple Silicon 使用 arm64，Intel 使用 x86_64。
 
+### CI 验证复用
+
+PR 和 main CI 保留完整构建、类型检查、lint、架构检查与测试。Release 首先查找本仓库
+main 分支 push 触发、提交 SHA 与本次发布完全一致且已成功完成的 `ci.yml`，再确认
+JS 和 Rust 两项任务均成功。只有这些证据可以代替重复验证，Release 摘要记录来源链接。
+缺少记录、查询失败、失败或跳过的任务，以及 PR、fork、其他提交的结果，均回退到原有
+完整 Release 验证。应在 main CI 完成后推送发布 tag，避免重复执行。
+原生编译、配套 Office 集成、最终安装包完整性及 Linux AppImage 验收始终执行。
+Vite 的模块 ID 在所有系统都使用正斜杠；MAIC 集成会统一 Windows 路径分隔符，
+并要求三个转换全部应用。
+
 ### 课件输入与验收证据
 
 课件安装包需要配套的 MAIC 集成 Document 构建，以及与目标操作系统、架构一致的原生 PPTX Worker。
