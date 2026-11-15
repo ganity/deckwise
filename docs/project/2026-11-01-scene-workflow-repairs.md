@@ -22,7 +22,7 @@ workflow defects; it does not establish live supplier availability.
 Skill instructions, tool descriptions, shared contracts, Runtime, Main, Host,
 regressions and compatibility documentation were updated together. Persistent
 changes are additive optional v1 KV fields; SQL tables are unchanged. See the
-[binding/requirement ADR](../../adr/courseware-media-bindings-and-requirements.md).
+[binding/requirement ADR](../adr/courseware-media-bindings-and-requirements.md).
 Older strict readers can reject new fields: upgrade matching components together;
 downgrade requires a compatible profile backup, never receipt deletion.
 

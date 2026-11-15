@@ -93,16 +93,16 @@ The observed sequence was repeated `courseware_workflow_get` plus full-deck
 `courseware_media_context`, followed by compaction and another status check.
 The source has two relevant properties:
 
-1. [Workflow tools](../../../packages/agent-runtime/src/courseware-workflow-tools.ts)
+1. [Workflow tools](../../packages/agent-runtime/src/courseware-workflow-tools.ts)
    serialize the complete returned media context into model-visible text.
    Selecting a model catalog kind still returns the deck's teaching actions.
    Final status checks therefore repeatedly reintroduced a large payload.
-2. [CoursewareTurnContinuation.finish](../../../packages/agent-runtime/src/courseware-turn-continuation.ts)
+2. [CoursewareTurnContinuation.finish](../../packages/agent-runtime/src/courseware-turn-continuation.ts)
    observes tool results but returns before saved completion handling whenever
    the assistant message contains tool calls. The bounded reporting state is
    reached later through `finishSaved`, after a model turn without tool calls.
    The repeated tool/compaction path never reached that reporting transition.
-   [Runtime](../../../packages/agent-runtime/src/runtime.ts) only enforces the
+   [Runtime](../../packages/agent-runtime/src/runtime.ts) only enforces the
    no-more-tools reporting fence after that state has been set.
 
 This supports a concrete remaining design gap rather than a supplier outage:

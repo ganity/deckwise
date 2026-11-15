@@ -1,4 +1,4 @@
-# Explicit recovery of unsubmitted courseware images
+# ADR: Explicit recovery of unsubmitted courseware images
 
 - Status: Accepted
 - Date: 2026-10-26

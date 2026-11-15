@@ -5,6 +5,10 @@
 - Supersedes the editable Host teaching authority in
   [Host-owned courseware projects](host-owned-courseware-projects.md) for these presentations.
 
+## Context
+
+Teaching actions and adopted media must travel with the saved presentation and remain coherent with native edit, undo and save operations. A separate mutable Host teaching record would require synchronization with the native document.
+
 ## Decision
 
 The live ONLYOFFICE document owns native slide teaching. A namespaced custom XML

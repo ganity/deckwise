@@ -152,7 +152,7 @@ Deploy matching MAIC/Platform code, rebuild/restart Desktop, then perform a new
 explicit live acceptance run. MAIC reuses the existing billing Redis connection;
 it must have durable persistence and retain claims without eviction/flush.
 Audio is retained for seven days, at most 16 MiB per result. Host remains the
-durable lesson/media archive. See [the ADR](../../adr/courseware-bounded-recovery.md)
+durable lesson/media archive. See [the ADR](../adr/courseware-bounded-recovery.md)
 for ownership and deployment requirements.
 
 This recovers response loss after result persistence. It cannot reconstruct

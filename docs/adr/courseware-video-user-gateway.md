@@ -1,4 +1,4 @@
-# Courseware video uses the user gateway and direct CDN download
+# ADR: Courseware video uses the user gateway and direct CDN download
 
 - Status: accepted
 - Date: 2026-11-13

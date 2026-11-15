@@ -1,7 +1,11 @@
-# Direct llm-ha transport for courseware images
+# ADR: Direct llm-ha transport for courseware images
 
 - Status: Accepted
 - Date: 2026-10-26
+
+## Context
+
+Courseware image generation needs durable supplier receipts and original assets while keeping account authentication and billing on Platform. Proxying paid generation through Platform would mix those responsibilities and complicate recovery after a lost response.
 
 ## Decision
 

@@ -1,6 +1,6 @@
-# Verified courseware media bindings and retained requirements
+# ADR: Verified courseware media bindings and retained requirements
 
-Status: Accepted, 2026-11-01.
+- Status: Accepted, 2026-11-01.
 
 ## Context
 

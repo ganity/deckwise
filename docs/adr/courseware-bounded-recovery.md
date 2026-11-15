@@ -1,4 +1,4 @@
-# Bounded courseware recovery and original TTS results
+# ADR: Bounded courseware recovery and original TTS results
 
 - Status: Accepted
 - Date: 2026-10-31
@@ -65,7 +65,7 @@ remain unresolved; preserve reservations for reconciliation rather than silently
 refund, mark success or repurchase. Seven-day result expiry also requires an
 honest unresolved handoff if Desktop never archived the original.
 
-See the [repair validation](../spec/06-delivery/2026-10-31-workflow-gap-repairs.md).
+See the [repair validation](../project/2026-10-31-workflow-gap-repairs.md).
 
 
 ### Follow-up: prepared requests and action-bound handoff (2026-10-31)

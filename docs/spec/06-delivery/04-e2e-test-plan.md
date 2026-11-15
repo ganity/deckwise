@@ -17698,7 +17698,7 @@ save reply, preserves speech/audio, adopts the original archived video, restarts
 Host and closes an actual Runtime turn from Host completion. Companion Host
 cases cover original music/export recovery and verified native-save bindings.
 Native editor/player rendering, human content review and paid ten-page generation
-remain separate checks. See [repair evidence](2026-11-01-scene-workflow-repairs.md).
+remain separate checks. See [repair evidence](../../project/2026-11-01-scene-workflow-repairs.md).
 
 
 ### CW-TERMINAL-01: validated scene drafts and bounded final reporting

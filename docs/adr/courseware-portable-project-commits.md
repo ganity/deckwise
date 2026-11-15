@@ -7,6 +7,10 @@
 - Extends [Host-owned courseware](host-owned-courseware-projects.md) and implements
   G5 of the [teaching plan](../design/2026-10-28-wiseoffice-teaching-implementation.md).
 
+## Context
+
+Portable courseware carries both presentation and teaching files. Interrupted writes must not expose a mismatched pair, and recovery must preserve external edits rather than silently replacing them.
+
 ## Decision
 
 One Rust Host writer commits the public PPTX/teaching pair. A per-project OS file

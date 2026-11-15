@@ -3,7 +3,11 @@
 - Status: implemented locally, 2026-11-10; database migrations and live deployment remain separate.
 - Scope: new desktop complete MAIC deliveries. Legacy PPT/PDF import and legacy publication retain their existing behavior.
 
-## Authority and version boundaries
+## Context
+
+Local authoring, cloud draft synchronization and publication have different revision boundaries. Combining them could replace online content during authoring or create duplicate courses and releases after a lost response.
+
+## Decision: authority and version boundaries
 
 Rust Host owns a local delivery journal, scoped by workspace, authenticated principal (platform origin, tenant and user), and portable document ID. Main verifies saved source bytes, exports the complete MAIC/PPTist archive with existing audio/media, uploads it, and calls the authenticated platform API. Renderer supplies an action and session, never a source path, ZIP payload, signing key, tenant or arbitrary remote endpoint.
 

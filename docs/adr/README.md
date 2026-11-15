@@ -323,3 +323,11 @@ Each ADR includes:
 | playback-presentation-events | [Fixed playback presentation observers](playback-presentation-events.md) | Accepted for the independent player module |
 | 0305 | [Saved-page narration independent of Office preview](0305-saved-page-narration.md) | Accepted for courseware narration |
 | 0288 | [Load the Office Module in the Isolated Editor View](0288-isolated-office-module-entry.md) | Accepted |
+| courseware-bounded-recovery | [Bounded courseware recovery and original TTS results](courseware-bounded-recovery.md) | Accepted |
+| courseware-images-direct-llm-ha | [Direct llm-ha transport for courseware images](courseware-images-direct-llm-ha.md) | Accepted |
+| courseware-platform-delivery | [Separate complete courseware synchronization from platform publication](courseware-platform-delivery.md) | implemented locally, 2026-11-10; database migrations and live deployment remain separate |
+| courseware-portable-project-commits | [Portable courseware commits and authority migration](courseware-portable-project-commits.md) | proposed, 2026-10-29. File transactions and the strict portable teaching/media schema are implemented |
+| courseware-prepared-image-recovery | [Explicit recovery of unsubmitted courseware images](courseware-prepared-image-recovery.md) | Accepted |
+| courseware-saved-media-continuation | [Saved-courseware media continuation](courseware-saved-media-continuation.md) | Accepted |
+| courseware-video-user-gateway | [Courseware video uses the user gateway and direct CDN download](courseware-video-user-gateway.md) | accepted |
+| native-teaching-document-authority | [Native presentation teaching owns its saved document](native-teaching-document-authority.md) | implemented on `feat/native-teaching-implementation`, 2026-11-09 |

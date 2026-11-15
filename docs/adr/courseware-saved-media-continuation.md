@@ -1,4 +1,4 @@
-# Saved-courseware media continuation
+# ADR: Saved-courseware media continuation
 
 - Status: Accepted
 - Date: 2026-10-27

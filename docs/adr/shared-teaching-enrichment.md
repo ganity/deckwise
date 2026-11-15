@@ -4,6 +4,10 @@
 - Status: implemented in the Part A candidate; qualification is recorded in the execution evidence.
 - Related: [native document authority](native-teaching-document-authority.md).
 
+## Context
+
+Native presentations already carry executable teaching actions, but imported scripts and lesson plans also need portable provenance and stable page bindings. Keeping that evidence in a separate mutable teaching store would introduce competing authority.
+
 ## Decision
 
 Keep the native PPT as the only mutable teaching authority. Add an optional bounded
