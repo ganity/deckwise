@@ -6,10 +6,34 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 
 const script = fileURLToPath(new URL('../../../scripts/stage-pptx-worker.mjs', import.meta.url));
 const stage = (bundle, destination) =>
   execFileSync(process.execPath, [script, bundle, destination], { stdio: 'ignore' });
+
+test('packaging copies worker native dependencies and fonts through electron-builder', async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'pptx-worker-package-test-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const files = ['pptx-worker.mjs', 'node_modules/@napi-rs/canvas-linux-x64-gnu/skia.node', 'node_modules/@fontsource/abeezee/files/font.woff2'];
+  for (const file of files) {
+    const source = path.join(root, 'resources/pptx-worker', file);
+    await mkdir(path.dirname(source), { recursive: true });
+    await writeFile(source, file);
+  }
+  const require = createRequire(import.meta.url);
+  const builderRequire = createRequire(require.resolve('electron-builder/package.json'));
+  const { getFileMatchers, copyFiles } = builderRequire('app-builder-lib/out/fileMatcher.js');
+  const { build } = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+  const config = { extraResources: build.extraResources.filter(resource => resource.to.startsWith('pptx-worker')) };
+  // Electron-builder deliberately skips a mapping's root node_modules directory.
+  const destination = path.join(root, 'installed');
+  await copyFiles(getFileMatchers(config, 'extraResources', destination, {
+    defaultSrc: root, globalOutDir: destination, customBuildOptions: {}, macroExpander: value => value,
+  }));
+  for (const file of files)
+    assert.equal(await readFile(path.join(destination, 'pptx-worker', file), 'utf8'), file);
+});
 
 async function makeBundle(root) {
   const bundle = path.join(root, 'bundle');

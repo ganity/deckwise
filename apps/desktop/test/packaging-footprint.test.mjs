@@ -228,6 +228,7 @@ test("packaging keeps only shipped locales and excludes non-runtime artifacts", 
     },
     { from: "resources/wiseoffice", to: "wiseoffice" },
     { from: "resources/pptx-worker", to: "pptx-worker" },
+    { from: "resources/pptx-worker/node_modules", to: "pptx-worker/node_modules" },
     {
       from: "resources/models.dev",
       to: "models.dev",
