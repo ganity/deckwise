@@ -67,6 +67,7 @@ test("CI and release verification install the matching browser before UI unit te
     const install = source.indexOf("run: pnpm --filter @pi-desktop/courseware-runtime exec playwright install --with-deps --only-shell chromium");
     const tests = source.indexOf("run: pnpm -r --if-present test");
     assert(install > 0 && install < tests, "Fresh runners need the runtime package's Chromium and system libraries");
+    assert.match(source.slice(0, install), /runs-on: ubuntu-24\.04/, "The locked browser runtime requires a supported runner OS");
   }
 });
 
