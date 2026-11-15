@@ -51,6 +51,24 @@ Windows 可执行文件和原生窗口图标中使用 `build/icon.ico`。渲染�
 3. 安装 Rust 工具链和 pnpm 工作区。Rust 必须在 macOS 本机运行器上运行：
    Apple Silicon 使用 arm64，Intel 使用 x86_64。
 
+### 课件输入与验收证据
+
+Release 和 Linux package validation 通过 `.github/actions/prepare-courseware`
+读取 `apps/desktop/courseware-sources.json` 中 Document 的仓库和完整提交 SHA，
+安装锁定依赖，构建 MAIC 集成编辑器及当前运行器原生 Worker，再冻结并校验发布锁。
+先推送、合并 Document 源码，再在 Desktop 中固定可拉取的提交；编辑器、Worker 和
+发布锁等编译产物不提交 Git。正式打包要求两份源码均已提交且工作区干净，不能关闭严格门禁绕过。
+
+打包前后校验文件清单、内容哈希和目标平台架构；签名后用独立的
+`courseware-post-sign.json` 记录签名后资源身份，不修改签名应用。
+包内检查同时扫描私有状态。Linux 还会解包最终 AppImage，运行真实 Electron、Main、Host
+的课件编辑、Quiz、保存重开和播放验收。macOS/Windows 已接入包完整性校验，
+交互运行验收仍须另行执行。最终安装包与证据写入 `SHA256SUMS-<platform>-<arch>.txt`。
+
+手动 Release 的产物保存在 `oss://trainwise/deckwise/builds/<run_id>/<platform>/`，
+只有版本标签会进入发布任务。手动 Linux 工作流通过名为 `deckwise-linux-x64` 的
+Actions artifact 提供 AppImage、DEB、RPM、验收报告和校验和。
+
 ## 3. 构建内容
 
 - Electron 应用程序具有强化的运行时 + 权利

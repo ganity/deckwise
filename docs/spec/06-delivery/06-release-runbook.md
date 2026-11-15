@@ -90,12 +90,26 @@ signing, not release approval.
 Signing or later repacking may change bytes and requires new final-artifact
 qualification; never reuse a pre-signing identity as proof of a signed package.
 
-The Release workflow now runs the courseware contract gate and enables the
-strict input lock check. Its ephemeral runners must receive these paired inputs
-and the matching ignored lock file through an approved artifact supply step.
-That supply step is not yet configured in this repository: tag builds must fail
-closed rather than download an unpinned editor or publish a partial package.
-Do not bypass the hook or turn off the release flag to unblock delivery.
+Release and Linux package validation use `.github/actions/prepare-courseware`:
+it checks out the repository and full commit SHA in
+`apps/desktop/courseware-sources.json`, installs locked Document dependencies,
+builds the MAIC integration and the runner's native worker, then freezes and
+checks the ignored input lock. Push and merge Document source first, then pin
+that reachable commit in Desktop. Compiled editor, worker and lock files stay
+out of Git. Do not bypass the hook or disable strict release mode.
+
+After signing, a separate `courseware-post-sign.json` captures the signed
+resource identity without modifying the signed app. Package verification checks
+the appropriate receipt, inventories and absence of private state. Linux also
+extracts the final AppImage and runs the real Electron/Main/Host authoring,
+Quiz, save/reopen and playback acceptance gate. macOS/Windows have package
+integrity checks; their interactive runtime acceptance is still a separate gate.
+`SHA256SUMS-<platform>-<arch>.txt` hashes final installers and evidence.
+
+Manual Release runs retain outputs under
+`oss://trainwise/deckwise/builds/<run_id>/<platform>/`; only version tags enter
+the publish job. The manual Linux workflow uploads AppImage, DEB, RPM,
+acceptance reports and checksums as `deckwise-linux-x64` Actions artifacts.
 
 For repeatable provider-free source regression, use three distinct preserved
 PPTX fixtures of at most six pages each:

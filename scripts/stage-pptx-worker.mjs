@@ -7,7 +7,7 @@ const checkOnly = process.argv[2] === '--check';
 const [bundleArgument, destinationArgument] = process.argv.slice(checkOnly ? 3 : 2);
 assert(
   bundleArgument && (checkOnly || destinationArgument) && process.argv.length === 4,
-  'Supply the Linux worker bundle and a new destination directory, or --check and the bundle',
+  'Supply the native worker bundle and a new destination directory, or --check and the bundle',
 );
 assert(path.isAbsolute(bundleArgument));
 if (!checkOnly) assert(path.isAbsolute(destinationArgument));
@@ -15,9 +15,9 @@ if (!checkOnly) assert(path.isAbsolute(destinationArgument));
 const bundle = await realpath(bundleArgument);
 assert((await lstat(path.join(bundle, 'manifest.json'))).isFile(), 'Manifest must be a regular file');
 const manifest = JSON.parse(await readFile(path.join(bundle, 'manifest.json'), 'utf8'));
-assert.equal(manifest.status, 'LOCAL_LINUX_WORKER_BUNDLE');
-assert.equal(manifest.platform, 'linux');
-assert.equal(manifest.arch, 'x64');
+assert(['LOCAL_LINUX_WORKER_BUNDLE', 'LOCAL_NATIVE_WORKER_BUNDLE'].includes(manifest.status));
+assert.equal(manifest.platform, process.platform, 'Worker platform differs from this runner');
+assert.equal(manifest.arch, process.arch, 'Worker architecture differs from this runner');
 assert(Array.isArray(manifest.files) && manifest.files.length > 0);
 
 const expected = new Map();

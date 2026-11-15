@@ -48,3 +48,14 @@ export async function afterPack(context) {
     ...content, candidateId: digest(JSON.stringify(content)),
   }, null, 2) + "\n", { flag: "wx" });
 }
+
+// Native signing changes binary bytes; keep that identity outside the signed app.
+export async function afterSign(context) {
+  const candidate = JSON.parse(await readFile(join(context.appOutDir, "courseware-candidate.json"), "utf8"));
+  const resources = context.electronPlatformName === "darwin"
+    ? join(context.appOutDir, context.packager.appInfo.productFilename + ".app/Contents/Resources") : join(context.appOutDir, "resources");
+  await writeFile(join(context.appOutDir, "courseware-post-sign.json"), JSON.stringify({
+    schemaVersion: "deckwise-courseware-post-sign/1", candidateId: candidate.candidateId,
+    resourcesSha256: await fingerprintDirectory(resources),
+  }, null, 2) + "\n", { flag: "wx" });
+}

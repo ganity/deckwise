@@ -43,9 +43,9 @@ async function makeBundle(root) {
   await writeFile(
     path.join(bundle, 'manifest.json'),
     JSON.stringify({
-      status: 'LOCAL_LINUX_WORKER_BUNDLE',
-      platform: 'linux',
-      arch: 'x64',
+      status: 'LOCAL_NATIVE_WORKER_BUNDLE',
+      platform: process.platform,
+      arch: process.arch,
       files: [
         {
           path: 'pptx-worker.mjs',
@@ -58,7 +58,7 @@ async function makeBundle(root) {
   return bundle;
 }
 
-test('stages a manifest-verified Linux worker bundle into a new directory', async (t) => {
+test('stages a manifest-verified native worker bundle into a new directory', async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'pptx-worker-stage-test-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   const bundle = await makeBundle(root);
@@ -71,6 +71,19 @@ test('stages a manifest-verified Linux worker bundle into a new directory', asyn
     await readFile(path.join(destination, 'manifest.json'), 'utf8'),
     await readFile(path.join(bundle, 'manifest.json'), 'utf8'),
   );
+});
+
+test('rejects worker bundles built for another platform or architecture', async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'pptx-worker-target-test-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const bundle = await makeBundle(root);
+  const manifestPath = path.join(bundle, 'manifest.json');
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  const check = () => execFileSync(process.execPath, [script, '--check', bundle], { stdio: 'pipe' });
+  await writeFile(manifestPath, JSON.stringify({ ...manifest, platform: process.platform === 'linux' ? 'win32' : 'linux' }));
+  assert.throws(check, /Worker platform differs/);
+  await writeFile(manifestPath, JSON.stringify({ ...manifest, arch: process.arch === 'x64' ? 'arm64' : 'x64' }));
+  assert.throws(check, /Worker architecture differs/);
 });
 
 test('rejects modified bundle files without creating a destination', async (t) => {

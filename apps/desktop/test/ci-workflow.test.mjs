@@ -153,7 +153,7 @@ test("manual Linux package validation covers the RPM desktop identity", () => {
   assert.match(linuxPackageWorkflowSource, /StartupWMClass=deckwise/);
   assert.match(
     linuxPackageWorkflowSource,
-    /uses: actions\/upload-artifact@v6[\s\S]*path: apps\/desktop\/release\/\*\.rpm/,
+    /uses: actions\/upload-artifact@v6[\s\S]*path: \|[\s\S]*apps\/desktop\/release\/\*\.rpm/,
   );
 });
 

@@ -188,6 +188,15 @@ jobs:
         if: matrix.platform == 'windows'
         run: node --test apps/desktop/test/python-runtime-contract.test.mjs
 
+      - name: Prepare paired courseware inputs
+        uses: ./.github/actions/prepare-courseware
+
+      - name: Install Linux packaging tools
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y cpio rpm xvfb libasound2 libatk-bridge2.0-0 libgtk-3-0 libnss3
+
       - name: Package installers (${{ matrix.dist }})
         if: matrix.platform != 'macos'
         # The dist scripts pass --publish never themselves: electron-builder
@@ -236,6 +245,22 @@ jobs:
         if: matrix.platform == 'linux'
         run: node scripts/check-linux-host-glibc.mjs target/release/pi-desktop-host-core
 
+      - name: Verify packaged courseware payload
+        run: node scripts/check-courseware-package.mjs
+
+      - name: Exercise the final Linux AppImage
+        if: matrix.platform == 'linux'
+        run: |
+          set -euo pipefail
+          mkdir "$RUNNER_TEMP/courseware-appimage"
+          appimage=$(realpath apps/desktop/release/*.AppImage)
+          (cd "$RUNNER_TEMP/courseware-appimage" && "$appimage" --appimage-extract > /dev/null)
+          export DECKWISE_E2E_PACKAGE_ROOT="$RUNNER_TEMP/courseware-appimage/squashfs-root"
+          export DECKWISE_E2E_OUTPUT="$RUNNER_TEMP/courseware-package-acceptance"
+          node scripts/check-courseware-package.mjs "$DECKWISE_E2E_PACKAGE_ROOT"
+          xvfb-run -a node scripts/e2e-maic-courseware.mjs
+          cp "$DECKWISE_E2E_OUTPUT/report.json" apps/desktop/release/courseware-acceptance-linux-x64.json
+
       - name: Export Linux ASAR release asset
         if: matrix.platform == 'linux'
         run: node scripts/export-linux-asar.mjs
@@ -268,11 +293,13 @@ jobs:
         if: matrix.platform == 'macos'
         run: mv apps/desktop/release/latest-mac.yml apps/desktop/release/latest-mac-${{ matrix.arch }}.yml
 
+      - name: Record final artifact checksums
+        run: node scripts/courseware-artifact-checksums.mjs
+
       - name: Install ossutil
         uses: ./.github/actions/setup-ossutil
 
       - name: Upload artifacts to OSS staging
-        if: startsWith(github.ref, 'refs/tags/v')
         env:
           OSS_ACCESS_KEY_ID: ${{ secrets.OSS_ACCESS_KEY_ID }}
           OSS_ACCESS_KEY_SECRET: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
@@ -294,6 +321,8 @@ jobs:
             apps/desktop/release/*.asar
             apps/desktop/release/*.blockmap
             apps/desktop/release/latest*.yml
+            apps/desktop/release/courseware-*.json
+            apps/desktop/release/SHA256SUMS-*.txt
           )
           if [[ "${#artifacts[@]}" -eq 0 ]]; then
             echo "::error::No release artifacts found."

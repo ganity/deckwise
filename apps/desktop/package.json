@@ -94,6 +94,7 @@
   "build": {
     "beforePack": "./build/courseware-release.mjs",
     "afterPack": "./build/courseware-release.mjs",
+    "afterSign": "./build/courseware-release.mjs",
     "appId": "com.trainwise.deckwise",
     "productName": "DeckWise",
     "directories": {
