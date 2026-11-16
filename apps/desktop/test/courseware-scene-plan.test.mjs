@@ -515,10 +515,27 @@ test("scene normalization retains required effects and includes them in the page
 });
 
 
-test("new plans select editable text while legacy approved plans remain unchanged", async () => {
+test("new plans preserve image lettering while saved native plans retain their mode", async () => {
   const legacy = parseSceneCoursePlan(answer);
   assert.equal(legacy.textMode, undefined);
   assert.equal(parseSceneCoursePlan(JSON.stringify({ ...JSON.parse(answer), textMode: "native" })).textMode, "native");
   assert.throws(() => parseSceneCoursePlan(JSON.stringify({ ...JSON.parse(answer), textMode: "raster" })), /textMode|Invalid scene/);
-  assert.equal((await createSceneCoursePlan(input, async () => ({ text: answer }))).textMode, "native");
+  let request;
+  const plan = await createSceneCoursePlan(input, async value => { request = value; return { text: answer }; });
+  assert.equal(plan.textMode, undefined);
+  assert.deepEqual(plan.pages[0].visibleText, ["Hello"]);
+  assert.match(request.system, /lettering.*image|image.*lettering/);
+  assert.doesNotMatch(request.system, /New scene plans must include textMode:"native"|image generator produces textless art/);
+});
+
+test("new planning repairs a stale native-text response before image generation", async () => {
+  const requests = [];
+  const plan = await createSceneCoursePlan(input, async request => {
+    requests.push(request);
+    return { text: requests.length === 1 ? JSON.stringify({ ...JSON.parse(answer), textMode: "native" }) : answer };
+  });
+  assert.equal(requests.length, 2);
+  assert.match(JSON.parse(requests[1].messages[0].content).repair.error, /omit textMode/);
+  assert.equal(plan.textMode, undefined);
+  assert.deepEqual(plan.pages[0].visibleText, ["Hello"]);
 });

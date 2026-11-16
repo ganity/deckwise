@@ -2,6 +2,11 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const koEntries: ChangelogEntry[] = [
   {
+    version: "0.20.5",
+    date: "2026-11-16",
+    highlights: ["장면 이미지 안의 텍스트 생성을 복원하고 승인된 수업과 재시도 시 기존 자료를 유지합니다."],
+  },
+  {
     version: "0.20.4",
     date: "2026-11-16",
     highlights: ["Windows 패키지 검사에서 앱 아카이브의 중첩 디렉터리 파일을 읽지 못하는 문제를 수정했습니다."],

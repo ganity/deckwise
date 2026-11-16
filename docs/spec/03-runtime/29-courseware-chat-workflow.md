@@ -1,7 +1,7 @@
 # Main Chat courseware generation
 
 Scene compilation accepts all verified selected assets in the approved plan without an aggregate byte ceiling. Individual image validation and compiler canvas fitting remain in force; compiler copies of native cropped foregrounds fit their mapped display bounds without enlargement. The final playable package retains its existing output-size validation.
-When every foreground has a native placement, compilation preserves those coordinates and supplier labels. New plans require `textMode:"native"`: art is textless, and compilation adds exactly one native text frame per approved display string. The text layout pass cannot reposition reviewed images. Already approved legacy plans without the mode retain their reviewed raster lettering and paid asset identities.
+When every foreground has a native placement, compilation preserves those coordinates and supplier labels. New Scene body-page plans omit `textMode`: the visual master renders the exact approved `visibleText`, and decomposition retains complete text carriers with their lettering in the image pixels. Compilation preserves every reviewed image layer without replacement native text. New drafts with `textMode:"native"` must be corrected before submission or approval. Already approved plans retain their existing text mode, reviewed assets and paid identities, including the exact native-text compilation path for approved textless artwork. Independent Quiz and checkpoint pages keep their structured questions and editable question presentation.
 Saved teaching continuation remains available after compilation without an active Office editor binding. Native canvas edits still use the existing editor binding checks.
 
 Status: implemented locally. Source Electron/Host/Agent-to-WiseOffice plain,
@@ -287,7 +287,7 @@ a saved PPT is not a claim of complete teaching readiness. Candidate reviews and
 source-visual approval move into the workspace's collapsible review area, retaining
 their existing draft, revision and permission checks. Ordinary projects retain
 SVG preview, quality repair and explicit export; imports open their saved source.
-Images remain images: existing embedded lettering is not promised as editable text. New scene plans use separate native text frames; legacy art is not silently converted.
+Images remain images: Scene body lettering stays in the generated image layers and is not promised as individually editable native text. Existing approved art and text modes are not silently converted.
 
 Renderer validation: `scripts/e2e-courseware-workspace.mjs` exercises the actual
 components with isolated IPC/media fixtures, including 520px width, the two
@@ -534,9 +534,10 @@ publication or packaged-release acceptance is claimed. Evidence is recorded in
 
 Seedream layer decomposition follows the MAIC native images/generations request
 with layer_decomposition, PNG/2K output and URL results. Host reuses MAIC's
-foreground/environment prompt unchanged. New native-text plans supply textless
-masters and add editable copy during compilation. Approved legacy plans keep
-lettering in their returned image layers; retries never erase or duplicate it.
+foreground/environment prompt unchanged. New Scene masters include approved
+display text, and the returned image layers retain that lettering through
+compilation. Already approved native-text plans keep their textless artwork and
+native copy; retries never change text modes, erase or duplicate lettering.
 A returned JPEG base is normalized to PNG before archive; foreground PNG bounds
 and stacking are preserved. The gateway distinguishes executing `submitting`
 from terminal `submission_unknown` and persists safe error codes for provider

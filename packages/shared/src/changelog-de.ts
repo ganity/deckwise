@@ -2,6 +2,11 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const deEntries: ChangelogEntry[] = [
   {
+    version: "0.20.5",
+    date: "2026-11-16",
+    highlights: ["Text in generierten Szenenbildern wiederherstellen und genehmigte Lektionen sowie vorhandene Medien bei Wiederholungen beibehalten."],
+  },
+  {
     version: "0.20.4",
     date: "2026-11-16",
     highlights: ["Die Windows-Paketprüfung liest jetzt auch verschachtelte Dateien im Anwendungsarchiv."],

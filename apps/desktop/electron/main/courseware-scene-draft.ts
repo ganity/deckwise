@@ -71,7 +71,7 @@ export async function approveSceneCourseDraft(host: Host, payload: unknown): Pro
   if (typeof sha256 !== "string" || !/^[a-f0-9]{64}$/u.test(sha256)) throw new Error("Invalid scene plan hash");
   const { plan } = await readSceneCourseDraft(host, { sessionId });
   if (!plan || plan.sha256 !== sha256) throw new Error("Scene plan changed; review it again");
-  if (!plan.approvedSha256 && plan.textMode !== "native") throw new Error('New scene plans require textMode:"native" before approval; keep approved legacy plans unchanged');
+  if (!plan.approvedSha256 && plan.textMode === "native") throw new Error("New scene plans must omit textMode so visibleText is rendered in image layers; preserve already approved plans");
   await host.call("courseware.scenePlan.approve", { sessionId, sha256 });
   return readSceneCourseDraft(host, { sessionId });
 }

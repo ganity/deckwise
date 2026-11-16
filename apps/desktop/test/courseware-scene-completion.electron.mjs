@@ -336,10 +336,33 @@ test("initial scene planning uses the existing managed model route without prior
   const result = await f.services.planSceneCourseware({ sessionId: "chat-1", modelKey: input().modelKey,
     brief: "幼儿园英语问候课", education: { schoolStage: "kindergarten", subject: "english" } });
   assert.equal(result.pages[0].pageId, "scene-001");
+  assert.equal(result.textMode, undefined, "new Scene lettering belongs in the generated artwork");
   assert.equal(f.requests[0].authorization, "Bearer loopback-token-1");
   const serialized = JSON.stringify(f.requests[0].body);
   assert(serialized.includes("幼儿园英语问候课"));
   assert(!serialized.includes("PRIVATE_OLD_CONVERSATION"));
+  assert(!serialized.includes('New scene plans must include textMode'));
+  const sharp = createRequire(new URL("../../../packages/courseware-runtime/package.json", import.meta.url))("sharp");
+  const lettering = await sharp(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="100"><text x="12" y="65" font-size="56">Hello</text></svg>')).png().toBuffer();
+  const background = await sharp({ create: { width: 1280, height: 800, channels: 4, background: "#ffffff" } }).png().toBuffer();
+  const master = await sharp(background).composite([{ input: lettering, left: 80, top: 70 }]).png().toBuffer();
+  const images = [["master", master, 1280, 800], ["clean", background, 1280, 800], ["lettering", lettering, 320, 100]]
+    .map(([id, bytes, width, height]) => ({ assetIds: [id], bytes, width, height, sha256: digest(bytes) }));
+  const deck = await f.services.buildSceneCourseware({ sessionId: "chat-1", modelKey: input().modelKey,
+    textMode: result.textMode, pages: result.pages, canvas: { width: 1280, height: 800 },
+    visuals: [{ pageId: result.pages[0].pageId, visualMasterAssetId: "master", cleanPlateAssetId: "clean", images,
+      foregroundPlacements: [{ assetId: "lettering", bboxPx: [80, 70, 320, 100], zIndex: 1, semanticRole: "Hello lettering" }] }] });
+  const compiled = await JSZip.loadAsync(deck.pptx);
+  const xml = await compiled.file("ppt/slides/slide1.xml").async("string");
+  assert.equal((xml.match(/<p:pic>/gu) ?? []).length, 1);
+  assert(!xml.includes("<a:t>"), "compilation must not duplicate artwork lettering as native text");
+  const media = await Promise.all(compiled.file(/^ppt\/media\/.*\.png$/u).map(file => file.async("nodebuffer")));
+  assert(media.some(bytes => bytes.equals(lettering)), "the lettering pixels survive actual PPTX compilation");
+  const elements = deck.canonicalClassroom.scenes[0].content.canvas.elements;
+  assert(elements.every(element => element.type === "image"));
+  assert(elements.some(element => element.src === `data:image/png;base64,${lettering.toString("base64")}`));
+  assert.equal(deck.teaching[0].narration, result.pages[0].narration);
+  assert.equal(f.requests.length, 1, "reviewed placements need no extra model reconstruction");
   const story = { schemaVersion: 1, revision: 1, sha256: "a".repeat(64), approvedSha256: null, bound: false,
     educationContext: {}, draft: { title: "Greetings rescue", objectives: ["Say hello"], beats: [{ id: "hello", event: "Help Robin greet a friend" }] } };
   f.bindStory(story);
