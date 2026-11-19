@@ -49,7 +49,7 @@ jobs:
 
       - name: Reuse successful CI for this release commit
         id: ci
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const { reuseReleaseCi } = require('./scripts/reuse-release-ci.cjs');
