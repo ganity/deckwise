@@ -29,6 +29,25 @@ const { createSceneCoursePlan, parseSceneCoursePlan } = planning;
 const input = { sessionId: "session-1", modelKey: "provider/model", brief: "幼儿园英语问候课", education: { schoolStage: "kindergarten", subject: "english" } };
 const answer = JSON.stringify({ title: "问候", pages: [{ title: "打招呼", visibleText: ["Hello"], visualIntent: "两个孩子挥手", narration: "和朋友挥挥手，说 Hello。Good!" }] });
 
+test("Scene visual guidance forwards learner metadata without subject-specific code templates", () => {
+  for (const education of [
+    { schoolStage: "KINDERGARTEN", grade: "大班", subject: "MATH" },
+    { schoolStage: "PRIMARY", grade: "小学四年级", subject: "HISTORY" },
+    { schoolStage: "SENIOR_HIGH", grade: "11", subject: "OTHER", customSubjectName: "天文学" },
+  ]) {
+    const guidance = profiles.buildSceneVisualGuidance(education);
+    assert.match(guidance, /metadata as data/);
+    assert.ok(guidance.includes(JSON.stringify(education)));
+    assert.doesNotMatch(guidance, /Kindergarten:|Math:|Senior high:/);
+  }
+  const profile = profiles.resolveGenerationProfile({ edition: "EDUCATION", workflowProfile: "school_classroom_workflow",
+    interactionProfile: "objective_quiz_first", educationContext: { schoolStage: "PRIMARY", subject: "MATH" } });
+  assert.match(profiles.buildStagePromptContext(profile).audienceStageProfile, /editable native slide elements/);
+  const scene = profiles.buildStagePromptContext(profile, { sceneImage: true }).audienceStageProfile;
+  assert.match(scene, /complete raster image/);
+  assert.doesNotMatch(scene, /editable native slide elements|never AI-generated raster artwork/);
+});
+
 test("initial planning corrects invalid JSON with bounded feedback instead of human schema steering", async () => {
   const requests = [];
   const result = await createSceneCoursePlan(input, async request => {
@@ -145,7 +164,7 @@ test("completion requests reuse MAIC age, subject and language rules without cha
     [{ schoolStage: "kindergarten", subject: "math" },
       [/Audience stage \[KINDERGARTEN\]/, /short sentences, vivid actions/, /Do not add English praise or commands/], [/Kindergarten English classroom command policy/, /such as Good!/, /BILINGUAL_ENGLISH/]],
     [{ schoolStage: "primary", subject: "math", grade: "3", chapter: "Length" },
-      [/Audience stage \[PRIMARY\]/, /PRIMARY_MATH/, /source-grounded numbers, units/i, /never AI-generated raster artwork/], [/Kindergarten English classroom command policy/, /such as Good!/]],
+      [/Audience stage \[PRIMARY\]/, /PRIMARY_MATH/, /source-grounded numbers, units/i, /complete raster image/], [/Kindergarten English classroom command policy/, /such as Good!/, /never AI-generated raster artwork/]],
     [{ schoolStage: "primary", subject: "chinese" },
       [/PRIMARY_CHINESE/, /Never invent stroke-order diagrams/], [/Kindergarten English classroom command policy/, /PRIMARY_MATH/]],
     [{ schoolStage: "primary", subject: "english", fullEnglishTeaching: true },
@@ -182,7 +201,9 @@ const { registerAgentIpc } = await loadSource("../electron/main/ipc/agent-ipc.ts
   "../session-message-input": sessionInput, "../courseware-scene-plan": planning,
   "../courseware-llm-auth": { resolveCoursewareLlmAuth: async () => ({}) },
   "../builtin-skills": { loadBuiltinSkillBody: (id) => id === "deckwise/scene-courseware"
-    ? { id, name: "scene-courseware", body: sceneSkill } : null },
+    ? { id, name: "scene-courseware", body: sceneSkill }
+    : id === "deckwise/ppt-master" ? { id, name: "ppt-master", body: "Official PPT Master fixture" } : null,
+    pptMasterSkillUnavailableReason: () => "PPT Master fixture unavailable" },
 });
 
 async function dispatchChat(educationContext, { taskType = "scene", nativeEditing = false, importPath, generatedPath, storyState, storyFailure } = {}) {
@@ -253,6 +274,13 @@ test("generated scene teaching can resume without an active Office binding", asy
   const content = await dispatchChat(input.education, { generatedPath: "/workspace/generated.pptx" });
   assert.match(content, /courseware_media_context/);
   assert.match(content, /without Office navigation/);
+});
+
+test("saved ordinary teaching continues without the PPT Master authoring route", async () => {
+  const content = await dispatchChat(input.education, { taskType: "plain", generatedPath: "/workspace/generated.pptx" });
+  assert(content.includes('id "deckwise/ppt-edit"'));
+  assert.match(content, /A PPTX source is already saved/);
+  assert.doesNotMatch(content, /Official PPT Master fixture|Before the first export/);
 });
 
 test("production Main Chat forwards the same MAIC policy and actual scene skill to the existing runtime", async () => {

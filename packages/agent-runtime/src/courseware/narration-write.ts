@@ -1,7 +1,8 @@
+import { COURSEWARE_ATTENTION_TARGET_LIMIT } from "@pi-desktop/shared";
 import { isCoursewareSceneTeaching, coursewareQuestionMatches, isTeachingWrite, isCoursewareAttentionCue, isCoursewareAttentionIntent, isCoursewareInteractionCheckpoint, type CoursewareProject, type TeachingWrite } from "@pi-desktop/shared";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { generatePageNarrationCandidate, sceneSpeechTarget, isNarrationTextContainer } from "./page-narration-candidate.js";
+import { generatePageNarrationCandidate, narrationObjectReferences, sceneSpeechTarget, isNarrationTextContainer } from "./page-narration-candidate.js";
 import { candidateHash, checkPageCandidateBaseline, pageCandidateBaselineSchema, PageCandidateError } from "./page-candidate-baseline.js";
 
 const requiredBlock = z.discriminatedUnion("type", [
@@ -12,7 +13,7 @@ const requiredBlock = z.discriminatedUnion("type", [
   z.object({ type: z.literal("music"), title: z.string().trim().min(1).max(100), prompt: z.string().trim().min(1).max(4000) }).strict(),
   z.object({ type: z.literal("video"), prompt: z.string().trim().min(1).max(4000), durationSeconds: z.number().int().min(4).max(30).optional() }).strict(),
 ]);
-const focusDelta = z.object({ focuses: z.array(z.object({ speechId: z.string().min(1), type: z.enum(["highlight", "spotlight"]), objectIds: z.array(z.string().min(1)).min(1).max(8), animation: z.enum(["fadeIn", "pulse", "zoomIn", "slideInLeft", "slideInRight", "gentleRotate"]).optional() }).strict()).max(100) }).strict();
+const focusDelta = z.object({ focuses: z.array(z.object({ speechId: z.string().min(1), cueId: z.string().min(1).max(200).optional(), type: z.enum(["highlight", "spotlight"]), objectIds: z.array(z.string().min(1).max(200)).min(1).max(COURSEWARE_ATTENTION_TARGET_LIMIT), animation: z.enum(["fadeIn", "pulse", "zoomIn", "slideInLeft", "slideInRight", "gentleRotate"]).optional() }).strict()).max(100) }).strict();
 const requiredDelta = z.object({ insertions: z.array(z.object({ afterSpeechId: z.string().min(1).max(128), block: requiredBlock }).strict()).max(3) }).strict();
 
 function requirementAction(block: z.infer<typeof requiredBlock>, id: string, pageId: string, title: string): TeachingWrite["actions"][number] {
@@ -95,10 +96,12 @@ export async function generateNarrationWrite(input: Omit<Parameters<typeof gener
     if (missing.size) throw new PageCandidateError("INVALID_OUTPUT", `Repair omitted required actions: ${[...missing].join(", ")}`);
     await checkPageCandidateBaseline(baseline, input.getCurrentBaseline, input.signal);
     if (input.audioDurations && input.evidence) {
+      const { references, refPrefix } = narrationObjectReferences(input.evidence.objects);
       const proposed = focusDelta.parse(await input.generate({
-        system: "Repair only synchronized effects on the existing verbatim speech. Return {focuses:[{speechId,type:highlight|spotlight,objectIds:[exact supplied IDs],animation?:fadeIn|pulse|zoomIn|slideInLeft|slideInRight|gentleRotate}]}. Honor the requested effects and targets in instruction and teaching.requiredEffects. Highlight text and spotlight the pictured object. Multiple focuses may use the same speechId; do not rewrite or split speech, add machine IDs to spoken words, or change unrelated cues. Replace the selected speech’s focus of the same type instead of stacking it. An object may enter only once per page; use pulse for later emphasis. Use only supplied verified teaching objects; omit uncertain/background targets. For a first entrance use the requested fadeIn, not pulse. If effects already satisfy the request return an empty focuses array.",
-        data: JSON.stringify({ instruction: input.instruction, teaching, objects: input.evidence.objects, speeches: page.actions.filter(a => a.type === "speech") }), schema: focusDelta,
+        system: "Repair only synchronized effects on the existing verbatim speech. Return {focuses:[{speechId,cueId?:existing cue ID,type:highlight|spotlight,objectIds:[current-page objectRef or exact supplied ID],animation?:fadeIn|pulse|zoomIn|slideInLeft|slideInRight|gentleRotate}]}. Honor the requested effects and targets in instruction and teaching.requiredEffects. Highlight text and spotlight the pictured object. Multiple focuses may use the same speechId; do not rewrite or split speech, add machine IDs to spoken words, or change unrelated cues. To correct the targets of an existing timed cue, give its cueId and complete corrected target set; its timing and style are retained. Omit animation for a target-only edit. Supply one replacement per cue. Use a single multi-target spotlight for simultaneous objects. An object may enter only once per page; use pulse for later emphasis. Use only supplied verified teaching objects; omit uncertain/background targets. For a first entrance use the requested fadeIn, not pulse. If effects already satisfy the request return an empty focuses array.",
+        data: JSON.stringify({ instruction: input.instruction, teaching, objects: input.evidence.objects.map((o,i) => ({ ...o, objectRef: refPrefix + (i+1) })), speeches: page.actions.filter(a => a.type === "speech") }), schema: focusDelta,
       }, input.signal));
+      for (const f of proposed.focuses) f.objectIds = f.objectIds.map(id => references.get(id) ?? id);
       const actions: TeachingWrite["actions"] = page.actions.flatMap(a => {
         const focuses = proposed.focuses.filter(f => f.speechId === a.id);
         if (!focuses.length) return [structuredClone(a), ...(additions.get(String(a.id)) ?? [])];
@@ -106,16 +109,25 @@ export async function generateNarrationWrite(input: Omit<Parameters<typeof gener
         if (a.type !== "speech" || !a.audioAssetId || !Number.isSafeInteger(duration) || duration < 1 || duration > 3600000)
           throw new PageCandidateError("INVALID_OUTPUT", "Effect repair requires verified saved audio for each selected speech");
         const oldCues = Array.isArray(a.visualCues) ? a.visualCues : [];
-        const replacedTypes = new Set(focuses.map(f => f.type));
+        const replaced = new Set<string>();
+        for (const f of focuses) {
+          const matching = oldCues.filter(c => c.effect.type === f.type && (!f.cueId || c.id === f.cueId));
+          if ((f.cueId && (matching.length !== 1 || f.animation)) || (!f.cueId && matching.length > 1) || matching.some(c => replaced.has(c.id)))
+            throw new PageCandidateError("INVALID_OUTPUT", "Select one existing cueId on this speech to correct its targets without replacing other timed cues");
+          if (!f.animation && matching.length === 1) f.cueId = matching[0].id;
+          for (const c of matching) replaced.add(c.id);
+        }
         const animatedTargets = new Set(focuses.filter(f => f.animation).flatMap(f => f.objectIds));
-        const replacedTargets = new Set(oldCues.flatMap(c =>
-          replacedTypes.has(c.effect.type as "highlight" | "spotlight")
-            ? c.effect.type === "highlight" ? c.effect.elementIds : c.effect.type === "spotlight" ? [c.effect.elementId, ...(c.effect.elementIds ?? [])] : [] : []));
-        const cues = oldCues.filter(c => !replacedTypes.has(c.effect.type as "highlight" | "spotlight") &&
-          !(c.effect.type === "element_animation" && (animatedTargets.has(c.effect.elementId) || replacedTargets.has(c.effect.elementId))));
+        const cues = oldCues.flatMap(c => {
+          const patch = focuses.find(f => f.cueId === c.id);
+          if (patch && c.effect.type === "highlight") return [{ ...c, effect: { ...c.effect, elementIds: patch.objectIds } }];
+          if (patch && c.effect.type === "spotlight") return [{ ...c, effect: { ...c.effect, elementId: patch.objectIds[0], elementIds: patch.objectIds.slice(1) } }];
+          return replaced.has(c.id) || c.effect.type === "element_animation" && animatedTargets.has(c.effect.elementId) ? [] : [c];
+        });
         for (const [index, focus] of focuses.entries()) {
           if (new Set(focus.objectIds).size !== focus.objectIds.length || focus.objectIds.some(id => !input.evidence!.objects.some(o => o.objectId === id && !isNarrationTextContainer(o, input.evidence!.objects, String(a.text)))))
             throw new PageCandidateError("INVALID_OUTPUT", "Effect repair selected an unknown or unsafe object");
+          if (focus.cueId) continue;
           const id = `repair-${candidateId}-${a.id}-${index}`;
           const end = Math.min(duration, 600);
           if (focus.animation) for (const [n, objectId] of focus.objectIds.entries()) cues.push({ id: `${id}-motion-${n}`, atMs: 0, endMs: end,
@@ -144,6 +156,8 @@ export async function generateNarrationWrite(input: Omit<Parameters<typeof gener
       await checkPageCandidateBaseline(baseline, input.getCurrentBaseline, input.signal);
       const write = { projectId: project.projectId, pageId: page.pageId, expectedSourceRevision: project.source.revision, expectedTeachingRevision: project.teachingRevision, actions };
       if (!isTeachingWrite(write)) throw new PageCandidateError("INVALID_OUTPUT", "Invalid saved-audio effect repair");
+      await input.reviewSemantics?.(actions);
+      await checkPageCandidateBaseline(baseline, input.getCurrentBaseline, input.signal);
       return { candidateId, write };
     }
     const missingEffects = new Set<string>(requirements?.requiredEffects ?? []);
@@ -178,11 +192,13 @@ export async function generateNarrationWrite(input: Omit<Parameters<typeof gener
     if (missingEffects.size) throw new PageCandidateError("INVALID_OUTPUT", `Repair could not safely bind required effects: ${[...missingEffects].join(", ")}; supply unambiguous objects mentioned in the saved speech`);
     const write = { projectId: project.projectId, pageId: page.pageId, expectedSourceRevision: project.source.revision, expectedTeachingRevision: project.teachingRevision, actions };
     if (!isTeachingWrite(write)) throw new PageCandidateError("INVALID_OUTPUT", "Invalid required teaching repair");
+    await input.reviewSemantics?.(actions);
+    await checkPageCandidateBaseline(baseline, input.getCurrentBaseline, input.signal);
     return { candidateId, write };
   }
   const educationContext = project.educationContext ? { ...project.educationContext,
     schoolStage: project.educationContext.schoolStage?.trim().toUpperCase(), subject: project.educationContext.subject?.trim().toUpperCase() } : undefined;
-  const candidate = await generatePageNarrationCandidate({ ...input, educationContext, sceneTeaching: project.taskType === "scene" || project.taskType === "plain", existingNarration: page.actions.filter((action) => action.type === "speech").map((action) => action.text).join("\n") });
+  const candidate = await generatePageNarrationCandidate({ ...input, educationContext: educationContext ?? {}, sceneTeaching: project.taskType === "scene" || project.taskType === "plain", sceneBodyImage: project.taskType === "scene", existingNarration: page.actions.filter((action) => action.type === "speech").map((action) => action.text).join("\n") });
   if (input.independentAssessmentPages && candidate.narration.blocks.some(block => block.type === "interaction" || block.type === "wait" && block.mode === "teacher_continue"))
     throw new PageCandidateError("INVALID_OUTPUT", "Use separate assessment pages for questions and teacher continuation; body lecture must retain speech, focus, music and video only");
   if (isCoursewareSceneTeaching(teaching) && !teaching.music && !page.actions.some(action => action.type === "music_slot" || action.type === "audio_clip") &&
@@ -238,7 +254,7 @@ export async function generateNarrationWrite(input: Omit<Parameters<typeof gener
       const attention = action.attention;
       return isCoursewareAttentionIntent(attention) && (attention.type === effect || effect === "animation" && !!attention.animation);
     }));
-    if (missing?.length) throw new PageCandidateError("INVALID_OUTPUT", `Missing required teaching effects: ${missing.join(", ")}; use safe supplied object IDs`);
+    if (missing?.length && !input.deferFocus) throw new PageCandidateError("INVALID_OUTPUT", `Missing required teaching effects: ${missing.join(", ")}; use safe supplied object IDs`);
   }
   if (!isTeachingWrite(write)) throw new PageCandidateError("INVALID_OUTPUT", "Invalid canonical teaching proposal");
   return { candidateId: candidate.candidateId, write };

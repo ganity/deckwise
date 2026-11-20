@@ -1,0 +1,246 @@
+[
+  {
+    "pageId": "scene-001",
+    "taskId": "gw-b3d9c136-ff78-4c56-9105-544d49315dd1",
+    "mime": "application/vnd.trainwise.image-layers+json",
+    "rawSha256": "db3baee09fdbc0195a36131d78fae1c710feb269fcb81cf4721a43c8efb73c93",
+    "layers": [
+      {
+        "size": "2560x1600",
+        "z_index": 0
+      },
+      {
+        "name": "蒸发流程图示",
+        "description": "提取完整蒸发图示，包含三个向上的蓝色水汽箭头和带“蒸发”文字的蓝色边框文字载体，整体不拆散",
+        "size": "1007x1786",
+        "z_index": 1,
+        "bounding_box": {
+          "absolute": [
+            351,
+            523,
+            731,
+            1197
+          ],
+          "normalized": [
+            137,
+            327,
+            286,
+            748
+          ]
+        }
+      },
+      {
+        "name": "降水流程图示",
+        "description": "提取完整降水图示，包含下落的蓝色雨线、向下的蓝色箭头和带“降水”文字的蓝色边框文字载体，整体不拆散",
+        "size": "1872x1126",
+        "z_index": 2,
+        "bounding_box": {
+          "absolute": [
+            1280,
+            423,
+            2165,
+            956
+          ],
+          "normalized": [
+            500,
+            264,
+            846,
+            598
+          ]
+        }
+      },
+      {
+        "name": "凝结流程图示",
+        "description": "提取完整凝结图示，包含指向云朵的蓝色弧形箭头、白色积云和带“凝结”文字的蓝色边框文字载体，整体不拆散",
+        "size": "2442x681",
+        "z_index": 3,
+        "bounding_box": {
+          "absolute": [
+            574,
+            78,
+            2134,
+            513
+          ],
+          "normalized": [
+            224,
+            49,
+            834,
+            321
+          ]
+        }
+      },
+      {
+        "name": "太阳",
+        "description": "提取带放射状光芒的黄色太阳，不包含其他背景元素",
+        "size": "642x634",
+        "z_index": 4,
+        "bounding_box": {
+          "absolute": [
+            188,
+            162,
+            421,
+            392
+          ],
+          "normalized": [
+            73,
+            101,
+            164,
+            245
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "pageId": "scene-003",
+    "taskId": "gw-39ca22af-5b73-4493-9bef-2a052380dcfe",
+    "mime": "application/vnd.trainwise.image-layers+json",
+    "rawSha256": "732b2f7f97fc3852892ba113d02a3f7035f01caf415a007edb28b02b7f5680cf",
+    "layers": [
+      {
+        "size": "2560x1600",
+        "z_index": 0
+      },
+      {
+        "name": "指向地表径流的蓝色流向箭头",
+        "description": "提取完整的指向地表径流的蓝色流向箭头，不包含其他无关元素",
+        "size": "602x382",
+        "z_index": 1,
+        "bounding_box": {
+          "absolute": [
+            2131,
+            517,
+            2284,
+            614
+          ],
+          "normalized": [
+            832,
+            323,
+            892,
+            384
+          ]
+        }
+      },
+      {
+        "name": "指向河流下游的蓝色流向箭头2",
+        "description": "提取完整的指向河流下游的蓝色流向箭头，不包含其他无关元素",
+        "size": "755x407",
+        "z_index": 2,
+        "bounding_box": {
+          "absolute": [
+            1905,
+            735,
+            2097,
+            839
+          ],
+          "normalized": [
+            744,
+            459,
+            819,
+            524
+          ]
+        }
+      },
+      {
+        "name": "指向河流下游的蓝色流向箭头1",
+        "description": "提取完整的指向河流下游的蓝色流向箭头，不包含其他无关元素",
+        "size": "925x419",
+        "z_index": 3,
+        "bounding_box": {
+          "absolute": [
+            1690,
+            859,
+            1925,
+            966
+          ],
+          "normalized": [
+            660,
+            537,
+            752,
+            604
+          ]
+        }
+      },
+      {
+        "name": "指向海洋的蓝色流向箭头",
+        "description": "提取完整的指向海洋的蓝色流向箭头，不包含其他无关元素",
+        "size": "1267x426",
+        "z_index": 4,
+        "bounding_box": {
+          "absolute": [
+            1171,
+            982,
+            1493,
+            1090
+          ],
+          "normalized": [
+            457,
+            614,
+            583,
+            681
+          ]
+        }
+      },
+      {
+        "name": "地表径流文字标签",
+        "description": "提取完整的带蓝色边框的“地表径流”文字标签载体，连同内部文字一起提取，不包含其他无关元素",
+        "size": "1671x489",
+        "z_index": 5,
+        "bounding_box": {
+          "absolute": [
+            1437,
+            465,
+            1901,
+            601
+          ],
+          "normalized": [
+            561,
+            291,
+            743,
+            376
+          ]
+        }
+      },
+      {
+        "name": "河流文字标签",
+        "description": "提取完整的带蓝色边框的“河流”文字标签载体，连同内部文字一起提取，不包含其他无关元素",
+        "size": "1106x522",
+        "z_index": 6,
+        "bounding_box": {
+          "absolute": [
+            1419,
+            763,
+            1700,
+            895
+          ],
+          "normalized": [
+            554,
+            477,
+            664,
+            559
+          ]
+        }
+      },
+      {
+        "name": "海洋文字标签",
+        "description": "提取完整的带蓝色边框的“海洋”文字标签载体，连同内部文字一起提取，不包含其他无关元素",
+        "size": "1420x616",
+        "z_index": 7,
+        "bounding_box": {
+          "absolute": [
+            224,
+            1032,
+            579,
+            1186
+          ],
+          "normalized": [
+            88,
+            645,
+            226,
+            741
+          ]
+        }
+      }
+    ]
+  }
+]

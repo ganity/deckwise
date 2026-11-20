@@ -1,0 +1,13 @@
+{
+  "head": "5cbd7cb44de14d6cb5f1e478ff9f57b63bd7d05d",
+  "dirty": true,
+  "model": "gpt-6.1-sol",
+  "physicalPageLimit": 5,
+  "plannedPages": 4,
+  "fingerprints": {
+    "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-stage-aware-scene/apps/desktop/out/main/index.js": "57d5471e81c82333a698fc1e89c91c9536daff2173b4ca80fc457b9cfda4747e",
+    "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-stage-aware-scene/target/release/pi-desktop-host-core": "bc483d3e2f038777e17d0e09324cc36fbcaf82ecdebd4e67bd5be29333977f4d",
+    "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-stage-aware-scene/packages/agent-runtime/dist/runtime.js": "3aabc38243597ace221e741d6a7bb8c91ffe928853853cb91666be0a0539a4c8",
+    "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-stage-aware-scene/packages/agent-runtime/dist/courseware-workflow-recovery.js": "48dd23d6116906bb780246b0788bea616976a5fcd9179ab22bd3858d65d9b19c"
+  }
+}

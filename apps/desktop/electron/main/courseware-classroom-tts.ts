@@ -10,7 +10,7 @@ import { resolveRealPathForCreateWithinRoot } from "./fs-panel";
 
 type Host = { call<T>(method: string, params: unknown): Promise<T> };
 type Selection = { sessionId: string; projectId: string; expectedRevision: string; expectedSourceRevision: string;
-  sceneId: string; actionId: string; model: string; voice: string | null; regenerate?: boolean };
+  sceneId: string; actionId: string; model: string; voice: string | null; regenerate?: boolean; originalKey?: string };
 type Quote = { quote: CoursewareTtsQuote; key: string; principalKey: string; revision: string; sourceRevision: string };
 const hash = (value: string | Uint8Array) => createHash("sha256").update(value).digest("hex");
 const string = (value: unknown): value is string => typeof value === "string" && !!value.trim() && value.length <= 512;
@@ -18,7 +18,9 @@ function selection(value: unknown): Selection {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid classroom TTS request");
   const input = value as Record<string, unknown>;
   if (["sessionId", "projectId", "expectedRevision", "expectedSourceRevision", "sceneId", "actionId", "model"].some(key => !string(input[key])) ||
-      input.voice !== null && !string(input.voice) || input.regenerate !== undefined && typeof input.regenerate !== "boolean" || Object.keys(input).some(key => !["sessionId", "projectId", "expectedRevision", "expectedSourceRevision", "sceneId", "actionId", "model", "voice", "quoteId", "regenerate"].includes(key)))
+      input.voice !== null && !string(input.voice) || input.regenerate !== undefined && typeof input.regenerate !== "boolean" ||
+      input.originalKey !== undefined && !(typeof input.originalKey === "string" && /^maic-[0-9a-f]{64}$/u.test(input.originalKey)) ||
+      Object.keys(input).some(key => !["sessionId", "projectId", "expectedRevision", "expectedSourceRevision", "sceneId", "actionId", "model", "voice", "quoteId", "regenerate", "originalKey"].includes(key)))
     throw new Error("Invalid classroom TTS selection");
   return input as Selection;
 }
@@ -50,24 +52,33 @@ export class CoursewareClassroomTts {
       this.input.assertOwned(args.sessionId); principal.assertCurrent();
       if (host !== this.input.getHost() || workspace !== await this.input.getWorkspace()) throw new Error("Classroom TTS owner changed");
       const current = await this.input.open(args.sessionId);
-      if (current.readOnly || current.revision !== args.expectedRevision || current.sourceRevision !== args.expectedSourceRevision)
-        throw new Error("Classroom changed; reopen narration generation");
+      if (current.readOnly) throw new Error("COURSEWARE_ASSESSMENT_READ_ONLY: The question audio destination is read-only; retain the original order");
+      if (current.projectId !== args.projectId || current.revision !== args.expectedRevision || current.sourceRevision !== args.expectedSourceRevision)
+        throw Object.assign(new Error("COURSEWARE_ASSESSMENT_REVISION_CHANGED: Classroom changed; read assessment context and refresh the original question audio"), { code: "COURSEWARE_ASSESSMENT_REVISION_CHANGED" });
     };
     const view = await this.input.open(args.sessionId);
     // Only recovery may rebase: the content-addressed key must still find the original text/model/voice order.
-    if (refresh && !args.regenerate && typeof view.revision === "string" && view.projectId === args.projectId && view.sourceRevision === args.expectedSourceRevision)
+    if (args.originalKey && !refresh) throw new Error("Original question audio receipts are for refresh only");
+    if (refresh && !args.regenerate && typeof view.revision === "string" && typeof view.sourceRevision === "string" && view.projectId === args.projectId &&
+        (view.sourceRevision === args.expectedSourceRevision || view.nativeTeaching && args.originalKey)) {
       args.expectedRevision = view.revision;
+      args.expectedSourceRevision = view.sourceRevision;
+    }
     await check();
     if (view.projectId !== args.projectId || !view.classroom) throw new Error("Canonical classroom not found");
     const classroom = parseMaicClassroom(view.classroom), scene = classroom.scenes.find(item => item.id === args.sceneId);
     const speech = scene?.actions?.find(item => item.id === args.actionId && item.type === "speech");
-    if (!speech || speech.type !== "speech" || !speech.text.trim()) throw new Error("Saved classroom narration required");
+    if (!speech || speech.type !== "speech" || !speech.text.trim()) throw new Error(args.originalKey
+      ? "COURSEWARE_ASSESSMENT_TARGET_CHANGED: The original speech target is missing; inspect the saved question"
+      : "Saved classroom narration required");
     const request: CoursewareTtsRequest = { kind: "tts", model: args.model, input: speech.text, voice: args.voice };
     const fields = [request.kind, request.model, request.input, request.voice ?? null];
     const requestHash = hash(fields.reduce<string>((text, field) => `${text}:${field === null ? -1 : field.length}:${field ?? ""}`, "courseware-media-v1"));
     // A manual regeneration is fresh after adoption; retries of that saved version still find the same task.
     const key = `maic-${hash(JSON.stringify([principal.key, args.projectId, args.sceneId, args.actionId, requestHash,
       ...(args.regenerate ? [args.expectedRevision, args.expectedSourceRevision] : [])]))}`;
+    if (args.originalKey && key !== args.originalKey)
+      throw new Error("COURSEWARE_ASSESSMENT_TARGET_CHANGED: The question text, target, voice or model differs from the original receipt; read the current assessment target");
     return { args, host, workspace, principal, classroom, speech, request, key, requestHash, check, view };
   }
   async quote(value: unknown) {
@@ -99,6 +110,19 @@ export class CoursewareClassroomTts {
   }
   async refresh(value: unknown) {
     const context = await this.context(value, true);
+    try { return await this.refreshOriginal(context); }
+    catch (error) {
+      if (context.args.regenerate) throw error;
+      // A write can lose its receipt after CAS committed. Reread before retrying the same key.
+      let reason = error;
+      if (!(error instanceof Error && "code" in error && error.code === "COURSEWARE_ASSESSMENT_REVISION_CHANGED")) {
+        try { await context.check(); } catch (changed) { reason = changed; }
+      }
+      if (!(reason instanceof Error && "code" in reason && reason.code === "COURSEWARE_ASSESSMENT_REVISION_CHANGED")) throw reason;
+      return this.refreshOriginal(await this.context({ ...context.args, originalKey: context.key }, true));
+    }
+  }
+  private async refreshOriginal(context: Awaited<ReturnType<CoursewareClassroomTts["context"]>>) {
     const found = await this.input.auth.coursewareMedia.findTts({ idempotencyKey: context.key, requestHash: context.requestHash });
     await context.check();
     if (!found) return { key: context.key, state: "not_submitted" };

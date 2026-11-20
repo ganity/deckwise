@@ -9,18 +9,23 @@ import { convertNativeTeaching, type NativeResource } from "./courseware-classro
 type Host = { call<T>(method: string, params: unknown): Promise<T> };
 type NativePage = { pageId: string; actions: Array<Record<string, unknown>> };
 type Asset = { id: string; path: string; sha256: string; mimeType: string; durationMs?: number };
+type ConvertedSlide = {
+  slide: Extract<ReturnType<typeof mapMaicSlideIrToScenes>[number]["content"], { type: "slide" }>["canvas"];
+  objects: Array<{ objectId: string; importElementId: string }>;
+};
 export type NativeClassroomSeed = {
   projectId: string; revision: string | null; sourceRevision: string; currentSourceRevision: string;
   classroom: MaicClassroom | null; ir: MaicSlideIR;
   project: { pages: NativePage[]; source?: { sha256: string }; teachingRevision?: string };
   mapping: { pages: Array<{ pageId: string; planPageId?: string; importPageId?: string; objects?: Array<{ objectId: string; importElementId: string }> }> };
+  convertedSlides?: ReadonlyMap<string, ConvertedSlide>;
   assets: Asset[];
 };
 const digest = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const plainQuestion = (html: string) => decodeHtmlEntities(html.replace(/<[^>]*>/gu, "")).replaceAll("\u00a0", " ").trim();
 
 /** Reconcile saved native teaching while independent Quiz scenes remain authoritative. */
-export function reconcileMaicNativeSource(seed: NativeClassroomSeed, resourceUrls: ReadonlyMap<string, NativeResource>): MaicClassroom {
+export function reconcileMaicNativeSource(seed: NativeClassroomSeed, resourceUrls: ReadonlyMap<string, NativeResource>, platformDelivery = false): MaicClassroom {
   if (!seed.classroom) throw new Error("Generate canonical classroom content before native reconciliation");
   const classroom = parseMaicClassroom(seed.classroom);
   if (!seed.ir || seed.ir.pages.length !== seed.project.pages.length || seed.mapping.pages.length !== seed.project.pages.length)
@@ -64,6 +69,8 @@ export function reconcileMaicNativeSource(seed: NativeClassroomSeed, resourceUrl
     }
     if (!binding || !scene || boundScenes.has(scene.id))
       throw new Error("Native slide identity requires explicit reassociation");
+    const convertedSlide = seed.convertedSlides?.get(page.pageId);
+    const objects = convertedSlide?.objects ?? binding.objects;
     boundScenes.add(scene.id); nativeOrder.push(scene.id);
     if (seed.project.teachingRevision) scene.metadata = { ...scene.metadata, nativeTeachingRevision: seed.project.teachingRevision, nativePageId: page.pageId };
     // Repair text produced by the old partial decoder only while its saved baseline still matches.
@@ -84,7 +91,7 @@ export function reconcileMaicNativeSource(seed: NativeClassroomSeed, resourceUrl
     const mapped = converted[index];
     if (mapped.content.type !== "slide") throw new Error("Native slide conversion did not produce a slide");
     if (replaceSlides && scene.content.type === "slide") {
-      const canvas = structuredClone(mapped.content.canvas);
+      const canvas = structuredClone(convertedSlide?.slide ?? mapped.content.canvas);
       canvas.id = scene.content.canvas.id;
       // Imported IDs can change after native saves. Retain the question anchor by saved shape identity.
       for (const element of canvas.elements) {
@@ -150,7 +157,7 @@ export function reconcileMaicNativeSource(seed: NativeClassroomSeed, resourceUrl
     scene.metadata = { ...scene.metadata };
     const extended = page.actions.some(action => action.type !== "speech" || Array.isArray(action.visualCues) && action.visualCues.length > 0) ||
       typeof scene.metadata.nativeTeachingSignature === "string";
-    const signature = digest(Buffer.from(canonicalJson({ actions: page.actions, sourceSha256: seed.project.source?.sha256, objects: binding.objects })));
+    const signature = digest(Buffer.from(canonicalJson({ actions: page.actions, sourceSha256: seed.project.source?.sha256, objects })));
     const managedIds = Array.isArray(scene.metadata.nativeTeachingActionIds) ? scene.metadata.nativeTeachingActionIds.filter((id): id is string => typeof id === "string") : [];
     const fingerprint = (actions: NonNullable<typeof scene.actions>) => digest(Buffer.from(canonicalJson(actions.map(action => {
       const value = { ...action }; if (value.type === "speech") { delete value.audioId; delete value.audioUrl; } return value;
@@ -159,7 +166,7 @@ export function reconcileMaicNativeSource(seed: NativeClassroomSeed, resourceUrl
     let structuredChanged = managedIds.length > 0 && scene.metadata.nativeTeachingActionsHash !== fingerprint((scene.actions ?? []).filter(action => managedIds.includes(action.id)));
     if (nativeChanged && structuredChanged) {
       try {
-        const converted = convertNativeTeaching({ scene, actions: page.actions, page: seed.ir.pages[index], objects: binding.objects ?? [], resources: resourceUrls, sourceSha256: seed.project.source?.sha256 });
+        const converted = convertNativeTeaching({ scene, actions: page.actions, page: seed.ir.pages[index], objects: objects ?? [], resources: resourceUrls, sourceSha256: seed.project.source?.sha256, platformDelivery });
         const restored = (scene.actions ?? []).filter(action => managedIds.includes(action.id)).map(action => {
           const original = converted.actions.find(next => next.id === action.id);
           return action.type === "element_animation" && !action.speechCue && original?.type === "element_animation" && original.speechCue
@@ -176,7 +183,7 @@ export function reconcileMaicNativeSource(seed: NativeClassroomSeed, resourceUrl
       if (!structuredChanged) {
         let converted: ReturnType<typeof convertNativeTeaching> | undefined;
         try {
-          converted = convertNativeTeaching({ scene, actions: page.actions, page: seed.ir.pages[index], objects: binding.objects ?? [], resources: resourceUrls, sourceSha256: seed.project.source?.sha256 });
+          converted = convertNativeTeaching({ scene, actions: page.actions, page: seed.ir.pages[index], objects: objects ?? [], resources: resourceUrls, sourceSha256: seed.project.source?.sha256, platformDelivery });
         } catch (error) {
           unsupported = true;
           scene.metadata.nativeTeachingSyncPending = true;

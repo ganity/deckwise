@@ -68,6 +68,7 @@ const imageLayerSchema = z
     type: z.literal('image_layer'),
     assetId: z.string().trim().min(1),
     layerRoute: z.enum(['A1', 'A2', 'B']),
+    layerMetadata: z.object({ name: z.string().trim().min(1).max(200), description: z.string().trim().min(1).max(2000) }).strict().optional(),
     crop: cropSchema.optional(),
     sourceText: z.string().trim().min(1).optional(),
     regenerationPrompt: z.string().trim().min(1).optional(),

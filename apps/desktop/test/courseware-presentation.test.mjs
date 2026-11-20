@@ -30,6 +30,7 @@ function load(name) {
 const { CoursewareChatWorkflow } = load("./courseware-chat-workflow");
 const { CoursewareSavedNarration } = load("./courseware-saved-narration");
 const { CoursewareAssessmentMedia } = load("./courseware-assessment-media");
+const { nativePages } = load("./courseware-native-generation");
 const { readNativeTeachingPackage } = load("./courseware-native-package");
 const hash = bytes => createHash("sha256").update(bytes).digest("hex");
 const teaching = { pageType: "slide", phase: "explore", objective: "Name the family", durationSeconds: 30, requiredObjects: ["father"] };
@@ -68,9 +69,83 @@ async function fixture(t, fixed = false) {
   const sessionId = (await host.call("session.create", { projectPath: workspace, mode: "agent" })).session.id;
   await host.call("courseware.task.set", { sessionId, taskType: "plain", educationContext: { bodyPageLimit: 1 } });
   const workflow = new CoursewareChatWorkflow(() => host, () => sessionId, {}, {});
+  workflow.reviewPresentation = async ({ sourceSha256, pages: reviewedPages }) => {
+    assert.equal(sourceSha256, hash(await readFile(path)));
+    assert.ok(reviewedPages.length);
+  };
   const args = { path, sourceSha256: hash(bytes), pages: structuredClone(pages), continueTeaching: true };
   return { host, workspace, project, workflow, sessionId, args, restart: async () => { await host.stop(); host = new Host(process.env.DECKWISE_E2E_WORKFLOW_HOST, data); await host.start(); return host; } };
 }
+
+test("preparation distinguishes explicit page counts from a ceiling and rejects unsupported quotes", async () => {
+  const request = "Use two body pages, one oral practice page, six pages at most.";
+  const rules = [{scope:"body", comparison:"exact", count:2, quote:"two body pages"},
+    {scope:"interaction", comparison:"exact", count:1, quote:"one oral practice page"},
+    {scope:"total", comparison:"maximum", count:6, quote:"six pages at most"}];
+  const check = load("./courseware-presentation-prepare").presentationPageCounts(async () => ({modelKey:"test"}),
+    async () => ({text:JSON.stringify({rules})}));
+  await assert.rejects(check("chat", [request], ["slide"]), /body: received 1.*interaction: received 0/);
+  await check("chat", [request], ["slide","slide","interactive"]);
+  rules.splice(0, 2);
+  await check("chat", [request], ["slide"]);
+  const prompt = {pageNumber: 3, question: "Which marked segment in this drawing is longer?"};
+  const checkMissing = load("./courseware-presentation-prepare").presentationPageCounts(async () => ({modelKey:"test"}),
+    async () => ({text: JSON.stringify({rules: [], missingClues:[{pageNumber:3, quote:"this drawing"}]})}));
+  await assert.rejects(checkMissing("chat", [request], ["slide","slide","interactive"], [prompt]), /page 3.*this drawing.*absent/);
+  rules[0].quote = "invented";
+  await assert.rejects(check("chat", [request], ["slide"]), /quote/);
+});
+
+test("native generation keeps interaction questions out of lecture speech and retains Quiz readings", () => {
+  const generated = nativePages([
+    { pageId: "slide", narration: "讲解正文" },
+    { pageId: "interaction", teaching: { ...pages[2].teaching, question: pages[2].teaching.question } },
+    { pageId: "quiz", quiz: pages[1].quiz },
+  ]);
+  assert.deepEqual(generated[0].actions, []);
+  assert.deepEqual(generated[1].actions.map(action => action.type), ["interaction_checkpoint"]);
+  assert.equal(generated[1].actions[0].question, pages[2].teaching.question.text);
+  assert.match(generated[2].narration, /Who is this\?/);
+  assert.match(generated[2].narration, /A\. father/);
+});
+
+test("visual rejection leaves the PPTX unattached; an accepted export can be replayed without another review", { skip: !process.env.DECKWISE_E2E_WORKFLOW_HOST, timeout: 90000 }, async t => {
+  const f = await fixture(t);
+  const adopt = () => f.workflow.execute(f.sessionId, "courseware_presentation_adopt", f.args, () => true);
+  f.workflow.reviewPresentation = async () => { throw new Error("Page 1: incorrect label"); };
+  await assert.rejects(adopt(), /Page 1: incorrect label/);
+  assert.ok(!(await f.host.call("courseware.task.get", { sessionId: f.sessionId })).task.generatedPath);
+  let calls = 0;
+  f.workflow.reviewPresentation = async () => { calls++; };
+  const accepted = await adopt();
+  assert.equal((await adopt()).path, accepted.path);
+  assert.equal(calls, 1);
+});
+
+test("presentation adoption identifies a teaching mismatch and recovers a lost registration reply", { skip: !process.env.DECKWISE_E2E_WORKFLOW_HOST, timeout: 90000 }, async t => {
+  const f = await fixture(t);
+  const call = f.host.call.bind(f.host);
+  let mismatch = true, attachments = 0;
+  f.host.call = async (method, params) => {
+    if (method !== 'courseware.task.attachNativeGenerated') return call(method, params);
+    attachments++;
+    if (mismatch) {
+      params = structuredClone(params);
+      params.project.pages[2].actions.find(a => a.type === 'interaction_checkpoint').response.kind = 'practice';
+      return call(method, params);
+    }
+    const result = await call(method, params);
+    if (attachments === 2) throw Error('Lost registration reply');
+    return result;
+  };
+  const adopt = () => f.workflow.execute(f.sessionId, 'courseware_presentation_adopt', f.args, () => true);
+  await assert.rejects(adopt(), /PRESENTATION_TEACHING_MISMATCH.*[Pp]age 3.*response/);
+  assert.equal(attachments, 1);
+  mismatch = false;
+  const result = await adopt();
+  assert.equal(result.generated, true);
+  assert.equal((await call('courseware.task.get', {sessionId: f.sessionId})).task.generatedPath, result.path);
+});
 
 test("ordinary preparation generates fixed assessments and preserves body/source/manual files", { skip: !process.env.DECKWISE_E2E_WORKFLOW_HOST, timeout: 90000 }, async t => {
   const f = await fixture(t, true);
@@ -168,10 +243,10 @@ test("fixed assessment SVGs pass official validation/export and bind real export
   await utimes(planPath, new Date(Date.now() + 60_000), new Date(Date.now() + 60_000));
   await assert.rejects(f.workflow.execute(f.sessionId, "courseware_presentation_adopt", {
     ...f.args, sourceSha256: hash(bytes), pages: planned,
-  }, () => true), /changed after validation/);
+  }, () => true), /changed after export/);
   assert.equal((await f.host.call("courseware.task.get", { sessionId: f.sessionId })).task.generatedPath, undefined);
   await utimes(planPath, new Date(0), new Date(0));
-  const receipt = await f.workflow.execute(f.sessionId, "courseware_presentation_adopt", { ...f.args, sourceSha256: hash(bytes), pages: planned }, () => true);
+  const receipt = await f.workflow.execute(f.sessionId, "courseware_presentation_adopt", { path: `.deckwise-ppt/projects/family/exports/${f.args.path.split(/[\\/]/).at(-1)}`, sourceSha256: hash(bytes) }, () => true);
   const native = await readNativeTeachingPackage(await readFile(receipt.path));
   assert.equal(native.pages.length, 3);
   assert.equal(native.pages[1].actions.find(a => a.type === "interaction_checkpoint").response.kind, "single");
@@ -195,9 +270,11 @@ test("ordinary export publishes complete native teaching and saved generation su
   assert.equal(native.pages.length, 3);
   assert.equal(native.pages[0].actions.some(a => a.type === "speech"), false, "PPT Master notes must remain evidence until structured narration is generated");
   assert.match(await (await JSZip.loadAsync(bytes)).file("ppt/notesSlides/notesSlide1.xml").async("string"), /Look at father\. Say father\./);
+  assert(native.pages[1].actions.some(a => a.type === "speech"), "Quiz question reading remains available");
   assert.deepEqual(native.pages[1].actions[1].response, { kind: "single", options: ["father", "mother", "brother", "sister"], answerIndices: [0] });
-  assert.deepEqual(native.pages[2].actions[1].response, pages[2].teaching.question.response);
-  assert.deepEqual(native.pages[2].actions[1].referenceAnswer, pages[2].teaching.question.referenceAnswer);
+  assert.deepEqual(native.pages[2].actions.map(a => a.type), ["interaction_checkpoint"], "Interaction questions are not body narration");
+  assert.deepEqual(native.pages[2].actions[0].response, pages[2].teaching.question.response);
+  assert.deepEqual(native.pages[2].actions[0].referenceAnswer, pages[2].teaching.question.referenceAnswer);
   assert.equal((await f.workflow.execute(f.sessionId, "courseware_presentation_adopt", f.args, () => true)).path, result.path);
 
   // Drive the adopted document through the real native narration coordinator.
@@ -215,7 +292,7 @@ test("ordinary export publishes complete native teaching and saved generation su
     return { value: view() };
   };
   const target = native.identity.pages[0].objects[0].logicalId;
-  const teachingBridge = { native: async (operation, args) => operation === "narration-context" ? { value: {
+  const teachingBridge = { isAdoptedTeachingDocument: async () => true, native: async (operation, args) => operation === "narration-context" ? { value: {
     view: view(), text: "father", editor: { projectId: "workspace", documentId: "ppt", sessionId: f.sessionId, editGeneration: 1, readOnly: false },
     evidence: { notes: "Look at father. Say father.", visualSummary: "father", objects: [{ objectId: target, name: "father", aliases: ["father"], kind: "text", text: "father", bbox: [80, 80, 900, 200] }] },
   } } : route(operation, args) };
@@ -224,6 +301,10 @@ test("ordinary export publishes complete native teaching and saved generation su
   const segments = ["Look at father.", "Say father."];
   const candidates = new CoursewareCandidateCoordinator(teachingBridge, async ({ messages, system }) => {
     const data = JSON.parse(messages[0].content);
+    if (data.reviewKind === "narration_semantics") {
+      assert.deepEqual(data.blocks.map(b => b.text), segments);
+      return { text: JSON.stringify({ issues: [] }), modelKey: "local/test" };
+    }
     if (data.outline) {
       assert.equal(data.outline[0].notes, "Look at father. Say father.");
       return { text: JSON.stringify({ goal: "Teach father", pages: data.requestedPageNumbers.map(pageNumber => ({ pageNumber, purpose: "Name father", bridge: "Practice next", focus: "father" })) }), modelKey: "local/test" };
@@ -237,7 +318,8 @@ test("ordinary export publishes complete native teaching and saved generation su
   const context = () => tools.execute(f.sessionId, "courseware_narration_context", {}, () => true);
   assert.equal((await context()).value.pages[0].narrationReady, false);
   assert((await context()).value.completion.issues.some(i => i.code === "NARRATION_MISSING" && i.pageNumber === 1));
-  await tools.execute(f.sessionId, "courseware_narration_propose", { sourceSha256: project.source.sha256, pageNumbers: [1], instruction: "Explain each teaching move separately" }, () => true);
+  const proposed = await tools.execute(f.sessionId, "courseware_narration_propose", { sourceSha256: project.source.sha256, pageNumbers: [1], instruction: "Explain each teaching move separately" }, () => true);
+  assert.deepEqual(proposed.value.failures, [], JSON.stringify(proposed.value.failures));
   assert.deepEqual(project.pages[0].actions.filter(a => a.type === "speech").map(a => a.text), segments);
   assert.equal((await context()).value.pages[0].narrationReady, true);
 
@@ -269,4 +351,16 @@ test("ordinary handoff rejects stale validation, wrong page budgets and changed 
   await assert.rejects(f.workflow.execute(f.sessionId, "courseware_presentation_adopt", wrongQuestion, () => true), /exact interaction question/);
   assert.equal((await f.host.call("courseware.task.get", { sessionId: f.sessionId })).task.generatedPath, undefined);
   await assert.rejects(f.workflow.execute(f.sessionId, "courseware_presentation_adopt", f.args, () => false), /cancelled|ended/);
+});
+
+test('desktop course adoption catches unsupported native timing before teaching, while a PPTX-only export remains available', { skip: !process.env.DECKWISE_E2E_WORKFLOW_HOST, timeout: 90000 }, async t => {
+  const f = await fixture(t), zip = await JSZip.loadAsync(await readFile(f.args.path));
+  const path = 'ppt/slides/slide1.xml', xml = await zip.file(path).async('string');
+  zip.file(path, xml.replace('</p:sld>', '<p:timing><p:tnLst><p:par><p:cTn id="1"><p:childTnLst><p:animClr/></p:childTnLst></p:cTn></p:par></p:tnLst></p:timing></p:sld>'));
+  const bytes = await zip.generateAsync({type:'nodebuffer'}); await writeFile(f.args.path, bytes);
+  const args = {...f.args, sourceSha256:hash(bytes)};
+  await assert.rejects(f.workflow.execute(f.sessionId,'courseware_presentation_adopt',args,()=>true), /page 1: PPTX_TIMING_.*Before adoption or TTS/);
+  assert.deepEqual(await readFile(f.args.path),bytes);
+  const receipt = await f.workflow.execute(f.sessionId,'courseware_presentation_adopt',{...args,continueTeaching:false},()=>true);
+  assert.equal(receipt.generated,true);
 });

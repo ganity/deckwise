@@ -1,0 +1,95 @@
+{
+  "paidRerun": true,
+  "allAccepted": false,
+  "physicalPageLimit": 6,
+  "verifiedAudioAssets": 20,
+  "fullNaturalPlayback": "not run: content gates rejected courses",
+  "routes": [
+    {
+      "route": "master",
+      "pages": 4,
+      "accepted": false,
+      "audioAssets": 8,
+      "sourceSha256": "0cc07ddaa93efdd5a6e12ff182cbfb4991080047df7fc2e52e1b88a79d9aa735",
+      "contentReviewIssues": [
+        {
+          "code": "CONTENT_REVIEW_FAILED",
+          "message": "第1页未保存讲解语音动作：actions为空，虽然notes包含完整讲稿，但播放时没有对应的speech动作；本页intentionalSilence为false，无法按讲稿完成数方格和面积计算的讲解。",
+          "pageId": "page-1",
+          "pageNumber": 1,
+          "repair": "source",
+          "repairable": false
+        },
+        {
+          "code": "CONTENT_REVIEW_FAILED",
+          "message": "第1页要求聚光、入场动画和高亮效果，但保存的actions为空，未配置任何效果或目标对象，无法呈现对4列3行方格、长宽标注及4×3＝12（平方厘米）公式的相应演示。",
+          "pageId": "page-1",
+          "pageNumber": 1,
+          "repair": "source",
+          "repairable": false
+        }
+      ],
+      "restartReopenPassed": true
+    },
+    {
+      "route": "scene",
+      "pages": 4,
+      "accepted": false,
+      "audioAssets": 8,
+      "sourceSha256": "5be9e1e2047db636b3ffcb984b4368beca531479350f65e7b3632c65cc7b8af4",
+      "contentReviewIssues": [
+        {
+          "code": "CONTENT_REVIEW_FAILED",
+          "message": "第1页 scene-001 的 actions 为空，且 intentionalSilence 为 false，未保存教学要求中的中文讲解。当前画面虽正确展示草→蚱蜢→青蛙→蛇及能量箭头方向，但没有说明草通过光合作用制造有机物、属于生产者，未为紧接的第2页“识别生产者”迁移题提供要求中的概念依据。",
+          "pageId": "scene-001",
+          "pageNumber": 1,
+          "repair": "source",
+          "repairable": false
+        },
+        {
+          "code": "CONTENT_REVIEW_FAILED",
+          "message": "第1页 scene-001 的 actions 为空，未保存要求的完整链图整体 fadeIn 淡入、spotlight 聚光，以及草、蚱蜢、青蛙、蛇四个标签的 highlight 高亮效果；当前静态画面中的链图和标签均可见，但没有对应的演示动作。",
+          "pageId": "scene-001",
+          "pageNumber": 1,
+          "repair": "source",
+          "repairable": false
+        }
+      ],
+      "restartReopenPassed": true
+    },
+    {
+      "route": "import",
+      "pages": 4,
+      "accepted": false,
+      "audioAssets": 4,
+      "sourceSha256": "91ae5f7a65726686212a45e526d0c904ae07c1d57b3e4c2fdf67467df2c2b0cf",
+      "contentReviewIssues": [
+        {
+          "code": "CONTENT_REVIEW_FAILED",
+          "message": "第2页顶部实际显示“Quiz · 原第1页后独立单选Quiz：诗人疑心地上是什么？”，将“原第1页后独立单选”等制作与插页说明呈现给学生；应将该处改为面向学生的练习标题，去除制作说明。",
+          "pageId": "activity-5f32e21eaae4a27a5e36aa98910ea207f394ca17",
+          "pageNumber": 2,
+          "repair": "source",
+          "repairable": false
+        },
+        {
+          "code": "CONTENT_REVIEW_FAILED",
+          "message": "第4页底部显示“请选择最合适的答案”，但保存的题型为short_answer，options为空，页面也没有选项；该提示与简答作答方式冲突，应改为“请写出你的答案”等简答提示。",
+          "pageId": "activity-1299c92599f3cfd8fd4a9d450c24a0f9afef7391",
+          "pageNumber": 4,
+          "repair": "source",
+          "repairable": false
+        },
+        {
+          "code": "CONTENT_REVIEW_FAILED",
+          "message": "第4页顶部向学生显示“Quiz · 原第2页后独立short_answer：低头思故乡表达什么感情？”，将制作定位说明“原第2页后独立”和题型代码“short_answer”呈现在教学页面上；应使用面向学生的题目标题。",
+          "pageId": "activity-1299c92599f3cfd8fd4a9d450c24a0f9afef7391",
+          "pageNumber": 4,
+          "repair": "source",
+          "repairable": false
+        }
+      ],
+      "restartReopenPassed": true
+    }
+  ]
+}

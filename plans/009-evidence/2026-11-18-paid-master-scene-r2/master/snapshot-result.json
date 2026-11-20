@@ -1,0 +1,4 @@
+{
+  "ok": false,
+  "error": "page.evaluate: Error: {\"code\":\"COURSEWARE_CONFLICT\",\"message\":\"COURSEWARE_CONFLICT: each speech or music clip requires a fixed audio asset\",\"retriable\":false,\"details\":{\"errorCode\":\"COURSEWARE_CONFLICT\"}}\n    at eval (eval at evaluate (:302:30), <anonymous>:1:123)\n    at async <anonymous>:328:30\n    at invoke (/home/jhz/deckwise-validation/master-scene-paid-20261118-r2/runner.mjs:11:40)\n    at eval (<anonymous>:3:326)\n    at async Server.<anonymous> (/home/jhz/deckwise-validation/master-scene-paid-20261118-r2/runner.mjs:14:297)"
+}

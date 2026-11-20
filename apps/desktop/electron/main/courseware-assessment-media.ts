@@ -11,6 +11,7 @@ export class CoursewareAssessmentMedia {
 
   private status(view: ClassroomView) {
     const targets: Array<Record<string, unknown>> = [];
+    const excludedTargets: Array<Record<string, unknown>> = [];
     for (const scene of view.classroom?.scenes ?? []) {
       const ids = Object.values(scene.metadata?.assessmentSpeechIds ?? {});
       for (const action of scene.actions ?? []) if (action.type === "speech" && ids.includes(action.id)) {
@@ -21,11 +22,14 @@ export class CoursewareAssessmentMedia {
       if (scene.content.type === "quiz") for (const question of scene.content.questions) {
         if (!["single", "multiple"].includes(question.type)) continue;
         for (const option of question.options ?? []) if (!option.image?.src)
-          targets.push({ kind: "image", sceneId: scene.id, questionId: question.id, optionValue: option.value });
+          (scene.content.optionImagePolicy?.required === false ? excludedTargets : targets).push({ kind: "image", sceneId: scene.id,
+            questionId: question.id, optionValue: option.value, ...(scene.content.optionImagePolicy?.required === false
+              ? { reason: scene.content.optionImagePolicy.reason } : {}) });
       }
     }
-    return { projectId: view.projectId, expectedRevision: view.revision, expectedSourceRevision: view.sourceRevision,
-      ready: targets.length === 0, targets };
+    return { configurableQuizSceneIds: (view.classroom?.scenes ?? []).filter(scene => scene.content.type === "quiz").map(scene => scene.id),
+      projectId: view.projectId, expectedRevision: view.revision, expectedSourceRevision: view.sourceRevision,
+      ready: targets.length === 0, targets, excludedTargets };
   }
 
   async execute(sessionId: string, args: unknown, canDispatch: () => boolean) {
@@ -33,6 +37,23 @@ export class CoursewareAssessmentMedia {
     const input = args as Record<string, unknown>, mode = input.mode;
     const check = () => { if (!canDispatch()) throw new Error("Assessment media turn ended"); };
     check();
+    if (mode === "configure") {
+      if (Object.keys(input).some(key => !["mode", "projectId", "expectedRevision", "expectedSourceRevision", "sceneIds", "optionImages", "reason"].includes(key)) ||
+          !["required", "excluded"].includes(String(input.optionImages)) || typeof input.reason !== "string" || !input.reason.trim() || input.reason.length > 1000 ||
+          !Array.isArray(input.sceneIds) || !input.sceneIds.length || input.sceneIds.length > 100 || new Set(input.sceneIds).size !== input.sceneIds.length)
+        throw new Error("Invalid assessment image scope");
+      const view = await this.classroom.open({ sessionId }); check();
+      if (view.projectId !== input.projectId || view.revision !== input.expectedRevision || view.sourceRevision !== input.expectedSourceRevision)
+        throw new Error("COURSEWARE_ASSESSMENT_CONTEXT_STALE: Assessment classroom changed; read context again");
+      if (!view.classroom || input.sceneIds.some(id => !view.classroom!.scenes.some(scene => scene.id === id && scene.content.type === "quiz")))
+        throw new Error("COURSEWARE_INVALID_ASSESSMENT_SCOPE: Assessment image scope requires existing Quiz pages; read context.configurableQuizSceneIds and omit body/interactive page IDs");
+      const classroom = structuredClone(view.classroom);
+      for (const scene of classroom.scenes) if (input.sceneIds.includes(scene.id) && scene.content.type === "quiz")
+        scene.content.optionImagePolicy = { required: input.optionImages === "required", reason: input.reason.trim() };
+      const saved = await this.classroom.write({ sessionId, projectId: view.projectId, expectedRevision: view.revision,
+        expectedSourceRevision: view.sourceRevision, classroom }); check();
+      return { ...this.status(saved), applied: true };
+    }
     if (mode === "context") {
       if (Object.keys(input).some(key => !["mode", "kind"].includes(key)) || input.kind !== undefined && !["tts", "image"].includes(String(input.kind)))
         throw new Error("Invalid assessment context");
@@ -41,14 +62,18 @@ export class CoursewareAssessmentMedia {
       check(); return { ...this.status({ ...view, classroom: view.classroom ? prepareMaicAssessmentSpeech(view.classroom) : null }), ...(models ? { models } : {}) };
     }
     if (!["prepare", "refresh"].includes(String(mode)) || !["tts", "image"].includes(String(input.kind)) ||
-        Object.keys(input).some(key => !["mode", "kind", "projectId", "expectedRevision", "expectedSourceRevision", "sceneId", "actionId", "questionId", "optionValue", "model", "voice"].includes(key)))
+        input.originalKey !== undefined && !(mode === "refresh" && input.kind === "tts") ||
+        Object.keys(input).some(key => !["mode", "kind", "projectId", "expectedRevision", "expectedSourceRevision", "sceneId", "actionId", "questionId", "optionValue", "model", "voice", "originalKey"].includes(key)))
       throw new Error("Invalid assessment generation request");
     const { mode: _mode, kind, ...selection } = input;
     const request: Record<string, unknown> = { ...selection, sessionId };
     if (mode === "prepare") {
       const view = await this.classroom.open({ sessionId }); check();
       if (view.projectId !== input.projectId || view.revision !== input.expectedRevision || view.sourceRevision !== input.expectedSourceRevision)
-        throw new Error("Assessment classroom changed; read context again");
+        throw new Error("COURSEWARE_ASSESSMENT_CONTEXT_STALE: Assessment classroom changed; read context again");
+      if (kind === "image" && view.classroom?.scenes.some(scene => scene.id === input.sceneId &&
+          scene.content.type === "quiz" && scene.content.optionImagePolicy?.required === false))
+        throw new Error("Option images are excluded by the saved user requirement; read assessment context");
       if (view.classroom) {
         const prepared = prepareMaicAssessmentSpeech(view.classroom);
         if (JSON.stringify(prepared) !== JSON.stringify(view.classroom)) {

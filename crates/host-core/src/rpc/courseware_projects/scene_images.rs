@@ -80,9 +80,9 @@ impl Target {
 
     fn prompt(&self) -> String {
         match self {
-            Self::VisualMaster {} => "Use case: scientific-educational. Create one polished full-bleed 16:10 kindergarten storybook teaching-slide illustration, 1280x800, including the final composition, exact display text and main visual. Follow the course art direction. Preserve recurring character anatomy, proportions, markings, clothes, materials, palette and lighting. Show only page-required subjects, each exactly once; no duplicate mascots, character badges, decorative animals, logos or watermarks. Keep the default setting unless this page requires a teaching-related location change.".into(),
-            Self::CleanPlate {} => "Create ONLY a clean, empty environment background for this page. Match the scene's art direction. Remove all teaching objects, characters, foreground props, text, labels, letters and watermarks; these will be added as separate editable objects. Do not render a complete slide.".into(),
-            Self::Layer { name } => format!("Create ONLY the isolated foreground asset named {name:?}, in the scene's art direction. Transparent PNG background, visible isolated subject, no surrounding scene, floor, text, labels, letters or watermark. Do not render a complete slide; this asset will be placed as an independent editable object."),
+            Self::VisualMaster {} => "Use case: scientific-educational. Create one polished full-bleed 16:10 teaching-slide image, 1280x800, including the final composition, exact display text and main visual. Follow the approved course art direction. Preserve recurring character anatomy, proportions, markings, clothes, materials, palette and lighting. Show only page-required subjects, each exactly once; no duplicate mascots, character badges, decorative animals, logos or watermarks. Keep the default setting unless this page requires a teaching-related location change.".into(),
+            Self::CleanPlate {} => "Create ONLY a clean environment background for this page. Match the scene's art direction. Remove only foreground subjects and text carriers designated for independent teaching focus; retain connected diagrams as coherent regions. The removed components will be added as image layers. Do not render a new complete slide.".into(),
+            Self::Layer { name } => format!("Create ONLY the isolated foreground asset named {name:?}, in the scene's art direction. Transparent PNG background, visible isolated subject, no surrounding scene, floor, unrelated text or watermark. Do not render a complete slide; this asset will be placed as an independent image layer."),
         }
     }
 }
@@ -356,12 +356,46 @@ fn current_plan(state: &AppState, root: &str, scope: &Scope) -> Option<String> {
     Some(sha256.to_owned())
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(super) struct GenerationProof {
     plan_sha256: String,
     principal_key: String,
     selected_intent_ids: Vec<String>,
+    #[serde(default)]
+    teaching_corrections: Vec<TeachingCorrection>,
+    // Keep reading proofs written before per-page corrections were added.
+    #[serde(default)]
+    teaching_correction: Option<TeachingCorrection>,
+}
+
+impl GenerationProof {
+    pub(super) fn has_teaching_correction(&self) -> bool {
+        self.teaching_correction.is_some() || !self.teaching_corrections.is_empty()
+    }
+
+    pub(super) fn persisted_for_session(&self, session_id: &str) -> Result<Value, JsonRpcError> {
+        Ok(
+            json!({"sessionId":session_id,"proof":serde_json::to_value(self).map_err(|e| error(e.into()))?}),
+        )
+    }
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct TeachingCorrection {
+    page_id: String,
+    intent_id: String,
+    #[serde(default)]
+    asset_sha256: Option<String>,
+    removals: Vec<TeachingObjectRemoval>,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct TeachingObjectRemoval {
+    object: String,
+    quote: String,
 }
 
 /// Recheck the exact reviewed inputs under the same Host lock as project initialization/attachment.
@@ -392,6 +426,83 @@ pub(super) fn verify_generation(
     let actual: std::collections::HashSet<_> = selected.iter().map(|i| &i.intent_id).collect();
     if expected.len() != proof.selected_intent_ids.len() || expected != actual {
         return Err(conflict("Reviewed scene asset selection changed"));
+    }
+    let corrections: Vec<_> = proof
+        .teaching_correction
+        .iter()
+        .chain(&proof.teaching_corrections)
+        .collect();
+    if corrections.len() > plan.pages.len() {
+        return Err(invalid("Too many reviewed scene teaching corrections"));
+    }
+    let mut corrected_pages = std::collections::HashSet::new();
+    for (index, correction) in corrections.iter().enumerate() {
+        let (_, page) = plan
+            .pages
+            .iter()
+            .enumerate()
+            .find(|(page_index, page)| {
+                correction.page_id == format!("scene-{:03}", page_index + 1)
+                    && page.quiz.is_none()
+                    && !page.teaching.as_ref().is_some_and(|t| t.question.is_some())
+            })
+            .ok_or_else(|| conflict("Reviewed scene correction has no matching visual page"))?;
+        if !corrected_pages.insert(&correction.page_id) {
+            return Err(invalid("Duplicate reviewed scene correction page"));
+        }
+        let intent = selected
+            .iter()
+            .find(|intent| {
+                intent.intent_id == correction.intent_id
+                    && intent.page_id == correction.page_id
+                    && matches!(intent.target, Target::VisualMaster {})
+            })
+            .ok_or_else(|| {
+                conflict("Reviewed scene correction is not bound to the selected visual master")
+            })?;
+        let asset = intent
+            .asset
+            .as_ref()
+            .ok_or_else(|| conflict("Reviewed scene correction image is not archived"))?;
+        if correction
+            .asset_sha256
+            .as_deref()
+            .is_some_and(|sha| sha != asset.sha256)
+            || (correction.asset_sha256.is_none()
+                && (proof.teaching_correction.is_none() || index > 0))
+        {
+            return Err(conflict("Reviewed scene correction image changed"));
+        }
+        let instruction = intent.planning_instructions.as_str();
+        if instruction.trim().is_empty() {
+            return Err(conflict(
+                "Reviewed scene correction has no saved instruction",
+            ));
+        }
+        let teaching = page
+            .teaching
+            .as_ref()
+            .ok_or_else(|| conflict("Reviewed scene correction teaching changed"))?;
+        if correction.removals.is_empty()
+            || correction.removals.len() > teaching.required_objects.len()
+        {
+            return Err(invalid("Invalid reviewed scene teaching correction"));
+        }
+        let mut removed = std::collections::HashSet::new();
+        for removal in &correction.removals {
+            if removal.object.trim().is_empty()
+                || removal.object.encode_utf16().count() > 200
+                || removal.quote.trim().is_empty()
+                || removal.quote.encode_utf16().count() > 1200
+                || !instruction.contains(&removal.quote)
+                || !teaching.required_objects.contains(&removal.object)
+                || !removed.insert(&removal.object)
+            {
+                return Err(conflict(
+                    "Reviewed scene teaching correction evidence changed",
+                ));
+            }
+        }
     }
     let pages: std::collections::HashSet<_> = plan
         .pages
@@ -443,6 +554,30 @@ pub(super) fn verify_generation(
         }
     }
     Ok(plan)
+}
+
+pub(super) fn effective_teaching(
+    page: &scene_plan::Page,
+    page_index: usize,
+    proof: &GenerationProof,
+) -> Option<crate::db::courseware_projects::scene_teaching::Teaching> {
+    let mut teaching = page.teaching.clone()?;
+    for correction in proof
+        .teaching_correction
+        .iter()
+        .chain(&proof.teaching_corrections)
+        .filter(|correction| correction.page_id == format!("scene-{:03}", page_index + 1))
+    {
+        let removed: std::collections::HashSet<_> = correction
+            .removals
+            .iter()
+            .map(|removal| removal.object.as_str())
+            .collect();
+        teaching
+            .required_objects
+            .retain(|object| !removed.contains(object.as_str()));
+    }
+    Some(teaching)
 }
 
 fn storage_key(root: &str, scope: &Scope) -> Result<String, JsonRpcError> {
@@ -674,9 +809,12 @@ pub(super) async fn handle(
                 p.reference_intent_id = Some(style.intent_id.clone());
             }
         }
+        let approved = scene_plan::approval(&state, &root, &scope.session_id)?
+            .ok_or_else(|| conflict("Review and confirm the current scene plan first"))?;
         let prompt = prompts::build(
             &plan,
             page,
+            &approved["educationContext"],
             &p.target,
             p.decomposition,
             p.reference_intent_id.is_some(),

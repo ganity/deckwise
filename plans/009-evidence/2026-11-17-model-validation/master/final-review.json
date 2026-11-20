@@ -1,0 +1,76 @@
+{
+  "messageId": "call_vWIEpUOM6iEeFQurKaoDyIkD|fc_0831c197fca67737016afc7727f2f487d2a6095f4dba58e2bb",
+  "createdAt": "2026-11-17T15:47:55.201Z",
+  "contentReview": {
+    "applied": false,
+    "issues": [],
+    "ready": true,
+    "sourceSha256": "c0c7d144932018e71b65b3bdc2f2c4326f414f3157bc35ce319693cd35beece7",
+    "teachingRevision": "61be6dbc-8241-4aee-bfbb-ed4f21200839"
+  },
+  "completion": {
+    "counts": {
+      "audioMissing": 0,
+      "audioReady": 12,
+      "musicClips": 0,
+      "musicPending": 0,
+      "pages": 4,
+      "questions": 2,
+      "speeches": 12
+    },
+    "issues": [],
+    "ready": true,
+    "sourceSha256": "c0c7d144932018e71b65b3bdc2f2c4326f414f3157bc35ce319693cd35beece7",
+    "teachingRevision": "61be6dbc-8241-4aee-bfbb-ed4f21200839",
+    "warnings": [
+      {
+        "code": "OBJECT_BINDING_ADVISORY",
+        "message": "Planned descriptions are not independently bound: 角的示意图, 顶点, 边. This is advisory; narrate the actual picture and bind effects only to verified eligible targets. Visual grounding checks essential teaching content separately. Do not regenerate images or invent aliases to match design details.",
+        "pageId": "page-1",
+        "pageNumber": 1
+      },
+      {
+        "code": "OBJECT_BINDING_ADVISORY",
+        "message": "Planned descriptions are not independently bound: 锐角, 直角, 钝角, 45°, 90°, 120°. This is advisory; narrate the actual picture and bind effects only to verified eligible targets. Visual grounding checks essential teaching content separately. Do not regenerate images or invent aliases to match design details.",
+        "pageId": "page-2",
+        "pageNumber": 2
+      }
+    ]
+  },
+  "playbackPreflight": {
+    "diagnostics": [
+      {
+        "code": "PPTX_NOTES_MASTER_UNVERIFIED",
+        "message": "PPTX 包含备注母版，当前仅提取逐页备注，未验证母版版式与样式的保留情况，须人工核对",
+        "severity": "warning"
+      },
+      {
+        "code": "PPTX_ANIMATION_SPEECH_OWNED",
+        "message": "Saved speech controls shape 2137339812; competing unbound native timing is omitted from playback only.",
+        "pageIndex": 0,
+        "severity": "warning"
+      },
+      {
+        "code": "PPTX_ANIMATION_SPEECH_OWNED",
+        "message": "Saved speech controls shape 1049101448; competing unbound native timing is omitted from playback only.",
+        "pageIndex": 1,
+        "severity": "warning"
+      },
+      {
+        "code": "PPTX_ANIMATION_SPEECH_OWNED",
+        "message": "Saved speech controls shape 1246103704; competing unbound native timing is omitted from playback only.",
+        "pageIndex": 1,
+        "severity": "warning"
+      },
+      {
+        "code": "PPTX_ANIMATION_SPEECH_OWNED",
+        "message": "Saved speech controls shape 408016142; competing unbound native timing is omitted from playback only.",
+        "pageIndex": 1,
+        "severity": "warning"
+      }
+    ],
+    "issues": [],
+    "ready": true,
+    "sourceSha256": "c0c7d144932018e71b65b3bdc2f2c4326f414f3157bc35ce319693cd35beece7"
+  }
+}

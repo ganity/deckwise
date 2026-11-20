@@ -10,6 +10,7 @@ mod materials;
 mod media_canvas;
 mod media_relay;
 mod native_generation;
+mod native_repairs;
 mod native_save;
 mod online_source_review;
 mod portable;
@@ -32,12 +33,24 @@ fn error(error: anyhow::Error) -> JsonRpcError {
     let message = error.to_string();
     let kind = message.split(':').next().unwrap_or("INTERNAL");
     let code = match kind {
-        "COURSEWARE_CONFLICT" | "COURSEWARE_LOCKED" => 1008,
+        "COURSEWARE_CONFLICT" | "COURSEWARE_LOCKED" | "COURSEWARE_STAGE_LOCKED" => 1008,
         "COURSEWARE_NOT_FOUND" | "COURSEWARE_PAGE_NOT_FOUND" => 1007,
         "COURSEWARE_INVALID" | "COURSEWARE_NOTES_EMPTY" => 1002,
         _ => return rpc_err(1000, message, "INTERNAL"),
     };
     rpc_err(code, message.clone(), kind)
+}
+
+/// Visual source replacement closes once any narration has been saved.
+/// Teaching repairs keep their own path for text, audio and effects.
+pub(super) fn has_saved_narration(
+    project: &crate::db::courseware_projects::CoursewareProject,
+) -> bool {
+    project.pages.iter().any(|page| {
+        page.actions
+            .iter()
+            .any(|action| action.get("type").and_then(Value::as_str) == Some("speech"))
+    })
 }
 
 fn project_workspace(state: &AppState, session_id: &str) -> Result<String, JsonRpcError> {
@@ -77,6 +90,9 @@ pub(super) async fn handle(
         | "courseware.classroom.get"
         | "courseware.classroom.write"
         | "courseware.classroom.snapshot" => classroom::handle(state, method, params).await,
+        "courseware.nativeRepairs.read" | "courseware.nativeRepairs.write" => {
+            native_repairs::handle(state, method, params).await
+        }
         "courseware.workflow.get" | "courseware.workflow.checkpoint" => {
             workflow::handle(state, method, params).await
         }
@@ -323,9 +339,10 @@ pub(super) async fn handle(
                 .map_err(error)?;
             Ok(json!({ "task": task }))
         }
-        "courseware.material.record" | "courseware.material.read" | "courseware.material.list" => {
-            materials::handle(state, method, params).await
-        }
+        "courseware.material.verifyInline"
+        | "courseware.material.record"
+        | "courseware.material.read"
+        | "courseware.material.list" => materials::handle(state, method, params).await,
         "courseware.task.get" => {
             let p: TaskGetParams = serde_json::from_value(params).map_err(invalid)?;
             let state = state.lock().await;
@@ -431,6 +448,13 @@ pub(super) async fn handle(
                 ));
             }
             if let Some(proof) = &p.scene_proof {
+                if proof.has_teaching_correction() {
+                    return Err(rpc_err(
+                        1008,
+                        "Scene teaching corrections require native generation attachment",
+                        "COURSEWARE_CONFLICT",
+                    ));
+                }
                 scene_images::verify_generation(&state, &root, &p.session_id, proof)?;
             } else if scene_plan::has_approval(&state, &root, &p.session_id)? {
                 return Err(rpc_err(
@@ -760,6 +784,8 @@ pub(super) async fn handle(
                         "COURSEWARE_CONFLICT",
                     ));
                 }
+                native_generation::verify_scene_mapping_teaching(&plan, proof, mapping)
+                    .map_err(error)?;
                 for (mapped, (index, planned)) in mapping.pages.iter().zip(native_pages) {
                     if mapped.slide_id != format!("scene-{:03}", index + 1)
                         || mapped.source_hash != planned.source_hash()?
@@ -836,7 +862,23 @@ pub(super) async fn handle(
             if let Some(mapping) = &p.scene_mapping {
                 state
                     .db
-                    .initialize_generated_scene_objects(&root, &project, mapping)
+                    .initialize_generated_scene_objects_with_proof(
+                        &root,
+                        &project,
+                        mapping,
+                        Some(
+                            p.scene_proof
+                                .as_ref()
+                                .ok_or_else(|| {
+                                    rpc_err(
+                                        1002,
+                                        "Reviewed scene proof is required",
+                                        "COURSEWARE_INVALID",
+                                    )
+                                })?
+                                .persisted_for_session(&p.session_id)?,
+                        ),
+                    )
                     .map_err(error)?;
             }
             Ok(json!({ "project": project }))

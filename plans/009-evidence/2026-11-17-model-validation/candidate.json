@@ -1,0 +1,19 @@
+{
+  "model": "deepseek-v4.1-flash-1017 -> gpt-6.1-sol (assisted)",
+  "pageLimit": 5,
+  "plannedPages": 4,
+  "desktopHead": "5cbd7cb44de14d6cb5f1e478ff9f57b63bd7d05d",
+  "binaries": {
+    "/home/jhz/deckwise-validation/three-path-model-validation-20261117/candidate/out/main/index.js": "575b74acb40262519a0904051071aa1a1718f0edb2aa82965d8d4c71e0855afb",
+    "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-stage-aware-scene/target/release/pi-desktop-host-core": "4762633635aeafb74faf7b96980c6479cb05d961cab5727cc8663992590f7e38"
+  },
+  "topics": {
+    "master": "认识角",
+    "scene": "水循环",
+    "import": "静夜思"
+  },
+  "status": "completed-with-content-failures",
+  "editorHead": "6f5c90f4860f45650422c581a2f96e2f20b55b6e",
+  "candidateKind": "local dirty source build; HEAD alone does not identify tested source",
+  "completedDateLocal": "2026-11-18"
+}

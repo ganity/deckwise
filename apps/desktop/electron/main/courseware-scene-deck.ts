@@ -5,7 +5,7 @@ import type { SceneCoursePlanPage } from "./courseware-scene-plan";
 
 type Authoring = Pick<typeof import("@pi-desktop/courseware-runtime/authoring"), "editablePptxSceneSchema" | "compileScenesToPptx" | "assessmentPptxScene" | "assessmentBackground" | "createMaicInteractionCanvas">;
 type Visuals = { pageId: string; visualMasterAssetId: string; cleanPlateAssetId: string; images: CoursewareSceneImage[];
-  foregroundPlacements?: { assetId: string; bboxPx: [number, number, number, number]; zIndex?: number; semanticRole?: string }[] };
+  foregroundPlacements?: { assetId: string; bboxPx: [number, number, number, number]; zIndex?: number; semanticRole?: string; layerMetadata?: { name: string; description: string } }[] };
 const hash = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 
 /** Scene lettering stays in image layers; approved native-text plans retain their mode during recovery. */
@@ -87,6 +87,7 @@ export async function buildSceneCourseDeck(input: {
       // The supplier's crop bounds preserve the master composition; model guesses must not move its subjects.
       element.bboxPx = [...placement.bboxPx];
       element.rotate = 0;
+      if (placement.layerMetadata) element.layerMetadata = placement.layerMetadata;
       if (placement.zIndex !== undefined) {
         if (!Number.isSafeInteger(placement.zIndex) || placement.zIndex < 1 || placement.zIndex > 1_000_000) throw new Error("Invalid decomposition z-index");
         element.zIndex = placement.zIndex;

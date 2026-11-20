@@ -13,6 +13,18 @@ const fixture = () => ({ id: 'class', createdAt: '2026-11-04', stage: { id: 'sta
       options: [{ value: 'A', label: 'Hello', image: { src: 'local:image', assetId: 'image', mimeType: 'image/png' } }, { value: 'B', label: 'Bye' }], answer: ['A'], analysis: 'Hello is a greeting.' }] } }],
   mediaManifest: [{ sceneId: 'quiz', elementId: 'quiz-option:q:A', assetId: 'image', assetType: 'image', mimeType: 'image/png', src: 'local:image', originalSrc: 'local:image' }], metadata: { custom: { preserved: true } } });
 describe('MAIC content through export and preview', () => {
+  it('preserves explicit option-image scope through export and rejects malformed scope', async () => {
+    const original = fixture();
+    const policy = { required: false, reason: 'Text-only choices requested by the user' };
+    Object.assign(original.scenes[0].content, { optionImagePolicy: policy });
+    const zip = await JSZip.loadAsync(await exportMaicClassroom(original, async () => png));
+    const classroom = parseMaicClassroom(JSON.parse(await zip.file('meta.json')!.async('string')).classroom);
+    expect(classroom.scenes[0].content).toMatchObject({ optionImagePolicy: policy });
+    for (const invalid of [{ required: 'false', reason: 'text only' }, { required: false }, { required: false, reason: '' }]) {
+      Object.assign(original.scenes[0].content, { optionImagePolicy: invalid });
+      expect(() => parseMaicClassroom(original)).toThrow();
+    }
+  });
   it('retains structured Quiz image/answer and optional data through the archive', async () => {
     const original = { ...fixture(), scenes: fixture().scenes.map(scene => ({ ...scene, metadata: { nativePageId: 'private-page', nativeNarrationText: 'private narration baseline', nativeQuestionText: 'private question baseline', nativeQuestionElementId: 'selected-frame', nativeTeachingRevision: 'private-teaching-revision', interaction: { kind: 'chapter_summary', extra: 'preserve' }, custom: true } })) };
     const bytes = await exportMaicClassroom(original, async () => png);

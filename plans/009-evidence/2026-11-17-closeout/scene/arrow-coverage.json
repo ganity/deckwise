@@ -1,0 +1,41 @@
+{
+  "pages": [
+    {
+      "wholeDiagramForegroundTargets": 11,
+      "wholeDiagramEntranceCoverage": true,
+      "combinedSpotlightCoverage": true,
+      "pageNumber": 1,
+      "visuallyVerifiedArrowLayers": [
+        3,
+        6,
+        9
+      ],
+      "arrowObjectIds": [
+        "object-11de5ed883884b0be8bd13fffd471e7bda91c688",
+        "object-5c745527de62ecb9b9c26de2ddd40769c7753c6b",
+        "object-6b4e97e283952906a1f20ba5eeb35b328ff40407"
+      ],
+      "entranceCoverage": true,
+      "spotlightCoverage": true,
+      "cleanPlateVisuallyReviewed": true
+    },
+    {
+      "wholeDiagramForegroundTargets": 8,
+      "wholeDiagramEntranceCoverage": true,
+      "combinedSpotlightCoverage": true,
+      "pageNumber": 3,
+      "visuallyVerifiedArrowLayers": [
+        3,
+        6
+      ],
+      "arrowObjectIds": [
+        "object-1109cf8a2fb77be1ec2e0deff79b4a6a4f84c697",
+        "object-9426f7ac543b49c0ea8fca4d33d13fb8d69c58aa"
+      ],
+      "entranceCoverage": true,
+      "spotlightCoverage": true,
+      "cleanPlateVisuallyReviewed": true
+    }
+  ],
+  "verified": true
+}

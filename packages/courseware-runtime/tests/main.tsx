@@ -58,6 +58,9 @@ function Probe() {
         },
         controller.signal,
       );
+      if (new URLSearchParams(location.search).has('static-pages')) loaded = {
+        ...loaded, scenes: loaded.scenes.map(scene => ({ ...scene, actions: [], content: loaded!.scenes[0].content })),
+      };
       setBuild(loaded);
     })().catch((e) => {
       if (!controller.signal.aborted) setError(e.message);

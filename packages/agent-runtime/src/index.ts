@@ -27,7 +27,7 @@ export type { AuthenticatedProxyRelay } from "./authenticated-proxy-relay.js";
 export * from "./speech/index.js";
 
 export { generateNarrationWrite } from "./courseware/narration-write.js";
-export { buildStagePromptContext, resolveGenerationProfile } from "./courseware/generation-profile-registry.js";
+export { buildSceneVisualGuidance, buildStagePromptContext, resolveGenerationProfile } from "./courseware/generation-profile-registry.js";
 export { candidateHash } from "./courseware/page-candidate-baseline.js";
 export { pageNarrationOutputSchema, isNarrationTextContainer } from "./courseware/page-narration-candidate.js";
 export { narrationPreviewSource } from "./courseware/narration-preview-source.js";

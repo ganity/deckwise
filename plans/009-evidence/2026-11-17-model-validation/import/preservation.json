@@ -1,0 +1,13 @@
+{
+  "originalSixTextShapesGeometryAndStylePreserved": true,
+  "normalizationExcluded": [
+    "exported numeric shape IDs",
+    "explicit bwMode auto defaults",
+    "empty run/paragraph properties",
+    "root group identity transform"
+  ],
+  "bothTeacherScriptsVerbatimAndCorrectlyMapped": true,
+  "learnerTitlesAndReferenceAnswersVerified": true,
+  "shortAnswerKeyPointsAndHintVerified": true,
+  "operatorContentRepairs": 0
+}

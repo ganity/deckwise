@@ -1,0 +1,33 @@
+{
+  "reviews": [
+    {
+      "time": "2026-11-17T10:46:30.274Z",
+      "toolStatus": "success",
+      "review": {
+        "applied": false,
+        "issues": [],
+        "ready": true,
+        "sourceSha256": "8aa3b17a84c578ee9543ff365a3a1f2d9f435d33e9fa247a557a1aa1a7b25222",
+        "teachingRevision": "90b34af7-4d89-4706-9184-0ed0632d9000"
+      },
+      "completion": {
+        "counts": {
+          "audioMissing": 0,
+          "audioReady": 4,
+          "musicClips": 0,
+          "musicPending": 0,
+          "pages": 4,
+          "questions": 2,
+          "speeches": 4
+        },
+        "issues": [],
+        "ready": true,
+        "sourceSha256": "8aa3b17a84c578ee9543ff365a3a1f2d9f435d33e9fa247a557a1aa1a7b25222",
+        "teachingRevision": "90b34af7-4d89-4706-9184-0ed0632d9000",
+        "warnings": []
+      },
+      "sourceSha256": "8aa3b17a84c578ee9543ff365a3a1f2d9f435d33e9fa247a557a1aa1a7b25222"
+    }
+  ],
+  "toolErrors": []
+}

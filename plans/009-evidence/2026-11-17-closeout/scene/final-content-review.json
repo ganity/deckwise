@@ -1,0 +1,59 @@
+{
+  "reviews": [
+    {
+      "time": "2026-11-17T11:01:31.471Z",
+      "toolStatus": "success",
+      "review": {
+        "applied": false,
+        "issues": [],
+        "ready": true,
+        "sourceSha256": "9fe4a22a4bc90e77d46f94ed30a0287cc6f42cef95c8ff05911b51bee790198f",
+        "teachingRevision": "acf3a2cf-bc37-45f9-b418-42b38bb1041a"
+      },
+      "completion": {
+        "counts": {
+          "audioMissing": 0,
+          "audioReady": 14,
+          "musicClips": 0,
+          "musicPending": 0,
+          "pages": 4,
+          "questions": 2,
+          "speeches": 14
+        },
+        "issues": [],
+        "ready": true,
+        "sourceSha256": "9fe4a22a4bc90e77d46f94ed30a0287cc6f42cef95c8ff05911b51bee790198f",
+        "teachingRevision": "acf3a2cf-bc37-45f9-b418-42b38bb1041a",
+        "warnings": [
+          {
+            "code": "OBJECT_BINDING_ADVISORY",
+            "message": "Planned descriptions are not independently bound: 草→蚱蜢→青蛙→蛇完整链图. This is advisory; narrate the actual picture and bind effects only to verified eligible targets. Visual grounding checks essential teaching content separately. Do not regenerate images or invent aliases to match design details.",
+            "pageId": "scene-001",
+            "pageNumber": 1
+          },
+          {
+            "code": "OBJECT_BINDING_ADVISORY",
+            "message": "Planned descriptions are not independently bound: 草→兔→鹰完整链图. This is advisory; narrate the actual picture and bind effects only to verified eligible targets. Visual grounding checks essential teaching content separately. Do not regenerate images or invent aliases to match design details.",
+            "pageId": "scene-003",
+            "pageNumber": 3
+          }
+        ]
+      },
+      "sourceSha256": "9fe4a22a4bc90e77d46f94ed30a0287cc6f42cef95c8ff05911b51bee790198f"
+    }
+  ],
+  "toolErrors": [
+    {
+      "time": "2026-11-17T10:10:43.645Z",
+      "tool": "Read"
+    },
+    {
+      "time": "2026-11-17T10:11:23.117Z",
+      "tool": "courseware_scene_plan_submit"
+    },
+    {
+      "time": "2026-11-17T10:11:30.891Z",
+      "tool": "courseware_scene_plan_submit"
+    }
+  ]
+}

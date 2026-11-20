@@ -140,6 +140,7 @@ impl PermissionManager {
             | "courseware_scene_image_prepare"
             | "courseware_requirements_update"
             | "courseware_scene_image_refresh"
+            | "courseware_scene_generate_remaining"
             | "courseware_scene_compile"
             | "courseware_presentation_adopt"
             | "courseware_presentation_prepare"

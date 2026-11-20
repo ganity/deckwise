@@ -96,7 +96,7 @@ test("a scene cannot silently drop a reviewed foreground or lettering image", as
 test("decomposition bounds and stacking replace guessed image placement before editable compilation", async () => {
   let captured;
   const selectedVisuals = visuals.map(visual => ({ ...visual, images: ["master", "clean", "teacher"].map(id => ({ assetIds: [id], bytes: background })),
-    foregroundPlacements: [{ assetId: "teacher", bboxPx: [128, 184, 768, 504], zIndex: 2 }] }));
+    foregroundPlacements: [{ assetId: "teacher", bboxPx: [128, 184, 768, 504], zIndex: 2, layerMetadata: { name: "Teacher", description: "Teacher holding a book" } }] }));
   await buildSceneCourseDeck({ ...input, visuals: selectedVisuals }, async () => ({ text: "" }), {
     editablePptxSceneSchema: authoring.editablePptxSceneSchema,
     async compileScenesToPptx(scenes) { captured = scenes; return { pptx: Buffer.from("verified"), mapping: { pages: scenes } }; },
@@ -107,6 +107,7 @@ test("decomposition bounds and stacking replace guessed image placement before e
     assert.equal(layer.zIndex, 2);
     assert.equal(layer.rotate, 0);
     assert.equal(layer.crop, undefined);
+    assert.deepEqual(layer.layerMetadata, { name: "Teacher", description: "Teacher holding a book" });
   }
 });
 

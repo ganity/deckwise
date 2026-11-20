@@ -14,6 +14,8 @@ export type CoursewareTeachingView = {
   enrichment?: import("./courseware-enrichment.js").CoursewareEnrichment;
   enrichmentCapabilities?: { version: 1 };
   nativeTeaching?: true;
+  /** Editable generated body with an extractable opaque image background. */
+  backgroundRegionRepair?: boolean;
   readOnly?: boolean;
   teaching?: import("./courseware-scene-teaching.js").CoursewareSceneTeaching;
   teachingRequirements?: Array<{ pageId: string; teaching: import("./courseware-scene-teaching.js").CoursewareSceneTeaching }>;
@@ -50,6 +52,9 @@ export type CoursewareAssetLocksView = {
   staleLocks: Array<{ objectId: string; assetSha256: string }>;
 };
 
+// Intent and rendered cues share the existing player target bound.
+export const COURSEWARE_ATTENTION_TARGET_LIMIT = 200;
+
 /** Existing fixed-player visualCues, timed only against their parent speech audio. */
 export type CoursewareAttentionIntent = { type: "highlight" | "spotlight"; objectIds: string[]; animation?: "fadeIn" | "pulse" | "zoomIn" | "slideInLeft" | "slideInRight" | "gentleRotate" };
 export function isCoursewareAttentionIntent(value: unknown): value is CoursewareAttentionIntent {
@@ -58,7 +63,7 @@ export function isCoursewareAttentionIntent(value: unknown): value is Courseware
   return Object.hasOwn(intent, "type") && Object.hasOwn(intent, "objectIds") &&
     Object.keys(intent).every(key => ["type", "objectIds", "animation"].includes(key)) &&
     (intent.animation === undefined || ["fadeIn", "pulse", "zoomIn", "slideInLeft", "slideInRight", "gentleRotate"].includes(String(intent.animation))) && ["highlight", "spotlight"].includes(String(intent.type)) &&
-    Array.isArray(intent.objectIds) && intent.objectIds.length > 0 && intent.objectIds.length <= 8 &&
+    Array.isArray(intent.objectIds) && intent.objectIds.length > 0 && intent.objectIds.length <= COURSEWARE_ATTENTION_TARGET_LIMIT &&
     intent.objectIds.every(id => typeof id === "string" && id.length > 0 && id.length <= 200) && new Set(intent.objectIds).size === intent.objectIds.length;
 }
 
@@ -102,7 +107,7 @@ export function isCoursewareAttentionCue(value: unknown): value is CoursewareAtt
         !["fadeIn", "fadeOut", "pulse", "zoomIn", "slideInLeft", "slideInRight", "gentleRotate"].includes(String(effect.effect)) || value.endMs - value.atMs > 5000) return false;
     targets = [effect.elementId];
   } else return false;
-  return targets.length <= 200 && targets.every(id) && new Set(targets).size === targets.length;
+  return targets.length <= COURSEWARE_ATTENTION_TARGET_LIMIT && targets.every(id) && new Set(targets).size === targets.length;
 }
 
 /** Local recovery only; never a second authoritative teaching record. */

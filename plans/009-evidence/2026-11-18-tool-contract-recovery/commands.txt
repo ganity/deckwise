@@ -1,0 +1,10 @@
+pnpm --filter @pi-desktop/agent-runtime exec vitest run src/runtime.test.ts src/agent-errors.test.ts src/courseware-workflow-tools.test.ts src/courseware-workflow-recovery.test.ts src/courseware-stalled-continuation.test.ts src/courseware-turn-continuation.test.ts
+node --test apps/desktop/test/courseware-chat-workflow.test.mjs apps/desktop/test/courseware-assessment-media.test.mjs apps/desktop/test/courseware-scene-images.test.mjs apps/desktop/test/courseware-native-tools.test.mjs apps/desktop/test/ppt-master-skill.test.mjs apps/desktop/test/python-runtime-contract.test.mjs
+pnpm --filter @pi-desktop/shared build
+pnpm --filter @pi-desktop/agent-runtime build
+pnpm --filter @pi-desktop/agent-runtime bundle
+pnpm --filter @pi-desktop/desktop typecheck
+pnpm --filter @pi-desktop/desktop build
+pnpm --filter @pi-desktop/agent-runtime exec vitest run src/courseware-workflow-recovery.test.ts src/agent-errors.test.ts
+node --test apps/desktop/test/ppt-master-skill.test.mjs apps/desktop/test/python-runtime-contract.test.mjs
+git diff --check

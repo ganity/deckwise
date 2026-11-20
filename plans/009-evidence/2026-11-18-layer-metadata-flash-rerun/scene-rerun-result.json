@@ -1,0 +1,67 @@
+[
+  {
+    "args": {
+      "instruction": "仅补齐正文第1、3页缺失的简短课堂讲解，并加入所需的淡入、聚光和标签高亮，依据当前实际画面与已存在对象，不改动第2、4页的题目、答案和语音，不重建原生正文。语言简短口语化，每页语音预算30秒，实际音频必须小于35秒，不指定固定讲解段数。第1页讲太阳照射海洋、海水蒸发成水汽向上进入空气、水汽遇冷凝结成云、云中的水以降水形式落到陆地，这是水循环的蒸发、凝结、降水三个环节。第3页讲山地降水沿地表向低处流动汇入河流，河水由高处流向低处并最终注入海洋，这种沿地表流动的水流叫地表径流。效果上让连通示意图连同箭头整体淡入并聚光，允许携带少量背景，不需要沿河流轮廓精细分离；对相应文字标签做高亮。不要把整张示意图的语义强行绑定到单支箭头或单个标签上。不生成选项图片、音乐、视频，不增加页面。",
+      "pageNumbers": [
+        1,
+        3
+      ],
+      "sourceSha256": "87c1e9b7a2031c4e640fc65b2b51de38c56f453effd68c85415214aa548d4835"
+    },
+    "result": {
+      "content": [
+        {
+          "text": "{\"applied\":false,\"audioReady\":false,\"diagnostics\":[{\"message\":\"Repairing invalid narration (1/2): PageCandidateError: Narration failed semantic review: [{\\\"blockIndex\\\":0,\\\"kind\\\":\\\"requirement\\\",\\\"message\\\":\\\"第1页要求高亮“蒸发”标签，但第1段语音只对整幅示意图做聚光，未指向/高亮蒸发标签所在对象（object-9b3e8eb33ae721f4586800fd0ed3bcd440891f08）。请在讲“海水受热蒸发”时把该段的attention绑定到 object-9b3e8eb33ae721f4586800fd0ed3bcd440891f08（该对象含太阳与蒸发标签）；整幅示意图的 fadeIn+spotlight 可保留为同一段或另拆一段，但不要只在整幅图上聚光而漏掉蒸发标签。\\\"}]\",\"pageNumber\":1},{\"message\":\"Repairing invalid narration (2/2): PageCandidateError: Narration failed semantic review: [{\\\"blockIndex\\\":0,\\\"kind\\\":\\\"requirement\\\",\\\"message\\\":\\\"讲解要求高亮“蒸发”标签，但第0段只把完整水循环示意图（object-cf90…, 含海洋、天空与背景）做淡入聚光，未对“蒸发”标签做highlight；这与教学要求“蒸发、凝结、降水标签依次highlight高亮”不符。修复：在不改动本段语音文字的前提下，为“蒸发”标签（object-9b3e8e…）补充highlight/pulse 效果（可与示意图 spotlight 并行），确保效果指向被讲解的“蒸发”标签。\\\"},{\\\"blockIndex\\\":1,\\\"kind\\\":\\\"binding\\\",\\\"message\\\":\\\"“水汽升到高处遇冷凝结，就形成了云”指向 object-5bca…（凝结+降水标签、雨线与下降箭头），其标签与箭头同时对应凝结和降水，不是只讲“凝结”的对象；将 highlight 落在该复合对象会把“降水”标签一并高亮，造成讲解对象与效果目标不精确。修复：保留本句语音，只把凝结环节的 highlight 绑定到覆盖“凝结”标签的实际对象或将该复合对象一并高亮后在下段再说明降水；若当前仅有该复合对象可作为载体，应确认高亮范围明确对应凝结标签而不是让效果语义扩展到降水。\\\"},{\\\"blockIndex\\\":2,\\\"kind\\\":\\\"binding\\\",\\\"message\\\":\\\"“云里的水最后以降水形式落到陆地”再次使用同一个 object-5bca…（同时含“凝结”和“降水”两个标签、雨线与下降箭头）做 highlight，会让“凝结”标签也与“降水”讲解同时高亮；与第1段的高亮目标重复且没有区分降水环节。修复：保持本句语音文字，改为单独高亮“降水”标签对应的实际对象/区域（或在该复合对象高亮时明确限定为降水标签一侧），避免与凝结标签混淆。\\\"}]\",\"pageNumber\":1},{\"message\":\"Accepted visual differences; narrate the actual picture: 示意图以四个独立蓝色箭头和三个文字标签呈现流向，未以单独整体图片承载；箭头分别位于东侧与中东部，并非所有箭头都与文字标签紧密绑定。\",\"pageNumber\":3},{\"message\":\"Repairing invalid narration (1/2): PageCandidateError: Narration failed semantic review: [{\\\"blockIndex\\\":0,\\\"kind\\\":\\\"binding\\\",\\\"message\\\":\\\"讲解要求“让连通示意图连同箭头整体淡入并聚光”，但聚光只绑定了地表径流、河流、海洋三个文字标签，未覆盖含箭头的完整示意图区域。请将本段聚光目标改为覆盖山地—河流—海洋及方向箭头的教学区域（允许携带少量背景），不要只聚光三个标签。\\\"},{\\\"blockIndex\\\":3,\\\"kind\\\":\\\"content\\\",\\\"message\\\":\\\"本段说“落到陆地的水，会沿地表回到海洋”，与第1页“云中的水以降水落到陆地”相呼应，但“降水”二字未出现，可能让学生误以为任何落到陆地的水都在此图上沿地表返回；请改为“落到山地的降水，会沿地表汇入河流、回到海洋”，明确承接第1页的降水环节。\\\"}]\",\"pageNumber\":3},{\"message\":\"Repairing invalid semantic review (1/2): SyntaxError: Narration semantic review returned invalid issues; draft was not saved\",\"pageNumber\":3},{\"message\":\"Repairing invalid semantic review (2/2): SyntaxError: Narration semantic review returned invalid issues; draft was not saved\",\"pageNumber\":3}],\"failures\":[{\"code\":\"COURSEWARE_NARRATION_OUTPUT_INVALID\",\"error\":\"Error: PageCandidateError: Narration failed semantic review: [{\\\"blockIndex\\\":1,\\\"kind\\\":\\\"content\\\",\\\"message\\\":\\\"口语段“这就是蒸发环节”未说明箭头中的水汽在上升，而图中三支箭头从海面向上，这属于应说的“水汽向上进入空气”环节；请将该句改为包含“海水蒸发成水汽、向上进入空气”的口语短句，并继续高亮蒸发区域。\\\"},{\\\"blockIndex\\\":2,\\\"kind\\\":\\\"binding\\\",\\\"message\\\":\\\"此处高亮 object-5bcacb20a954c101fa65b56ce63db7f598291a7d，该对象同时包含“凝结”和“降水”两个标签，无法只指向凝结标签；请把本效果的 objectIds 改绑到只覆盖云和凝结标签的对象/区域（不新增 ID），避免高亮错误对象。\\\"},{\\\"blockIndex\\\":3,\\\"kind\\\":\\\"binding\\\",\\\"message\\\":\\\"此处仍高亮包含“凝结”“降水”两标签的 object-5bcacb20a954c101fa65b56ce63db7f598291a7d，讲解“降水落到陆地”时高亮会同时亮起凝结标签，指向不准确；请改绑只覆盖降水箭头和“降水”标签的对象/区域（不新增 ID）。\\\"},{\\\"blockIndex\\\":4,\\\"kind\\\":\\\"content\\\",\\\"message\\\":\\\"用 spotlight 配 pulse 强调“跟着箭头连起来说一遍”，但 spotlight 没有指定呈现变化，pulse 在 spotlight 区域上也不明显；要求是让连通示意图连同箭头整体淡入并聚光，末段应维持/恢复整图的 spotlight，并避免依赖不明效果的 pulse。\\\"}]\",\"pageNumber\":1,\"retriable\":false},{\"code\":\"COURSEWARE_NARRATION_OUTPUT_INVALID\",\"error\":\"SyntaxError: Narration semantic review returned invalid issues; draft was not saved\",\"pageNumber\":3,\"retriable\":false}],\"pages\":[],\"saved\":false,\"savedPages\":[]}",
+          "type": "text"
+        }
+      ],
+      "details": {
+        "applied": false,
+        "audioReady": false,
+        "diagnostics": [
+          {
+            "message": "Repairing invalid narration (1/2): PageCandidateError: Narration failed semantic review: [{\"blockIndex\":0,\"kind\":\"requirement\",\"message\":\"第1页要求高亮“蒸发”标签，但第1段语音只对整幅示意图做聚光，未指向/高亮蒸发标签所在对象（object-9b3e8eb33ae721f4586800fd0ed3bcd440891f08）。请在讲“海水受热蒸发”时把该段的attention绑定到 object-9b3e8eb33ae721f4586800fd0ed3bcd440891f08（该对象含太阳与蒸发标签）；整幅示意图的 fadeIn+spotlight 可保留为同一段或另拆一段，但不要只在整幅图上聚光而漏掉蒸发标签。\"}]",
+            "pageNumber": 1
+          },
+          {
+            "message": "Repairing invalid narration (2/2): PageCandidateError: Narration failed semantic review: [{\"blockIndex\":0,\"kind\":\"requirement\",\"message\":\"讲解要求高亮“蒸发”标签，但第0段只把完整水循环示意图（object-cf90…, 含海洋、天空与背景）做淡入聚光，未对“蒸发”标签做highlight；这与教学要求“蒸发、凝结、降水标签依次highlight高亮”不符。修复：在不改动本段语音文字的前提下，为“蒸发”标签（object-9b3e8e…）补充highlight/pulse 效果（可与示意图 spotlight 并行），确保效果指向被讲解的“蒸发”标签。\"},{\"blockIndex\":1,\"kind\":\"binding\",\"message\":\"“水汽升到高处遇冷凝结，就形成了云”指向 object-5bca…（凝结+降水标签、雨线与下降箭头），其标签与箭头同时对应凝结和降水，不是只讲“凝结”的对象；将 highlight 落在该复合对象会把“降水”标签一并高亮，造成讲解对象与效果目标不精确。修复：保留本句语音，只把凝结环节的 highlight 绑定到覆盖“凝结”标签的实际对象或将该复合对象一并高亮后在下段再说明降水；若当前仅有该复合对象可作为载体，应确认高亮范围明确对应凝结标签而不是让效果语义扩展到降水。\"},{\"blockIndex\":2,\"kind\":\"binding\",\"message\":\"“云里的水最后以降水形式落到陆地”再次使用同一个 object-5bca…（同时含“凝结”和“降水”两个标签、雨线与下降箭头）做 highlight，会让“凝结”标签也与“降水”讲解同时高亮；与第1段的高亮目标重复且没有区分降水环节。修复：保持本句语音文字，改为单独高亮“降水”标签对应的实际对象/区域（或在该复合对象高亮时明确限定为降水标签一侧），避免与凝结标签混淆。\"}]",
+            "pageNumber": 1
+          },
+          {
+            "message": "Accepted visual differences; narrate the actual picture: 示意图以四个独立蓝色箭头和三个文字标签呈现流向，未以单独整体图片承载；箭头分别位于东侧与中东部，并非所有箭头都与文字标签紧密绑定。",
+            "pageNumber": 3
+          },
+          {
+            "message": "Repairing invalid narration (1/2): PageCandidateError: Narration failed semantic review: [{\"blockIndex\":0,\"kind\":\"binding\",\"message\":\"讲解要求“让连通示意图连同箭头整体淡入并聚光”，但聚光只绑定了地表径流、河流、海洋三个文字标签，未覆盖含箭头的完整示意图区域。请将本段聚光目标改为覆盖山地—河流—海洋及方向箭头的教学区域（允许携带少量背景），不要只聚光三个标签。\"},{\"blockIndex\":3,\"kind\":\"content\",\"message\":\"本段说“落到陆地的水，会沿地表回到海洋”，与第1页“云中的水以降水落到陆地”相呼应，但“降水”二字未出现，可能让学生误以为任何落到陆地的水都在此图上沿地表返回；请改为“落到山地的降水，会沿地表汇入河流、回到海洋”，明确承接第1页的降水环节。\"}]",
+            "pageNumber": 3
+          },
+          {
+            "message": "Repairing invalid semantic review (1/2): SyntaxError: Narration semantic review returned invalid issues; draft was not saved",
+            "pageNumber": 3
+          },
+          {
+            "message": "Repairing invalid semantic review (2/2): SyntaxError: Narration semantic review returned invalid issues; draft was not saved",
+            "pageNumber": 3
+          }
+        ],
+        "failures": [
+          {
+            "code": "COURSEWARE_NARRATION_OUTPUT_INVALID",
+            "error": "Error: PageCandidateError: Narration failed semantic review: [{\"blockIndex\":1,\"kind\":\"content\",\"message\":\"口语段“这就是蒸发环节”未说明箭头中的水汽在上升，而图中三支箭头从海面向上，这属于应说的“水汽向上进入空气”环节；请将该句改为包含“海水蒸发成水汽、向上进入空气”的口语短句，并继续高亮蒸发区域。\"},{\"blockIndex\":2,\"kind\":\"binding\",\"message\":\"此处高亮 object-5bcacb20a954c101fa65b56ce63db7f598291a7d，该对象同时包含“凝结”和“降水”两个标签，无法只指向凝结标签；请把本效果的 objectIds 改绑到只覆盖云和凝结标签的对象/区域（不新增 ID），避免高亮错误对象。\"},{\"blockIndex\":3,\"kind\":\"binding\",\"message\":\"此处仍高亮包含“凝结”“降水”两标签的 object-5bcacb20a954c101fa65b56ce63db7f598291a7d，讲解“降水落到陆地”时高亮会同时亮起凝结标签，指向不准确；请改绑只覆盖降水箭头和“降水”标签的对象/区域（不新增 ID）。\"},{\"blockIndex\":4,\"kind\":\"content\",\"message\":\"用 spotlight 配 pulse 强调“跟着箭头连起来说一遍”，但 spotlight 没有指定呈现变化，pulse 在 spotlight 区域上也不明显；要求是让连通示意图连同箭头整体淡入并聚光，末段应维持/恢复整图的 spotlight，并避免依赖不明效果的 pulse。\"}]",
+            "pageNumber": 1,
+            "retriable": false
+          },
+          {
+            "code": "COURSEWARE_NARRATION_OUTPUT_INVALID",
+            "error": "SyntaxError: Narration semantic review returned invalid issues; draft was not saved",
+            "pageNumber": 3,
+            "retriable": false
+          }
+        ],
+        "pages": [],
+        "saved": false,
+        "savedPages": []
+      }
+    }
+  }
+]

@@ -1,0 +1,101 @@
+{
+  "originalSlideChecks": [
+    {
+      "originalPage": 1,
+      "finalPage": 1,
+      "originalShapes": 7,
+      "checks": [
+        {
+          "text": "说明文的三种说明顺序",
+          "maxGeometryDeltaEMU": 0,
+          "preserved": true
+        },
+        {
+          "text": "",
+          "maxGeometryDeltaEMU": 0,
+          "preserved": true
+        },
+        {
+          "text": "时间顺序：按时间先后介绍变化或过程。",
+          "maxGeometryDeltaEMU": 1,
+          "preserved": true
+        },
+        {
+          "text": "",
+          "maxGeometryDeltaEMU": 0,
+          "preserved": true
+        },
+        {
+          "text": "空间顺序：按位置转移介绍事物。",
+          "maxGeometryDeltaEMU": 1,
+          "preserved": true
+        },
+        {
+          "text": "",
+          "maxGeometryDeltaEMU": 0,
+          "preserved": true
+        },
+        {
+          "text": "逻辑顺序：按事理关系，如由现象到本质。",
+          "maxGeometryDeltaEMU": 1,
+          "preserved": true
+        }
+      ],
+      "preserved": true
+    },
+    {
+      "originalPage": 2,
+      "finalPage": 3,
+      "originalShapes": 7,
+      "checks": [
+        {
+          "text": "判断顺序，要看内容如何展开",
+          "maxGeometryDeltaEMU": 0,
+          "preserved": true
+        },
+        {
+          "text": "",
+          "maxGeometryDeltaEMU": 0,
+          "preserved": true
+        },
+        {
+          "text": "例句一：春天播种，夏天生长，秋天收获。",
+          "maxGeometryDeltaEMU": 1,
+          "preserved": true
+        },
+        {
+          "text": "",
+          "maxGeometryDeltaEMU": 0,
+          "preserved": true
+        },
+        {
+          "text": "例句二：走进展厅，左侧是模型，右侧是照片。",
+          "maxGeometryDeltaEMU": 1,
+          "preserved": true
+        },
+        {
+          "text": "",
+          "maxGeometryDeltaEMU": 0,
+          "preserved": true
+        },
+        {
+          "text": "判断：例句一是时间顺序；例句二是空间顺序。",
+          "maxGeometryDeltaEMU": 1,
+          "preserved": true
+        }
+      ],
+      "preserved": true
+    }
+  ],
+  "scriptChecks": [
+    {
+      "page": 1,
+      "exactSubstringOfSuppliedScript": true
+    },
+    {
+      "page": 3,
+      "exactSubstringOfSuppliedScript": true
+    }
+  ],
+  "passed": true
+}

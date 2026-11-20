@@ -70,6 +70,16 @@ test("explicit SVG path works with preview closed and local images stay in works
   assert.deepEqual(await screenshotSvg(window, workspace, join(slides, "01.svg")), png);
   assert.equal(window.calls.length, 2);
 
+  const host = new BrowserHost({
+    pane: { getWebContents: () => assert.fail("explicit SVG rendering must never open the browser guest") },
+    isPluginLoaded: () => true,
+    getFileRoot: async sessionId => { assert.equal(sessionId, "task-1"); return workspace; },
+    getMainWindow: () => windowFor([() => ["../images/photo.png"], () => png]),
+    onState: () => {},
+  });
+  assert.deepEqual(await host.screenshot({ path: join(slides, "01.svg") }, "task-1"), png);
+  await assert.rejects(host.screenshot({ path: join(slides, "missing.svg") }, "task-1"), { code: "ENOENT" });
+
   const outside = await mkdtemp(join(tmpdir(), "deckwise-svg-outside-"));
   t.after(() => rm(outside, { recursive: true, force: true }));
   await writeFile(join(outside, "foreign.svg"), markup);

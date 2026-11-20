@@ -1,0 +1,40 @@
+{
+  "checks": {
+    "desktop_native_tools_and_scene_images": {
+      "passed": 108,
+      "failed": 0,
+      "skipped": 0
+    },
+    "desktop_narration_batch": {
+      "passed": 89,
+      "failed": 0,
+      "skipped": 0
+    },
+    "desktop_typecheck": "passed",
+    "desktop_build": "passed"
+  },
+  "fixes": [
+    {
+      "module": "courseware-native-activities.ts",
+      "cause": "Short-answer Quiz used a scalar answer against the existing array contract",
+      "change": "Preserve the same reference answer as a one-element array"
+    },
+    {
+      "module": "courseware-scene-images.ts",
+      "cause": "First master cannot use a nonexistent placeholder reference, but feedback did not identify the invalid field",
+      "change": "Preserve rejection and name referenceIntentId in the error"
+    },
+    {
+      "module": "courseware-narration-batch.ts",
+      "cause": "Semantic reviewer could not see verified saved audio duration used by effect repair",
+      "change": "Pass page-local verified durations; keep programmatic timing and semantic validation"
+    }
+  ],
+  "recovery": {
+    "approvedPlanPreserved": true,
+    "firstMasterPreserved": true,
+    "successfulImportAudioPreserved": true,
+    "masterTurnInterruptedForCandidateUpgrade": true,
+    "restartCompleted": true
+  }
+}

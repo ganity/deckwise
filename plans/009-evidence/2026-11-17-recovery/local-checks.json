@@ -1,0 +1,40 @@
+{
+  "desktopRegression": {
+    "passed": 163,
+    "failed": 0
+  },
+  "agentNarration": {
+    "passed": 69,
+    "failed": 0
+  },
+  "sharedEditor": {
+    "passed": 7,
+    "failed": 0
+  },
+  "assessmentProjection": {
+    "passed": 9,
+    "failed": 0
+  },
+  "typechecks": [
+    "desktop",
+    "agent-runtime",
+    "shared build",
+    "courseware-runtime build"
+  ],
+  "desktopBuild": "passed",
+  "realRecovery": {
+    "master": "final review and full playback passed",
+    "scene": "all original audio retained; 12 segments and interactions played; background-arrow effect gap remains",
+    "import": "saved title/reference/analysis/hint verified; final review and full playback passed",
+    "freshGeneration": false
+  },
+  "latestDesktopRecovery": {
+    "passed": 95
+  },
+  "latestContentReview": {
+    "passed": 24
+  },
+  "editorNativeAndProjection": {
+    "passed": 44
+  }
+}

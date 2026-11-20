@@ -1,11 +1,13 @@
 import { createHash } from "node:crypto";
+import { nativeLayerImages } from "./courseware-native-layer-images";
 import type { CoursewareProject, CoursewareTeachingView, PptEditorContext } from "@pi-desktop/shared";
 import { generateSavedNarrationBatch } from "./courseware-narration-batch";
 import type { NarrationComplete, SceneComplete } from "./courseware-candidates";
 import type { CoursewareTeachingCoordinator } from "./courseware-teaching";
+import type { NativeNarrationAttempt, NativeRepairStore } from "./courseware-native-repairs";
 
-type Capture = { view: CoursewareTeachingView & { assessment?: unknown; embeddedAssessment?: unknown }; editor?: PptEditorContext; text: string; evidence: { width: number; height: number; notes: string; objects: Array<{ objectId: string; kind: string; text: string; bbox: number[] }> } };
-export type NativeNarrationRetryState = Map<string, { attempts: number; error?: string }>;
+type Capture = { view: CoursewareTeachingView & { assessment?: unknown; embeddedAssessment?: unknown }; editor?: PptEditorContext; text: string; evidence: { width: number; height: number; notes: string; objects: Array<{ objectId: string; kind: string; text: string; bbox: number[]; layerMetadata?: { name: string; description: string } }> } };
+export type NativeNarrationRetryState = Map<string, NativeNarrationAttempt>;
 type Result = Awaited<ReturnType<typeof generateSavedNarrationBatch>>;
 /** Feed the shared visual grounding and course planner from the live document. */
 type NativeNarrationInput = {
@@ -13,7 +15,10 @@ type NativeNarrationInput = {
   model: { modelKey: string; thinkingLevel?: string }; complete: NarrationComplete; completeVision?: SceneComplete;
   canDispatch(): boolean; assertModel(): Promise<void>; repairRequiredTeaching?: boolean; repairObjectsOnly?: boolean;
   contentFailures?: Map<string, string>;
+  frozenArtwork?: boolean;
   retryState?: NativeNarrationRetryState;
+  retryStore?: NativeRepairStore; turnId?: string;
+  persistRetryState?: () => Promise<void>;
   persist?: () => Promise<void>;
 };
 
@@ -22,6 +27,25 @@ export async function generateNativeNarration(input: NativeNarrationInput): Prom
   const savedPages: Result["savedPages"] = [], failures: Result["failures"] = [], diagnostics: Result["diagnostics"] = [];
   const original = (await input.teaching.native("narration-context", {}, input.selected[0]))?.value as Capture | undefined;
   if (!original) throw new Error("Native narration document unavailable");
+  if (input.retryStore) {
+    const { retryStore, turnId, sessionId } = input;
+    if (!turnId) throw new Error("Native narration requires an active turn for its saved retry budget");
+    const projectId = original.view.project.projectId;
+    let state = await retryStore.read(sessionId, projectId);
+    const retryState: NativeNarrationRetryState = new Map(Object.entries(state.narration?.turnId === turnId ? state.narration.pages : {}));
+    let pending = Promise.resolve();
+    input = { ...input, retryState, persistRetryState: () => {
+      // Serialize reservations before model work; a failed write fences subsequent calls.
+      pending = pending.then(async () => {
+        if (!input.canDispatch()) throw new Error("Native narration turn ended before retry reservation");
+        await input.assertModel();
+        state = await retryStore.writeNarration(sessionId, projectId, state, { turnId, pages: Object.fromEntries(retryState) });
+        if (!input.canDispatch()) throw new Error("Native narration turn ended after retry reservation");
+        await input.assertModel();
+      });
+      return pending;
+    } };
+  }
   const requested = input.selected;
   const eligible: number[] = [];
   for (const pageNumber of requested) {
@@ -106,11 +130,13 @@ async function generateNativeNarrationBatch(input: NativeNarrationInput, origina
     const render = async (n: number) => {
       await check();
       const result = await input.teaching.native("narration-visual", {}, n);
-      const dataUrl = (result?.value as { dataUrl?: string })?.dataUrl;
+      const value = result?.value as { dataUrl?: string; layers?: Array<{ objectId: string; dataUrl: string }> };
+      const dataUrl = value?.dataUrl;
       if (typeof dataUrl !== "string" || !/^data:image\/png;base64,[A-Za-z0-9+/]+=*$/.test(dataUrl) || dataUrl.length > 12 * 1024 * 1024) throw new Error("Invalid native narration preview");
       const bytes = Buffer.from(dataUrl.split(",")[1], "base64");
       if (bytes.length < 24 || bytes.readUInt32BE(0) !== 0x89504e47) throw new Error("Invalid native narration PNG");
-      return { bytes, width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20), sha256: createHash("sha256").update(bytes).digest("hex"), assetIds: [`native-page-${n}`] };
+      const layers = nativeLayerImages(value.layers, captures[n - 1].evidence.objects.filter(o => o.layerMetadata).map(o => o.objectId));
+      return { bytes, width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20), sha256: createHash("sha256").update(bytes).digest("hex"), assetIds: [`native-page-${n}`], layers };
     };
     const hashes = new Map<number, string>();
     const previews = new Map<number, Awaited<ReturnType<typeof render>>>();
@@ -168,30 +194,31 @@ async function generateNativeNarrationBatch(input: NativeNarrationInput, origina
         page.actions = page.actions.filter(a => a.type !== "native_animation");
         for (const action of page.actions) delete action.durationMs;
       }
-      const contentKey = (n: number) => createHash("sha256").update(JSON.stringify(["visual-tolerance/1", owner, input.sessionId, input.model,
+      const contentKey = (n: number) => createHash("sha256").update(JSON.stringify([input.frozenArtwork || project.taskType === "scene" ? "frozen-artwork-actions/1" : "whole-page-visual-evidence/4", initial.projectId, input.sessionId, input.model,
         captures[n - 1].view.pageId, initial.pages[n - 1].actions, captures[n - 1].text, captures[n - 1].evidence, hashes.get(n),
         captures[n - 1].view.teachingRequirements, captures[n - 1].view.enrichment, !!input.repairRequiredTeaching, !!input.repairObjectsOnly])).digest("hex");
       const blocked = selected.flatMap(pageNumber => {
         const key = contentKey(pageNumber), contentError = input.contentFailures?.get(key), state = input.retryState?.get(key);
         const exhausted = state?.error ?? (state && state.attempts >= 3 ? "Page narration attempt budget exhausted for this user turn" : undefined);
         return contentError ? [{ pageNumber, error: contentError, code: "COURSEWARE_PAGE_CONTENT_MISMATCH", retriable: false }] :
-          exhausted ? [{ pageNumber, error: exhausted, code: "COURSEWARE_NARRATION_RETRY_EXHAUSTED", retriable: false }] : [];
+          exhausted ? [{ pageNumber, error: exhausted, code: state?.code ?? (state && state.attempts >= 3 ? "COURSEWARE_NARRATION_RETRY_EXHAUSTED" : "COURSEWARE_NARRATION_REPAIR_REQUIRED"), retriable: false }] : [];
       });
       const requested = selected.filter(n => !blocked.some(f => f.pageNumber === n));
       for (const blockedPage of blocked) diagnostics.push({ pageNumber: blockedPage.pageNumber,
         message: blockedPage.code === "COURSEWARE_PAGE_CONTENT_MISMATCH"
           ? "The live page and teaching requirements are unchanged since their content mismatch. Repair the open PPT page or correct its approved page mapping before requesting narration again; SVG-only edits do not change this document."
-          : "This unchanged page has exhausted its automatic narration repair budget for the active user turn. Preserve saved peers and continue independent pages; changing instruction wording or batch size cannot reset this budget." });
+          : `This unchanged page is blocked at ${blockedPage.code} for the active user turn. Preserve saved peers and continue independent pages; changing instruction wording or batch size cannot reset this budget.` });
       result = await generateSavedNarrationBatch({
         host: { async call() { throw new Error("Native narration cannot use a Host teaching mirror"); } },
-        sessionId: input.sessionId, jobId: "native", project, bytes: new Uint8Array(), selected: requested,
+        sessionId: input.sessionId, jobId: "native", project, bytes: new Uint8Array(), selected: requested, frozenArtwork: input.frozenArtwork,
         instruction: input.instruction, speechCount: input.speechCount, model: input.model, complete: input.complete, completeVision: input.completeVision,
         repairRequiredTeaching: input.repairRequiredTeaching, repairObjectsOnly: input.repairObjectsOnly, canDispatch: input.canDispatch,
-        beforeGenerate: pageNumber => {
+        beforeGenerate: async pageNumber => {
           const key = contentKey(pageNumber), state = input.retryState?.get(key) ?? { attempts: 0 };
           if (state.attempts >= 3) throw Object.assign(new Error(state.error ?? "Page narration attempt budget exhausted for this user turn; correct the page or start a new explicit request"),
-            { code: "COURSEWARE_NARRATION_RETRY_EXHAUSTED", retriable: false });
+            { code: state.code ?? "COURSEWARE_NARRATION_RETRY_EXHAUSTED", retriable: false });
           state.attempts++; input.retryState?.set(key, state);
+          await input.persistRetryState?.();
         },
         current: async () => current(live),
         native: {
@@ -202,7 +229,11 @@ async function generateNativeNarrationBatch(input: NativeNarrationInput, origina
             assessmentPageIds: captures.filter(c => c.view.teaching?.pageType && c.view.teaching.pageType !== "slide" ||
               c.view.assessment || c.view.embeddedAssessment).map(c => c.view.pageId) },
           evidence: async n => { const c = captures[n - 1]; return { ...c.evidence, text: c.text, elements: c.evidence.objects.map(o => ({ ...o, id: o.objectId })) }; },
-          visuals: { async page(n) { return { images: [previews.get(n)!], imageBindings: [] }; }, async dispose() {} },
+          visuals: { async page(n) {
+            const preview = previews.get(n)!;
+            const layers = preview.layers.filter(l => captures[n - 1].evidence.objects.some(o => o.objectId === l.objectId && o.layerMetadata));
+            return { images: [preview, ...layers], imageBindings: layers.map(l => ({ assetId: l.assetIds[0], importElementId: l.objectId })) };
+          }, async dispose() {} },
           async save(_expected, n, actions, semantics) {
             await current(live);
             const original = live.pages[n - 1];
@@ -219,6 +250,10 @@ async function generateNativeNarrationBatch(input: NativeNarrationInput, origina
             if (source?.policy === "preserve") {
               const speech = (items: typeof actions) => items.filter(a => a.type === "speech").map(a => [a.id, a.text]);
               if (JSON.stringify(speech(actions)) !== JSON.stringify(speech(original.actions))) throw new Error("Source repair cannot change accepted script words or order");
+            }
+            if (input.repairRequiredTeaching && original.actions.some(a => a.type === 'speech')) {
+              const retained = (items: typeof actions) => items.filter(a => a.type === 'speech').map(a => [a.id, a.text, a.audioAssetId]);
+              if (JSON.stringify(retained(actions)) !== JSON.stringify(retained(original.actions))) throw new Error('Required teaching repair must preserve existing speech and audio');
             }
             let written;
             for (let writeAttempt = 0; ; writeAttempt++) {
@@ -251,14 +286,20 @@ async function generateNativeNarrationBatch(input: NativeNarrationInput, origina
       result.failures.push(...blocked);
       for (const failure of result.failures) {
         const key = contentKey(failure.pageNumber);
-        if (failure.error.includes("Required visual content missing;")) {
+        const missingContent = failure.error.includes("Required visual content missing;");
+        if (missingContent) {
           if ((input.contentFailures?.size ?? 0) >= 100) input.contentFailures?.clear();
           input.contentFailures?.set(key, failure.error);
-        } else if (failure.retriable === false) {
+        }
+        if (missingContent || failure.retriable === false) {
           const state = input.retryState?.get(key) ?? { attempts: 0 };
-          state.error = failure.error; input.retryState?.set(key, state);
+          state.error = failure.error.slice(0, 2000);
+          if (missingContent) state.code = "COURSEWARE_PAGE_CONTENT_MISMATCH";
+          else if (failure.code && /^[A-Z][A-Z0-9_]{0,99}$/u.test(failure.code)) state.code = failure.code;
+          input.retryState?.set(key, state);
         }
       }
+      if (result.failures.some(f => f.retriable === false || f.error.includes("Required visual content missing;"))) await input.persistRetryState?.();
     } catch (error) {
       result = { savedPages: [], failures: selected.filter(n => !saved.has(n)).map(pageNumber => ({ pageNumber, error: String(error) })), diagnostics: [], applied: saved.size > 0, saved: false, audioReady: false };
     }

@@ -1,0 +1,29 @@
+import assert from 'node:assert/strict';
+import { readFile, writeFile, unlink } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+const root = new URL('../../../', import.meta.url);
+const source = new URL('apps/desktop/test/courseware-native-tools.test.mjs', root);
+const temporary = new URL(`apps/desktop/test/.stability-recreation-${process.pid}.mjs`, root);
+let code = await readFile(source, 'utf8');
+const marker = "test('a failed requested effect repair remains unfinished after a broad final review passes', async () => {";
+assert(code.includes(marker));
+code = code.slice(code.indexOf('import '));
+const start = code.indexOf(marker);
+let probe = code.slice(start);
+probe = probe.replace(marker, "for (const routeKind of ['plain', 'scene', 'import']) test('runtime recreation preserves failed required repair: ' + routeKind, async () => {");
+probe = probe.replace('const f = setup(); let repaired = false;', 'const f = setup(); f.project.taskType = routeKind; let repaired = false;');
+probe = probe.replace('const tools = new CoursewareNativeTools(', 'const createTools = () => new CoursewareNativeTools(');
+probe = probe.replace('  const repair = () =>', '  let tools = createTools();\n  const repair = () =>');
+probe = probe.replace('  repaired = true; await repair();', `  tools = createTools();
+  const afterRecreation = (await tools.execute('chat', 'courseware_media_context', { reviewContent: true }, () => true)).value;
+  assert.deepEqual(f.project.pages, original, 'No successful content may be discarded');
+  assert.equal(afterRecreation.completion.ready, false, 'Runtime recreation must not erase a known failed required repair');
+  repaired = true; await repair();`);
+try {
+  await writeFile(temporary, code.slice(0, start) + probe, { flag: 'wx' });
+  const run = spawnSync(process.execPath, ['--test', '--test-name-pattern=runtime recreation preserves', fileURLToPath(temporary)], { cwd: fileURLToPath(root), encoding: 'utf8' });
+  await writeFile(new URL('runtime-recreation.log', import.meta.url), (run.stdout ?? '') + (run.stderr ?? ''));
+  process.stdout.write(run.stdout ?? ''); process.stderr.write(run.stderr ?? '');
+  process.exitCode = run.status ?? 1;
+} finally { await unlink(temporary).catch(() => {}); }

@@ -13,10 +13,12 @@ export async function recoverNativeAudio(input: {
   const { route, audio, view, check } = input;
   const pages: Array<{ pageId: string; pageNumber: number; actionId: string; intentId?: string; applied: boolean; audioReady: boolean; state: string }> = [];
   const results: Array<{ job: { kind: "tts"; sourceSha256: string; pageNumber: number; intentId: string }; applied: boolean; saved: boolean; media: Status }> = [];
-  const failures: Array<{ pageId: string; actionId?: string; intentId?: string; error: string }> = [];
+  const failures: Array<{ pageId: string; actionId?: string; intentId?: string; candidates?: string[]; error: string }> = [];
   for (const number of input.pageNumbers) {
     const original = view.project.pages[number - 1];
     for (const speech of original.actions.filter(a => a.type === "speech")) {
+      let intentId: string | undefined;
+      let candidates: string[] | undefined;
       try {
         check();
         // Coordinator reads flush pending saves; keep one source revision until the batch is committed.
@@ -51,9 +53,13 @@ export async function recoverNativeAudio(input: {
         check();
         const matching = intents.filter(i => i.current && i.actionId === action.id &&
           (input.model === undefined || i.model === input.model) && (input.voice === undefined || i.voice === input.voice));
-        if (matching.length > 1) throw new Error("Multiple matching speech tasks; refresh an explicit intent ID");
+        if (matching.length > 1) {
+          candidates = matching.map(i => i.intentId);
+          throw new Error("Multiple matching speech tasks; refresh an explicit intent ID from candidates");
+        }
         if (!matching.length) { pages.push({ ...row, state: "missing" }); continue; }
-        const intentId = matching[0].intentId, args = { ...scope, intentId };
+        intentId = matching[0].intentId;
+        const args = { ...scope, intentId };
         const media = await audio.execute("tts:status", args, pageNumber, current) as Status;
         check();
         const applied = media.task?.state === "ready";
@@ -72,8 +78,9 @@ export async function recoverNativeAudio(input: {
         const action = page?.actions.find(a => a.id === speech.id && a.type === "speech" && a.text === speech.text);
         const applied = reread?.project.projectId === view.project.projectId && reread.project.source.sha256 === view.project.source.sha256 &&
           typeof action?.audioAssetId === "string" && typeof speech.audioAssetId !== "string";
-        pages.push({ pageId: original.pageId, pageNumber: number, actionId: String(speech.id), applied, audioReady: applied, state: applied ? "adopted_with_error" : "failed" });
-        failures.push({ pageId: original.pageId, actionId: String(speech.id), error: String(error) });
+        pages.push({ pageId: original.pageId, pageNumber: number, actionId: String(speech.id), ...(intentId && { intentId }), applied, audioReady: applied,
+          state: applied ? "adopted_with_error" : candidates ? "ambiguous_receipt" : "refresh_unconfirmed" });
+        failures.push({ pageId: original.pageId, actionId: String(speech.id), ...(intentId && { intentId }), ...(candidates && { candidates }), error: String(error) });
       }
     }
   }

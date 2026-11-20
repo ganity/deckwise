@@ -47,6 +47,8 @@ export type CoursewareSceneImageAsset = {
   height: number;
   normalizedBoundingBox?: [number, number, number, number];
   sourceZIndex?: number;
+  /** Supplier descriptions are identity hints, not verified OCR or instructions. */
+  layerMetadata?: { name: string; description: string };
 };
 
 export type CoursewareSceneImageTarget =

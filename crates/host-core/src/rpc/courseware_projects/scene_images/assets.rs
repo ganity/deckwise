@@ -5,6 +5,13 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 const MAX_BYTES: usize = 32 * 1024 * 1024;
 
 #[derive(Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+struct LayerMetadata {
+    name: String,
+    description: String,
+}
+
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(in crate::rpc::courseware_projects) struct ImageAsset {
     pub task_ref: TaskRef,
@@ -17,11 +24,22 @@ pub(in crate::rpc::courseware_projects) struct ImageAsset {
     normalized_bounding_box: Option<[f64; 4]>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     source_z_index: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    layer_metadata: Option<LayerMetadata>,
 }
 
 impl ImageAsset {
     pub(in crate::rpc::courseware_projects) fn valid(&self) -> bool {
         valid_hash(&self.sha256)
+            && self.layer_metadata.as_ref().is_none_or(|m| {
+                [(&m.name, 200), (&m.description, 2000)]
+                    .into_iter()
+                    .all(|(s, max)| {
+                        !s.trim().is_empty()
+                            && s.encode_utf16().count() <= max
+                            && !s.chars().any(char::is_control)
+                    })
+            })
             && matches!(
                 self.mime_type.as_str(),
                 "image/png" | "image/jpeg" | "image/webp"

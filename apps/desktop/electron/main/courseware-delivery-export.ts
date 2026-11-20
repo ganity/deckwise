@@ -1,3 +1,4 @@
+import { coursewareWorkerPath } from "./courseware-runtime";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -11,7 +12,7 @@ import type { NativeResource } from "./courseware-classroom-timeline";
 import type { PptEditorController } from "./ppt-editor";
 import type { CoursewareTeachingCoordinator } from "./courseware-teaching";
 const digest = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
-const DELIVERY_ADAPTER_VERSION = "native-maic-delivery/2";
+const DELIVERY_ADAPTER_VERSION = "native-maic-delivery/4";
 export const coursewareDeliveryFingerprint = (sourceHash: string, converterHash: string) => digest(Buffer.from(JSON.stringify([DELIVERY_ADAPTER_VERSION, sourceHash, converterHash])));
 type DeliveryTeachingView = CoursewareTeachingView & { enrichment?: CoursewareEnrichment };
 
@@ -30,7 +31,7 @@ export function assertNativeCoursewareReady(view: DeliveryTeachingView) {
     throw new Error(`Complete courseware before synchronizing: ${[...issues.map(issue => `${issue.code} on ${issue.pageId}`), ...enrichment.issues.map(issue => issue.code)].join(", ")}`);
 }
 
-/** Use the same verified worker and native teaching conversion as local playback. */
+/** Export verified source and native teaching in the platform's playback format. */
 export async function exportNativeDelivery(input: { sessionId: string; workspace: string; editor: PptEditorController;
   teaching: CoursewareTeachingCoordinator; outputDirectory: string; reviewedWarningCodes?: string[]; assertOwner(): void;
   host: { call<T>(method: string, params: unknown): Promise<T> } }) {
@@ -46,14 +47,14 @@ export async function exportNativeDelivery(input: { sessionId: string; workspace
   const carrier = await readNativeTeachingPackage(await readFile(raw.sourcePath));
   if (!carrier) throw new Error("Native teaching is unavailable");
   assertNativeCoursewareReady(view);
-  const worker = process.env.DECKWISE_PPTX_WORKER || join(process.resourcesPath || "", "pptx-worker/pptx-worker.mjs");
+  const worker = coursewareWorkerPath();
   const manifest = await readFile(join(dirname(worker), "manifest.json"));
   const buildInput = adaptCanonicalSnapshot(raw.project, snapshot, { sourcePath: raw.sourcePath, mapping: raw.mapping, assets: raw.assets,
     converter: { version: "maic-pptx-import-ir/1", manifestSha256: digest(manifest) }, reviewedWarningCodes: input.reviewedWarningCodes ?? [] }, { nativeTeaching: true });
   let bytes: Uint8Array | undefined;
   await buildFixedCourseware(buildInput, { workerDirectory: dirname(worker), outputDirectory: input.outputDirectory,
     ...(carrier.assessments ? { nativeAssessments: carrier.assessments } : {}),
-    onConverted: async ({ ir, input: convertedInput, directory, assets }) => {
+    onConverted: async ({ ir, input: convertedInput, pages, directory, assets }) => {
       input.assertOwner();
       const deliveryPages = carrier.pages.map(page => {
         const converted = convertedInput.teaching.pages.find(candidate => candidate.pageId === page.pageId);
@@ -76,12 +77,32 @@ export async function exportNativeDelivery(input: { sessionId: string; workspace
       }
       const seed: NativeClassroomSeed = { projectId: snapshot.projectId, revision: null, sourceRevision: snapshot.source.revision,
         currentSourceRevision: snapshot.source.revision, ir, project: { ...raw.project, pages: deliveryPages },
-        mapping: convertedInput.mapping, assets: [],
+        mapping: convertedInput.mapping, convertedSlides: new Map(pages.map(page => [page.pageId, page])), assets: [],
         classroom: parseMaicClassroom({ id: snapshot.projectId, createdAt: new Date(now).toISOString(),
           stage: { id: snapshot.projectId, name: view.project.title || ir.title || "Course", createdAt: now, updatedAt: now },
           scenes: mapMaicSlideIrToScenes(snapshot.projectId, ir).map((scene, index) => ({ ...scene, id: raw.project.pages[index].pageId, actions: [], metadata: { nativePageId: raw.project.pages[index].pageId, nativeEmbeddedAssessments: true, nativeTeachingSignature: "" } })) }) };
-      const classroom: MaicClassroom = projectDeliveryAssessments(reconcileMaicNativeSource(seed, resources),
+      const classroom: MaicClassroom = projectDeliveryAssessments(reconcileMaicNativeSource(seed, resources, true),
         deliveryPages, carrier.assessments, view.enrichment, imageAssets);
+      const educationContext = view.project.educationContext;
+      const durationByUrl = new Map([...resources.values()].map(asset => [asset.url, asset.durationMs]));
+      const timedMedia = classroom.scenes.flatMap(scene => (scene.actions ?? []).flatMap(action => {
+        if (action.type === "speech" && action.audioUrl) {
+          const duration = durationByUrl.get(action.audioUrl);
+          return [duration === undefined ? undefined : duration + (action.pauseAfterMs ?? 0)];
+        }
+        if (action.type !== "play_audio" && action.type !== "play_video") return [];
+        const asset = classroom.mediaManifest?.find(entry => entry.sceneId === scene.id && entry.elementId === action.elementId);
+        return [asset && durationByUrl.get(asset.src)];
+      }));
+      const durationMs = timedMedia.every((duration): duration is number => typeof duration === "number" && Number.isFinite(duration))
+        ? timedMedia.reduce((sum, duration) => sum + duration, 0)
+        : 0;
+      classroom.metadata = {
+        ...classroom.metadata,
+        ...(educationContext ? { educationContext } : {}),
+        ...(durationMs > 0 ? { playbackDurationSeconds: Math.ceil(durationMs / 1000) } : {}),
+      };
+      if (educationContext?.fullEnglishTeaching) classroom.stage.language = "en";
       // A final package may never silently fall back to runtime TTS.
       if (classroom.scenes.some(s => s.actions?.some(a => a.type === "speech" && a.text.trim() && !a.audioUrl))) throw new Error("Complete narration audio before synchronizing");
       bytes = await exportMaicClassroom(classroom, async asset => {

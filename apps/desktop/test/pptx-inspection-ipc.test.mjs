@@ -1,3 +1,4 @@
+import * as coursewareRuntime from "../electron/main/courseware-runtime.ts";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -27,6 +28,7 @@ test("inspection IPC authenticates sender and accepts only a host-selected saved
   }
   const module = { exports: {} };
   new Function("require", "exports", "module", outputText)((id) => {
+    if (id === "../courseware-runtime") return coursewareRuntime;
     if (id.startsWith("node:")) return require(id);
     if (id === "electron") return { app: { getPath: () => "/unused-inspection-profile" } };
     if (id === "../courseware-document-tools") return { CoursewareDocumentTools: class { transition(operation) { return operation(); } } };

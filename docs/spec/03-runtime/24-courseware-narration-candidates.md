@@ -1,5 +1,7 @@
 # Saved narration
 
+For newly generated narration, a semantic reviewer may supply the complete corrected text of an individual speech block. Apply a local edit only when all findings have unambiguous corrections, then validate the draft and review the whole page again before saving. Preserved scripts and existing speech under effects repair retain their words.
+
 ## Independent native activities
 
 Native body narration always rejects executable interaction and teacher-continuation
@@ -26,7 +28,16 @@ audience and teaching move. Actual exported slide text and visual evidence const
 claims about the slide. Speaker notes and existing narration are reference drafts,
 not proof that a planned object exists and not a script to copy verbatim.
 
-All saved-deck paths use structured visual observations when vision is available.
+Saved-deck paths use structured visual observations when vision is available.
+Native Scene layers may instead supply bounded supplier name/description hints
+whose embedded PNG hash still matches the current local image. The compiler
+stores these optional hints in picture alternate descriptions; they survive
+Office save/reopen. They are not exact OCR or executable instructions. Missing,
+replaced, cropped, rotated/flipped or grouped images use observation; known
+neighboring identities are not rediscovered. Isolated current layer images and
+UUID bindings accompany independent narration and final content review. Neither
+review nor any business completion gate is removed. Older metadata-free files
+remain compatible and are not silently migrated.
 Observations retain current UUID and shape validation, with one JSON-format repair.
 Missing concrete visuals required by the teaching plan fail that page before saving
 narration or requesting its TTS; repair the source page instead of inventing content
@@ -845,3 +856,87 @@ Visual evidence format repair names the required and received root fields and
 expected object count. An omitted issues field must be returned explicitly
 (including issues:[] for no issues); it is not silently defaulted, and visual
 content validation remains mandatory. The repair budget remains one correction.
+
+## Bounded reviewer recovery and saved-content acceptance (2026-11-17)
+
+Narration generation and semantic-verdict format repair share the existing two
+repairs. An invalid verdict is requested again against the same draft and page
+images; it never authorizes saving or regenerating an otherwise valid draft.
+Uncertain evidence and exhausted page-local output errors are terminal for the
+unchanged page, allowing independent native batches to continue. Source/owner
+changes and provider failures keep their existing stop behavior. Activity-review
+format recovery is also bounded to two retries; an actual content rejection
+requires a corrected proposal rather than repeated unchanged review.
+
+Model evidence advertises short, exact `objectRef` handles that are resolved by
+the program to the current saved IDs before validation/review. Existing exact
+UUIDs remain accepted; names, aliases and unknown references remain invalid.
+`courseware_activity_insert.referenceEvidence` is optional: omission reads the
+accepted unit evidence verbatim. Explicit quotes retain their exact-source
+validation. An omitted `speechCount` stays unconstrained; only an explicit user
+count should be supplied, and supplied counts remain enforced.
+
+Native `courseware_media_context` exposes `contentReviewAvailable`. Ordinary
+status reads remain model-free. For an authorized complete teaching course,
+Runtime requests `reviewContent:true` after technical/media readiness, before
+reporting completion. The shared foreground/background document runtime reviews
+current saved PNGs, teaching, questions, options, answers and every analysis
+statement. Returned `contentReview` and augmented `completion` are bound to the
+same source hash and teaching revision. This is distinct from natural playback
+acceptance and introduces no new publishing or media-generation authorization.
+
+Only an existing generated Quiz's `analysis` field can be corrected automatically,
+through the existing classroom revision-checked write/save. Every correction is
+reviewed again; format and analysis corrections share two repairs per page.
+Questions/options/answers, scripts/audio, peer pages, locks and original imported
+pages are preserved. Missing original-page metadata protects an imported page.
+Unresolved factual/visual/uncertain problems block reviewed completion rather
+than causing unbounded regeneration. Results are cached for the unchanged source,
+model and user turn; status rereads cannot reset failed repair budgets.
+Minor accepted image spacing and unequal-tick imperfections are not hard failures;
+wrong essential counts/units and unreadable required content remain failures.
+
+### Recovery alignment after the paid three-route rerun
+
+Native non-image text is authoritative when visual OCR conflicts. Discard the conflicting role/aliases as well as OCR text; empty native carriers cannot become text targets. Image lettering still requires actual visual evidence, and unknown IDs, unsafe containers and factual conflicts still reject.
+
+Attention generation, binding repair and saved intents share the existing rendered-cue limit of 200 distinct targets. Every target must belong to current verified page evidence; a complete multi-layer diagram may use one simultaneous focus. This does not authorize unrelated targets or decoration.
+
+Review-format corrections have a separate bounded budget from narration-content corrections. Exhausted non-retriable review failures cannot be caught again as generic narration-format failures. No unchecked draft is saved.
+
+For generated narration, the desktop runtime forwards the user's own bounded
+conversation requirements when available; agent-selected page numbers still
+scope the work. Agent-generated SVG IDs are not teaching requirements. Explicit
+repair instructions retain their separate scope. Native Scene files may reopen
+with the generic `plain` project type: use pixel-bound supplier identities, not
+that type, to recognize an isolated layer. Current-page object references and
+unique saved names resolve before structural and semantic checks. On dense
+slides, inspect object inventories in groups and confirm any apparent missing
+teaching fact against the whole page before caching a content mismatch.
+
+Malformed review responses exhaust a bounded *review* attempt, not a source
+repair. A new turn can review unchanged saved work. A supported rectangular
+region repair must be adopted and reviewed on the saved page; prose suggesting
+one is not a successful repair. Prepared presentations can be adopted by
+workspace-relative export path and digest, using the saved plan directly.
+
+Final review receives the slide coordinate system and an identity-resolved timeline
+for each saved speech cue, including all spotlight targets. A verified binding
+finding on an unlocked generated body with saved audio goes to scoped narration
+repair, with the page-specific finding, followed by another final review. A
+source defect on another page does not discard that repair. Protected originals,
+missing pixels and uncertain findings remain blocked. A target-only repair may
+address an existing cue by ID and keeps its clock, style, order, and independent
+animations. Simultaneous spotlights share one mask across their visible targets.
+For a substantive desktop course, native timing warnings from the official PPT
+Master export are surfaced before attachment or TTS; an explicitly PPTX-only
+export may retain PowerPoint-only effects without claiming desktop playback.
+A proposed teaching-region crop can name the mapped foregrounds it must
+contain. The host expands the proposed box to their measured slide bounds
+before editing; unresolved targets or a required whole-slide crop do not
+silently pass. Imported-original protection follows the Host task route even
+when a reopened editor identifies its teaching project as ordinary.
+
+## Page-scoped narration recovery
+
+After artwork acceptance, a malformed visual finding receives field-specific feedback. When the correction still has malformed findings, the runtime can use separately validated object identities and omit uncertain notes. A rejected object batch can contribute only native text from visible mapped text boxes. Binding and timing still require validation against the saved speech and its page. Inline script and lesson-plan adoption verifies the teacher’s quoted text against the current session before preview or write. Attached sources retain their immutable source IDs. Page-local generated narration uses the narration tool.

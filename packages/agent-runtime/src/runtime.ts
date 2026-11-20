@@ -25,7 +25,7 @@ import { createPptChangePlanTool } from "./ppt-change-plan.js";
 import { createAuthorizedMediaCanvasTools } from "./courseware-media-canvas-tools.js";
 import { createCoursewareWorkflowTools } from "./courseware-workflow-tools.js";
 import { CoursewareTurnContinuation } from "./courseware-turn-continuation.js";
-import { CoursewareWorkflowError } from "./courseware-workflow-recovery.js";
+import { CoursewareWorkflowError, coursewareInputHint, coursewareOperationHint } from "./courseware-workflow-recovery.js";
 import type { PptEditorBinding } from "@pi-desktop/shared";
 import { mkdirSync } from "node:fs";
 import {
@@ -2124,6 +2124,9 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       `Editing workflow: inside the advertised workspace, use Edit for small, uniquely anchored changes and Write for new files or intentional whole-file rewrites. Never modify the same path concurrently. Do not use shell apply_patch, git apply, patch, or hand-edited unified-diff files. On failure, diagnose the cause, refresh content or anchors with Read or a complete tool-provided reveal when needed, and correct the payload before retrying. After three failed edit attempts on the same path in one user turn, stop editing that path, report the exact error, and continue unblocked work. For an authorized worktree outside the advertised workspace, use a guarded, deterministic Bash edit that aborts on unexpected content, then verify the diff.`,
       // Shell dialect and scratch variable are selected by host-core.
       `For user-visible HTML pages, call the BrowserPreview tool once after creating the page or making the first meaningful visual edit, using its workspace-relative path (e.g. \`index.html\` or \`demo/index.html\`) to show it in PI-Desktop's built-in browser panel. Reuse that preview while iterating: it live-reloads as you edit, so no repeat call or manual refresh is needed. Skip generated, test-only, and non-visual HTML files. If BrowserPreview is not in the current tool list, load it first with ${TOOL_SEARCH_NAME}.`,
+      ...((this.workspaceRoot ?? this.projectPath ?? this.scratchDir) ? [
+        `Current tool workspace root: ${JSON.stringify(this.workspaceRoot ?? this.projectPath ?? this.scratchDir)}. Relative file paths and shell commands start here. Each shell call starts here again; cd in a previous call does not change it. Use Host-returned artifact paths directly.`,
+      ] : []),
       commandShellGuidance(this.commandShell, this.scratchDir),
       // Session scratch directory (D114).
       ...(this.scratchDir
@@ -2352,17 +2355,20 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
                 await this.handleAgentEvent({ type: "tool_execution_end", toolCallId, toolName: name, result, isError: false });
                 return result;
               } catch (cause) {
-                const code = isRecord(cause) && typeof cause.code === "string" &&
+                const hint = coursewareInputHint(cause);
+                const code = hint && cause instanceof CoursewareWorkflowError ? cause.code : isRecord(cause) && typeof cause.code === "string" &&
                   ["COURSEWARE_CONFLICT", "COURSEWARE_INVALID", "COURSEWARE_INCOMPLETE", "COURSEWARE_NOT_FOUND", "COURSEWARE_WORKFLOW_REJECTED", "TOOL_FAILED", "PERMISSION_DENIED", "TASK_STATUS_UNAVAILABLE"].includes(cause.code)
                   ? cause.code : "COURSEWARE_WORKFLOW_FAILED";
                 const text = name === "courseware_scene_plan_submit" && cause instanceof CoursewareWorkflowError
-                  ? cause.message.slice(0, 8000) : `Courseware workflow operation failed (${code}).`;
+                  ? cause.message.slice(0, 8000) : hint ?? coursewareOperationHint(name) ?? `Courseware workflow operation failed (${code}).`;
                 await this.handleAgentEvent({ type: "tool_execution_end", toolCallId, toolName: name, isError: true,
                   result: { content: [{ type: "text", text }], details: { code } } });
                 throw cause;
               }
             },
           }, signal).catch(cause => {
+            const correction = canWait() ? this.coursewareTurn.recoverInput(cause) : undefined;
+            if (correction) return correction;
             // A local continuation failure must never restart a successful model response.
             if (cause instanceof CoursewareWorkflowError && cause.operation) this.coursewareContinuationError = cause;
             throw readLocalRequestErrorDetails(cause) ? cause : new LocalRequestError("request-preparation", { cause });
@@ -2609,7 +2615,9 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       const attempts = (this.toolValidationFailures.get(result.toolName) ?? 0) + 1;
       this.toolValidationFailures.set(result.toolName, attempts);
       // Never echo the malformed payload back into the correction context.
+      const recovery = coursewareOperationHint(result.toolName);
       result.content = [{ type: "text", text: `Invalid arguments for ${result.toolName}; no work was performed.\n${issues}\n` +
+        (attempts < 2 && recovery ? recovery + "\n" : "") +
         (attempts < 2 ? "Correct these fields once using the tool schema and current context. Do not include tool-call markup inside argument values."
           : "Argument correction failed twice. This turn is stopped; report this validation error rather than retrying or changing unrelated content.") }];
       if (attempts >= 2) this.toolValidationStop ??= { toolName: result.toolName, attempts, issues };
@@ -4087,7 +4095,8 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
       ...contextTools,
       ...extensionTools,
       ...(this.mode === "agent" ? createAuthorizedMediaCanvasTools(this.host, this.sessionId, () => this.turnId) : []),
-      ...(this.mode === "agent" ? createCoursewareWorkflowTools(this.host, this.sessionId, () => this.turnId) : []),
+      ...(this.mode === "agent" ? createCoursewareWorkflowTools(this.host, this.sessionId, () => this.turnId, () =>
+        this.agent.state.messages.filter((m): m is UserMessage => m.role === "user").map(userMessageTextForCheckpoint).join("\n\n")) : []),
       ...(this.mode === "agent" && this.pptEditorBinding
         ? [...createAuthorizedPptEditorTools(this.host, this.sessionId, this.pptEditorBinding, () => this.turnId),
           ...createAuthorizedPptCandidateTools(this.host, this.sessionId, this.pptEditorBinding, () => this.turnId),
@@ -5913,7 +5922,7 @@ Do not invent objections or turn speculative risks into blockers. Stop when the 
   private activateDeferredTools(names: readonly string[]): string[] {
     const savedTeachingTools = ["courseware_presentation_adopt", "courseware_narration_context", "courseware_narration_propose", "courseware_narration_plan", "courseware_narration_import", "courseware_activity_insert",
       "courseware_media_context", "courseware_media_prepare", "courseware_media_refresh", "courseware_media_assessments"];
-    const selectedNames = names.includes("courseware_workflow_get") ? [...names, "courseware_scene_plan_submit", "courseware_story_begin", "courseware_story_save"] : names;
+    const selectedNames = names.includes("courseware_workflow_get") ? [...new Set([...names, "courseware_scene_plan_submit", "courseware_story_begin", "courseware_story_save"])] : names;
     const selected = selectedNames.some(name => name === "courseware_scene_compile" || savedTeachingTools.includes(name))
       ? [...new Set([...selectedNames, ...savedTeachingTools])] : selectedNames;
     const activated = selected.filter(name => this.deferredToolNames.has(name)

@@ -119,6 +119,47 @@ test("saved prepared and submitted jobs keep their original IDs and pending poll
   assert(f.calls.some(call => call.args.intentId === "submitted-original" && call.args.waitForUpdate));
 });
 
+test("lost prepare and refresh replies retain the exact master and split receipts", async () => {
+  const f = fixture(2);
+  const master = { ...f.make("scene-002", "visualMaster", "saved-master"), phase: "submitted", task: { state: "queued" } };
+  f.rows.push(master);
+  f.services.execute = async (op, args) => {
+    if (op === "courseware_scene_image_prepare") {
+      assert.equal(args.target.kind, "cleanPlate");
+      f.rows.push({ ...f.make("scene-001", "cleanPlate", "saved-split", { intentId: f.rows[0].intentId, sha256: f.rows[0].asset.sha256 }), phase: "submission-unknown" });
+    } else assert.equal(args.intentId, master.intentId);
+    throw Error("connection closed");
+  };
+  const result = await f.run();
+  assert.equal(result.ready, false);
+  assert.deepEqual(result.failures.map(f => [f.intentId, f.lastState]).sort(), [["saved-master", "queued"], ["saved-split", "submission-unknown"]]);
+});
+
+test("a pending receipt returned at the deadline survives without another paid request or poll", async t => {
+  t.mock.timers.enable({ apis: ["Date"], now: 1 });
+  const f = fixture(1), master = f.rows[0];
+  f.services.execute = async () => {
+    t.mock.timers.tick(16 * 60000);
+    return { image: { ...f.make("scene-001", "cleanPlate", "original", { intentId: master.intentId, sha256: master.asset.sha256 }), phase: "submitted", task: { state: "queued" } } };
+  };
+  const result = await f.run();
+  assert.deepEqual(result.failures.map(f => [f.intentId, f.lastState]), [["original", "queued"]]);
+  assert.match(result.failures[0].error, /timed out/);
+});
+
+test("a final workflow read outage preserves the split receipt and reports incomplete acceptance", async () => {
+  const f = fixture(1), master = f.rows[0];
+  f.rows.push({ ...f.make("scene-001", "cleanPlate", "original", { intentId: master.intentId, sha256: master.asset.sha256 }), phase: "submitted" });
+  f.services.execute = async () => {
+    f.services.images = async () => { throw Error("journal unavailable"); };
+    throw Error("query interrupted");
+  };
+  const result = await f.run();
+  assert.equal(result.ready, false);
+  assert.equal(result.failures[0].intentId, "original");
+  assert.match(result.statusReadError, /journal unavailable/);
+});
+
 test("resume processes a newer replacement master instead of reusing the old selected design", async () => {
   const f = fixture(2);
   f.rows.push({ ...f.make("scene-002", "visualMaster", "old-master"), selected: true, asset: { sha256: "old" } });
@@ -169,6 +210,8 @@ test("actual Main entry runs the pipeline through its scoped image actions and n
     async prepare(args) { return (await f.services.execute("courseware_scene_image_prepare", args)).image; }
   }
   const { CoursewareChatWorkflow } = await load("courseware-chat-workflow", {
+    "node:path": await import("node:path"),
+    "./courseware-scene-plan": { sceneCoursePlanRelativePath: () => "scene.plan.json" },
     "@pi-desktop/shared": shared,
     "./courseware-presentation": { adoptPresentation: () => assert.fail("Scene tasks cannot adopt ordinary exports") },
     "./courseware-presentation-prepare": { preparePresentation: () => assert.fail("Scene tasks cannot prepare ordinary pages") },

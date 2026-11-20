@@ -33,6 +33,7 @@ const module = { exports: {} };
 new Function("require", "exports", outputText)((id) => {
   if (id === "@pi-desktop/shared") return shared;
   if (id === "./courseware-scene-object-view") return semantics.exports;
+  if (id === "./fs-panel") return { resolveRealOpenablePath: async (path, root) => path.startsWith(root + "/") ? path : null };
   if (id === "./courseware-teaching-effects") return effects;
   if (id === "node:crypto") return { randomUUID: () => crypto.randomUUID() };
   if (id === "node:timers/promises") return { setTimeout: async () => {} };
@@ -46,6 +47,21 @@ function historyFixture() {
     actions: [{ id: "recovered-speech", type: "speech", text: "Good!", source: "generated", pauseAfterMs: 1200 }],
     omittedAudioCount: 1, omittedCueCount: 1 }], skippedEntryCount: 0 };
 }
+
+test("only the owning task's generated Scene document is frozen after reopening", async () => {
+  const target = { workspaceRoot: "/school", sourcePath: "/school/accepted.pptx" };
+  const task = { taskType: "scene", generatedPath: target.sourcePath };
+  const host = { call: async () => ({ task }) };
+  const teaching = new CoursewareTeachingCoordinator({ documentTarget: () => target }, () => host, async () => target.workspaceRoot, () => "chat", () => {});
+  assert.equal(await teaching.isAdoptedTeachingDocument("chat"), true);
+  task.taskType = "plain";
+  assert.equal(await teaching.isAdoptedTeachingDocument("chat"), true);
+  assert.equal(await teaching.isAdoptedTeachingDocument("another-chat"), false);
+  target.sourcePath = "/school/other.pptx";
+  assert.equal(await teaching.isAdoptedTeachingDocument("chat"), false);
+  target.sourcePath = task.generatedPath; task.taskType = "import";
+  assert.equal(await teaching.isAdoptedTeachingDocument("chat"), false);
+});
 
 test("history reads deleted-page text through the current saved view and keeps the write pin usable", async () => {
   const f = setup(), call = f.host.call, history = historyFixture();
@@ -843,7 +859,7 @@ test("PPTX candidate review is read-only, preview stays Main-private, and reject
   await assert.rejects(teaching.rejectPptxCandidate(review.reviewId), /expired/);
 });
 
-test("rebuilt candidate review pins targets and rejects incomplete or changed effect associations before adoption", async () => {
+test("page rebuild candidates are blocked after narration even when they carry effect bindings", async () => {
   for (const kind of ["page-pptx", "page-style-batch"]) {
     const f = setup(), call = f.host.call;
     const pageId = f.project().pages[0].pageId;
@@ -856,29 +872,12 @@ test("rebuilt candidate review pins targets and rejects incomplete or changed ef
       outputSha256: "d".repeat(64), pageCount: 2, stale: false, lineageVerified: true, applied: false,
       effectTargets: [{ pageId, objectId: "old-text", kind: "text", index: 1 }, { pageId, objectId: "old-shape", kind: "shape", index: 2 }],
       effectPages: [{ objects: [{ index: 1, kind: "shape" }, { index: 2, kind: "text" }, { index: 3, kind: "line" }] }, { objects: [] }] };
-    let prepares = 0;
     f.host.call = async (method, params) => {
       if (method === "courseware.sourceCandidate.get") return structuredClone(candidate);
-      if (method === "courseware.sourceAdoption.prepare") {
-        prepares++; assert.deepEqual(params.effectBindings, [{ pageIndex: 0, objectId: "old-text", targetIndex: 2 }, { pageIndex: 0, objectId: "old-shape", targetIndex: 1 }]);
-        return { path: "/host/candidate.pptx", adoption: { adoptionId: "adopt-effects", projectId: candidate.projectId, candidateId: candidate.candidateId,
-          sourceSha256: f.snapshot.sha256, outputSha256: candidate.outputSha256, sourcePath: params.sourcePath, status: "pending" } };
-      }
       return call(method, params);
     };
-    const teaching = f.make(), review = await teaching.reviewPptxCandidate({ sessionId: "chat-1", candidateId: candidate.candidateId });
-    assert.equal(review.effectTargets[0].pageIndex, 0);
-    assert.deepEqual(review.effectCues, [{ pageNumber: 1, effect: "highlight", atMs: 0, endMs: 800 }]);
-    const valid = [{ pageIndex: 0, objectId: "old-text", targetIndex: 2 }, { pageIndex: 0, objectId: "old-shape", targetIndex: 1 }];
-    for (const bad of [undefined, [], valid.slice(0, 1), [valid[0], { ...valid[1], targetIndex: 2 }],
-      [valid[0], { ...valid[1], pageIndex: 1 }], [valid[0], { ...valid[1], targetIndex: 3 }],
-      [valid[0], { ...valid[1], extra: true }], [valid[0], { ...valid[1], objectId: "foreign" }]])
-      await assert.rejects(teaching.preparePptxAdoption(review.reviewId, "/workspace/lesson.pptx", bad), /effect|association/);
-    assert.equal(prepares, 0);
-    await teaching.preparePptxAdoption(review.reviewId, "/workspace/lesson.pptx", valid); assert.equal(prepares, 1);
-    candidate.effectPages[0].objects[0].kind = "image";
-    await assert.rejects(teaching.preparePptxAdoption(review.reviewId, "/workspace/lesson.pptx", valid), /effect targets changed/);
-    assert.equal(prepares, 1);
+    const teaching = f.make();
+    await assert.rejects(teaching.reviewPptxCandidate({ sessionId: "chat-1", candidateId: candidate.candidateId }), /frozen after narration/);
   }
 });
 
@@ -901,7 +900,7 @@ test("renderer cannot choose source, workspace or target and changed editor stat
 });
 
 for (const kind of ["page-fade", "page-pptx", "page-style-batch"]) test(`${kind} adoption requires a retained verified review and a matching Host intent`, async () => {
-  const f = setup(); const call = f.host.call;
+  const f = setup(); if (kind !== "page-fade") f.project().pages.forEach(page => { page.actions = []; }); const call = f.host.call;
   const outputSha256 = "d".repeat(64);
   const candidate = { candidateId: "pptx-1", projectId: f.project().projectId, kind, status: "needs-review",
     source: { sha256: f.snapshot.sha256 }, teachingRevision: f.project().teachingRevision,
@@ -931,7 +930,7 @@ for (const kind of ["page-fade", "page-pptx", "page-style-batch"]) test(`${kind}
 
 test("redo adoption refuses stale, unverified, dirty and changed ownership before creating an intent", async () => {
   for (const change of ["stale", "unverified", "dirty", "chat", "workspace", "source", "readonly"]) {
-    const f = setup(), call = f.host.call; let prepares = 0;
+    const f = setup(); f.project().pages.forEach(page => { page.actions = []; }); const call = f.host.call; let prepares = 0;
     const candidate = { candidateId: "redo-1", projectId: f.project().projectId, kind: "page-pptx", status: "needs-review",
       source: { sha256: f.snapshot.sha256 }, teachingRevision: f.project().teachingRevision,
       targetPageIds: [f.project().pages[0].pageId], outputSha256: "d".repeat(64), pageCount: 2,
@@ -950,6 +949,17 @@ test("redo adoption refuses stale, unverified, dirty and changed ownership befor
     await assert.rejects(teaching.preparePptxAdoption(review.reviewId, "/workspace/lesson.pptx"), undefined, change);
     assert.equal(prepares, 0, change);
   }
+});
+
+test("a verified page redo candidate cannot be adopted after narration starts", async () => {
+  const f = setup(); f.project().pages.forEach(page => { page.actions = []; }); const call = f.host.call;
+  const candidate = { candidateId: "redo-late", projectId: f.project().projectId, kind: "page-pptx", status: "needs-review",
+    source: { sha256: f.snapshot.sha256 }, teachingRevision: f.project().teachingRevision,
+    targetPageIds: [f.project().pages[0].pageId], outputSha256: "d".repeat(64), pageCount: 2, stale: false, lineageVerified: true, applied: false };
+  f.host.call = async (method, params) => method === "courseware.sourceCandidate.get" ? structuredClone(candidate) : call(method, params);
+  const teaching = f.make(), review = await teaching.reviewPptxCandidate({ sessionId: "chat-1", candidateId: "redo-late" });
+  f.project().pages[0].actions = [{ id: "speech", type: "speech", text: "Saved narration" }];
+  await assert.rejects(teaching.preparePptxAdoption(review.reviewId, "/workspace/lesson.pptx"), /frozen after narration/);
 });
 
 test("late parse result cannot initialize teaching for another current page", async () => {
@@ -1212,7 +1222,7 @@ test("abort during replacement parsing cancels and releases that exact job", asy
 });
 
 test("batch review lists every numbered target and refuses scope drift before adoption", async () => {
-  const f = setup(), call = f.host.call;
+  const f = setup(); f.project().pages.forEach(page => { page.actions = []; }); const call = f.host.call;
   const candidate = { candidateId: "batch", projectId: f.project().projectId, kind: "page-style-batch", status: "needs-review",
     source: { sha256: f.snapshot.sha256 }, teachingRevision: f.project().teachingRevision,
     targetPageIds: ["fixture-page-1", "fixture-page-2"], outputSha256: "d".repeat(64), pageCount: 2,

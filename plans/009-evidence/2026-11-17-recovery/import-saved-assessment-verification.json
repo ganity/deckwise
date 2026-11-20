@@ -1,0 +1,78 @@
+{
+  "verified": true,
+  "sourceSha256": "2e9f4367737afe490aec0720d43bd8dc989462ef03b6637e3a3e071c85287a1a",
+  "pages": [
+    {
+      "pageNumber": 2,
+      "visibleText": [
+        "Quiz · 月光与白霜：诗人疑心地上是什么？",
+        "诗人疑心地上是什么？",
+        "A  白霜",
+        "B  月亮",
+        "C  小草",
+        "请选择最合适的答案"
+      ],
+      "question": {
+        "id": "question-5f32e21eaae4a27a5e36aa98910ea207f394ca17",
+        "type": "single",
+        "question": "诗人疑心地上是什么？",
+        "options": [
+          {
+            "value": "A",
+            "label": "白霜"
+          },
+          {
+            "value": "B",
+            "label": "月亮"
+          },
+          {
+            "value": "C",
+            "label": "小草"
+          }
+        ],
+        "answer": [
+          "A"
+        ],
+        "explanation": "正确答案是A，白霜。“床前明月光，疑是地上霜”写的是诗人看到床前明亮的月光，以为地上铺着白霜。B项“月亮”不是诗人误以为地上有的东西；C项“小草”在这两句诗中没有提到。",
+        "referenceAnswer": "选A，白霜。“床前明月光，疑是地上霜”写的是诗人看到床前明亮的月光，疑心地上铺着白霜。B项“月亮”不是诗人疑心地上有的东西，这两句写的是床前的月光；C项“小草”在这两句诗中没有提到。",
+        "analysis": "正确答案是A，白霜。“床前明月光，疑是地上霜”写的是诗人看到床前明亮的月光，以为地上铺着白霜。B项“月亮”不是诗人误以为地上有的东西；C项“小草”在这两句诗中没有提到。"
+      },
+      "savedCheckpointTitle": "月光与白霜：诗人疑心地上是什么？",
+      "savedReferenceAnswer": {
+        "summary": "选A，白霜。“床前明月光，疑是地上霜”写的是诗人看到床前明亮的月光，疑心地上铺着白霜。B项“月亮”不是诗人疑心地上有的东西，这两句写的是床前的月光；C项“小草”在这两句诗中没有提到。",
+        "keyPoints": []
+      }
+    },
+    {
+      "pageNumber": 4,
+      "visibleText": [
+        "Quiz · 静夜思：低头思故乡表达什么感情？",
+        "低头思故乡表达什么感情？",
+        "请思考后回答",
+        "请写出你的答案"
+      ],
+      "question": {
+        "id": "question-1299c92599f3cfd8fd4a9d450c24a0f9afef7391",
+        "type": "short_answer",
+        "question": "低头思故乡表达什么感情？",
+        "options": [],
+        "answer": [
+          "表达诗人想念家乡的感情。"
+        ],
+        "explanation": "“思”是想念的意思，“故乡”是自己的家乡。“低头思故乡”写诗人低下头想念自己的家乡，表达了思念家乡的感情。",
+        "referenceAnswer": "表达诗人想念家乡的感情。",
+        "keyPoints": [
+          "想念家乡"
+        ],
+        "analysis": "“思”是想念的意思，“故乡”是自己的家乡。“低头思故乡”写诗人低下头想念自己的家乡，表达了思念家乡的感情。"
+      },
+      "savedCheckpointTitle": "静夜思：低头思故乡表达什么感情？",
+      "savedReferenceAnswer": {
+        "summary": "表达诗人想念家乡的感情。",
+        "keyPoints": [
+          "想念家乡"
+        ]
+      }
+    }
+  ]
+}

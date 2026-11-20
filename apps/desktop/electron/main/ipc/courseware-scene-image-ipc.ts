@@ -11,7 +11,7 @@ export function registerCoursewareSceneImageIpc(input: {
   generation: SceneCourseGenerationServices;
 }) {
   const images = new CoursewareSceneImages(input.getHost, input.getViewingSessionId,
-    (sessionId) => input.activeTurns.has(sessionId), input.authSession, input.generation?.planVisualMaster, input.generation?.layerFallback);
+    (sessionId) => input.activeTurns.has(sessionId), input.authSession, input.generation?.planVisualMaster, input.generation?.layerFallback, input.generation?.reviewMaster);
   const generation = new CoursewareSceneGeneration(images, input.generation);
   for (const [channel, method] of [[IPC.invoke.coursewareSceneGenerate, "generate"], [IPC.invoke.coursewareSceneGenerateCancel, "cancel"]] as const) {
     input.registrar.handleWithEvent(channel, async (event, value: unknown, ...extra: unknown[]) => {

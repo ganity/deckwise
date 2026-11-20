@@ -1,0 +1,21 @@
+{
+  "status": "PASS",
+  "exitCode": 0,
+  "passed": 17,
+  "failed": 0,
+  "testFile": "courseware-scene-completion.electron.mjs",
+  "electronVersion": "43.6.0",
+  "realElectronPngDecoder": true,
+  "realPiAiTransport": true,
+  "localProviderStandIn": true,
+  "realProvider": false,
+  "bundledSceneCompiler": true,
+  "sourceCanvases": [
+    "16:9",
+    "4:3"
+  ],
+  "productionSceneGeneration": false,
+  "productionChatRedo": false,
+  "sandbox": "--no-sandbox",
+  "packaged": false
+}

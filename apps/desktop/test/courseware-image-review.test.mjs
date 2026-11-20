@@ -209,3 +209,17 @@ test("canvas capability failures and archive deletion fail closed without downlo
   await assert.rejects(f.service.load(next.asset.assetId, "/work", command(f, next)));
   assert.equal(f.calls.length, 0);
 });
+
+test("image replacement review is blocked after narration starts", async () => {
+  const f = setup();
+  let narrated = true;
+  const frozen = new CoursewareImageReview(f.editor, f.auth, async () => "/work", () => {}, () => ({}), async () => ({
+    project: { pages: [{ actions: narrated ? [{ type: "speech" }] : [] }] },
+  }));
+  await assert.rejects(frozen.prepare(f.payload), /frozen after narration/);
+  assert.equal(f.calls.length, 0, "blocked image review must not resolve or archive an asset");
+  narrated = false;
+  const pending = await frozen.prepare(f.payload); await frozen.approve(pending.reviewId);
+  narrated = true;
+  await assert.rejects(frozen.load(pending.asset.assetId, "/work"), /frozen after narration/);
+});

@@ -1,0 +1,17 @@
+{
+  "runtime": {
+    "kind": "chrome",
+    "version": "155.0.8059.79"
+  },
+  "browser": "155.0.8059.79",
+  "scope": "Real Chromium/HTMLMediaElement decoding; loopback fixed build, no classroom editor or providers",
+  "results": [
+    {
+      "name": "static-page-is-not-course-completion",
+      "status": "PASS",
+      "firstStaticPageComplete": false,
+      "lastStaticPageComplete": true,
+      "previousPageClearsCompletion": true
+    }
+  ]
+}

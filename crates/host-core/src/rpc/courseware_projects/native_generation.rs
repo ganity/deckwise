@@ -150,7 +150,7 @@ pub(super) async fn handle(
                 return Err(invalid("Presentation page order changed"));
             }
             verify_teaching(page, Some(&planned.teaching), planned.quiz.as_ref(), None)
-                .map_err(error)?;
+                .map_err(|e| invalid(format!("PRESENTATION_TEACHING_MISMATCH: Page {}: {e}. Keep the exported PPTX and its artwork. Check the saved teaching plan and native actions.", planned.page_number)))?;
         }
         task["presentationPlanSha256"] = json!(hex::encode(Sha256::digest(
             serde_json::to_vec(&original.pages).map_err(|e| error(e.into()))?
@@ -179,8 +179,11 @@ pub(super) async fn handle(
             .zip(&mapping.pages)
             .enumerate()
         {
+            let effective = scene_images::effective_teaching(planned, index, proof);
             if mapped.slide_id != format!("scene-{:03}", index + 1)
                 || mapped.source_hash != planned.source_hash()?
+                || serde_json::to_value(&mapped.teaching).map_err(|e| error(e.into()))?
+                    != serde_json::to_value(&effective).map_err(|e| error(e.into()))?
             {
                 return Err(rpc_err(
                     1008,
@@ -190,7 +193,7 @@ pub(super) async fn handle(
             }
             verify_teaching(
                 page,
-                planned.teaching.as_ref(),
+                effective.as_ref(),
                 planned.quiz.as_ref(),
                 Some(&planned.narration),
             )
@@ -201,6 +204,29 @@ pub(super) async fn handle(
                 seed.identity
                     .as_ref()
                     .ok_or_else(|| invalid("Parsed scene identity missing"))?,
+            )
+            .map_err(error)?;
+        let education_context = task
+            .get("educationContext")
+            .filter(|value| !value.is_null())
+            .map(|value| serde_json::from_value(value.clone()).map_err(|e| error(e.into())))
+            .transpose()?;
+        let project = state
+            .db
+            .open_identified_courseware_project_with_metadata(
+                &root,
+                &seed,
+                "scene",
+                education_context,
+            )
+            .map_err(error)?;
+        state
+            .db
+            .initialize_generated_scene_objects_with_proof(
+                &root,
+                &project,
+                mapping,
+                Some(proof.persisted_for_session(&p.session_id)?),
             )
             .map_err(error)?;
     } else if scene_plan::has_approval(&state, &root, &p.session_id)? {
@@ -217,6 +243,25 @@ pub(super) async fn handle(
         .kv_set(TASK_NAMESPACE, &p.session_id, &task)
         .map_err(error)?;
     Ok(json!({"task":task}))
+}
+
+pub(super) fn verify_scene_mapping_teaching(
+    plan: &scene_plan::Plan,
+    proof: &scene_images::GenerationProof,
+    mapping: &crate::db::courseware_projects::scene_objects::GeneratedSceneMapping,
+) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        mapping.pages.len() == plan.pages.len(),
+        "COURSEWARE_CONFLICT: scene mapping page count changed"
+    );
+    for (index, (planned, mapped)) in plan.pages.iter().zip(&mapping.pages).enumerate() {
+        let effective = scene_images::effective_teaching(planned, index, proof);
+        anyhow::ensure!(
+            serde_json::to_value(&mapped.teaching)? == serde_json::to_value(effective)?,
+            "COURSEWARE_CONFLICT: saved teaching differs from the verified visual correction"
+        );
+    }
+    Ok(())
 }
 
 fn invalid(message: impl Into<String>) -> JsonRpcError {
@@ -357,12 +402,21 @@ fn verify_teaching(
         );
     } else if let Some(question) = teaching.and_then(|t| t.question.as_ref()) {
         anyhow::ensure!(
-            checkpoints.len() == 1
-                && checkpoints[0]["question"] == question.text
-                && checkpoints[0]["response"] == serde_json::to_value(&question.response)?
-                && speeches.len() == 1
-                && speeches[0]["text"] == question.text,
-            "Interaction differs from plan"
+            checkpoints.len() == 1,
+            "Expected one interaction checkpoint"
+        );
+        anyhow::ensure!(
+            checkpoints[0]["question"] == question.text,
+            "Interaction question text differs from plan"
+        );
+        anyhow::ensure!(
+            checkpoints[0]["response"] == serde_json::to_value(&question.response)?,
+            "Interaction response differs from plan"
+        );
+        // New checkpoints receive their reading during assessment media preparation.
+        anyhow::ensure!(
+            speeches.is_empty() || (speeches.len() == 1 && speeches[0]["text"] == question.text),
+            "Existing interaction question reading differs from plan"
         );
         let reference = question
             .reference_answer
@@ -393,6 +447,86 @@ fn verify_teaching(
         );
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod scene_mapping_tests {
+    use super::*;
+    use crate::db::courseware_projects::scene_objects::GeneratedSceneMapping;
+
+    #[test]
+    fn saved_mapping_must_use_host_verified_effective_teaching() {
+        let plan: scene_plan::Plan = serde_json::from_value(json!({
+            "title":"Moon phases",
+            "pages":[{"title":"Cover","visibleText":["Moon"],"visualIntent":"Moon phases","narration":"Compare the phases.",
+                "teaching":{"pageType":"slide","phase":"explore","objective":"Compare moon phases","durationSeconds":60,"requiredObjects":["Moon","Arrow","Crater"]}}]
+        })).unwrap();
+        let proof: scene_images::GenerationProof = serde_json::from_value(json!({
+            "planSha256":"a".repeat(64), "principalKey":"b".repeat(64), "selectedIntentIds":[],
+            "teachingCorrection":{"pageId":"scene-001","intentId":"selected-master","removals":[{"object":"Arrow","quote":"Remove the arrow"}]}
+        })).unwrap();
+        let effective = scene_images::effective_teaching(&plan.pages[0], 0, &proof).unwrap();
+        let mapped = |teaching: Value| {
+            serde_json::from_value::<GeneratedSceneMapping>(json!({"pages":[{
+                "slideId":"scene-001","sourceHash":"sha256:source","slidePart":"ppt/slides/slide1.xml","elements":[],"teaching":teaching
+            }]})).unwrap()
+        };
+        assert!(verify_scene_mapping_teaching(
+            &plan,
+            &proof,
+            &mapped(serde_json::to_value(effective).unwrap())
+        )
+        .is_ok());
+        assert!(verify_scene_mapping_teaching(
+            &plan,
+            &proof,
+            &mapped(serde_json::to_value(plan.pages[0].teaching.as_ref().unwrap()).unwrap())
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn saved_mapping_applies_each_page_correction_without_changing_its_plan() {
+        let plan: scene_plan::Plan = serde_json::from_value(json!({
+            "title":"Observation and comparison",
+            "pages":[
+                {"title":"Observe","visibleText":["Observe"],"visualIntent":"An example","narration":"Observe the subject.",
+                    "teaching":{"pageType":"slide","phase":"explore","objective":"Observe the subject","durationSeconds":60,"requiredObjects":["Subject","Marker"]}},
+                {"title":"Compare","visibleText":["Compare"],"visualIntent":"Two examples","narration":"Compare the examples.",
+                    "teaching":{"pageType":"slide","phase":"explore","objective":"Compare the examples","durationSeconds":60,"requiredObjects":["Examples","Caption"]}}
+            ]
+        })).unwrap();
+        let proof: scene_images::GenerationProof = serde_json::from_value(json!({
+            "planSha256":"a".repeat(64), "principalKey":"b".repeat(64), "selectedIntentIds":[],
+            "teachingCorrections":[
+                {"pageId":"scene-001","intentId":"master-1","assetSha256":"c".repeat(64),"removals":[{"object":"Marker","quote":"Remove the marker"}]},
+                {"pageId":"scene-002","intentId":"master-2","assetSha256":"d".repeat(64),"removals":[{"object":"Caption","quote":"Remove the caption"}]}
+            ]
+        })).unwrap();
+        let mut mapping: GeneratedSceneMapping = serde_json::from_value(
+            json!({"pages": plan.pages.iter().enumerate().map(|(index, page)| json!({
+            "slideId":format!("scene-{:03}", index + 1), "sourceHash":"sha256:source",
+            "slidePart":format!("ppt/slides/slide{}.xml", index + 1), "elements":[],
+            "teaching":scene_images::effective_teaching(page, index, &proof)
+        })).collect::<Vec<_>>()}),
+        )
+        .unwrap();
+        assert!(verify_scene_mapping_teaching(&plan, &proof, &mapping).is_ok());
+        for index in 0..plan.pages.len() {
+            let corrected = mapping.pages[index].teaching.clone();
+            mapping.pages[index].teaching = plan.pages[index].teaching.clone();
+            assert!(verify_scene_mapping_teaching(&plan, &proof, &mapping).is_err());
+            mapping.pages[index].teaching = corrected;
+        }
+        assert_eq!(
+            plan.pages[0].teaching.as_ref().unwrap().required_objects,
+            ["Subject", "Marker"]
+        );
+        assert_eq!(
+            plan.pages[1].teaching.as_ref().unwrap().required_objects,
+            ["Examples", "Caption"]
+        );
+    }
 }
 
 #[cfg(test)]
@@ -451,7 +585,11 @@ mod tests {
             {"type":"video_slot","prompt":"A friendly wave"}
         ]);
         assert!(verify_teaching(&page(actions.clone()), Some(&teaching), None, None).is_ok());
+        let mut awaiting_reading = actions.clone();
+        awaiting_reading.as_array_mut().unwrap().remove(0);
+        assert!(verify_teaching(&page(awaiting_reading), Some(&teaching), None, None).is_ok());
         for path in [
+            "/0/text",
             "/1/referenceAnswer/summary",
             "/1/context/chapterSummary",
             "/2/prompt",

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { coursewareStoryRequirementsMatch, storyNeedsApproval, coursewareSceneBodyPageCount, type CoursewareWorkflowView } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
@@ -35,7 +35,10 @@ function Workflow({ sessionId, panelBlocked = false, maximized, onToggleMaximize
   const active = useRef(true), inFlight = useRef(false), epoch = useRef(0);
   useEffect(() => {
     active.current = true;
-    const unsubscribe = api.onAuthChanged(() => { epoch.current++; setView(null); setPlainPath(null); setRefresh(value => value + 1); });
+    const unsubscribe = api.onAuthChanged((state) => {
+      if (state.status !== "authenticated") { epoch.current++; setView(null); setPlainPath(null); }
+      setRefresh(value => value + 1);
+    });
     return () => { active.current = false; epoch.current++; unsubscribe(); };
   }, []);
   const current = () => active.current && useAppStore.getState().activeSessionId === sessionId;
@@ -144,6 +147,19 @@ function Workflow({ sessionId, panelBlocked = false, maximized, onToggleMaximize
     <CoursewareClassroomEditor sessionId={sessionId} readOnly={blocked} />
   </section>;
 
+  const renderEditor = (previewButton?: ReactNode) => path && <PptEditorTab key={path} path={path} tabId="ppt"
+    blocked={panelBlocked} maximized={maximized} onToggleMaximize={onToggleMaximize} previewButton={previewButton}
+    actions={<>
+      <CoursewareDeliveryActions sessionId={sessionId} title={session?.title ?? t("coursewareWorkflow.workspace")} disabled={blocked} />
+      <button type="button" disabled={busy} onClick={() => setRefresh(value => value + 1)}>{t("coursewareWorkflow.refresh")}</button>
+    </>}
+    storyPanel={storyReview}
+    reviewPanel={<>
+      {!ordinary && sourceVisuals}
+      <CoursewareChatNarration sessionId={sessionId} disabled={blocked} />
+      <CoursewareChatPptxCandidates sessionId={sessionId} disabled={blocked} />
+    </>} />;
+
   return <section className={`courseware-chat-workflow courseware-workspace${path ? " has-editor" : ""}`} aria-label={t("coursewareWorkflow.workspace")}>
     {!path && <header className="courseware-workspace-heading">
       <strong>{t("coursewareWorkflow.workspace")}</strong>
@@ -203,19 +219,8 @@ function Workflow({ sessionId, panelBlocked = false, maximized, onToggleMaximize
         const imported = await api.coursewareImportPptx(sessionId, picked.token);
         if (valid()) setView(value => value?.task ? { ...value, task: { ...value.task, imported: true, sourcePath: imported.path } } : value);
       })}>{t("coursewareWorkflow.selectPpt")}</button>}
-      {view.task.taskType === "plain" && <CoursewareChatPresentation sessionId={sessionId} sourcePath={view.task.sourcePath} disabled={blocked} refreshKey={refresh}
-        sourceVisuals={ordinary ? sourceVisuals : undefined} onReady={setPlainPath} />}
-      {path && <PptEditorTab key={path} path={path} tabId="ppt" blocked={panelBlocked} maximized={maximized} onToggleMaximize={onToggleMaximize}
-        actions={<>
-          <CoursewareDeliveryActions sessionId={sessionId} title={session?.title ?? t("coursewareWorkflow.workspace")} disabled={blocked} />
-          <button type="button" disabled={busy} onClick={() => setRefresh(value => value + 1)}>{t("coursewareWorkflow.refresh")}</button>
-        </>}
-        storyPanel={storyReview}
-        reviewPanel={<>
-          {!ordinary && sourceVisuals}
-          <CoursewareChatNarration sessionId={sessionId} disabled={blocked} />
-          <CoursewareChatPptxCandidates sessionId={sessionId} disabled={blocked} />
-        </>} />}
+      {view.task.taskType === "plain" ? <CoursewareChatPresentation sessionId={sessionId} sourcePath={view.task.sourcePath} disabled={blocked} refreshKey={refresh}
+        sourceVisuals={ordinary ? sourceVisuals : undefined} onReady={setPlainPath} renderEditor={path ? renderEditor : undefined} /> : renderEditor()}
 
     </>}
   </section>;

@@ -1,0 +1,557 @@
+{
+  "sessionId": "f809de2b-0d95-4f1b-8afe-d1e9f6c53f18",
+  "toolErrors": [
+    {
+      "tool": "courseware_workflow_get",
+      "error": "{'content': [{'text': 'The courseware workflow has reached its final reporting pass; this attempted tool performed no work. This reporting restriction does not undo saved assets or imply unfinished generation. Report the latest saved acceptance below; do not infer missing media from this blocked call or request a new user message for already completed work.\\nThe authorized courseware request is unfinished: the previous continuation made no saved progress. End automatic continuation and report the actual blockers once. Preserve original jobs and paid assets; never claim completion.\\n{\"assessmentMedia\":{\"configurableQuizSceneIds\":[\"scene-002\"],\"excludedTargets\":[{\"kind\":\"image\",\"optionValue\":\"A\",\"questionId\":\"evaporation-choice\",\"reason\":\"用户明确要求活动页不要选项图片，只保留题目语音与文字选项。\",\"sceneId\":\"scene-002\"},{\"kind\":\"image\",\"optionValue\":\"B\",\"questionId\":\"evaporation-choice\",\"reason\":\"用户明确要求活动页不要选项图片，只保留题目语音与文字选项。\",\"sceneId\":\"scene-002\"},{\"kind\":\"image\",\"optionValue\":\"C\",\"questionId\":\"evaporation-choice\",\"reason\":\"用户明确要求活动页不要选项图片，只保留题目语音与文字选项。\",\"sceneId\":\"scene-002\"}],\"expectedRevision\":\"83ae8c73-cfc2-4070-826a-0db13f405b18\",\"expectedSourceRevision\":\"83ae8c73-cfc2-4070-826a-0db13f405b18\",\"projectId\":\"native-e4e0ee47209b2b4fba09249ea9262df218d23ed0\",\"ready\":true,\"targets\":[]},\"audioReady\":false,\"contentReviewAvailable\":true,\"educationContext\":{\"bodyPageLimit\":2,\"grade\":\"七年级\",\"lessonType\":\"概念新授\",\"schoolStage\":\"junior_high\",\"subject\":\"geography\",\"visualStyle\":\"初中地理教材科学插画，浅色背景，准确标注和箭头，无幼儿园拟人吉祥物\"},\"enrichment\":{\"issues\":[],\"ready\":true},\"jobs\":[],\"materials\":{\"sources\":[]},\"narrationReady\":false,\"nativeTeaching\":true,\"pageCount\":4,\"projectId\":\"native-e4e0ee47209b2b4fba09249ea9262df218d23ed0\",\"requiredObjectBindings\":[{\"pageId\":\"scene-001\",\"pageNumber\":1,\"requirements\":[{\"components\":[{\"description\":\"蒸发标注\",\"objectIds\":[]}],\"objectIds\":[],\"requirement\":\"蒸发标注\",\"resolved\":false},{\"components\":[{\"description\":\"海洋蒸发\",\"objectIds\":[]},{\"description\":\"凝结成云\",\"objectIds\":[]},{\"description\":\"降水到陆地整张教材插画区域（含蒸发上升箭头\",\"objectIds\":[]},{\"description\":\"凝结指向箭头\",\"objectIds\":[]},{\"description\":\"降水下落箭头）\",\"objectIds\":[]}],\"objectIds\":[],\"requirement\":\"海洋蒸发、凝结成云、降水到陆地整张教材插画区域（含蒸发上升箭头、凝结指向箭头、降水下落箭头）\",\"resolved\":false},{\"components\":[{\"description\":\"凝结标注\",\"objectIds\":[]}],\"objectIds\":[],\"requirement\":\"凝结标注\",\"resolved\":false},{\"components\":[{\"description\":\"降水标注\",\"objectIds\":[]}],\"objectIds\":[],\"requirement\":\"降水标注\",\"resolved\":false}]},{\"pageId\":\"scene-003\",\"pageNumber\":3,\"requirements\":[{\"components\":[{\"desc"
+    }
+  ],
+  "narration": [
+    {
+      "args": {
+        "pageNumbers": [
+          1,
+          3
+        ],
+        "sourceSha256": "6abdda3fdcf51210192c4af0b05681cc1574aae154d80b38deba5ce0490f2f78",
+        "speechCount": 4
+      },
+      "result": {
+        "applied": false,
+        "diagnostics": [
+          {
+            "message": "Repairing invalid narration (1/2): PageCandidateError: Unknown or duplicate attention target",
+            "pageNumber": 1
+          },
+          {
+            "message": "Repairing invalid narration (2/2): PageCandidateError: Unknown or duplicate attention target",
+            "pageNumber": 1
+          },
+          {
+            "message": "Repairing invalid narration (1/2): PageCandidateError: Unknown or duplicate attention target",
+            "pageNumber": 3
+          },
+          {
+            "message": "Repairing invalid narration (2/2): PageCandidateError: Unknown or duplicate attention target",
+            "pageNumber": 3
+          }
+        ],
+        "failures": [
+          {
+            "code": "COURSEWARE_NARRATION_OUTPUT_INVALID",
+            "error": "Error: PageCandidateError: Unknown or duplicate attention target",
+            "pageNumber": 1,
+            "retriable": false
+          },
+          {
+            "code": "COURSEWARE_NARRATION_OUTPUT_INVALID",
+            "error": "Error: PageCandidateError: Unknown or duplicate attention target",
+            "pageNumber": 3,
+            "retriable": false
+          }
+        ],
+        "saved": false,
+        "savedPages": []
+      }
+    },
+    {
+      "args": {
+        "pageNumbers": [
+          1,
+          3
+        ],
+        "sourceSha256": "6abdda3fdcf51210192c4af0b05681cc1574aae154d80b38deba5ce0490f2f78",
+        "speechCount": 4
+      },
+      "result": {
+        "applied": false,
+        "diagnostics": [
+          {
+            "message": "This unchanged page is blocked at COURSEWARE_NARRATION_RETRY_EXHAUSTED for the active user turn. Preserve saved peers and continue independent pages; changing instruction wording or batch size cannot reset this budget.",
+            "pageNumber": 1
+          },
+          {
+            "message": "This unchanged page is blocked at COURSEWARE_NARRATION_RETRY_EXHAUSTED for the active user turn. Preserve saved peers and continue independent pages; changing instruction wording or batch size cannot reset this budget.",
+            "pageNumber": 3
+          }
+        ],
+        "failures": [
+          {
+            "code": "COURSEWARE_NARRATION_RETRY_EXHAUSTED",
+            "error": "Error: PageCandidateError: Unknown or duplicate attention target",
+            "pageNumber": 1,
+            "retriable": false
+          },
+          {
+            "code": "COURSEWARE_NARRATION_RETRY_EXHAUSTED",
+            "error": "Error: PageCandidateError: Unknown or duplicate attention target",
+            "pageNumber": 3,
+            "retriable": false
+          }
+        ],
+        "saved": false,
+        "savedPages": []
+      }
+    },
+    {
+      "args": {
+        "pageNumbers": [
+          1,
+          3
+        ],
+        "sourceSha256": "8962d66f20bea9ed418e59077e7b21e774a6b73555f57b4b1b6e24330fb82547",
+        "speechCount": 2
+      },
+      "result": {
+        "applied": false,
+        "diagnostics": [
+          {
+            "message": "This unchanged page is blocked at COURSEWARE_NARRATION_RETRY_EXHAUSTED for the active user turn. Preserve saved peers and continue independent pages; changing instruction wording or batch size cannot reset this budget.",
+            "pageNumber": 1
+          },
+          {
+            "message": "This unchanged page is blocked at COURSEWARE_NARRATION_RETRY_EXHAUSTED for the active user turn. Preserve saved peers and continue independent pages; changing instruction wording or batch size cannot reset this budget.",
+            "pageNumber": 3
+          }
+        ],
+        "failures": [
+          {
+            "code": "COURSEWARE_NARRATION_RETRY_EXHAUSTED",
+            "error": "Error: PageCandidateError: Unknown or duplicate attention target",
+            "pageNumber": 1,
+            "retriable": false
+          },
+          {
+            "code": "COURSEWARE_NARRATION_RETRY_EXHAUSTED",
+            "error": "Error: PageCandidateError: Unknown or duplicate attention target",
+            "pageNumber": 3,
+            "retriable": false
+          }
+        ],
+        "saved": false,
+        "savedPages": []
+      }
+    },
+    {
+      "args": {
+        "pageNumbers": [
+          1,
+          3
+        ],
+        "sourceSha256": "8962d66f20bea9ed418e59077e7b21e774a6b73555f57b4b1b6e24330fb82547",
+        "speechCount": 2
+      },
+      "result": {
+        "applied": false,
+        "diagnostics": [
+          {
+            "message": "This unchanged page is blocked at COURSEWARE_NARRATION_RETRY_EXHAUSTED for the active user turn. Preserve saved peers and continue independent pages; changing instruction wording or batch size cannot reset this budget.",
+            "pageNumber": 1
+          },
+          {
+            "message": "This unchanged page is blocked at COURSEWARE_NARRATION_RETRY_EXHAUSTED for the active user turn. Preserve saved peers and continue independent pages; changing instruction wording or batch size cannot reset this budget.",
+            "pageNumber": 3
+          }
+        ],
+        "failures": [
+          {
+            "code": "COURSEWARE_NARRATION_RETRY_EXHAUSTED",
+            "error": "Error: PageCandidateError: Unknown or duplicate attention target",
+            "pageNumber": 1,
+            "retriable": false
+          },
+          {
+            "code": "COURSEWARE_NARRATION_RETRY_EXHAUSTED",
+            "error": "Error: PageCandidateError: Unknown or duplicate attention target",
+            "pageNumber": 3,
+            "retriable": false
+          }
+        ],
+        "saved": false,
+        "savedPages": []
+      }
+    }
+  ],
+  "contentReviews": [
+    {
+      "review": {
+        "applied": false,
+        "issues": [
+          {
+            "code": "CONTENT_REVIEW_INVALID",
+            "message": "SyntaxError: Content review requires valid issues and current-question analysisCorrections",
+            "pageId": "scene-002",
+            "pageNumber": 2,
+            "repair": "source",
+            "repairable": false
+          },
+          {
+            "code": "CONTENT_REVIEW_INVALID",
+            "message": "SyntaxError: Content review requires valid issues and current-question analysisCorrections",
+            "pageId": "scene-001",
+            "pageNumber": 1,
+            "repair": "source",
+            "repairable": false
+          },
+          {
+            "code": "CONTENT_REVIEW_FAILED",
+            "message": "该页是教学示意图页，但保存的动作列表为空：既没有整页整体淡入，也没有对“地表径流”“河流”“海洋”三个标签的聚光/高亮，未满足 scene-003 要求的 animation、spotlight、highlight 效果；同时整页无语音，不符合非静音页需讲解的约定。",
+            "pageId": "scene-003",
+            "pageNumber": 3,
+            "repair": "source",
+            "repairable": false
+          },
+          {
+            "code": "CONTENT_REVIEW_FAILED",
+            "message": "要求整体淡入并聚光的“山地降水、河流与地表径流回海洋整张示意图区域”未被任何前景对象或背景区域完整覆盖：现有对象图层分离了天空白云、太阳、积雨云、河道、箭头和三个标签，但山地绿色坡面、海岸线/沙滩、海面背景等关键教学连线环境没有独立目标或整体背景裁剪，无法确认整张示意图能作为一个完整教学区域整体淡入/聚光。",
+            "pageId": "scene-003",
+            "pageNumber": 3,
+            "repair": "source",
+            "repairable": false
+          }
+        ],
+        "ready": false,
+        "sourceSha256": "18fe1d408d52b79014b8a308b090ffb5708c71ff788fbfd2b5e7ce95ec5aee5d",
+        "teachingRevision": "45ed54e6-3fef-4238-87ee-d3a0d9d16fc3"
+      },
+      "completion": {
+        "counts": {
+          "audioMissing": 2,
+          "audioReady": 0,
+          "musicClips": 0,
+          "musicPending": 0,
+          "pages": 4,
+          "questions": 2,
+          "speeches": 2
+        },
+        "issues": [
+          {
+            "code": "NARRATION_MISSING",
+            "pageId": "scene-001",
+            "pageNumber": 1,
+            "repair": "narration",
+            "repairable": true
+          },
+          {
+            "code": "EFFECT_MISSING",
+            "pageId": "scene-001",
+            "pageNumber": 1,
+            "repair": "narration",
+            "repairable": true
+          },
+          {
+            "code": "EFFECT_MISSING",
+            "pageId": "scene-001",
+            "pageNumber": 1,
+            "repair": "narration",
+            "repairable": true
+          },
+          {
+            "code": "EFFECT_MISSING",
+            "pageId": "scene-001",
+            "pageNumber": 1,
+            "repair": "narration",
+            "repairable": true
+          },
+          {
+            "code": "NARRATION_MISSING",
+            "pageId": "scene-003",
+            "pageNumber": 3,
+            "repair": "narration",
+            "repairable": true
+          },
+          {
+            "code": "EFFECT_MISSING",
+            "pageId": "scene-003",
+            "pageNumber": 3,
+            "repair": "narration",
+            "repairable": true
+          },
+          {
+            "code": "EFFECT_MISSING",
+            "pageId": "scene-003",
+            "pageNumber": 3,
+            "repair": "narration",
+            "repairable": true
+          },
+          {
+            "code": "EFFECT_MISSING",
+            "pageId": "scene-003",
+            "pageNumber": 3,
+            "repair": "narration",
+            "repairable": true
+          },
+          {
+            "code": "NARRATION_MISSING",
+            "message": "Page 1 has no saved narration candidate.",
+            "pageId": "scene-001",
+            "pageNumber": 1,
+            "repair": "narration",
+            "repairable": true
+          },
+          {
+            "actionId": "scene-002-speech",
+            "code": "AUDIO_MISSING",
+            "pageId": "scene-002",
+            "pageNumber": 2,
+            "repair": "tts",
+            "repairable": true
+          },
+          {
+            "code": "NARRATION_MISSING",
+            "message": "Page 3 has no saved narration candidate.",
+            "pageId": "scene-003",
+            "pageNumber": 3,
+            "repair": "narration",
+            "repairable": true
+          },
+          {
+            "actionId": "scene-004-speech",
+            "code": "AUDIO_MISSING",
+            "pageId": "scene-004",
+            "pageNumber": 4,
+            "repair": "tts",
+            "repairable": true
+          },
+          {
+            "code": "CONTENT_REVIEW_INVALID",
+            "message": "SyntaxError: Content review requires valid issues and current-question analysisCorrections",
+            "pageId": "scene-002",
+            "pageNumber": 2,
+            "repair": "source",
+            "repairable": false
+          },
+          {
+            "code": "CONTENT_REVIEW_INVALID",
+            "message": "SyntaxError: Content review requires valid issues and current-question analysisCorrections",
+            "pageId": "scene-001",
+            "pageNumber": 1,
+            "repair": "source",
+            "repairable": false
+          },
+          {
+            "code": "CONTENT_REVIEW_FAILED",
+            "message": "该页是教学示意图页，但保存的动作列表为空：既没有整页整体淡入，也没有对“地表径流”“河流”“海洋”三个标签的聚光/高亮，未满足 scene-003 要求的 animation、spotlight、highlight 效果；同时整页无语音，不符合非静音页需讲解的约定。",
+            "pageId": "scene-003",
+            "pageNumber": 3,
+            "repair": "source",
+            "repairable": false
+          },
+          {
+            "code": "CONTENT_REVIEW_FAILED",
+            "message": "要求整体淡入并聚光的“山地降水、河流与地表径流回海洋整张示意图区域”未被任何前景对象或背景区域完整覆盖：现有对象图层分离了天空白云、太阳、积雨云、河道、箭头和三个标签，但山地绿色坡面、海岸线/沙滩、海面背景等关键教学连线环境没有独立目标或整体背景裁剪，无法确认整张示意图能作为一个完整教学区域整体淡入/聚光。",
+            "pageId": "scene-003",
+            "pageNumber": 3,
+            "repair": "source",
+            "repairable": false
+          }
+        ],
+        "ready": false,
+        "sourceSha256": "18fe1d408d52b79014b8a308b090ffb5708c71ff788fbfd2b5e7ce95ec5aee5d",
+        "teachingRevision": "45ed54e6-3fef-4238-87ee-d3a0d9d16fc3",
+        "warnings": [
+          {
+            "code": "OBJECT_BINDING_ADVISORY",
+            "message": "Planned descriptions are not independently bound: 蒸发标注, 海洋蒸发、凝结成云、降水到陆地整张教材插画区域（含蒸发上升箭头、凝结指向箭头、降水下落箭头）, 凝结标注, 降水标注. This is advisory; narrate the actual picture and bind effects only to verified eligible targets. Visual grounding checks essential teaching content separately. Do not regenerate images or invent aliases to match design details.",
+            "pageId": "scene-001",
+            "pageNumber": 1
+          },
+          {
+            "code": "OBJECT_BINDING_ADVISORY",
+            "message": "Planned descriptions are not independently bound: 山地降水、河流与地表径流回海洋整张示意图区域（含文字标签与流向箭头）, 地表径流标签, 河流标签, 海洋标签. This is advisory; narrate the actual picture and bind effects only to verified eligible targets. Visual grounding checks essential teaching content separately. Do not regenerate images or invent aliases to match design details.",
+            "pageId": "scene-003",
+            "pageNumber": 3
+          }
+        ]
+      }
+    },
+    {
+      "review": {
+        "applied": false,
+        "issues": [
+          {
+            "code": "CONTENT_REVIEW_INVALID",
+            "message": "SyntaxError: Content review requires valid issues and current-question analysisCorrections",
+            "pageId": "scene-001",
+            "pageNumber": 1,
+            "repair": "source",
+            "repairable": false
+          },
+          {
+            "code": "CONTENT_REVIEW_INVALID",
+            "message": "SyntaxError: Content review requires valid issues and current-question analysisCorrections",
+            "pageId": "scene-003",
+            "pageNumber": 3,
+            "repair": "source",
+            "repairable": false
+          }
+        ],
+        "ready": false,
+        "sourceSha256": "8962d66f20bea9ed418e59077e7b21e774a6b73555f57b4b1b6e24330fb82547",
+        "teachingRevision": "83ae8c73-cfc2-4070-826a-0db13f405b18"
+      },
+      "completion": {
+        "counts": {
+          "audioMissing": 0,
+          "audioReady": 2,
+          "musicClips": 0,
+          "musicPending": 0,
+          "pages": 4,
+          "questions": 2,
+          "speeches": 2
+        },
+        "issues": [
+          {
+            "code": "NARRATION_MISSING",
+            "pageId": "scene-001",
+            "pageNumber": 1,
+            "repair": "narration",
+            "repairable": true
+          },
+          {
+            "code": "EFFECT_MISSING",
+            "pageId": "scene-001",
+            "pageNumber": 1,
+            "repair": "narration",
+            "repairable": true
+          },
+          {
+            "code": "EFFECT_MISSING",
+            "pageId": "scene-001",
+            "pageNumber": 1,
+            "repair": "narration",
+            "repairable": true
+          },
+          {
+            "code": "EFFECT_MISSING",
+            "pageId": "scene-001",
+            "pageNumber": 1,
+            "repair": "narration",
+            "repairable": true
+          },
+          {
+            "code": "NARRATION_MISSING",
+            "pageId": "scene-003",
+            "pageNumber": 3,
+            "repair": "narration",
+            "repairable": true
+          },
+          {
+            "code": "EFFECT_MISSING",
+            "pageId": "scene-003",
+            "pageNumber": 3,
+            "repair": "narration",
+            "repairable": true
+          },
+          {
+            "code": "EFFECT_MISSING",
+            "pageId": "scene-003",
+            "pageNumber": 3,
+            "repair": "narration",
+            "repairable": true
+          },
+          {
+            "code": "EFFECT_MISSING",
+            "pageId": "scene-003",
+            "pageNumber": 3,
+            "repair": "narration",
+            "repairable": true
+          },
+          {
+            "code": "NARRATION_MISSING",
+            "message": "Page 1 has no saved narration candidate.",
+            "pageId": "scene-001",
+            "pageNumber": 1,
+            "repair": "narration",
+            "repairable": true
+          },
+          {
+            "code": "NARRATION_MISSING",
+            "message": "Page 3 has no saved narration candidate.",
+            "pageId": "scene-003",
+            "pageNumber": 3,
+            "repair": "narration",
+            "repairable": true
+          },
+          {
+            "code": "CONTENT_REVIEW_INVALID",
+            "message": "SyntaxError: Content review requires valid issues and current-question analysisCorrections",
+            "pageId": "scene-001",
+            "pageNumber": 1,
+            "repair": "source",
+            "repairable": false
+          },
+          {
+            "code": "CONTENT_REVIEW_INVALID",
+            "message": "SyntaxError: Content review requires valid issues and current-question analysisCorrections",
+            "pageId": "scene-003",
+            "pageNumber": 3,
+            "repair": "source",
+            "repairable": false
+          }
+        ],
+        "ready": false,
+        "sourceSha256": "8962d66f20bea9ed418e59077e7b21e774a6b73555f57b4b1b6e24330fb82547",
+        "teachingRevision": "83ae8c73-cfc2-4070-826a-0db13f405b18",
+        "warnings": [
+          {
+            "code": "OBJECT_BINDING_ADVISORY",
+            "message": "Planned descriptions are not independently bound: 蒸发标注, 海洋蒸发、凝结成云、降水到陆地整张教材插画区域（含蒸发上升箭头、凝结指向箭头、降水下落箭头）, 凝结标注, 降水标注. This is advisory; narrate the actual picture and bind effects only to verified eligible targets. Visual grounding checks essential teaching content separately. Do not regenerate images or invent aliases to match design details.",
+            "pageId": "scene-001",
+            "pageNumber": 1
+          },
+          {
+            "code": "OBJECT_BINDING_ADVISORY",
+            "message": "Planned descriptions are not independently bound: 山地降水、河流与地表径流回海洋整张示意图区域（含文字标签与流向箭头）, 地表径流标签, 河流标签, 海洋标签. This is advisory; narrate the actual picture and bind effects only to verified eligible targets. Visual grounding checks essential teaching content separately. Do not regenerate images or invent aliases to match design details.",
+            "pageId": "scene-003",
+            "pageNumber": 3
+          }
+        ]
+      }
+    }
+  ],
+  "mediaActions": [
+    {
+      "operation": null,
+      "state": null,
+      "key": null,
+      "taskId": null,
+      "saved": null
+    },
+    {
+      "operation": null,
+      "state": null,
+      "key": null,
+      "taskId": null,
+      "saved": true
+    },
+    {
+      "operation": null,
+      "state": "ready",
+      "key": "maic-539b76b0947997ca6dd36f1c5de7abd4c836c44cd41c23318c5e251ee7a06fa9",
+      "taskId": "local-415aaa58-210d-4714-870c-130c19e940ef",
+      "saved": null
+    },
+    {
+      "operation": null,
+      "state": "ready",
+      "key": "maic-7030c696521cfb336741b0be91848138d9b75c496e7d9af4f90a743f42fd5c47",
+      "taskId": "local-1abd8dfd-9d2d-4436-9465-d40ca22eb702",
+      "saved": null
+    },
+    {
+      "operation": null,
+      "state": "adopted",
+      "key": "maic-539b76b0947997ca6dd36f1c5de7abd4c836c44cd41c23318c5e251ee7a06fa9",
+      "taskId": "local-415aaa58-210d-4714-870c-130c19e940ef",
+      "saved": null
+    },
+    {
+      "operation": null,
+      "state": "adopted",
+      "key": "maic-7030c696521cfb336741b0be91848138d9b75c496e7d9af4f90a743f42fd5c47",
+      "taskId": "local-1abd8dfd-9d2d-4436-9465-d40ca22eb702",
+      "saved": null
+    }
+  ]
+}

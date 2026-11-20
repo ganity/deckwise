@@ -26,6 +26,7 @@ import { useReferencedImageDataUrl } from "../../../lib/use-referenced-image-dat
 import { isHtmlFilePath, splitChatText } from "../../../lib/chat-links";
 import type { SourcePositionProps } from "../../../lib/markdown-source";
 import { getToolAction, type ToolAction } from "../../../lib/tool-display";
+import { coursewareErrorContinuation } from "../../../lib/courseware-error-continuation";
 import { calculateTokenRate } from "../../../lib/context-usage";
 import { useAppStore } from "../../../stores/app-store";
 import { Markdown, useCopy } from "../../../components/Markdown";
@@ -134,6 +135,9 @@ export function AssistantErrorMessage({ message }: { message: UiMessage }) {
   const detailsToggleRef = useRef<HTMLButtonElement | null>(null);
   const notifyDisclosureAnchor = useDisclosureAnchorNotifier();
   const detailsId = useId();
+  const sessionId = useAppStore(state => state.activeSessionId);
+  const canContinue = useAppStore(state => !!sessionId && !state.runningSessions[sessionId] &&
+    coursewareErrorContinuation(message, state.messages, t) !== null);
   const error = message.error;
   if (!error) return null;
   const localizedKey = `errors.${error.code}`;
@@ -188,11 +192,13 @@ export function AssistantErrorMessage({ message }: { message: UiMessage }) {
           <button
             type="button"
             className="copy-btn primary"
-            onClick={() =>
-              void useAppStore
-                .getState()
-                .sendPrompt(t("chat.continueCurrentTaskPrompt"))
-            }
+            disabled={!canContinue}
+            onClick={() => {
+              const state = useAppStore.getState();
+              if (!sessionId || state.activeSessionId !== sessionId || state.runningSessions[sessionId]) return;
+              const prompt = coursewareErrorContinuation(message, state.messages, t);
+              if (prompt !== null) void state.sendPrompt(prompt ?? t("chat.continueCurrentTaskPrompt"), undefined, sessionId);
+            }}
           >
             {t("errors.action.continue")}
           </button>

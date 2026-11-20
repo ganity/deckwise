@@ -29,7 +29,7 @@ export class CoursewareNativeAudio {
       const latest = await this.route("open", {}, page);
       const current = latest?.value as CoursewareTeachingView | undefined;
       if (!current || current.viewId !== view.viewId || current.project.teachingRevision !== view.project.teachingRevision ||
-          (!["tts:models", "tts:list", "tts:status", "tts:archive"].includes(operation) && (current.readOnly || current.project.pages.find(p => p.pageId === view.pageId)?.locked))) throw new Error("Native teaching changed; read the current page");
+          (!["tts:models", "tts:list", "tts:lookup", "tts:status", "tts:archive"].includes(operation) && (current.readOnly || current.project.pages.find(p => p.pageId === view.pageId)?.locked))) throw new Error("Native teaching changed; read the current page");
       principal.assertCurrent();
     };
     await check();
@@ -49,6 +49,11 @@ export class CoursewareNativeAudio {
       audioReady: !!i.adoptedAssetId && view.project.pages.find(p => p.pageId === i.pageId)?.actions.some(a => a.id === i.actionId && a.audioAssetId === i.adoptedAssetId), task: task && { state: task.state, feeState: task.feeState, reservedPoints: task.reservedPoints,
         actualPoints: task.actualPoints, errorCode: task.errorCode } });
     if (operation === "tts:list") return intents.filter(i => i.pageId === view.pageId).map(i => publicView(i));
+    if (operation === "tts:lookup") {
+      const exact = intents.find(i => i.intentId === args.intentId);
+      const matches = exact ? [exact] : intents.filter(i => i.actionId === args.intentId && currentIntent(i));
+      return matches.map(({ intentId, pageId, actionId }) => ({ intentId, pageId, actionId }));
+    }
     if (operation === "tts:prepare") {
       const action = view.project.pages.find(p => p.pageId === view.pageId)?.actions.find(a => a.id === args.actionId);
       if (!action || action.type !== "speech" || typeof action.text !== "string" || !action.text.trim() || action.text.length > 4000 ||
@@ -70,7 +75,7 @@ export class CoursewareNativeAudio {
       await check(); intents = [...intents, intent]; await save(); return publicView(intent);
     }
     const intent = intents.find(i => i.intentId === args.intentId && i.pageId === view.pageId);
-    if (!intent) throw new Error("Native speech task unavailable");
+    if (!intent) throw Object.assign(new Error("Speech receipt was not found on the selected page"), { code: "COURSEWARE_TTS_RECEIPT_NOT_FOUND" });
     if (operation === "tts:quote") {
       if (intent.phase !== "prepared" || !currentIntent(intent)) throw new Error("Native speech task is stale");
       const quote = await this.auth.coursewareMedia.getTtsQuote(intent.request.model); await check();

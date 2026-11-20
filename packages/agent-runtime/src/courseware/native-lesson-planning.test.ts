@@ -56,11 +56,16 @@ it("repairs invalid model evidence once while keeping the immutable source and r
     expect(input.source).toBe(text);
     expect(input.pages).toEqual(pages);
     if (++calls === 1) return JSON.stringify({ units: [{ ...units[0], evidence: "An invented objective" }] });
-    expect(input.repair.error).toContain("exact source evidence");
+    expect(input.repair.error).toMatch(/units\[0\]\.evidence.*exact source evidence/);
     return JSON.stringify({ units });
   } });
   expect(calls).toBe(2);
   expect(result).toHaveLength(3);
+});
+
+it("identifies the exact mapping and page for a repair", async () => {
+  const incorrect = { ...units[1], mappings: [{ pageId: "apple", evidence: "apple" }, { pageId: "discussion", evidence: "invented" }] };
+  await expect(run({ units: [units[0], incorrect] })).rejects.toThrow(/units\[1\]\.mappings\[1\]\.evidence.*discussion/);
 });
 
 it("does not repeat a provider failure or accept a second invalid model mapping", async () => {

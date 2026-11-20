@@ -1,0 +1,55 @@
+{
+  "status": "completed-with-content-failures",
+  "routes": {
+    "master": {
+      "pages": 4,
+      "contentReviewPassed": true,
+      "naturallyEndedSpeech": 12,
+      "actualPlaybackPassed": true,
+      "fullRequestedEffectCoverage": true,
+      "sourcePath": "/home/jhz/deckwise-validation/three-path-model-validation-20261117/master/workspace/.deckwise-ppt/generated/2128d4dc8530265bb5393238226358fcd0081fead41ec399463de06940485aa1.pptx",
+      "sourceSha256": "c0c7d144932018e71b65b3bdc2f2c4326f414f3157bc35ce319693cd35beece7",
+      "sourceUnchangedAfterShutdown": true,
+      "modelsObserved": [
+        "deepseek-v4.1-flash-1017",
+        "gpt-6.1-sol"
+      ],
+      "assistedModelSwitch": true
+    },
+    "scene": {
+      "pages": 4,
+      "contentReviewPassed": false,
+      "naturallyEndedSpeech": 16,
+      "actualPlaybackPassed": true,
+      "fullRequestedEffectCoverage": false,
+      "sourcePath": "/home/jhz/deckwise-validation/three-path-model-validation-20261117/scene/workspace/.deckwise-ppt/generated/3051a2eeba6256897c1ab11eb99e08e3f8d4d22dfec2d4ef8c09dc432dc64994.pptx",
+      "sourceSha256": "1c47b4dd6369104d5c5ade16dc1ad84b8ce14e7053aa98c794eca81c3dcab5ad",
+      "sourceUnchangedAfterShutdown": true,
+      "modelsObserved": [
+        "deepseek-v4.1-flash-1017",
+        "gpt-6.1-sol"
+      ],
+      "assistedModelSwitch": true
+    },
+    "import": {
+      "pages": 4,
+      "contentReviewPassed": true,
+      "naturallyEndedSpeech": 4,
+      "actualPlaybackPassed": true,
+      "fullRequestedEffectCoverage": true,
+      "sourcePath": "/home/jhz/deckwise-validation/three-path-model-validation-20261117/import/workspace/.deckwise-ppt/imports/55b49ab3-93e3-4443-9deb-f25a3acbe42d-quiet-night-source.pptx",
+      "sourceSha256": "8742bd1ca3b1f9d4166b371b05a65c38930cdebff92e86bc58432d9c5841b8d8",
+      "sourceUnchangedAfterShutdown": true,
+      "modelsObserved": [
+        "deepseek-v4.1-flash-1017",
+        "gpt-6.1-sol"
+      ],
+      "assistedModelSwitch": true
+    }
+  },
+  "restartNativeReopen": {
+    "verified": false,
+    "attempts": 2,
+    "reason": "Electron first-window startup timed out; no successful native reopen. Root cause unassigned."
+  }
+}

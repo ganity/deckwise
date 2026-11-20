@@ -1,0 +1,42 @@
+{
+  "date": "2026-11-17",
+  "desktopHead": "5cbd7cb44de14d6cb5f1e478ff9f57b63bd7d05d",
+  "checks": {
+    "runtimeFull": {
+      "passed": 1842,
+      "files": 120
+    },
+    "runtimeTargetedSubset": {
+      "passed": 92,
+      "files": 3,
+      "includedInFull": true
+    },
+    "desktopNativeNarrationAssessmentReview": {
+      "passed": 170
+    },
+    "desktopAudioDocumentDeliveryLifecycle": {
+      "passed": 46
+    },
+    "additionalRecreationProbe": {
+      "passed": 0,
+      "failed": 3,
+      "distinctDefects": 1,
+      "routes": [
+        "plain",
+        "scene",
+        "import"
+      ]
+    }
+  },
+  "providerCalls": 0,
+  "productSourceChanged": false,
+  "knownGapConfirmed": "Required semantic repair failure is lost when CoursewareNativeTools is recreated; a broad passing final review then returns completion.ready=true.",
+  "probeScope": "Actual native-tool implementation with fixture document/audio and deterministic review verdicts; not a live Electron crash or model reliability measurement.",
+  "sourceSha256": {
+    "apps/desktop/electron/main/courseware-native-tools.ts": "466d87f5e8eaa921fbbecd0325437ea5e853bf4ce85acb1f9fbe2f17ef57d3de",
+    "apps/desktop/electron/main/courseware-document-tools.ts": "7651c0bcb1b572d43170976dfe40242bdf61e594bc8973c5660cf11d86abe9fa",
+    "apps/desktop/electron/main/courseware-document-runtime.ts": "0136f8ce520e4783069af21cbebea3ce1587854a6e6ccf38b7100485d2883629",
+    "apps/desktop/test/courseware-native-tools.test.mjs": "7ca9fb7869d49def0f8feba55df3067a7145e1d0748038b0bb7b6472d0b7fc51",
+    "packages/agent-runtime/src/courseware-turn-continuation.ts": "c5199becd9a041d7753eb843139e42b09f3969c033b269b4d69447ec7c408bc2"
+  }
+}

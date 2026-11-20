@@ -1,0 +1,16 @@
+{
+  "baseCommit": "5cbd7cb44de14d6cb5f1e478ff9f57b63bd7d05d",
+  "candidate": "Uncommitted task worktree; scoped repair after the original real-provider run",
+  "files": {
+    "apps/desktop/electron/main/courseware-assessment-media.ts": "8c5f51297f9adda4e96256b0b0ff833ca335f614eb5e60469961d966c87f7974",
+    "apps/desktop/electron/main/courseware-native-tools.ts": "c3bd2dc802440015cd1568b0dfb40a69c826ea24c1fefe4aa8ca39de8d3454ba",
+    "apps/desktop/resources/skills/ppt-edit/SKILL.md": "a95e705e373084b20b161353fc028d53fc1d34d269ca6fe599236b5072d31cb4",
+    "packages/agent-runtime/src/courseware/page-narration-candidate.ts": "4b7fb69e1fa77f2b00eac5dfdd598a4312a1ec2d69c19418210eab1c005e88b0",
+    "packages/agent-runtime/src/courseware-workflow-tools.ts": "d0d4610b613131b4227520da30c0a2b247dd0372cac2510f6f21908298f05364",
+    "packages/agent-runtime/src/courseware-turn-continuation.ts": "9e7a478929d06012c3337c06d553af60e8ce1f387a123ec20d821a476d1c80c1",
+    "packages/courseware-runtime/src/maic-classroom.ts": "cb3eb221d5b3cb05991b9a161181ae37556df00637f0ec1e4e259d92aeee2dd5",
+    "packages/courseware-runtime/src/player/components/courseware/FixedCoursewarePlayer.tsx": "3780b92375309d8bedf55bb5380a0692ae8ba2c10d74acd78056f95e25e26bbd",
+    "packages/courseware-runtime/dist/player.mjs": "d8da6bc14242033c807cd0989a27ef6d7e30cb1c5cab25a50ddf8eb3a4530a77"
+  },
+  "providers": "No new provider submissions; replay retained real PPTX/audio assets"
+}

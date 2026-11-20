@@ -1,0 +1,10 @@
+{
+  "baseCommit": "5cbd7cb44de14d6cb5f1e478ff9f57b63bd7d05d",
+  "candidate": "Uncommitted task worktree after LLM semantic review implementation",
+  "files": {
+    "apps/desktop/electron/main/courseware-narration-batch.ts": "bd092b2451aac9c24693c85e3bc6c3e700d9b9cb61a3f27c6a0985fe2c09eb0d",
+    "packages/agent-runtime/src/courseware/page-narration-candidate.ts": "c0ac7c3f1b022643e189efecee863a4926f517f72e748a51bf7d62b57213c6de",
+    "packages/agent-runtime/src/courseware/narration-write.ts": "74b630743b0104f73833c03e63bad35a0e9c070e7033ec4efb653a944ebc7308",
+    "apps/desktop/resources/skills/ppt-edit/SKILL.md": "cb59825d8b9f276deb15f78f4d51ed848a2c38f710593fd9b4b88e544de13f8e"
+  }
+}

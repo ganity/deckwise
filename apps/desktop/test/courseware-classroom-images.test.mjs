@@ -116,7 +116,8 @@ test('shared assessment workflow inventories missing media without submitting; g
   assert.equal(f.view.classroom.scenes[0].actions.length, 0, 'Context cannot mutate legacy classrooms');
   assert.equal(f.submitted, 0);
   assert.deepEqual(context.models, [{ model: 'voice-model', voices: ['v'] }]);
-  const { ready, targets, models, ...selection } = context;
+  const { targets, projectId, expectedRevision, expectedSourceRevision } = context;
+  const selection = { projectId, expectedRevision, expectedSourceRevision };
   await workflow.execute('s', { mode: 'prepare', ...selection, ...targets[0], model: 'voice-model', voice: 'v' }, () => true);
   assert.equal(calls[0].expectedRevision, 'r2', 'Prepared speech must be quoted against the saved CAS revision');
   const adopted = await workflow.execute('s', { mode: 'refresh', ...selection, ...targets[0], model: 'voice-model', voice: 'v' }, () => true);

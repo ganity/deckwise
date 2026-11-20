@@ -1,0 +1,10 @@
+{
+  "fullProcessRestart": true,
+  "nativeReopened": true,
+  "pages": 4,
+  "sourceSha256": "adc20ca34c284bd23ee1812006d988cd3a99edc848c4028d91c0e4b031da85a5",
+  "sourceUnchanged": true,
+  "actionsAudioAndAssessmentsUnchanged": true,
+  "enrichmentUnchanged": true,
+  "speechCount": 2
+}

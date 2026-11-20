@@ -1,0 +1,21 @@
+{
+  "proposalInstructions": [
+    {
+      "count": 14,
+      "unknownInstructionIds": []
+    },
+    {
+      "count": 14,
+      "unknownInstructionIds": []
+    },
+    {
+      "count": 0,
+      "unknownInstructionIds": []
+    },
+    {
+      "count": 0,
+      "unknownInstructionIds": []
+    }
+  ],
+  "note": "Only checks parent instructions; rejected child model outputs are not exposed in the tool receipt."
+}

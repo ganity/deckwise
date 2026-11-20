@@ -91,13 +91,18 @@ reference-image support, missing selection, changed references and foreign scope
 refuse before submission. Decomposition continues to reference only its own page's
 selected master through the decomposition role. No model ID is hardcoded in Desktop.
 
-The visual master is a complete teaching-page design, including every approved
-`visibleText` string exactly once. The Host prompt ports MAIC's complete-master,
-full-canvas environment, focal-action, text-hierarchy and independent-component
-rules from `lib/generation/kindergarten/image2-pptist/slide-authoring.ts` at
-`fdb27892e642c997cde6f29a07257540fda75f4e`. It preserves the course art direction
+The visual master is a complete teaching-page image, including every approved
+`visibleText` string exactly once. Scene planning uses saved Education
+stage, grade, subject and style; Host fallback uses the approved snapshot.
+Unknown and legacy stages use neutral education styling. An explicit style
+takes precedence over the Visual Bible; stage adjusts density and readability.
+Math diagrams, formulas, axes, ticks, labels and values remain raster image
+content, reviewed as pixels rather than reconstructed as native slide objects.
+Only independently focused subjects or text carriers need separate layers;
+connected diagram parts stay together. The prompt preserves the course art direction
 and character identities; it no longer requests a textless illustration or an
-empty header reserved for later text. Only `visibleText` authorizes printed copy;
+empty header reserved for later text. Approved visible text and source-grounded
+diagram labels authorize printed copy;
 internal lesson/page titles and teacher narration do not add display text.
 Empty `visibleText` still permits a deliberately textless page. Literal strings
 are JSON-encoded without paraphrasing. The existing 4000 UTF-16-unit request
@@ -111,7 +116,8 @@ Prompts prohibit unrequested subjects, repeated portraits/badges, extra text
 carriers and decorative props. Background atmosphere comes from depth, light,
 color and materials, keeping the requested setting and style instead of adding
 object clutter. This changes future planning/generation only: approved plans and
-existing assets are not rewritten. Decomposition prompts and logic are unchanged.
+existing assets are not rewritten. Decomposition prompts keep connected diagrams
+intact while extracting independently focused regions.
 
 The right preview shows the actual master, with a separate text checklist for
 exact wording. Decomposition reuses MAIC's native prompt unchanged: complete
@@ -283,8 +289,9 @@ unchanged.
 | Video and sound | Saved video slots, quoted Seedance tasks through llm-ha's user gateway, owner-bound Host receipts, direct CDN download and verified MP4 archive | Live supplier and packaged playback acceptance remain |
 
 Desktop modes are ordinary generation, scene generation and PPT import. They
-share one PPTX editor and baseline teaching features. Scene mode supports both
-kindergarten and primary; stage influences pedagogy, never basic capability.
+share one PPTX editor and baseline teaching features. Scene mode supports
+kindergarten, primary, junior high and senior high; stage influences pedagogy
+and image density, never basic capability.
 Video and music are driven by actual lesson requirements. Do not infer that only primary needs interaction or that video replaces
 object animation. See the historical `docs/validation/courseware/maic-stage-workflows-20261027.md` report
 and [the saved-media decision](../../adr/courseware-saved-media-continuation.md).
@@ -1754,3 +1761,24 @@ Music targets carry project/page/action/source identity; video keeps an optional
 current binding alongside its immutable original source. Ambiguous legacy music
 orders remain visible and block automatic replacement. See the
 [binding compatibility decision](../../adr/courseware-media-bindings-and-requirements.md).
+
+
+## Explicit Quiz option-image scope (2026-11-16)
+
+The shared assessment service retains required option images by default for all
+three routes. When the user explicitly excludes pictures or requests text-only
+choices, `courseware_media_assessments(mode:configure)` accepts project identity,
+current classroom/source revisions, unique Quiz `sceneIds`, `optionImages`
+(`required` or `excluded`) and a nonempty reason. It writes the validated
+`content.optionImagePolicy` through the existing classroom/native transaction
+and automatic PPT save. It preserves choices, grading, speech and existing media.
+Unavailable/non-Quiz pages and stale revisions fail before writing.
+
+Context returns missing required `targets` and separately reports missing
+`excludedTargets` with the saved reason. Only the required targets participate
+in readiness. Missing question speech always blocks completion. New image
+preparation on an excluded page fails before quoting/submission; original-task
+refresh remains available. Restoring `required` reinstates the image gate.
+A model's unsupported completion claim or free-text exclusion cannot substitute
+for this saved policy. The agent may configure exclusions only from an explicit
+user requirement, never to hide provider failures.

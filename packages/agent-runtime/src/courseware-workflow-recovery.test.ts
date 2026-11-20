@@ -236,3 +236,36 @@ it.each(["PPT_EDITOR_NOT_READY", "PPT_EDITOR_SAVE_IN_PROGRESS"])(
   "classifies %s as a bounded read retry, never a generation retry", code => {
     expect(coursewareFailureRecovery(Object.assign(new Error("editor busy"), { code }))).toBe("retry-read");
   });
+
+
+it("classifies scoped argument failures without authorizing paid retries or treating generic rejections as repairable", () => {
+  for (const code of ["COURSEWARE_SCENE_IMAGE_INVALID_REQUEST", "COURSEWARE_INVALID_REFERENCE", "COURSEWARE_INVALID_REFRESH", "COURSEWARE_SOURCE_CHANGED", "COURSEWARE_INVALID_ASSESSMENT_SCOPE"])
+    expect(coursewareFailureRecovery(new CoursewareWorkflowError(code, code))).toBe("repair-input");
+  for (const code of ["COURSEWARE_WORKFLOW_REJECTED", "COURSEWARE_SUBMISSION_UNKNOWN", "PERMISSION_DENIED"])
+    expect(coursewareFailureRecovery(new CoursewareWorkflowError(code, code))).not.toBe("repair-input");
+});
+
+it("gives automatic continuation two input-correction turns without replaying a failed call", () => {
+  const continuation = new CoursewareTurnContinuation();
+  const failure = new CoursewareWorkflowError("COURSEWARE_INVALID_REFRESH", "private raw data", "courseware_scene_image_refresh");
+  for (let i = 0; i < 2; i++) {
+    const instruction = continuation.recoverInput(failure);
+    expect(instruction).toContain("generateRemaining");
+    expect(instruction).not.toContain("private raw data");
+  }
+  expect(continuation.recoverInput(failure)).toBeUndefined();
+  expect(continuation.recoverInput(new CoursewareWorkflowError("COURSEWARE_SUBMISSION_UNKNOWN", "unknown", "courseware_scene_image_refresh"))).toBeUndefined();
+  continuation.reset();
+  expect(continuation.recoverInput(failure)).toContain("generateRemaining");
+});
+
+
+it("retains the repairable code and tool identity through automatic read failure", async () => {
+  const f = fixture(), continuation = new CoursewareTurnContinuation();
+  await continuation.finish(activation(), f.controls);
+  const execute = vi.fn().mockRejectedValue(new CoursewareWorkflowError("COURSEWARE_SOURCE_CHANGED", "private raw data"));
+  const failure = await continuation.finish(closing, { ...f.controls, execute }).catch(error => error);
+  expect(execute).toHaveBeenCalledTimes(1);
+  expect(failure).toMatchObject({ code: "COURSEWARE_SOURCE_CHANGED", operation: "courseware_media_context" });
+  expect(continuation.recoverInput(failure)).toContain("Read courseware_narration_context again");
+});

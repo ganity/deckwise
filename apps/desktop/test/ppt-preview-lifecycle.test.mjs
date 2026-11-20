@@ -36,11 +36,48 @@ test("the main-window-only IPC returns a ready preview URL", () => {
   assert.match(api, /pptPreviewOpen/);
 });
 
+test("preview readiness and editor requests use the owning session's workspace", async () => {
+  const handlers = new Map();
+  const roots = { master: "/master/workspace", imported: "/import/workspace" };
+  const calls = [];
+  let slides = [{ ok: false }];
+  class Preview {
+    async open(root, path) {
+      calls.push([root, path, "open"]);
+      return { url: "http://127.0.0.1:6061/", started: false };
+    }
+    async request(root, path, { route, method }) {
+      calls.push([root, path, route, method]);
+      return { slides };
+    }
+  }
+  const exports = {};
+  new Function("require", "exports", ts.transpileModule(ipc, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText)(id => id === "../ppt-preview" ? { PptPreviewController: Preview } : {
+    IPC: { invoke: { pptPreviewOpen: "open", pptPreviewRequest: "request" } },
+  }, exports);
+  exports.registerPptPreviewIpc({
+    registrar: { handleWithEvent: (name, handler) => handlers.set(name, handler), assertMainWindowSender() {} },
+    getWorkspaceRoot: async sessionId => roots[sessionId] ?? null,
+  });
+  const path = ".deckwise-ppt/projects/lesson";
+  const input = { path, sessionId: "master", requireSlide: true };
+  assert.equal(await handlers.get("open")(null, input), null);
+  slides = [{ ok: false }, { ok: true }];
+  assert.ok(await handlers.get("open")(null, input));
+  await handlers.get("request")(null, { path, sessionId: "imported", route: "/api/slides" });
+  await handlers.get("request")(null, { ...input, route: "/api/save-all", method: "POST" });
+  assert.deepEqual(calls.at(-2), [roots.imported, path, "/api/slides", undefined]);
+  assert.deepEqual(calls.at(-1), [roots.master, path, "/api/save-all", "POST"]);
+  await assert.rejects(handlers.get("request")(null, { path, route: "/api/slides" }), /unavailable/);
+});
+
 test("the courseware workspace exposes an in-app page preview action", () => {
   assert.match(panel, /coursewareWorkflow.previewPages/);
   assert.match(panel, /api\.pptPreviewOpen/);
   assert.match(panel, /svgEditorWorkPanelTab/);
-  assert.match(skill, /--no-browser/);
+  assert.match(skill, /opens it as soon as one valid slide is saved/);
 });
 
 test("native SVG requests stay inside the preview API allowlist", () => {

@@ -1,0 +1,58 @@
+{
+  "modelSequence": {
+    "master": [
+      "gpt-6.1-terra",
+      "gpt-6.1-sol"
+    ],
+    "scene": [
+      "gpt-6.1-terra",
+      "gpt-6.1-sol",
+      "deepseek-v4.1-flash-1017",
+      "gpt-6.1-sol"
+    ],
+    "import": [
+      "gpt-6.1-terra",
+      "gpt-6.1-sol"
+    ]
+  },
+  "physicalPageLimit": 5,
+  "routes": {
+    "master": {
+      "status": "blocked",
+      "pages": 4,
+      "bindingFailure": "native OMML equation shape becomes empty IR text without sourceShapeId; Host binding rejection",
+      "realTts": 0,
+      "visibleEffects": "fade exists only in raw export; no player verification"
+    },
+    "scene": {
+      "status": "incomplete",
+      "pages": 4,
+      "savedSpeechPages": [
+        2,
+        4
+      ],
+      "savedSpeechCount": 2,
+      "bodyNarrationSaved": false,
+      "bodyNarrationCall": "gpt-6.1-sol repeated 2 calls, each remained pending >5 min and then aborted to avoid indefinite wait",
+      "imageAndLayerOutputs": "preserved",
+      "realTtsCount": 2
+    },
+    "import": {
+      "status": "passed",
+      "pages": 4,
+      "naturallyEndedTts": 4,
+      "effects": [
+        "highlight",
+        "spotlight",
+        "animation"
+      ],
+      "wrongAndCorrectQuizFeedback": true,
+      "teacherContinue": true,
+      "sourceAndFinalScriptsPreserved": true
+    }
+  },
+  "noPlatformPublish": true,
+  "sourceCodeChangedForThisTest": false,
+  "isolatedRunnerCleaned": true,
+  "authState": "No newer primary credential was overwritten; isolated run introduced no later auth changes."
+}

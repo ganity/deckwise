@@ -1,0 +1,18 @@
+{
+  "stats": {
+    "ended": 0,
+    "effects": {
+      "highlight": false,
+      "spotlight": false,
+      "animation": false
+    }
+  },
+  "speechCount": 2,
+  "visited": [
+    "page-1"
+  ],
+  "answered": 0,
+  "wrongAnswersChecked": 0,
+  "teacherActivities": 0,
+  "errors": []
+}

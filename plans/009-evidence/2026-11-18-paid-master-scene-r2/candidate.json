@@ -1,0 +1,15 @@
+{
+  "head": "5cbd7cb44de14d6cb5f1e478ff9f57b63bd7d05d",
+  "baseMain": "5cbd7cb44de14d6cb5f1e478ff9f57b63bd7d05d",
+  "dirty": true,
+  "model": "deepseek-v4-1-flash",
+  "physicalPageLimit": 5,
+  "plannedPages": 4,
+  "fingerprints": {
+    "main": "54af3ddf6abb0df5be3a9d1ae56217bad62fbd42b66d24419cdfb43fd73ef449",
+    "host": "bae419b293fc96532ae359d692444ced15baa07da81a10c58e8179f55fc2c1e5",
+    "workerManifest": "ca5c7b203aa05a92c1d5af2510acf13b8d4284b1e6b175a6ceb111d1c645d192",
+    "editorInventory": "e6a7e4830d4d837852e4923e02647c94bf7773161f6f5288fd147dfb4f2c02fa",
+    "agentRuntime": "3aabc38243597ace221e741d6a7bb8c91ffe928853853cb91666be0a0539a4c8"
+  }
+}

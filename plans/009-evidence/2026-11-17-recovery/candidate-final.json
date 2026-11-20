@@ -1,0 +1,29 @@
+{
+  "desktopHead": "5cbd7cb44de14d6cb5f1e478ff9f57b63bd7d05d",
+  "editorHead": "6f5c90f4860f45650422c581a2f96e2f20b55b6e",
+  "dirty": true,
+  "files": {
+    "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-stage-aware-scene/apps/desktop/out/main/index.js": "4470ca46e3cf4fcd6e4361914a86654333cec9fe39e1aaeb944fe84242ff033e",
+    "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-stage-aware-scene/apps/desktop/electron/main/courseware-content-review.ts": "2de4ebf16a15ce39edc559a0f2e34210f2bd9746b84f16aab05da87e02f3ec34",
+    "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-stage-aware-scene/apps/desktop/electron/main/courseware-classroom.ts": "a3936dd3716bc67c6cb9f67ba14b110978cf582235d12feadf206624c62c8a7a",
+    "/home/jhz/code/train/document-worktrees/courseware-par-A-playback/lib/deckwise-native-teaching.ts": "a3d6ffe31f300a3fbc1371ed72c964a9ec1a6d89c6fbf6aa0fea4e1442ce7fe0",
+    "/home/jhz/code/train/document-worktrees/courseware-par-A-playback/lib/agent-plugin/slide-quiz-projection.ts": "64805d168415715e57857e6accb87c8bbdb26dce062793ac58bd73d65b8eba61",
+    "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-stage-aware-scene/apps/desktop/resources/wiseoffice/deckwise-bundle.json": "df75657d5c4c4481f2434e782329dd90aff87c44a15d477ae87cdaf427d6d0cb"
+  },
+  "desktopTypecheck": "passed after snapshot fix",
+  "desktopBuild": "passed after snapshot fix",
+  "editorBuild": "passed",
+  "editorTargetedTests": {
+    "passed": 44
+  },
+  "desktopRecoveryTests": {
+    "passed": 95
+  },
+  "desktopContentReviewAfterTypeFix": {
+    "passed": 23
+  },
+  "auth": "authenticated after user login; no credential overwrite on restart",
+  "desktopContentReviewAfterSnapshotFix": {
+    "passed": 24
+  }
+}

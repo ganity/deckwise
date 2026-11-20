@@ -1,0 +1,64 @@
+{
+  "route": "/home/jhz/deckwise-validation/three-path-paid-20261118/import",
+  "pages": 4,
+  "sourceSha256": "0d9948450c0be1aee13b15ca792a79e1b014793dfc68397168bc515bc21bfe9a",
+  "audioAssets": {
+    "tts-05813a95ff5aaa574dab009070d93ca6584114e032c5fb5118da4bdc4a260da3": {
+      "sha256": "05813a95ff5aaa574dab009070d93ca6584114e032c5fb5118da4bdc4a260da3",
+      "durationSeconds": 6.432
+    },
+    "tts-64c50cae635ced8a205df1c2c1713022959ec77058dc92c4507562499691a77b": {
+      "sha256": "64c50cae635ced8a205df1c2c1713022959ec77058dc92c4507562499691a77b",
+      "durationSeconds": 3.072
+    },
+    "tts-5b1ace00f374d6dd487b3d605dfc929f3916a7fc165cc4842da0f36a92f4eee7": {
+      "sha256": "5b1ace00f374d6dd487b3d605dfc929f3916a7fc165cc4842da0f36a92f4eee7",
+      "durationSeconds": 10.8
+    },
+    "tts-e3db4c1c8f8b305e4704f2bb04245795098d3cbec32994c91453b6e5f24c6068": {
+      "sha256": "e3db4c1c8f8b305e4704f2bb04245795098d3cbec32994c91453b6e5f24c6068",
+      "durationSeconds": 10.032
+    }
+  },
+  "timing": [
+    {
+      "pageNumber": 1,
+      "speechCount": 1,
+      "audioCount": 1,
+      "speechSeconds": 10.8,
+      "effects": [
+        "element_animation",
+        "highlight",
+        "spotlight"
+      ]
+    },
+    {
+      "pageNumber": 2,
+      "speechCount": 1,
+      "audioCount": 1,
+      "speechSeconds": 6.432,
+      "effects": []
+    },
+    {
+      "pageNumber": 3,
+      "speechCount": 1,
+      "audioCount": 1,
+      "speechSeconds": 10.032,
+      "effects": [
+        "element_animation",
+        "highlight",
+        "spotlight"
+      ]
+    },
+    {
+      "pageNumber": 4,
+      "speechCount": 1,
+      "audioCount": 1,
+      "speechSeconds": 3.072,
+      "effects": []
+    }
+  ],
+  "allSavedSpeechAudioVerified": true,
+  "missingSpeechAudio": [],
+  "notAnAcceptanceVerdict": true
+}

@@ -1,0 +1,32 @@
+{
+  "desktop": {
+    "path": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-stage-aware-scene",
+    "commit": "5cbd7cb44de14d6cb5f1e478ff9f57b63bd7d05d",
+    "dirty": true,
+    "files": {
+      "apps/desktop/electron/main/courseware-content-review.ts": "aca581b2574ba97ca6510d57393772a65fb6cf16c24759c765b753fad3fb9c91",
+      "apps/desktop/electron/main/courseware-document-runtime.ts": "ff9546db80d7aa5a4af9b58fa1d7fbda416df7c054d57630d0113885a64fa091",
+      "apps/desktop/test/courseware-content-review.test.mjs": "83f573047e6d232d9419e6620c3813f9eefb679b2ec7c26c39fbb64bb7a9c2b6",
+      "packages/shared/src/courseware-editor.ts": "8cd795b9d14221df04edceffe4f2929c01d168bc743bc65d211ad7582e09ea44"
+    }
+  },
+  "editor": {
+    "path": "/home/jhz/code/train/document-worktrees/courseware-par-A-playback",
+    "commit": "6f5c90f4860f45650422c581a2f96e2f20b55b6e",
+    "dirty": true,
+    "files": {
+      "lib/agent-plugin/slide-background-region.ts": "61caafea05aaa300e04cff9ffd559cccabd53cd45ba6d49468b5659525d29f6f",
+      "lib/deckwise-native-teaching.ts": "3c2bd6342406d85ab361c3aa0c9e87e6ccd5f906a936ae4ec80deda14a23578a",
+      "lib/deckwise-native-teaching-router.ts": "1eb023c7189b0d4ed5ad800a7743f77d8066dff8b58069c02375899907d4ca6c",
+      "lib/deckwise-native-teaching-motions.ts": "888272834451a672621a98ce5a593a6ed14459010b7c04747c95d7b30d42646c",
+      "test/unit/slide-background-region.test.ts": "0e350ff604e697bcd4488c584a11ee9a85d361060daac6fa90ea7357c55726d5",
+      "test/unit/deckwise-native-teaching.test.ts": "772dd1f6ba1d7cc6b2c799bae5b7b4ac16f4178c88037f767661badc69bf90e9",
+      "test/e2e/deckwise-background-region.spec.ts": "1b66fc3d4bf5b64b89f8ae50869e29a517986915efbe47390f93c3138aee4e01"
+    }
+  },
+  "artifacts": {
+    "/home/jhz/deckwise-validation/background-region-20261118/repaired.pptx": "efc96a64cfea07cbd186f2c77bd6408acfb8759fd38c4cdc3ebfeff05d9dfd0c",
+    "/home/jhz/code/train/document-worktrees/courseware-par-A-playback/test-results-4198/deckwise-background-region-efa05-survives-native-save-reopen-chromium/region-repaired.pptx": "d2cd74da6fbafbd7f78b51abf06fc649ea735df01f201d55bdfd1b1839a2db29",
+    "/home/jhz/deckwise-validation/three-path-model-validation-20261117/scene/workspace/.deckwise-ppt/generated/3051a2eeba6256897c1ab11eb99e08e3f8d4d22dfec2d4ef8c09dc432dc64994.pptx": "1c47b4dd6369104d5c5ade16dc1ad84b8ce14e7053aa98c794eca81c3dcab5ad"
+  }
+}

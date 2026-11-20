@@ -1,0 +1,75 @@
+{
+  "route": "scene",
+  "pages": 4,
+  "sourceSha256": "5be9e1e2047db636b3ffcb984b4368beca531479350f65e7b3632c65cc7b8af4",
+  "audioAssets": {
+    "tts-981e2dfe06f5a85553321abdafcf411977bfbbcaba2ebd346fceb216f7a8ef15": {
+      "sha256": "981e2dfe06f5a85553321abdafcf411977bfbbcaba2ebd346fceb216f7a8ef15",
+      "durationSeconds": 7.272
+    },
+    "tts-84933044d072ea078f8ae5117d03d9d0d0f4ab1a3217c7c4d0b790c879652f35": {
+      "sha256": "84933044d072ea078f8ae5117d03d9d0d0f4ab1a3217c7c4d0b790c879652f35",
+      "durationSeconds": 2.832
+    },
+    "tts-5690c75c7e35103f3aba393023c3e9107ecd5ce62b92a60edb96a815a237ba4a": {
+      "sha256": "5690c75c7e35103f3aba393023c3e9107ecd5ce62b92a60edb96a815a237ba4a",
+      "durationSeconds": 2.256
+    },
+    "tts-7225f01e24cde0a151558a6582e9bc239b90fb438783438ac4cca17f22b58f71": {
+      "sha256": "7225f01e24cde0a151558a6582e9bc239b90fb438783438ac4cca17f22b58f71",
+      "durationSeconds": 1.464
+    },
+    "tts-ecc5268d3324b96297558d90ef813a463d9f47580741afe8124c541db5cfec69": {
+      "sha256": "ecc5268d3324b96297558d90ef813a463d9f47580741afe8124c541db5cfec69",
+      "durationSeconds": 2.256
+    },
+    "tts-e3854171c0c78490722c05d7c1b73fd3f5cd66d3c04c39dfb686a941be57b1eb": {
+      "sha256": "e3854171c0c78490722c05d7c1b73fd3f5cd66d3c04c39dfb686a941be57b1eb",
+      "durationSeconds": 2.256
+    },
+    "tts-6ea0ce0360b8797ffe12545443b4ef4f438ae5ba3458e4285d9bdbed910d66dd": {
+      "sha256": "6ea0ce0360b8797ffe12545443b4ef4f438ae5ba3458e4285d9bdbed910d66dd",
+      "durationSeconds": 7.872
+    },
+    "tts-ecf8ce9c7aef4c78f9f0099a1305ff361c9db23620f7937e98d052499d95672b": {
+      "sha256": "ecf8ce9c7aef4c78f9f0099a1305ff361c9db23620f7937e98d052499d95672b",
+      "durationSeconds": 5.448
+    }
+  },
+  "timing": [
+    {
+      "pageNumber": 1,
+      "speechCount": 0,
+      "audioCount": 0,
+      "speechSeconds": 0,
+      "effects": []
+    },
+    {
+      "pageNumber": 2,
+      "speechCount": 1,
+      "audioCount": 1,
+      "speechSeconds": 7.272,
+      "effects": []
+    },
+    {
+      "pageNumber": 3,
+      "speechCount": 6,
+      "audioCount": 6,
+      "speechSeconds": 21.552,
+      "effects": [
+        "element_animation",
+        "highlight",
+        "spotlight"
+      ]
+    },
+    {
+      "pageNumber": 4,
+      "speechCount": 1,
+      "audioCount": 1,
+      "speechSeconds": 2.832,
+      "effects": []
+    }
+  ],
+  "allSavedSpeechAudioVerified": true,
+  "notAnAcceptanceVerdict": true
+}

@@ -21,7 +21,7 @@ new Function("require", "exports", ts.transpileModule(await readFile(new URL("..
   throw new Error(id);
 }, exports);
 const { CoursewareClassroomTts } = exports;
-function fixture(root = "/unused", nativeTeaching = false) {
+function fixture(root = "/unused", nativeTeaching = false, afterNativeSave) {
   const args = { sessionId: "session", projectId: "project", expectedRevision: "revision-1", expectedSourceRevision: "source-1",
     sceneId: "quiz", actionId: "speech", model: "model", voice: "voice" };
   let view = { nativeTeaching, projectId: "project", revision: "revision-1", sourceRevision: "source-1", classroom: { id: "classroom", createdAt: "2026-01-01",
@@ -59,6 +59,7 @@ function fixture(root = "/unused", nativeTeaching = false) {
     calls.push({ method: 'native-adopt' });
     view.classroom.scenes[0].actions[0].audioId = 'tts-' + asset.sha256;
     view.revision = 'revision-2'; view.sourceRevision = 'source-2';
+    afterNativeSave?.();
     return structuredClone(view);
   } } : {}), open: async () => structuredClone(view), getHost: () => host, getWorkspace: async () => root,
     assertOwned() { assert(sessionOwned, "session changed"); }, decodeAudio: async () => 1000 });
@@ -163,6 +164,24 @@ test("refresh never applies an original task to edited question text or a differ
   assert.equal(f.calls.filter(call => call.method === "submit").length, 1);
 });
 
+
+test("native question refresh recovers a lost save receipt, guards text, voice and read-only state", async () => {
+  const f = fixture("/unused", true, () => { throw Error("write receipt lost"); });
+  const quote = await f.coordinator.quote(f.args);
+  const task = await f.coordinator.submit({ ...f.args, quoteId: quote.quote.quoteId });
+  const request = { ...f.args, originalKey: task.key };
+  const saved = f.tasks.get(task.key);
+  saved.state = "ready"; saved.assetRef = { sha256: createHash("sha256").update(f.bytes).digest("hex"), mime: "audio/wav" };
+  f.getView().sourceRevision = "unrelated-native-save";
+  assert.equal((await f.coordinator.refresh(request)).state, "adopted");
+  await assert.rejects(f.coordinator.refresh({ ...request, voice: "other" }), /ASSESSMENT_TARGET_CHANGED/);
+  f.getView().classroom.scenes[0].actions[0].text = "Edited text";
+  await assert.rejects(f.coordinator.refresh(request), /ASSESSMENT_TARGET_CHANGED/);
+  f.getView().readOnly = true;
+  await assert.rejects(f.coordinator.refresh(request), /ASSESSMENT_READ_ONLY/);
+  assert.equal(f.calls.filter(c => c.method === "native-adopt").length, 1);
+  assert.equal(f.calls.filter(c => c.method === "submit").length, 1);
+});
 
 test('native question TTS uses scoped admission and adopts once without a classroom mirror', async () => {
   const f = fixture('/unused', true), quote = await f.coordinator.quote(f.args);

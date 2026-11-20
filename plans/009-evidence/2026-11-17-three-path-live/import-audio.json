@@ -1,0 +1,22 @@
+[
+  {
+    "assetId": "tts-21cf6d6683b15ef819fb6bf17d66603c7caf2386813b77c265816d3bb13edc2a",
+    "sha256Verified": true,
+    "durationSeconds": 6.456
+  },
+  {
+    "assetId": "tts-3ba2748190d57f28d7ceead9a35001506d4895a1dd27e166118905bbcbee7ed1",
+    "sha256Verified": true,
+    "durationSeconds": 9.648
+  },
+  {
+    "assetId": "tts-915d5b7b986af4bc4986acf2ec3457713a1b880111b1cff57a2bd27b2507837f",
+    "sha256Verified": true,
+    "durationSeconds": 2.664
+  },
+  {
+    "assetId": "tts-ecec18a39356d68c4d48edd7dadac4b6ca4f0f614c73710d1dba1ae7d648c53e",
+    "sha256Verified": true,
+    "durationSeconds": 10.032
+  }
+]

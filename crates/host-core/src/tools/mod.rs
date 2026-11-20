@@ -1027,6 +1027,7 @@ pub fn is_desktop_dispatched(tool_name: &str) -> bool {
                 | "courseware_requirements_update"
                 | "courseware_scene_image_prepare"
                 | "courseware_scene_image_refresh"
+                | "courseware_scene_generate_remaining"
                 | "courseware_scene_compile"
                 | "courseware_presentation_adopt"
                 | "courseware_presentation_prepare"
@@ -5614,6 +5615,8 @@ mod tests {
 mod ppt_format_dispatch_tests {
     #[test]
     fn assessment_media_uses_desktop_dispatch() {
+        assert!(super::is_desktop_dispatched("courseware_scene_generate_remaining"));
+        assert!(!super::is_ppt_editor_tool("courseware_scene_generate_remaining"));
         assert!(super::is_desktop_dispatched("courseware_media_assessments"));
         assert!(!super::is_ppt_editor_tool("courseware_media_assessments"));
         assert!(super::is_desktop_dispatched(

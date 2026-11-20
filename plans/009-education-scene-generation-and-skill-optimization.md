@@ -1,6 +1,6 @@
 # Plan 009: Education Courseware Routes and Stage-Aware Scene Visual Masters
 
-**Status:** TODO; remaining plan work only. **Created:** 2026-11-11. **Revised:** 2026-11-13.
+**Status:** Latest exact-DeepSeek paid rerun: Master and Scene both fail full-lesson acceptance; saved incomplete artifacts survive full restart. P1/P7 remain IN PROGRESS. **Created:** 2026-11-11. **Revised:** 2026-11-18.
 **Scope:** PI Desktop courseware generation, Skills, Scene image prompts, and shared teaching workflow
 
 ## Outcome
@@ -13,11 +13,50 @@ Make the Desktop's three courseware entry paths consistently education-first, Sk
 
 The shared downstream workflow may add narration, audio, questions, and other supported teaching actions. It must not make the three authoring paths pretend to have identical editing or generation capabilities.
 
-## Revision Baseline and Work Status
+## Current completion status — 2026-11-18
+
+**Latest paid validation (R2):** Two fresh four-page lessons used exact `deepseek-v4-1-flash`. Neither achieved full-lesson acceptance. Scene retained 19 pixel-bound layer identities and two activity audio assets, but body narration exhausted target-binding repair and final-review format validation failed. Master recovered adoption after two operator diagnostic continuations (path/schema, then stale final-quality report), but body narration failed on contradictory generated effect requirements and invalid review output. Both incomplete documents reopened unchanged after full process restart. Numeric fraction parsing/rendering passed; this does not establish full playback. See [fresh run, evidence and prioritized repair boundaries](009-evidence/2026-11-18-paid-master-scene-r2/README.md).
+
+**Historical repair checkpoint:** Generated checkpoint hints now have a bounded
+correction/save/review path, with existing content/media protections and native
+readback coverage. The river-layer remedy remains pending a region-versus-
+silhouette fidelity decision; previous paid artifacts have not been relabeled
+as repaired. See [implementation and checks](009-evidence/2026-11-18-checkpoint-hint-repair/README.md).
+
+**Earlier mixed-model validation:** Three new four-page lessons used DeepSeek V4.1 Flash 1017 with assisted GPT continuation: angles, water cycle and Quiet Night Thought. All 32 speech clips naturally ended during actual playback. Master and Import passed final content review; Scene failed because an activity hint points to the wrong physical page and river background content is outside the requested whole-diagram effects. Review caught both but automatic safe repair did not resolve them. Restart/native reopen could not be verified after two first-window startup timeouts. See [complete results, intervention and next repair boundaries](009-evidence/2026-11-17-model-validation/README.md). Earlier sample passes below do not override these latest failures.
+
+**Earlier durability repair:** Native required-repair failures are now persisted before model dispatch and reloaded after runtime recreation. Three-route tests cover interruption, peer save, page reorder, alias-only repair, save/clear failure and deletion/Undo; Host SQLite restart/CAS tests verify durability. This closes the reproduced failed-repair readiness gap for the tested boundaries. Candidate retry counters and the real Scene adoption delay remain separate lifecycle risks; see [state-transition review and validation](009-evidence/2026-11-17-durable-repairs/README.md).
+
+**Historical pre-fix stability verification:** 1,842 Runtime and 216 Desktop checks pass. A new deterministic native-runtime recreation probe fails in all three route configurations: a known required semantic repair failure is lost on recreation, allowing a broad passing final review to return ready. This confirms and narrows the previously documented runtime-local limitation; normal document handoff can also recreate the runtime. Product code is unchanged in this verification round. P1/P7 remain open; see [the stability evidence and next repair criteria](009-evidence/2026-11-17-stability/README.md).
+
+The earlier requested closeout fixes and sample verification completed locally. See the [historical closeout evidence](009-evidence/2026-11-17-closeout/README.md) for candidate hashes, the companion editor patch and checks. Those sample results are not the latest mixed-model result.
+
+| Phase | Current status | Remaining qualification |
+|---|---|---|
+| P0 — Business/route/context baseline | DONE for implementation scope | Refresh the baseline again before any future integration. |
+| P1 — Stability and diagnostics | PARTIAL | Required-repair tracking now has Host durability coverage. Retry-counter lifecycle, structured model responses, interruption attribution and latest startup failure remain open. |
+| P2 — Education Skill boundaries | DONE for implementation scope | Three distinct routes and original gates retained. |
+| P3 — Stage/subject guidance | DONE for implementation scope | Prompt coverage does not certify every generated picture. |
+| P4 — Main Scene context | DONE for implementation scope | Explicit grade/style and raster contents preserved. |
+| P5 — Host fallback/continuity | DONE for implementation scope; coverage gap open | Foreground arrow policy matches the fallback; the latest water-cycle sample still leaves the river in the background outside requested group effects. |
+| P6 — Shared native teaching | DONE for implementation scope | Ship the matching editor with Desktop; broader interruption coverage is still P1/P7 work. |
+| P7 — Cross-route acceptance | PARTIAL; latest fresh Master/Scene run failed | Restart of both incomplete files passed; full body narration, content review and playback remain blocked. Import was not rerun. Larger visual/stress matrix, matched par-A comparison and release qualification remain open. |
+
+### Historical local closeout sample (before the latest mixed-model run)
+
+Fresh lessons: Master grade-3 rectangle area, Scene grade-7 food chains, Import grade-1 Quiet Night Thought; four physical pages each. Final LLM content review passed. Actual playback naturally ended 10 + 14 + 4 speech clips, exercised wrong/correct choice feedback and teacher activities, and displayed fade/highlight/spotlight. Full process restart/native reopen preserved all source hashes, saved actions, audio bindings, assessment data and enrichment. Import original content and final scripts remained intact.
+
+Scene's previously known arrow gap is closed for the new sample: all five arrows were extracted into foreground and participate in whole-diagram effects, with actual playback evidence. The former paid lesson is still a historical recovered artifact, not relabeled as a newly generated pass. The new Scene lesson stopped once under the unchanged ten-minute no-progress guard and completed after explicit continuation using original audio results; do not claim all three routes completed unattended in one turn. No operator content repair was applied in this fresh round.
+
+At that historical closeout, a required narration repair rejected for semantic/missing-content reasons remained incomplete despite peer saves or a broad final-review pass within the same runtime. The subsequent Host-backed repair follow-up above supersedes its runtime-local limitation. Main/Host layer prompts and final-review guidance include connecting arrows and complete effect coverage; the latest sample shows those prompts alone do not guarantee full region coverage.
+
+New targeted validation passed: 85 Desktop native/review/layer tests, 36 Host Scene tests, Desktop typecheck/build, Host release build, formatting and diff checks. The matching editor bundle and five-file patch are recorded with hashes. This is local source-build acceptance; no commit, merge, installer, sync or publication is included.
+
+## Historical revision baseline — 2026-11-13
 
 This revision incorporates the 2026-11-13 review of `feat/courseware-par-A`, reference HEAD `ee3202bd6`, and its uncommitted source changes. The original 2026-11-11 description is historical context, not an implementation baseline. Before code work, capture the then-current commit and fingerprints of affected dirty files; separate committed behavior, worktree changes, and accepted business requirements. An observed uncommitted implementation is not proof of deployment, approval, or release qualification.
 
-| Area | Current source status | Remaining plan work |
+| Area | Source status at the 2026-11-13 baseline | Plan work identified at that time |
 |---|---|---|
 | Narration batching, bounded page retries, lesson mapping, original TTS recovery, independent activities | Implemented in the committed baseline, with further worktree refinements. | Reuse and verify; fix only demonstrated gaps. Do not rebuild these workflows. |
 | Import teaching entry | Implemented in the committed baseline. | Preserve explicit Start, saved teaching readback, attachments, and handoff to the existing Chat flow. |
@@ -26,7 +65,356 @@ This revision incorporates the 2026-11-13 review of `feat/courseware-par-A`, ref
 | Visual tolerance, object-binding advisories, story-style approval comparison, image archive limits, video gateway | Present in uncommitted follow-up changes; acceptance and integration must be recorded separately. | Include in baseline verification without silently reverting or expanding their business rules. |
 | Stage-aware Visual Master input, neutral Host fallback, route-aware Math guidance | Still outstanding in the inspected source. | Retain P3–P5 as implementation work, scoped to body-image guidance and approved user intent. |
 
-Overall TODO does not mean every mechanism below is missing. P0/P1/P6 must first identify reusable implementation and existing tests; only uncovered work becomes a new implementation task.
+At that historical baseline, overall TODO did not mean every mechanism below was missing. P0/P1/P6 must first identify reusable implementation and existing tests; only uncovered work becomes a new implementation task.
+
+### 2026-11-14 implementation checkpoint
+
+The request branch `feat/courseware-stage-aware-scene` was created from local
+`feat/courseware-par-A` at `661711cd`. Existing tracked worktree changes and
+the relevant new source/tests were carried into the isolated request worktree
+without changing the source worktree. This checkpoint is local, not deployed.
+
+- Scene planning, Visual Master planning, and the Host fallback now use saved
+  Education stage, grade, subject and style. Primary grade bands include numeric
+  and standard Chinese grade names; unknown stages use neutral school styling.
+- The explicit style outranks the approved Visual Bible for medium. Math and
+  Chinese Scene guidance requests source-grounded raster content and image
+  review; editable new-deck authoring retains native/SVG Math guidance.
+- Body-page image prompts and decomposition preserve connected diagrams as
+  coherent regions. Independent Quiz/checkpoint content, approvals, page budgets,
+  immutable image intents and media recovery keep their existing contracts.
+- The Scene Skill states the raster body-page boundary and stage defaults.
+  The ordinary/PPT Master, import and shared teaching prompts now state their
+  own route gates. Import Start's accepted missing-teaching request proceeds
+  without a second narration-source choice; conflicting replacement still asks.
+  Shared continuation allows teaching actions for all four school stages, and
+  legacy Desktop narration without Education context uses general-school guidance.
+  No new routing or retry framework was added.
+- The Runtime now returns schema-owned field hints for malformed finite
+  courseware tool arguments before Host dispatch. Bounds, missing fields,
+  expected types, ID formats and allowed kinds are actionable without echoing
+  submitted values; existing
+  permission, approval and retry boundaries remain unchanged.
+- Post-schema story validation now identifies duplicate beat IDs, unmatched
+  objectives, and the existing size limit without exposing story text.
+- Ordinary generation checks the PPT Master entry, planning references, project
+  validator, SVG quality checker, exporter and preview server before dispatch.
+  An incomplete package is withheld from the Skill catalog; prompt construction
+  reports the missing relative resource with `PPT_MASTER_SKILL_UNAVAILABLE` and
+  ends the durable turn instead of asking the model to load an absent Skill.
+  Import and Scene routing keep their existing gates.
+- An already saved ordinary PPTX now routes closed-editor narration/media
+  continuation through the saved teaching Skill. It does not require the PPT
+  Master authoring package or re-export SVG. The import route's own instruction
+  now honors the accepted Start request instead of repeating a source-choice
+  question. Native selection edits retain their editor-binding gate.
+- Existing native narration tests already cover a provider-free 56-page lesson,
+  five-page persisted batches, failure retention and fresh source hashes. No
+  duplicate large-deck fixture was added.
+- Provider-free workflow gate passed again after cross-route changes: 635
+  Main/Host, 44 shared, 529 Runtime and 302 Host contract checks, plus the Host
+  build. Targeted Scene tests and typechecks
+  also passed. The browser workspace fixture passed, and the local Electron Scene
+  completion fixture passed 17 checks with real PNG decoding and IPC transport.
+  These checks used zero real provider calls and did not exercise the packaged
+  native Office editor. Full documentation build remains blocked by 10 existing
+  dead links outside this change. Live image accuracy, installed-editor playback,
+  platform publication, and interruption classification against real user logs
+  require separate acceptance evidence.
+- The three-route Skill/prompt boundary passed 21 Desktop entry tests and 115
+  Runtime narration/route/continuation tests after these cross-route corrections.
+  Broader Desktop entry/narration tests passed 172 checks; Desktop and Runtime
+  typechecks, `git diff --check`, and the browser workspace fixture also passed.
+  Installed Chat and saved-output acceptance remain separate from these checks.
+- PPT Master missing-resource and prompt-failure regressions passed with the
+  59-test ordinary/Scene workflow selection. A current packaged installation
+  was not available for the native three-entry acceptance script.
+
+### 2026-11-15 continuation checkpoint
+
+- The import route policy no longer repeats the narration-source question after
+  the accepted Start request. Existing narration replacement still needs an
+  explicit decision when a supplied script conflicts with it.
+- A saved ordinary PPTX without an open Office binding selects the shared
+  teaching Skill for narration/media continuation. The PPT Master integrity
+  gate applies to new authoring only, so a missing package cannot block saved
+  teaching or trigger a second SVG export. Native selection edits still need
+  their editor binding.
+- After updating the route fixture, the provider-free workflow gate passed:
+  636 Main/Host, 44 shared, 529 Runtime and 302 Host contract checks, with zero
+  provider calls. The rebuilt Runtime passed 50 focused Desktop route tests;
+  Desktop and Runtime typechecks passed. At this checkpoint, the installed
+  package had not yet been exercised; the later packaged result is recorded
+  below. Real media providers, natural playback and full P1 incident
+  classification remain unverified, so P1 and P7 acceptance stay open.
+- PPT Master packaging preparation now validates the same essential authoring
+  files that the installed runtime needs. An incomplete local source fails
+  before replacing an existing staged distribution; four packaging contract
+  tests passed without downloading or invoking providers.
+- A normal same-account authentication refresh no longer clears the imported
+  PPT, its pending Start data, or the native editor during a Chat tool sequence.
+  Sign-out still clears local state, and the authenticated app subtree is keyed
+  by account ID so switching accounts cannot retain the previous account's UI.
+  The targeted auth/workflow/packaging suite passed 84 tests; Desktop typecheck
+  and production build passed.
+- The packaged Linux Electron candidate with bundled WiseOffice and all four
+  Skills passed `e2e-courseware-entry-routing.mjs`: 15 groups, six visible
+  route/stage entries, persisted teaching/team settings, full Electron/Host
+  restart, and native editing-Skill reads for all six restored tasks. The test
+  made 30 local model-fixture requests and zero paid provider calls. It checks
+  the actual imported document identity across restart, not a transient editor
+  status label. Evidence: `/tmp/deckwise-plan009-entry-20261115-final-5/report.json`.
+  This closes the local packaged-entry/installed-editor part of P7 at that
+  checkpoint; the later live-media checkpoint below extends its evidence.
+- A read-only audit of the existing local Desktop logs and task/turn database
+  (2026-10-25 through 2026-11-15, before deployment of this candidate) mapped
+  saved task types to historical turns. Recorded terminal errors include Scene:
+  12 `PROVIDER_ERROR`, four `INTERNAL` at request preparation, one
+  `EMPTY_MODEL_RESPONSE` and one `PROVIDER_UNAUTHORIZED`; Plain: two provider
+  errors, four request-preparation `INTERNAL` and one empty response; Import:
+  two provider errors and one empty response. Aborted turns are counted
+  separately because cancellation is not itself a bug. Of 760 logged
+  `courseware_*` tool failures, 747 have no structured reason-code field in
+  the sanitized result summary. Historical logs establish affected boundaries
+  but cannot identify the underlying cause of the eight deliberately redacted
+  local request-preparation failures or prove which tool failure was the user's
+  reported interruption. P1 still needs a reproducible current-build incident
+  or safe reason metadata captured at the owning boundary; do not guess a
+  business-rule change from these aggregates. The later diagnostic-boundary
+  change below preserves stable codes for future incidents.
+
+### 2026-11-15 authorized live-media checkpoint
+
+The user subsequently authorized real image generation and TTS. The packaged
+candidate was exercised with isolated test data and a cached real Education
+access token. The [live acceptance record](009-evidence/2026-11-15-live-media/README.md)
+and its machine-readable receipts distinguish successful media, supplier
+failures, native saves, actual playback and test-harness limitations.
+
+- The first `scene-master` request ended in a supplier business failure despite
+  HTTP 200 (`UPSTREAM_HTTP_200`). Its final Desktop receipt released the
+  reservation and recorded 0 points. The supplier task/request IDs were retained;
+  that generic upstream response does not establish the supplier's root cause.
+- A second request, made only after the first confirmed terminal failure,
+  generated and archived a primary-grade Math master for a 0–5 number line.
+  The title, labels, arrow and point at 3 passed sample visual review; settled
+  image cost was 2 points. Tick spacing is approximate rather than metrically
+  exact. This is no guarantee of arbitrary image-model Math accuracy.
+- One real `scene-layers` request settled at 6 points. Its background and three
+  foregrounds preserve the whole connected number line in one region, with
+  separate title and note layers. The returned bounds reconstruct the reviewed
+  composition. Native compilation retains three image objects and a raster
+  background without reconstructing body lettering or diagrams as native shapes.
+- A separate native fixture's real TTS settled at 1 point and decoded to
+  12,288 ms. Electron/Host/Office restart retained the exact saved text and audio;
+  actual fixed-player playback emitted natural `ended` with no media error.
+- TTS for the generated Scene page encountered editor-save readiness after
+  dispatch. Query-only recovery found the original intent, archived and adopted
+  its audio, then completed actual layered-page playback at 8,040 ms. Recovery
+  submitted no replacement media; the original TTS settled at 1 point. The
+  direct-IPC fixture needed its exact unsaved speech restored and explicitly
+  saved before recovery; this is not proof of a saved-data loss or Chat failure.
+  A subsequent full Electron/Host/Office restart retained the three layers,
+  exact speech and adopted audio; playback again ended naturally with zero
+  new media submissions.
+- The recorded final media receipts total 10 points: failed image 0, successful
+  image 2, decomposition 6, and two distinct TTS fixtures 1 each. Text-model
+  planning and account-wide billing were not audited. Conversion warnings kept
+  the existing review gate; no business validation was weakened.
+- The initial authentication test rotated the real refresh token but did not
+  retain the latest token. The original Desktop session may need sign-in again.
+  Existing courseware data was untouched; later runs use cached access only.
+
+P7 now has a real one-page primary-Math media/compile/playback smoke in addition
+to its earlier packaged routing evidence. Full autonomous Chat generation,
+multi-page live recovery, broader grade/subject image accuracy and live effects
+remain separate acceptance gaps. P1 still cannot attribute the eight historical
+request-preparation failures. Neither phase is marked fully complete, and no
+platform synchronization, publication, deployment or integration is claimed.
+
+### P1/P7 completion checkpoint — 2026-11-15 continuation
+
+- P1's implementation gap is closed at the owning diagnostic boundary. Main's
+  sidecar now records the safe nested courseware/PPT/provider reason code along
+  with session, turn, tool-call and tool identity. A cycle-safe bounded extractor
+  excludes lesson text, prompts, provider bodies, paths and credentials. The
+  existing `LOCAL_REQUEST_ERROR` phase remains intact. New regression coverage
+  proves nested results, leading error text, private-content exclusion, stale
+  activity persistence and no activity revival after abort/finalization.
+- The provider-free gate passed on this candidate: 637 Main/Host checks, 44
+  shared checks, 529 Runtime checks and 302 Host contract checks, with zero
+  provider calls and no skipped mandatory tests. Desktop typecheck, production
+  build, logger tests (8/8) and stale-activity tests (24/24) passed.
+- P7's packaged route fixture remains green for six route/stage entries and
+  restart/native-editor restoration. The authorized live record adds the
+  primary-Math Scene image, decomposition, native compilation, original TTS
+  recovery and natural playback after restart. A separate provider-free
+  ordinary-effects run reached the real Office opening boundary but timed out
+  before editor readiness; it is retained as an environment/editor startup
+  limitation, not counted as a pass.
+- The current candidate also reran the Electron Scene completion boundary with
+  the bundled compiler and local provider stand-in: 17/17 checks passed across
+  PNG normalization, layer bounds, model inheritance, route selection and
+  peer-slide preservation. This is provider-free evidence and does not replace
+  the outstanding live multi-page/effects run.
+- P1 cannot truthfully claim attribution of the eight historical redacted
+  request-preparation incidents because those records contain no owning-boundary
+  code. The current build now preserves that code for future incidents; no
+  historical business-rule change is inferred. P7 remains open for a complete
+  multi-page live three-route run, broad visual accuracy, and user-facing
+  effects playback.
+
+### 2026-11-16 authorized main integration
+
+- Integrated the fork's `origin/main` at `5cbd7cb44` (v0.20.5), advancing the
+  request branch from `661711cd1`. Existing local development and acceptance
+  evidence remain uncommitted in `feat/courseware-stage-aware-scene`; the source
+  worktree, local `main`, and remote branches were not modified by this operation.
+  A complete pre-integration file archive and patch were saved under
+  `/tmp/deckwise-integration-20261116-1suxzlfk`.
+- Retained the incoming narration `speechCount` contracts, original-audio
+  recovery, Quiz image review, native motion-mirror validation, runtime
+  interruption fixes, and release-input/Windows packaging fixes. Preserved this
+  candidate's stage/subject visual guidance, coherent diagram layers, safe
+  nested error codes, field-level parameter diagnostics, and PPT Master resource
+  validation. Removed one identical duplicated Rust helper introduced by the
+  three-way merge and updated the new prompt tests for education context.
+- Latest main restores raster lettering as the default for new Scene plans;
+  omit `textMode` in those plans. Retain the existing explicit native-text mode
+  when recovering an already approved plan. Independent Quiz/checkpoint content,
+  approvals, page budgets, media receipts, retry bounds and completion gates
+  retain their current business meaning.
+- The merged candidate passed the production Desktop and dependency builds,
+  Desktop/Agent Runtime/Courseware Runtime typechecks, `cargo fmt --check`,
+  95 supplemental Main/release regressions, 60 Python/Quiz/image contracts,
+  8 native preflight/inherited-artwork checks, 3 route checks, and the 17-check
+  Electron Scene transport/compiler fixture. The Electron fixture uses a local
+  provider stand-in and is not an installed-package or paid-provider run.
+- The complete provider-free workflow gate passed on the combined candidate:
+  644 Main/Host checks, 44 shared checks, 541 Runtime checks and 303 Rust
+  courseware contracts. The two existing ignored Rust cases remain ignored;
+  mandatory Main/Host and Runtime checks have no skips. The gate made zero paid
+  provider calls and did not run the native editor. Its report is retained in
+  [the integration evidence](009-evidence/2026-11-16-main-integration/README.md).
+- Integration does not close the remaining P1 historical attribution or P7
+  multi-page/live-effects acceptance gaps. No publication, deployment, remote
+  push, or new installer qualification is claimed.
+
+### 2026-11-16 real three-route small-lesson acceptance
+
+- Executed the user-authorized real routes against the merged candidate:
+  Grade 4 Science/water states (PPT Master, 5 physical pages), Grade 7
+  Math/number lines (Scene, 4 pages), and Grade 8 Chinese/exposition order
+  (Import, 4 pages). Used real managed LLM, image/decomposition and TTS services
+  plus the pinned native editor; no provider stand-ins. Saved artifacts contain
+  23 SHA-256-verified audio clips in total and match the tested snapshot bytes.
+- Scene and Import each passed full natural-audio playback, every-page
+  traversal, wrong/correct Quiz interaction, oral continuation and visible
+  fade/highlight/spotlight. All three projects retained their teaching state
+  after native-editor close/reopen. Import retained original slide text and
+  geometry and both verbatim scripts.
+- Acceptance is not fully green: PPT Master lacks all three body narrations
+  and effects after grounding validation and same-turn budget exhaustion;
+  automatic playback stops on its first static page. Scene narration exceeds the requested per-page duration, and completion
+  requires missing option pictures despite the explicit text-only user scope.
+  The measured raster tick-spacing imperfection is acceptable under the user's
+  subsequently clarified tolerance. Import omitted the second original title's highlight.
+- The tests include recorded operator layout feedback, plan/style reviews and
+  native-editor openings; they are not unattended first-pass successes. The
+  source-build candidate is not a new installer qualification. P7 and P1
+  historical attribution remain open. Detailed observations, precise source
+  hashes, playback reports and scoped follow-ups are in
+  [the real acceptance report](009-evidence/2026-11-16-three-path-live/README.md).
+
+### 2026-11-16 scoped repair implementation
+
+- Narration checks were present, but literal relation labels rejected spoken
+  clauses with the same source-backed concepts. Matching now recognizes a unique
+  component of a symbolic relationship; shared results alone remain ambiguous,
+  wrong target IDs still fail, and the existing bounded repair budget remains.
+  This is textual grounding plus existing visual evidence where available, not
+  a general semantic proof. Replay covers the actual melt/evaporation failure
+  and wrong gas/solidification targets on all three route types.
+- Required option images remain the default. Explicit user exclusions are saved
+  in Quiz `optionImagePolicy` through the existing classroom/native save and
+  current revisions. Context separates excluded images from missing required
+  targets. Question speech remains required; excluded pages reject new agent
+  image preparation before quoting. Existing images/audio and original-job
+  recovery remain intact. No new approval, billing or workflow engine.
+- Fixed playback keeps static pages manually navigable and reports course
+  completion only on the last static page. Real-browser red/green verification
+  uses the five-page PPT Master package from the failed run.
+- Native context reports each page's effect target IDs and decoded speech time,
+  budget and overruns, with null for unknown duration. The common teaching Skill
+  verifies all requested original pages after insertions, repairs missing effects
+  without replacing supplied scripts/audio, drafts below explicit speech limits,
+  and checks actual timing after synthesis. Overruns remain explicit feedback;
+  existing activity budgets are not reinterpreted as a new global hard gate.
+- Remaining qualification at this checkpoint: rerun the complete paid routes against the rebuilt
+  candidate, including native save/reopen of image scope and natural playback
+  after targeted title/duration repair. Current unit, boundary and browser results
+  are recorded in [repair verification](009-evidence/2026-11-16-three-path-live/repair-verification.md).
+  P7 and historical P1 attribution remain open; earlier failed outputs are not
+  relabeled as passing. The new small-lesson reruns are completed in the
+  2026-11-17 acceptance entry below; broader qualification remains open.
+
+### 2026-11-16 LLM semantic review closure
+
+Implemented the user-requested generate/review/repair/review loop in the shared
+saved-narration path for plain, import and Scene. Review reads current page
+rendering when available, textual/object evidence, user instructions and the
+logical page plan. It accepts equivalent spoken expressions. Program checks
+retain object identity, schema, approved expressions, source CAS and protected
+script/audio boundaries. Binding repairs preserve words, content repairs affect
+only unsaved drafts, and existing saved-audio effect repairs are reviewed too.
+The existing two repair attempts are shared across validation and semantic
+failures. Invalid or uncertain review output leaves the page unfinished and
+preserves successful peers. No new provider, persistent workflow or approval.
+
+The earlier textual matching fix remains the standalone compatibility path;
+automated generation now supplies the semantic reviewer. Verification details
+and model-cost/qualification limits are in
+[semantic review verification](009-evidence/2026-11-16-three-path-live/semantic-review-verification.md).
+On 2026-11-17, 12 real-provider shared-loop probes passed across plain/import/Scene:
+paraphrases, binding-only repair, factual repair and autonomous drafting/review.
+The evidence retains initial transport/truncation failures and late-discovered
+plan requirements. Real review latency ranged from 3.446 to 83.625 seconds
+(median 15.968 seconds across 26 completed reviews); billing cost was unavailable.
+Final Plain/Import binding controls used a fixed minimal plan to isolate binding
+from unrelated generated practice. This qualifies text/object review on one
+science page, not a complete course or actual image grounding. P7 remains open
+for UI/native persistence, vision and full media acceptance; earlier playback
+results do not establish those additional boundaries. The following acceptance
+entry supplies the subsequent three small lessons' native/vision/media evidence.
+
+### 2026-11-17 native visual-review wiring and new small lessons
+
+The resumed real run found and repaired an actual caller gap: the document-tool
+runtime supplied no vision callback to narration because it created the
+candidate coordinator without a redo interface. The existing authorized vision
+completion now reaches both foreground and background document runtimes
+independently of redo. A regression covers both callers; 129 targeted tests,
+Desktop typecheck and build passed. Existing review/repair limits, source CAS,
+accepted scripts, saved audio and activity contracts are unchanged.
+
+Three new topics use four physical pages each, below the user's new six-page
+ceiling: Grade 3 Math rectangle area, Grade 7 Biology food chains, and Grade 1
+Chinese Quiet Night Thought import. All three passed real native image/semantic
+review, formal fixed builds, complete natural playback and full application
+restart/reopen checks. Six, nine and four real speech clips respectively ended
+naturally; all pages, wrong/correct Quiz feedback, oral teacher continuation
+and the three requested effect categories were observed. Import preserved its
+original six text shapes and approved script/audio; Scene retained raster-only
+body lettering and its compiled image bytes. Master's inaccurate distractor
+explanation was corrected through the existing revision-checked write flow,
+with speech/audio and peer pages retained.
+
+Provider failures and invalid model outputs remain recorded as failures.
+Operator model changes and layout/content feedback make this assisted recovery,
+not unattended first-pass qualification. No validation or retry limit was
+weakened. See the [new acceptance evidence](009-evidence/2026-11-17-three-path-live/README.md)
+for current results and the isolated candidate fingerprint. Historical P1
+attribution and the broader P7 matrix remain open.
 
 ## Product Decisions
 
@@ -40,13 +428,13 @@ Overall TODO does not mean every mechanism below is missing. P0/P1/P6 must first
 - Preserve story-first as an optional existing flow. Story approval, Scene-plan approval, and first-master style confirmation are distinct gates. A page-count or `visualStyle` change alone does not invalidate story approval; changed teaching requirements such as grade or subject require story revision and human review. This exception does not authorize changing an approved Scene plan or prepared image intent.
 - Generation, platform synchronization, and publication remain separate scopes. Generation completion must never automatically synchronize or publish. Retain explicit cloud-conflict and conversion-warning review at the exact revision/fingerprint governed by the existing delivery module.
 - Stability work must preserve the existing business flow and validation semantics. Keep current required steps, ordering, approval gates, permission checks, schemas, thresholds, acceptance criteria, and failure behavior intact; do not skip, weaken, bypass, downgrade, or make a required check optional to reduce interruptions. Stability changes may improve diagnostics, error propagation, bounded recovery, and user-facing status. Any business-logic or validation change requires separate explicit authorization.
-- This plan does not authorize live paid media generation, external synchronization/publication, or changes to another repository.
+- Paid media validation requires separate authorization; the user's 2026-11-15 continuation authorized the scoped image/TTS runs recorded above. External synchronization/publication and changes to another repository remain outside this task.
 
 The preservation rule applies to the P0 baseline agreed for implementation, including its existing distinctions between blocking errors and advisories. Preserve business validation outcomes while fixing erroneous execution or reporting; do not freeze obsolete wording from this document as a business rule. The previously requested Education defaults and Scene body-image guidance remain the explicitly scoped prompt improvements. Any additional business-rule change requires separate authorization.
 
 ## Current Evidence
 
-These observations describe the inspected source in this worktree. Re-check them against the implementation baseline because the worktree contains unrelated uncommitted changes.
+These observations describe the 2026-11-13 source review before this implementation. The checkpoint above records the subsequent changes; this table is retained as baseline evidence, not a list of current defects.
 
 | Finding | Evidence | Effect |
 |---|---|---|
@@ -88,6 +476,9 @@ Do not respond to parameter errors with broad prompt additions or unbounded retr
 ## Visual Validation and Completion Boundaries
 
 These are current business distinctions to retain, not proposed validation relaxations:
+
+- **Stage boundary:** once any saved page enters narration, the course's Visual Master pixels are immutable for downstream work. Later repair may change saved narration/TTS, synchronized highlight or spotlight targets, entrance animation and page fade. A real image defect remains blocking and must return to Visual Master before downstream narration/effects are regenerated; no crop, redraw, decomposition, page redo, style batch or image replacement may be used as a post-narration repair.
+- **Repair priority:** choose the smallest downstream repair that resolves the evidence. Default order is factual saved narration first, then existing highlight/spotlight target bindings, then entrance animation or timing. This order does not permit changing correct speech to conceal an image defect. Quiz/reference/checkpoint field repairs retain their existing contracts and do not change page pixels.
 
 - `visual_variation` records harmless appearance differences when the actual picture still teaches the same objective. A diamond kite may support a flying-a-kite lesson despite a swallow-shaped illustration plan. Shape, color, count, position, or exact text remain strict when taught, tested, or explicitly required by the user. Narration must describe observed pixels and never invent aliases to conceal a mismatch.
 - Classroom props used by the teacher are not automatically required software controls on a slide. A genuinely missing essential picture or contradictory teaching content still blocks the affected page. A planned effect not yet generated is not evidence that its static picture is missing.
@@ -357,10 +748,152 @@ This is a starting map, not an instruction to edit every file. Re-check callers,
 - Reimplementing the existing import Start, lesson mapping, activity insertion, narration batching, TTS recovery, preflight, or platform delivery modules.
 - Treating all appearance differences or unresolved descriptions as blockers, or suppressing actual missing-content/effect errors to increase completion rates.
 - Changing billing-duration fallbacks, media/frame limits, business page budgets, or existing validation thresholds as part of prompt/stability work.
-- Live generation, publishing, committing, or integrating code.
+- Unbounded paid generation, publishing, committing, or integrating code.
 
 ## Implementation Order and Delivery Notes
 
 Execute P0 through P7 in order: refresh the current business/validation baseline, verify existing recovery and address demonstrated gaps, then implement remaining stage/subject image guidance and route regressions. Existing mechanisms are verification/reuse tasks, not a new implementation backlog. Characterize Main/Host/native boundaries before prompt changes and edit shared files sequentially. Before code work, follow current branch/worktree policy and preserve dirty files.
 
-This revision changes the plan and index only. The preceding read-only review ran 11 selected Desktop suites, four Runtime suites (75 tests), and two Shared suites (9 tests) successfully; that result applies to the reviewed local state, not later concurrent edits or a release build. Documentation validation checks references, phase consistency and whitespace. No fresh provider generation, actual player run, platform sync/publication or installer acceptance is claimed by this revision. Prompt snapshots/typechecks do not prove image accuracy, and structural preflight does not prove natural audio completion.
+The 2026-11-13 revision changed the plan and index only. This request worktree adds the Scene, profile, Skill, Host fallback, and regression changes recorded above. Its provider-free workflow gate, browser fixture, Electron Scene fixture, and packaged native-editor routing fixture passed. Subsequent authorized live runs add sample image review, real decomposition/native compilation and natural audio completion for one page; they do not qualify arbitrary visual accuracy, a complete multi-page lesson or platform publication. P1's historical incident attribution remains open; local failure-injection tests and the scoped live smoke cannot identify redacted historical causes.
+
+### 2026-11-17 generation-recovery follow-up
+
+Implemented bounded semantic/activity-verdict format recovery, exact short-object
+reference resolution and program-read activity evidence. Independent native pages
+continue after terminal local review failures. Skills prohibit defaulting an
+unspecified speech count to one; explicit counts remain enforced.
+
+The existing native media-context tool supports explicit final content review.
+Full-course continuation invokes it before reporting completion, checking saved
+PNGs, narration and all question analyses. Generated Quiz analysis alone may be
+corrected through the existing classroom CAS/save and must pass re-review;
+original imports, locked content, speech/audio and peer fields remain protected.
+Unresolved source/visual/uncertain problems remain unfinished. No business
+requirements, structural validators, media identities or repair limits were
+removed. See [recovery changes and qualification limits](009-evidence/2026-11-17-three-path-live/generation-recovery-fixes.md).
+The previous three real lessons predate these fixes. A fresh authorized paid
+rerun now exercises actual saved-page and question review; it has correctly
+rejected unfinished or inconsistent content and does not establish three-route
+acceptance. See [the paid rerun evidence](009-evidence/2026-11-17-paid-rerun/README.md).
+
+The rerun identified and locally repaired a scalar short-answer projection,
+missing saved-audio duration evidence in semantic review, and non-actionable
+first-master reference feedback. Targeted tests and a restarted candidate verify
+these changes; existing source, audio, approval, object-count and retry limits
+remain unchanged. Newly observed qualification gaps remain open: a whole Scene
+diagram can exceed the existing eight-target focus limit after decomposition;
+native text observations may attach neighboring lettering and exhaust bounded
+repair; generated activity titles can leak plan instructions; and the native
+Quiz footer always uses choice wording, even for short-answer questions.
+The Agent also lacks a discoverable supported edit path for some generated
+assessment fields. Preserve these failures as P1/P7 work rather than repeatedly
+buying media or weakening validators to produce a green run.
+
+### 2026-11-17 authenticated recovery verification
+
+The eight-target mismatch is fixed across generation, repair, saved attention and native editor adoption using the existing 200-target bound. Native non-image text overrides conflicting OCR; generated titles, reference answers and response-specific hints now use learner content. Native title-only writes, stale template refresh, response key-order audio preservation, legacy analysis fields and retained reference key points have regression coverage. Saved-page review refreshes checkpoint actions after repair and reviews assessments before adjacent body pages, preserving existing protection checks and bounded retries.
+
+Real recovery of the existing four-page lessons now shows:
+
+- Master: final review and full actual playback passed; 14 audio segments, original eight preserved.
+- Scene: the original failed audio result was adopted without repurchase; all 12 segments and interactions played successfully. Full effect acceptance remains open: page 3 connecting arrows are in the raster background and cannot receive the current object-target entrance effects independently. A final review ready flag does not close this known gap.
+- Import: visible titles, short-answer hint, reference answers, key points and legacy/canonical analyses persist after reopening. Final review and full four-segment playback passed; all original audio, original body text/geometry/style and speech actions are preserved. One key point lost during earlier recovery was restored from the pre-run backup through the supported classroom API, so this is assisted recovery.
+
+P1/P7 remain partially qualified: no new fresh autonomous three-route generation, matched par-A success-rate comparison, historical incident closure or release/publication qualification is claimed. Keep the Scene decomposition/effect-coverage gap open and deliver the companion editor source changes with Desktop. See [recovery results, candidate hashes and remaining limits](009-evidence/2026-11-17-recovery/README.md).
+
+
+### 2026-11-18 bounded hint and teaching-region repair
+
+Existing checkpoint hints can now be corrected by final model review through
+canonical classroom CAS/save, preserving question, reference answer and audio.
+For the background-only river issue, the user accepts whole rectangular teaching
+regions with scenery. Final review can request one exact background crop on an
+eligible Scene body page; the editor commits crop, background and existing-audio
+fade/spotlight binding atomically, then Desktop saves and reviews again.
+
+Local recovery of the real four-page water-cycle artifact passed pixel checks,
+Undo/Redo, native save/reopen, strict preflight, fixed build and actual playback
+of all 16 original audio segments. The new river target actually faded and was
+included in the spotlight. No image or TTS was regenerated. Existing failed
+semantic-repair records are not cleared by this narrow operation.
+
+P1/P7 remain partially qualified: this round uses fixed crop coordinates and
+controlled review responses, not a fresh real-LLM autonomous repair or three-route
+regeneration. The original paid evidence and full Electron restart gap remain
+unchanged. See [implementation and verification evidence](009-evidence/2026-11-18-background-region/README.md).
+
+
+### 2026-11-18 follow-up: tool-contract recovery
+
+Implemented Host-owned artifact paths before draft creation, an explicit tool
+workspace root, refresh schema/Main agreement, current-document hash guidance,
+valid Quiz configuration identities and specific input error codes. Automatic
+continuation now permits two model correction opportunities per operation per
+runtime turn without replaying failed mutations or replacing paid originals.
+Exhaustion retains a safe actionable diagnostic. Existing business validators,
+approval gates, source guards and content-repair accounting remain unchanged.
+
+See [verification and limits](009-evidence/2026-11-18-tool-contract-recovery/README.md).
+This is local fixture/integration qualification. P1/P7 real-model coverage and
+three-route success-rate comparison remain open; no prior failed paid run is
+reclassified as passing by these fixes.
+
+
+### 2026-11-18 follow-up: retry lifecycle and diagnostic precision
+
+The reproduced three-to-six narration-call renewal after runtime recreation is
+fixed using the existing Host repair store. Stable content identity excludes
+transient editor identity; ownership fences remain. Native generation reserves
+its existing limited attempts before dispatch. Visual-format/planning failures
+retain their stage, and locally generated schema field hints survive automatic
+continuation wrapping without exposing raw payloads.
+
+See [verification and remaining boundaries](009-evidence/2026-11-18-retry-lifecycle/README.md).
+This closes the specific native retry lifecycle gap described in the earlier
+state-transition review. It does not qualify every in-flight review interruption,
+installed Electron crash journey, historical P1 attribution or fresh paid P7
+three-route run.
+
+### 2026-11-18 follow-up: supplier layer identity and native fractions
+
+The two failures isolated by the exact DeepSeek rerun are repaired in source.
+Supplier name/description now survive the private archive and native PPT, with
+current PNG hash verification and invalidation on replacement or semantic image
+transforms. Known layers avoid redundant discovery; unresolved layers retain
+bounded visual fallback. Independent narration and final content review remain,
+now with isolated PNG-to-UUID evidence. Old lessons without metadata are not
+silently rewritten.
+
+Native numeric OMML fractions now retain their source identities and visible
+fraction layout through fixed conversion, including the grouped alternate-content
+case in the real four-page failed Master. Unsupported equations retain the review
+gate. See [repair evidence and limits](009-evidence/2026-11-18-layer-identity-and-math-fix/README.md).
+This does not convert the earlier paid failures into passes or close the fresh
+paid three-route/P7 acceptance gap.
+
+### 2026-11-18: verified focus and early native-timing feedback
+
+The final reviewer now receives cue targets by saved name, slide coordinates and
+speech window. A verified target mismatch on an eligible generated page enters
+bounded saved-audio repair and a new review. Other pages with a non-repairable
+source issue still block delivery, without stranding an independent binding fix.
+The desktop-course path checks native timing at PPT Master adoption, before TTS.
+
+The four-page water-cycle validation copy was repaired from the saved pre-crop
+revision, using explicit fixture target selections and bounds, without new media.
+Real Office save/reopen and playback retained all eight speech clips. The two
+body regions enclosed the selected seven and eight foregrounds; six timed
+highlight/spotlight cues matched their actual rendered targets. On the fractions
+project copy, official PPT Master validation/export retained 15 verified native
+animation items and produced no timing warnings with compatible emphasis.
+The saved four-page fractions copy also completed fixed playback. All ten original
+speech clips ended naturally. Eight highlight and spotlight cues reached the
+expected objects, and both answer outcomes and teacher continuation worked.
+The original failure reproduced when a current parser preflight was followed by
+a build with an older staged worker. Development now stages the worker and
+authoring bundle from the current runtime build for each standard launch.
+Preflight, preview, delivery and the host resolve the same selected worker.
+These checks used existing paid courseware and explicit repair inputs. Fresh
+autonomous generation and target selection remain unverified in this round.
+An existing saved crop cannot yet be resized in place. See the [artifact
+measurements](009-evidence/2026-11-18-focus-and-playback/verification.json).

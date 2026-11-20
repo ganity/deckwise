@@ -167,6 +167,11 @@ export async function withModel(run) {
 }
 
 test("scene completion resolves inherited models without writing session configuration", async () => withModel(async f => {
+  f.session.thinkingLevel = "medium";
+  await f.services.completeScene(input());
+  assert.equal(f.requests.length, 1);
+  f.requests.length = 0;
+  f.session.thinkingLevel = "off";
   delete f.session.providerId; delete f.session.modelId;
   assert.deepEqual(await f.services.resolveSceneModel("chat-1"), { modelKey: input().modelKey, thinkingLevel: "off" });
   await f.services.completeScene(input());

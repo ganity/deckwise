@@ -15,12 +15,12 @@ export function resolveCoursewareRoute(entry: CoursewareEntry, phase: Courseware
   }
   if (phase === "edit") return {
     available: true, skill: "deckwise/ppt-edit", authority: "latest-clean-pptx-and-teaching" as const,
-    instruction: "Read fresh Office context. Prefer advertised native tools. Unsupported edits create a candidate from the latest clean PPTX copy; never restore an older SVG over Office edits. Saving and candidate adoption require Host confirmation.",
+    instruction: "Read saved teaching context for narration and media; use their verified automatic-save receipts. For slide or selection edits, read fresh Office context and use advertised native tools. Unsupported edits create a candidate from the latest clean PPTX copy; never restore an older SVG over Office edits. Native slide saving and candidate adoption retain their Host checks.",
   };
   const routes = {
     presentation: { skill: "deckwise/ppt-master", authority: "generation-candidate" as const, instruction: "Use the complete PPT Master generation workflow, including SVG intermediates, editable PPTX and page narration. SVG is a generation candidate only." },
     scene: { skill: "deckwise/scene-courseware", authority: "generation-candidate" as const, instruction: "Generate a validated editable scene candidate with resolved assets. Report unavailable if the scene generator is not installed; do not fall back to a theme-only presentation." },
-    import: { skill: "deckwise/ppt-import", authority: "imported-pptx-and-teaching" as const, instruction: "Preserve the imported PPTX. Offer original notes, external narration or newly generated page narration as explicit choices; do not regenerate the deck from a topic." },
+    import: { skill: "deckwise/ppt-import", authority: "imported-pptx-and-teaching" as const, instruction: "Preserve the imported PPTX. Follow the accepted Start request and supplied scripts without asking for another narration-source choice; ask before replacing conflicting existing narration. Do not regenerate the deck from a topic." },
   };
   return { available: entry !== "scene" || sceneReady, ...routes[entry] };
 }

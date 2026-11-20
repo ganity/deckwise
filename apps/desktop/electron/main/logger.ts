@@ -420,6 +420,39 @@ export function normalizeEventName(value: string): string {
   return truncateText(normalized || "event.unknown", 128);
 }
 
+function nestedToolErrorCode(value: unknown, depth = 0): string | undefined {
+  if (depth > 4) return;
+  const safeCode = (candidate: unknown) => typeof candidate === "string" &&
+    /^(?:(?:COURSEWARE_|PPT_|PPTX_|PROVIDER_|INVALID_|TOOL_|PERMISSION_|TASK_|LOCAL_)[A-Z0-9_]{1,96}|NOT_FOUND|INTERNAL)$/u.test(candidate) ? candidate : undefined;
+  if (typeof value === "string") {
+    if (value.length > 16_384) return;
+    // Only product error prefixes are safe to extract from otherwise private prose.
+    const code = /^(?:Error: )?((?:COURSEWARE_|PPT_|PPTX_|PROVIDER_)[A-Z0-9_]{1,96})(?::|$)/u.exec(value)?.[1];
+    if (code) return code;
+    if (value.startsWith("{")) {
+      try { return nestedToolErrorCode(JSON.parse(value), depth + 1); }
+      catch { return; }
+    }
+    return;
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) return;
+  const record = value as Record<string, unknown>;
+  for (const key of ["errorCode", "code"]) {
+    const code = record[key];
+    const safe = safeCode(code);
+    if (safe) return safe;
+  }
+  for (const key of ["error", "details"]) {
+    const code = nestedToolErrorCode(record[key], depth + 1);
+    if (code) return code;
+  }
+  if (Array.isArray(record.content)) for (const block of record.content.slice(0, 16)) {
+    if (!block || typeof block !== "object" || block.type !== "text") continue;
+    const code = nestedToolErrorCode(block.text, depth + 1);
+    if (code) return code;
+  }
+}
+
 /**
  * Keep tool logs useful without copying command output, file contents, or
  * plugin responses into the diagnostic stream. The complete result remains
@@ -428,7 +461,8 @@ export function normalizeEventName(value: string): string {
 export function summarizeToolResult(result: unknown): Record<string, unknown> {
   if (result === null || result === undefined) return { type: "empty" };
   if (typeof result === "string") {
-    return { type: "text", chars: result.length, bytes: Buffer.byteLength(result, "utf8") };
+    const code = nestedToolErrorCode(result);
+    return { type: "text", chars: result.length, bytes: Buffer.byteLength(result, "utf8"), ...(code ? { errorCode: code } : {}) };
   }
   if (typeof result !== "object") return { type: typeof result };
   if (Array.isArray(result)) {
@@ -458,6 +492,10 @@ export function summarizeToolResult(result: unknown): Record<string, unknown> {
   if (Array.isArray(record.content)) summary.contentBlocks = record.content.length;
   if (record.details && typeof record.details === "object") {
     summary.detailFields = Object.keys(record.details as Record<string, unknown>).slice(0, MAX_DATA_KEYS);
+  }
+  if (summary.errorCode === undefined && summary.code === undefined) {
+    const code = nestedToolErrorCode(record);
+    if (code) summary.errorCode = code;
   }
   return summary;
 }

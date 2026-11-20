@@ -1,0 +1,41 @@
+{
+  "contentReview": {
+    "applied": false,
+    "issues": [],
+    "ready": true,
+    "sourceSha256": "2e9f4367737afe490aec0720d43bd8dc989462ef03b6637e3a3e071c85287a1a",
+    "teachingRevision": "6886442d-a5b8-42ad-949e-cf927d95d1b8"
+  },
+  "completion": {
+    "counts": {
+      "audioMissing": 0,
+      "audioReady": 4,
+      "musicClips": 0,
+      "musicPending": 0,
+      "pages": 4,
+      "questions": 2,
+      "speeches": 4
+    },
+    "issues": [],
+    "ready": true,
+    "sourceSha256": "2e9f4367737afe490aec0720d43bd8dc989462ef03b6637e3a3e071c85287a1a",
+    "teachingRevision": "6886442d-a5b8-42ad-949e-cf927d95d1b8",
+    "warnings": []
+  },
+  "sourceSha256": "2e9f4367737afe490aec0720d43bd8dc989462ef03b6637e3a3e071c85287a1a",
+  "teachingRevision": "6886442d-a5b8-42ad-949e-cf927d95d1b8",
+  "audioReady": true,
+  "teachingReady": true,
+  "playbackPreflight": {
+    "diagnostics": [
+      {
+        "code": "PPTX_NOTES_MASTER_UNVERIFIED",
+        "message": "PPTX 包含备注母版，当前仅提取逐页备注，未验证母版版式与样式的保留情况，须人工核对",
+        "severity": "warning"
+      }
+    ],
+    "issues": [],
+    "ready": true,
+    "sourceSha256": "2e9f4367737afe490aec0720d43bd8dc989462ef03b6637e3a3e071c85287a1a"
+  }
+}

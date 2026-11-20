@@ -160,13 +160,15 @@ it("keeps the compiled course active through saved narration and actual TTS adop
   } finally { await f.runtime.dispose(); vi.useRealTimers(); }
 });
 
-it('keeps the complete course active until original assessment media is archived and adopted', async () => {
+it.each([false, true])('keeps the complete course active until original assessment media is archived and adopted (speech=%s)', async assessmentTts => {
   vi.useFakeTimers();
   const f = fixture('cleanPlate', 'courseware_media_context');
-  Object.assign(f.saved, { generated: true, fullMedia: true, assessmentMissing: true });
+  Object.assign(f.saved, { generated: true, fullMedia: true, assessmentMissing: true, assessmentTts });
   try {
     const running = f.runtime.prompt('Finish the complete saved teaching course.', 'user', 'turn');
     await vi.waitFor(() => expect(f.calls.some(call => call.name === 'courseware_media_assessments' && call.args.mode === 'refresh')).toBe(true));
+    const refresh = f.calls.find(call => call.name === 'courseware_media_assessments' && call.args.mode === 'refresh')!;
+    expect(refresh.args.originalKey).toBe(assessmentTts ? 'maic-' + 'a'.repeat(64) : undefined);
     expect(f.events.filter(event => event.event.type === 'agent_end')).toHaveLength(0);
     f.saved.assessmentCompleted = true;
     await vi.advanceTimersByTimeAsync(3000);

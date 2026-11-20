@@ -1,0 +1,48 @@
+{
+  "route": "scene",
+  "pages": 4,
+  "sourceSha256": "8962d66f20bea9ed418e59077e7b21e774a6b73555f57b4b1b6e24330fb82547",
+  "audioAssets": {
+    "tts-10b0f24109f2a60e5ef31df6f7fae7bd74c3bd6c8083676d7a77a0e5c745f394": {
+      "sha256": "10b0f24109f2a60e5ef31df6f7fae7bd74c3bd6c8083676d7a77a0e5c745f394",
+      "durationSeconds": 9.888
+    },
+    "tts-8119d9c7233c1ce095a3a34375139632b0756aa4a06e3055f918f899384f0722": {
+      "sha256": "8119d9c7233c1ce095a3a34375139632b0756aa4a06e3055f918f899384f0722",
+      "durationSeconds": 5.64
+    }
+  },
+  "timing": [
+    {
+      "pageNumber": 1,
+      "speechCount": 0,
+      "audioCount": 0,
+      "speechSeconds": 0,
+      "effects": []
+    },
+    {
+      "pageNumber": 2,
+      "speechCount": 1,
+      "audioCount": 1,
+      "speechSeconds": 9.888,
+      "effects": []
+    },
+    {
+      "pageNumber": 3,
+      "speechCount": 0,
+      "audioCount": 0,
+      "speechSeconds": 0,
+      "effects": []
+    },
+    {
+      "pageNumber": 4,
+      "speechCount": 1,
+      "audioCount": 1,
+      "speechSeconds": 5.64,
+      "effects": []
+    }
+  ],
+  "allSavedSpeechAudioVerified": true,
+  "missingSpeechAudio": [],
+  "notAnAcceptanceVerdict": true
+}

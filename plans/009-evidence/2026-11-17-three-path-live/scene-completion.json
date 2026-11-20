@@ -1,0 +1,112 @@
+{
+  "completedAt": "2026-11-17T03:49:15.807Z",
+  "projectId": "native-314a62db2a022759540113c8f820b902d25caa98",
+  "sourceSha256": "c803185abc8e3c6e498567b978b270c47a1da71cd81a54140d542ba433736d0d",
+  "teachingRevision": "0dfabf8e-f9de-4af7-a0a5-d2d49843aa32",
+  "teachingReady": true,
+  "audioReady": true,
+  "completion": {
+    "counts": {
+      "audioMissing": 0,
+      "audioReady": 9,
+      "musicClips": 0,
+      "musicPending": 0,
+      "pages": 4,
+      "questions": 2,
+      "speeches": 9
+    },
+    "issues": [],
+    "ready": true,
+    "sourceSha256": "c803185abc8e3c6e498567b978b270c47a1da71cd81a54140d542ba433736d0d",
+    "teachingRevision": "0dfabf8e-f9de-4af7-a0a5-d2d49843aa32",
+    "warnings": []
+  },
+  "playbackPreflight": {
+    "diagnostics": [
+      {
+        "code": "PPTX_NOTES_MASTER_UNVERIFIED",
+        "message": "PPTX \u5305\u542b\u5907\u6ce8\u6bcd\u7248\uff0c\u5f53\u524d\u4ec5\u63d0\u53d6\u9010\u9875\u5907\u6ce8\uff0c\u672a\u9a8c\u8bc1\u6bcd\u7248\u7248\u5f0f\u4e0e\u6837\u5f0f\u7684\u4fdd\u7559\u60c5\u51b5\uff0c\u987b\u4eba\u5de5\u6838\u5bf9",
+        "severity": "warning"
+      }
+    ],
+    "issues": [],
+    "ready": true,
+    "sourceSha256": "c803185abc8e3c6e498567b978b270c47a1da71cd81a54140d542ba433736d0d"
+  },
+  "pages": [
+    {
+      "pageId": "scene-001",
+      "pageNumber": 1,
+      "narrationTiming": {
+        "budgetSeconds": 20,
+        "durationMs": 14712,
+        "overBudget": false
+      },
+      "effects": {
+        "animation": [
+          "object-c48aa748b8c1895727a335afcc1e5c443474b105"
+        ],
+        "highlight": [
+          "object-c48aa748b8c1895727a335afcc1e5c443474b105",
+          "object-1e42fc2993efd438f68cccf6d449edbc5258a2b6"
+        ],
+        "spotlight": [
+          "object-bde21e2b48c7ab9650bc3e2954504c0daf5d1b67"
+        ]
+      },
+      "teachingReady": true
+    },
+    {
+      "pageId": "scene-002",
+      "pageNumber": 2,
+      "narrationTiming": {
+        "budgetSeconds": 40,
+        "durationMs": 8040,
+        "overBudget": false
+      },
+      "effects": {
+        "animation": [],
+        "highlight": [],
+        "spotlight": []
+      },
+      "teachingReady": true
+    },
+    {
+      "pageId": "scene-003",
+      "pageNumber": 3,
+      "narrationTiming": {
+        "budgetSeconds": 20,
+        "durationMs": 12168,
+        "overBudget": false
+      },
+      "effects": {
+        "animation": [
+          "object-52fd3d79ee4194662e520583e9fc95331f1c12ca"
+        ],
+        "highlight": [
+          "object-52fd3d79ee4194662e520583e9fc95331f1c12ca",
+          "object-33569f55ec00525df192a0608bc76fc410de31b1"
+        ],
+        "spotlight": [
+          "object-e556e4a0fb508149a807c29f469f707d868e26a2"
+        ]
+      },
+      "teachingReady": true
+    },
+    {
+      "pageId": "scene-004",
+      "pageNumber": 4,
+      "narrationTiming": {
+        "budgetSeconds": 60,
+        "durationMs": 2664,
+        "overBudget": false
+      },
+      "effects": {
+        "animation": [],
+        "highlight": [],
+        "spotlight": []
+      },
+      "teachingReady": true
+    }
+  ]
+}

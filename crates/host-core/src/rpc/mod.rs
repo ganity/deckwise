@@ -1866,8 +1866,11 @@ async fn handle_request(
         }
         "courseware.workflow.get"
         | "courseware.workflow.checkpoint"
+        | "courseware.nativeRepairs.read"
+        | "courseware.nativeRepairs.write"
         | "courseware.task.set"
         | "courseware.task.updateEducation"
+        | "courseware.material.verifyInline"
         | "courseware.material.record"
         | "courseware.material.read"
         | "courseware.material.list"

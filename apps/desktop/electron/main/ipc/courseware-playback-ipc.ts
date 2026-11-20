@@ -1,3 +1,4 @@
+import { coursewareWorkerPath } from "../courseware-runtime";
 import { dirname, join } from "node:path";
 import type { BrowserWindow } from "electron";
 import { IPC } from "@pi-desktop/shared";
@@ -24,7 +25,7 @@ export function registerCoursewarePlaybackIpc(input: {
   authSession: DesktopAuthSession;
   refreshCanonical?: (sessionId: string, projectId: string) => Promise<void>;
 }): () => void {
-  const worker = process.env.DECKWISE_PPTX_WORKER || join(process.resourcesPath || "", "pptx-worker/pptx-worker.mjs");
+  const worker = coursewareWorkerPath();
   let observedHost: HostProcess | null = null;
   let detachHost: (() => void) | undefined;
   let sharing: AbortController | null = null;

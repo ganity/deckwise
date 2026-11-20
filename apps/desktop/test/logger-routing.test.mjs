@@ -207,6 +207,28 @@ test("tool result summaries keep outcome metadata without copying output", () =>
   assert.doesNotMatch(JSON.stringify(summary), /must stay out|sk-proj|private content/);
 });
 
+test("courseware failures retain nested reason codes without copying lesson or credentials", () => {
+  for (const result of [
+    { content: [{ type: "text", text: "COURSEWARE_PAGE_CONTENT_MISMATCH: private lesson" }] },
+    { content: [{ type: "text", text: JSON.stringify({ error: { code: "PPT_EDITOR_NOT_READY", message: "private lesson" } }) }] },
+    { content: [], details: { errorCode: "INVALID_ARGUMENT", fields: [{ path: "pages", value: "private lesson" }] } },
+  ]) {
+    const summary = summarizeToolResult(result);
+    assert.match(summary.errorCode, /^(COURSEWARE_PAGE_CONTENT_MISMATCH|PPT_EDITOR_NOT_READY|INVALID_ARGUMENT)$/);
+    assert.doesNotMatch(JSON.stringify(summary), /private lesson/);
+  }
+  for (const text of ["PRIVATE_SECRET: not an error code", "Bearer private-token", "ordinary text"]) {
+    assert.equal(summarizeToolResult({ content: [{ type: "text", text }] }).errorCode, undefined);
+  }
+  assert.equal(summarizeToolResult({ details: { errorCode: "secret value with spaces" } }).errorCode, undefined);
+  assert.equal(summarizeToolResult({ details: { errorCode: "SECRET_VALUE" } }).errorCode, undefined);
+  assert.equal(summarizeToolResult("Error: PPT_EDITOR_NOT_READY: private lesson").errorCode, "PPT_EDITOR_NOT_READY");
+  assert.equal(summarizeToolResult({ errorCode: "NOT_FOUND" }).errorCode, "NOT_FOUND");
+  const cycle = {}; cycle.details = cycle;
+  assert.equal(summarizeToolResult(cycle).errorCode, undefined);
+  assert.equal(summarizeToolResult({ content: [{ type: "text", text: "x".repeat(20_000) }] }).errorCode, undefined);
+});
+
 test("logger console mirror never throws when stdout is a broken pipe", async () => {
   const dataDir = await mkdtemp(join(tmpdir(), "pi-desktop-logger-epipe-"));
   const previousLog = console.log;

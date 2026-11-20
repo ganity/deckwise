@@ -13,6 +13,7 @@ import { mkdtemp, mkdir, readFile, readdir, rename, rm, stat, writeFile } from '
 import path from 'node:path';
 import { mapSlideIrToScenes } from '../import/mappers/import-ir-to-classroom';
 import type { SlideIR, ImportWarning } from '../import/types';
+import type { SlideContent } from '../types/stage';
 import { fixedBuildInputSchema, type FixedBuildInput } from './fixed-build-input';
 import { validSpeechAnimationSequence } from '../../../speech-animation-sequence';
 import type { NativeClickAnimations } from '../../../native-click-animations';
@@ -212,6 +213,7 @@ export async function buildFixedCourseware(
   raw: unknown,
   options: { workerDirectory: string; outputDirectory: string; signal?: AbortSignal; nativeAssessments?: Record<string, unknown>; nativePageTitles?: Record<string, string>;
     onConverted?: (value: { ir: SlideIR; input: FixedBuildInput; directory: string;
+      pages: Array<{ pageId: string; slide: SlideContent['canvas']; objects: FixedBuildInput['mapping']['pages'][number]['objects'] }>;
       assets: Array<{ id: string; path: string; sha256: string; mimeType: string }> }) => Promise<void> },
 ) {
   checkCancelled(options.signal);
@@ -365,7 +367,7 @@ export async function buildFixedCourseware(
       }
     }
     validateResources(pages);
-    await options.onConverted?.({ ir, input, directory: staging, assets });
+    await options.onConverted?.({ ir, input, pages, directory: staging, assets });
     const visualCues = input.teaching.pages.flatMap((p) =>
       p.actions.flatMap((a) => (a.type === 'speech' ? (a.visualCues ?? []) : [])),
     );

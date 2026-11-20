@@ -25,7 +25,18 @@ const PPT_MASTER_SKILL_DESCRIPTION =
 const PPT_MASTER_REQUIRED_FILES = [
   "SKILL.md",
   "scripts/attribution_guard.py",
+  "scripts/project_manager.py",
+  "scripts/svg_quality_checker.py",
+  "scripts/svg_to_pptx.py",
+  "scripts/svg_editor/server.py",
   "workflows/routing.md",
+] as const;
+const PPT_MASTER_LOADED_FILES = [
+  "SKILL.md",
+  "workflows/routing.md",
+  "workflows/generate-pptx.md",
+  "templates/design_spec_reference.md",
+  "templates/spec_lock_reference.md",
 ] as const;
 
 /** electron-builder copies `resources/skills` to `<resources>/skills`. */
@@ -51,12 +62,12 @@ function resolveBuiltinSkillPath(fileName: string): string | null {
  * builds can point at the same official, unmodified distribution without
  * teaching the agent a machine-specific checkout path.
  */
-export function resolvePptMasterSkillRoot(): string | null {
+function pptMasterSkillCandidates(): string[] {
   const configured = process.env.DECKWISE_PPT_MASTER_SKILL_ROOT?.trim();
   // The Electron bundle provides __dirname; source-level contract tests run as
   // ESM and do not. The environment and cwd candidates still cover both.
   const moduleDir = typeof __dirname === "string" ? __dirname : process.cwd();
-  const candidates = [
+  return [
     configured,
     join(process.resourcesPath || "", "skills", "ppt-master"),
     join(moduleDir, "../../resources/skills/ppt-master"),
@@ -67,12 +78,23 @@ export function resolvePptMasterSkillRoot(): string | null {
     join(process.cwd(), "../../../ppt-gen/vendors/ppt-master/skills/ppt-master"),
     join(moduleDir, "../../../../../ppt-gen/vendors/ppt-master/skills/ppt-master"),
   ].filter((candidate): candidate is string => Boolean(candidate));
-  for (const candidate of candidates) {
+}
+
+export function resolvePptMasterSkillRoot(): string | null {
+  for (const candidate of pptMasterSkillCandidates()) {
     if (PPT_MASTER_REQUIRED_FILES.every((file) => existsSync(join(candidate, file)))) {
       return candidate;
     }
   }
   return null;
+}
+
+export function pptMasterSkillUnavailableReason(): string {
+  const candidates = pptMasterSkillCandidates();
+  const root = resolvePptMasterSkillRoot() ?? candidates.find((candidate) => existsSync(candidate)) ?? candidates[0];
+  const missing = root && [...PPT_MASTER_REQUIRED_FILES, ...PPT_MASTER_LOADED_FILES]
+    .find((file) => !existsSync(join(root, file)));
+  return missing ? `PPT Master is missing ${missing}` : "PPT Master skill package is unavailable or unreadable";
 }
 
 function readPptMasterSkill(): { root: string; raw: string; planningReference: string } | null {
@@ -82,11 +104,11 @@ function readPptMasterSkill(): { root: string; raw: string; planningReference: s
     return {
       root,
       // Models can skip routed reads even after receiving the entry point.
-      raw: ["SKILL.md", "workflows/routing.md", "workflows/generate-pptx.md"]
+      raw: PPT_MASTER_LOADED_FILES.slice(0, 3)
         .map((file) => readFileSync(join(root, file), "utf8"))
         .join("\n\n"),
-      planningReference: ["design_spec_reference.md", "spec_lock_reference.md"]
-        .map((file) => readFileSync(join(root, "templates", file), "utf8"))
+      planningReference: PPT_MASTER_LOADED_FILES.slice(3)
+        .map((file) => readFileSync(join(root, file), "utf8"))
         .join("\n\n"),
     };
   } catch {
@@ -111,32 +133,32 @@ function withPptMasterRuntimeContext(body: string, root: string, planningReferen
     "Continue through the existing automated PM flow without confirmation pauses until the editable SVG preview is ready. Only ask when required input is genuinely missing.",
     "The ordinary task uses the supplied Default Generate authority after the integrity gate. Author complete page SVGs in svg_output and export them through the official svg_to_pptx.py pipeline. Do not replace that pipeline with python-pptx, PptxGenJS, hand-written OOXML, or a scratch direct-PPTX script. If the official pipeline fails, repair that project or report it incomplete; an independently generated PPTX is not a completed ordinary task.",
     "Default Generate uses machine-readable planning files. Before authoring SVG, read templates/design_spec_reference.md and templates/spec_lock_reference.md from SKILL_DIR, write their required sections with exact English headings and keys (including design_spec.md `## IX. Content Outline` and spec_lock.md `## canvas`, `## communication`, and `## typography`), and run the official project validation. Do not translate schema headings into Chinese or replace the reference format with a summary.",
-    "For generation and repairs, do not claim completion until both official checks exit 0: project_manager.py validate <project_path> for the complete planning schema and the final SVG quality checker with zero blocking errors. Re-run project validation after every planning repair; saved files alone do not establish schema validity. Run the SVG checker with --canonical-authoring --stage final --json after the last page, planning or narration edit to update validation/svg_quality_report.json. notes/total.md must cover every page when Speaker Notes is enabled. Repair failed gates before finishing; if repair fails, report the preview as incomplete. Open the actual preview in DeckWise's in-app Browser before reporting success. Chat text alone is not a saved speaker-note artifact.",
+    "For generation and repairs, do not claim completion until both official checks exit 0: project_manager.py validate <project_path> for the complete planning schema and the final SVG quality checker with zero blocking errors. Re-run project validation after every planning repair; saved files alone do not establish schema validity. Run the SVG checker with --canonical-authoring --stage final --json after the last page, planning or narration edit to update validation/svg_quality_report.json. notes/total.md must cover every page when Speaker Notes is enabled. Repair failed gates before finishing; if repair fails, report the preview as incomplete. Chat text alone is not a saved speaker-note artifact.",
     "Before asking, inspect the user's prompt and attached documents. Never ask for information already stated or reasonably inferable from those materials.",
     "## DeckWise Document Parsing Override (mandatory)",
     "DeckWise has already uploaded and parsed every attached PDF, DOC/DOCX, PPT/PPTX, and injected the returned text under `### 资料`. Treat that text as the only source of truth. Never list or read the original binary attachment from `PI_SCRATCH_DIR`, `pasted/`, or any local path, and never run `source_to_md.py`, LibreOffice, antiword, catdoc, python-docx, or another local document converter for those attachments. Continue using the parsed `### 资料` content and the normal PPTX workflow.",
     "For initial generation, clarification is limited to at most three rounds. One `asktool` call is one clarification round and may group several tightly related missing items. After each round, reassess whether the request is sufficient and start immediately once it is; never ask extra questions merely to use the remaining rounds.",
     "Treat a discernible teaching topic or source scope as the main blocker. Grade and subject should be clarified when they materially affect the content and cannot be inferred. Page count, visual style, color palette, lesson structure, and narration detail are optional preferences: infer sensible defaults rather than blocking generation unless the materials conflict or the user explicitly asks to choose them.",
     "Keep every clarification round compact, with short questions and a small set of useful options plus the custom-answer path provided by `asktool`. If critical information is still missing after the third round, proceed with conservative assumptions and state them briefly; stop only when there is no usable topic or source content at all.",
-    "Start the SVG preview using the bundled Python executable and `${SKILL_DIR}/scripts/svg_editor/server.py <project_path> --live --daemon --no-browser`. Read the actual URL from its output or live_preview/lock.json, and verify /api/health before opening it in DeckWise. svg_authoring_view.py creates an authoring IR bundle; it is not the preview server.",
+    "DeckWise starts the live SVG preview for the current task and opens it as soon as one valid slide is saved. Save each finished page directly to its planned SVG path as you go so it becomes available during generation.",
     "For generated illustrations, use the official image generation script and its host-provided image backend configuration. Do not ask the user for an image API key or substitute an unrelated image service.",
     "## DeckWise Fixed-identity Reference Policy (mandatory)",
     "When the user asks to reuse the identity of characters, spacecraft, vehicles, or objects from uploaded design/model sheets, treat those sheets as reference-only inputs before planning, in both Default and Quick generation. Do not place or crop the original sheet into a slide unless the user explicitly asks to display the original. Ordinary supplied photos, screenshots, and diagrams retain their existing direct-use behavior.",
     "Plan each affected illustration as a new AI-generated output with a distinct filename. Pass the relevant original image paths through the image manifest's `reference_images` to the configured Seedream backend; merely mentioning filenames in a text prompt is not image-to-image generation. Map each reference to its subject, preserve identity-defining face, hair, clothing, proportions, colors, and spacecraft silhouette/markings, and describe the slide-specific pose, action, expression, camera, setting, and composition. Generate a single scene rather than reproducing the reference sheet's multiple views, pose grid, labels, or captions. Do not combine unrelated references in every image.",
     "Only use the newly generated output in SVG and PPTX. Visually inspect it for identity and scene fit before preview; reject copied model sheets or contact sheets. If generation fails or no reference-capable backend is available, report the affected illustration as incomplete; never substitute the original sheet or an unrelated character to claim completion.",
-    "After the live preview server starts, call ToolSearch for `browser`, then call Browser with `action=navigate` and the exact loopback preview URL printed by PPT Master. Do not merely print the URL; opening the in-app Browser is part of the workflow.",
+    "For visual checks, call ToolSearch for `browser`. Call Browser with `action=screenshot` and `path` set to the exact workspace-relative SVG file in svg_output for the slide you want to check. The tool renders that file to PNG in the background. Do not navigate to the preview URL, change the user's selected slide, or take a screenshot without the SVG path for PPT Master visual checks.",
     "On the initial generation turn, stop after the editable SVG preview is ready and opened. Do not finalize or export PPTX until the user explicitly requests PPTX generation. A user request from DeckWise's `Generate PPTX` action is explicit authorization to continue the official finalization, validation, and SVG-to-PPTX export steps without another confirmation.",
     "This workflow owns generation candidates. Once Office editing starts, load deckwise/ppt-edit and use the latest PPTX and DeckWise teaching. Never supersede Office edits with an older SVG export. Unsupported native edits require a clean-copy candidate and Host review; report unavailable when that workflow is not installed.",
     "Before SVG authoring, use ToolSearch to load courseware_presentation_adopt and plan one teaching entry per physical page with its schema. Save that plan in the current project alongside the design specification. Reserve genuine Quiz and classroom interaction pages within the requested page budget; cover/opening/review count as body pages. Quiz has exactly one structured question with answer keys; interaction has its question in one exact editable text box, with a reference answer and nonempty source context. Body pages retain detailed speaker notes. Record explicitly requested highlight, spotlight and animation in requiredEffects on appropriate body pages with actual safe objects. Never place body narration/music/video on a standalone assessment page.",
     "For new ordinary projects, before drawing any SVG, load courseware_presentation_prepare and submit the complete ordered pages, projectPath and locked canvas width/height. It saves presentation-plan.json and generates fixed Quiz/checkpoint SVGs using the shared assessment layouts. Use the returned NN.svg paths for every page; author only generated:false body pages. Never draw, decorate, animate or generate whole-page illustrations for assessment pages, and never place answers or grading prompts on them. Preserve their generated editable question text and object IDs. Do not regenerate existing/manual pages through this preparation tool. Keep one SVG per physical page and run the same full official preview/quality/export gates. Assessment notes identify the question-only page, without lecture narration. Question TTS and option images are completed later through shared assessment media tools, preserving original successful assets; they are not prerequisites for this no-charge SVG preview. Pass the same saved pages to adoption after explicit export authorization.",
     "Declare the preparation result's fixed-template typographySizesPx as named assessment roles in design_spec.md and spec_lock.md, using Noto Sans SC as the assessment family. These shared template sizes coexist with body typography; do not redraw fixed pages to force them into the body style.",
     "Keep requested assessment kinds exact: a classroom interaction is pageType:interactive with teaching.question, never a short-answer Quiz used to escape a validation error. Fix the reported fields without changing the task. At final acceptance verify the saved classroom actually contains the requested Quiz and interaction_checkpoint, not just the same total page count.",
-    "Speaker notes are a pedagogical draft, not the final teaching script. The shared narration workflow adapts them to the audience, teaching phase and actual saved slide. Ensure every required visual really exists: a caption or label is not a character or family portrait. Repair missing required artwork before narration/TTS; do not claim a planned picture is visible or change the lesson objective to conceal missing content. For kindergarten prefer a few complete teaching moves, not clause-by-clause narration or repeated generic commands.",
-    "When Custom Animations is enabled or original PPT animations are requested, complete workflows/stages/customize-animations.md using references/animations.md before export; scripts/docs/animations.md does not exist. Inspect the actual exported native timing, not only Motion suggestion prose or shared speech cues. Keep unrelated objects static and fixed assessments unanimated. Shared speech effects do not prove that original native animations were exported or that unbound effects were exercised. Report those checks separately, and preserve animations.json as a source input requiring revalidation/re-export when edited.",
-    "After explicitly authorized official PPTX export and successful final validation, call courseware_presentation_adopt with the actual export path, SHA-256 and the saved per-page teaching plan. Keep initial SVG preview-only turns unchanged. Course export continues teaching by default, even if continueTeaching is omitted. Pass continueTeaching:true and use the shared saved narration/media tools to finish detailed speech, real-audio-timed focus/animation, narration TTS, question TTS and each multiple-choice option image without waiting for another Continue request. Refresh original pending jobs and preserve successful assets; no per-page confirmation is needed. Only when the user explicitly requests PPTX-only delivery, pass continueTeaching:false and do not synthesize paid media. Exported PPTX alone is not a completed teaching course. Once adopted, resume from courseware_workflow_get and saved teaching rather than exporting SVG again.",
+    "Speaker notes are a pedagogical draft, not the final teaching script. The shared narration workflow adapts them to the audience, teaching phase and actual saved slide. Ensure every required visual really exists: a caption or label is not a character or family portrait. Repair missing required artwork before adoption; do not claim a planned picture is visible or change the lesson objective to conceal missing content. For kindergarten prefer a few complete teaching moves, not clause-by-clause narration or repeated generic commands.",
+    "When Custom Animations is enabled or original PPT animations are requested, complete workflows/stages/customize-animations.md using references/animations.md before export; scripts/docs/animations.md does not exist. For desktop playback, when the user asks for an entrance or emphasis without naming an exact preset, prefer entrance_fade and emphasis_teeter on the requested objects. PowerPoint-only effects such as emphasis_shimmer, emphasis_bold_flash and emphasis_grow_with_color cannot be faithfully played. Never silently substitute for an explicitly requested preset. Inspect the actual exported native timing, not only Motion suggestion prose or shared speech cues. Keep unrelated objects static and fixed assessments unanimated. Shared speech effects do not prove that original native animations were exported or that unbound effects were exercised. Report those checks separately, and preserve animations.json as a source input requiring revalidation/re-export when edited.",
+    "After explicitly authorized official PPTX export and successful final validation, call courseware_presentation_adopt with the actual workspace-relative or absolute export path and SHA-256. The tool inspects the rendered export before adoption. Correct a reported material visual defect on the affected page before re-export. Once adopted the body artwork is fixed: repair wrong words or effect targets against the saved picture. The tool reads the saved teaching plan directly; omit pages. If inputs changed after validation only, rerun the official final quality checker on the saved project and retry the same export. If inputs changed after export, validate and re-export. Keep initial SVG preview-only turns unchanged. Course export continues teaching by default, even if continueTeaching is omitted. Pass continueTeaching:true and use the shared saved narration/media tools to finish detailed speech, real-audio-timed focus/animation, narration TTS, question TTS and each multiple-choice option image without waiting for another Continue request. Refresh original pending jobs and preserve successful assets; no per-page confirmation is needed. Only when the user explicitly requests PPTX-only delivery, pass continueTeaching:false and do not synthesize paid media. Exported PPTX alone is not a completed teaching course. Before completion, use courseware_media_context with reviewContent:true and require contentReview.ready:true; use the accepted rendering to verify speech and effects, then review questions and every answer-analysis statement, preserving existing audio. Never invent speechCount:1 when the user did not specify an exact count. Once adopted, resume from courseware_workflow_get and saved teaching rather than exporting SVG again.",
     "",
     "## DeckWise Workspace Boundary",
-    "All generated project files and final PPTX artifacts must stay under the current DeckWise workspace. Before `project_manager.py init`, derive an absolute project base under the workspace (for example `WORKSPACE_ROOT=\"$(pwd -P)\"; PROJECTS_DIR=\"$WORKSPACE_ROOT/.deckwise-ppt/projects\"`) and pass it explicitly with `--dir \"$PROJECTS_DIR\"`. Never omit `--dir`, never use the Skill package's default `projects/` directory, and never write generated artifacts under `SKILL_DIR`.",
+    "All generated project files and final PPTX artifacts must stay under the current DeckWise workspace. Before `project_manager.py init`, use courseware_workflow_get workspace.projectsDirectory as the absolute project base (if unavailable, use the advertised absolute workspace root plus `/.deckwise-ppt/projects`; do not infer it from the Skill directory) and pass that absolute path explicitly as the quoted value of `--dir`. Never omit `--dir`, never use the Skill package's default `projects/` directory, and never write generated artifacts under `SKILL_DIR`.",
     "",
     "## Required planning reference (loaded from the official distribution)",
     "Apply these contracts after the integrity gate. They define the exact planning format for initial generation and repairs; preserve confirmed teaching content when repairing an existing project.",

@@ -1,3 +1,5 @@
+import { resolve } from "node:path";
+import { sceneCoursePlanRelativePath } from "./courseware-scene-plan";
 import { coursewareMediaRecovery } from "@pi-desktop/shared";
 import { adoptPresentation } from "./courseware-presentation";
 import { preparePresentation } from "./courseware-presentation-prepare";
@@ -22,6 +24,8 @@ function assertWorkflowScope(host: Host | null, currentHost: Host | null, sessio
 
 /** Main Chat and panel reuse the same durable jobs; image generation keeps billing internal and preserves first-page style review. */
 export class CoursewareChatWorkflow {
+  checkPresentationCounts?: ReturnType<typeof import("./courseware-presentation-prepare").presentationPageCounts>;
+  reviewPresentation?: import("./courseware-presentation").PresentationReview;
   nativeTeaching?: { execute(sessionId: string, name: string, args: unknown, canDispatch: () => boolean): Promise<{ value: unknown } | undefined> };
   private compiling = false;
   private readonly imagePipelines = new Set<string>();
@@ -54,7 +58,8 @@ export class CoursewareChatWorkflow {
     check();
     const compilation = this.compilation?.sessionId === sessionId && this.compilation.planSha256 === plan?.sha256
       ? { planSha256: this.compilation.planSha256, state: this.compilation.state, ...(this.compilation.message ? { message: this.compilation.message } : {}) } : undefined;
-    return { ...(task?.storyFirst ? { story } : {}), ...(compilation ? { compilation } : {}), task: task ? { taskType: task.taskType, ...(task.storyFirst ? { storyFirst: true } : {}), ...(task.educationContext ? { educationContext: task.educationContext } : {}),
+    return { workspace: { root: session.projectPath, projectsDirectory: resolve(session.projectPath, ".deckwise-ppt/projects"),
+      ...(task?.taskType === "scene" ? { scenePlanPath: resolve(session.projectPath, sceneCoursePlanRelativePath(sessionId)) } : {}) }, ...(task?.storyFirst ? { story } : {}), ...(compilation ? { compilation } : {}), task: task ? { taskType: task.taskType, ...(task.storyFirst ? { storyFirst: true } : {}), ...(task.educationContext ? { educationContext: task.educationContext } : {}),
       imported: !!task.importPath, generated: !!task.generatedPath || !!task.canonicalProjectId,
       ...(task.canonicalProjectId ? { canonicalProjectId: task.canonicalProjectId } : {}),
       ...((task.generatedPath ?? task.importPath) ? { sourcePath: task.generatedPath ?? task.importPath } : {}) } : null, plan };
@@ -63,6 +68,11 @@ export class CoursewareChatWorkflow {
   async execute(sessionId: string, name: string, args: unknown, canDispatch: () => boolean): Promise<unknown> {
     if (!record(args)) throw new Error("Invalid courseware workflow arguments");
     const input = structuredClone(args), host = this.getHost();
+    if (name === "courseware_scene_generate_remaining") {
+      if (Object.keys(input).length) throw new Error("COURSEWARE_INVALID_REFRESH: Whole-course continuation takes no arguments");
+      name = "courseware_scene_image_refresh";
+      input.generateRemaining = true;
+    }
     const check = () => assertWorkflowScope(host, this.getHost(), sessionId, this.getViewingSession(), canDispatch);
     const view = await this.read(sessionId, canDispatch);
     check();
@@ -88,14 +98,16 @@ export class CoursewareChatWorkflow {
     }
     if (name === "courseware_presentation_adopt" || name === "courseware_presentation_prepare") {
       if (view.task?.taskType !== "plain") throw new Error("Presentation adoption requires the ordinary task");
-      const owner = await host.call<{ session?: { projectPath?: string } }>("session.get", { id: sessionId, messageLimit: 1 }); check();
+      const owner = await host.call<{ session?: { projectPath?: string; messages?: { role: string; content?: string }[] } }>("session.get",
+        { id: sessionId, messageLimit: name === "courseware_presentation_prepare" ? 200 : 1, contentLimit: 8192 }); check();
       if (!owner.session?.projectPath) throw new Error("Presentation workspace is unavailable");
       if (name === "courseware_presentation_prepare") {
         if (view.task.generated || view.task.imported) throw new Error("Resume saved teaching; do not replace adopted Office content with SVG");
         return preparePresentation({ workspace: owner.session.projectPath, args: input,
-          bodyPageLimit: view.task.educationContext?.bodyPageLimit, check });
+          bodyPageLimit: view.task.educationContext?.bodyPageLimit, checkCounts: (types, prompts) => this.checkPresentationCounts?.(sessionId,
+            (owner.session?.messages ?? []).flatMap(m => m.role === "user" && m.content ? [m.content] : []), types, prompts) ?? Promise.resolve(), check });
       }
-      return adoptPresentation({ host, workspace: owner.session.projectPath, sessionId, args: input, check });
+      return adoptPresentation({ host, workspace: owner.session.projectPath, sessionId, args: input, check, review: this.reviewPresentation });
     }
     if (name.startsWith("courseware_media_")) {
       if (name === "courseware_media_assessments") {
@@ -133,7 +145,7 @@ export class CoursewareChatWorkflow {
       return this.read(sessionId, canDispatch);
     }
     const images = new CoursewareSceneImages(() => this.getHost(),
-      () => { check(); return sessionId; }, () => !canDispatch(), this.auth, this.generation?.planVisualMaster, this.generation?.layerFallback);
+      () => { check(); return sessionId; }, () => !canDispatch(), this.auth, this.generation?.planVisualMaster, this.generation?.layerFallback, this.generation?.reviewMaster);
     if (name === "courseware_workflow_get") {
       if (Object.keys(input).length) throw new Error("Unexpected workflow read arguments");
       if (!view.plan || view.plan.approvedSha256 !== view.plan.sha256) return { ...view, images: [], models: [], blockers: [] };
@@ -169,7 +181,10 @@ export class CoursewareChatWorkflow {
       }
       if (!image.asset) return { image, styleConfirmed, requiresHumanSelection: false, requiresGeneration: image.phase === "prepared",
         recovery: coursewareMediaRecovery({ image }), waitingFor: coursewareMediaRecovery({ image }) === "pending" ? "service" : null };
-      if (image.selected && !image.decomposition) return { image, styleConfirmed, requiresHumanSelection: false };
+      if (image.selected && !image.decomposition) return { image, styleConfirmed, requiresHumanSelection: false,
+        ...(image.pageId === firstPage && image.target.kind === "visualMaster" ? {
+          nextForAuthorizedWholeCourse: { tool: "courseware_scene_generate_remaining", arguments: {} },
+        } : {}) };
       if (image.pageId === firstPage && image.target.kind === "visualMaster")
         return { image, styleConfirmed: false, requiresHumanSelection: true };
       if (!styleConfirmed) return { image, styleConfirmed: false, requiresHumanSelection: false, waitingFor: "coverStyle" };
@@ -199,10 +214,19 @@ export class CoursewareChatWorkflow {
       return finishImage(submitted);
     }
     if (name === "courseware_scene_image_refresh") {
-      if (!Object.hasOwn(input, "intentId") || Object.keys(input).some(key => !["intentId", "generatePrepared", "waitForUpdate", "retryFailed", "generateRemaining"].includes(key)) ||
+      if (input.intentId === undefined && !input.generatePrepared && !input.retryFailed) {
+        const current = rows.filter(row => row.current && row.planSha256 === view.plan!.sha256);
+        const candidates = input.generateRemaining === true ? current.filter(row => row.selected && row.asset &&
+          row.pageId === firstPage && row.target.kind === "visualMaster") : current;
+        if (candidates.length !== 1) throw new Error(input.generateRemaining === true
+          ? "COURSEWARE_INVALID_REFRESH: Confirm one current first-page cover in the image preview before continuing the whole course."
+          : "COURSEWARE_INVALID_REFRESH: Specify the original intentId from courseware_workflow_get; no unique current image matches.");
+        input.intentId = candidates[0].intentId;
+      }
+      if (typeof input.intentId !== "string" || !input.intentId.trim() || Object.keys(input).some(key => !["intentId", "generatePrepared", "waitForUpdate", "retryFailed", "generateRemaining"].includes(key)) ||
           [input.generatePrepared, input.waitForUpdate, input.retryFailed, input.generateRemaining].some(value => value !== undefined && typeof value !== "boolean") ||
           input.retryFailed === true && input.generatePrepared === true ||
-          input.generateRemaining === true && [input.retryFailed, input.generatePrepared, input.waitForUpdate].some(value => value === true)) throw new Error("Invalid image refresh arguments");
+          input.generateRemaining === true && [input.retryFailed, input.generatePrepared, input.waitForUpdate].some(value => value === true)) throw new Error("COURSEWARE_INVALID_REFRESH: Invalid image refresh arguments. generateRemaining:true requires intentId alone; generatePrepared and retryFailed cannot both be true");
       let image = await images.status({ intentId: input.intentId, sessionId }); check();
       if (input.generateRemaining === true) {
         if (!styleConfirmed || !image.current || !image.selected || !image.asset || image.planSha256 !== view.plan.sha256 ||
@@ -231,7 +255,7 @@ export class CoursewareChatWorkflow {
           return { image, styleConfirmed: true, requiresHumanSelection: false, pipeline };
         } finally { this.imagePipelines.delete(sessionId); }
       }
-      if (input.retryFailed === true && !(image.decomposition && image.task?.state === "failed")) {
+      if (input.retryFailed === true && !image.asset && image.task?.state !== "ready" && !(image.decomposition && image.task?.state === "failed")) {
         if (!image.current || image.planSha256 !== view.plan.sha256) throw new Error("Scene plan changed; read the current workflow");
         canGenerate(image.pageId, image.target);
         image = await images.retry({ intentId: input.intentId, sessionId }); check();

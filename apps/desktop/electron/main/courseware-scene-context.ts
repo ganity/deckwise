@@ -24,8 +24,9 @@ const invalid = () => new Error("COURSEWARE_SCENE_INVALID_INPUT");
 const id = (value: unknown): value is string =>
   typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u.test(value);
 
-function checkPng(bytes: Buffer, width: number, height: number) {
+export function checkPng(bytes: Buffer, width: number, height: number) {
   if (
+    width < 1 || height < 1 || width * height > 4096 * 4096 ||
     bytes.length < 45 ||
     !bytes.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex")) ||
     bytes.readUInt32BE(8) !== 13 ||
@@ -60,6 +61,7 @@ function checkPng(bytes: Buffer, width: number, height: number) {
     image.toBitmap().length !== width * height * 4
   )
     throw invalid();
+  return image;
 }
 
 /** Copy and validate before any async model work or retained scene buffers. */

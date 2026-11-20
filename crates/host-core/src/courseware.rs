@@ -687,6 +687,7 @@ fn inspection_summary(ir: &Value, report: &Value) -> Result<Value> {
         .collect();
     Ok(json!({
         "pages": pages.len(), "sourceSha256": hash,
+        "timingWarningCount": warnings.into_iter().flatten().filter(|w| w["code"].as_str().is_some_and(|code| code.starts_with("PPTX_TIMING_"))).count(),
         "warningCount": warnings.map_or(0, Vec::len), "errorCount": error_count, "warnings": displayed,
     }))
 }

@@ -5,7 +5,7 @@ import { basename, isAbsolute } from "node:path";
 import { nativeImage, net, session } from "electron";
 import { createPublicHttpsClient } from "./public-https-fetch";
 import type { CoursewareSceneImageAsset, CoursewareSceneImageTarget, CoursewareTaskRef } from "@pi-desktop/shared";
-import { captureCoursewareSceneImages } from "./courseware-scene-context";
+import { captureCoursewareSceneImages, checkPng } from "./courseware-scene-context";
 
 // Keep Base64 plus metadata below the existing 64 MiB Host RPC frame.
 const MAX_LAYER_BYTES = 44 * 1024 * 1024;
@@ -83,6 +83,9 @@ export function isSceneImageAsset(value: unknown): value is CoursewareSceneImage
     Number.isSafeInteger(v.byteLength) && v.byteLength > 0 && v.byteLength <= MAX_SUPPLIER_IMAGE_BYTES &&
     Number.isSafeInteger(v.width) && Number.isSafeInteger(v.height) &&
     v.width > 0 && v.width <= 4096 && v.height > 0 && v.height <= 4096 &&
+    (v.layerMetadata === undefined || (!!v.layerMetadata && typeof v.layerMetadata === "object" &&
+      Object.keys(v.layerMetadata).sort().join(",") === "description,name" &&
+      [v.layerMetadata.name, v.layerMetadata.description].every((s, i) => typeof s === "string" && s.trim().length > 0 && s.length <= (i ? 2000 : 200) && !/[\u0000-\u001f\u007f-\u009f]/u.test(s)))) &&
     (v.sourceZIndex === undefined || (Number.isSafeInteger(v.sourceZIndex) && v.sourceZIndex >= 1 && v.sourceZIndex <= 1_000_000)) &&
     (v.normalizedBoundingBox === undefined || (Array.isArray(v.normalizedBoundingBox) && v.normalizedBoundingBox.length === 4 &&
       v.normalizedBoundingBox.every(n => Number.isFinite(n) && n >= 0 && n <= 1000) &&
@@ -114,7 +117,8 @@ export async function downloadSceneImageBundle(bytes: Buffer, taskRef: Coursewar
         cache: "no-store", signal: AbortSignal.timeout(60_000) });
       const reader = response.body?.getReader();
       try {
-        if (!response.ok || !reader || !["image/png", "image/jpeg"].includes(response.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase() ?? "")) throw invalid();
+        if (!response.ok || !reader) throw new Error("COURSEWARE_SCENE_IMAGE_DOWNLOAD_FAILED");
+        if (!["image/png", "image/jpeg"].includes(response.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase() ?? "")) throw invalid();
         const chunks: Buffer[] = [];
         let size = 0;
         while (true) {
@@ -176,8 +180,21 @@ function decodeSceneImageItems(data: Record<string, unknown>[], taskRef: Coursew
       png = image.toPNG();
       if (png.length < 33) throw invalid();
     }
+    // Supplier crop resolution can exceed the canvas; placement uses the normalized box.
+    if (item.z_index !== 0) {
+      const width = png.readUInt32BE(16), height = png.readUInt32BE(20);
+      if (Math.max(width, height) > 4096) {
+        const source = checkPng(png, width, height);
+        const scale = 4096 / Math.max(width, height);
+        png = source.resize({ width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) }).toPNG();
+        if (png.length < 33) throw invalid();
+      }
+    }
     const bounds = item.bounding_box && typeof item.bounding_box === "object" ? Reflect.get(item.bounding_box, "normalized") : undefined;
+    const clean = (value: unknown, max: number) => typeof value === "string" ? value.replace(/[\u0000-\u001f\u007f-\u009f]/gu, " ").trim().slice(0, max) : "";
+    const name = clean(item.name, 200), description = clean(item.description, 2000);
     const asset = { taskRef, mimeType: "image/png" as const, byteLength: png.length,
+      ...(item.z_index !== 0 && name && description ? { layerMetadata: { name, description } } : {}),
       sha256: createHash("sha256").update(png).digest("hex"), width: png.readUInt32BE(16), height: png.readUInt32BE(20),
       ...(item.z_index === 0 ? {} : { normalizedBoundingBox: bounds as [number, number, number, number], sourceZIndex: Number(item.z_index) }) };
     if (item.z_index !== 0 && !asset.normalizedBoundingBox) throw invalid();

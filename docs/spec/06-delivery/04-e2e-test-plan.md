@@ -1,5 +1,40 @@
 # 04. E2E Test Plan
 
+## E2E-COURSEWARE-authorized-live-media-smoke
+
+- Require explicit authorization for paid providers. Use isolated Desktop data
+  and public lesson fixtures; retain intent IDs, quotes, final settlement,
+  archive hashes and exact tested-package fingerprints. Keep credentials out
+  of evidence. Test authentication must preserve rotated refresh tokens and
+  must not invalidate the user's active login; use a separately provisioned
+  test identity or an existing cached access token when possible.
+- Validate and approve the fixture plan through production boundaries, generate
+  a Visual Master, inspect actual pixels, select that fixture's style, then
+  decompose with the built-in prompt. Inspect connected diagrams and recomposed
+  output before native compilation. Fixture approval is not acceptance of the
+  human review UI or autonomous Chat planning.
+- Save explicit fixture speech before submitting TTS. For an interrupted or
+  unknown submission, query the original intent only. Verify decoded audio,
+  adoption and source save. Respect editor save/ready boundaries; never infer
+  saved state from the in-memory teaching response alone.
+- Capture the current native snapshot, retain conversion-warning review and
+  build its fixed player. Require natural audio `ended`, no media error and all
+  fixture pages reached. Restart Electron/Host/Office, reread exact saved speech
+  and audio, and repeat playback without a new paid submission.
+- Separate one-page integration evidence from detailed-narration quality,
+  multi-page recovery, exact diagram geometry and platform publication.
+  [The 2026-11-15 record](../../../plans/009-evidence/2026-11-15-live-media/README.md)
+  covers a real primary-Math image/decomposition/compile/TTS chain and restart;
+  it retains a supplier failure, test-harness limitations and the authentication
+  side effect rather than claiming full release qualification.
+
+## E2E-COURSEWARE-packaged-three-route-entry
+
+- Run `DECKWISE_E2E_PACKAGE_ROOT=<linux-unpacked> DECKWISE_E2E_PPTX=<native-fixture.pptx> DECKWISE_E2E_OUTPUT=<new-output-dir> xvfb-run -a node scripts/e2e-courseware-entry-routing.mjs` against an already built package with bundled WiseOffice and all four courseware Skills. The test uses local identity and model fixtures; it makes no paid provider calls.
+- Create Plain, Scene and Import tasks for kindergarten and primary school through the visible new-task dialog. Check saved teaching settings, route choice, immutable started-task fields and team binding. Restart Electron and Host, then open the current PPTX in each restored task and load the native editing Skill through Chat.
+- A same-account authentication refresh during a Chat turn must retain the imported PPT and its native binding. Signing out or changing accounts must clear the old account's view and attachments. Match the editor's document identity to the current file; its internal session ID is separate from the Chat session ID.
+- Keep local route/Skill/restore evidence separate from live image accuracy, paid media completion, natural playback and platform publication.
+
 ## E2E-COURSEWARE-release-inputs
 
 - Reject missing, added or changed editor/worker files, unsafe paths, duplicate
@@ -2293,12 +2328,16 @@ switching/recovery, paid provider or installer acceptance is implied.
   `live_preview/lock.json`.
 - **Steps:** Click **Preview SVG** with no service running; close the native
   SVG Editor tab and click again while the service is alive; stop the service
-  through **Exit preview**, then click **Preview SVG** once more.
+  through **Exit preview**, then click **Preview SVG** once more. In a new
+  running task, save an incomplete SVG, then complete the file. Switch to a
+  different workspace and return to the original task before reading and saving.
 - **Expected:** The first click starts the service without opening an external
   browser and opens the native SVG Editor tab. The second click
   reuses the same healthy PID and port. After shutdown, the next click detects
   the missing or unhealthy service, starts a new one, waits for matching
-  `/api/health`, and opens the new URL. Paths outside the current workspace's
+  `/api/health`, and opens the new URL. During generation, the first valid file
+  opens the editor while incomplete files remain pending. Reads and saves use
+  the editor tab's session. Paths outside that session workspace's
   `.deckwise-ppt/projects` directory are rejected.
 - **Specs linked:** `04-ux/08-component-spec.md` §5.2.3.
 - **Acceptance criterion:** D (agent execution), E (work panel).
@@ -2314,11 +2353,11 @@ switching/recovery, paid provider or installer acceptance is implied.
   without opening the Browser plugin view, and call Browser screenshot; close
   the editor, open PPT Master's local browser preview on a later slide, and
   call Browser screenshot again without a `path`; finally call with the slide's
-  workspace-relative SVG `path`, then use an invalid SVG path while
-  a browser page is open.
+  workspace-relative SVG `path` with the editor and browser preview closed,
+  then repeat with an invalid SVG path.
 - **Expected:** All SVG captures return a 1920-pixel-wide PNG including the
   local image, without flashing or resizing the window. The invalid SVG path
-  falls back to the existing CDP/native browser screenshot chain. A symlink or
+  reports a file error without opening the browser view. A symlink or
   image reference outside the session workspace is rejected for SVG capture.
 - **Status:** Priority, path containment, and fallback are unit-covered by
   `apps/desktop/test/svg-screenshot.test.mjs`. The hidden-window SVG render is
@@ -16165,6 +16204,51 @@ This gate covers source integration only. It does not certify live Spring/team
 membership, image generation, a persistent project association, normal sandbox,
 other operating systems or a newly assembled installation package.
 
+#### E2E-COURSEWARE-tool-input-diagnostics
+
+Call the same finite courseware Agent tools with a missing required field,
+body-page count above its bound, an invalid Scene target kind, duplicate scoped
+media page numbers, an invalid page ID format, and an unknown extra field carrying private text. Require a
+stable `COURSEWARE_INVALID` classification with the relevant schema field path
+and allowed bound or enum where applicable. No rejected call reaches
+`tools.execute`, changes saved course state, purchases media, or echoes the
+private value or unknown field name. A later valid call still dispatches under
+the original turn and existing permission/approval checks. The Runtime tool
+contract test covers these local refusals; the installed Chat/Host path remains
+an integration acceptance step.
+Also submit a structurally valid teaching story with duplicate beat IDs, a beat
+objective absent from the objective list, and an over-65536-byte story. Require
+the corresponding safe path/size hint, unchanged saved story, and no Host write.
+
+#### E2E-COURSEWARE-three-route-education-skill-boundary
+
+Create ordinary, Scene and import tasks with the same subject at kindergarten,
+primary, junior-high and senior-high stages. Require each task prompt to retain
+its saved school stage and select its own Skill. The shared continuation must
+allow teaching actions at every stage; Scene body pages retain image-only
+diagram/text content, ordinary authoring retains its editable output contract,
+and import retains the saved source. The imported-course Start request should
+proceed with missing narration, audio and effects without another narration-source
+choice; conflicting replacement still requires an explicit decision. Check that
+Scene alone requires plan and first-image confirmation, ordinary generation uses
+preview and explicit PPTX export, and import uses its saved source. A legacy
+Desktop narration request with no Education context receives general-school
+guidance, never enterprise guidance. Local Skill/prompt tests verify dispatch
+instructions; installed Chat and saved-output checks remain separate acceptance.
+For ordinary generation, remove one required PPT Master script or planning
+reference from an isolated package fixture. The Skill must disappear from the
+catalog, the prompt must fail before model dispatch with
+`PPT_MASTER_SKILL_UNAVAILABLE` and the missing relative resource, and the
+opened durable turn must end as an error. A later restored package must load
+normally without changing Scene or import routing.
+The packaging preparation command must reject the same incomplete source before
+replacing an existing staged distribution.
+Also close Office after an ordinary PPTX export and remove the PPT Master
+authoring package from the isolated fixture. Saved narration/media continuation
+must load the existing PPTX teaching Skill without requiring the missing
+authoring package or exporting SVG again. Native selection edits still require
+an Office binding.
+
 #### E2E-COURSEWARE-native-preflight-reads-canonical-context
 
 Parse actual saved PPTX bytes through the configured worker and initialize the
@@ -18483,3 +18567,202 @@ Use different lesson topics for scene, presentation and real-PPT import, with no
   media and redirects. Retain owner/team checks and image-origin validation.
 - Local coverage: `apps/desktop/test/courseware-media.test.mjs` and llm-ha's
   Seedance/gateway tests. Live deployment and lesson playback are separate checks.
+
+
+### E2E-COURSEWARE-static-page-completion (2026-11-16)
+
+Run the fixed browser verifier with
+`--only=static-page-is-not-course-completion` against a verified multi-page
+package. The fixture uses those real pages with empty teaching actions. Play on
+the first static page must retain Next navigation and omit Playback complete;
+manual navigation to the last page displays completion; navigating back clears
+it. This tests page-versus-course completion, not provider generation.
+
+Assessment scope regression: inventory a legacy strict Quiz, save an explicit
+text-only policy through current revisions, reread readiness, retain saved audio
+and pictures, verify missing question audio still blocks, reject new excluded
+image submissions, restore required-image policy, and verify the missing image
+blocks again. Also test stale scopes and portable export/reparse of the policy.
+Narration regression: replay the actual spoken melt/evaporation relationship on
+all three routes, accept grounded labels, reject gas/solidification targets, and
+reject using a shared result as an unrelated relation's identity. Per-page
+context must reveal a missing second title highlight and an over-budget decoded
+clip without changing saved speech/audio.
+
+
+### COURSEWARE-narration-semantic-review
+
+At the authorized completion boundary, provide a draft whose speech paraphrases
+its diagram label and whose effect points at the wrong current object. Review
+must receive actual page evidence, reject the binding, preserve words while
+repairing it, review the corrected draft and save only after approval. Exercise
+plain, import and Scene. Repeat with a factual error requiring draft revision,
+a post-anchor block index, invalid/uncertain review output, exhausted repair
+budget and a successful independent peer. Unknown UUIDs and post-review source
+changes must still reject. Saved-audio effect repair must preserve script/audio.
+Provider-fixture tests cover this loop; real model judgment/latency requires a
+separate live qualification, and no fixture result closes P7.
+
+### Courseware reviewer recovery and final saved-content check (2026-11-17)
+
+- Inject malformed semantic JSON followed by a valid verdict. Save the original
+  narration draft after re-review, without a second generation/media call.
+  Mixed content/format failures must share two repairs and never save unchecked
+  content. A terminal local review failure must not block an independent page.
+- Generate focus using a supplied short object reference; verify saved effects
+  use exact current UUIDs. Unknown references/aliases still reject. Omitted
+  activity evidence reads the accepted unit quote; invented explicit quotes fail.
+- Complete an authorized native course on each route. Runtime must invoke final
+  `courseware_media_context(reviewContent:true)` before announcing completion.
+  Ordinary status reads must not call a model. Verify real saved PNGs accompany
+  review, including all question/answer/analysis content.
+- Inject a correct answer with an incorrect distractor explanation. Correct only
+  the generated Quiz analysis through existing revision/save fences, review it
+  again, and preserve speech/audio, question/options/answer and peer pages.
+  Locked/read-only/original import pages must remain unchanged. Missing import
+  origin metadata must fail closed. Invalid/invented reviewer corrections are
+  bounded; unresolved content cannot produce a completed-course message.
+- Change source/model/owner or cancel during review. Reject stale acceptance,
+  promptly abort the in-flight completion, and retain successful media.
+  Replay an unchanged status without repeated review charges. Genuine scene
+  count/unit errors must be reported; accepted minor raster spacing is allowed.
+
+Automated seam tests cover the above orchestration with synthetic model replies.
+The prior three real four-page lessons predate this new final-review step and
+remain evidence for that earlier candidate; a new live-provider/native run is
+required to qualify the new review's real-model judgments and save behavior.
+
+### Three-route recovery regression scenarios
+
+- Master: inject adjacent-object OCR text; save narration using authoritative native text and discard incorrect aliases, without another visual request. Unknown IDs and empty text containers still fail.
+- Scene: generate an eleven-target whole-diagram focus, repair its effects against saved audio, and verify all eleven native entrance cues plus the single combined spotlight. Duplicate, unknown and over-200 targets still fail.
+- Import: insert a short-answer Quiz from a plan with production metadata; inspect the projected learner title/footer. Correct an already generated Quiz title through saved-content review, refresh evidence and re-review; retain original pages, scripts and successful audio.
+- Review: malformed reviewer output cannot consume content-correction attempts or restart an exhausted review through an outer retry loop.
+- Record real recovery separately from fresh autonomous generation and from par-A comparative success rates. Unit regressions do not establish real-model completion.
+
+- Reproduce title-only native Quiz writes at the actual coordinator seam: changedPageIds must contain the Quiz and its next projection must contain the new learner title. Real reopening must show the new text.
+- Correct generated objective reference answers containing production instructions without altering the selected grading key, speech or adopted audio.
+
+- With an ungrouped old short-answer slide, regenerate previous/next projections using the new template; verify the actual stale choice hint is replaced. A generated-page refresh can repair this without changing canonical question data, options, grading key or audio.
+
+- Correct a legacy generated Quiz containing only `explanation`; ensure canonical analysis and the retained legacy field agree after re-review. Reorder equivalent response object keys and omit legacy canonical keyPoints, then update title/reference: adopted speech/audio and checkpoint reference key points must survive.
+
+- Repair a generated reference answer whose old value is also present in its checkpoint action. Assert both re-review and adjacent original-page review receive the updated checkpoint value and that only one bounded correction is needed.
+
+### Closeout regression and fresh-generation evidence
+
+- Reject a final ready result after a requested native semantic repair failed; preserve successful audio and do not clear the failure after an unrelated page save. Clear it only after a successful non-retained write for the affected page.
+- Both supplier decomposition and local extraction prompts require connecting arrows/flow lines as foreground teaching content, grouped with their diagram or independently targetable; background scenery remains separate. Validate actual fresh decomposed images, not only prompt text.
+- Run fresh Master, Scene and Import workspaces with at most six physical pages each. Record required review approvals separately from content/technical interventions; inspect saved media, reopen, play every page naturally and retain any failed attempts.
+
+
+## Native required repair persistence — 2026-11-17 follow-up
+
+### Generated checkpoint hint repair — 2026-11-18
+
+- Insert an activity before a referenced body diagram, leaving an existing
+  generated checkpoint hint pointing at the wrong physical page. Request final
+  saved-content review. The model supplies the corrected hint and exact current
+  checkpoint action ID; save through classroom CAS and review the saved page
+  again before completion.
+- Compare question, response, reference key points, speech text, audio IDs and
+  duration before/after. Only the hint may change. Read it back through native
+  assessment context; it remains outside the strict playback action.
+- Unknown/duplicate action IDs, empty hints, extra fields, protected original
+  imports, locked/read-only pages and concurrent source/model/owner changes
+  must not write. Repeated unsuccessful correction remains bounded and cached
+  status reads must not restart the loop.
+- Missing river/background layer coverage remains an unresolved source issue;
+  a successful hint correction must not make the lesson ready while that visual
+  issue remains. The user accepts complete rectangular teaching regions. A separate region
+  repair and successful re-review are required; text repair cannot waive it.
+
+- Persist pending repair before model work; a storage failure prevents dispatch.
+- On all three native routes, a thrown generation call, interrupted runtime, peer save, page reorder or broad passing review cannot clear the pending requirement.
+- Recreate native tools; reopen Host SQLite after shutdown; assert the requirement remains.
+- Failed document save or failed/CAS-conflicting guard-clear keeps the requirement incomplete.
+- A successful persisted full repair clears only its stable page ID. Alias-only repair and peer repair do not clear it. Removing a page hides its issue; Undo restores it.
+- Read-only state calls do not mutate the record. Different documents/sessions are isolated; invalid source paths and stale CAS writes are rejected.
+- Unit/RPC restart evidence does not claim a complete Electron crash-and-resume or live provider stress run.
+
+
+### Complete Scene teaching-region repair — 2026-11-18
+
+- Final review requests a normalized crop for an existing speech with audio,
+  fade-in and spotlight. Host Scene-task authorization and native capability
+  must both be true. Re-review the newly saved page with current targets.
+- Verify the exact pixel partition, rejection of transparent/whole-slide/invalid
+  crops, current reviewed PNG SHA-256, revision and source-history fences.
+- Preserve speech/audio and all other actions; preserve original foreground
+  order. Reject read-only/locked/original pages and repeated extraction. Save
+  failure or remaining review issues must not produce a ready result.
+- Companion `deckwise-background-region.spec.ts` opens the existing four-page
+  water-cycle PPTX, rejects stale reviewed pixels, extracts the river region,
+  verifies fade/spotlight binding, compares rendered pixels, undoes/redoes, saves
+  and reopens. Supply `DECKWISE_REGION_FIXTURE`; no provider call is made.
+- Convert the repaired PPTX and run strict native playback preflight and fixed
+  build. Play all retained audio naturally; observe fade-in and spotlight on the
+  new region itself, plus wrong/correct answers and teacher continuation.
+- Record this as local assisted recovery of a real-model artifact. Fixed crop
+  coordinates and injected model responses are not proof that a real LLM can
+  choose and repair the region autonomously or that all three routes now pass.
+
+
+### Tool-contract recovery regression — 2026-11-18
+
+- Before the first Scene draft, workflow context returns the owning root,
+  project directory and exact draft path; `plan:null` is not an error.
+- Check all 16 image-refresh boolean combinations against the Main constraint;
+  reject incompatible arguments before Host dispatch, preserving explicit false.
+- Reject first-master fabricated references, stale document hashes and non-Quiz
+  configuration without saving or purchasing anything. Return actionable codes.
+- Exercise the actual runtime `finishTurn` bridge with fixture Host failures:
+  deliver two safe correction instructions, then stop. Do not replay a failed
+  write or leak the original payload. Unknown paid outcomes remain excluded.
+- Confirm desktop skills and the runtime agree about roots and draft creation;
+  preserve native/classroom assessment context and existing source protections.
+- These local fixture regressions do not qualify fresh paid three-route output
+  or real-model repair behavior. Keep those results separately attributed.
+
+
+### Native retry lifecycle and trusted diagnostics — 2026-11-18
+
+- For Plain, Scene and Import, exhaust three narration calls, reconstruct the
+  coordinator and change the editor instance ID in the same turn. Verify no new
+  narration call, unchanged saved media, and a fresh budget only for a new turn.
+- Verify reservations exist before generation. Storage failure/cancellation must
+  prevent dispatch. Stable-content failure survives local map clearing; editing
+  actual evidence permits reevaluation under the existing policy.
+- Close/reopen the real Host SQLite database: preserve attempt records; reject
+  stale CAS, malformed entries and foreign document paths. Clearing semantic
+  failures must preserve narration reservations.
+- During required repair, advance the shared revision through a reservation,
+  then save and clear the guard. Preserve concurrent failure and save-error
+  protections across all three route fixtures.
+- Two malformed visual observations leave zero narration attempts and the visual
+  error code on subsequent calls, not a false narration-exhausted diagnosis.
+- Schema-owned missing-field/enum/bound hints survive continuation wrapping;
+  raw or forged provider/Host hints remain private.
+- These fixture/state tests do not replace installed Electron crash/reopen or
+  fresh paid three-route qualification. Native-save fixtures remain opt-in.
+
+## E2E-COURSEWARE-layer-metadata-and-native-fractions
+
+- Compile original local Scene PNGs with bounded supplier name/description through
+  the production authoring API and package native teaching. Open in the paired
+  Office editor, capture current metadata and isolated PNG-to-UUID bindings, save
+  and reopen, and require equality. Replacing/cropping/rotating/flipping a picture
+  must invalidate its hints; remote/unregistered URLs cannot be fetched.
+- Known layers skip identity discovery while missing layers retain visual fallback.
+  Independent narration and saved-content review still receive current images;
+  an actual content contradiction must prevent saving an unchecked draft.
+- Parse the four-page native fraction regression with the staged worker and
+  require unique source bindings for every object. Render the fixed-player
+  fraction component and check numerator, denominator and visible bar. Unsupported
+  OMML retains its conversion gate.
+- These offline tests make no provider calls and do not qualify fresh paid
+  three-route generation. Evidence: `plans/009-evidence/2026-11-18-layer-identity-and-math-fix/`.
+
+## Page-scoped narration and material recovery
+
+Exercise a malformed visual finding during a single-page focus repair. Reopen the result and check the target, saved speech, audio and peer pages. Exercise inline material preview and adoption with both a user quotation and an agent-authored draft. Only the user quotation may create material bindings.

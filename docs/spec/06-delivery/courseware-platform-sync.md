@@ -5,7 +5,7 @@ The course workspace and structured classroom editor expose separate **Sync to p
 Acceptance sequence:
 
 1. Finish native courseware and narration. Click Publish before any sync: show a prompt to sync, without submitting publication.
-2. Click Sync to platform: export complete PPTist scenes/actions/audio/media; platform contains one draft course. Repeating the action without edits keeps the binding and revision.
+2. Click Sync to platform: export complete PPTist scenes/actions/audio/media. Confirm that a narration spotlight targeting a grouped PPT object covers the same group in platform playback as in local playback. The platform contains one draft course. Repeating the action without edits keeps the binding and revision.
 3. Publish: wait for the signed package to be prepared, then list the course. Playback uses archived narration without regenerating TTS. For objective native questions the original visual page precedes a standard graded Quiz; a saved native Quiz keeps its question configuration, feedback mode, answers and question/option images. Discussions and short-answer teaching checkpoints remain teacher-led unless the saved lesson plan explicitly marks the page as a Quiz.
 4. Edit text, slides, audio or teaching steps locally. Publish prompts sync first. Synchronize again: same course/classroom, new draft revision, old online URL and version unchanged. Publish explicitly to switch the online package once.
 5. Edit the cloud draft in management web, then synchronize locally. Display a conflict and an explicit Replace cloud draft action. Cancel preserves cloud content; confirm replaces only the displayed revision; any subsequent cloud edit conflicts again. Online content remains unchanged until publication.

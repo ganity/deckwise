@@ -7,11 +7,13 @@ import {
   cpSync,
   existsSync,
   mkdirSync,
+  mkdtempSync,
   readFileSync,
   renameSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
+import { tmpdir } from "node:os";
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -179,6 +181,13 @@ function run() {
     "bin",
     "electron-vite.js",
   );
+  if (!env.DECKWISE_PPTX_WORKER) {
+    const temporary = mkdtempSync(join(tmpdir(), "deckwise-dev-worker-"));
+    process.once("exit", () => rmSync(temporary, { recursive: true, force: true }));
+    const bundle = join(temporary, "worker");
+    execFileSync(process.execPath, [join(ROOT, "packages/courseware-runtime/scripts/stage-worker.mjs"), bundle], { stdio: "inherit" });
+    env.DECKWISE_PPTX_WORKER = join(bundle, "pptx-worker.mjs");
+  }
   const child = spawn(
     process.execPath,
     [electronViteCli, "dev", ...process.argv.slice(2)],

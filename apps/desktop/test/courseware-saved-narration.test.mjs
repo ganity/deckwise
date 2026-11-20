@@ -9,9 +9,9 @@ import * as shared from "@pi-desktop/shared";
 const require = createRequire(import.meta.url);
 const fixtureProject = JSON.parse(await readFile(new URL("../../../packages/shared/src/courseware-contract.fixtures/accepted.json", import.meta.url), "utf8")).project;
 
-async function fixture({ assessmentPageIds = [], nativeSaved = false, scene = false, failPage, saveFailPage, sourceChange = false, pageCount = 3, cancelAfterSave = false, lostSaveReply = false, inheritedModel = false, visionOutput, teachingPages, planOutputs = [], pageOutputs = {}, planError, stopOnRepair = false, onComplete } = {}) {
+async function fixture({ assessmentPageIds = [], nativeSaved = false, scene = false, failPage, saveFailPage, sourceChange = false, pageCount = 3, cancelAfterSave = false, lostSaveReply = false, inheritedModel = false, visionOutput, teachingPages, planTeaching, planOutputs = [], pageOutputs = {}, planError, stopOnRepair = false, onComplete } = {}) {
   const source = await readFile(new URL("../electron/main/courseware-saved-narration.ts", import.meta.url), "utf8");
-  const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
+  const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true } }).outputText;
   const project = structuredClone(fixtureProject);
   project.taskType = scene ? "scene" : "import";
   project.projectId = "office-doc";
@@ -22,7 +22,7 @@ async function fixture({ assessmentPageIds = [], nativeSaved = false, scene = fa
   const host = { async call(method, args) {
     calls.push([method, args]);
     if (method === "session.get") return { session: { projectPath: "/workspace", mode: "agent", ...(inheritedModel ? {} : { providerId: "test", modelId: "model" }) } };
-    if (method === "courseware.scenePlan.get") return { approval: { plan: { title: "Approved teaching", pages: Array.from({length: pageCount}, (_, i) => ({title:`Approved ${i+1}`, visibleText:["Square"], visualIntent:"A five-second silent turning square video", narration:"Look at the square"})) } } };
+    if (method === "courseware.scenePlan.get") return { approval: { plan: { title: "Approved teaching", pages: Array.from({length: pageCount}, (_, i) => ({title:`Approved ${i+1}`, visibleText:["Square"], visualIntent:"A five-second silent turning square video", narration:"Look at the square", ...(planTeaching ? { teaching: structuredClone(planTeaching) } : {})})) } } };
     if (method === "courseware.task.get") return { task: { taskType: "import", importPath: "/workspace/lesson.pptx" } };
     if (method === "courseware.parseStart") return { jobId: "parser" };
     if (method === "courseware.parseStatus") return { status: "SUCCEEDED", summary: { sourceSha256: project.source.sha256 } };
@@ -33,7 +33,7 @@ async function fixture({ assessmentPageIds = [], nativeSaved = false, scene = fa
       elements: [{ id: "text-1", kind: visionOutput ? "image" : "text", text: visionOutput ? "" : `Page ${args.pageNumber}`, bbox: [0,0,100,100] }] };
     if (method === "courseware.project.context") return { project: structuredClone(project), assessmentPageIds, nativeSaved,
       ...(teachingPages ? { sceneObjects: { schemaVersion: "deckwise-scene-objects/1", sourceSha256: project.source.sha256,
-        requiresReview: true, pages: teachingPages.map(page => ({ ...page, objects: [] })) } } : {}),
+        requiresReview: true, pages: teachingPages.map(page => ({ planPageId: `scene-${String(Number(page.pageId.split("-").at(-1))).padStart(3, "0")}`, ...page, objects: [] })) } } : {}),
       mapping: { sourceSha256: project.source.sha256, pages: project.pages.map(p => ({ pageId: p.pageId, objects: [{ objectId: `object-${p.pageId}`, importElementId: "text-1" }] })) } };
     if (method === "courseware.narration.save") {
       assert.deepEqual(args.baseline, project);
@@ -62,7 +62,7 @@ async function fixture({ assessmentPageIds = [], nativeSaved = false, scene = fa
     if (name === "./ppt-editor-files") return { jobIdFor: () => "doc" };
     if (name.startsWith("./")) {
       const path = new URL(`../electron/main/${name.slice(2)}.ts`, import.meta.url);
-      const code = ts.transpileModule(require("node:fs").readFileSync(path, "utf8"), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
+      const code = ts.transpileModule(require("node:fs").readFileSync(path, "utf8"), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true } }).outputText;
       const child = {}; load(code, child); return child;
     }
     return require(name);
@@ -70,6 +70,7 @@ async function fixture({ assessmentPageIds = [], nativeSaved = false, scene = fa
   load(compiled, exports);
   const coordinator = new exports.CoursewareSavedNarration(() => host, () => viewing, async input => {
     const data = JSON.parse(input.messages[0].content);
+    if (data.reviewKind === 'narration_semantics') return { text: JSON.stringify({ issues: [] }) };
     requests.push(data);
     await onComplete?.(data, input);
     if (scene && (data.outline || data.pageText)) assert.equal((data.approvedPlan ?? data.coursePlan?.approvedPlan)?.pages[0].visualIntent, "A five-second silent turning square video");
@@ -83,7 +84,7 @@ async function fixture({ assessmentPageIds = [], nativeSaved = false, scene = fa
     if (pageOutputs[data.pageText]?.length) return { text: pageOutputs[data.pageText].shift() };
     return { text: JSON.stringify({ blocks: [{ type: "speech", text: `Narration ${data.pageText}` }] }) };
   }, inheritedModel ? async () => ({ modelKey: "test/model", thinkingLevel: "off" }) : undefined,
-    visionOutput ? async input => ({ text: JSON.stringify(typeof visionOutput === "function" ? await visionOutput(input) : visionOutput) }) : undefined);
+    visionOutput ? async input => ({ text: JSON.stringify(JSON.parse(input.data).reviewKind === 'narration_semantics' ? { issues: [] } : typeof visionOutput === "function" ? await visionOutput(input) : visionOutput) }) : undefined);
   return { coordinator, project, calls, saved, requests, view: value => { viewing = value; }, stop: () => { active = false; },
     execute: (name, args = {}) => coordinator.execute("chat", name, args, () => active) };
 }
@@ -347,6 +348,20 @@ test("approved scene requirements reach saved media context and every detailed n
   const result = await f.execute("courseware_narration_propose", { pageNumbers: [1], sourceSha256: "a".repeat(64), instruction: "Follow the approved teaching plan" });
   assert.equal(result.saved, true);
   assert.equal(f.saved.length, 1);
+});
+
+test("saved Host teaching correction replaces stale approved requirements in narration context", async () => {
+  const original = { pageType: "slide", phase: "explore", objective: "Compare moon phases", durationSeconds: 60,
+    requiredObjects: ["Moon", "Arrow", "Crater"] };
+  const effective = { ...original, requiredObjects: ["Moon", "Crater"] };
+  const f = await fixture({ scene: true, pageCount: 1, planTeaching: original,
+    teachingPages: [{ pageId: "page-1", teaching: effective }] });
+  const context = await f.execute("courseware_narration_context");
+  assert.deepEqual(context.approvedPlan.pages[0].teaching, effective);
+  const result = await f.execute("courseware_narration_propose", { pageNumbers: [1], sourceSha256: "a".repeat(64), instruction: "Explain the saved visual" });
+  assert.equal(result.saved, true);
+  const prompt = f.requests.find(request => request.outline);
+  assert.deepEqual(prompt.approvedPlan.pages[0].teaching, effective);
 });
 
 test("reordered scene narration uses the saved logical page question and music requirements", async () => {

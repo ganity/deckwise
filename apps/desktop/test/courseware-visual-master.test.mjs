@@ -4,6 +4,7 @@ import test from "node:test";
 register(new URL("./helpers/ts-import-hooks.mjs", import.meta.url));
 const { planSceneVisualMaster } = await import("../electron/main/courseware-visual-master.ts");
 const input = () => ({ sessionId: "chat", signal: new AbortController().signal,
+  educationContext: { schoolStage: "SENIOR_HIGH", grade: "11", subject: "MATH", visualStyle: "Watercolor" },
   plan: { title: "Greetings", visualBible: { artDirection: "Flat cartoon", characters: "A monkey in a blue vest", setting: "Classroom" } },
   page: { pageId: "scene-001", title: "Hello", visibleText: ["Hello!", "早上好"], visualIntent: "The monkey waves", narration: "TEACHER_ONLY",
     teaching: { objective: "Say hello", phase: "opening", requiredObjects: ["Monkey Munchy"] } },
@@ -18,12 +19,17 @@ test("MAIC visual direction uses approved text, cast and reference context witho
   assert.equal(calls[0].maxOutputTokens, 3000);
   assert.equal(data.canvas, "16:10 / 1280x800");
   assert.equal(data.visualBible.artDirection, "Flat cartoon");
+  assert.ok(data.visualGuidance.includes(JSON.stringify({ schoolStage: "SENIOR_HIGH", grade: "11", subject: "MATH" })));
+  assert.equal(data.educationContext.visualStyle, "Watercolor");
   assert.equal(data.mandatoryTeachingObjects[0].semanticRole, "Monkey Munchy");
   assert.equal(data.additionalRequirements, "Only the five animals");
   assert.equal(data.courseStyleReferenceSupplied, true);
   assert(!JSON.stringify(data).includes("TEACHER_ONLY"));
-  assert(prompt.includes("Hard extraction constraint:"));
+  assert(prompt.includes("Layer separation:"));
   assert(prompt.includes("Background art direction:"));
+  assert(prompt.includes(data.visualGuidance));
+  assert(prompt.includes("Approved art direction: Watercolor"));
+  assert(!prompt.includes("editable native"));
   assert(prompt.length <= 4000);
 });
 
@@ -63,5 +69,56 @@ test("oversized, missing-text and extra-text plans fail before an image purchase
     let calls = 0;
     await assert.rejects(planSceneVisualMaster(input(), { modelKey: "p/m" }, async () => { calls++; return value; }));
     assert.equal(calls, 2);
+  }
+});
+
+test("batched image corrections stay page-scoped and require exact object and quote evidence", async () => {
+  const { teachingForReviewedMasters } = await import('../electron/main/courseware-visual-master.ts');
+  const pages = [
+    { pageId: 'scene-001', intentId: 'master-1', assetSha256: 'a'.repeat(64), instructions: 'Remove the arrow; keep the moon.',
+      teaching: { objective: 'Compare moon phases', requiredObjects: ['Moon', 'Arrow'], requiredEffects: ['spotlight'] } },
+    { pageId: 'scene-002', intentId: 'master-2', assetSha256: 'b'.repeat(64), instructions: 'Remove the label; keep the fraction.',
+      teaching: { objective: 'Read the fraction', requiredObjects: ['Numerator', 'Denominator', 'Label'], requiredEffects: ['highlight'] } },
+  ];
+  const request = { sessionId: 'chat', modelKey: 'test', signal: new AbortController().signal, pages };
+  const reply = rows => async call => {
+    assert.equal(JSON.parse(call.messages[0].content).pages.length, 2);
+    return { text: JSON.stringify({ pages: rows }) };
+  };
+  const changed = await teachingForReviewedMasters(request, reply([
+    { pageId: 'scene-002', removals: [{ object: 'Label', quote: 'Remove the label' }] },
+    { pageId: 'scene-001', removals: [{ object: 'Arrow', quote: 'Remove the arrow' }] },
+  ]));
+  assert.deepEqual(changed, [
+    { pageId: 'scene-002', intentId: 'master-2', assetSha256: 'b'.repeat(64), removals: [{ object: 'Label', quote: 'Remove the label' }] },
+    { pageId: 'scene-001', intentId: 'master-1', assetSha256: 'a'.repeat(64), removals: [{ object: 'Arrow', quote: 'Remove the arrow' }] },
+  ]);
+  for (const rows of [
+    [{ pageId: 'scene-001', removals: [{ object: 'invented', quote: 'Remove the arrow' }] }, { pageId: 'scene-002', removals: [] }],
+    [{ pageId: 'scene-001', removals: [{ object: 'Arrow', quote: 'remove the arrow' }] }, { pageId: 'scene-002', removals: [] }],
+    [{ pageId: 'scene-001', removals: [] }, { pageId: 'scene-001', removals: [] }],
+  ]) await assert.rejects(teachingForReviewedMasters(request, reply(rows)), /correction/);
+  const unchanged = await teachingForReviewedMasters(request, reply([
+    { pageId: 'scene-001', removals: [] }, { pageId: 'scene-002', removals: [] },
+  ]));
+  assert.deepEqual(unchanged.map(row => row.removals), [[], []]);
+  assert.deepEqual(pages.map(page => page.teaching.requiredObjects), [['Moon', 'Arrow'], ['Numerator', 'Denominator', 'Label']]);
+});
+
+
+test("image correction batches retain the single-page output allowance", async () => {
+  const { teachingForReviewedMasters } = await import('../electron/main/courseware-visual-master.ts');
+  for (const count of [1, 6, 30]) {
+    const pages = Array.from({ length: count }, (_, index) => ({
+      pageId: `scene-${String(index + 1).padStart(3, '0')}`, intentId: `master-${index + 1}`, assetSha256: 'a'.repeat(64),
+      instructions: 'Keep the teaching content.', teaching: { objective: 'Observe the example', requiredObjects: ['Example'] },
+    }));
+    const corrections = await teachingForReviewedMasters({ sessionId: 'chat', modelKey: 'test', signal: new AbortController().signal, pages }, async call => {
+      assert(call.maxOutputTokens >= 1200);
+      if (count <= 6) assert(call.maxOutputTokens >= count * 1200);
+      assert(call.maxOutputTokens <= 16000);
+      return { text: JSON.stringify({ pages: pages.map(({ pageId }) => ({ pageId, removals: [] })) }) };
+    });
+    assert.equal(corrections.length, count);
   }
 });

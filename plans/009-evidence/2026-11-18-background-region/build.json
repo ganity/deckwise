@@ -1,0 +1,37 @@
+{
+  "buildId": "07bddae98d9e0852fec6398e96d27d4d8b63f15c261baa87e0aad483e70b1a5b",
+  "packageHash": "07bddae98d9e0852fec6398e96d27d4d8b63f15c261baa87e0aad483e70b1a5b",
+  "directory": "/home/jhz/deckwise-validation/background-region-20261118/build/07bddae98d9e0852fec6398e96d27d4d8b63f15c261baa87e0aad483e70b1a5b",
+  "report": {
+    "ready": true,
+    "reviewedWarningCodes": [
+      "PPTX_NOTES_MASTER_UNVERIFIED"
+    ],
+    "visualFidelity": "NOT_VERIFIED",
+    "diagnostics": [
+      {
+        "code": "PPTX_NOTES_MASTER_UNVERIFIED",
+        "severity": "warning",
+        "message": "PPTX 包含备注母版，当前仅提取逐页备注，未验证母版版式与样式的保留情况，须人工核对"
+      }
+    ],
+    "capabilities": {
+      "staticSlides": "limited",
+      "fixedNarration": true,
+      "teacherWait": true,
+      "transitions": false,
+      "objectAnimations": false,
+      "spotlight": true,
+      "speechVisualCues": "fixed-audio/2",
+      "playerObjectAnimations": "fade-pulse/1"
+    },
+    "sourceSha256": "efc96a64cfea07cbd186f2c77bd6408acfb8759fd38c4cdc3ebfeff05d9dfd0c",
+    "sourceRevision": "65c41165-4b4b-4dc8-b500-d1b65344d8a6",
+    "teachingRevision": "65c41165-4b4b-4dc8-b500-d1b65344d8a6",
+    "mappingRevision": "65c41165-4b4b-4dc8-b500-d1b65344d8a6",
+    "converter": {
+      "version": "maic-pptx-import-ir/1",
+      "manifestSha256": "d359d4076da853472c7c38d4d2ffbbbbc38a68f196de00915abca21faaa43ea0"
+    }
+  }
+}

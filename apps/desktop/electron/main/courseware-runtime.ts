@@ -3,12 +3,19 @@ import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 
 /** Only main resolves executables; RPC callers cannot supply launch paths. */
+export function coursewareWorkerPath(): string {
+  if (process.env.DECKWISE_PPTX_WORKER) return process.env.DECKWISE_PPTX_WORKER;
+  const installed = join(process.resourcesPath || '', 'pptx-worker/pptx-worker.mjs');
+  if (typeof __dirname === 'string' && !existsSync(installed)) {
+    const staged = join(__dirname, '../../resources/pptx-worker/pptx-worker.mjs');
+    if (existsSync(staged)) return staged;
+  }
+  return installed;
+}
+
 export function coursewareRuntimeEnvironment(): Record<string, string> {
-  const worker = process.env.DECKWISE_PPTX_WORKER
-    || [join(process.resourcesPath || "", "pptx-worker/pptx-worker.mjs"),
-      ...(typeof __dirname === "string" ? [join(__dirname, "../../resources/pptx-worker/pptx-worker.mjs")] : []),
-    ].find(existsSync);
-  if (!worker || !existsSync(worker)) return {};
+  const worker = coursewareWorkerPath();
+  if (!existsSync(worker)) return {};
   return { DECKWISE_PPTX_NODE: process.execPath, DECKWISE_PPTX_WORKER: worker };
 }
 

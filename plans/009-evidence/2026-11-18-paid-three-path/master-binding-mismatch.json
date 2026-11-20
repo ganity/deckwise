@@ -1,0 +1,34 @@
+[
+  {
+    "page": 1,
+    "missing": [
+      {
+        "logicalId": "object:054f49b34e95ff01136a94ba6c10acd7c88716dcbb6fc647c3a33b334d9c58d3",
+        "importElementId": "pptx_text_11",
+        "type": "text",
+        "contentFingerprint": "7cfeb389574168dd67ac17e7ae5d4e1fd3dae9f1104559d260f2a8629509cbd3",
+        "geometryFingerprint": "b8d5b2b2de7cbf6cdf72d681890250c8dc902ac4d568915079bcd608a8f4ce7b"
+      }
+    ]
+  },
+  {
+    "page": 2,
+    "missing": [
+      {
+        "logicalId": "object:189ad894363397824e3f3fb5c89bd95fd94e9c3833437bcc898494fe07a747ab",
+        "importElementId": "pptx_text_10",
+        "type": "text",
+        "contentFingerprint": "7cfeb389574168dd67ac17e7ae5d4e1fd3dae9f1104559d260f2a8629509cbd3",
+        "geometryFingerprint": "16b34b7f532a10d3439844532f1ed9353c40ccad3b75c745105313ac345a354f"
+      }
+    ]
+  },
+  {
+    "page": 3,
+    "missing": []
+  },
+  {
+    "page": 4,
+    "missing": []
+  }
+]

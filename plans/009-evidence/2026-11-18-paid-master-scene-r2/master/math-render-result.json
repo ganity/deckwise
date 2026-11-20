@@ -1,0 +1,18 @@
+[
+  {
+    "formula": "\\frac{1}{4}",
+    "numerator": "1",
+    "denominator": "4",
+    "lineWidth": "2px",
+    "ordered": true,
+    "visible": true
+  },
+  {
+    "formula": "\\frac{3}{4}",
+    "numerator": "3",
+    "denominator": "4",
+    "lineWidth": "2px",
+    "ordered": true,
+    "visible": true
+  }
+]

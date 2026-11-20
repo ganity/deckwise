@@ -286,8 +286,22 @@ async fn decomposition_archives_children_atomically_and_keeps_one_task_across_re
     layer["target"] = json!({"kind":"layer","name":"Teacher"});
     layer["asset"]["normalizedBoundingBox"] = json!([100, 200, 700, 900]);
     layer["asset"]["sourceZIndex"] = json!(2);
+    layer["asset"]["layerMetadata"] =
+        json!({"name":"Teacher","description":"Teacher holding a book"});
     let mut bundle = f.operation(&parent);
     bundle["images"] = json!([base, layer]);
+    for metadata in [
+        json!({"name":"Teacher","description":"x".repeat(2001)}),
+        json!({"name":"","description":"Teacher"}),
+        json!({"name":"Teacher","description":"Teacher","extra":true}),
+    ] {
+        let mut invalid = bundle.clone();
+        invalid["images"][1]["asset"]["layerMetadata"] = metadata;
+        assert!(f
+            .call("courseware.sceneImage.bundle.stage", invalid)
+            .await
+            .is_err());
+    }
     let mut invalid_bundle = bundle.clone();
     invalid_bundle["images"][1]["asset"]["normalizedBoundingBox"] = json!([700, 200, 100, 900]);
     assert!(f
@@ -320,6 +334,10 @@ async fn decomposition_archives_children_atomically_and_keeps_one_task_across_re
         json!([100.0, 200.0, 700.0, 900.0])
     );
     assert_eq!(child["intent"]["asset"]["sourceZIndex"], 2);
+    assert_eq!(
+        child["intent"]["asset"]["layerMetadata"],
+        json!({"name":"Teacher","description":"Teacher holding a book"})
+    );
     {
         let mut intents: Vec<Intent> = rows
             .iter()
@@ -712,8 +730,9 @@ async fn visual_master_preserves_required_group_and_names_without_unrelated_cont
     assert!(prompt
         .contains("Preserve every lesson-required subject, name and prop; do not cap their count"));
     assert!(prompt.contains("No unrequested subjects, duplicate portraits/badges, extra text carriers or decorative props"));
-    assert!(prompt
-        .contains("Use depth, light, color and materials for atmosphere, not piles of objects"));
+    assert!(prompt.contains(
+        "Use depth and materials for scenes or a restrained coherent field for diagrams"
+    ));
     assert!(prompt.contains("identity guide, not a cast list for every page"));
     assert!(prompt.contains("Bright clay 3D"));
     assert!(prompt.encode_utf16().count() <= 4000);

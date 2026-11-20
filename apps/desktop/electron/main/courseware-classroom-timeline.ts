@@ -5,11 +5,11 @@ type Action = NonNullable<Scene["actions"]>[number];
 type Element = Extract<Scene["content"], { type: "slide" }>["canvas"]["elements"][number];
 export type NativeResource = { url: string; mimeType: string; durationMs?: number };
 
-/** Translate only lossless upstream MAIC representations; never drop a native teaching step. */
+/** Translate native teaching to MAIC actions. */
 export function convertNativeTeaching(input: {
   scene: Scene; actions: Array<Record<string, unknown>>; page: MaicSlideIR["pages"][number];
   objects: Array<{ objectId: string; importElementId: string }>;
-  resources: ReadonlyMap<string, NativeResource>; sourceSha256?: string;
+  resources: ReadonlyMap<string, NativeResource>; sourceSha256?: string; platformDelivery?: boolean;
 }) {
   const { scene, resources } = input;
   const actions: Action[] = [], elements: Element[] = [], media: NonNullable<MaicClassroom["mediaManifest"]> = [];
@@ -50,6 +50,9 @@ export function convertNativeTeaching(input: {
       if (node.pauseAfterMs !== undefined) Object.assign(speech, { pauseAfterMs: node.pauseAfterMs });
       else delete speech.pauseAfterMs;
       actions.push(speech);
+      const speechIndexInActions = actions.length - 1;
+      const startAnimations: Array<Extract<Action, { type: "element_animation" }>> = [];
+      const speechEffects: Array<Extract<Action, { type: "spotlight" | "highlight" }>> = [];
       if (node.visualCues !== undefined && !Array.isArray(node.visualCues)) fail(`Invalid native speech cues: ${id}`);
       for (const [cueIndex, rawCue] of (Array.isArray(node.visualCues) ? node.visualCues : []).entries()) {
         const cue = rawCue as { id: string; atMs: number; endMs: number; trigger?: { kind: string; audioAssetId?: string; stale?: boolean; start?: number; end?: number; text?: string }; effect: { type: string; elementId?: string; elementIds?: string[]; effect?: string; dimOpacity?: number; color?: string; style?: string; opacity?: number } };
@@ -81,12 +84,36 @@ export function convertNativeTeaching(input: {
         const effect = cue.effect;
         if (effect.type === "element_animation") {
           if (!["fadeIn", "fadeOut", "pulse", "zoomIn", "slideInLeft", "slideInRight", "gentleRotate"].includes(effect.effect ?? "")) fail(`Unsupported native speech animation: ${id}`);
-          timed(animation(`${id}-cue-${cueIndex}`, target(effect.elementId).id, effect.effect!, endMs - atMs), atMs);
+          const motion = animation(`${id}-cue-${cueIndex}`, target(effect.elementId).id, effect.effect!, endMs - atMs);
+          if (input.platformDelivery && motion.effect === "gentleRotate") motion.effect = "swing";
+          // Web's audio-cue scheduler reconciles time-zero animations without playing them.
+          if (input.platformDelivery && atMs === 0) {
+            const prior = startAnimations.findLast(action => action.elementId === motion.elementId);
+            if (prior) motion.startAtMs = (prior.startAtMs ?? 0) + prior.duration;
+            startAnimations.push(motion);
+          } else timed(motion, atMs);
           continue;
         }
         if (!canvas || !["spotlight", "highlight"].includes(effect.type)) fail(`Unsupported native speech effect: ${id}`);
         const targets = [...new Set([...(effect.elementId ? [effect.elementId] : []), ...(effect.elementIds ?? [])])].map(target);
         if (!targets.length) fail(`Native speech effect has no target: ${id}`);
+        if (input.platformDelivery) {
+          const elementIds = [...new Set(targets.map(element => element.id))];
+          const effectId = `${id}-cue-${cueIndex}`;
+          // shortcut: Web overlay actions follow the whole narration, use cue offsets when the platform supports them.
+          if (effect.type === "spotlight") {
+            const previous = speechEffects.find(action => action.type === "spotlight");
+            if (previous) {
+              previous.elementIds = [...new Set([...(previous.elementIds ?? [previous.elementId]), ...elementIds])];
+            } else {
+              speechEffects.push({ id: effectId, type: "spotlight", elementId: elementIds[0], elementIds, dimOpacity: effect.dimOpacity ?? .6 });
+            }
+          } else {
+            speechEffects.push({ id: effectId, type: "highlight", elementIds, color: effect.color ?? "#f59e0b",
+              style: effect.style === "fill" || effect.style === "glow" ? effect.style : "outline", opacity: effect.opacity });
+          }
+          continue;
+        }
         // Standard PPTist shapes plus speech-cued entrance/exit work in both players.
         const boxes = targets.map(e => ({ x: e.left - 3, y: e.top - 3, w: e.width + 6, h: ("height" in e ? Number(e.height) : 0) + 6 }));
         const shape = (suffix: string, path: string, left: number, top: number, width: number, height: number, fill: string, outline = false) => {
@@ -114,6 +141,15 @@ export function convertNativeTeaching(input: {
           const overlay = elements.at(-1); if (overlay?.type === "shape") overlay.opacity = effect.dimOpacity ?? .6;
         }
       }
+      if (startAnimations.length) {
+        const step = { version: 1 as const, stepId: `${id}-speech-start` };
+        for (const [index, motion] of startAnimations.entries()) {
+          motion.pptxTimeline = step;
+          motion.pptistTrigger = index === 0 ? "auto" : "meantime";
+        }
+        speech.pptxTimeline = { ...step, phase: "with" };
+      }
+      actions.splice(speechIndexInActions, 0, ...speechEffects, ...startAnimations);
     } else if (node.type === "delay") {
       const previous = actions.findLast(a => a.type === "speech");
       if (!previous || previous.type !== "speech" || actions.slice(actions.indexOf(previous)+1).some(a => a.type !== "element_animation" || !a.speechCue) ||

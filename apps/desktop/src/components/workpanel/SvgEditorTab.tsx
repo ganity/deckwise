@@ -141,7 +141,7 @@ export function SvgEditorTab({
   const { t } = useTranslation();
   const closeTab = useAppStore((store) => store.closeWorkPanelTab);
   const request = useCallback(<T,>(route: string, method: "GET" | "POST" | "DELETE" = "GET", body?: unknown) =>
-    api.pptPreviewRequest<T>(path, route, method, body), [path]);
+    api.pptPreviewRequest<T>(path, sessionId, route, method, body), [path, sessionId]);
   const index = slides.findIndex((item) => item.name === current);
   const root = canvasRef.current?.querySelector("svg") as SVGSVGElement | null;
   const selected = useMemo(() => selection.map((id) => root?.querySelector<SVGElement>(`#${CSS.escape(id)}`)).filter((el): el is SVGElement => !!el), [selection, slide]);
@@ -156,8 +156,8 @@ export function SvgEditorTab({
       const currentName = currentRef.current;
       const chosen = currentName && result.slides.some((item) => item.name === currentName)
         ? currentName
-        : result.slides[0]?.name ?? "";
-      if (!currentName && chosen) setCurrent(chosen);
+        : result.slides.find(item => item.ok)?.name ?? "";
+      if (currentName !== chosen) setCurrent(chosen);
       const active = result.slides.find((item) => item.name === currentName);
       if (active && slideRef.current && active.mtime !== slideRef.current.mtime) setExternalChange(true);
       if (initial && !chosen) setBusy(false);
@@ -187,11 +187,11 @@ export function SvgEditorTab({
 
   useEffect(() => {
     let active = true;
-    void api.pptPreviewOpen(path).then(() => { if (active) return loadSlides(true); }).catch((cause) => {
+    void api.pptPreviewOpen(path, sessionId).then(() => { if (active) return loadSlides(true); }).catch((cause) => {
       if (active) { setError(cause instanceof Error ? cause.message : String(cause)); setBusy(false); }
     });
     return () => { active = false; };
-  }, [path, loadSlides]);
+  }, [path, sessionId, loadSlides]);
 
   useEffect(() => {
     if (!current) return;
@@ -395,7 +395,10 @@ export function SvgEditorTab({
 
   const exitPreview = async () => {
     if ((hasStagedEdits || annotationDirty) && !window.confirm(t("panel.svgEditor.exitConfirm"))) return;
-    try { await request("/api/shutdown", "POST", {}); closeTab(tabId); }
+    try {
+      await request("/api/shutdown", "POST", {});
+      if (useAppStore.getState().activeSessionId === sessionId) closeTab(tabId);
+    }
     catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
   };
 

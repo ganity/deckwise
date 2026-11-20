@@ -29,6 +29,20 @@ Default runtime level:
 | audit | sensitive permission, tool, and plugin actions | host-core SQLite `audit_log` table |
 | plugin | per-plugin logs | `~/.pi-desktop/plugins/logs/<id>.log` |
 
+Tool completion records include the session, turn, tool call, parent call when
+present, tool name, outcome and bounded duration. Failed tool results may also
+carry one safe stable reason code. The code is read only from allowlisted
+product prefixes (`COURSEWARE_*`, `PPT_*`, `PPTX_*`, `PROVIDER_*`, `INVALID_*`, `NOT_FOUND`, `INTERNAL`, `TOOL_*`, `PERMISSION_*`, `TASK_*`, `LOCAL_*`) in structured
+fields or a leading error prefix; nested tool envelopes are inspected so the
+owning boundary's code is not lost. Private lesson text, prompts, provider
+bodies, paths and credentials are never copied into this diagnostic summary.
+
+`LOCAL_REQUEST_ERROR` retains its explicit phase (`context-validation`,
+`context-estimation` or `request-preparation`) through Runtime classification.
+The phase is provenance, not a new business state and does not change retry,
+cancellation, approval or paid-task behavior. Unknown provider outcomes remain
+query-only against the original request identity.
+
 `app`, `host`, and `agent` are NDJSON files written by the Electron main
 `Logger` (`apps/desktop/electron/main/logger.ts`). Host and agent stderr lines
 are wrapped into records on their channel. The audit channel is stored in

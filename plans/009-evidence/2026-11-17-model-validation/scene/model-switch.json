@@ -1,0 +1,6 @@
+{
+  "from": "deepseek-v4.1-flash-1017",
+  "to": "gpt-6.1-sol",
+  "reason": "Both body visual evidence reviews failed bounded structured-output validation; preserve existing successful image/layer assets",
+  "time": "2026-11-17T15:29:16.402Z"
+}

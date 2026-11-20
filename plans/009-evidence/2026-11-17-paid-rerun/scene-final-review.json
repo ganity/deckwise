@@ -1,0 +1,111 @@
+{
+  "ready": false,
+  "audioReady": false,
+  "narrationReady": false,
+  "contentReview": {
+    "applied": false,
+    "issues": [
+      {
+        "code": "CONTENT_REVIEW_FAILED",
+        "message": "第1页 scene-001 的 actions 为空，且 intentionalSilence 为 false，未保存教学要求中的中文讲解。当前画面虽正确展示草→蚱蜢→青蛙→蛇及能量箭头方向，但没有说明草通过光合作用制造有机物、属于生产者，未为紧接的第2页“识别生产者”迁移题提供要求中的概念依据。",
+        "pageId": "scene-001",
+        "pageNumber": 1,
+        "repair": "source",
+        "repairable": false
+      },
+      {
+        "code": "CONTENT_REVIEW_FAILED",
+        "message": "第1页 scene-001 的 actions 为空，未保存要求的完整链图整体 fadeIn 淡入、spotlight 聚光，以及草、蚱蜢、青蛙、蛇四个标签的 highlight 高亮效果；当前静态画面中的链图和标签均可见，但没有对应的演示动作。",
+        "pageId": "scene-001",
+        "pageNumber": 1,
+        "repair": "source",
+        "repairable": false
+      }
+    ],
+    "ready": false,
+    "sourceSha256": "5be9e1e2047db636b3ffcb984b4368beca531479350f65e7b3632c65cc7b8af4",
+    "teachingRevision": "02e36ec3-a8b1-4a1e-bbdb-bfa5849b848b"
+  },
+  "completion": {
+    "counts": {
+      "audioMissing": 0,
+      "audioReady": 8,
+      "musicClips": 0,
+      "musicPending": 0,
+      "pages": 4,
+      "questions": 2,
+      "speeches": 8
+    },
+    "issues": [
+      {
+        "code": "NARRATION_MISSING",
+        "pageId": "scene-001",
+        "pageNumber": 1,
+        "repair": "narration",
+        "repairable": true
+      },
+      {
+        "code": "EFFECT_MISSING",
+        "pageId": "scene-001",
+        "pageNumber": 1,
+        "repair": "narration",
+        "repairable": true
+      },
+      {
+        "code": "EFFECT_MISSING",
+        "pageId": "scene-001",
+        "pageNumber": 1,
+        "repair": "narration",
+        "repairable": true
+      },
+      {
+        "code": "EFFECT_MISSING",
+        "pageId": "scene-001",
+        "pageNumber": 1,
+        "repair": "narration",
+        "repairable": true
+      },
+      {
+        "code": "NARRATION_MISSING",
+        "message": "Page 1 has no saved narration candidate.",
+        "pageId": "scene-001",
+        "pageNumber": 1,
+        "repair": "narration",
+        "repairable": true
+      },
+      {
+        "code": "CONTENT_REVIEW_FAILED",
+        "message": "第1页 scene-001 的 actions 为空，且 intentionalSilence 为 false，未保存教学要求中的中文讲解。当前画面虽正确展示草→蚱蜢→青蛙→蛇及能量箭头方向，但没有说明草通过光合作用制造有机物、属于生产者，未为紧接的第2页“识别生产者”迁移题提供要求中的概念依据。",
+        "pageId": "scene-001",
+        "pageNumber": 1,
+        "repair": "source",
+        "repairable": false
+      },
+      {
+        "code": "CONTENT_REVIEW_FAILED",
+        "message": "第1页 scene-001 的 actions 为空，未保存要求的完整链图整体 fadeIn 淡入、spotlight 聚光，以及草、蚱蜢、青蛙、蛇四个标签的 highlight 高亮效果；当前静态画面中的链图和标签均可见，但没有对应的演示动作。",
+        "pageId": "scene-001",
+        "pageNumber": 1,
+        "repair": "source",
+        "repairable": false
+      }
+    ],
+    "ready": false,
+    "sourceSha256": "5be9e1e2047db636b3ffcb984b4368beca531479350f65e7b3632c65cc7b8af4",
+    "teachingRevision": "02e36ec3-a8b1-4a1e-bbdb-bfa5849b848b",
+    "warnings": [
+      {
+        "code": "OBJECT_BINDING_ADVISORY",
+        "message": "Planned descriptions are not independently bound: 草→蚱蜢→青蛙→蛇完整链图, 草标签, 蚱蜢标签, 青蛙标签, 蛇标签. This is advisory; narrate the actual picture and bind effects only to verified eligible targets. Visual grounding checks essential teaching content separately. Do not regenerate images or invent aliases to match design details.",
+        "pageId": "scene-001",
+        "pageNumber": 1
+      },
+      {
+        "code": "NARRATION_DURATION_EXCEEDED",
+        "message": "Decoded speech totals 21552 ms against a 20-second classroom budget. Report this overrun; for generated narration shorten only this page before new TTS. Preserve user-supplied scripts and adopted audio unless revision is authorized.",
+        "pageId": "scene-003",
+        "pageNumber": 3
+      }
+    ]
+  }
+}

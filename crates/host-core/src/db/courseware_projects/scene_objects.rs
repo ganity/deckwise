@@ -18,7 +18,7 @@ pub struct GeneratedScenePage {
     slide_part: String,
     elements: Vec<GeneratedSceneObject>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    teaching: Option<scene_teaching::Teaching>,
+    pub(crate) teaching: Option<scene_teaching::Teaching>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -170,6 +170,8 @@ struct SceneObjectsRecord {
     schema_version: String,
     source_sha256: String,
     mapping: GeneratedSceneMapping,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    generation_proof: Option<Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -211,6 +213,7 @@ impl Database {
                 schema_version: "deckwise-scene-objects/1".into(),
                 source_sha256: original_hash.into(),
                 mapping: scene.mapping.clone(),
+                generation_proof: None,
             })?,
         )
     }
@@ -321,6 +324,16 @@ impl Database {
         project: &CoursewareProject,
         mapping: &GeneratedSceneMapping,
     ) -> Result<()> {
+        self.initialize_generated_scene_objects_with_proof(workspace, project, mapping, None)
+    }
+
+    pub fn initialize_generated_scene_objects_with_proof(
+        &self,
+        workspace: &str,
+        project: &CoursewareProject,
+        mapping: &GeneratedSceneMapping,
+        generation_proof: Option<Value>,
+    ) -> Result<()> {
         anyhow::ensure!(
             project.task_type == "scene",
             "COURSEWARE_INVALID: scene task required"
@@ -332,13 +345,29 @@ impl Database {
             schema_version: "deckwise-scene-objects/1".into(),
             source_sha256: project.source.sha256.clone(),
             mapping: mapping.clone(),
+            generation_proof,
         })?;
         let key = storage_key(workspace, &project.project_id)?;
         if let Some(existing) = self.kv_get(SCENE_OBJECTS_NAMESPACE, &key)? {
-            anyhow::ensure!(
-                existing == value,
-                "COURSEWARE_CONFLICT: generated scene objects already differ"
-            );
+            if existing != value {
+                let mut existing_record: SceneObjectsRecord = serde_json::from_value(existing)?;
+                let requested: SceneObjectsRecord = serde_json::from_value(value)?;
+                anyhow::ensure!(
+                    existing_record.schema_version == requested.schema_version
+                        && existing_record.source_sha256 == requested.source_sha256
+                        && serde_json::to_value(&existing_record.mapping)?
+                            == serde_json::to_value(&requested.mapping)?
+                        && existing_record.generation_proof.is_none()
+                        && requested.generation_proof.is_some(),
+                    "COURSEWARE_CONFLICT: generated scene objects already differ"
+                );
+                existing_record.generation_proof = requested.generation_proof;
+                self.kv_set(
+                    SCENE_OBJECTS_NAMESPACE,
+                    &key,
+                    &serde_json::to_value(existing_record)?,
+                )?;
+            }
         } else {
             self.kv_set(SCENE_OBJECTS_NAMESPACE, &key, &value)?;
         }

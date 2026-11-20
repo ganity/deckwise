@@ -1,3 +1,4 @@
+import * as coursewareRuntime from "../electron/main/courseware-runtime.ts";
 /** Main IPC → real Host/parser/SQLite → real fixed build → isolated Platform HTTP.
  * Native Docs and the remote Platform/OSS are fixtures, not a real Docs acceptance gate.
  */
@@ -192,7 +193,7 @@ test("public capture persists independent online snapshot; public fixed build/sh
       .map(name => [`../${name}`, modules.get(`./${name}`)]),
   ]));
   const { registerCoursewarePlaybackIpc } = await load("ipc/courseware-playback-ipc", {
-    "../courseware-fixed-build": modules.get("./courseware-fixed-build"), "../courseware-build-files": modules.get("./courseware-build-files"),
+    "../courseware-runtime": coursewareRuntime, "../courseware-fixed-build": modules.get("./courseware-fixed-build"), "../courseware-build-files": modules.get("./courseware-build-files"),
     "../courseware-player-preview": { CoursewarePlayerPreview: class { close() {} } },
   });
   function register() {

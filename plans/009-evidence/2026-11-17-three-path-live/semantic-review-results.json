@@ -1,0 +1,90 @@
+{
+  "master": [
+    {
+      "modelId": "gpt-6.1-sol",
+      "completedAt": "2026-11-17T03:25:42.854Z",
+      "wholeToolDurationMs": 81425,
+      "reviewedPageNumbers": [
+        1,
+        2
+      ],
+      "savedPageNumbers": [
+        1,
+        2
+      ],
+      "sourceSha256": "3518e56a519535123ca4a9397f97a2f36697a022557e4350dbedfa9cd8ceeb9f",
+      "evidenceMode": "actual-native-png-and-text"
+    }
+  ],
+  "scene": [
+    {
+      "modelId": "gpt-6.1-sol",
+      "completedAt": "2026-11-17T03:45:57.532Z",
+      "wholeToolDurationMs": 102318,
+      "reviewedPageNumbers": [
+        1,
+        3
+      ],
+      "savedPageNumbers": [
+        1,
+        3
+      ],
+      "sourceSha256": "0820414051f83b6894d59a894d3c7304ef4d258eefea1e0d87ea3fec93a59e2e",
+      "evidenceMode": "actual-native-png-and-text"
+    }
+  ],
+  "import": [
+    {
+      "modelId": "deepseek-v4.1-flash-1017",
+      "completedAt": "2026-11-17T02:41:59.572Z",
+      "wholeToolDurationMs": 28073,
+      "reviewedPageNumbers": [
+        1
+      ],
+      "savedPageNumbers": [
+        1
+      ],
+      "sourceSha256": "77c84616decc2d9aac606be6e2880bc81c52982eb03a0b9f42653607bd6e695f",
+      "evidenceMode": "text-and-object-only-before-wiring-fix"
+    },
+    {
+      "modelId": "deepseek-v4.1-flash-1017",
+      "completedAt": "2026-11-17T02:43:31.742Z",
+      "wholeToolDurationMs": 88030,
+      "reviewedPageNumbers": [
+        3
+      ],
+      "savedPageNumbers": [
+        3
+      ],
+      "sourceSha256": "6ffcb3ef6830895ffeba41f550fe40d57af8d4a2e80cd1328a75322811624359",
+      "evidenceMode": "text-and-object-only-before-wiring-fix"
+    },
+    {
+      "modelId": "deepseek-v4.1-flash-1017",
+      "completedAt": "2026-11-17T02:50:26.881Z",
+      "wholeToolDurationMs": 91335,
+      "reviewedPageNumbers": [
+        1
+      ],
+      "savedPageNumbers": [
+        1
+      ],
+      "sourceSha256": "4e88f3dfb81ec00b4684c82cc553ed38c50fb9e10c8cae6c1d62cf4e9169b8f9",
+      "evidenceMode": "actual-native-png-and-text"
+    },
+    {
+      "modelId": "deepseek-v4.1-flash-1017",
+      "completedAt": "2026-11-17T02:55:19.883Z",
+      "wholeToolDurationMs": 280195,
+      "reviewedPageNumbers": [
+        3
+      ],
+      "savedPageNumbers": [
+        3
+      ],
+      "sourceSha256": "d6d522eb86ed3b8b5d202c3aa87e244bb82a414482a45848d620a89996b2afc7",
+      "evidenceMode": "actual-native-png-and-text"
+    }
+  ]
+}

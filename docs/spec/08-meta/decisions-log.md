@@ -32,6 +32,13 @@ verified archive, followed by ordered revision-checked adoption. These are local
 client protection limits, not supplier quotas or a shared total. See
 [authorized media](../03-runtime/27-courseware-authorized-media.md#per-type-generation-concurrency-2026-10-30).
 
+Scene image default (2026-11-14): saved Education stage/grade/subject guides
+body-page readability and raster content. Explicit visual style and the approved
+course Visual Bible govern the medium, with explicit style taking precedence.
+Unknown or legacy stages use neutral school styling, not kindergarten art.
+Connected diagrams remain coherent in the image and layer decomposition;
+independent Quiz/checkpoint questions retain their structured editing contract.
+
 | ID | Topic | Decision |
 |---|---|---|
 | D011 | TS schema validation | **typebox** |
@@ -5993,3 +6000,31 @@ that was sitting at the bottom — including after the turn had finished.
   toasts they open, which are portaled to `document.body`, also move to the top
   layer, because top-layer content paints above them and makes them unusable; an
   attempt was withdrawn for exactly that reason.
+
+
+## 2026-11-16 — Scoped small-lesson stability repairs
+
+- Preserve required assessment media by default; save only explicit user option-
+  image exclusions in the existing Quiz carrier. Required question audio remains
+  a gate, and excluded image preparation stops before billing. See the addendum
+  in `docs/adr/courseware-media-bindings-and-requirements.md`.
+- Accept source-backed spoken components of symbolic relation labels while
+  retaining wrong-target checks. Expose per-page effect/timing evidence and
+  compare every requested original page through the shared teaching Skill.
+- Keep static-page navigation manual and remove premature course-complete
+  reporting. Preserve existing approval, source/revision, original-job recovery,
+  repair-budget, script and audio safeguards. Evidence and remaining paid/native
+  qualification limits: `plans/009-evidence/2026-11-16-three-path-live/repair-verification.md`.
+
+
+## 2026-11-16 — LLM narration review before persistence
+
+The shared automated narration path now uses the selected model to judge
+semantic paraphrases, factual claims and effect targets against current page
+evidence. Existing program boundaries remain authoritative for IDs, schema,
+source versions and accepted script/audio. Reuse the current bounded repair
+loop, review each correction, and preserve successful peers. Invalid or
+uncertain review output cannot authorize saving. The host callback is internal;
+there is no new RPC, storage, provider or approval workflow. See the addendum in
+`docs/adr/courseware-media-bindings-and-requirements.md` and local evidence in
+`plans/009-evidence/2026-11-16-three-path-live/semantic-review-verification.md`.

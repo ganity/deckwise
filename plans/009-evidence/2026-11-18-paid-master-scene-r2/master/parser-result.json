@@ -1,0 +1,41 @@
+{
+  "pages": 4,
+  "fractions": [
+    {
+      "formula": "\\frac{1}{4}",
+      "numerator": "1",
+      "denominator": "4",
+      "lineWidth": "2px",
+      "ordered": true,
+      "visible": true
+    },
+    {
+      "formula": "\\frac{3}{4}",
+      "numerator": "3",
+      "denominator": "4",
+      "lineWidth": "2px",
+      "ordered": true,
+      "visible": true
+    }
+  ],
+  "warnings": [
+    {
+      "code": "PPTX_NOTES_MASTER_UNVERIFIED",
+      "severity": "warning",
+      "message": "PPTX 包含备注母版，当前仅提取逐页备注，未验证母版版式与样式的保留情况，须人工核对"
+    },
+    {
+      "code": "PPTX_TIMING_UNSUPPORTED_STRUCTURE",
+      "pageIndex": 0,
+      "severity": "warning",
+      "message": "PPTX 第 1 页存在暂不支持的动画分支（PPTX_TIMING_UNSUPPORTED_STRUCTURE），已跳过该分支，其余可还原动画和页面内容正常导入"
+    },
+    {
+      "code": "PPTX_TIMING_UNSUPPORTED_STRUCTURE",
+      "pageIndex": 1,
+      "severity": "warning",
+      "message": "PPTX 第 2 页存在暂不支持的动画分支（PPTX_TIMING_UNSUPPORTED_STRUCTURE），已跳过该分支，其余可还原动画和页面内容正常导入"
+    }
+  ],
+  "fullLessonPlayback": false
+}

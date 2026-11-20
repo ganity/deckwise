@@ -1,0 +1,3433 @@
+{
+  "checkedAt": "2026-11-17",
+  "model": "deckwise-managed/deepseek-v4-1-flash",
+  "sourceIdentity": {
+    "dirty": true,
+    "model": {
+      "modelKey": "deckwise-managed/deepseek-v4-1-flash",
+      "thinkingLevel": "off"
+    },
+    "apps/desktop/electron/main/courseware-narration-batch.ts": "bd092b2451aac9c24693c85e3bc6c3e700d9b9cb61a3f27c6a0985fe2c09eb0d",
+    "packages/agent-runtime/src/courseware/page-narration-candidate.ts": "c0ac7c3f1b022643e189efecee863a4926f517f72e748a51bf7d62b57213c6de",
+    "packages/agent-runtime/src/courseware/narration-write.ts": "74b630743b0104f73833c03e63bad35a0e9c070e7033ec4efb653a944ebc7308",
+    "packages/agent-runtime/dist/index.js": "9da1e0543de793a1cc154de57e8b8b27addce8c712e1bb7bce26dc2ef0a4ed91",
+    "sourceSha256": "169070422aff55ccbd4b0349d9138a570aadb1e93ee5e10897ad38499908b2d6"
+  },
+  "boundary": "Production shared batch/candidate/repair loop, real authorized model; extracted real slide text, in-memory mapping and save capture. No image grounding, native save, Desktop UI generation or new image/TTS.",
+  "cases": [
+    {
+      "caseId": "plain-paraphrase",
+      "taskType": "plain",
+      "scenario": "paraphrase",
+      "durationMs": 31469,
+      "result": {
+        "savedPages": [
+          {
+            "pageNumber": 1,
+            "pageId": "page",
+            "teachingRevision": "T2",
+            "saved": true
+          }
+        ],
+        "failures": [],
+        "diagnostics": [
+          {
+            "pageNumber": 1,
+            "message": "Visual grounding unavailable; narration uses text/notes only and visual completeness has not been verified"
+          },
+          {
+            "pageNumber": 1,
+            "message": "Narration semantic review passed against current page evidence"
+          }
+        ],
+        "plan": {
+          "goal": "四年级科学课只聚焦熔化：用简短、自然的口语解释冰变成水需要吸热，借助页面高亮建立“熔化 → 吸热”的关系；不提问、不考试，也不扩展到蒸发、凝固或凝结等其他变化。",
+          "pages": [
+            {
+              "pageNumber": 1,
+              "purpose": "只讲解冰变成水的熔化过程，让学生把“固态的冰变成液态的水”与“吸热”建立直观联系，并突出本页的“熔化 → 吸热”关系。",
+              "bridge": "从学生熟悉的冰块化成水现象自然进入；讲完用一句话收束：冰变成水要吸热，这就是熔化，不转入提问或小测。",
+              "focus": "聚焦“冰—水”的单一变化和“吸热”的因果关系；用页面高亮呈现“熔化 → 吸热”，口头说“熔化要吸热”，不逐字念箭头，也不带读其他状态变化。",
+              "mustMention": [
+                "冰",
+                "水",
+                "熔化",
+                "吸热",
+                "熔化 → 吸热"
+              ],
+              "avoidRepeating": [],
+              "deliveryContract": [
+                "用一句生活化的话解释：冰块放在手里会慢慢化成水，是因为它从周围吸热。",
+                "手指页面上的“冰”和“水”，说明固态冰变成液态水的过程叫熔化。",
+                "高亮页面上的“熔化 → 吸热”，口头说“熔化要吸热”，不逐字念箭头，也不扩展到蒸发、凝固或凝结。"
+              ]
+            }
+          ]
+        },
+        "applied": true,
+        "saved": true,
+        "audioReady": false
+      },
+      "calls": [
+        {
+          "kind": "plan",
+          "durationMs": 25257,
+          "usage": {
+            "inputTokens": 1044,
+            "outputTokens": 2148,
+            "reasoningTokens": 1837,
+            "totalTokens": 3192,
+            "usageOrigin": "pi",
+            "operationId": "264245dd-0280-4b42-bf19-4da9ea2e85f8",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"goal\":\"四年级科学课只聚焦熔化：用简短、自然的口语解释冰变成水需要吸热，借助页面高亮建立“熔化 → 吸热”的关系；不提问、不考试，也不扩展到蒸发、凝固或凝结等其他变化。\",\"pages\":[{\"pageNumber\":1,\"purpose\":\"只讲解冰变成水的熔化过程，让学生把“固态的冰变成液态的水”与“吸热”建立直观联系，并突出本页的“熔化 → 吸热”关系。\",\"bridge\":\"从学生熟悉的冰块化成水现象自然进入；讲完用一句话收束：冰变成水要吸热，这就是熔化，不转入提问或小测。\",\"focus\":\"聚焦“冰—水”的单一变化和“吸热”的因果关系；用页面高亮呈现“熔化 → 吸热”，口头说“熔化要吸热”，不逐字念箭头，也不带读其他状态变化。\",\"mustMention\":[\"冰\",\"水\",\"熔化\",\"吸热\",\"熔化 → 吸热\"],\"avoidRepeating\":[],\"deliveryContract\":[\"用一句生活化的话解释：冰块放在手里会慢慢化成水，是因为它从周围吸热。\",\"手指页面上的“冰”和“水”，说明固态冰变成液态水的过程叫熔化。\",\"高亮页面上的“熔化 → 吸热”，口头说“熔化要吸热”，不逐字念箭头，也不扩展到蒸发、凝固或凝结。\"]}]}",
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "controlled-initial-candidate",
+          "data": {
+            "blocks": [
+              {
+                "type": "speech",
+                "text": "冰化成水叫熔化，这时需要从周围获得热量。",
+                "attention": {
+                  "type": "highlight",
+                  "objectIds": [
+                    "b85c6067-c017-4e49-9baf-ee75d74c8fbd"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "narration_semantics",
+          "durationMs": 6145,
+          "usage": {
+            "inputTokens": 1114,
+            "outputTokens": 451,
+            "reasoningTokens": 445,
+            "totalTokens": 1565,
+            "usageOrigin": "pi",
+            "operationId": "ec9f499f-094e-4bbf-8f30-231686f27435",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"issues\":[]}",
+          "reviewedBlocks": [
+            {
+              "type": "speech",
+              "text": "冰化成水叫熔化，这时需要从周围获得热量。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "b85c6067-c017-4e49-9baf-ee75d74c8fbd"
+                ]
+              }
+            }
+          ],
+          "savedWritesAtCall": 0
+        }
+      ],
+      "writes": [
+        {
+          "projectId": "semantic-plain-paraphrase",
+          "pageId": "page",
+          "expectedSourceRevision": "R1",
+          "expectedTeachingRevision": "T1",
+          "actions": [
+            {
+              "id": "speech-4eaf5978-b6c6-4f64-87e1-83c83120b709-0",
+              "type": "speech",
+              "text": "冰化成水叫熔化，这时需要从周围获得热量。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "b85c6067-c017-4e49-9baf-ee75d74c8fbd"
+                ]
+              },
+              "source": "generated"
+            }
+          ]
+        }
+      ],
+      "passed": true
+    },
+    {
+      "caseId": "plain-binding",
+      "taskType": "plain",
+      "scenario": "binding",
+      "durationMs": 20002,
+      "result": {
+        "savedPages": [
+          {
+            "pageNumber": 1,
+            "pageId": "page",
+            "teachingRevision": "T2",
+            "saved": true
+          }
+        ],
+        "failures": [],
+        "diagnostics": [
+          {
+            "pageNumber": 1,
+            "message": "Visual grounding unavailable; narration uses text/notes only and visual completeness has not been verified"
+          },
+          {
+            "pageNumber": 1,
+            "message": "Repairing invalid narration (1/2): PageCandidateError: Attention targets failed semantic review: [{\"blockIndex\":0,\"kind\":\"binding\",\"message\":\"高亮绑定错误：block[0] 指向“水蒸气”（1d3409e6-2ca7-40ed-922a-307b459ce919），但讲课内容讲的是冰化成水并吸热。请将该 attention.objectIds 改为已有的“熔化 → 吸热”对象 e319ccaf-5cee-475e-8f94-39f2980eb480，并移除对水蒸气的高亮。\"}]"
+          },
+          {
+            "pageNumber": 1,
+            "message": "Narration semantic review passed against current page evidence"
+          }
+        ],
+        "plan": {
+          "goal": "用口语说明冰熔化成水要吸热，并高亮对应关系。",
+          "pages": [
+            {
+              "pageNumber": 1,
+              "purpose": "说明冰变水的熔化吸热关系。",
+              "bridge": "本页解释完毕。",
+              "focus": "冰熔化成水需要吸热。",
+              "mustMention": [],
+              "avoidRepeating": [],
+              "deliveryContract": [
+                "用一句自然口语说明冰熔化成水需要吸热，高亮熔化吸热关系，不需跟读、练习或提问。"
+              ]
+            }
+          ]
+        },
+        "applied": true,
+        "saved": true,
+        "audioReady": false
+      },
+      "calls": [
+        {
+          "kind": "controlled-plan",
+          "data": {
+            "goal": "用口语说明冰熔化成水要吸热，并高亮对应关系。",
+            "pages": [
+              {
+                "pageNumber": 1,
+                "purpose": "说明冰变水的熔化吸热关系。",
+                "bridge": "本页解释完毕。",
+                "focus": "冰熔化成水需要吸热。",
+                "mustMention": [],
+                "avoidRepeating": [],
+                "deliveryContract": [
+                  "用一句自然口语说明冰熔化成水需要吸热，高亮熔化吸热关系，不需跟读、练习或提问。"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "kind": "controlled-initial-candidate",
+          "data": {
+            "blocks": [
+              {
+                "type": "speech",
+                "text": "冰化成水叫熔化，这时需要从周围获得热量。",
+                "attention": {
+                  "type": "highlight",
+                  "objectIds": [
+                    "1d3409e6-2ca7-40ed-922a-307b459ce919"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "narration_semantics",
+          "durationMs": 10862,
+          "usage": {
+            "inputTokens": 942,
+            "outputTokens": 844,
+            "reasoningTokens": 729,
+            "totalTokens": 1786,
+            "usageOrigin": "pi",
+            "operationId": "69064bf6-2611-4d57-bf27-69467416982b",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"issues\":[{\"blockIndex\":0,\"kind\":\"binding\",\"message\":\"高亮绑定错误：block[0] 指向“水蒸气”（1d3409e6-2ca7-40ed-922a-307b459ce919），但讲课内容讲的是冰化成水并吸热。请将该 attention.objectIds 改为已有的“熔化 → 吸热”对象 e319ccaf-5cee-475e-8f94-39f2980eb480，并移除对水蒸气的高亮。\"}]}",
+          "reviewedBlocks": [
+            {
+              "type": "speech",
+              "text": "冰化成水叫熔化，这时需要从周围获得热量。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "1d3409e6-2ca7-40ed-922a-307b459ce919"
+                ]
+              }
+            }
+          ],
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "binding-repair",
+          "durationMs": 2019,
+          "usage": {
+            "inputTokens": 1273,
+            "outputTokens": 115,
+            "reasoningTokens": 75,
+            "totalTokens": 1388,
+            "usageOrigin": "pi",
+            "operationId": "bfbc2b62-cfea-480c-b7af-0fafb047716c",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"focuses\":[{\"blockIndex\":0,\"objectIds\":[\"e319ccaf-5cee-475e-8f94-39f2980eb480\"]}]}",
+          "repair": {
+            "error": "PageCandidateError: Attention targets failed semantic review: [{\"blockIndex\":0,\"kind\":\"binding\",\"message\":\"高亮绑定错误：block[0] 指向“水蒸气”（1d3409e6-2ca7-40ed-922a-307b459ce919），但讲课内容讲的是冰化成水并吸热。请将该 attention.objectIds 改为已有的“熔化 → 吸热”对象 e319ccaf-5cee-475e-8f94-39f2980eb480，并移除对水蒸气的高亮。\"}]",
+            "previousOutput": "{\"blocks\":[{\"type\":\"speech\",\"text\":\"冰化成水叫熔化，这时需要从周围获得热量。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"1d3409e6-2ca7-40ed-922a-307b459ce919\"]}}]}"
+          },
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "narration_semantics",
+          "durationMs": 7097,
+          "usage": {
+            "inputTokens": 46,
+            "outputTokens": 587,
+            "cacheReadTokens": 896,
+            "reasoningTokens": 581,
+            "totalTokens": 1529,
+            "usageOrigin": "pi",
+            "operationId": "2c96f6e1-5d0c-4f88-9357-5444f2375356",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"issues\":[]}",
+          "reviewedBlocks": [
+            {
+              "type": "speech",
+              "text": "冰化成水叫熔化，这时需要从周围获得热量。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "e319ccaf-5cee-475e-8f94-39f2980eb480"
+                ]
+              }
+            }
+          ],
+          "savedWritesAtCall": 0
+        }
+      ],
+      "writes": [
+        {
+          "projectId": "semantic-plain-binding",
+          "pageId": "page",
+          "expectedSourceRevision": "R1",
+          "expectedTeachingRevision": "T1",
+          "actions": [
+            {
+              "id": "speech-ed16ea90-cb4f-4b6e-b53d-640631ca81b4-0",
+              "type": "speech",
+              "text": "冰化成水叫熔化，这时需要从周围获得热量。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "e319ccaf-5cee-475e-8f94-39f2980eb480"
+                ]
+              },
+              "source": "generated"
+            }
+          ]
+        }
+      ],
+      "passed": true
+    },
+    {
+      "caseId": "plain-content",
+      "taskType": "plain",
+      "scenario": "content",
+      "durationMs": 120819,
+      "result": {
+        "savedPages": [
+          {
+            "pageNumber": 1,
+            "pageId": "page",
+            "teachingRevision": "T2",
+            "saved": true
+          }
+        ],
+        "failures": [],
+        "diagnostics": [
+          {
+            "pageNumber": 1,
+            "message": "Visual grounding unavailable; narration uses text/notes only and visual completeness has not been verified"
+          },
+          {
+            "pageNumber": 1,
+            "message": "Repairing invalid narration (1/2): PageCandidateError: Narration failed semantic review: [{\"blockIndex\":0,\"kind\":\"content\",\"message\":\"旁白说“向周围释放热量”，与页面“熔化 → 吸热”及本页只讲熔化吸热的目标相反。应改为说明冰化成水（熔化）需要吸热，例如“冰化成水叫熔化，熔化需要吸热”；现有高亮对象可保留。\"}]"
+          },
+          {
+            "pageNumber": 1,
+            "message": "Repairing invalid narration (2/2): PageCandidateError: Narration failed semantic review: [{\"blockIndex\":1,\"kind\":\"requirement\",\"message\":\"索引1的高亮绑定到了“冰”（01381a35-bc31-42f4-a627-292fe5779edd），与交付约定“在页面上只高亮‘熔化 → 吸热’”冲突；该额外高亮不是要求的关系高亮。请移除该块高亮，保留索引2、3对“熔化 → 吸热”（c2e16b15-f293-4344-a8a1-842665d0a1bf）的高亮，口语无需改写。\"}]"
+          },
+          {
+            "pageNumber": 1,
+            "message": "Narration semantic review passed against current page evidence"
+          }
+        ],
+        "plan": {
+          "goal": "围绕“冰化成水”只讲熔化，用简短自然的口语把“熔化 → 吸热”讲清楚，并用高亮突出这一关系；不涉及凝固、蒸发、凝结等其他变化，也不设置测验。",
+          "pages": [
+            {
+              "pageNumber": 1,
+              "purpose": "用生活化例子说明冰受热后变成水，明确熔化需要吸热，并以高亮强调“熔化 → 吸热”。",
+              "bridge": "本页讲完“熔化 → 吸热”后，用一句简短的话回扣这一关系收束，不再展开其他状态变化。",
+              "focus": "冰从周围吸热，慢慢化成水；把“熔化”和“吸热”连在一起，用高亮显示“熔化 → 吸热”。",
+              "mustMention": [
+                "熔化 → 吸热",
+                "冰",
+                "水"
+              ],
+              "avoidRepeating": [],
+              "deliveryContract": [
+                "用一句生活化口语解释：冰块放在手心里，冰从周围吸热，慢慢化成水。",
+                "用完整示范讲清关系：冰变成水的这个过程叫熔化，熔化要吸热。",
+                "在页面上只高亮“熔化 → 吸热”，口头回扣一次，不逐字念箭头。",
+                "不提问、不测验，也不带出凝固、蒸发或凝结。"
+              ]
+            }
+          ]
+        },
+        "applied": true,
+        "saved": true,
+        "audioReady": false
+      },
+      "calls": [
+        {
+          "kind": "plan",
+          "durationMs": 21418,
+          "usage": {
+            "inputTokens": 20,
+            "outputTokens": 1880,
+            "cacheReadTokens": 1024,
+            "reasoningTokens": 1605,
+            "totalTokens": 2924,
+            "usageOrigin": "pi",
+            "operationId": "1a175c59-eb1a-4e47-aefa-ba68aa167f33",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"goal\":\"围绕“冰化成水”只讲熔化，用简短自然的口语把“熔化 → 吸热”讲清楚，并用高亮突出这一关系；不涉及凝固、蒸发、凝结等其他变化，也不设置测验。\",\"pages\":[{\"pageNumber\":1,\"purpose\":\"用生活化例子说明冰受热后变成水，明确熔化需要吸热，并以高亮强调“熔化 → 吸热”。\",\"bridge\":\"本页讲完“熔化 → 吸热”后，用一句简短的话回扣这一关系收束，不再展开其他状态变化。\",\"focus\":\"冰从周围吸热，慢慢化成水；把“熔化”和“吸热”连在一起，用高亮显示“熔化 → 吸热”。\",\"mustMention\":[\"熔化 → 吸热\",\"冰\",\"水\"],\"avoidRepeating\":[],\"deliveryContract\":[\"用一句生活化口语解释：冰块放在手心里，冰从周围吸热，慢慢化成水。\",\"用完整示范讲清关系：冰变成水的这个过程叫熔化，熔化要吸热。\",\"在页面上只高亮“熔化 → 吸热”，口头回扣一次，不逐字念箭头。\",\"不提问、不测验，也不带出凝固、蒸发或凝结。\"]}]}",
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "controlled-initial-candidate",
+          "data": {
+            "blocks": [
+              {
+                "type": "speech",
+                "text": "冰化成水叫熔化，这时会向周围释放热量。",
+                "attention": {
+                  "type": "highlight",
+                  "objectIds": [
+                    "c2e16b15-f293-4344-a8a1-842665d0a1bf"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "narration_semantics",
+          "durationMs": 9901,
+          "usage": {
+            "inputTokens": 1073,
+            "outputTokens": 824,
+            "reasoningTokens": 744,
+            "totalTokens": 1897,
+            "usageOrigin": "pi",
+            "operationId": "2981cc61-4a11-49bf-b248-24295a61dcae",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"issues\":[{\"blockIndex\":0,\"kind\":\"content\",\"message\":\"旁白说“向周围释放热量”，与页面“熔化 → 吸热”及本页只讲熔化吸热的目标相反。应改为说明冰化成水（熔化）需要吸热，例如“冰化成水叫熔化，熔化需要吸热”；现有高亮对象可保留。\"}]}",
+          "reviewedBlocks": [
+            {
+              "type": "speech",
+              "text": "冰化成水叫熔化，这时会向周围释放热量。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "c2e16b15-f293-4344-a8a1-842665d0a1bf"
+                ]
+              }
+            }
+          ],
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "content-repair",
+          "durationMs": 16280,
+          "usage": {
+            "inputTokens": 1702,
+            "outputTokens": 1461,
+            "cacheReadTokens": 2048,
+            "reasoningTokens": 1297,
+            "totalTokens": 5211,
+            "usageOrigin": "pi",
+            "operationId": "679990be-d066-4177-b2d4-4979d1cd9498",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"blocks\":[{\"type\":\"speech\",\"text\":\"同学们看，一块冰放在手心里，它会慢慢化成水。这是因为冰从周围吸收了热量。\"},{\"type\":\"speech\",\"text\":\"冰变成水的这个过程，就叫熔化。熔化需要吸热。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"c2e16b15-f293-4344-a8a1-842665d0a1bf\"],\"animation\":\"pulse\"}},{\"type\":\"speech\",\"text\":\"所以，冰化成水要吸热；页面上，熔化和吸热连在一起，说的就是这个关系。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"c2e16b15-f293-4344-a8a1-842665d0a1bf\"]}}]}",
+          "repair": {
+            "error": "PageCandidateError: Narration failed semantic review: [{\"blockIndex\":0,\"kind\":\"content\",\"message\":\"旁白说“向周围释放热量”，与页面“熔化 → 吸热”及本页只讲熔化吸热的目标相反。应改为说明冰化成水（熔化）需要吸热，例如“冰化成水叫熔化，熔化需要吸热”；现有高亮对象可保留。\"}]",
+            "previousOutput": "{\"blocks\":[{\"type\":\"speech\",\"text\":\"冰化成水叫熔化，这时会向周围释放热量。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"c2e16b15-f293-4344-a8a1-842665d0a1bf\"]}}]}"
+          },
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "narration_semantics",
+          "durationMs": 39479,
+          "usage": {
+            "inputTokens": 1215,
+            "outputTokens": 3561,
+            "reasoningTokens": 3433,
+            "totalTokens": 4776,
+            "usageOrigin": "pi",
+            "operationId": "a2fed4ff-12a2-4174-a058-256628384d85",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"issues\":[{\"blockIndex\":1,\"kind\":\"requirement\",\"message\":\"索引1的高亮绑定到了“冰”（01381a35-bc31-42f4-a627-292fe5779edd），与交付约定“在页面上只高亮‘熔化 → 吸热’”冲突；该额外高亮不是要求的关系高亮。请移除该块高亮，保留索引2、3对“熔化 → 吸热”（c2e16b15-f293-4344-a8a1-842665d0a1bf）的高亮，口语无需改写。\"}]}",
+          "reviewedBlocks": [
+            {
+              "type": "speech",
+              "text": "同学们看，一块冰放在手心里，它会慢慢化成水。"
+            },
+            {
+              "type": "speech",
+              "text": "这是因为冰从周围吸收了热量。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "01381a35-bc31-42f4-a627-292fe5779edd"
+                ]
+              }
+            },
+            {
+              "type": "speech",
+              "text": "冰变成水的这个过程，就叫熔化。熔化需要吸热。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "c2e16b15-f293-4344-a8a1-842665d0a1bf"
+                ],
+                "animation": "pulse"
+              }
+            },
+            {
+              "type": "speech",
+              "text": "所以，冰化成水要吸热；页面上，熔化和吸热连在一起，说的就是这个关系。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "c2e16b15-f293-4344-a8a1-842665d0a1bf"
+                ]
+              }
+            }
+          ],
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "content-repair",
+          "durationMs": 5863,
+          "usage": {
+            "inputTokens": 1870,
+            "outputTokens": 471,
+            "cacheReadTokens": 2048,
+            "reasoningTokens": 314,
+            "totalTokens": 4389,
+            "usageOrigin": "pi",
+            "operationId": "3d93f468-0c00-47dd-b28f-a8920b791bb3",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"blocks\":[{\"type\":\"speech\",\"text\":\"同学们看，一块冰放在手心里，它会从周围吸收热量，慢慢化成水。\"},{\"type\":\"speech\",\"text\":\"冰变成水的这个过程，就叫熔化，熔化需要吸热。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"c2e16b15-f293-4344-a8a1-842665d0a1bf\"],\"animation\":\"pulse\"}},{\"type\":\"speech\",\"text\":\"记住这个关系：熔化 → 吸热，冰化成水，就是要吸热。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"c2e16b15-f293-4344-a8a1-842665d0a1bf\"]}}]}",
+          "repair": {
+            "error": "PageCandidateError: Narration failed semantic review: [{\"blockIndex\":1,\"kind\":\"requirement\",\"message\":\"索引1的高亮绑定到了“冰”（01381a35-bc31-42f4-a627-292fe5779edd），与交付约定“在页面上只高亮‘熔化 → 吸热’”冲突；该额外高亮不是要求的关系高亮。请移除该块高亮，保留索引2、3对“熔化 → 吸热”（c2e16b15-f293-4344-a8a1-842665d0a1bf）的高亮，口语无需改写。\"}]",
+            "previousOutput": "{\"blocks\":[{\"type\":\"speech\",\"text\":\"同学们看，一块冰放在手心里，它会慢慢化成水。这是因为冰从周围吸收了热量。\"},{\"type\":\"speech\",\"text\":\"冰变成水的这个过程，就叫熔化。熔化需要吸热。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"c2e16b15-f293-4344-a8a1-842665d0a1bf\"],\"animation\":\"pulse\"}},{\"type\":\"speech\",\"text\":\"所以，冰化成水要吸热；页面上，熔化和吸热连在一起，说的就是这个关系。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"c2e16b15-f293-4344-a8a1-842665d0a1bf\"]}}]}"
+          },
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "narration_semantics",
+          "durationMs": 27823,
+          "usage": {
+            "inputTokens": 1168,
+            "outputTokens": 2549,
+            "reasoningTokens": 2543,
+            "totalTokens": 3717,
+            "usageOrigin": "pi",
+            "operationId": "01e78836-f459-4e44-8d1e-8fc54425a52b",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"issues\":[]}",
+          "reviewedBlocks": [
+            {
+              "type": "speech",
+              "text": "同学们看，一块冰放在手心里，它会从周围吸收热量，慢慢化成水。"
+            },
+            {
+              "type": "speech",
+              "text": "冰变成水的这个过程，就叫熔化，熔化需要吸热。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "c2e16b15-f293-4344-a8a1-842665d0a1bf"
+                ],
+                "animation": "pulse"
+              }
+            },
+            {
+              "type": "speech",
+              "text": "记住这个关系：熔化 → 吸热，冰化成水，就是要吸热。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "c2e16b15-f293-4344-a8a1-842665d0a1bf"
+                ]
+              }
+            }
+          ],
+          "savedWritesAtCall": 0
+        }
+      ],
+      "writes": [
+        {
+          "projectId": "semantic-plain-content",
+          "pageId": "page",
+          "expectedSourceRevision": "R1",
+          "expectedTeachingRevision": "T1",
+          "actions": [
+            {
+              "id": "speech-d540166b-6857-41b6-9692-6d2c5c493c91-0",
+              "type": "speech",
+              "text": "同学们看，一块冰放在手心里，它会从周围吸收热量，慢慢化成水。",
+              "source": "generated"
+            },
+            {
+              "id": "speech-d540166b-6857-41b6-9692-6d2c5c493c91-1",
+              "type": "speech",
+              "text": "冰变成水的这个过程，就叫熔化，熔化需要吸热。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "c2e16b15-f293-4344-a8a1-842665d0a1bf"
+                ],
+                "animation": "pulse"
+              },
+              "source": "generated"
+            },
+            {
+              "id": "speech-d540166b-6857-41b6-9692-6d2c5c493c91-2",
+              "type": "speech",
+              "text": "记住这个关系：熔化 → 吸热，冰化成水，就是要吸热。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "c2e16b15-f293-4344-a8a1-842665d0a1bf"
+                ]
+              },
+              "source": "generated"
+            }
+          ]
+        }
+      ],
+      "passed": true
+    },
+    {
+      "caseId": "plain-autonomous",
+      "taskType": "plain",
+      "scenario": "autonomous",
+      "durationMs": 69561,
+      "result": {
+        "savedPages": [
+          {
+            "pageNumber": 1,
+            "pageId": "page",
+            "teachingRevision": "T2",
+            "saved": true
+          }
+        ],
+        "failures": [],
+        "diagnostics": [
+          {
+            "pageNumber": 1,
+            "message": "Visual grounding unavailable; narration uses text/notes only and visual completeness has not been verified"
+          },
+          {
+            "pageNumber": 1,
+            "message": "Narration semantic review passed against current page evidence"
+          }
+        ],
+        "plan": {
+          "goal": "用简短口语让学生只理解冰变成水是熔化、熔化需要吸热，并在页面上高亮“熔化 → 吸热”这一关系；不提问、不检测，也不展开其他状态变化。",
+          "pages": [
+            {
+              "pageNumber": 1,
+              "purpose": "把页面上的冰、水和“熔化 → 吸热”收束成一个单一联系：冰化成水叫熔化，熔化要吸热；避免被其他状态变化分散注意。",
+              "bridge": "这页只用一句话收住：冰化成水是熔化，熔化要吸热。",
+              "focus": "冰变成水的熔化过程，以及“熔化 → 吸热”的因果关系；只做口头说明和高亮。",
+              "mustMention": [
+                "熔化",
+                "吸热",
+                "冰",
+                "水",
+                "熔化 → 吸热"
+              ],
+              "avoidRepeating": [],
+              "deliveryContract": [
+                "用生活化短句讲解：冰受热后会变成水，这个过程叫熔化。",
+                "给出完整示范句：“冰化成水是熔化，熔化要吸热。”语气自然，不逐字念箭头。",
+                "在页面上高亮“熔化 → 吸热”，强调“熔化要吸热”，但不提问、不检测，也不扩展到其他变化。"
+              ]
+            }
+          ]
+        },
+        "applied": true,
+        "saved": true,
+        "audioReady": false
+      },
+      "calls": [
+        {
+          "kind": "plan",
+          "durationMs": 26045,
+          "usage": {
+            "inputTokens": 20,
+            "outputTokens": 2234,
+            "cacheReadTokens": 1024,
+            "reasoningTokens": 1977,
+            "totalTokens": 3278,
+            "usageOrigin": "pi",
+            "operationId": "acbd50a4-ea6a-4ea4-8da7-2f207897ed9c",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"goal\":\"用简短口语让学生只理解冰变成水是熔化、熔化需要吸热，并在页面上高亮“熔化 → 吸热”这一关系；不提问、不检测，也不展开其他状态变化。\",\"pages\":[{\"pageNumber\":1,\"purpose\":\"把页面上的冰、水和“熔化 → 吸热”收束成一个单一联系：冰化成水叫熔化，熔化要吸热；避免被其他状态变化分散注意。\",\"bridge\":\"这页只用一句话收住：冰化成水是熔化，熔化要吸热。\",\"focus\":\"冰变成水的熔化过程，以及“熔化 → 吸热”的因果关系；只做口头说明和高亮。\",\"mustMention\":[\"熔化\",\"吸热\",\"冰\",\"水\",\"熔化 → 吸热\"],\"avoidRepeating\":[],\"deliveryContract\":[\"用生活化短句讲解：冰受热后会变成水，这个过程叫熔化。\",\"给出完整示范句：“冰化成水是熔化，熔化要吸热。”语气自然，不逐字念箭头。\",\"在页面上高亮“熔化 → 吸热”，强调“熔化要吸热”，但不提问、不检测，也不扩展到其他变化。\"]}]}",
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "generation",
+          "durationMs": 18764,
+          "usage": {
+            "inputTokens": 1516,
+            "outputTokens": 1689,
+            "cacheReadTokens": 2048,
+            "reasoningTokens": 1516,
+            "totalTokens": 5253,
+            "usageOrigin": "pi",
+            "operationId": "3f135a87-6522-4b60-a94e-13f55020e9b4",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"blocks\":[{\"type\":\"speech\",\"text\":\"看这块冰，放在温暖的地方，它会慢慢化成水。冰化成水，这个变化就叫熔化。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"b131e407-a874-4de7-86bf-f16b921bde04\",\"12a8ac9d-72d7-4db2-8d68-e66a2da4bedd\"]}},{\"type\":\"speech\",\"text\":\"冰在熔化的时候，要吸收周围的热量，也就是吸热。记住这句话：冰化成水是熔化，熔化要吸热。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"19a61101-848a-4c10-8047-c8d1d076e988\"],\"animation\":\"pulse\"}}]}",
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "narration_semantics",
+          "durationMs": 24739,
+          "usage": {
+            "inputTokens": 1179,
+            "outputTokens": 2289,
+            "reasoningTokens": 2283,
+            "totalTokens": 3468,
+            "usageOrigin": "pi",
+            "operationId": "ba96404e-bf00-47ba-9a86-7e7c06e35dd8",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"issues\":[]}",
+          "reviewedBlocks": [
+            {
+              "type": "speech",
+              "text": "看这块冰，放在温暖的地方，它会慢慢化成水。冰化成水，这个变化就叫熔化。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "b131e407-a874-4de7-86bf-f16b921bde04",
+                  "12a8ac9d-72d7-4db2-8d68-e66a2da4bedd"
+                ]
+              }
+            },
+            {
+              "type": "speech",
+              "text": "冰在熔化的时候，要吸收周围的热量，也就是吸热。记住这句话：冰化成水是熔化，熔化要吸热。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "19a61101-848a-4c10-8047-c8d1d076e988"
+                ],
+                "animation": "pulse"
+              }
+            }
+          ],
+          "savedWritesAtCall": 0
+        }
+      ],
+      "writes": [
+        {
+          "projectId": "semantic-plain-autonomous",
+          "pageId": "page",
+          "expectedSourceRevision": "R1",
+          "expectedTeachingRevision": "T1",
+          "actions": [
+            {
+              "id": "speech-2bcd4089-5354-4727-a201-4eab77af9660-0",
+              "type": "speech",
+              "text": "看这块冰，放在温暖的地方，它会慢慢化成水。冰化成水，这个变化就叫熔化。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "b131e407-a874-4de7-86bf-f16b921bde04",
+                  "12a8ac9d-72d7-4db2-8d68-e66a2da4bedd"
+                ]
+              },
+              "source": "generated"
+            },
+            {
+              "id": "speech-2bcd4089-5354-4727-a201-4eab77af9660-1",
+              "type": "speech",
+              "text": "冰在熔化的时候，要吸收周围的热量，也就是吸热。记住这句话：冰化成水是熔化，熔化要吸热。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "19a61101-848a-4c10-8047-c8d1d076e988"
+                ],
+                "animation": "pulse"
+              },
+              "source": "generated"
+            }
+          ]
+        }
+      ],
+      "passed": true
+    },
+    {
+      "caseId": "import-paraphrase",
+      "taskType": "import",
+      "scenario": "paraphrase",
+      "durationMs": 3499,
+      "result": {
+        "savedPages": [
+          {
+            "pageNumber": 1,
+            "pageId": "page",
+            "teachingRevision": "T2",
+            "saved": true
+          }
+        ],
+        "failures": [],
+        "diagnostics": [
+          {
+            "pageNumber": 1,
+            "message": "Visual grounding unavailable; narration uses text/notes only and visual completeness has not been verified"
+          },
+          {
+            "pageNumber": 1,
+            "message": "Narration semantic review passed against current page evidence"
+          }
+        ],
+        "plan": {
+          "goal": "用口语说明冰熔化成水要吸热，并高亮对应关系。",
+          "pages": [
+            {
+              "pageNumber": 1,
+              "purpose": "说明冰变水的熔化吸热关系。",
+              "bridge": "本页解释完毕。",
+              "focus": "冰熔化成水需要吸热。",
+              "mustMention": [],
+              "avoidRepeating": [],
+              "deliveryContract": [
+                "用一句自然口语说明冰熔化成水需要吸热，高亮熔化吸热关系，不需跟读、练习或提问。"
+              ]
+            }
+          ]
+        },
+        "applied": true,
+        "saved": true,
+        "audioReady": false
+      },
+      "calls": [
+        {
+          "kind": "controlled-plan",
+          "data": {
+            "goal": "用口语说明冰熔化成水要吸热，并高亮对应关系。",
+            "pages": [
+              {
+                "pageNumber": 1,
+                "purpose": "说明冰变水的熔化吸热关系。",
+                "bridge": "本页解释完毕。",
+                "focus": "冰熔化成水需要吸热。",
+                "mustMention": [],
+                "avoidRepeating": [],
+                "deliveryContract": [
+                  "用一句自然口语说明冰熔化成水需要吸热，高亮熔化吸热关系，不需跟读、练习或提问。"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "kind": "controlled-initial-candidate",
+          "data": {
+            "blocks": [
+              {
+                "type": "speech",
+                "text": "冰化成水叫熔化，这时需要从周围获得热量。",
+                "attention": {
+                  "type": "highlight",
+                  "objectIds": [
+                    "946f9480-abdd-4563-8626-a68e50e43784"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "narration_semantics",
+          "durationMs": 3446,
+          "usage": {
+            "inputTokens": 873,
+            "outputTokens": 236,
+            "reasoningTokens": 230,
+            "totalTokens": 1109,
+            "usageOrigin": "pi",
+            "operationId": "89d35027-8ef3-47a4-a02a-b38565f73ebd",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"issues\":[]}",
+          "reviewedBlocks": [
+            {
+              "type": "speech",
+              "text": "冰化成水叫熔化，这时需要从周围获得热量。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "946f9480-abdd-4563-8626-a68e50e43784"
+                ]
+              }
+            }
+          ],
+          "savedWritesAtCall": 0
+        }
+      ],
+      "writes": [
+        {
+          "projectId": "semantic-import-paraphrase",
+          "pageId": "page",
+          "expectedSourceRevision": "R1",
+          "expectedTeachingRevision": "T1",
+          "actions": [
+            {
+              "id": "speech-7e06bfb2-5f3a-47a4-b9ae-fb66b640a5ee-0",
+              "type": "speech",
+              "text": "冰化成水叫熔化，这时需要从周围获得热量。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "946f9480-abdd-4563-8626-a68e50e43784"
+                ]
+              },
+              "source": "generated"
+            }
+          ]
+        }
+      ],
+      "passed": true
+    },
+    {
+      "caseId": "import-binding",
+      "taskType": "import",
+      "scenario": "binding",
+      "durationMs": 13739,
+      "result": {
+        "savedPages": [
+          {
+            "pageNumber": 1,
+            "pageId": "page",
+            "teachingRevision": "T2",
+            "saved": true
+          }
+        ],
+        "failures": [],
+        "diagnostics": [
+          {
+            "pageNumber": 1,
+            "message": "Visual grounding unavailable; narration uses text/notes only and visual completeness has not been verified"
+          },
+          {
+            "pageNumber": 1,
+            "message": "Repairing invalid narration (1/2): PageCandidateError: Attention targets failed semantic review: [{\"blockIndex\":0,\"kind\":\"binding\",\"message\":\"注意力绑定错误：当前高亮的是“水蒸气”对象 4dce5d7f-a5ce-4087-a831-4f15ccad90c2，但本段讲的是冰熔化成水需要吸热，且页面要求高亮“熔化 → 吸热”关系。请将 attention.objectIds 改为已有的“熔化 → 吸热”文本框对象 32c5b24b-1de0-498d-b145-f364126272d4；语音“冰化成水叫熔化，这时需要从周围获得热量”可保持不变。\"}]"
+          },
+          {
+            "pageNumber": 1,
+            "message": "Narration semantic review passed against current page evidence"
+          }
+        ],
+        "plan": {
+          "goal": "用口语说明冰熔化成水要吸热，并高亮对应关系。",
+          "pages": [
+            {
+              "pageNumber": 1,
+              "purpose": "说明冰变水的熔化吸热关系。",
+              "bridge": "本页解释完毕。",
+              "focus": "冰熔化成水需要吸热。",
+              "mustMention": [],
+              "avoidRepeating": [],
+              "deliveryContract": [
+                "用一句自然口语说明冰熔化成水需要吸热，高亮熔化吸热关系，不需跟读、练习或提问。"
+              ]
+            }
+          ]
+        },
+        "applied": true,
+        "saved": true,
+        "audioReady": false
+      },
+      "calls": [
+        {
+          "kind": "controlled-plan",
+          "data": {
+            "goal": "用口语说明冰熔化成水要吸热，并高亮对应关系。",
+            "pages": [
+              {
+                "pageNumber": 1,
+                "purpose": "说明冰变水的熔化吸热关系。",
+                "bridge": "本页解释完毕。",
+                "focus": "冰熔化成水需要吸热。",
+                "mustMention": [],
+                "avoidRepeating": [],
+                "deliveryContract": [
+                  "用一句自然口语说明冰熔化成水需要吸热，高亮熔化吸热关系，不需跟读、练习或提问。"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "kind": "controlled-initial-candidate",
+          "data": {
+            "blocks": [
+              {
+                "type": "speech",
+                "text": "冰化成水叫熔化，这时需要从周围获得热量。",
+                "attention": {
+                  "type": "highlight",
+                  "objectIds": [
+                    "4dce5d7f-a5ce-4087-a831-4f15ccad90c2"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "narration_semantics",
+          "durationMs": 7810,
+          "usage": {
+            "inputTokens": 892,
+            "outputTokens": 627,
+            "reasoningTokens": 485,
+            "totalTokens": 1519,
+            "usageOrigin": "pi",
+            "operationId": "b96590fa-2de6-45c6-bc03-0a17b7b4e84a",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"issues\":[{\"blockIndex\":0,\"kind\":\"binding\",\"message\":\"注意力绑定错误：当前高亮的是“水蒸气”对象 4dce5d7f-a5ce-4087-a831-4f15ccad90c2，但本段讲的是冰熔化成水需要吸热，且页面要求高亮“熔化 → 吸热”关系。请将 attention.objectIds 改为已有的“熔化 → 吸热”文本框对象 32c5b24b-1de0-498d-b145-f364126272d4；语音“冰化成水叫熔化，这时需要从周围获得热量”可保持不变。\"}]}",
+          "reviewedBlocks": [
+            {
+              "type": "speech",
+              "text": "冰化成水叫熔化，这时需要从周围获得热量。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "4dce5d7f-a5ce-4087-a831-4f15ccad90c2"
+                ]
+              }
+            }
+          ],
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "binding-repair",
+          "durationMs": 1313,
+          "usage": {
+            "inputTokens": 1254,
+            "outputTokens": 64,
+            "reasoningTokens": 25,
+            "totalTokens": 1318,
+            "usageOrigin": "pi",
+            "operationId": "8e0c1a4d-1510-442c-b57b-97bd21dd9cba",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"focuses\":[{\"blockIndex\":0,\"objectIds\":[\"32c5b24b-1de0-498d-b145-f364126272d4\"]}]}",
+          "repair": {
+            "error": "PageCandidateError: Attention targets failed semantic review: [{\"blockIndex\":0,\"kind\":\"binding\",\"message\":\"注意力绑定错误：当前高亮的是“水蒸气”对象 4dce5d7f-a5ce-4087-a831-4f15ccad90c2，但本段讲的是冰熔化成水需要吸热，且页面要求高亮“熔化 → 吸热”关系。请将 attention.objectIds 改为已有的“熔化 → 吸热”文本框对象 32c5b24b-1de0-498d-b145-f364126272d4；语音“冰化成水叫熔化，这时需要从周围获得热量”可保持不变。\"}]",
+            "previousOutput": "{\"blocks\":[{\"type\":\"speech\",\"text\":\"冰化成水叫熔化，这时需要从周围获得热量。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"4dce5d7f-a5ce-4087-a831-4f15ccad90c2\"]}}]}"
+          },
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "narration_semantics",
+          "durationMs": 4593,
+          "usage": {
+            "inputTokens": 121,
+            "outputTokens": 380,
+            "cacheReadTokens": 768,
+            "reasoningTokens": 374,
+            "totalTokens": 1269,
+            "usageOrigin": "pi",
+            "operationId": "e09b447e-5d99-43a5-adad-9dc24964be6c",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"issues\":[]}",
+          "reviewedBlocks": [
+            {
+              "type": "speech",
+              "text": "冰化成水叫熔化，这时需要从周围获得热量。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "32c5b24b-1de0-498d-b145-f364126272d4"
+                ]
+              }
+            }
+          ],
+          "savedWritesAtCall": 0
+        }
+      ],
+      "writes": [
+        {
+          "projectId": "semantic-import-binding",
+          "pageId": "page",
+          "expectedSourceRevision": "R1",
+          "expectedTeachingRevision": "T1",
+          "actions": [
+            {
+              "id": "speech-f02bb65a-4359-4988-bad5-2d1573a297b8-0",
+              "type": "speech",
+              "text": "冰化成水叫熔化，这时需要从周围获得热量。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "32c5b24b-1de0-498d-b145-f364126272d4"
+                ]
+              },
+              "source": "generated"
+            }
+          ]
+        }
+      ],
+      "passed": true
+    },
+    {
+      "caseId": "import-content",
+      "taskType": "import",
+      "scenario": "content",
+      "durationMs": 98645,
+      "result": {
+        "savedPages": [
+          {
+            "pageNumber": 1,
+            "pageId": "page",
+            "teachingRevision": "T2",
+            "saved": true
+          }
+        ],
+        "failures": [],
+        "diagnostics": [
+          {
+            "pageNumber": 1,
+            "message": "Visual grounding unavailable; narration uses text/notes only and visual completeness has not been verified"
+          },
+          {
+            "pageNumber": 1,
+            "message": "Repairing invalid narration (1/2): PageCandidateError: Narration failed semantic review: [{\"blockIndex\":0,\"kind\":\"content\",\"message\":\"第0块语音说“向周围释放热量”，与页面对象“熔化 → 吸热”和“冰化成水需要吸热”的要求相反。请把“这时会向周围释放热量”改为“这个过程需要吸热”（例如“冰化成水叫熔化，这个过程需要吸热”），并保留对 f4a5e499-ae47-4b0a-94e7-364e79bddb31 的高亮。\"}]"
+          },
+          {
+            "pageNumber": 1,
+            "message": "Narration semantic review passed against current page evidence"
+          }
+        ],
+        "plan": {
+          "goal": "四年级学生能结合冰块化成水的现象，用自己的话说出：冰变成水叫熔化，这个过程需要吸热；只聚焦“熔化 → 吸热”，不扩展到其他物态变化。",
+          "pages": [
+            {
+              "pageNumber": 1,
+              "purpose": "用“冰—水”的直观对照引入熔化，帮助学生建立单一联系：冰化成水就是熔化，熔化要吸热。图中其他物态变化只作背景，不展开。",
+              "bridge": "从“冰变成水”这一熟悉现象进入，明确本页只研究熔化这一种变化。",
+              "focus": "把冰化成水的过程叫作熔化，并高亮“熔化 → 吸热”这一关系；不逐字念箭头，不补充其他变化。",
+              "mustMention": [
+                "熔化 → 吸热",
+                "冰",
+                "水"
+              ],
+              "avoidRepeating": [
+                "蒸发、凝结、凝固等其他物态变化的解释",
+                "“向左读放热、向右读吸热”的箭头读法",
+                "逐字朗读整页文字"
+              ],
+              "deliveryContract": [
+                "解释：先点出“冰”和“水”，用一句话说明冰块变成水的过程叫熔化。",
+                "完整示范：教师说一句完整的因果表达——“冰化成水时要吸热，所以熔化要吸热”。",
+                "高亮关系：在图中指出“熔化 → 吸热”，用语气和手势强调这组联系，但不逐字念箭头。",
+                "简短引导练习：带学生一起看着“冰—水”的对照，齐声补完整一句“冰化成水叫熔化，熔化要吸热”；不抽问、不评价。"
+              ]
+            }
+          ]
+        },
+        "applied": true,
+        "saved": true,
+        "audioReady": false
+      },
+      "calls": [
+        {
+          "kind": "plan",
+          "durationMs": 37601,
+          "usage": {
+            "inputTokens": 94,
+            "outputTokens": 3123,
+            "cacheReadTokens": 896,
+            "reasoningTokens": 2786,
+            "totalTokens": 4113,
+            "usageOrigin": "pi",
+            "operationId": "9b3032bb-1208-40be-95a1-9bc5e6e8b51c",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"goal\":\"四年级学生能结合冰块化成水的现象，用自己的话说出：冰变成水叫熔化，这个过程需要吸热；只聚焦“熔化 → 吸热”，不扩展到其他物态变化。\",\"pages\":[{\"pageNumber\":1,\"purpose\":\"用“冰—水”的直观对照引入熔化，帮助学生建立单一联系：冰化成水就是熔化，熔化要吸热。图中其他物态变化只作背景，不展开。\",\"bridge\":\"从“冰变成水”这一熟悉现象进入，明确本页只研究熔化这一种变化。\",\"focus\":\"把冰化成水的过程叫作熔化，并高亮“熔化 → 吸热”这一关系；不逐字念箭头，不补充其他变化。\",\"mustMention\":[\"熔化 → 吸热\",\"冰\",\"水\"],\"avoidRepeating\":[\"蒸发、凝结、凝固等其他物态变化的解释\",\"“向左读放热、向右读吸热”的箭头读法\",\"逐字朗读整页文字\"],\"deliveryContract\":[\"解释：先点出“冰”和“水”，用一句话说明冰块变成水的过程叫熔化。\",\"完整示范：教师说一句完整的因果表达——“冰化成水时要吸热，所以熔化要吸热”。\",\"高亮关系：在图中指出“熔化 → 吸热”，用语气和手势强调这组联系，但不逐字念箭头。\",\"简短引导练习：带学生一起看着“冰—水”的对照，齐声补完整一句“冰化成水叫熔化，熔化要吸热”；不抽问、不评价。\"]}]}",
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "controlled-initial-candidate",
+          "data": {
+            "blocks": [
+              {
+                "type": "speech",
+                "text": "冰化成水叫熔化，这时会向周围释放热量。",
+                "attention": {
+                  "type": "highlight",
+                  "objectIds": [
+                    "f4a5e499-ae47-4b0a-94e7-364e79bddb31"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "narration_semantics",
+          "durationMs": 20292,
+          "usage": {
+            "inputTokens": 1104,
+            "outputTokens": 1818,
+            "reasoningTokens": 1703,
+            "totalTokens": 2922,
+            "usageOrigin": "pi",
+            "operationId": "76b15881-cce8-4f6a-a23c-13e1851ff527",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"issues\":[{\"blockIndex\":0,\"kind\":\"content\",\"message\":\"第0块语音说“向周围释放热量”，与页面对象“熔化 → 吸热”和“冰化成水需要吸热”的要求相反。请把“这时会向周围释放热量”改为“这个过程需要吸热”（例如“冰化成水叫熔化，这个过程需要吸热”），并保留对 f4a5e499-ae47-4b0a-94e7-364e79bddb31 的高亮。\"}]}",
+          "reviewedBlocks": [
+            {
+              "type": "speech",
+              "text": "冰化成水叫熔化，这时会向周围释放热量。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "f4a5e499-ae47-4b0a-94e7-364e79bddb31"
+                ]
+              }
+            }
+          ],
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "content-repair",
+          "durationMs": 18029,
+          "usage": {
+            "inputTokens": 3697,
+            "outputTokens": 1589,
+            "reasoningTokens": 1271,
+            "totalTokens": 5286,
+            "usageOrigin": "pi",
+            "operationId": "901d1ab2-a60a-41e6-b987-d5fb48a41769",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\n  \"blocks\": [\n    {\n      \"type\": \"speech\",\n      \"text\": \"同学们看，固态的冰慢慢化成水，这个变化就叫熔化。\",\n      \"attention\": {\n        \"type\": \"highlight\",\n        \"objectIds\": [\n          \"c43eec8b-27fa-473b-95b0-6b05e80d35d2\",\n          \"73413775-c91f-4b20-bafa-5dde3c4fc7a1\"\n        ]\n      }\n    },\n    {\n      \"type\": \"speech\",\n      \"text\": \"熔化的时候要吸热，也就是说，冰化成水需要吸收热量。\",\n      \"attention\": {\n        \"type\": \"highlight\",\n        \"objectIds\": [\n          \"f4a5e499-ae47-4b0a-94e7-364e79bddb31\"\n        ],\n        \"animation\": \"pulse\"\n      }\n    },\n    {\n      \"type\": \"speech\",\n      \"text\": \"请跟我一起说一遍：冰化成水叫熔化，熔化要吸热。\",\n      \"attention\": {\n        \"type\": \"highlight\",\n        \"objectIds\": [\n          \"f4a5e499-ae47-4b0a-94e7-364e79bddb31\"\n        ]\n      }\n    },\n    {\n      \"type\": \"wait\",\n      \"durationMs\": 4000\n    }\n  ]\n}",
+          "repair": {
+            "error": "PageCandidateError: Narration failed semantic review: [{\"blockIndex\":0,\"kind\":\"content\",\"message\":\"第0块语音说“向周围释放热量”，与页面对象“熔化 → 吸热”和“冰化成水需要吸热”的要求相反。请把“这时会向周围释放热量”改为“这个过程需要吸热”（例如“冰化成水叫熔化，这个过程需要吸热”），并保留对 f4a5e499-ae47-4b0a-94e7-364e79bddb31 的高亮。\"}]",
+            "previousOutput": "{\"blocks\":[{\"type\":\"speech\",\"text\":\"冰化成水叫熔化，这时会向周围释放热量。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"f4a5e499-ae47-4b0a-94e7-364e79bddb31\"]}}]}"
+          },
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "narration_semantics",
+          "durationMs": 22699,
+          "usage": {
+            "inputTokens": 249,
+            "outputTokens": 2034,
+            "cacheReadTokens": 1024,
+            "reasoningTokens": 2028,
+            "totalTokens": 3307,
+            "usageOrigin": "pi",
+            "operationId": "0eefa689-4e9b-41de-ad77-af38a35a42cc",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"issues\":[]}",
+          "reviewedBlocks": [
+            {
+              "type": "speech",
+              "text": "同学们看，固态的冰慢慢化成水，这个变化就叫熔化。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "c43eec8b-27fa-473b-95b0-6b05e80d35d2",
+                  "73413775-c91f-4b20-bafa-5dde3c4fc7a1"
+                ]
+              }
+            },
+            {
+              "type": "speech",
+              "text": "熔化的时候要吸热，也就是说，冰化成水需要吸收热量。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "f4a5e499-ae47-4b0a-94e7-364e79bddb31"
+                ],
+                "animation": "pulse"
+              }
+            },
+            {
+              "type": "speech",
+              "text": "请跟我一起说一遍：冰化成水叫熔化，熔化要吸热。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "f4a5e499-ae47-4b0a-94e7-364e79bddb31"
+                ]
+              }
+            },
+            {
+              "type": "wait",
+              "durationMs": 4000
+            }
+          ],
+          "savedWritesAtCall": 0
+        }
+      ],
+      "writes": [
+        {
+          "projectId": "semantic-import-content",
+          "pageId": "page",
+          "expectedSourceRevision": "R1",
+          "expectedTeachingRevision": "T1",
+          "actions": [
+            {
+              "id": "speech-3f09a412-7720-449a-9d89-9fda60e25e21-0",
+              "type": "speech",
+              "text": "同学们看，固态的冰慢慢化成水，这个变化就叫熔化。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "c43eec8b-27fa-473b-95b0-6b05e80d35d2",
+                  "73413775-c91f-4b20-bafa-5dde3c4fc7a1"
+                ]
+              },
+              "source": "generated"
+            },
+            {
+              "id": "speech-3f09a412-7720-449a-9d89-9fda60e25e21-1",
+              "type": "speech",
+              "text": "熔化的时候要吸热，也就是说，冰化成水需要吸收热量。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "f4a5e499-ae47-4b0a-94e7-364e79bddb31"
+                ],
+                "animation": "pulse"
+              },
+              "source": "generated"
+            },
+            {
+              "id": "speech-3f09a412-7720-449a-9d89-9fda60e25e21-2",
+              "type": "speech",
+              "text": "请跟我一起说一遍：冰化成水叫熔化，熔化要吸热。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "f4a5e499-ae47-4b0a-94e7-364e79bddb31"
+                ]
+              },
+              "pauseAfterMs": 4000,
+              "source": "generated"
+            }
+          ]
+        }
+      ],
+      "passed": true
+    },
+    {
+      "caseId": "import-autonomous",
+      "taskType": "import",
+      "scenario": "autonomous",
+      "durationMs": 87298,
+      "result": {
+        "savedPages": [
+          {
+            "pageNumber": 1,
+            "pageId": "page",
+            "teachingRevision": "T2",
+            "saved": true
+          }
+        ],
+        "failures": [],
+        "diagnostics": [
+          {
+            "pageNumber": 1,
+            "message": "Visual grounding unavailable; narration uses text/notes only and visual completeness has not been verified"
+          },
+          {
+            "pageNumber": 1,
+            "message": "Narration semantic review passed against current page evidence"
+          }
+        ],
+        "plan": {
+          "goal": "学生能结合图示说出：冰变成水的过程叫熔化，熔化需要吸热，并能把“熔化 → 吸热”作为核心关系记住；不扩展到其他状态变化。",
+          "pages": [
+            {
+              "pageNumber": 1,
+              "purpose": "作为开场与解释页，只聚焦冰→水，建立“熔化需要吸热”的单一联系，不引入其他状态变化。",
+              "bridge": "用冰和水两种熟悉状态开场，明确今天只研究冰变成水这一种变化。",
+              "focus": "将“冰化成水”仅归为“熔化”，并把“熔化”与“吸热”连成一条关系；用“熔化 → 吸热”作视觉锚点，不讨论其他变化。",
+              "mustMention": [
+                "冰",
+                "水",
+                "熔化",
+                "吸热",
+                "熔化 → 吸热"
+              ],
+              "avoidRepeating": [],
+              "deliveryContract": [
+                "解释：从冰和水两种状态切入，用短句说明“冰变成水的过程叫熔化”。",
+                "完整示范：借助图示“熔化 → 吸热”，示范一句话：“冰在熔化时要吸热，才能化成水。”",
+                "短练：让学生轻声跟说“冰化成水叫熔化，熔化要吸热”，只做口头跟说，不提问、不评分。",
+                "收束：把注意力停在高亮的“熔化 → 吸热”上，明确本页只讲这一种变化，不扩展其他变化。"
+              ]
+            }
+          ]
+        },
+        "applied": true,
+        "saved": true,
+        "audioReady": false
+      },
+      "calls": [
+        {
+          "kind": "plan",
+          "durationMs": 46738,
+          "usage": {
+            "inputTokens": 94,
+            "outputTokens": 4327,
+            "cacheReadTokens": 896,
+            "reasoningTokens": 4027,
+            "totalTokens": 5317,
+            "usageOrigin": "pi",
+            "operationId": "e146b4e9-eca3-46ee-a220-e743395a7993",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"goal\":\"学生能结合图示说出：冰变成水的过程叫熔化，熔化需要吸热，并能把“熔化 → 吸热”作为核心关系记住；不扩展到其他状态变化。\",\"pages\":[{\"pageNumber\":1,\"purpose\":\"作为开场与解释页，只聚焦冰→水，建立“熔化需要吸热”的单一联系，不引入其他状态变化。\",\"bridge\":\"用冰和水两种熟悉状态开场，明确今天只研究冰变成水这一种变化。\",\"focus\":\"将“冰化成水”仅归为“熔化”，并把“熔化”与“吸热”连成一条关系；用“熔化 → 吸热”作视觉锚点，不讨论其他变化。\",\"mustMention\":[\"冰\",\"水\",\"熔化\",\"吸热\",\"熔化 → 吸热\"],\"avoidRepeating\":[],\"deliveryContract\":[\"解释：从冰和水两种状态切入，用短句说明“冰变成水的过程叫熔化”。\",\"完整示范：借助图示“熔化 → 吸热”，示范一句话：“冰在熔化时要吸热，才能化成水。”\",\"短练：让学生轻声跟说“冰化成水叫熔化，熔化要吸热”，只做口头跟说，不提问、不评分。\",\"收束：把注意力停在高亮的“熔化 → 吸热”上，明确本页只讲这一种变化，不扩展其他变化。\"]}]}",
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "generation",
+          "durationMs": 15590,
+          "usage": {
+            "inputTokens": 3435,
+            "outputTokens": 1334,
+            "reasoningTokens": 1025,
+            "totalTokens": 4769,
+            "usageOrigin": "pi",
+            "operationId": "9f97d165-5f08-426c-bb1f-65caa13dfabc",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"blocks\":[{\"type\":\"speech\",\"text\":\"同学们，看左边这块冰和中间的水。冰是固态，水是液态；冰变成水的过程，就叫熔化。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"ada15b53-86a3-4195-bc67-009473214d1a\",\"6038572a-81fd-40b1-9744-bd78a809069f\"]}},{\"type\":\"speech\",\"text\":\"熔化需要热量。看图中这条关系：熔化 → 吸热。冰在熔化时要吸热，才能化成水。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"72186f91-07b5-4ff9-b50a-ecd6e31ab88a\"]}},{\"type\":\"speech\",\"text\":\"请轻声跟老师说一遍：冰化成水叫熔化，熔化要吸热。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"72186f91-07b5-4ff9-b50a-ecd6e31ab88a\"]}},{\"type\":\"wait\",\"mode\":\"fixed\",\"durationMs\":4000},{\"type\":\"speech\",\"text\":\"请大家把目光停在这条关系上：熔化 → 吸热。今天我们先只看冰变成水这一种变化。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"72186f91-07b5-4ff9-b50a-ecd6e31ab88a\"]}}]}",
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "narration_semantics",
+          "durationMs": 24952,
+          "usage": {
+            "inputTokens": 1304,
+            "outputTokens": 2248,
+            "reasoningTokens": 2242,
+            "totalTokens": 3552,
+            "usageOrigin": "pi",
+            "operationId": "b9d0726a-6e1b-4cfc-853f-fd6f11a47536",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"issues\":[]}",
+          "reviewedBlocks": [
+            {
+              "type": "speech",
+              "text": "同学们，看左边这块冰和中间的水。冰是固态，水是液态；冰变成水的过程，就叫熔化。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "ada15b53-86a3-4195-bc67-009473214d1a",
+                  "6038572a-81fd-40b1-9744-bd78a809069f"
+                ]
+              }
+            },
+            {
+              "type": "speech",
+              "text": "熔化需要热量。看图中这条关系：熔化 → 吸热。冰在熔化时要吸热，才能化成水。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "72186f91-07b5-4ff9-b50a-ecd6e31ab88a"
+                ]
+              }
+            },
+            {
+              "type": "speech",
+              "text": "请轻声跟老师说一遍：冰化成水叫熔化，熔化要吸热。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "72186f91-07b5-4ff9-b50a-ecd6e31ab88a"
+                ]
+              }
+            },
+            {
+              "type": "wait",
+              "mode": "fixed",
+              "durationMs": 4000
+            },
+            {
+              "type": "speech",
+              "text": "请大家把目光停在这条关系上：熔化 → 吸热。今天我们先只看冰变成水这一种变化。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "72186f91-07b5-4ff9-b50a-ecd6e31ab88a"
+                ]
+              }
+            }
+          ],
+          "savedWritesAtCall": 0
+        }
+      ],
+      "writes": [
+        {
+          "projectId": "semantic-import-autonomous",
+          "pageId": "page",
+          "expectedSourceRevision": "R1",
+          "expectedTeachingRevision": "T1",
+          "actions": [
+            {
+              "id": "speech-b80f35b6-12c8-4242-8d26-09cafcb621b6-0",
+              "type": "speech",
+              "text": "同学们，看左边这块冰和中间的水。冰是固态，水是液态；冰变成水的过程，就叫熔化。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "ada15b53-86a3-4195-bc67-009473214d1a",
+                  "6038572a-81fd-40b1-9744-bd78a809069f"
+                ]
+              },
+              "source": "generated"
+            },
+            {
+              "id": "speech-b80f35b6-12c8-4242-8d26-09cafcb621b6-1",
+              "type": "speech",
+              "text": "熔化需要热量。看图中这条关系：熔化 → 吸热。冰在熔化时要吸热，才能化成水。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "72186f91-07b5-4ff9-b50a-ecd6e31ab88a"
+                ]
+              },
+              "source": "generated"
+            },
+            {
+              "id": "speech-b80f35b6-12c8-4242-8d26-09cafcb621b6-2",
+              "type": "speech",
+              "text": "请轻声跟老师说一遍：冰化成水叫熔化，熔化要吸热。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "72186f91-07b5-4ff9-b50a-ecd6e31ab88a"
+                ]
+              },
+              "pauseAfterMs": 4000,
+              "source": "generated"
+            },
+            {
+              "id": "speech-b80f35b6-12c8-4242-8d26-09cafcb621b6-3",
+              "type": "speech",
+              "text": "请大家把目光停在这条关系上：熔化 → 吸热。今天我们先只看冰变成水这一种变化。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "72186f91-07b5-4ff9-b50a-ecd6e31ab88a"
+                ]
+              },
+              "source": "generated"
+            }
+          ]
+        }
+      ],
+      "passed": true
+    },
+    {
+      "caseId": "scene-paraphrase",
+      "taskType": "scene",
+      "scenario": "paraphrase",
+      "durationMs": 39664,
+      "result": {
+        "savedPages": [
+          {
+            "pageNumber": 1,
+            "pageId": "page",
+            "teachingRevision": "T2",
+            "saved": true
+          }
+        ],
+        "failures": [],
+        "diagnostics": [
+          {
+            "pageNumber": 1,
+            "message": "Visual grounding unavailable; narration uses text/notes only and visual completeness has not been verified"
+          },
+          {
+            "pageNumber": 1,
+            "message": "Narration semantic review passed against current page evidence"
+          }
+        ],
+        "plan": {
+          "goal": "围绕“冰化成水”讲清熔化，并用高亮把“熔化 → 吸热”这一关系讲透；课堂只用简短口语解释与齐声复述，不提问、不评价、不扩展到其他状态变化。",
+          "pages": [
+            {
+              "pageNumber": 1,
+              "purpose": "让四年级学生用直观的冰、水对照理解冰化成水叫熔化，并记住熔化要吸热。",
+              "bridge": "由冰和水的外观差异切入，聚焦“冰化成水就是熔化”，再借高亮落到“熔化 → 吸热”，最后用一句复述收住本页。",
+              "focus": "整页只围绕冰变成水：把过程说成熔化，并把“熔化 → 吸热”高亮；口语短句为主，不逐字念箭头、不提问、不扩展到凝固、蒸发、凝结。",
+              "mustMention": [
+                "熔化 → 吸热",
+                "冰",
+                "水"
+              ],
+              "avoidRepeating": [],
+              "deliveryContract": [
+                "解释：用口语说“冰化成水，这个过程叫熔化”。",
+                "完整示范：指向冰和水，示范说“冰熔化变成水，需要吸热”，同时用高亮效果强调“熔化 → 吸热”，不逐字念箭头。",
+                "简短带练：让学生看图跟老师说一遍“冰熔化变成水，要吸热”，只齐声复述，不提问、不评分。",
+                "小结：用同一处高亮再停一下，只留下“熔化 → 吸热”这一条关系。"
+              ]
+            }
+          ]
+        },
+        "applied": true,
+        "saved": true,
+        "audioReady": false
+      },
+      "calls": [
+        {
+          "kind": "plan",
+          "durationMs": 32862,
+          "usage": {
+            "inputTokens": 20,
+            "outputTokens": 2919,
+            "cacheReadTokens": 1024,
+            "reasoningTokens": 2599,
+            "totalTokens": 3963,
+            "usageOrigin": "pi",
+            "operationId": "f23b430f-592d-43da-b165-080a4e34f347",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"goal\":\"围绕“冰化成水”讲清熔化，并用高亮把“熔化 → 吸热”这一关系讲透；课堂只用简短口语解释与齐声复述，不提问、不评价、不扩展到其他状态变化。\",\"pages\":[{\"pageNumber\":1,\"purpose\":\"让四年级学生用直观的冰、水对照理解冰化成水叫熔化，并记住熔化要吸热。\",\"bridge\":\"由冰和水的外观差异切入，聚焦“冰化成水就是熔化”，再借高亮落到“熔化 → 吸热”，最后用一句复述收住本页。\",\"focus\":\"整页只围绕冰变成水：把过程说成熔化，并把“熔化 → 吸热”高亮；口语短句为主，不逐字念箭头、不提问、不扩展到凝固、蒸发、凝结。\",\"mustMention\":[\"熔化 → 吸热\",\"冰\",\"水\"],\"avoidRepeating\":[],\"deliveryContract\":[\"解释：用口语说“冰化成水，这个过程叫熔化”。\",\"完整示范：指向冰和水，示范说“冰熔化变成水，需要吸热”，同时用高亮效果强调“熔化 → 吸热”，不逐字念箭头。\",\"简短带练：让学生看图跟老师说一遍“冰熔化变成水，要吸热”，只齐声复述，不提问、不评分。\",\"小结：用同一处高亮再停一下，只留下“熔化 → 吸热”这一条关系。\"]}]}",
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "controlled-initial-candidate",
+          "data": {
+            "blocks": [
+              {
+                "type": "speech",
+                "text": "冰化成水叫熔化，这时需要从周围获得热量。",
+                "attention": {
+                  "type": "highlight",
+                  "objectIds": [
+                    "61e5741a-d285-487c-a433-631e82f6d85c"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "narration_semantics",
+          "durationMs": 6743,
+          "usage": {
+            "inputTokens": 1121,
+            "outputTokens": 569,
+            "reasoningTokens": 563,
+            "totalTokens": 1690,
+            "usageOrigin": "pi",
+            "operationId": "6c58abb0-5259-4a0b-a973-51d01b63dfe0",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"issues\":[]}",
+          "reviewedBlocks": [
+            {
+              "type": "speech",
+              "text": "冰化成水叫熔化，这时需要从周围获得热量。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "61e5741a-d285-487c-a433-631e82f6d85c"
+                ]
+              }
+            }
+          ],
+          "savedWritesAtCall": 0
+        }
+      ],
+      "writes": [
+        {
+          "projectId": "semantic-scene-paraphrase",
+          "pageId": "page",
+          "expectedSourceRevision": "R1",
+          "expectedTeachingRevision": "T1",
+          "actions": [
+            {
+              "id": "speech-d5aec6e1-ddc6-4505-a462-2ace7622bfeb-0",
+              "type": "speech",
+              "text": "冰化成水叫熔化，这时需要从周围获得热量。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "61e5741a-d285-487c-a433-631e82f6d85c"
+                ]
+              },
+              "source": "generated"
+            }
+          ]
+        }
+      ],
+      "passed": true
+    },
+    {
+      "caseId": "scene-binding",
+      "taskType": "scene",
+      "scenario": "binding",
+      "durationMs": 137098,
+      "result": {
+        "savedPages": [
+          {
+            "pageNumber": 1,
+            "pageId": "page",
+            "teachingRevision": "T2",
+            "saved": true
+          }
+        ],
+        "failures": [],
+        "diagnostics": [
+          {
+            "pageNumber": 1,
+            "message": "Visual grounding unavailable; narration uses text/notes only and visual completeness has not been verified"
+          },
+          {
+            "pageNumber": 1,
+            "message": "Repairing invalid narration (1/2): PageCandidateError: Attention targets failed semantic review: [{\"blockIndex\":0,\"kind\":\"binding\",\"message\":\"block 0 的 highlight 绑定到“水蒸气”（objectId 2f614573-9e0e-4aa0-aac3-14624bcdfd8e），但该句解释的是冰熔化成水并从周围吸热，高亮对象与讲解不一致，还会额外突出其他状态。应将 attention.objectIds 改为页面上的“熔化 → 吸热”文本框（objectId 61d79a7d-0c3c-4596-b839-4e6a6db4f2db，TextBox 32），旁白无需改写。\"}]"
+          },
+          {
+            "pageNumber": 1,
+            "message": "Narration semantic review passed against current page evidence"
+          }
+        ],
+        "plan": {
+          "goal": "学生能说明冰吸热后化成水，并认出页面高亮的“熔化 → 吸热”关系；本课只处理熔化，不涉及其它状态变化，也不设置学生测验。",
+          "pages": [
+            {
+              "pageNumber": 1,
+              "purpose": "仅围绕冰熔化成水展开：用简短口语解释冰从周围吸热后由固态变为液态，并用高亮强化“熔化 → 吸热”。不扩展到凝固、蒸发、凝结，也不考查学生。",
+              "bridge": "结束本页时，用一句话回到高亮关系：冰吸热后化成水；不引入其它状态变化，也不提问检测。",
+              "focus": "冰吸热后熔化成水；把“熔化 → 吸热”作为唯一重点，箭头只表示关系，不必逐字念。",
+              "mustMention": [
+                "熔化",
+                "吸热",
+                "冰",
+                "水",
+                "熔化 → 吸热"
+              ],
+              "avoidRepeating": [],
+              "deliveryContract": [
+                "先给一个完整口语示范：冰放在暖和的地方会慢慢化成水，因为它从周围吸热。",
+                "用手指向页面上的“熔化 → 吸热”，口头说“熔化要吸热”，用高亮停留强化关系，不逐字念箭头。",
+                "只保留一次全班轻声跟说“熔化要吸热”，不点名、不提问、不评价学生。"
+              ]
+            }
+          ]
+        },
+        "applied": true,
+        "saved": true,
+        "audioReady": false
+      },
+      "calls": [
+        {
+          "kind": "plan",
+          "durationMs": 35241,
+          "usage": {
+            "inputTokens": 20,
+            "outputTokens": 2880,
+            "cacheReadTokens": 1024,
+            "reasoningTokens": 2596,
+            "totalTokens": 3924,
+            "usageOrigin": "pi",
+            "operationId": "cb94c1b6-fcfb-4c27-8902-85d5e1de4e72",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"goal\":\"学生能说明冰吸热后化成水，并认出页面高亮的“熔化 → 吸热”关系；本课只处理熔化，不涉及其它状态变化，也不设置学生测验。\",\"pages\":[{\"pageNumber\":1,\"purpose\":\"仅围绕冰熔化成水展开：用简短口语解释冰从周围吸热后由固态变为液态，并用高亮强化“熔化 → 吸热”。不扩展到凝固、蒸发、凝结，也不考查学生。\",\"bridge\":\"结束本页时，用一句话回到高亮关系：冰吸热后化成水；不引入其它状态变化，也不提问检测。\",\"focus\":\"冰吸热后熔化成水；把“熔化 → 吸热”作为唯一重点，箭头只表示关系，不必逐字念。\",\"mustMention\":[\"熔化\",\"吸热\",\"冰\",\"水\",\"熔化 → 吸热\"],\"avoidRepeating\":[],\"deliveryContract\":[\"先给一个完整口语示范：冰放在暖和的地方会慢慢化成水，因为它从周围吸热。\",\"用手指向页面上的“熔化 → 吸热”，口头说“熔化要吸热”，用高亮停留强化关系，不逐字念箭头。\",\"只保留一次全班轻声跟说“熔化要吸热”，不点名、不提问、不评价学生。\"]}]}",
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "controlled-initial-candidate",
+          "data": {
+            "blocks": [
+              {
+                "type": "speech",
+                "text": "冰化成水叫熔化，这时需要从周围获得热量。",
+                "attention": {
+                  "type": "highlight",
+                  "objectIds": [
+                    "2f614573-9e0e-4aa0-aac3-14624bcdfd8e"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "narration_semantics",
+          "durationMs": 77657,
+          "usage": {
+            "inputTokens": 1102,
+            "outputTokens": 6954,
+            "reasoningTokens": 6811,
+            "totalTokens": 8056,
+            "usageOrigin": "pi",
+            "operationId": "e510ae0e-3229-4ded-8f8f-f8ee9a803da7",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"issues\":[{\"blockIndex\":0,\"kind\":\"binding\",\"message\":\"block 0 的 highlight 绑定到“水蒸气”（objectId 2f614573-9e0e-4aa0-aac3-14624bcdfd8e），但该句解释的是冰熔化成水并从周围吸热，高亮对象与讲解不一致，还会额外突出其他状态。应将 attention.objectIds 改为页面上的“熔化 → 吸热”文本框（objectId 61d79a7d-0c3c-4596-b839-4e6a6db4f2db，TextBox 32），旁白无需改写。\"}]}",
+          "reviewedBlocks": [
+            {
+              "type": "speech",
+              "text": "冰化成水叫熔化，这时需要从周围获得热量。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "2f614573-9e0e-4aa0-aac3-14624bcdfd8e"
+                ]
+              }
+            }
+          ],
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "binding-repair",
+          "durationMs": 1494,
+          "usage": {
+            "inputTokens": 1490,
+            "outputTokens": 109,
+            "reasoningTokens": 64,
+            "totalTokens": 1599,
+            "usageOrigin": "pi",
+            "operationId": "7808477f-bc43-4b82-9a86-505285a1285b",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"focuses\":[{\"blockIndex\":0,\"objectIds\":[\"61d79a7d-0c3c-4596-b839-4e6a6db4f2db\"]}]}",
+          "repair": {
+            "error": "PageCandidateError: Attention targets failed semantic review: [{\"blockIndex\":0,\"kind\":\"binding\",\"message\":\"block 0 的 highlight 绑定到“水蒸气”（objectId 2f614573-9e0e-4aa0-aac3-14624bcdfd8e），但该句解释的是冰熔化成水并从周围吸热，高亮对象与讲解不一致，还会额外突出其他状态。应将 attention.objectIds 改为页面上的“熔化 → 吸热”文本框（objectId 61d79a7d-0c3c-4596-b839-4e6a6db4f2db，TextBox 32），旁白无需改写。\"}]",
+            "previousOutput": "{\"blocks\":[{\"type\":\"speech\",\"text\":\"冰化成水叫熔化，这时需要从周围获得热量。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"2f614573-9e0e-4aa0-aac3-14624bcdfd8e\"]}}]}"
+          },
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "narration_semantics",
+          "durationMs": 22683,
+          "usage": {
+            "inputTokens": 81,
+            "outputTokens": 2066,
+            "cacheReadTokens": 1024,
+            "reasoningTokens": 2060,
+            "totalTokens": 3171,
+            "usageOrigin": "pi",
+            "operationId": "995cbbb6-ffe5-4d6c-a3e3-667ff9ae3659",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"issues\":[]}",
+          "reviewedBlocks": [
+            {
+              "type": "speech",
+              "text": "冰化成水叫熔化，这时需要从周围获得热量。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "61d79a7d-0c3c-4596-b839-4e6a6db4f2db"
+                ]
+              }
+            }
+          ],
+          "savedWritesAtCall": 0
+        }
+      ],
+      "writes": [
+        {
+          "projectId": "semantic-scene-binding",
+          "pageId": "page",
+          "expectedSourceRevision": "R1",
+          "expectedTeachingRevision": "T1",
+          "actions": [
+            {
+              "id": "speech-8ddb101e-48a5-49ad-a16b-3244e823cb1f-0",
+              "type": "speech",
+              "text": "冰化成水叫熔化，这时需要从周围获得热量。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "61d79a7d-0c3c-4596-b839-4e6a6db4f2db"
+                ]
+              },
+              "source": "generated"
+            }
+          ]
+        }
+      ],
+      "passed": true
+    },
+    {
+      "caseId": "scene-content",
+      "taskType": "scene",
+      "scenario": "content",
+      "durationMs": 96693,
+      "result": {
+        "savedPages": [
+          {
+            "pageNumber": 1,
+            "pageId": "page",
+            "teachingRevision": "T2",
+            "saved": true
+          }
+        ],
+        "failures": [],
+        "diagnostics": [
+          {
+            "pageNumber": 1,
+            "message": "Visual grounding unavailable; narration uses text/notes only and visual completeness has not been verified"
+          },
+          {
+            "pageNumber": 1,
+            "message": "Repairing invalid narration (1/2): PageCandidateError: Narration failed semantic review: [{\"blockIndex\":0,\"kind\":\"content\",\"message\":\"旁白把熔化说成“向周围释放热量”，与页面高亮的“熔化 → 吸热”及教学目标正好相反。请改为“冰化成水叫熔化，熔化需要吸热（会从周围吸收热量）”，仍只讲熔化，不逐字念箭头。\"}]"
+          },
+          {
+            "pageNumber": 1,
+            "message": "Narration semantic review passed against current page evidence"
+          }
+        ],
+        "plan": {
+          "goal": "本课只针对四年级科学“水的状态变化：熔化”这一页，让学生用简短口语理解冰吸热后化成水就是熔化，并突出“熔化 → 吸热”这一关系；不测评，不扩展其他状态变化。",
+          "pages": [
+            {
+              "pageNumber": 1,
+              "purpose": "把全页范围收窄到冰变成水的熔化，借助高亮让学生建立“熔化要吸热”的直接联系，避免被三种状态总览分散注意。",
+              "bridge": "讲完即停在“冰化成水需要吸热”这一关系上，不进入凝固、蒸发、凝结等内容，也不做学生检测。",
+              "focus": "冰吸热后化成水叫熔化；高亮“熔化 → 吸热”，口头读作“熔化要吸热”，不逐字念箭头。",
+              "mustMention": [
+                "熔化 → 吸热",
+                "冰",
+                "水"
+              ],
+              "avoidRepeating": [],
+              "deliveryContract": [
+                "解释：用一句简短口语说“冰在吸热后会慢慢化成水，这个过程叫熔化”。",
+                "高亮：将“熔化 → 吸热”整块突出，口语说明“熔化要吸热”，不逐字念箭头。",
+                "完整示范：结合冰块化成水的例子完整说“冰变成水叫熔化，熔化要吸热”，只保留这一种变化。",
+                "短练习：让学生指向高亮处轻声跟说“熔化要吸热”，只做齐说，不提问、不检测、不评价。",
+                "收束：把注意拉回“冰化成水需要吸热”，不讨论其他变化。"
+              ]
+            }
+          ]
+        },
+        "applied": true,
+        "saved": true,
+        "audioReady": false
+      },
+      "calls": [
+        {
+          "kind": "plan",
+          "durationMs": 32254,
+          "usage": {
+            "inputTokens": 20,
+            "outputTokens": 2793,
+            "cacheReadTokens": 1024,
+            "reasoningTokens": 2458,
+            "totalTokens": 3837,
+            "usageOrigin": "pi",
+            "operationId": "13f5f3d1-26f3-443a-a5ef-95d996d135fc",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"goal\":\"本课只针对四年级科学“水的状态变化：熔化”这一页，让学生用简短口语理解冰吸热后化成水就是熔化，并突出“熔化 → 吸热”这一关系；不测评，不扩展其他状态变化。\",\"pages\":[{\"pageNumber\":1,\"purpose\":\"把全页范围收窄到冰变成水的熔化，借助高亮让学生建立“熔化要吸热”的直接联系，避免被三种状态总览分散注意。\",\"bridge\":\"讲完即停在“冰化成水需要吸热”这一关系上，不进入凝固、蒸发、凝结等内容，也不做学生检测。\",\"focus\":\"冰吸热后化成水叫熔化；高亮“熔化 → 吸热”，口头读作“熔化要吸热”，不逐字念箭头。\",\"mustMention\":[\"熔化 → 吸热\",\"冰\",\"水\"],\"avoidRepeating\":[],\"deliveryContract\":[\"解释：用一句简短口语说“冰在吸热后会慢慢化成水，这个过程叫熔化”。\",\"高亮：将“熔化 → 吸热”整块突出，口语说明“熔化要吸热”，不逐字念箭头。\",\"完整示范：结合冰块化成水的例子完整说“冰变成水叫熔化，熔化要吸热”，只保留这一种变化。\",\"短练习：让学生指向高亮处轻声跟说“熔化要吸热”，只做齐说，不提问、不检测、不评价。\",\"收束：把注意拉回“冰化成水需要吸热”，不讨论其他变化。\"]}]}",
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "controlled-initial-candidate",
+          "data": {
+            "blocks": [
+              {
+                "type": "speech",
+                "text": "冰化成水叫熔化，这时会向周围释放热量。",
+                "attention": {
+                  "type": "highlight",
+                  "objectIds": [
+                    "2942ef2c-c4ba-4e92-810b-77987c45227d"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "narration_semantics",
+          "durationMs": 9938,
+          "usage": {
+            "inputTokens": 1136,
+            "outputTokens": 775,
+            "reasoningTokens": 697,
+            "totalTokens": 1911,
+            "usageOrigin": "pi",
+            "operationId": "c7bd97f3-2f3d-4657-8ea9-8cf10506ed9f",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"issues\":[{\"blockIndex\":0,\"kind\":\"content\",\"message\":\"旁白把熔化说成“向周围释放热量”，与页面高亮的“熔化 → 吸热”及教学目标正好相反。请改为“冰化成水叫熔化，熔化需要吸热（会从周围吸收热量）”，仍只讲熔化，不逐字念箭头。\"}]}",
+          "reviewedBlocks": [
+            {
+              "type": "speech",
+              "text": "冰化成水叫熔化，这时会向周围释放热量。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "2942ef2c-c4ba-4e92-810b-77987c45227d"
+                ]
+              }
+            }
+          ],
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "content-repair",
+          "durationMs": 38515,
+          "usage": {
+            "inputTokens": 3814,
+            "outputTokens": 3678,
+            "reasoningTokens": 3432,
+            "totalTokens": 7492,
+            "usageOrigin": "pi",
+            "operationId": "d26b9ba0-04a5-4102-bd5c-6de3ec612783",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"blocks\":[{\"type\":\"speech\",\"text\":\"同学们，冰化成水叫熔化，熔化需要吸热，冰会从周围吸收热量。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"2942ef2c-c4ba-4e92-810b-77987c45227d\"]}},{\"type\":\"speech\",\"text\":\"你看，冰块吸了热，就慢慢变成了水。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"90772aef-b8e1-4678-a7dc-385e33a21b38\",\"17b17dbd-1786-4f4f-99d1-075a0a5e568b\"]}},{\"type\":\"speech\",\"text\":\"请大家看着高亮处，轻声跟读：熔化要吸热。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"2942ef2c-c4ba-4e92-810b-77987c45227d\"],\"animation\":\"pulse\"}},{\"type\":\"wait\",\"durationMs\":4000},{\"type\":\"speech\",\"text\":\"记住，冰化成水需要吸热，这个过程就是熔化。\"}]}",
+          "repair": {
+            "error": "PageCandidateError: Narration failed semantic review: [{\"blockIndex\":0,\"kind\":\"content\",\"message\":\"旁白把熔化说成“向周围释放热量”，与页面高亮的“熔化 → 吸热”及教学目标正好相反。请改为“冰化成水叫熔化，熔化需要吸热（会从周围吸收热量）”，仍只讲熔化，不逐字念箭头。\"}]",
+            "previousOutput": "{\"blocks\":[{\"type\":\"speech\",\"text\":\"冰化成水叫熔化，这时会向周围释放热量。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"2942ef2c-c4ba-4e92-810b-77987c45227d\"]}}]}"
+          },
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "narration_semantics",
+          "durationMs": 15968,
+          "usage": {
+            "inputTokens": 297,
+            "outputTokens": 1372,
+            "cacheReadTokens": 1024,
+            "reasoningTokens": 1366,
+            "totalTokens": 2693,
+            "usageOrigin": "pi",
+            "operationId": "63117d8d-69ed-4a8e-a451-81ae92541113",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"issues\":[]}",
+          "reviewedBlocks": [
+            {
+              "type": "speech",
+              "text": "同学们，冰化成水叫熔化，熔化需要吸热，冰会从周围吸收热量。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "2942ef2c-c4ba-4e92-810b-77987c45227d"
+                ]
+              }
+            },
+            {
+              "type": "speech",
+              "text": "你看，冰块吸了热，就慢慢变成了水。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "90772aef-b8e1-4678-a7dc-385e33a21b38",
+                  "17b17dbd-1786-4f4f-99d1-075a0a5e568b"
+                ]
+              }
+            },
+            {
+              "type": "speech",
+              "text": "请大家看着高亮处，轻声跟读：熔化要吸热。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "2942ef2c-c4ba-4e92-810b-77987c45227d"
+                ],
+                "animation": "pulse"
+              }
+            },
+            {
+              "type": "wait",
+              "durationMs": 4000
+            },
+            {
+              "type": "speech",
+              "text": "记住，冰化成水需要吸热，这个过程就是熔化。"
+            }
+          ],
+          "savedWritesAtCall": 0
+        }
+      ],
+      "writes": [
+        {
+          "projectId": "semantic-scene-content",
+          "pageId": "page",
+          "expectedSourceRevision": "R1",
+          "expectedTeachingRevision": "T1",
+          "actions": [
+            {
+              "id": "speech-727cf538-3cce-47f5-b873-02617956e15c-0",
+              "type": "speech",
+              "text": "同学们，冰化成水叫熔化，熔化需要吸热，冰会从周围吸收热量。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "2942ef2c-c4ba-4e92-810b-77987c45227d"
+                ]
+              },
+              "source": "generated"
+            },
+            {
+              "id": "speech-727cf538-3cce-47f5-b873-02617956e15c-1",
+              "type": "speech",
+              "text": "你看，冰块吸了热，就慢慢变成了水。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "90772aef-b8e1-4678-a7dc-385e33a21b38",
+                  "17b17dbd-1786-4f4f-99d1-075a0a5e568b"
+                ]
+              },
+              "source": "generated"
+            },
+            {
+              "id": "speech-727cf538-3cce-47f5-b873-02617956e15c-2",
+              "type": "speech",
+              "text": "请大家看着高亮处，轻声跟读：熔化要吸热。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "2942ef2c-c4ba-4e92-810b-77987c45227d"
+                ],
+                "animation": "pulse"
+              },
+              "pauseAfterMs": 4000,
+              "source": "generated"
+            },
+            {
+              "id": "speech-727cf538-3cce-47f5-b873-02617956e15c-3",
+              "type": "speech",
+              "text": "记住，冰化成水需要吸热，这个过程就是熔化。",
+              "source": "generated"
+            }
+          ]
+        }
+      ],
+      "passed": true
+    },
+    {
+      "caseId": "scene-autonomous",
+      "taskType": "scene",
+      "scenario": "autonomous",
+      "durationMs": 96617,
+      "result": {
+        "savedPages": [
+          {
+            "pageNumber": 1,
+            "pageId": "page",
+            "teachingRevision": "T2",
+            "saved": true
+          }
+        ],
+        "failures": [],
+        "diagnostics": [
+          {
+            "pageNumber": 1,
+            "message": "Visual grounding unavailable; narration uses text/notes only and visual completeness has not been verified"
+          },
+          {
+            "pageNumber": 1,
+            "message": "Narration semantic review passed against current page evidence"
+          }
+        ],
+        "plan": {
+          "goal": "仅围绕冰化成水的熔化现象，用简短自然的口语说明熔化需要吸热，并以高亮突出“熔化 → 吸热”；不考试，不展开蒸发、凝固、凝结等其他变化。",
+          "pages": [
+            {
+              "pageNumber": 1,
+              "purpose": "只建立“冰化成水叫熔化，熔化要吸热”这一条关系，用高亮强化“熔化 → 吸热”，不讲其他状态变化。",
+              "bridge": "由冰块放一会儿会化成水的生活经验引入，把注意力引到“熔化 → 吸热”高亮处；本页结束就停在“熔化要吸热”，不向其他变化延伸。",
+              "focus": "冰是固态、水是液态；冰化成水的过程叫熔化，熔化时冰要从周围吸热。",
+              "mustMention": [
+                "熔化 → 吸热",
+                "冰",
+                "水",
+                "吸热"
+              ],
+              "avoidRepeating": [
+                "三种状态各自的形状、流动性和是否看得见的完整描述",
+                "蒸发、凝固、凝结等其他变化",
+                "逐字朗读箭头",
+                "用沸腾或烧开水来解释蒸发"
+              ],
+              "deliveryContract": [
+                "解释：用生活经验点出冰块放一会儿会化成水，把这种现象称为熔化。",
+                "解释：说明冰是固态、水是液态，冰化成水时要向周围吸热。",
+                "完整示范：口语说“冰熔化要吸热”，同时把高亮落在页面上的“熔化 → 吸热”，不逐字念箭头。",
+                "短引导练习：请学生看着高亮，用一句“冰化成水要吸热”跟说一遍，不追问、不评价对错。",
+                "收束：只确认“熔化 → 吸热”这一关系，不扩展到蒸发、凝固、凝结。"
+              ]
+            }
+          ]
+        },
+        "applied": true,
+        "saved": true,
+        "audioReady": false
+      },
+      "calls": [
+        {
+          "kind": "plan",
+          "durationMs": 27562,
+          "usage": {
+            "inputTokens": 20,
+            "outputTokens": 2438,
+            "cacheReadTokens": 1024,
+            "reasoningTokens": 2075,
+            "totalTokens": 3482,
+            "usageOrigin": "pi",
+            "operationId": "b0ba5848-44a8-4598-afd8-3a35df8fdf06",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"goal\":\"仅围绕冰化成水的熔化现象，用简短自然的口语说明熔化需要吸热，并以高亮突出“熔化 → 吸热”；不考试，不展开蒸发、凝固、凝结等其他变化。\",\"pages\":[{\"pageNumber\":1,\"purpose\":\"只建立“冰化成水叫熔化，熔化要吸热”这一条关系，用高亮强化“熔化 → 吸热”，不讲其他状态变化。\",\"bridge\":\"由冰块放一会儿会化成水的生活经验引入，把注意力引到“熔化 → 吸热”高亮处；本页结束就停在“熔化要吸热”，不向其他变化延伸。\",\"focus\":\"冰是固态、水是液态；冰化成水的过程叫熔化，熔化时冰要从周围吸热。\",\"mustMention\":[\"熔化 → 吸热\",\"冰\",\"水\",\"吸热\"],\"avoidRepeating\":[\"三种状态各自的形状、流动性和是否看得见的完整描述\",\"蒸发、凝固、凝结等其他变化\",\"逐字朗读箭头\",\"用沸腾或烧开水来解释蒸发\"],\"deliveryContract\":[\"解释：用生活经验点出冰块放一会儿会化成水，把这种现象称为熔化。\",\"解释：说明冰是固态、水是液态，冰化成水时要向周围吸热。\",\"完整示范：口语说“冰熔化要吸热”，同时把高亮落在页面上的“熔化 → 吸热”，不逐字念箭头。\",\"短引导练习：请学生看着高亮，用一句“冰化成水要吸热”跟说一遍，不追问、不评价对错。\",\"收束：只确认“熔化 → 吸热”这一关系，不扩展到蒸发、凝固、凝结。\"]}]}",
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "generation",
+          "durationMs": 53679,
+          "usage": {
+            "inputTokens": 1615,
+            "outputTokens": 5189,
+            "cacheReadTokens": 2048,
+            "reasoningTokens": 4861,
+            "totalTokens": 8852,
+            "usageOrigin": "pi",
+            "operationId": "be8da8e7-cafc-44dc-96ba-7b752b74abc4",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"blocks\":[{\"type\":\"speech\",\"text\":\"同学们，冰块放在桌上，过一会儿会化成水。冰是固态，水是液态。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"afa65077-8936-4e67-96fd-17899824b54d\",\"2b2221ba-046f-4102-aef4-11f975d62e48\"]}},{\"type\":\"speech\",\"text\":\"这个过程就叫熔化。熔化的时候，要从周围吸热。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"d5cf8457-8214-45f6-88a9-d40af3314d64\"]}},{\"type\":\"speech\",\"text\":\"请看着高亮的地方，跟我一起说一遍：冰化成水要吸热。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"d5cf8457-8214-45f6-88a9-d40af3314d64\",\"afa65077-8936-4e67-96fd-17899824b54d\",\"2b2221ba-046f-4102-aef4-11f975d62e48\"],\"animation\":\"pulse\"}},{\"type\":\"wait\",\"mode\":\"fixed\",\"durationMs\":4000},{\"type\":\"speech\",\"text\":\"记住，熔化要吸热。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"d5cf8457-8214-45f6-88a9-d40af3314d64\"],\"animation\":\"pulse\"}}]}",
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "narration_semantics",
+          "durationMs": 15359,
+          "usage": {
+            "inputTokens": 1435,
+            "outputTokens": 1420,
+            "reasoningTokens": 1414,
+            "totalTokens": 2855,
+            "usageOrigin": "pi",
+            "operationId": "a35f60bf-3414-45bb-8c26-e4f8d1443ef3",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"issues\":[]}",
+          "reviewedBlocks": [
+            {
+              "type": "speech",
+              "text": "同学们，冰块放在桌上，过一会儿会化成水。冰是固态，水是液态。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "afa65077-8936-4e67-96fd-17899824b54d",
+                  "2b2221ba-046f-4102-aef4-11f975d62e48"
+                ]
+              }
+            },
+            {
+              "type": "speech",
+              "text": "这个过程就叫熔化。熔化的时候，要从周围吸热。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "d5cf8457-8214-45f6-88a9-d40af3314d64"
+                ]
+              }
+            },
+            {
+              "type": "speech",
+              "text": "请看着高亮的地方，跟我一起说一遍：冰化成水要吸热。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "d5cf8457-8214-45f6-88a9-d40af3314d64",
+                  "afa65077-8936-4e67-96fd-17899824b54d",
+                  "2b2221ba-046f-4102-aef4-11f975d62e48"
+                ],
+                "animation": "pulse"
+              }
+            },
+            {
+              "type": "wait",
+              "mode": "fixed",
+              "durationMs": 4000
+            },
+            {
+              "type": "speech",
+              "text": "记住，熔化要吸热。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "d5cf8457-8214-45f6-88a9-d40af3314d64"
+                ],
+                "animation": "pulse"
+              }
+            }
+          ],
+          "savedWritesAtCall": 0
+        }
+      ],
+      "writes": [
+        {
+          "projectId": "semantic-scene-autonomous",
+          "pageId": "page",
+          "expectedSourceRevision": "R1",
+          "expectedTeachingRevision": "T1",
+          "actions": [
+            {
+              "id": "speech-60f47036-96a9-4d16-9bb5-a2af193aab07-0",
+              "type": "speech",
+              "text": "同学们，冰块放在桌上，过一会儿会化成水。冰是固态，水是液态。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "afa65077-8936-4e67-96fd-17899824b54d",
+                  "2b2221ba-046f-4102-aef4-11f975d62e48"
+                ]
+              },
+              "source": "generated"
+            },
+            {
+              "id": "speech-60f47036-96a9-4d16-9bb5-a2af193aab07-1",
+              "type": "speech",
+              "text": "这个过程就叫熔化。熔化的时候，要从周围吸热。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "d5cf8457-8214-45f6-88a9-d40af3314d64"
+                ]
+              },
+              "source": "generated"
+            },
+            {
+              "id": "speech-60f47036-96a9-4d16-9bb5-a2af193aab07-2",
+              "type": "speech",
+              "text": "请看着高亮的地方，跟我一起说一遍：冰化成水要吸热。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "d5cf8457-8214-45f6-88a9-d40af3314d64",
+                  "afa65077-8936-4e67-96fd-17899824b54d",
+                  "2b2221ba-046f-4102-aef4-11f975d62e48"
+                ],
+                "animation": "pulse"
+              },
+              "pauseAfterMs": 4000,
+              "source": "generated"
+            },
+            {
+              "id": "speech-60f47036-96a9-4d16-9bb5-a2af193aab07-3",
+              "type": "speech",
+              "text": "记住，熔化要吸热。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "d5cf8457-8214-45f6-88a9-d40af3314d64"
+                ],
+                "animation": "pulse"
+              },
+              "source": "generated"
+            }
+          ]
+        }
+      ],
+      "passed": true
+    }
+  ],
+  "previousAttempts": {
+    "import-binding": {
+      "caseId": "import-binding",
+      "taskType": "import",
+      "scenario": "binding",
+      "durationMs": 81026,
+      "result": {
+        "savedPages": [
+          {
+            "pageNumber": 1,
+            "pageId": "page",
+            "teachingRevision": "T2",
+            "saved": true
+          }
+        ],
+        "failures": [],
+        "diagnostics": [
+          {
+            "pageNumber": 1,
+            "message": "Visual grounding unavailable; narration uses text/notes only and visual completeness has not been verified"
+          },
+          {
+            "pageNumber": 1,
+            "message": "Repairing invalid narration (1/2): PageCandidateError: Attention targets failed semantic review: [{\"blockIndex\":0,\"kind\":\"binding\",\"message\":\"旁白讲的是“冰化成水叫熔化，需要吸热”，但高亮绑定到了“水蒸气”对象（dc03146d-cbd2-4ee3-ac1e-45d785835cca），与正在解释的熔化—吸热关系不符。请把该 block 的 attention.objectIds 改为已有的“熔化 → 吸热”文本对象 8384c6bf-3549-41b9-ade5-00fd8cbbb0d6；旁白可保持不变。\"}]"
+          },
+          {
+            "pageNumber": 1,
+            "message": "Repairing invalid narration (2/2): PageCandidateError: Narration failed semantic review: [{\"blockIndex\":0,\"kind\":\"requirement\",\"message\":\"block 0 只完成了冰→水的现象引入和“获得热量”的关系说明，未落实 pagePlan deliveryContract 中的“短句跟说练习”。请在讲完“冰化成水要吸热”后加入一句简短跟说引导，如“跟我一起说：冰化成水要吸热”，仍只围绕熔化，不设测验、不延伸其他变化。\"}]"
+          },
+          {
+            "pageNumber": 1,
+            "message": "Narration semantic review passed against current page evidence"
+          }
+        ],
+        "plan": {
+          "goal": "学生能结合冰化成水的现象，说出熔化需要吸热，并用“熔化 → 吸热”表达这一关系；本页只围绕熔化，不涉及其他状态变化。",
+          "pages": [
+            {
+              "pageNumber": 1,
+              "purpose": "建立熔化概念，聚焦冰变成水与吸热的关系，突出“熔化 → 吸热”。",
+              "bridge": "用一句口头总结收束本页：冰化成水，熔化要吸热；不设测验，也不延伸其他状态变化。",
+              "focus": "冰融化成水时要吸收热量，形成“熔化 → 吸热”的关联；不引入其他变化。",
+              "mustMention": [
+                "熔化 → 吸热",
+                "冰",
+                "水",
+                "吸热"
+              ],
+              "avoidRepeating": [],
+              "deliveryContract": [
+                "用生活现象引入：从冰块变成水切入，点明这个过程叫熔化。",
+                "完整示范关系：把“熔化 → 吸热”作为一个整体呈现，说明冰熔化时要吸收热量，不逐字念箭头。",
+                "短句跟说练习：引导学生跟说一句“冰化成水要吸热”，只围绕熔化，作为练习而非测验。"
+              ]
+            }
+          ]
+        },
+        "applied": true,
+        "saved": true,
+        "audioReady": false
+      },
+      "calls": [
+        {
+          "kind": "plan",
+          "durationMs": 21969,
+          "usage": {
+            "inputTokens": 94,
+            "outputTokens": 1818,
+            "cacheReadTokens": 896,
+            "reasoningTokens": 1576,
+            "totalTokens": 2808,
+            "usageOrigin": "pi",
+            "operationId": "f07e4b9b-4733-4cc6-93fb-6b3ac568c7b8",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"goal\":\"学生能结合冰化成水的现象，说出熔化需要吸热，并用“熔化 → 吸热”表达这一关系；本页只围绕熔化，不涉及其他状态变化。\",\"pages\":[{\"pageNumber\":1,\"purpose\":\"建立熔化概念，聚焦冰变成水与吸热的关系，突出“熔化 → 吸热”。\",\"bridge\":\"用一句口头总结收束本页：冰化成水，熔化要吸热；不设测验，也不延伸其他状态变化。\",\"focus\":\"冰融化成水时要吸收热量，形成“熔化 → 吸热”的关联；不引入其他变化。\",\"mustMention\":[\"熔化 → 吸热\",\"冰\",\"水\",\"吸热\"],\"avoidRepeating\":[],\"deliveryContract\":[\"用生活现象引入：从冰块变成水切入，点明这个过程叫熔化。\",\"完整示范关系：把“熔化 → 吸热”作为一个整体呈现，说明冰熔化时要吸收热量，不逐字念箭头。\",\"短句跟说练习：引导学生跟说一句“冰化成水要吸热”，只围绕熔化，作为练习而非测验。\"]}]}",
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "controlled-initial-candidate",
+          "data": {
+            "blocks": [
+              {
+                "type": "speech",
+                "text": "冰化成水叫熔化，这时需要从周围获得热量。",
+                "attention": {
+                  "type": "highlight",
+                  "objectIds": [
+                    "dc03146d-cbd2-4ee3-ac1e-45d785835cca"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "narration_semantics",
+          "durationMs": 5958,
+          "usage": {
+            "inputTokens": 997,
+            "outputTokens": 446,
+            "reasoningTokens": 318,
+            "totalTokens": 1443,
+            "usageOrigin": "pi",
+            "operationId": "a0899e96-6a88-4232-b9c4-0f7f9761d549",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"issues\":[{\"blockIndex\":0,\"kind\":\"binding\",\"message\":\"旁白讲的是“冰化成水叫熔化，需要吸热”，但高亮绑定到了“水蒸气”对象（dc03146d-cbd2-4ee3-ac1e-45d785835cca），与正在解释的熔化—吸热关系不符。请把该 block 的 attention.objectIds 改为已有的“熔化 → 吸热”文本对象 8384c6bf-3549-41b9-ade5-00fd8cbbb0d6；旁白可保持不变。\"}]}",
+          "reviewedBlocks": [
+            {
+              "type": "speech",
+              "text": "冰化成水叫熔化，这时需要从周围获得热量。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "dc03146d-cbd2-4ee3-ac1e-45d785835cca"
+                ]
+              }
+            }
+          ],
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "binding-repair",
+          "durationMs": 1683,
+          "usage": {
+            "inputTokens": 1358,
+            "outputTokens": 115,
+            "reasoningTokens": 73,
+            "totalTokens": 1473,
+            "usageOrigin": "pi",
+            "operationId": "bd85f3f4-fb44-4592-a9b2-20c2e2f6555c",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"focuses\":[{\"blockIndex\":0,\"objectIds\":[\"8384c6bf-3549-41b9-ade5-00fd8cbbb0d6\"]}]}",
+          "repair": {
+            "error": "PageCandidateError: Attention targets failed semantic review: [{\"blockIndex\":0,\"kind\":\"binding\",\"message\":\"旁白讲的是“冰化成水叫熔化，需要吸热”，但高亮绑定到了“水蒸气”对象（dc03146d-cbd2-4ee3-ac1e-45d785835cca），与正在解释的熔化—吸热关系不符。请把该 block 的 attention.objectIds 改为已有的“熔化 → 吸热”文本对象 8384c6bf-3549-41b9-ade5-00fd8cbbb0d6；旁白可保持不变。\"}]",
+            "previousOutput": "{\"blocks\":[{\"type\":\"speech\",\"text\":\"冰化成水叫熔化，这时需要从周围获得热量。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"dc03146d-cbd2-4ee3-ac1e-45d785835cca\"]}}]}"
+          },
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "narration_semantics",
+          "durationMs": 29052,
+          "usage": {
+            "inputTokens": 105,
+            "outputTokens": 2620,
+            "cacheReadTokens": 896,
+            "reasoningTokens": 2521,
+            "totalTokens": 3621,
+            "usageOrigin": "pi",
+            "operationId": "a3e38341-e1fd-43c0-90de-65aa639e84bc",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"issues\":[{\"blockIndex\":0,\"kind\":\"requirement\",\"message\":\"block 0 只完成了冰→水的现象引入和“获得热量”的关系说明，未落实 pagePlan deliveryContract 中的“短句跟说练习”。请在讲完“冰化成水要吸热”后加入一句简短跟说引导，如“跟我一起说：冰化成水要吸热”，仍只围绕熔化，不设测验、不延伸其他变化。\"}]}",
+          "reviewedBlocks": [
+            {
+              "type": "speech",
+              "text": "冰化成水叫熔化，这时需要从周围获得热量。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "8384c6bf-3549-41b9-ade5-00fd8cbbb0d6"
+                ]
+              }
+            }
+          ],
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "content-repair",
+          "durationMs": 15865,
+          "usage": {
+            "inputTokens": 3547,
+            "outputTokens": 1401,
+            "reasoningTokens": 1253,
+            "totalTokens": 4948,
+            "usageOrigin": "pi",
+            "operationId": "26821b13-240e-4659-b830-285b8c375a83",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"blocks\":[{\"type\":\"speech\",\"text\":\"同学们看，冰会慢慢化成水。冰变成水的这个过程，叫熔化。\"},{\"type\":\"speech\",\"text\":\"再看这个关系：熔化 → 吸热。意思是，冰熔化的时候要吸收热量，也就是吸热。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"8384c6bf-3549-41b9-ade5-00fd8cbbb0d6\"]}},{\"type\":\"speech\",\"text\":\"跟我一起说：冰化成水要吸热。\"},{\"type\":\"wait\",\"mode\":\"fixed\",\"durationMs\":4000},{\"type\":\"speech\",\"text\":\"冰化成水，熔化要吸热。\"}]}",
+          "repair": {
+            "error": "PageCandidateError: Narration failed semantic review: [{\"blockIndex\":0,\"kind\":\"requirement\",\"message\":\"block 0 只完成了冰→水的现象引入和“获得热量”的关系说明，未落实 pagePlan deliveryContract 中的“短句跟说练习”。请在讲完“冰化成水要吸热”后加入一句简短跟说引导，如“跟我一起说：冰化成水要吸热”，仍只围绕熔化，不设测验、不延伸其他变化。\"}]",
+            "previousOutput": "{\"focuses\":[{\"blockIndex\":0,\"objectIds\":[\"8384c6bf-3549-41b9-ade5-00fd8cbbb0d6\"]}]}"
+          },
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "narration_semantics",
+          "durationMs": 6467,
+          "usage": {
+            "inputTokens": 191,
+            "outputTokens": 511,
+            "cacheReadTokens": 896,
+            "reasoningTokens": 505,
+            "totalTokens": 1598,
+            "usageOrigin": "pi",
+            "operationId": "e6322b0b-5e98-4894-9321-fb973d56cdd4",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"issues\":[]}",
+          "reviewedBlocks": [
+            {
+              "type": "speech",
+              "text": "同学们看，冰会慢慢化成水。冰变成水的这个过程，叫熔化。"
+            },
+            {
+              "type": "speech",
+              "text": "再看这个关系：熔化 → 吸热。意思是，冰熔化的时候要吸收热量，也就是吸热。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "8384c6bf-3549-41b9-ade5-00fd8cbbb0d6"
+                ]
+              }
+            },
+            {
+              "type": "speech",
+              "text": "跟我一起说：冰化成水要吸热。"
+            },
+            {
+              "type": "wait",
+              "mode": "fixed",
+              "durationMs": 4000
+            },
+            {
+              "type": "speech",
+              "text": "冰化成水，熔化要吸热。"
+            }
+          ],
+          "savedWritesAtCall": 0
+        }
+      ],
+      "writes": [
+        {
+          "projectId": "semantic-import-binding",
+          "pageId": "page",
+          "expectedSourceRevision": "R1",
+          "expectedTeachingRevision": "T1",
+          "actions": [
+            {
+              "id": "speech-b1ba9769-73ec-4884-90d0-b40d15c346dd-0",
+              "type": "speech",
+              "text": "同学们看，冰会慢慢化成水。冰变成水的这个过程，叫熔化。",
+              "source": "generated"
+            },
+            {
+              "id": "speech-b1ba9769-73ec-4884-90d0-b40d15c346dd-1",
+              "type": "speech",
+              "text": "再看这个关系：熔化 → 吸热。意思是，冰熔化的时候要吸收热量，也就是吸热。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "8384c6bf-3549-41b9-ade5-00fd8cbbb0d6"
+                ]
+              },
+              "source": "generated"
+            },
+            {
+              "id": "speech-b1ba9769-73ec-4884-90d0-b40d15c346dd-2",
+              "type": "speech",
+              "text": "跟我一起说：冰化成水要吸热。",
+              "pauseAfterMs": 4000,
+              "source": "generated"
+            },
+            {
+              "id": "speech-b1ba9769-73ec-4884-90d0-b40d15c346dd-3",
+              "type": "speech",
+              "text": "冰化成水，熔化要吸热。",
+              "source": "generated"
+            }
+          ]
+        }
+      ],
+      "passed": false,
+      "assertion": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ '同学们看，冰会慢慢化成水。冰变成水的这个过程，叫熔化。'\n- '冰化成水叫熔化，这时需要从周围获得热量。'\n"
+    },
+    "import-autonomous": {
+      "caseId": "import-autonomous",
+      "taskType": "import",
+      "scenario": "autonomous",
+      "durationMs": 230853,
+      "result": {
+        "savedPages": [],
+        "failures": [
+          {
+            "pageNumber": 1,
+            "error": "Error: Response incomplete: length"
+          }
+        ],
+        "diagnostics": [
+          {
+            "pageNumber": 1,
+            "message": "Visual grounding unavailable; narration uses text/notes only and visual completeness has not been verified"
+          },
+          {
+            "pageNumber": 1,
+            "message": "Repairing invalid narration (1/2): PageCandidateError: Narration failed semantic review: [{\"blockIndex\":3,\"kind\":\"requirement\",\"message\":\"第4段（blockIndex 3）让学生用“熔化 → 吸热”说一句自己的话，形成学生回应或练习任务，和用户明确“不要考学生”的要求冲突；应删除该学生任务，改为教师直接收束“冰化成水要吸热，这就是熔化 → 吸热”，不要求学生作答。\"}]"
+          }
+        ],
+        "plan": {
+          "goal": "四年级学生能结合页面上的冰和水，用自己的话说出熔化要吸热，并指出“熔化 → 吸热”这一关系；本课只讲熔化，不扩展到凝固、蒸发、凝结等其他变化，也不进行测验。",
+          "pages": [
+            {
+              "pageNumber": 1,
+              "purpose": "把本页焦点收窄到熔化：让学生从“冰”和“水”的可见变化理解冰化成水需要吸热，并高亮“熔化 → 吸热”这一核心关系。",
+              "bridge": "从学生熟悉的冰和水入手，直接聚焦“熔化 → 吸热”；本页虽出现其他物态变化，但不把它们带入讲解。",
+              "focus": "只解释冰变成水的过程与吸热，始终围绕“熔化 → 吸热”；不逐字念箭头，不比较其他变化，也不提问或检测。",
+              "mustMention": [
+                "冰",
+                "水",
+                "熔化 → 吸热"
+              ],
+              "avoidRepeating": [
+                "不重复固态、液态、气态三种状态的定义",
+                "不展开凝固、蒸发、凝结等其他物态变化",
+                "不逐字念箭头或解释双向箭头的读法",
+                "不把蒸发、水洼、湿衣服等页面提醒内容带入讲解"
+              ],
+              "deliveryContract": [
+                "解释：指向页面上的“冰”和“水”，用一句口语说“冰化成水，这个过程叫熔化”，并点出“熔化 → 吸热”表示熔化要吸热。",
+                "完整示范：教师用一句生活化的话完整示范“冰块慢慢化成水，需要从周围吸热，这就是熔化 → 吸热”，不补充其他变化。",
+                "简短 guided practice：请学生跟着用“熔化 → 吸热”说一句自己的话，教师只做澄清，不提问、不测验、不评分。"
+              ]
+            }
+          ]
+        },
+        "applied": false,
+        "saved": false,
+        "audioReady": false
+      },
+      "calls": [
+        {
+          "kind": "plan",
+          "durationMs": 24356,
+          "usage": {
+            "inputTokens": 94,
+            "outputTokens": 2102,
+            "cacheReadTokens": 896,
+            "reasoningTokens": 1727,
+            "totalTokens": 3092,
+            "usageOrigin": "pi",
+            "operationId": "43fd2ca6-b4b9-486f-bbef-77b1f517b0ae",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"goal\":\"四年级学生能结合页面上的冰和水，用自己的话说出熔化要吸热，并指出“熔化 → 吸热”这一关系；本课只讲熔化，不扩展到凝固、蒸发、凝结等其他变化，也不进行测验。\",\"pages\":[{\"pageNumber\":1,\"purpose\":\"把本页焦点收窄到熔化：让学生从“冰”和“水”的可见变化理解冰化成水需要吸热，并高亮“熔化 → 吸热”这一核心关系。\",\"bridge\":\"从学生熟悉的冰和水入手，直接聚焦“熔化 → 吸热”；本页虽出现其他物态变化，但不把它们带入讲解。\",\"focus\":\"只解释冰变成水的过程与吸热，始终围绕“熔化 → 吸热”；不逐字念箭头，不比较其他变化，也不提问或检测。\",\"mustMention\":[\"冰\",\"水\",\"熔化 → 吸热\"],\"avoidRepeating\":[\"不重复固态、液态、气态三种状态的定义\",\"不展开凝固、蒸发、凝结等其他物态变化\",\"不逐字念箭头或解释双向箭头的读法\",\"不把蒸发、水洼、湿衣服等页面提醒内容带入讲解\"],\"deliveryContract\":[\"解释：指向页面上的“冰”和“水”，用一句口语说“冰化成水，这个过程叫熔化”，并点出“熔化 → 吸热”表示熔化要吸热。\",\"完整示范：教师用一句生活化的话完整示范“冰块慢慢化成水，需要从周围吸热，这就是熔化 → 吸热”，不补充其他变化。\",\"简短 guided practice：请学生跟着用“熔化 → 吸热”说一句自己的话，教师只做澄清，不提问、不测验、不评分。\"]}]}",
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "generation",
+          "durationMs": 32013,
+          "usage": {
+            "inputTokens": 3516,
+            "outputTokens": 2945,
+            "reasoningTokens": 2634,
+            "totalTokens": 6461,
+            "usageOrigin": "pi",
+            "operationId": "759e4579-b93e-4719-95a1-c58405794618",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"blocks\":[{\"type\":\"speech\",\"text\":\"同学们，看页面上的“冰”和“水”：冰化成水，这个过程叫熔化。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"a8848d8b-e9cd-471f-b5ff-ae3a2e3b8aa4\",\"ef8d3574-081d-4fb2-a2b5-5ffa032d1912\"]}},{\"type\":\"speech\",\"text\":\"熔化的时候，冰要从周围吸收热量。看“熔化 → 吸热”，说的就是熔化要吸热。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"6b242a60-739f-4f03-b5c3-ac29fb627f1a\"]}},{\"type\":\"speech\",\"text\":\"比如把冰块放在桌上，冰块慢慢化成水，需要从周围吸热，这就是“熔化 → 吸热”。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"6b242a60-739f-4f03-b5c3-ac29fb627f1a\"]}},{\"type\":\"speech\",\"text\":\"请你也用“熔化 → 吸热”说一句自己的话，可以想想冰块化成水的样子。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"6b242a60-739f-4f03-b5c3-ac29fb627f1a\"]}},{\"type\":\"wait\",\"durationMs\":4000}]}",
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "narration_semantics",
+          "durationMs": 82264,
+          "usage": {
+            "inputTokens": 1376,
+            "outputTokens": 7558,
+            "reasoningTokens": 7468,
+            "totalTokens": 8934,
+            "usageOrigin": "pi",
+            "operationId": "97f0cc42-bc21-41df-82ba-420367efdb92",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"issues\":[{\"blockIndex\":3,\"kind\":\"requirement\",\"message\":\"第4段（blockIndex 3）让学生用“熔化 → 吸热”说一句自己的话，形成学生回应或练习任务，和用户明确“不要考学生”的要求冲突；应删除该学生任务，改为教师直接收束“冰化成水要吸热，这就是熔化 → 吸热”，不要求学生作答。\"}]}",
+          "reviewedBlocks": [
+            {
+              "type": "speech",
+              "text": "同学们，看页面上的“冰”和“水”：冰化成水，这个过程叫熔化。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "a8848d8b-e9cd-471f-b5ff-ae3a2e3b8aa4",
+                  "ef8d3574-081d-4fb2-a2b5-5ffa032d1912"
+                ]
+              }
+            },
+            {
+              "type": "speech",
+              "text": "熔化的时候，冰要从周围吸收热量。看“熔化 → 吸热”，说的就是熔化要吸热。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "6b242a60-739f-4f03-b5c3-ac29fb627f1a"
+                ]
+              }
+            },
+            {
+              "type": "speech",
+              "text": "比如把冰块放在桌上，冰块慢慢化成水，需要从周围吸热，这就是“熔化 → 吸热”。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "6b242a60-739f-4f03-b5c3-ac29fb627f1a"
+                ]
+              }
+            },
+            {
+              "type": "speech",
+              "text": "请你也用“熔化 → 吸热”说一句自己的话，可以想想冰块化成水的样子。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "6b242a60-739f-4f03-b5c3-ac29fb627f1a"
+                ]
+              }
+            },
+            {
+              "type": "wait",
+              "durationMs": 4000
+            }
+          ],
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "content-repair",
+          "durationMs": 7036,
+          "usage": {
+            "inputTokens": 533,
+            "outputTokens": 598,
+            "cacheReadTokens": 3456,
+            "reasoningTokens": 360,
+            "totalTokens": 4587,
+            "usageOrigin": "pi",
+            "operationId": "e1e1930b-b19e-4fc1-b615-f8197e88971e",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"blocks\":[{\"type\":\"speech\",\"text\":\"同学们，看这里的“冰”和“水”：冰化成水，这个过程叫熔化。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"a8848d8b-e9cd-471f-b5ff-ae3a2e3b8aa4\",\"ef8d3574-081d-4fb2-a2b5-5ffa032d1912\"]}},{\"type\":\"speech\",\"text\":\"冰化成水时，要从周围吸收热量。看“熔化 → 吸热”，说的就是熔化需要吸热。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"6b242a60-739f-4f03-b5c3-ac29fb627f1a\"]}},{\"type\":\"speech\",\"text\":\"就像桌上的冰块慢慢化成水，它一直在吸热。记住：冰化成水要吸热，这就是“熔化 → 吸热”。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"6b242a60-739f-4f03-b5c3-ac29fb627f1a\"]}}]}",
+          "repair": {
+            "error": "PageCandidateError: Narration failed semantic review: [{\"blockIndex\":3,\"kind\":\"requirement\",\"message\":\"第4段（blockIndex 3）让学生用“熔化 → 吸热”说一句自己的话，形成学生回应或练习任务，和用户明确“不要考学生”的要求冲突；应删除该学生任务，改为教师直接收束“冰化成水要吸热，这就是熔化 → 吸热”，不要求学生作答。\"}]",
+            "previousOutput": "{\"blocks\":[{\"type\":\"speech\",\"text\":\"同学们，看页面上的“冰”和“水”：冰化成水，这个过程叫熔化。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"a8848d8b-e9cd-471f-b5ff-ae3a2e3b8aa4\",\"ef8d3574-081d-4fb2-a2b5-5ffa032d1912\"]}},{\"type\":\"speech\",\"text\":\"熔化的时候，冰要从周围吸收热量。看“熔化 → 吸热”，说的就是熔化要吸热。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"6b242a60-739f-4f03-b5c3-ac29fb627f1a\"]}},{\"type\":\"speech\",\"text\":\"比如把冰块放在桌上，冰块慢慢化成水，需要从周围吸热，这就是“熔化 → 吸热”。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"6b242a60-739f-4f03-b5c3-ac29fb627f1a\"]}},{\"type\":\"speech\",\"text\":\"请你也用“熔化 → 吸热”说一句自己的话，可以想想冰块化成水的样子。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"6b242a60-739f-4f03-b5c3-ac29fb627f1a\"]}},{\"type\":\"wait\",\"durationMs\":4000}]}"
+          },
+          "savedWritesAtCall": 0
+        }
+      ],
+      "writes": [],
+      "passed": false,
+      "assertion": "AssertionError [ERR_ASSERTION]: [{\"pageNumber\":1,\"error\":\"Error: Response incomplete: length\"}]\n\nfalse !== true\n"
+    },
+    "import-paraphrase": {
+      "caseId": "import-paraphrase",
+      "taskType": "import",
+      "scenario": "paraphrase",
+      "durationMs": 90588,
+      "result": {
+        "savedPages": [],
+        "failures": [
+          {
+            "pageNumber": 1,
+            "error": "Error: terminated"
+          }
+        ],
+        "diagnostics": [
+          {
+            "pageNumber": 1,
+            "message": "Visual grounding unavailable; narration uses text/notes only and visual completeness has not been verified"
+          }
+        ],
+        "plan": {
+          "goal": "四年级学生能用自己的话说出：冰化成水叫熔化，熔化需要吸热；能指出“熔化 → 吸热”表示这一关系。本课只讲熔化，不扩展到其他状态变化，也不进行测验。",
+          "pages": [
+            {
+              "pageNumber": 1,
+              "purpose": "作为本课正文页，用页面上的“冰”和“水”建立“冰化成水叫熔化”的概念，并把“熔化 → 吸热”作为唯一关系高亮；不展开其他状态变化，不设测验。",
+              "bridge": "以“冰化成水要吸热”一句话收束，把“熔化 → 吸热”留在板书上；不进入其他状态变化。",
+              "focus": "冰变成水的过程叫熔化；熔化需要吸热，箭头只表示关系，不逐字朗读。",
+              "mustMention": [
+                "冰",
+                "水",
+                "熔化 → 吸热"
+              ],
+              "avoidRepeating": [],
+              "deliveryContract": [
+                "开场直入：指着页面上的“冰”和“水”，直接告诉学生：冰变成水，这个过程叫熔化。",
+                "解释：指着“熔化 → 吸热”，说明冰要吸收热量才能化成水；只说明箭头连接两个词，不逐字念箭头。",
+                "完整示范：教师完整说一句：“冰化成水叫熔化，熔化需要吸热。”",
+                "短引导练习：教师说“冰化成水叫——”，全班接“熔化”；教师再说“熔化需要——”，全班接“吸热”。不点名、不评分。",
+                "小结：回到板书再次高亮“熔化 → 吸热”，提醒本课只学这一种变化。"
+              ]
+            }
+          ]
+        },
+        "applied": false,
+        "saved": false,
+        "audioReady": false
+      },
+      "calls": [
+        {
+          "kind": "plan",
+          "durationMs": 49427,
+          "usage": {
+            "inputTokens": 990,
+            "outputTokens": 4628,
+            "reasoningTokens": 4284,
+            "totalTokens": 5618,
+            "usageOrigin": "pi",
+            "operationId": "33fbbf04-8757-4ba4-8e71-a1dc51808837",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"goal\":\"四年级学生能用自己的话说出：冰化成水叫熔化，熔化需要吸热；能指出“熔化 → 吸热”表示这一关系。本课只讲熔化，不扩展到其他状态变化，也不进行测验。\",\"pages\":[{\"pageNumber\":1,\"purpose\":\"作为本课正文页，用页面上的“冰”和“水”建立“冰化成水叫熔化”的概念，并把“熔化 → 吸热”作为唯一关系高亮；不展开其他状态变化，不设测验。\",\"bridge\":\"以“冰化成水要吸热”一句话收束，把“熔化 → 吸热”留在板书上；不进入其他状态变化。\",\"focus\":\"冰变成水的过程叫熔化；熔化需要吸热，箭头只表示关系，不逐字朗读。\",\"mustMention\":[\"冰\",\"水\",\"熔化 → 吸热\"],\"avoidRepeating\":[],\"deliveryContract\":[\"开场直入：指着页面上的“冰”和“水”，直接告诉学生：冰变成水，这个过程叫熔化。\",\"解释：指着“熔化 → 吸热”，说明冰要吸收热量才能化成水；只说明箭头连接两个词，不逐字念箭头。\",\"完整示范：教师完整说一句：“冰化成水叫熔化，熔化需要吸热。”\",\"短引导练习：教师说“冰化成水叫——”，全班接“熔化”；教师再说“熔化需要——”，全班接“吸热”。不点名、不评分。\",\"小结：回到板书再次高亮“熔化 → 吸热”，提醒本课只学这一种变化。\"]}]}",
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "controlled-initial-candidate",
+          "data": {
+            "blocks": [
+              {
+                "type": "speech",
+                "text": "冰化成水叫熔化，这时需要从周围获得热量。",
+                "attention": {
+                  "type": "highlight",
+                  "objectIds": [
+                    "8593de5f-ea96-4db3-b8a4-dab862b19748"
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "writes": [],
+      "passed": false,
+      "assertion": "AssertionError [ERR_ASSERTION]: [{\"pageNumber\":1,\"error\":\"Error: terminated\"}]\n\nfalse !== true\n"
+    },
+    "plain-binding": {
+      "caseId": "plain-binding",
+      "taskType": "plain",
+      "scenario": "binding",
+      "durationMs": 186243,
+      "result": {
+        "savedPages": [
+          {
+            "pageNumber": 1,
+            "pageId": "page",
+            "teachingRevision": "T2",
+            "saved": true
+          }
+        ],
+        "failures": [],
+        "diagnostics": [
+          {
+            "pageNumber": 1,
+            "message": "Visual grounding unavailable; narration uses text/notes only and visual completeness has not been verified"
+          },
+          {
+            "pageNumber": 1,
+            "message": "Repairing invalid narration (1/2): PageCandidateError: Attention targets failed semantic review: [{\"blockIndex\":0,\"kind\":\"binding\",\"message\":\"高亮效果绑定到了“水蒸气”（objectId 33693140-3c90-4b19-913b-1a123604256c），但本段只讲冰化成水的熔化与吸热，应高亮“熔化 → 吸热”（TextBox 32，objectId b74ed084-b556-4e1e-94b4-2308ccce88a6）。请把第0个 speech block 的 attention.objectIds 改为该“熔化 → 吸热”对象；语音内容无需改写。\"}]"
+          },
+          {
+            "pageNumber": 1,
+            "message": "Repairing invalid narration (2/2): PageCandidateError: Narration failed semantic review: [{\"blockIndex\":0,\"kind\":\"requirement\",\"message\":\"页面计划的 deliveryContract 要求讲解后安排一次短练习：请学生看高亮处，同桌互相说一遍“熔化 → 吸热”，教师再带全班复述一次；不提问、不评价。block 0 只有讲解句，没有这个口头练习提示。请在该句后补充一句非测验性的复述提示，并继续指向已高亮的“熔化 → 吸热”文本。\"}]"
+          },
+          {
+            "pageNumber": 1,
+            "message": "Narration semantic review passed against current page evidence"
+          }
+        ],
+        "plan": {
+          "goal": "本课时只帮助四年级学生聚焦冰熔化成水这一过程，理解熔化需要吸热，并能用简短口语说出“熔化 → 吸热”；不扩展到凝固、蒸发、凝结等其他变化。",
+          "pages": [
+            {
+              "pageNumber": 1,
+              "purpose": "借助页面中固态的冰与液态的水，建立“冰化成水”的直观联系，并用高亮突出“熔化 → 吸热”，让学生把注意力集中在熔化与吸热的关系上。",
+              "bridge": "先看页面上的冰与水，再把观察收束到高亮关系“熔化 → 吸热”。",
+              "focus": "只围绕冰化成水讲熔化，明确这个过程需要吸热；用口语短句和高亮强化“熔化 → 吸热”，不讨论其他状态变化。",
+              "mustMention": [
+                "熔化 → 吸热",
+                "冰",
+                "水"
+              ],
+              "avoidRepeating": [
+                "不重复解释水有三种状态的完整分类",
+                "不逐字念“箭头”二字，也不把箭头符号当作朗读内容",
+                "不展开凝固、蒸发、凝结等其他变化",
+                "不把“熔化 → 吸热”拆成多个新术语逐条讲解"
+              ],
+              "deliveryContract": [
+                "用一句观察描述引出冰与水：固态的冰变成液态的水，这个过程叫熔化。",
+                "完整示范并指向高亮处“熔化 → 吸热”，用简短口语说清冰化成水需要吸热，不逐字念箭头。",
+                "安排一次短练习：请学生看高亮处，同桌互相说一遍“熔化 → 吸热”，教师再带全班复述一次；不提问、不评价。"
+              ]
+            }
+          ]
+        },
+        "applied": true,
+        "saved": true,
+        "audioReady": false
+      },
+      "calls": [
+        {
+          "kind": "plan",
+          "durationMs": 25537,
+          "usage": {
+            "inputTokens": 20,
+            "outputTokens": 2114,
+            "cacheReadTokens": 1024,
+            "reasoningTokens": 1777,
+            "totalTokens": 3158,
+            "usageOrigin": "pi",
+            "operationId": "b933e094-a6ea-4c08-a3ab-0415924c6972",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"goal\":\"本课时只帮助四年级学生聚焦冰熔化成水这一过程，理解熔化需要吸热，并能用简短口语说出“熔化 → 吸热”；不扩展到凝固、蒸发、凝结等其他变化。\",\"pages\":[{\"pageNumber\":1,\"purpose\":\"借助页面中固态的冰与液态的水，建立“冰化成水”的直观联系，并用高亮突出“熔化 → 吸热”，让学生把注意力集中在熔化与吸热的关系上。\",\"bridge\":\"先看页面上的冰与水，再把观察收束到高亮关系“熔化 → 吸热”。\",\"focus\":\"只围绕冰化成水讲熔化，明确这个过程需要吸热；用口语短句和高亮强化“熔化 → 吸热”，不讨论其他状态变化。\",\"mustMention\":[\"熔化 → 吸热\",\"冰\",\"水\"],\"avoidRepeating\":[\"不重复解释水有三种状态的完整分类\",\"不逐字念“箭头”二字，也不把箭头符号当作朗读内容\",\"不展开凝固、蒸发、凝结等其他变化\",\"不把“熔化 → 吸热”拆成多个新术语逐条讲解\"],\"deliveryContract\":[\"用一句观察描述引出冰与水：固态的冰变成液态的水，这个过程叫熔化。\",\"完整示范并指向高亮处“熔化 → 吸热”，用简短口语说清冰化成水需要吸热，不逐字念箭头。\",\"安排一次短练习：请学生看高亮处，同桌互相说一遍“熔化 → 吸热”，教师再带全班复述一次；不提问、不评价。\"]}]}",
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "controlled-initial-candidate",
+          "data": {
+            "blocks": [
+              {
+                "type": "speech",
+                "text": "冰化成水叫熔化，这时需要从周围获得热量。",
+                "attention": {
+                  "type": "highlight",
+                  "objectIds": [
+                    "33693140-3c90-4b19-913b-1a123604256c"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "narration_semantics",
+          "durationMs": 14036,
+          "usage": {
+            "inputTokens": 1151,
+            "outputTokens": 1315,
+            "reasoningTokens": 1181,
+            "totalTokens": 2466,
+            "usageOrigin": "pi",
+            "operationId": "e600092c-320b-4995-9b70-305449842727",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"issues\":[{\"blockIndex\":0,\"kind\":\"binding\",\"message\":\"高亮效果绑定到了“水蒸气”（objectId 33693140-3c90-4b19-913b-1a123604256c），但本段只讲冰化成水的熔化与吸热，应高亮“熔化 → 吸热”（TextBox 32，objectId b74ed084-b556-4e1e-94b4-2308ccce88a6）。请把第0个 speech block 的 attention.objectIds 改为该“熔化 → 吸热”对象；语音内容无需改写。\"}]}",
+          "reviewedBlocks": [
+            {
+              "type": "speech",
+              "text": "冰化成水叫熔化，这时需要从周围获得热量。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "33693140-3c90-4b19-913b-1a123604256c"
+                ]
+              }
+            }
+          ],
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "binding-repair",
+          "durationMs": 1800,
+          "usage": {
+            "inputTokens": 1268,
+            "outputTokens": 125,
+            "cacheReadTokens": 256,
+            "reasoningTokens": 84,
+            "totalTokens": 1649,
+            "usageOrigin": "pi",
+            "operationId": "f24a4861-11ef-4230-be57-b2c7c191ced8",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"focuses\":[{\"blockIndex\":0,\"objectIds\":[\"b74ed084-b556-4e1e-94b4-2308ccce88a6\"]}]}",
+          "repair": {
+            "error": "PageCandidateError: Attention targets failed semantic review: [{\"blockIndex\":0,\"kind\":\"binding\",\"message\":\"高亮效果绑定到了“水蒸气”（objectId 33693140-3c90-4b19-913b-1a123604256c），但本段只讲冰化成水的熔化与吸热，应高亮“熔化 → 吸热”（TextBox 32，objectId b74ed084-b556-4e1e-94b4-2308ccce88a6）。请把第0个 speech block 的 attention.objectIds 改为该“熔化 → 吸热”对象；语音内容无需改写。\"}]",
+            "previousOutput": "{\"blocks\":[{\"type\":\"speech\",\"text\":\"冰化成水叫熔化，这时需要从周围获得热量。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"33693140-3c90-4b19-913b-1a123604256c\"]}}]}"
+          },
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "narration_semantics",
+          "durationMs": 37911,
+          "usage": {
+            "inputTokens": 129,
+            "outputTokens": 3467,
+            "cacheReadTokens": 1024,
+            "reasoningTokens": 3361,
+            "totalTokens": 4620,
+            "usageOrigin": "pi",
+            "operationId": "4b07d7ed-5246-4813-b855-01780982d263",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"issues\":[{\"blockIndex\":0,\"kind\":\"requirement\",\"message\":\"页面计划的 deliveryContract 要求讲解后安排一次短练习：请学生看高亮处，同桌互相说一遍“熔化 → 吸热”，教师再带全班复述一次；不提问、不评价。block 0 只有讲解句，没有这个口头练习提示。请在该句后补充一句非测验性的复述提示，并继续指向已高亮的“熔化 → 吸热”文本。\"}]}",
+          "reviewedBlocks": [
+            {
+              "type": "speech",
+              "text": "冰化成水叫熔化，这时需要从周围获得热量。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "b74ed084-b556-4e1e-94b4-2308ccce88a6"
+                ]
+              }
+            }
+          ],
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "content-repair",
+          "durationMs": 23299,
+          "usage": {
+            "inputTokens": 3822,
+            "outputTokens": 2191,
+            "reasoningTokens": 1878,
+            "totalTokens": 6013,
+            "usageOrigin": "pi",
+            "operationId": "1af98e92-0afd-49df-936f-f9774467b0ee",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"blocks\":[{\"type\":\"speech\",\"text\":\"同学们看，固态的冰变成液态的水，这个过程叫熔化。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"8eb75cb1-bd3c-4040-8f88-74d3c44c5b88\",\"6c96cdd8-276b-4b7c-86ce-9dc1fa317cab\"]}},{\"type\":\"speech\",\"text\":\"冰化成水需要吸热。看高亮处：熔化 → 吸热。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"b74ed084-b556-4e1e-94b4-2308ccce88a6\"],\"animation\":\"pulse\"}},{\"type\":\"speech\",\"text\":\"请同桌互相看着高亮处，把“熔化 → 吸热”说一遍。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"b74ed084-b556-4e1e-94b4-2308ccce88a6\"],\"animation\":\"pulse\"}},{\"type\":\"wait\",\"mode\":\"fixed\",\"durationMs\":8000},{\"type\":\"speech\",\"text\":\"现在全班一起复述：熔化 → 吸热。\",\"attention\":{\"type\":\"highlight\",\"objectIds\":[\"b74ed084-b556-4e1e-94b4-2308ccce88a6\"]}},{\"type\":\"wait\",\"mode\":\"fixed\",\"durationMs\":4000}]}",
+          "repair": {
+            "error": "PageCandidateError: Narration failed semantic review: [{\"blockIndex\":0,\"kind\":\"requirement\",\"message\":\"页面计划的 deliveryContract 要求讲解后安排一次短练习：请学生看高亮处，同桌互相说一遍“熔化 → 吸热”，教师再带全班复述一次；不提问、不评价。block 0 只有讲解句，没有这个口头练习提示。请在该句后补充一句非测验性的复述提示，并继续指向已高亮的“熔化 → 吸热”文本。\"}]",
+            "previousOutput": "{\"focuses\":[{\"blockIndex\":0,\"objectIds\":[\"b74ed084-b556-4e1e-94b4-2308ccce88a6\"]}]}"
+          },
+          "savedWritesAtCall": 0
+        },
+        {
+          "kind": "narration_semantics",
+          "durationMs": 83625,
+          "usage": {
+            "inputTokens": 380,
+            "outputTokens": 8099,
+            "cacheReadTokens": 1024,
+            "reasoningTokens": 8093,
+            "totalTokens": 9503,
+            "usageOrigin": "pi",
+            "operationId": "482c4ea2-feda-43f1-9453-5339d708d5b5",
+            "providerId": "deckwise-managed",
+            "modelId": "deepseek-v4-1-flash",
+            "costStatus": "unknown",
+            "aggregation": "operation"
+          },
+          "text": "{\"issues\":[]}",
+          "reviewedBlocks": [
+            {
+              "type": "speech",
+              "text": "同学们看，固态的冰变成液态的水，这个过程叫熔化。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "8eb75cb1-bd3c-4040-8f88-74d3c44c5b88",
+                  "6c96cdd8-276b-4b7c-86ce-9dc1fa317cab"
+                ]
+              }
+            },
+            {
+              "type": "speech",
+              "text": "冰化成水需要吸热。看高亮处：熔化 → 吸热。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "b74ed084-b556-4e1e-94b4-2308ccce88a6"
+                ],
+                "animation": "pulse"
+              }
+            },
+            {
+              "type": "speech",
+              "text": "请同桌互相看着高亮处，把“熔化 → 吸热”说一遍。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "b74ed084-b556-4e1e-94b4-2308ccce88a6"
+                ],
+                "animation": "pulse"
+              }
+            },
+            {
+              "type": "wait",
+              "mode": "fixed",
+              "durationMs": 8000
+            },
+            {
+              "type": "speech",
+              "text": "现在全班一起复述：熔化 → 吸热。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "b74ed084-b556-4e1e-94b4-2308ccce88a6"
+                ]
+              }
+            },
+            {
+              "type": "wait",
+              "mode": "fixed",
+              "durationMs": 4000
+            }
+          ],
+          "savedWritesAtCall": 0
+        }
+      ],
+      "writes": [
+        {
+          "projectId": "semantic-plain-binding",
+          "pageId": "page",
+          "expectedSourceRevision": "R1",
+          "expectedTeachingRevision": "T1",
+          "actions": [
+            {
+              "id": "speech-a5a4d5e3-1a04-4aa6-a232-0da351e0f861-0",
+              "type": "speech",
+              "text": "同学们看，固态的冰变成液态的水，这个过程叫熔化。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "8eb75cb1-bd3c-4040-8f88-74d3c44c5b88",
+                  "6c96cdd8-276b-4b7c-86ce-9dc1fa317cab"
+                ]
+              },
+              "source": "generated"
+            },
+            {
+              "id": "speech-a5a4d5e3-1a04-4aa6-a232-0da351e0f861-1",
+              "type": "speech",
+              "text": "冰化成水需要吸热。看高亮处：熔化 → 吸热。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "b74ed084-b556-4e1e-94b4-2308ccce88a6"
+                ],
+                "animation": "pulse"
+              },
+              "source": "generated"
+            },
+            {
+              "id": "speech-a5a4d5e3-1a04-4aa6-a232-0da351e0f861-2",
+              "type": "speech",
+              "text": "请同桌互相看着高亮处，把“熔化 → 吸热”说一遍。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "b74ed084-b556-4e1e-94b4-2308ccce88a6"
+                ],
+                "animation": "pulse"
+              },
+              "pauseAfterMs": 8000,
+              "source": "generated"
+            },
+            {
+              "id": "speech-a5a4d5e3-1a04-4aa6-a232-0da351e0f861-3",
+              "type": "speech",
+              "text": "现在全班一起复述：熔化 → 吸热。",
+              "attention": {
+                "type": "highlight",
+                "objectIds": [
+                  "b74ed084-b556-4e1e-94b4-2308ccce88a6"
+                ]
+              },
+              "pauseAfterMs": 4000,
+              "source": "generated"
+            }
+          ]
+        }
+      ],
+      "passed": false,
+      "assertion": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ '同学们看，固态的冰变成液态的水，这个过程叫熔化。'\n- '冰化成水叫熔化，这时需要从周围获得热量。'\n"
+    }
+  },
+  "statistics": {
+    "completedRealCallsIncludingUnsuccessfulAttempts": 57,
+    "completedReviews": 26,
+    "reviewLatencyMs": {
+      "minimum": 3446,
+      "median": 15968,
+      "maximum": 83625
+    },
+    "reportedTotalTokens": 213859,
+    "costStatus": "unknown",
+    "qualification": "Completed-call counts omit provider requests failing before a response; tokens are reported usage, not a monetary bill."
+  }
+}

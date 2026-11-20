@@ -1,0 +1,7 @@
+{
+  "codes": [
+    "PPTX_NOTES_MASTER_UNVERIFIED"
+  ],
+  "decision": "accepted",
+  "reason": "Test fixture has simple per-page notes; body content, approved script and effects are checked separately. No notes-master layout fidelity is claimed."
+}

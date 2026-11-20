@@ -1,0 +1,6 @@
+{
+  "ownedValidationProcessesStopped": true,
+  "primaryCredentialMatchesLatestIsolatedCredential": true,
+  "isolatedSessionTokenRemoved": true,
+  "primarySessionTokenPreserved": true
+}

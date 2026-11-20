@@ -1,0 +1,175 @@
+{
+  "sessionId": "529af24c-9721-4dd1-aafd-b5a587518351",
+  "toolErrors": [
+    {
+      "tool": "courseware_requirements_update",
+      "error": "{'content': [{'text': 'Tool courseware_requirements_update not found', 'type': 'text'}], 'details': {}}"
+    },
+    {
+      "tool": "plugin_pi_browser_Browser",
+      "error": "{'content': [{'text': '{\\n  \"error\": \"Node does not have a layout object\"\\n}', 'type': 'text'}], 'details': {'error': 'Node does not have a layout object'}, 'isError': True}"
+    },
+    {
+      "tool": "courseware_presentation_adopt",
+      "error": "{'content': [{'text': 'COURSEWARE_WORKFLOW_REJECTED: {\"error\":\"Source adoption file is missing or redirected\"}', 'type': 'text'}], 'details': {}}"
+    },
+    {
+      "tool": "courseware_presentation_adopt",
+      "error": "{'content': [{'text': 'Validation failed for tool \"courseware_presentation_adopt\":\\n  - path: must have required properties path, sourceSha256\\n  - objective: schema is false\\n  - pageType: schema is false\\n  - phase: schema is false\\n  - requiredEffects: schema is false\\n  - requiredObjects: schema is false\\n  - root: must not have additional properties\\n  - pages.2.teaching: must have required properties teaching\\n\\nReceived arguments:\\n{\\n  \"continueTeaching\": true,\\n  \"pages\": [\\n    {\\n      \"pageNumber\": 1,\\n      \"teaching\": {\\n        \"durationSeconds\": 33,\\n        \"objective\": \"在一个平均分成4份的长方形中认识涂色1份用四分之一表示，并会读写1/4\",\\n        \"pageType\": \"slide\",\\n        \"phase\": \"explore\",\\n        \"requiredEffects\": [\\n          \"animation\",\\n          \"highlight\",\\n          \"spotlight\"\\n        ],\\n        \"requiredObjects\": [\\n          \"平均分成4份的长方形示意图\",\\n          \"1份涂色区域\",\\n          \"分数符号1/4\",\\n          \"文字说明：平均分成4份，取其中1份\"\\n        ]\\n      }\\n    },\\n    {\\n      \"pageNumber\": 2,\\n      \"teaching\": {\\n        \"durationSeconds\": 30,\\n        \"objective\": \"认识涂色3份用3/4表示，并说明分母4与分子3的含义\",\\n        \"pageType\": \"slide\",\\n        \"phase\": \"explore\",\\n        \"requiredEffects\": [\\n          \"animation\",\\n          \"highlight\",\\n          \"spotlight\"\\n        ],\\n        \"requiredObjects\": [\\n          \"同样大小的平均分成4份长方形示意图\",\\n          \"3份涂色区域\",\\n          \"分数符号3/4\",\\n          \"分母4说明文字\",\\n          \"分子3说明文字\"\\n        ]\\n      }\\n    },\\n    {\\n      \"pageNumber\": 3,\\n      \"quiz\": {\\n        \"questions\": [\\n          {\\n            \"analysis\": \"长方形平均分成4份，分母就是4；涂色的3份，分子就是3，所以用3/4表示。1/4表示涂色1份，4/3的分子比分母大，不对应这里涂色的份数。\",\\n            \"answer\": [\\n              \"B\"\\n            ],\\n            \"id\": \"Q1\",\\n            \"keyPoints\": [\\n              \"分母4表示平均分成4份\",\\n              \"分子3表示涂色的3份\"\\n            ],\\n            \"options\": [\\n              {\\n                \"label\": \"1/4\",\\n                \"value\": \"A\"\\n              },\\n              {\\n                \"label\": \"3/4\",\\n                \"value\": \"B\"\\n              },\\n              {\\n                \"label\": \"4/3\",\\n                \"value\": \"C\"\\n              }\\n            ],\\n            \"question\": \"把一个长方形平均分成4份，涂色3份，用哪个分数表示？\",\\n            \"referenceAnswer\": \"3/4\",\\n            \"type\": \"single\"\\n          }\\n        ]\\n      },\\n      \"type\": \"quiz\"\\n    },\\n    \"teaching\"\\n  ],\\n  \"objective\": \"在选择题中判断平均分成4份涂色3份对应的分数\",\\n  \"pageType\": \"quiz\",\\n  \"phase\": \"practice\",\\n  \"requiredEffects\": [],\\n  \"requiredObjects\":"
+    },
+    {
+      "tool": "courseware_presentation_adopt",
+      "error": "{'content': [{'text': 'Validation failed for tool \"courseware_presentation_adopt\":\\n  - objective: schema is false\\n  - pageType: schema is false\\n  - phase: schema is false\\n  - requiredEffects: schema is false\\n  - requiredObjects: schema is false\\n  - root: must not have additional properties\\n  - pages.2.teaching: must have required properties teaching\\n  - pages.2.quiz: schema is false\\n\\nReceived arguments:\\n{\\n  \"continueTeaching\": true,\\n  \"path\": \"exports/fractions-meaning-g3_20261118_145102.pptx\",\\n  \"sourceSha256\": \"157e6e269f7c9e89d8d3fe0e1c4eb4a528fee66f1640593b9cd631799d8a0fe1\",\\n  \"pages\": [\\n    {\\n      \"pageNumber\": 1,\\n      \"teaching\": {\\n        \"durationSeconds\": 33,\\n        \"objective\": \"在一个平均分成4份的长方形中认识涂色1份用四分之一表示，并会读写1/4\",\\n        \"pageType\": \"slide\",\\n        \"phase\": \"explore\",\\n        \"requiredEffects\": [\\n          \"animation\",\\n          \"highlight\",\\n          \"spotlight\"\\n        ],\\n        \"requiredObjects\": [\\n          \"平均分成4份的长方形示意图\",\\n          \"1份涂色区域\",\\n          \"分数符号1/4\",\\n          \"文字说明：平均分成4份，取其中1份\"\\n        ]\\n      }\\n    },\\n    {\\n      \"pageNumber\": 2,\\n      \"teaching\": {\\n        \"durationSeconds\": 30,\\n        \"objective\": \"认识涂色3份用3/4表示，并说明分母4与分子3的含义\",\\n        \"pageType\": \"slide\",\\n        \"phase\": \"explore\",\\n        \"requiredEffects\": [\\n          \"animation\",\\n          \"highlight\",\\n          \"spotlight\"\\n        ],\\n        \"requiredObjects\": [\\n          \"同样大小的平均分成4份长方形示意图\",\\n          \"3份涂色区域\",\\n          \"分数符号3/4\",\\n          \"分母4说明文字\",\\n          \"分子3说明文字\"\\n        ]\\n      }\\n    },\\n    {\\n      \"pageNumber\": 3,\\n      \"quiz\": {\\n        \"questions\": [\\n          {\\n            \"analysis\": \"长方形平均分成4份，分母就是4；涂色的3份，分子就是3，所以用3/4表示。1/4表示涂色1份，4/3的分子比分母大，不对应这里涂色的份数。\",\\n            \"answer\": [\\n              \"B\"\\n            ],\\n            \"id\": \"Q1\",\\n            \"keyPoints\": [\\n              \"分母4表示平均分成4份\",\\n              \"分子3表示涂色的3份\"\\n            ],\\n            \"options\": [\\n              {\\n                \"label\": \"1/4\",\\n                \"value\": \"A\"\\n              },\\n              {\\n                \"label\": \"3/4\",\\n                \"value\": \"B\"\\n              },\\n              {\\n                \"label\": \"4/3\",\\n                \"value\": \"C\"\\n              }\\n            ],\\n            \"question\": \"把一个长方形平均分成4份，涂色3份，用哪个分数表示？\",\\n            \"referenceAnswer\": \"3/4\",\\n            \"type\": \"single\"\\n          }\\n        ]\\n      },\\n      \"type\": \"quiz\"\\n    },\\n    \"teaching\"\\n  ],\\n  \"object"
+    },
+    {
+      "tool": "Bash",
+      "error": "{'content': [{'text': '{\\n  \"commandShellId\": \"bash\",\\n  \"exitCode\": 1,\\n  \"stderr\": \"Traceback (most recent call last):\\\\n  File \\\\\"<stdin>\\\\\", line 9, in <module>\\\\n  File \\\\\"<stdin>\\\\\", line 9, in <genexpr>\\\\nTypeError: isinstance() arg 2 must be a type, a tuple of types, or a union\\\\n\",\\n  \"stdout\": \"top keys: [\\'continueTeaching\\', \\'pages\\', \\'path\\', \\'sourceSha256\\']\\\\npages: 4\\\\n1 [\\'pageNumber\\', \\'teaching\\'] teaching? True slide 34\\\\n2 [\\'pageNumber\\', \\'teaching\\'] teaching? True slide 32\\\\n3 [\\'pageNumber\\', \\'quiz\\', \\'teaching\\'] teaching? True quiz 25\\\\n4 [\\'pageNumber\\', \\'teaching\\'] teaching? True interactive 25\\\\n\",\\n  \"truncated\": false\\n}', 'type': 'text'}], 'details': {'commandShellId': 'bash', 'exitCode': 1, 'stderr': 'Traceback (most recent call last):\\n  File \"<stdin>\", line 9, in <module>\\n  File \"<stdin>\", line 9, in <genexpr>\\nTypeError: isinstance() arg 2 must be a type, a tuple of types, or a union\\n', 'stdout': \"top keys: ['continueTeaching', 'pages', 'path', 'sourceSha256']\\npages: 4\\n1 ['pageNumber', 'teaching'] teaching? True slide 34\\n2 ['pageNumber', 'teaching'] teaching? True slide 32\\n3 ['pageNumber', 'quiz', 'teaching'] teaching? True quiz 25\\n4 ['pageNumber', 'teaching'] teaching? True interactive 25\\n\", 'truncated': False}, 'isError': True}"
+    },
+    {
+      "tool": "courseware_presentation_adopt",
+      "error": "{'content': [{'text': 'COURSEWARE_WORKFLOW_REJECTED: {\"error\":\"Adoption differs from presentation-plan.json; preserve the saved assessment plan\"}', 'type': 'text'}], 'details': {}}"
+    },
+    {
+      "tool": "courseware_presentation_adopt",
+      "error": "{'content': [{'text': 'COURSEWARE_WORKFLOW_REJECTED: {\"error\":\"COURSEWARE_CONFLICT: presentation planning, narration or SVG changed after validation/export\"}', 'type': 'text'}], 'details': {}}"
+    },
+    {
+      "tool": "courseware_narration_context",
+      "error": "{'content': [{'text': 'COURSEWARE_WORKFLOW_REJECTED: {\"error\":\"Import or generate a PPTX in this Chat first\"}', 'type': 'text'}], 'details': {}}"
+    },
+    {
+      "tool": "courseware_presentation_adopt",
+      "error": "{'content': [{'text': 'COURSEWARE_WORKFLOW_REJECTED: {\"error\":\"COURSEWARE_CONFLICT: presentation planning, narration or SVG changed after validation/export\"}', 'type': 'text'}], 'details': {}}"
+    },
+    {
+      "tool": "courseware_presentation_adopt",
+      "error": "{'content': [{'text': 'COURSEWARE_WORKFLOW_REJECTED: {\"error\":\"COURSEWARE_CONFLICT: presentation planning, narration or SVG changed after validation/export\"}', 'type': 'text'}], 'details': {}}"
+    },
+    {
+      "tool": "courseware_presentation_adopt",
+      "error": "{'content': [{'text': 'COURSEWARE_WORKFLOW_REJECTED: {\"error\":\"COURSEWARE_CONFLICT: presentation planning, narration or SVG changed after validation/export\"}', 'type': 'text'}], 'details': {}}"
+    },
+    {
+      "tool": "courseware_media_context",
+      "error": "{'content': [{'text': 'The courseware workflow has reached its final reporting pass; this attempted tool performed no work. This reporting restriction does not undo saved assets or imply unfinished generation. Report the latest saved acceptance below; do not infer missing media from this blocked call or request a new user message for already completed work.\\nThe authorized courseware request is unfinished: the previous continuation made no saved progress. End automatic continuation and report the actual blockers once. Preserve original jobs and paid assets; never claim completion.\\n{\"assessmentMedia\":{\"configurableQuizSceneIds\":[\"page-3\"],\"excludedTargets\":[],\"expectedRevision\":\"revision-34c60829aebc65d744b5c492fadf841215e0ce41\",\"expectedSourceRevision\":\"revision-34c60829aebc65d744b5c492fadf841215e0ce41\",\"projectId\":\"native-cdf71bd61c04aa28910460a4c18eefaa5c3a06e7\",\"ready\":false,\"targets\":[{\"actionId\":\"page-3-speech\",\"kind\":\"tts\",\"sceneId\":\"page-3\"},{\"kind\":\"image\",\"optionValue\":\"A\",\"questionId\":\"Q1\",\"sceneId\":\"page-3\"},{\"kind\":\"image\",\"optionValue\":\"B\",\"questionId\":\"Q1\",\"sceneId\":\"page-3\"},{\"kind\":\"image\",\"optionValue\":\"C\",\"questionId\":\"Q1\",\"sceneId\":\"page-3\"},{\"actionId\":\"page-4-speech\",\"kind\":\"tts\",\"sceneId\":\"page-4\"}]},\"audioReady\":false,\"contentReviewAvailable\":true,\"educationContext\":{\"bodyPageLimit\":2,\"grade\":\"三年级\",\"lessonType\":\"概念新授\",\"schoolStage\":\"primary\",\"subject\":\"math\",\"visualStyle\":\"小学中年级数学教材图解，白底蓝绿，清晰单位方格，原生可编辑文字图形\"},\"enrichment\":{\"issues\":[],\"ready\":true},\"jobs\":[],\"materials\":{\"sources\":[]},\"narrationReady\":false,\"nativeTeaching\":true,\"pageCount\":4,\"projectId\":\"native-cdf71bd61c04aa28910460a4c18eefaa5c3a06e7\",\"requiredObjectBindings\":[{\"pageId\":\"page-1\",\"pageNumber\":1,\"requirements\":[{\"components\":[{\"description\":\"平均分成4份的长方形示意图\",\"objectIds\":[]}],\"objectIds\":[],\"requirement\":\"平均分成4份的长方形示意图\",\"resolved\":false},{\"components\":[{\"description\":\"1份涂色区域\",\"objectIds\":[]}],\"objectIds\":[],\"requirement\":\"1份涂色区域\",\"resolved\":false},{\"components\":[{\"description\":\"分数符号1/4\",\"objectIds\":[]}],\"objectIds\":[],\"requirement\":\"分数符号1/4\",\"resolved\":false},{\"components\":[{\"description\":\"文字说明：平均分成4份，取其中1份\",\"objectIds\":[]}],\"objectIds\":[],\"requirement\":\"文字说明：平均分成4份，取其中1份\",\"resolved\":false}]},{\"pageId\":\"page-2\",\"pageNumber\":2,\"requirements\":[{\"components\":[{\"description\":\"同样大小的平均分成4份长方形示意图\",\"objectIds\":[]}],\"objectIds\":[],\"requirement\":\"同样大小的平均分成4份长方形示意图\",\"resolved\":false},{\"components\":[{\"description\":\"3份涂色区域\",\"objectIds\":[]}],\"objectIds\":[],\"requirement\":\"3份涂色区域\",\"res"
+    }
+  ],
+  "narration": [
+    {
+      "args": {
+        "pageNumbers": [
+          1,
+          2
+        ],
+        "sourceSha256": "adc20ca34c284bd23ee1812006d988cd3a99edc848c4028d91c0e4b031da85a5"
+      },
+      "result": {
+        "applied": false,
+        "diagnostics": [
+          {
+            "message": "Repairing invalid visual observation once: Error: Invalid scene visual object evidence: required fields are summary, objects, issues (use issues:[] when none); received fields summary, objects, issues. Summary must be 1-4000 characters. Expected 38 objects, received 33",
+            "pageNumber": 1
+          },
+          {
+            "message": "Repairing invalid narration (1/2): PageCandidateError: Attention targets failed semantic review: [{\"blockIndex\":0,\"kind\":\"binding\",\"message\":\"该讲解块在数“涂色的一份、两份、三份”时，spotlight 只绑定了长方形整体 object-688d04af49d535377455831b4c2d31194962f096，没有指向被数出的三个涂色格（object-e30ac439af20b3867424e23921b8aea741a3c518、object-32dd453296a5dc197398827fe63739a0595f493d、object-9fe93a7df1f7670a9ffea9a5784220aace4d5f74），导致效果未指向实际被解释的涂色对象。将本块 spotlight 的 objectIds 改为覆盖三个涂色格与空白格所对应的对象（或至少包含这三个涂色格），保留 spotlight-field 底衬作为 spotlight 的伴随绑定，不要改动讲解文字。\"}]",
+            "pageNumber": 2
+          },
+          {
+            "message": "Repairing invalid narration (1/2): PageCandidateError: Narration failed semantic review: [{\"blockIndex\":0,\"kind\":\"requirement\",\"message\":\"第1页要求聚光底衬 spotlight 绑定 spotlight-field 对象，且第1页的 animation 用于聚光底衬，但当前 spotlight 的 objectIds 只包含长方形示意图和“每一份同样大”文字，没有 spotlight-field；同时整页没有为 spotlight-field 安排淡入。请将 spotlight 绑定到 spotlight-field，并让聚光底衬随第1块讲解淡入（不要把 spotlight 当作普通高亮来绑定示意图文字）。\"},{\"blockIndex\":1,\"kind\":\"binding\",\"message\":\"第1页要求 highlight 绑定 fraction-symbol 与 meaning-lines 的关键文字，本块高亮分数符号是符合的，但同时高亮了涂色区域；而涂色1份应由“高亮涂色1份”的讲解环节单独强调。请将 object-8ff25683174325740a58aab770eeab18967353f8 从本块的 highlight 中移出，只保留分数符号，或把它放到单独块并确保不挤压 fraction-symbol/meaning-lines 的既定高亮。\"},{\"blockIndex\":1,\"kind\":\"content\",\"message\":\"讲解说“现在涂色的只有1份，这份就是它的四分之一”，但画面中涂色的1份是左侧绿色方格，而本块 attention 同时指向 fraction-symbol；语义上“这份”和“1/4”不是同一对象，易造成指示目标混淆。请将本块表述拆分为先指涂色格再说“写作1/4、读作四分之一”，或用语义更明确的“涂色这一份写成1/4”使两个目标有清楚先后/对应关系。\"},{\"blockIndex\":2,\"kind\":\"binding\",\"message\":\"第1页要求 highlight 绑定 fraction-symbol 与 meaning-lines 的关键文字；本块只高亮了分母4说明和分子1说明，未高亮 fraction-symbol（1/4 符号本身）。请在讲解“看分数符号1/4”时把 fraction-symbol 加入本块 highlight（可与 meaning-lines 同时高亮），或将本块拆成先高亮 fraction-symbol、再高亮分母分子说明的两个块，以确保 fraction-symbol 在第1页被高亮强调。\"},{\"blockIndex\":3,\"kind\":\"content\",\"message\":\"结尾“请跟老师读一次：四分之一”只高亮“读作 四分之一”文字，但画面中没有“跟老师读”的互动提示，且该句是单次示范而非跟读指令，可能让学生等待跟读却语音只读一遍。请改为“跟老师读一次”时保证语音真的重复或留出等待，或弱化为“我们一起读：四分之一”以免形成指令与实际语音不一致。\"}]",
+            "pageNumber": 1
+          },
+          {
+            "message": "Repairing invalid narration (2/2): PageCandidateError: Narration failed semantic review: [{\"blockIndex\":0,\"kind\":\"requirement\",\"message\":\"用户要求将 spotlight 绑定到 spotlight-field（聚光底衬），但该页对象中缺少 spotlight-field，block 0 的 spotlight 因此绑定到三个涂色条，而不是聚光底衬。请仅在存在 spotlight-field 对象时把该 block 的 spotlight.objectIds 改为 [spotlight-field]；若该对象确未提供，则不要伪造 ID，改为保留对象绑定并在工程中补入 spotlight-field 后再重绑。\"},{\"blockIndex\":1,\"kind\":\"requirement\",\"message\":\"用户要求将 highlight 绑定到 fraction-symbol、meaning-denominator、meaning-numerator（分数符号与分母、分子说明），且要求 animation 用于分数符号淡入；但 block 1 的 highlight 绑定为 fraction-symbol 和 TextBox 25，遗漏了分母与分子说明，且 highlight 中混入了非必需的 TextBox 25。请把 block 1 的 highlight.objectIds 改为 [fraction-symbol, meaning-denominator, meaning-numerator]（若要保留 TextBox 25，应由单独的 animation 淡入，而非放在该关键文字 highlight 中），并按用户要求将分数符号的淡入明确绑定到 fraction-symbol。\"},{\"blockIndex\":2,\"kind\":\"content\",\"message\":\"block 2 的讲解与高亮目标不一致：它讲到“分母4表示……分子3表示……”时，高亮却仍停留在分数符号与 TextBox 25（上一 block），没有高亮 meaning-denominator 和 meaning-numerator 这两条说明文字，未能做到“高亮绑定分母、分子说明的关键文字”。请将 block 2 的 attention.type 设为 highlight，objectIds 设为 [meaning-denominator, meaning-numerator]（或用户指定的相应组/文本对象），使高亮落在正在解释的分母与分子说明上。\"}]",
+            "pageNumber": 2
+          },
+          {
+            "message": "Repairing invalid narration (2/2): PageCandidateError: Unknown or duplicate attention target",
+            "pageNumber": 1
+          },
+          {
+            "message": "Repairing invalid semantic review (1/2): SyntaxError: Narration semantic review returned invalid JSON; draft was not saved",
+            "pageNumber": 1
+          },
+          {
+            "message": "Repairing invalid semantic review (2/2): SyntaxError: Narration semantic review returned invalid JSON; draft was not saved",
+            "pageNumber": 1
+          }
+        ],
+        "failures": [
+          {
+            "code": "COURSEWARE_NARRATION_OUTPUT_INVALID",
+            "error": "SyntaxError: Narration semantic review returned invalid JSON; draft was not saved",
+            "pageNumber": 1,
+            "retriable": false
+          },
+          {
+            "code": "COURSEWARE_NARRATION_OUTPUT_INVALID",
+            "error": "Error: PageCandidateError: Narration failed semantic review: [{\"blockIndex\":0,\"kind\":\"binding\",\"message\":\"第0段用 highlight 指向整体长方形 object-688d04af49d535377455831b4c2d31194962f096，但本段要求的效果是 spotlight 绑定 spotlight-field、分数符号淡入；且将“数涂色几份、空几份”的注意力放在整个长方形而非涂色区域/式子不符合讲解目标。应把该段的 spotlight 改为绑定 spotlight-field，并把确认“同样平均分成4份”的高亮指向 fraction-symbol 周边该说明文字，或改为对涂色区域的 highlight；同时补充分数符号的 fadeIn 动画。\"},{\"blockIndex\":1,\"kind\":\"binding\",\"message\":\"第1段说“涂色三份，空着一份”却把 highlight 绑到 fraction-symbol（3/4读作四分之三），没有指向三条涂色区域，导致“数涂色三份”的讲解与所强调对象不匹配。应将 highlight 改绑三条涂色条（object-e30ac439af20b3867424e23921b8aea741a3c518、object-32dd453296a5dc197398827fe63739a0595f493d、object-9fe93a7df1f7670a9ffea9a5784220aace4d5f74）或同时覆盖它们，再把引出3/4的 spotlight/fadeIn 放到 fraction-symbol。\"},{\"blockIndex\":2,\"kind\":\"binding\",\"message\":\"第2段读“四分之三”并解释分母4和分子3，却只高亮 meaning-denominator 与 meaning-numerator，未高亮正在读的分数符号3/4。应在本段加入 fraction-symbol（object-09edc3733ad0161b6f67c516d37c665b7e10d566）的 highlight 或短暂 spotlight，使“读作四分之三”与右侧3/4符号对应，再高亮分母、分子说明。\"},{\"blockIndex\":3,\"kind\":\"requirement\",\"message\":\"整段讲解没有出现要求的效果：缺少 spotlight 绑定 spotlight-field，也没有对 fraction-symbol 的淡入动画。应在开头或由第0段补充 spotlight-field 的 spotlight 淡入、并在引出3/4时补充 fraction-symbol 的 fadeIn 动画，满足本页 animation/spotlight 要求。\"}]",
+            "pageNumber": 2,
+            "retriable": false
+          }
+        ],
+        "saved": false,
+        "savedPages": []
+      }
+    },
+    {
+      "args": {
+        "pageNumbers": [
+          1
+        ],
+        "sourceSha256": "adc20ca34c284bd23ee1812006d988cd3a99edc848c4028d91c0e4b031da85a5",
+        "speechCount": 1
+      },
+      "result": {
+        "applied": false,
+        "diagnostics": [
+          {
+            "message": "This unchanged page is blocked at COURSEWARE_NARRATION_RETRY_EXHAUSTED for the active user turn. Preserve saved peers and continue independent pages; changing instruction wording or batch size cannot reset this budget.",
+            "pageNumber": 1
+          }
+        ],
+        "failures": [
+          {
+            "code": "COURSEWARE_NARRATION_RETRY_EXHAUSTED",
+            "error": "SyntaxError: Narration semantic review returned invalid JSON; draft was not saved",
+            "pageNumber": 1,
+            "retriable": false
+          }
+        ],
+        "saved": false,
+        "savedPages": []
+      }
+    },
+    {
+      "args": {
+        "pageNumbers": [
+          2
+        ],
+        "sourceSha256": "adc20ca34c284bd23ee1812006d988cd3a99edc848c4028d91c0e4b031da85a5",
+        "speechCount": 1
+      },
+      "result": {
+        "applied": false,
+        "diagnostics": [
+          {
+            "message": "This unchanged page is blocked at COURSEWARE_NARRATION_RETRY_EXHAUSTED for the active user turn. Preserve saved peers and continue independent pages; changing instruction wording or batch size cannot reset this budget.",
+            "pageNumber": 2
+          }
+        ],
+        "failures": [
+          {
+            "code": "COURSEWARE_NARRATION_RETRY_EXHAUSTED",
+            "error": "Error: PageCandidateError: Narration failed semantic review: [{\"blockIndex\":0,\"kind\":\"binding\",\"message\":\"第0段用 highlight 指向整体长方形 object-688d04af49d535377455831b4c2d31194962f096，但本段要求的效果是 spotlight 绑定 spotlight-field、分数符号淡入；且将“数涂色几份、空几份”的注意力放在整个长方形而非涂色区域/式子不符合讲解目标。应把该段的 spotlight 改为绑定 spotlight-field，并把确认“同样平均分成4份”的高亮指向 fraction-symbol 周边该说明文字，或改为对涂色区域的 highlight；同时补充分数符号的 fadeIn 动画。\"},{\"blockIndex\":1,\"kind\":\"binding\",\"message\":\"第1段说“涂色三份，空着一份”却把 highlight 绑到 fraction-symbol（3/4读作四分之三），没有指向三条涂色区域，导致“数涂色三份”的讲解与所强调对象不匹配。应将 highlight 改绑三条涂色条（object-e30ac439af20b3867424e23921b8aea741a3c518、object-32dd453296a5dc197398827fe63739a0595f493d、object-9fe93a7df1f7670a9ffea9a5784220aace4d5f74）或同时覆盖它们，再把引出3/4的 spotlight/fadeIn 放到 fraction-symbol。\"},{\"blockIndex\":2,\"kind\":\"binding\",\"message\":\"第2段读“四分之三”并解释分母4和分子3，却只高亮 meaning-denominator 与 meaning-numerator，未高亮正在读的分数符号3/4。应在本段加入 fraction-symbol（object-09edc3733ad0161b6f67c516d37c665b7e10d566）的 highlight 或短暂 spotlight，使“读作四分之三”与右侧3/4符号对应，再高亮分母、分子说明。\"},{\"blockIndex\":3,\"kind\":\"requirement\",\"message\":\"整段讲解没有出现要求的效果：缺少 spotlight 绑定 spotlight-field，也没有对 fraction-symbol 的淡入动画。应在开头或由第0段补充 spotlight-field 的 spotlight 淡入、并在引出3/4时补充 fraction-symbol 的 fadeIn 动画，满足本页 animation/spotlight 要求。\"}]",
+            "pageNumber": 2,
+            "retriable": false
+          }
+        ],
+        "saved": false,
+        "savedPages": []
+      }
+    }
+  ],
+  "contentReviews": [],
+  "mediaActions": []
+}

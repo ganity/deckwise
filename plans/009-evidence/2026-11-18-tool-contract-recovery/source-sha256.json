@@ -1,0 +1,16 @@
+{
+  "packages/shared/src/courseware-workflow.ts": "0a74b84d2ef77ee14e7c51dffd07991f6ead1898ecc2d882b000f5653871d166",
+  "packages/agent-runtime/src/courseware-workflow-tools.ts": "0a93a87c603776e9205a4225ebe4b6539e588bea5034734e167166e35ee5b2ba",
+  "packages/agent-runtime/src/courseware-workflow-recovery.ts": "584877e6d86f847f4a27fb2b2c4893498ad15682a394b5b701983287b1d26455",
+  "packages/agent-runtime/src/courseware-turn-continuation.ts": "cbfe82aebd54c2e6855e0fffac97c71707b60a6df23cd77405eb03d122be7b51",
+  "packages/agent-runtime/src/agent-errors.ts": "4042f27466b285ccabfdf34f1d2204e152f6480b6d51f91800661d099b57af57",
+  "packages/agent-runtime/src/runtime.ts": "6350ea9710cbde417677807c2a182361bed89d4ed7bac41e3aba57ee9f5cbe69",
+  "apps/desktop/electron/main/courseware-chat-workflow.ts": "5badfec66c0b3a724293ca9db0c1d2c65e3602309ed45d98b1777510c8a5cfd4",
+  "apps/desktop/electron/main/courseware-scene-images.ts": "5f5dc7058b8c973fc6ba754c616b2227fb3b046bab39fc1de1e775a360af849f",
+  "apps/desktop/electron/main/courseware-native-tools.ts": "e89d6d5b8f04a8cdc8458df42016bfdef1047e131be1cf0bd847d566b144fda6",
+  "apps/desktop/electron/main/courseware-assessment-media.ts": "cfca3589a638010da2c56ed7e675455a3dc2a3620bbcd4afbb71f86b82fe38fa",
+  "apps/desktop/electron/main/builtin-skills.ts": "71abe376f81046fe9bbd38fd06cabee475e3a2f9db3ee684350c40d1c532b010",
+  "apps/desktop/electron/main/ipc/agent-ipc.ts": "10c97b738b1fdf3d92ea41e262f3177a06b17b89b67835d3c4aff5fcb1402b33",
+  "apps/desktop/resources/skills/scene-courseware/SKILL.md": "37e17875c26b460de068d92e2dbf7f49eef04d6eaa533a868115aadf709a45b7",
+  "apps/desktop/resources/skills/ppt-edit/SKILL.md": "764ed492a1b688b184bc8f730cfe01547d11d083c7a05cda12c201c529777a36"
+}

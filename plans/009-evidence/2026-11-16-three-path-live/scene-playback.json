@@ -1,0 +1,14 @@
+{
+  "buildId": "bab9bc92130132dd747d19245498dc831787f5cd5834bee0646048396a27fa8c",
+  "pages": 4,
+  "naturallyEndedSpeech": 17,
+  "effects": {
+    "highlight": true,
+    "spotlight": true,
+    "animation": true
+  },
+  "quizAnswersChecked": 1,
+  "wrongAnswersChecked": 1,
+  "teacherActivities": 1,
+  "errors": []
+}

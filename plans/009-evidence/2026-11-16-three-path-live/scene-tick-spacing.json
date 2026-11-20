@@ -1,0 +1,22 @@
+{
+  "image": "scene-001-visual-master.png",
+  "approximateTickCentersX": [
+    101.5,
+    279.5,
+    449.0,
+    614.0,
+    770.5,
+    935.5,
+    1080.5
+  ],
+  "intervalsPixels": [
+    178.0,
+    169.5,
+    165.0,
+    156.5,
+    165.0,
+    145.0
+  ],
+  "method": "Focused top-tick pixel scan; A is manually localized at the center of the red point. Approximate image-specific measurement, not general semantic validation.",
+  "result": "FAIL: required equal spacing is not met."
+}

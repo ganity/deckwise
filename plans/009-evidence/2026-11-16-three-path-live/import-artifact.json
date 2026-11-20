@@ -1,0 +1,68 @@
+{
+  "teachingCarriers": [
+    "customXml/item5.xml"
+  ],
+  "verifiedEmbeddedAudio": [
+    {
+      "id": "tts-f68514dea9a58f097c47bce681166f1ec16707e4a3f26821964650b19cf151cd",
+      "sha256": "f68514dea9a58f097c47bce681166f1ec16707e4a3f26821964650b19cf151cd",
+      "bytes": 80301
+    },
+    {
+      "id": "tts-d9f5e938b1c7e007feca217c4c5183157041acb70790ccc82c52d48b3a1581e8",
+      "sha256": "d9f5e938b1c7e007feca217c4c5183157041acb70790ccc82c52d48b3a1581e8",
+      "bytes": 57837
+    },
+    {
+      "id": "tts-249b95daf50ba55b765925412fdbbd008380d7146ebf29f1c674ba7e380e9fdd",
+      "sha256": "249b95daf50ba55b765925412fdbbd008380d7146ebf29f1c674ba7e380e9fdd",
+      "bytes": 107757
+    },
+    {
+      "id": "tts-3bc85bde9b9812dbd894bd78786607e21a3766a322f6f8b7c6c5944143a58d8c",
+      "sha256": "3bc85bde9b9812dbd894bd78786607e21a3766a322f6f8b7c6c5944143a58d8c",
+      "bytes": 111213
+    }
+  ],
+  "sha256": "a325b04408c4c2553a843b59474c5c9cc87f77fbbc21a1ee272a53510cbfe55b",
+  "physicalPages": 4,
+  "withinFivePages": true,
+  "pages": [
+    {
+      "part": "ppt/slides/slide1.xml",
+      "text": [
+        "说明文的三种说明顺序",
+        "时间顺序：按时间先后介绍变化或过程。",
+        "空间顺序：按位置转移介绍事物。",
+        "逻辑顺序：按事理关系，如由现象到本质。"
+      ]
+    },
+    {
+      "part": "ppt/slides/slide2.xml",
+      "text": [
+        "Quiz · 按春、夏、秋介绍庄稼生长采用什么顺序（第一原页后单选Quiz）",
+        "按春、夏、秋介绍庄稼生长，采用什么顺序？",
+        "A  时间顺序",
+        "B  空间顺序",
+        "C  逻辑顺序",
+        "请选择最合适的答案"
+      ]
+    },
+    {
+      "part": "ppt/slides/slide3.xml",
+      "text": [
+        "判断顺序，要看内容如何展开",
+        "例句一：春天播种，夏天生长，秋天收获。",
+        "例句二：走进展厅，左侧是模型，右侧是照片。",
+        "判断：例句一是时间顺序；例句二是空间顺序。"
+      ]
+    },
+    {
+      "part": "ppt/slides/slide4.xml",
+      "text": [
+        "按“走进教室，先介绍左边再介绍右边”介绍教室，属于什么说明顺序？为什么？"
+      ]
+    }
+  ],
+  "carrierNames": []
+}

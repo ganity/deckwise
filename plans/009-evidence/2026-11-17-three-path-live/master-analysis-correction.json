@@ -1,0 +1,7 @@
+{
+  "previous": "长方形面积＝长×宽＝6×2＝12。面积表示面的大小，要用面积单位，所以是12平方厘米。8平方厘米少算了宽，12厘米用的是长度单位。",
+  "next": "长方形面积＝长×宽＝6×2＝12。面积表示面的大小，要用面积单位，所以是12平方厘米。8平方厘米是把长和宽相加，面积应当用长乘宽，12厘米用的是长度单位。",
+  "sourceSha256": "a0dc71af6689d7820564520a69c25c979438fd908829c76d3ca23365ee39e59d",
+  "revision": "c24823cd-f291-4d72-9a34-f1986899323d",
+  "method": "existing classroom write IPC with current source/revision fences"
+}
