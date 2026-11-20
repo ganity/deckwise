@@ -301,10 +301,9 @@ TTS and generated teaching results need no per-page approval. Status reads do
 not start generation. Source, account, lock and Stop fences remain enforced.
 
 Narration uses current mapped scene roles/names/aliases together with actual
-page evidence. The shared attention intent accepts optional `animation:fadeIn`,
-`pulse`, `zoomIn`, `slideInLeft`, `slideInRight` or `gentleRotate`.
-TTS adoption resolves finite motion and focus using decoded duration,
-with entrance before focus. The editor supports the fixed player's bounded
+page evidence. 可选的原生动作包括 fadeIn、fadeOut、pulse、zoomIn、slideInLeft、slideInRight 和 gentleRotate。
+入场后再聚焦。临时提示在对应讲解播放结束时开始淡出，时间取自已解码的配音。
+原生动画的对象、预设、开始时间和时长都要与讲解匹配。修改或删除系统写入的动画时，保留独立的原生动画和已有配音。 The editor supports the fixed player's bounded
 fadeIn/fadeOut/pulse/zoomIn/slideInLeft/slideInRight/gentleRotate cues, at most five
 seconds and one motion per target within a speech. Later speech may emphasize
 the same visible target again; repeated

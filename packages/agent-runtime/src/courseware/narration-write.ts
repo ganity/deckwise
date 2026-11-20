@@ -13,7 +13,7 @@ const requiredBlock = z.discriminatedUnion("type", [
   z.object({ type: z.literal("music"), title: z.string().trim().min(1).max(100), prompt: z.string().trim().min(1).max(4000) }).strict(),
   z.object({ type: z.literal("video"), prompt: z.string().trim().min(1).max(4000), durationSeconds: z.number().int().min(4).max(30).optional() }).strict(),
 ]);
-const focusDelta = z.object({ focuses: z.array(z.object({ speechId: z.string().min(1), cueId: z.string().min(1).max(200).optional(), type: z.enum(["highlight", "spotlight"]), objectIds: z.array(z.string().min(1).max(200)).min(1).max(COURSEWARE_ATTENTION_TARGET_LIMIT), animation: z.enum(["fadeIn", "pulse", "zoomIn", "slideInLeft", "slideInRight", "gentleRotate"]).optional() }).strict()).max(100) }).strict();
+const focusDelta = z.object({ focuses: z.array(z.object({ speechId: z.string().min(1), cueId: z.string().min(1).max(200).optional(), type: z.enum(["highlight", "spotlight"]), objectIds: z.array(z.string().min(1).max(200)).min(1).max(COURSEWARE_ATTENTION_TARGET_LIMIT), animation: z.enum(["fadeIn", "fadeOut", "pulse", "zoomIn", "slideInLeft", "slideInRight", "gentleRotate"]).optional() }).strict()).max(100) }).strict();
 const requiredDelta = z.object({ insertions: z.array(z.object({ afterSpeechId: z.string().min(1).max(128), block: requiredBlock }).strict()).max(3) }).strict();
 
 function requirementAction(block: z.infer<typeof requiredBlock>, id: string, pageId: string, title: string): TeachingWrite["actions"][number] {
@@ -98,7 +98,7 @@ export async function generateNarrationWrite(input: Omit<Parameters<typeof gener
     if (input.audioDurations && input.evidence) {
       const { references, refPrefix } = narrationObjectReferences(input.evidence.objects);
       const proposed = focusDelta.parse(await input.generate({
-        system: "Repair only synchronized effects on the existing verbatim speech. Return {focuses:[{speechId,cueId?:existing cue ID,type:highlight|spotlight,objectIds:[current-page objectRef or exact supplied ID],animation?:fadeIn|pulse|zoomIn|slideInLeft|slideInRight|gentleRotate}]}. Honor the requested effects and targets in instruction and teaching.requiredEffects. Highlight text and spotlight the pictured object. Multiple focuses may use the same speechId; do not rewrite or split speech, add machine IDs to spoken words, or change unrelated cues. To correct the targets of an existing timed cue, give its cueId and complete corrected target set; its timing and style are retained. Omit animation for a target-only edit. Supply one replacement per cue. Use a single multi-target spotlight for simultaneous objects. An object may enter only once per page; use pulse for later emphasis. Use only supplied verified teaching objects; omit uncertain/background targets. For a first entrance use the requested fadeIn, not pulse. If effects already satisfy the request return an empty focuses array.",
+        system: "Repair only synchronized effects on the existing verbatim speech. Return {focuses:[{speechId,cueId?:existing cue ID,type:highlight|spotlight,objectIds:[current-page objectRef or exact supplied ID],animation?:fadeIn|fadeOut|pulse|zoomIn|slideInLeft|slideInRight|gentleRotate}]}. Honor the requested effects and targets in instruction and teaching.requiredEffects. Highlight text and spotlight the pictured object. Multiple focuses may use the same speechId; do not rewrite or split speech, add machine IDs to spoken words, or change unrelated cues. To correct the targets of an existing timed cue, give its cueId and complete corrected target set; its timing and style are retained. Omit animation for a target-only edit. Supply one replacement per cue. Use a single multi-target spotlight for simultaneous objects. An object may enter only once per page; use pulse for later emphasis. Use only supplied verified teaching objects; omit uncertain/background targets. Follow the requested preset and teaching moment. Use fadeOut for a temporary object that leaves at the end of the speech. If effects already satisfy the request return an empty focuses array.",
         data: JSON.stringify({ instruction: input.instruction, teaching, objects: input.evidence.objects.map((o,i) => ({ ...o, objectRef: refPrefix + (i+1) })), speeches: page.actions.filter(a => a.type === "speech") }), schema: focusDelta,
       }, input.signal));
       for (const f of proposed.focuses) f.objectIds = f.objectIds.map(id => references.get(id) ?? id);
@@ -122,7 +122,7 @@ export async function generateNarrationWrite(input: Omit<Parameters<typeof gener
           const patch = focuses.find(f => f.cueId === c.id);
           if (patch && c.effect.type === "highlight") return [{ ...c, effect: { ...c.effect, elementIds: patch.objectIds } }];
           if (patch && c.effect.type === "spotlight") return [{ ...c, effect: { ...c.effect, elementId: patch.objectIds[0], elementIds: patch.objectIds.slice(1) } }];
-          return replaced.has(c.id) || c.effect.type === "element_animation" && animatedTargets.has(c.effect.elementId) ? [] : [c];
+          return replaced.has(c.id) || c.effect.type === "element_animation" && !c.nativeAnimation && animatedTargets.has(c.effect.elementId) ? [] : [c];
         });
         for (const [index, focus] of focuses.entries()) {
           if (new Set(focus.objectIds).size !== focus.objectIds.length || focus.objectIds.some(id => !input.evidence!.objects.some(o => o.objectId === id && !isNarrationTextContainer(o, input.evidence!.objects, String(a.text)))))
@@ -130,9 +130,11 @@ export async function generateNarrationWrite(input: Omit<Parameters<typeof gener
           if (focus.cueId) continue;
           const id = `repair-${candidateId}-${a.id}-${index}`;
           const end = Math.min(duration, 600);
-          if (focus.animation) for (const [n, objectId] of focus.objectIds.entries()) cues.push({ id: `${id}-motion-${n}`, atMs: 0, endMs: end,
-            trigger: { version: 1, kind: "start" }, effect: { type: "element_animation", elementId: objectId, effect: focus.animation } });
-          cues.push({ id, atMs: focus.animation && focus.animation !== "pulse" && focus.animation !== "gentleRotate" ? Math.min(end, duration - 1) : 0, endMs: duration,
+          const exit = focus.animation === "fadeOut";
+          const atMs = exit ? duration : 0;
+          if (focus.animation) for (const [n, objectId] of focus.objectIds.entries()) cues.push({ id: `${id}-motion-${n}`, atMs, endMs: atMs + end,
+            trigger: { version: 1, kind: exit ? "end" : "start" }, effect: { type: "element_animation", elementId: objectId, effect: focus.animation } });
+          cues.push({ id, atMs: focus.animation && !exit && focus.animation !== "pulse" && focus.animation !== "gentleRotate" ? Math.min(end, duration - 1) : 0, endMs: duration,
             effect: focus.type === "highlight" ? { type: "highlight", elementIds: focus.objectIds } : { type: "spotlight", elementId: focus.objectIds[0], elementIds: focus.objectIds.slice(1) } });
         }
         const { attention: _, ...retained } = a;
@@ -171,22 +173,39 @@ export async function generateNarrationWrite(input: Omit<Parameters<typeof gener
         missingEffects.delete(type === "element_animation" ? "animation" : type);
       }
     }
+    const objects = input.evidence?.objects ?? [];
+    let planned: z.infer<typeof focusDelta>["focuses"][number] | undefined;
+    if (missingEffects.has("animation") && objects.length) {
+      const delta = focusDelta.parse(await input.generate({ schema: focusDelta,
+        system: "Choose one synchronized native motion required by the approved teaching and instruction. Return one focus with speechId, type, current objectIds and animation. Use the existing speech verbatim. Use an entrance for a first reveal, pulse for emphasis, or fadeOut for a temporary object at the end. Keep any existing attention and use only safe identified objects. If no target is appropriate return an empty focuses array.",
+        data: JSON.stringify({ instruction: input.instruction, teaching, missingEffects: [...missingEffects], objects,
+          speeches: page.actions.filter(a => a.type === "speech" && !a.attention) }),
+      }, input.signal));
+      planned = delta.focuses[0];
+      const speech = page.actions.find(a => a.type === "speech" && !a.attention && a.id === planned?.speechId);
+      if (delta.focuses.length !== 1 || !planned?.animation || planned.cueId || !speech ||
+          new Set(planned.objectIds).size !== planned.objectIds.length ||
+          planned.objectIds.some(id => !objects.some(o => o.objectId === id && !isNarrationTextContainer(o, objects, String(speech.text)))))
+        throw new PageCandidateError("INVALID_OUTPUT", "Repair could not safely bind the required native motion to its saved speech and objects");
+    }
     const actions = page.actions.flatMap(a => {
-      const objects = input.evidence?.objects ?? [];
+      if (planned && planned.speechId === a.id) {
+        missingEffects.delete("animation");
+        missingEffects.delete(planned.type);
+        const { visualCues: _, ...speech } = a;
+        return [{ ...speech, attention: { type: planned.type, objectIds: planned.objectIds, animation: planned.animation } },
+          ...(additions.get(String(a.id)) ?? [])];
+      }
       const focus = missingEffects.has("highlight") ? "highlight" : missingEffects.has("spotlight") ? "spotlight" : undefined;
       const eligible = a.type === "speech" && a.attention === undefined &&
         (missingEffects.size > 0 || !Array.isArray(a.visualCues) || !a.visualCues.length);
       const target = eligible ? sceneSpeechTarget(String(a.text), focus === "highlight" ? objects.filter(o => !!o.text.trim()) : objects) : undefined;
       const type = focus ?? (target?.kind === "image" && !target.text.trim() ? "spotlight" : "highlight");
-      const animation = missingEffects.has("animation");
-      if (target) {
-        missingEffects.delete(type);
-        if (animation) missingEffects.delete("animation");
-      }
+      if (target) missingEffects.delete(type);
       // Host retains baseline cues and resolves the additional intent against verified audio.
       const { visualCues: _, ...withoutCues } = a;
       return [target ? { ...withoutCues,
-        attention: { type, objectIds: [target.objectId], ...(animation ? { animation: "pulse" } : {}) } } : a,
+        attention: { type, objectIds: [target.objectId] } } : a,
         ...(additions.get(String(a.id)) ?? [])];
     });
     if (missingEffects.size) throw new PageCandidateError("INVALID_OUTPUT", `Repair could not safely bind required effects: ${[...missingEffects].join(", ")}; supply unambiguous objects mentioned in the saved speech`);

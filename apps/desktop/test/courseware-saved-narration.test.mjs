@@ -50,6 +50,7 @@ async function fixture({ assessmentPageIds = [], nativeSaved = false, scene = fa
   } };
   const exports = {};
   const load = (code, exports) => new Function("require", "exports", code)(name => {
+    if (name === "./courseware-saved-animations") return { persistSavedSpeechAnimations: async saved => saved.project };
     if (name === "@pi-desktop/agent-runtime") return runtime;
     if (name === "@pi-desktop/shared") return shared;
     if (name === "./courseware-narration-visuals" && visionOutput) return { createNarrationVisuals: async () => ({

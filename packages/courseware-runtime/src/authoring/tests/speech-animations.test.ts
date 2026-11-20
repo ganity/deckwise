@@ -57,3 +57,39 @@ it('extends an empty saved main sequence and retains the speech cue offset in na
   const ir = await importPptxFromBuffer({ arrayBuffer: Uint8Array.from(result.pptx).buffer, fileName: 'motions.pptx' });
   expect(ir.pages[0].pptxAnimation?.steps[0].items[0]).toMatchObject({ startAtMs: 300, durationMs: 600 });
 });
+
+it('reconciles generated cue edits without consuming a teacher-owned native effect', async () => {
+  const input = await fixture();
+  const original = structuredClone(input.pages[0].actions[0]);
+  const actions = [original];
+  const pages = [{ ...input.pages[0], actions }];
+  const write = (source: Uint8Array) => syncSpeechAnimations({source, pages});
+  const read = async (pptx: Uint8Array) => {
+    const ir = await importPptxFromBuffer({arrayBuffer: Uint8Array.from(pptx).buffer, fileName:'saved.pptx'});
+    return ir.pages[0].pptxAnimation?.steps.flatMap(s => s.items.map(i => [i.nativePreset?.class, i.startAtMs])) ?? [];
+  };
+  const first = await write(input.source);
+  original.visualCues[0].atMs = 300; original.visualCues[0].endMs = 900;
+  const moved = await write(first.pptx);
+  expect(await read(moved.pptx)).toEqual([['entr', 300]]);
+  original.visualCues[0].effect.effect = 'fadeOut';
+  const changed = await write(moved.pptx);
+  expect(await read(changed.pptx)).toEqual([['exit', 300]]);
+  expect((await write(changed.pptx)).changedPages).toEqual([false]);
+  actions.length = 0;
+  const cleared = await write(changed.pptx);
+  expect(await read(cleared.pptx)).toEqual([]);
+  expect((await write(cleared.pptx)).changedPages).toEqual([false]);
+  const zip = await JSZip.loadAsync(first.pptx), path = 'ppt/slides/slide1.xml';
+  const generatedXml = await zip.file(path)!.async('string');
+  zip.file(path, generatedXml.replace('nodeType="clickEffect"><p:stCondLst><p:cond delay="0"', 'nodeType="clickEffect"><p:stCondLst><p:cond delay="75"'));
+  const manuallyRetimed = await write(await zip.generateAsync({type:'uint8array'}));
+  expect(await read(manuallyRetimed.pptx)).toEqual([['entr', 75]]);
+  zip.file(path, generatedXml.replace(/<!--[^]*?-->/g, ''));
+  const unowned = await zip.generateAsync({type:'uint8array'});
+  actions.push(original);
+  const mixed = await write(unowned);
+  expect(await read(mixed.pptx)).toEqual([['entr', 0], ['exit', 300]]);
+  actions.length = 0;
+  expect(await read((await write(mixed.pptx)).pptx)).toEqual([['entr', 0]]);
+});

@@ -436,7 +436,7 @@ describe("page narration source", () => {
 });
 
 
-it.each(["scene", "plain"] as const)("binds %s image aliases by teaching focus, preserves words and pauses, and repeats emphasis", async taskType => {
+it.each(["scene", "plain"] as const)("binds %s image aliases by teaching focus, preserves words and pauses without inventing repeated motion", async taskType => {
   const project: CoursewareProject = { schemaVersion: COURSEWARE_CONTRACT_VERSION, projectId: "project", taskType, title: "Friends",
     source: { revision: "R1", sha256: candidateHash("pptx") }, teachingRevision: "T1",
     pages: [{ pageId: "page", locked: false, reviewState: "review", actions: [] }] };
@@ -451,9 +451,9 @@ it.each(["scene", "plain"] as const)("binds %s image aliases by teaching focus, 
   const { write } = await generateNarrationWrite({ ...input, generate: async () => ({ blocks: [{ type: "speech", text }, { type: "wait", durationMs: 1000 }] }) });
   expect(write.actions.map(a => a.text).join("")).toBe(text);
   expect(write.actions.map(a => a.attention)).toEqual([undefined,
-    { type: "spotlight", objectIds: ["monkey"], animation: "pulse" },
-    { type: "spotlight", objectIds: ["panda"], animation: "pulse" },
-    { type: "spotlight", objectIds: ["monkey"], animation: "pulse" }]);
+    { type: "spotlight", objectIds: ["monkey"] },
+    { type: "spotlight", objectIds: ["panda"] },
+    { type: "spotlight", objectIds: ["monkey"] }]);
   expect(write.actions.at(-1)?.pauseAfterMs).toBe(1000);
   expect(write.actions.slice(0,-1).every(a => !a.pauseAfterMs)).toBe(true);
   const corrected = await generateNarrationWrite({ ...input, generate: async () => ({ blocks: [
@@ -650,10 +650,10 @@ it("adds missing highlight and animation while retaining existing spotlight and 
       { objectId: "word", kind: "text", text: "grandfather", bbox: [0,100,100,20] },
     ] }, coursePlan: { teaching: { pageType: "slide", phase: "explore", objective: "Name grandfather", durationSeconds: 30,
       requiredObjects: [], requiredEffects: ["spotlight", "highlight", "animation"] } },
-    getCurrentBaseline: async () => baseline, generate: async () => { throw new Error("Retain existing speech and paid audio"); } };
+    getCurrentBaseline: async () => baseline, generate: async () => ({ focuses: [{ speechId: "speech", type: "highlight", objectIds: ["word"], animation: "fadeIn" }] }) };
   const result = await generateNarrationWrite(input);
   const { visualCues: _, ...preserved } = speech;
-  expect(result.write.actions).toEqual([{ ...preserved, attention: { type: "highlight", objectIds: ["word"], animation: "pulse" } }]);
+  expect(result.write.actions).toEqual([{ ...preserved, attention: { type: "highlight", objectIds: ["word"], animation: "fadeIn" } }]);
   expect(project.pages[0].actions).toEqual([speech]);
   await expect(generateNarrationWrite({ ...input, evidence: { ...input.evidence, objects: [] } }))
     .rejects.toMatchObject({ code: "INVALID_OUTPUT", message: expect.stringContaining("could not safely bind") });
@@ -719,6 +719,10 @@ it("repairs all effects on one preserved speech using verified audio duration", 
   expect(edited.write.actions[0].visualCues).toEqual([motion, { ...timed, effect: {type:"spotlight",elementId:"circle",elementIds:["title"]} }, later]);
   await expect(generateNarrationWrite({ ...scoped, generate: delta() })).rejects.toThrow(/cueId/);
   expect(project.pages[0].actions).toEqual([speech]);
+  const exit = await generateNarrationWrite({ ...input, instruction: "Fade out the temporary picture when the narration finishes",
+    generate: async () => ({ focuses: [{ speechId: "original", type: "spotlight", objectIds: ["circle"], animation: "fadeOut" }] }) });
+  expect(exit.write.actions[0]).toMatchObject({ audioAssetId: speech.audioAssetId, text: speech.text,
+    visualCues: expect.arrayContaining([expect.objectContaining({ atMs: 4000, endMs: 4600, trigger: { version: 1, kind: "end" }, effect: { type: "element_animation", elementId: "circle", effect: "fadeOut" } })]) });
   await expect(generateNarrationWrite({ ...input, audioDurations: {} })).rejects.toThrow(/verified saved audio/);
 });
 it("matches a unique verified picture through its noun label without accepting another picture", () => {

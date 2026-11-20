@@ -34,7 +34,7 @@ const inputHints: Record<string, string> = {
 };
 
 const operationHints: Record<string, string> = {
-  courseware_media_context: "Read the saved media context and original job status before continuing.",
+  courseware_media_context: "The media status check failed. Read the saved media context and original job status before continuing.",
   courseware_scene_generate_remaining: "Read courseware_workflow_get and inspect the confirmed cover and original job receipts before continuing.",
   courseware_scene_image_refresh: "Read courseware_workflow_get and query the original image intent for this page. Preserve its last confirmed state.",
   courseware_media_prepare: "Read courseware_media_context for the current source hash, missing targets, models and original jobs. For missing speech use kind:tts, sourceSha256, pageNumber, actionIds and model from the saved context. Refresh pending orders first.",

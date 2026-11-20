@@ -36,9 +36,9 @@ export function hasGeneratedNativeMotions(page: SlidePageIR, actions: readonly {
       const preset = nativeMotionPreset(cue.effect.effect ?? ''), item = step.items[itemIndex];
       const imported = mapping.find(o => o.objectId === cue.effect.elementId)?.importElementId;
       const targets = page.elements.filter(e => e.id === imported && e.sourceShapeId === item?.target?.shapeId);
-      return cue.atMs === 0 && Number.isInteger(cue.endMs) && cue.endMs >= 1 && cue.endMs <= 5000 && !!preset && !!item &&
+      return Number.isInteger(cue.atMs) && cue.atMs >= 0 && Number.isInteger(cue.endMs) && cue.endMs > cue.atMs && cue.endMs - cue.atMs <= 5000 && !!preset && !!item &&
         targets.length === 1 && ['text', 'shape', 'image'].includes(targets[0].type) && !targets[0].sourceGroupShapeIds?.length &&
-        item.startAtMs === 0 && item.durationMs === cue.endMs && !item.target?.paragraphIndexes && !item.target?.characterRange &&
+        item.startAtMs === cue.atMs && item.durationMs === cue.endMs - cue.atMs && !item.target?.paragraphIndexes && !item.target?.characterRange &&
         item.nativePreset?.version === 1 && item.nativePreset.verifiedSpeechMotion === true && item.nativePreset.class === preset.ooxmlClass && item.nativePreset.id === preset.presetId &&
         (item.nativePreset.subtype ?? 0) === preset.subtype;
     });
@@ -60,7 +60,7 @@ export function detachLinkedSpeechAnimations<T extends { type: string; visualCue
       if (!preset || targets.length !== 1 || !targets[0].sourceShapeId || !Number.isInteger(duration) || duration < 1 || duration > 5000) continue;
       const mirror = page.pptxAnimation?.steps.flatMap(step => step.items).find(item => !claimed.has(item) &&
         !!item.target && item.target.shapeId === targets[0].sourceShapeId && !item.target.paragraphIndexes && !item.target.characterRange &&
-        item.startAtMs === 0 && item.durationMs === duration && item.nativePreset?.version === 1 && item.nativePreset.verifiedSpeechMotion === true &&
+        item.startAtMs === cue.atMs && item.durationMs === duration && item.nativePreset?.version === 1 && item.nativePreset.verifiedSpeechMotion === true &&
         item.nativePreset.class === preset.ooxmlClass && item.nativePreset.id === preset.presetId && (item.nativePreset.subtype ?? 0) === preset.subtype);
       if (mirror) claimed.add(mirror);
       continue;

@@ -5,6 +5,8 @@ description: Enrich an imported PPTX with missing teaching while preserving its 
 
 Keep the imported PPTX as the document source. Use the Host's import report and logical page mapping; surface unsupported content and diagnostics without claiming full fidelity. Age, grade and subject tune teaching policy and do not change this task into topic-based generation.
 
+Keep the source's native animation order and timing. Reuse a matching effect when binding a teaching cue. Add a new entrance, emphasis or exit only when the approved lesson calls for it and the saved page has an identified target.
+
 Before an Office binding exists, read `courseware_workflow_get`, collect missing requirements in the main Chat and save confirmed teaching settings before source attachment. Use the main Chat's authorized file picker for selection; an already imported source can be opened from the main Chat. Use `courseware_narration_context` to inspect the saved courseware without opening Office. Native selection edits still require a fresh editor binding. File/shell tools and local converters are not an alternative import or editing path.
 
 Respect the narration source the user already chose. When the imported-course Start request asks to fill missing narration, proceed from the saved pages and any supplied script or lesson plan without asking for a new source choice. Ask before replacing existing narration when a supplied script conflicts with it. Preserve existing page teaching locks and bind direct narration saves to the source and teaching revisions. Notes are an import source when explicitly selected, not a parallel teaching database.

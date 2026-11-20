@@ -56,13 +56,13 @@ export type CoursewareAssetLocksView = {
 export const COURSEWARE_ATTENTION_TARGET_LIMIT = 200;
 
 /** Existing fixed-player visualCues, timed only against their parent speech audio. */
-export type CoursewareAttentionIntent = { type: "highlight" | "spotlight"; objectIds: string[]; animation?: "fadeIn" | "pulse" | "zoomIn" | "slideInLeft" | "slideInRight" | "gentleRotate" };
+export type CoursewareAttentionIntent = { type: "highlight" | "spotlight"; objectIds: string[]; animation?: "fadeIn" | "fadeOut" | "pulse" | "zoomIn" | "slideInLeft" | "slideInRight" | "gentleRotate" };
 export function isCoursewareAttentionIntent(value: unknown): value is CoursewareAttentionIntent {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const intent = value as Record<string, unknown>;
   return Object.hasOwn(intent, "type") && Object.hasOwn(intent, "objectIds") &&
     Object.keys(intent).every(key => ["type", "objectIds", "animation"].includes(key)) &&
-    (intent.animation === undefined || ["fadeIn", "pulse", "zoomIn", "slideInLeft", "slideInRight", "gentleRotate"].includes(String(intent.animation))) && ["highlight", "spotlight"].includes(String(intent.type)) &&
+    (intent.animation === undefined || ["fadeIn", "fadeOut", "pulse", "zoomIn", "slideInLeft", "slideInRight", "gentleRotate"].includes(String(intent.animation))) && ["highlight", "spotlight"].includes(String(intent.type)) &&
     Array.isArray(intent.objectIds) && intent.objectIds.length > 0 && intent.objectIds.length <= COURSEWARE_ATTENTION_TARGET_LIMIT &&
     intent.objectIds.every(id => typeof id === "string" && id.length > 0 && id.length <= 200) && new Set(intent.objectIds).size === intent.objectIds.length;
 }

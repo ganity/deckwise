@@ -1,3 +1,4 @@
+import { persistSavedSpeechAnimations } from './courseware-saved-animations';
 import { assessmentPageIds, sceneTeachingForPage } from "./courseware-scene-object-view";
 import { parseSceneCoursePlan } from "./courseware-scene-plan";
 import { randomUUID } from "node:crypto";
@@ -112,7 +113,8 @@ export class CoursewareSavedNarration {
     if (input.repairRequiredTeaching !== undefined && typeof input.repairRequiredTeaching !== "boolean") throw new Error("Invalid teaching repair mode");
     if (input.repairObjectsOnly !== undefined && typeof input.repairObjectsOnly !== "boolean") throw new Error("Invalid object repair mode");
     if (input.repairObjectsOnly) throw new Error("Object-only repair requires the ready native PPTX editor; reopen the saved PPTX and retry without regenerating narration");
-    return this.withSaved(sessionId, canDispatch, async ({ frozenArtwork, host, jobId, project, bytes, check }) => {
+    return this.withSaved(sessionId, canDispatch, async saved => {
+      const { frozenArtwork, host, jobId, project, bytes, check } = saved;
       const numbers = input.pageNumbers;
       if ((propose || numbers !== undefined) && (!Array.isArray(numbers) || !numbers.length || numbers.length > 100 ||
           new Set(numbers).size !== numbers.length || numbers.some(n => !Number.isInteger(n) || n < 1 || n > project.pages.length)))
@@ -197,6 +199,13 @@ export class CoursewareSavedNarration {
       const result = await generateSavedNarrationBatch({ frozenArtwork, host, sessionId, jobId, project, bytes, selected: bodySelected, approvedPlan: currentTeachingPlan,
         instruction: input.instruction as string, speechCount: input.speechCount as number | undefined, repairRequiredTeaching: input.repairRequiredTeaching === true, model, complete: this.complete, completeVision: this.completeVision,
         current, cache: this.pageEvidenceCache, canDispatch });
+      if (result.savedPages.length) {
+        const { project: latest } = await host.call<{ project: CoursewareProject }>("courseware.project.get", { sessionId, projectId: project.projectId });
+        const updated = await persistSavedSpeechAnimations({ ...saved, project: latest }, sessionId, () => {
+          if (canDispatch && !canDispatch()) throw new Error("Courseware turn ended before native animation save");
+        });
+        return { ...result, skippedPages, sourceSha256: updated.source.sha256, teachingRevision: updated.teachingRevision };
+      }
       return { ...result, skippedPages };
     });
   }
@@ -241,7 +250,8 @@ export class CoursewareSavedNarration {
     if (!record(payload) || Object.keys(payload).sort().join(",") !== "decision,reviewId" || typeof payload.reviewId !== "string" || !["adopt", "reject"].includes(String(payload.decision))) throw new Error("Invalid saved narration decision");
     const review = this.reviews.get(payload.reviewId);
     if (!review || review.view.status !== "needs-review") throw new Error("Open the narration review again");
-    return this.withSaved(review.sessionId, undefined, async ({ host, jobId, project, check }) => {
+    return this.withSaved(review.sessionId, undefined, async saved => {
+      const { host, jobId, project, check } = saved;
       if (JSON.stringify(project) !== JSON.stringify(review.view.teaching.project)) throw new Error("Teaching changed; review the candidate again");
       if ((await this.draft({ viewId: review.view.teaching.viewId }) as { draft: unknown }).draft) throw new Error("Resolve the saved narration draft before adopting");
       await check();
@@ -249,7 +259,10 @@ export class CoursewareSavedNarration {
       const identity = { sessionId: review.sessionId, candidateId: review.view.candidateId };
       const result = payload.decision === "adopt" ? await host.call<{ project: CoursewareProject }>("courseware.narrationCandidate.adopt", { ...identity, jobId })
         : (await host.call("courseware.narrationCandidate.reject", { ...identity, projectId: project.projectId }), { project });
-      return { ...review.view.teaching, project: result.project };
+      return { ...review.view.teaching, project: payload.decision === "adopt"
+        ? await persistSavedSpeechAnimations({ ...saved, project: result.project }, review.sessionId, () => {
+          if (this.getSession() !== review.sessionId) throw new Error("Narration review changed");
+        }) : result.project };
     });
   }
 }

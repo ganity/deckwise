@@ -14,10 +14,16 @@ pub(super) fn targets(value: &Value) -> Result<Vec<String>> {
             && value.get("animation").is_none_or(|effect| matches!(
                 effect.as_str(),
                 Some(
-                    "fadeIn" | "pulse" | "zoomIn" | "slideInLeft" | "slideInRight" | "gentleRotate"
+                    "fadeIn"
+                        | "fadeOut"
+                        | "pulse"
+                        | "zoomIn"
+                        | "slideInLeft"
+                        | "slideInRight"
+                        | "gentleRotate"
                 )
             ))
-            && ids.is_some_and(|ids| (1..=8).contains(&ids.len())),
+            && ids.is_some_and(|ids| (1..=200).contains(&ids.len())),
         "COURSEWARE_INVALID: invalid speech attention"
     );
     let mut unique = std::collections::HashSet::new();
@@ -53,10 +59,16 @@ pub(super) fn cues(value: &Value, action_id: &str, duration_ms: u64) -> Result<V
     let mut cues = Vec::new();
     if let Some(effect) = value.get("animation") {
         let end = duration_ms.min(600);
+        let exit = effect == "fadeOut";
+        let at = if exit { duration_ms } else { 0 };
+        anyhow::ensure!(
+            at + end <= 3_600_000,
+            "COURSEWARE_INVALID: animation exceeds the supported timeline"
+        );
         for (index, id) in targets(value)?.iter().enumerate() {
             cues.push(
-                json!({"id":format!("motion-{action_id}-{index}"),"atMs":0,"endMs":end,
-                "trigger":{"version":1,"kind":"start"},
+                json!({"id":format!("motion-{action_id}-{index}"),"atMs":at,"endMs":at+end,
+                "trigger":{"version":1,"kind":if exit { "end" } else { "start" }},
                 "effect":{"type":"element_animation","elementId":id,"effect":effect}}),
             );
         }
@@ -199,6 +211,29 @@ mod tests {
         assert!(targets(&json!({"type":"laser","objectIds":["one"]})).is_err());
         assert!(targets(&json!({"type":"highlight","objectIds":["one","one"]})).is_err());
         assert!(cue(&intent, "speech", 0).is_err());
+        let parts: Vec<_> = (0..11).map(|i| format!("part-{i}")).collect();
+        let diagram = cues(
+            &json!({"type":"spotlight","objectIds":parts,"animation":"fadeIn"}),
+            "diagram",
+            4000,
+        )
+        .unwrap();
+        assert_eq!(diagram.len(), 12);
+        for c in diagram {
+            reviews::effects::cue_targets(&c).unwrap();
+        }
+        let over_limit: Vec<_> = (0..201).map(|i| format!("part-{i}")).collect();
+        assert!(targets(&json!({"type":"highlight","objectIds":over_limit})).is_err());
+        let exit = cues(
+            &json!({"type":"spotlight","objectIds":["one"],"animation":"fadeOut"}),
+            "speech",
+            2345,
+        )
+        .unwrap();
+        assert_eq!(exit[0]["atMs"], 2345);
+        assert_eq!(exit[0]["endMs"], 2945);
+        assert_eq!(exit[0]["trigger"], json!({"version":1,"kind":"end"}));
+        reviews::effects::cue_targets(&exit[0]).unwrap();
         for duration in [1, 100, 2345] {
             let planned = cues(
                 &json!({"type":"highlight","objectIds":["one"],"animation":"fadeIn"}),

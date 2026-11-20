@@ -50,6 +50,11 @@ test('final TTS adoption commits real native animation bytes while preserving lo
   f.saved.bytes = commit.bytes;
   await f.run();
   assert.equal(f.commits.length, 1, 'replaying completion must not create another animation or native save');
+  f.project.pages[0].actions[0].visualCues = [];
+  await f.run();
+  assert.equal(f.commits.length, 2);
+  assert.equal(await authoring.hasManagedSpeechAnimations(f.commits[1].bytes), false);
+  assert.equal(f.project.pages[0].actions[0].audioAssetId, 'archived-audio');
 });
 
 test('missing audio, locked targets, stale source and absent object bindings cannot write a PPTX', async () => {

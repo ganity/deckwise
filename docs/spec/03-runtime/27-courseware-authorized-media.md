@@ -306,9 +306,9 @@ not start generation. Source, account, lock and Stop fences remain enforced.
 
 Narration uses current mapped scene roles/names/aliases together with actual
 page evidence. The shared attention intent accepts optional `animation:fadeIn`,
-`pulse`, `zoomIn`, `slideInLeft`, `slideInRight` or `gentleRotate`.
+`fadeOut`, `pulse`, `zoomIn`, `slideInLeft`, `slideInRight` or `gentleRotate`.
 TTS adoption resolves finite motion and focus using decoded duration,
-with entrance before focus. The editor supports the fixed player's bounded
+with entrance before focus and a temporary object’s fade-out starting at the end of its speech. A saved native mirror must match the target, preset, start offset and duration. Replacing or deleting an owned mirror preserves separate native effects and recorded speech. The editor supports the fixed player's bounded
 fadeIn/fadeOut/pulse/zoomIn/slideInLeft/slideInRight/gentleRotate cues, at most five
 seconds and one motion per target within a speech. Later speech may emphasize
 the same visible target again; repeated
