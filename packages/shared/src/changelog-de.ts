@@ -2,6 +2,11 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const deEntries: ChangelogEntry[] = [
   {
+    version: "0.20.6",
+    date: "2026-11-23",
+    highlights: ["Folienanimationen folgen dem gesprochenen Text. Bei überlappenden Hervorhebungen hat der Scheinwerfer Vorrang."],
+  },
+  {
     version: "0.20.5",
     date: "2026-11-16",
     highlights: ["Text in generierten Szenenbildern wiederherstellen und genehmigte Lektionen sowie vorhandene Medien bei Wiederholungen beibehalten."],

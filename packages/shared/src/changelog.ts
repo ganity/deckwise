@@ -29,6 +29,11 @@ export type ChangelogEntry = {
 
 const enEntries: ChangelogEntry[] = [
   {
+    version: "0.20.6",
+    date: "2026-11-23",
+    highlights: ["Coordinate native slide animations with narration and give spotlights priority when focus cues overlap."],
+  },
+  {
     version: "0.20.5",
     date: "2026-11-16",
     highlights: ["Restore text inside generated Scene images while preserving approved lessons and retry assets."],
@@ -883,6 +888,11 @@ const enEntries: ChangelogEntry[] = [
 
 const zhCNEntries: ChangelogEntry[] = [
   {
+    version: "0.20.6",
+    date: "2026-11-23",
+    highlights: ["让 PPT 原生动画跟随讲解播放，聚光和高亮时间重叠时优先呈现聚光。"],
+  },
+  {
     version: "0.20.5",
     date: "2026-11-16",
     highlights: ["恢复场景课件图片内文字生成，保留已批准课件及重试素材。"],
@@ -1736,6 +1746,11 @@ const zhCNEntries: ChangelogEntry[] = [
 ];
 
 const zhTWEntries: ChangelogEntry[] = [
+  {
+    version: "0.20.6",
+    date: "2026-11-23",
+    highlights: ["讓 PPT 原生動畫跟隨講解播放，聚光和醒目提示時間重疊時優先呈現聚光。"],
+  },
   {
     version: "0.20.5",
     date: "2026-11-16",

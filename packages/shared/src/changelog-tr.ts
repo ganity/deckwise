@@ -2,6 +2,11 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const trEntries: ChangelogEntry[] = [
   {
+    version: "0.20.6",
+    date: "2026-11-23",
+    highlights: ["Slayt animasyonları anlatımla eşzamanlı oynatılır. Vurgu efektleri çakıştığında spot ışığına öncelik verilir."],
+  },
+  {
     version: "0.20.5",
     date: "2026-11-16",
     highlights: ["Sahne görsellerinin içindeki metni geri getirir; onaylanmış dersleri ve yeniden denemelerde mevcut görselleri korur."],

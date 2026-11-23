@@ -2,6 +2,11 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const esEntries: ChangelogEntry[] = [
   {
+    version: "0.20.6",
+    date: "2026-11-23",
+    highlights: ["Las animaciones de las diapositivas siguen la narración. Si coinciden dos efectos de énfasis, se da prioridad al foco."],
+  },
+  {
     version: "0.20.5",
     date: "2026-11-16",
     highlights: ["Restaura el texto dentro de las imágenes de escenas y conserva las lecciones aprobadas y los recursos al reintentar."],
