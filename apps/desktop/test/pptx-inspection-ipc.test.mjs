@@ -64,6 +64,7 @@ test("inspection IPC authenticates sender and accepts only a host-selected saved
       set(payload) { assetCalls.push(["set", payload]); return { result: "set" }; }
     } };
     if (id === "../ppt-editor-chat") return { PptEditorChatBridge: class {} };
+    if (id === "../courseware-content-review") return { ContentReviewTurns: class {} };
     if (id === "../courseware-candidates") return { CoursewareCandidateCoordinator: class {} };
     if (id === "../pptx-candidate-preview") return { PptxCandidatePreview: class { close() {} } };
     if (id === "../courseware-source-adoption") return { CoursewareSourceAdoption: class { async adopt(reviewId, _reopen, bindings) { adoptionCalls.push([reviewId, bindings]); } } };

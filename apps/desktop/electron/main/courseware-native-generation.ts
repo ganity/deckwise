@@ -35,6 +35,7 @@ export function nativePages(pages: NativeGenerationPage[]) {
         referenceAnswer: { summary: q.referenceAnswer ?? (q.type === "short_answer" ? q.answer?.join("；") : q.analysis) ?? "", keyPoints: q.keyPoints ?? [] },
         context: { chapterSummary: [title, q.commentPrompt].filter(Boolean).join("\n"), sourceSceneIds: [page.pageId] } });
     } else if (question) {
+      narration = question.text;
       actions.push({ id: `${page.pageId}-question`, type: "interaction_checkpoint", checkpointId: `${page.pageId}-checkpoint`,
         checkpointKind: "chapter_summary", chapterId: page.pageId, chapterTitle: title, question: question.text,
         response: question.response, referenceAnswer: question.referenceAnswer ?? { summary: "", keyPoints: [] },

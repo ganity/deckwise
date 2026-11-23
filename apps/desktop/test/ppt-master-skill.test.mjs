@@ -71,7 +71,9 @@ test("all three entry paths retain the saved school stage and their own approval
 test("loading the ordinary generation skill includes the current official planning references", () => {
   const root = mkdtempSync(join(tmpdir(), "ppt-master-skill-"));
   const previous = process.env.DECKWISE_PPT_MASTER_SKILL_ROOT;
+  const previousCwd = process.cwd();
   try {
+    process.chdir(root);
     for (const directory of ["scripts", "scripts/svg_editor", "workflows", "templates"]) mkdirSync(join(root, directory));
     writeFileSync(join(root, "SKILL.md"), "---\nname: ppt-master\ndescription: Fixture\n---\nOfficial entry\n");
     writeFileSync(join(root, "scripts/attribution_guard.py"), "");
@@ -127,6 +129,7 @@ test("loading the ordinary generation skill includes the current official planni
     assert(!savedPrompt.includes("Before the first export"));
     assert(!savedPrompt.includes("Official default SVG workflow"));
   } finally {
+    process.chdir(previousCwd);
     if (previous === undefined) delete process.env.DECKWISE_PPT_MASTER_SKILL_ROOT;
     else process.env.DECKWISE_PPT_MASTER_SKILL_ROOT = previous;
     rmSync(root, { recursive: true, force: true });

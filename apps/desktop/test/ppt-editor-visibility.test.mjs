@@ -90,7 +90,7 @@ test("StrictMode opens the uploaded PPT once and displays it after native readin
   await page.waitForFunction(() => window.fixture.calls.some(([name, visible]) => name === "visible" && visible));
   assert.equal(await page.evaluate(() => window.fixture.calls.some(([name, visible]) => name === "visible" && visible)), true, "a ready uploaded PPT must be displayed");
   assert.deepEqual(await page.evaluate(() => window.fixture.calls.filter(([name]) => name === "open")), [["open", "uploaded.pptx"]]);
-  assert.equal(await page.locator('[role="status"]').textContent(), "panel.pptEditor.opened");
+  assert.equal(await page.locator(".ppt-editor-save").isEnabled(), true);
   await page.evaluate(() => window.fixture.unmount());
   await page.waitForFunction(() => window.fixture.calls.some(([name]) => name === "close"));
   assert.deepEqual((await page.evaluate(() => window.fixture.calls.filter(([name]) => name === "visible"))).at(-1), ["visible", false]);
@@ -193,7 +193,7 @@ test("blocking dialogs hide Office without closing or reopening the document", a
 test("Office becoming ready behind a dialog stays hidden until the dialog closes", async t => {
   const page = await fixture(t);
   await page.evaluate(() => { window.fixture.blocked = true; window.fixture.render(); window.fixture.finish(); });
-  await page.waitForFunction(() => document.querySelector('[role="status"]')?.textContent === "panel.pptEditor.opened");
+  await page.waitForFunction(() => document.querySelector(".ppt-editor-save:enabled") !== null);
   assert.equal(await page.evaluate(() => window.fixture.calls.some(([name, visible]) => name === "visible" && visible)), false);
   await page.evaluate(() => { window.fixture.blocked = false; window.fixture.render(); });
   assert.deepEqual(await page.evaluate(() => window.fixture.calls.filter(([name]) => name === "visible").at(-1)), ["visible", true]);
