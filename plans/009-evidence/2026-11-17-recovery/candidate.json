@@ -1,0 +1,14 @@
+{
+  "files": {
+    "apps/desktop/electron/main/courseware-narration-batch.ts": "9b3bc0294c186997fd3ed5a60bba331134e0eaba21ad4e0803b96308e99fa788",
+    "apps/desktop/electron/main/courseware-content-review.ts": "a394392183b76c589da5ff5574e675527107c002041c2d257a3fa863cc581f8d",
+    "apps/desktop/electron/main/courseware-native-activities.ts": "85f5aef90c7bc1d44e8a91c4ea909eb272aca89988b68c390c3807058b3c4384",
+    "packages/agent-runtime/src/courseware/page-narration-candidate.ts": "01baf63083646a4fa1168c54a33e92b8bddb24991a900d64e9061d7cbf5f2808",
+    "packages/agent-runtime/src/courseware/narration-write.ts": "462d39bc459cf725aeed2a7ea326606cb06847db293387d2e196747d517e8337",
+    "packages/shared/src/courseware-editor.ts": "f65aab8904581c76f1cb46e2cdc246ef92df21e1d184e5d1be465f0f60c1af13",
+    "packages/courseware-runtime/src/authoring/quiz-pptx.ts": "0ee52635f76fca404e633a003382b09a816352fef5a55b35c8d86f1a4929c49e",
+    "apps/desktop/out/main/index.js": "f76b0c8721babbc17f6142a9e4ec343b9a8b18bbc9f678daedc763664e26f335"
+  },
+  "realRun": "/home/jhz/deckwise-validation/three-path-recovery-20261117",
+  "validation": "existing paid course recovery; not a fresh generation success-rate comparison"
+}

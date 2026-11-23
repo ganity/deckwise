@@ -264,7 +264,21 @@ impl Fixture {
     }
 
     async fn submit(&self, p: Value) -> Value {
-        let prepared = self.call("courseware.sceneImage.prepare", p).await.unwrap();
+        let mut prepared = self
+            .call("courseware.sceneImage.prepare", p.clone())
+            .await
+            .unwrap();
+        if p["planningRequired"] == true {
+            let mut planned = p;
+            planned["plannedPrompt"] = json!({
+                "sourceRequestHash":prepared["intent"]["requestHash"],
+                "input":prepared["intent"]["request"]["input"]
+            });
+            prepared = self
+                .call("courseware.sceneImage.prepare", planned)
+                .await
+                .unwrap();
+        }
         let mut operation = self.operation(&prepared);
         self.call("courseware.sceneImage.begin", operation.clone())
             .await
@@ -289,6 +303,13 @@ impl Fixture {
 #[tokio::test]
 async fn scene_image_generation_requires_all_current_reviewed_assets_and_rechecks_after_restart() {
     let mut f = Fixture::new().await;
+    let mut scene_plan: Value = serde_json::from_slice(&std::fs::read(f.path()).unwrap()).unwrap();
+    scene_plan["pages"][0]["teaching"] = json!({"pageType":"slide","phase":"explore","objective":"Compare moon phases","durationSeconds":60,"requiredObjects":["Moon","Arrow","Crater"]});
+    scene_plan["pages"][1]["teaching"] = json!({"pageType":"slide","phase":"explore","objective":"Name the square parts","durationSeconds":45,"requiredObjects":["Square","Label"]});
+    let bytes = serde_json::to_vec(&scene_plan).unwrap();
+    f.sha256 = hex::encode(sha2::Sha256::digest(&bytes));
+    std::fs::write(f.path(), bytes).unwrap();
+    f.approve().await;
     let mut ids = Vec::new();
     for page in ["scene-001", "scene-002"] {
         for target in [
@@ -299,6 +320,14 @@ async fn scene_image_generation_requires_all_current_reviewed_assets_and_recheck
             let mut request = f.prepare();
             request["pageId"] = json!(page);
             request["target"] = target.clone();
+            if target["kind"] == "visualMaster" {
+                request["instructions"] = json!(if page == "scene-001" {
+                    "Remove the arrow, keep the moon and crater."
+                } else {
+                    "Remove the label."
+                });
+                request["planningRequired"] = json!(true);
+            }
             let row = f.submit(request).await;
             let mut staged = f.stage(&row);
             if target["kind"] == "cleanPlate" {
@@ -318,22 +347,120 @@ async fn scene_image_generation_requires_all_current_reviewed_assets_and_recheck
             ids.push(row["intent"]["intentId"].as_str().unwrap().to_owned());
         }
     }
+    let journal = f
+        .call("courseware.sceneImage.list", f.scope())
+        .await
+        .unwrap();
+    let selected_asset_sha = |intent_id: &str| {
+        journal["intents"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|row| row["intent"]["intentId"] == intent_id)
+            .unwrap()["intent"]["asset"]["sha256"]
+            .as_str()
+            .unwrap()
+            .to_owned()
+    };
+    let selected_master_id = ids[0].clone();
+    let second_master_id = ids[3].clone();
     let proof = GenerationProof {
         plan_sha256: f.sha256.clone(),
         principal_key: "a".repeat(64),
         selected_intent_ids: ids,
+        teaching_corrections: vec![
+            TeachingCorrection {
+                page_id: "scene-001".into(),
+                intent_id: selected_master_id.clone(),
+                asset_sha256: Some(selected_asset_sha(&selected_master_id)),
+                removals: vec![TeachingObjectRemoval {
+                    object: "Arrow".into(),
+                    quote: "Remove the arrow".into(),
+                }],
+            },
+            TeachingCorrection {
+                page_id: "scene-002".into(),
+                intent_id: second_master_id.clone(),
+                asset_sha256: Some(selected_asset_sha(&second_master_id)),
+                removals: vec![TeachingObjectRemoval {
+                    object: "Label".into(),
+                    quote: "Remove the label".into(),
+                }],
+            },
+        ],
+        teaching_correction: None,
     };
     f.restart().await;
     {
         let state = f.state.lock().await;
         let root = f.root.to_str().unwrap();
-        assert_eq!(
-            verify_generation(&state, root, &f.session, &proof)
-                .unwrap()
-                .pages
-                .len(),
-            2
-        );
+        let verified = verify_generation(&state, root, &f.session, &proof).unwrap();
+        assert_eq!(verified.pages.len(), 2);
+        let original = verified.pages[0].teaching.as_ref().unwrap();
+        let original_hash = verified.pages[0].source_hash().unwrap();
+        let effective = effective_teaching(&verified.pages[0], 0, &proof).unwrap();
+        assert_eq!(effective.required_objects, ["Moon", "Crater"]);
+        assert_eq!(effective.objective, original.objective);
+        assert_eq!(effective.required_effects, original.required_effects);
+        assert_eq!(verified.pages[0].source_hash().unwrap(), original_hash);
+        let page_two_original = verified.pages[1].teaching.as_ref().unwrap();
+        let page_two_hash = verified.pages[1].source_hash().unwrap();
+        let page_two_effective = effective_teaching(&verified.pages[1], 1, &proof).unwrap();
+        assert_eq!(page_two_effective.required_objects, ["Square"]);
+        assert_eq!(page_two_effective.objective, page_two_original.objective);
+        assert_eq!(verified.pages[1].source_hash().unwrap(), page_two_hash);
+        assert_eq!(proof.plan_sha256, f.sha256);
+        for (object, quote, intent, page) in [
+            (
+                "Unknown",
+                "Remove the arrow",
+                selected_master_id.clone(),
+                "scene-001",
+            ),
+            (
+                "Arrow",
+                "A paraphrase",
+                selected_master_id.clone(),
+                "scene-001",
+            ),
+            (
+                "Arrow",
+                "Remove the arrow",
+                "not-selected".into(),
+                "scene-001",
+            ),
+            (
+                "Arrow",
+                "Remove the arrow",
+                selected_master_id.clone(),
+                "scene-002",
+            ),
+        ] {
+            let mut bad = proof.clone();
+            let correction = bad.teaching_corrections.first_mut().unwrap();
+            correction.page_id = page.into();
+            correction.intent_id = intent;
+            correction.removals[0].object = object.into();
+            correction.removals[0].quote = quote.into();
+            assert!(
+                verify_generation(&state, root, &f.session, &bad).is_err(),
+                "{object}/{quote}/{page}"
+            );
+        }
+        let mut duplicate = proof.clone();
+        duplicate.teaching_corrections[0]
+            .removals
+            .push(TeachingObjectRemoval {
+                object: "Arrow".into(),
+                quote: "Remove the arrow".into(),
+            });
+        assert!(verify_generation(&state, root, &f.session, &duplicate).is_err());
+        let mut wrong_asset = proof.clone();
+        wrong_asset.teaching_corrections[1].asset_sha256 = Some("0".repeat(64));
+        assert!(verify_generation(&state, root, &f.session, &wrong_asset).is_err());
+        let mut duplicate_page = proof.clone();
+        duplicate_page.teaching_corrections[1].page_id = "scene-001".into();
+        assert!(verify_generation(&state, root, &f.session, &duplicate_page).is_err());
         for kind in ["missing", "duplicate", "account", "plan", "peer"] {
             let mut bad = proof.clone();
             match kind {
@@ -419,11 +546,11 @@ async fn scene_image_targets_and_prompt_revisions_have_independent_reviewed_choi
     assert!(choices[0]["intent"]["request"]["input"]
         .as_str()
         .unwrap()
-        .contains("16:10 kindergarten storybook teaching-slide illustration, 1280x800"));
+        .contains("16:10 teaching-slide image, 1280x800"));
     assert!(choices[1]["intent"]["request"]["input"]
         .as_str()
         .unwrap()
-        .contains("empty environment"));
+        .contains("clean environment"));
     assert!(choices[2]["intent"]["request"]["input"]
         .as_str()
         .unwrap()

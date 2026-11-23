@@ -1,0 +1,13 @@
+{
+  "apps/desktop/electron/main/courseware-native-repairs.ts": "43b4c9f9fa946c481024a71313529f38ed06f55585f8b55b79f949c89db26787",
+  "apps/desktop/electron/main/courseware-native-narration.ts": "aa908e8c1969037146fa552a2e9821161e322f3c08f9d3f111387529d59196cd",
+  "apps/desktop/electron/main/courseware-narration-batch.ts": "3983532f00b360dd7e6a1c4883aa8003f5bf542a05020912b5d94c77e9b45f0e",
+  "apps/desktop/electron/main/courseware-candidates.ts": "4bcf4f13c85cac3007829406047aaf6de09fe2937a345256f5520d8c0fdca7b8",
+  "apps/desktop/electron/main/courseware-native-tools.ts": "b1065a80b52bd0718fced19367cd42d115a267455b5fbfa1bf4331aa59e94286",
+  "apps/desktop/electron/main/courseware-document-runtime.ts": "b61785731d913fecf30e89352b068ac426c2a4b5f27a33aca1e5e414c8a56b21",
+  "crates/host-core/src/rpc/courseware_projects/native_repairs.rs": "2e34b3b0d3414f65191bc476c90ff0948634e463fe521d38d2bd3c3cbecbec99",
+  "packages/agent-runtime/src/courseware-workflow-recovery.ts": "73267a34ddb7aa73e697e42a907889409f66f9a0a3a569633179c08d2b292fd6",
+  "packages/agent-runtime/src/courseware-workflow-tools.ts": "8534f7b8cc501106862070e95a56fdcd575f12c09a8f961065508d665bed15f1",
+  "target/release/pi-desktop-host-core": "bc483d3e2f038777e17d0e09324cc36fbcaf82ecdebd4e67bd5be29333977f4d",
+  "apps/desktop/out/main/index.js": "57d5471e81c82333a698fc1e89c91c9536daff2173b4ca80fc457b9cfda4747e"
+}

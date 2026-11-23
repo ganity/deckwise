@@ -190,6 +190,8 @@ function mapSlideElement(element: SlideElementIR): PPTElement {
       height: element.height,
       rotate: element.rotate ?? 0,
       latex: element.latex || '',
+      ...(element.content ? { html: element.content } : {}),
+      ...(['left', 'center', 'right'].includes(element.textAlign ?? '') ? { align: element.textAlign as 'left' | 'center' | 'right' } : {}),
       color: DEFAULT_IMPORT_THEME.fontColor,
     } satisfies PPTLatexElement;
   }

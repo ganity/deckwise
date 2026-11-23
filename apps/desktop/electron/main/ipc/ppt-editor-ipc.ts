@@ -1,6 +1,8 @@
+import { coursewareWorkerPath } from "../courseware-runtime";
 import { createQuizImageReview } from "../courseware-quiz-image-review";
 import { CoursewareDocumentTools } from "../courseware-document-tools";
 import { createCoursewareDocumentRuntime, createBackgroundCoursewareEditor } from "../courseware-document-runtime";
+import { ContentReviewTurns } from '../courseware-content-review';
 import { createNativeAssessmentMedia } from "../courseware-native-assessment-media";
 import { routeNativeMediaLibrary } from "../courseware-native-library";
 import { createHash } from "node:crypto";
@@ -89,7 +91,10 @@ export function registerPptEditorIpc(input: {
   registerCoursewareOnlinePreparationIpc(registrar, onlinePreparation, () => {
     try { return coursewareOnlineDeployment() !== null; } catch { return false; }
   });
-  const images = new CoursewareImageReview(editor, input.authSession, getWorkspaceRoot, sessionId => chat.assertActive(sessionId), getHost);
+  const teaching = new CoursewareTeachingCoordinator(editor, getHost, getWorkspaceRoot, input.getViewingSessionId,
+    sessionId => chat.assertActive(sessionId), sessionId => chat.assertOwned(sessionId));
+  const images = new CoursewareImageReview(editor, input.authSession, getWorkspaceRoot, sessionId => chat.assertActive(sessionId), getHost,
+    async sessionId => (await teaching.native("open"))?.value as import("@pi-desktop/shared").CoursewareTeachingView | undefined);
   editor.imageAssets = images;
   for (const [channel, method] of [[IPC.invoke.pptEditorImagePrepare, "prepare"], [IPC.invoke.pptEditorImageApprove, "approve"], [IPC.invoke.pptEditorImageClear, "clear"]] as const) {
     registrar.handleWithEvent(channel, async (event, payload: unknown, ...extra: unknown[]) => {
@@ -106,8 +111,6 @@ export function registerPptEditorIpc(input: {
   const assertSender = (event: Electron.IpcMainInvokeEvent) => {
     registrar.assertMainWindowSender(event);
   };
-  const teaching = new CoursewareTeachingCoordinator(editor, getHost, getWorkspaceRoot, input.getViewingSessionId,
-    sessionId => chat.assertActive(sessionId), sessionId => chat.assertOwned(sessionId));
   const assertClassroomOwner = (sessionId: string) => {
     if (!getHost() || input.getViewingSessionId() !== sessionId) throw new Error("Classroom is no longer active in this Chat");
   };
@@ -154,7 +157,7 @@ export function registerPptEditorIpc(input: {
     const source = editor.teachingSnapshot(workspace), bytes = await readFile(source.path);
     const carrier = await readNativeTeachingPackage(bytes); assertClassroomOwner(sessionId);
     if (!carrier || createHash("sha256").update(bytes).digest("hex") !== source.sha256) throw new Error("Saved native courseware is unavailable");
-    const worker = process.env.DECKWISE_PPTX_WORKER || join(process.resourcesPath || "", "pptx-worker/pptx-worker.mjs");
+    const worker = coursewareWorkerPath();
     const converterHash = createHash("sha256").update(await readFile(join(dirname(worker), "manifest.json"))).digest("hex");
     return { documentId: carrier.documentId, fingerprint: coursewareDeliveryFingerprint(source.sha256, converterHash) };
   };
@@ -302,11 +305,12 @@ export function registerPptEditorIpc(input: {
     async (operation, args, page) => editor.routeNativeTeaching(await getWorkspaceRoot(), operation, args, page), decodeCoursewareAudio);
   const nativeVideo = new CoursewareNativeVideo(input.authSession, getHost, input.getViewingSessionId,
     async (operation, args, page) => editor.routeNativeTeaching(await getWorkspaceRoot(), operation, args, page), decodeCoursewareVideo);
+  const reviewTurns = new ContentReviewTurns(id => input.activeTurns.get(id));
   const documentTools = new CoursewareDocumentTools({ getHost, editor,
     createBackground: () => createBackgroundCoursewareEditor(registrar.ipcMain),
     createTools: (targetEditor, scope) => createCoursewareDocumentRuntime({ editor: targetEditor, scope,
-      background: targetEditor !== editor, review: reviewQuizImage, auth: input.authSession, complete: input.completeNarration,
-      resolveModel: input.resolveModel, activeTurns: input.activeTurns, getHost }) });
+      background: targetEditor !== editor, review: reviewQuizImage, auth: input.authSession, complete: input.completeNarration, completeVision: input.completeScene,
+      resolveModel: input.resolveModel, activeTurns: input.activeTurns, reviewTurns, getHost }) });
   input.onNativeTeachingReady?.(documentTools);
   editor.nativeTeaching = createNativeTeachingHandler({ teaching, tts, classroom, classroomTts, classroomImages,
     nativeRoute: routeNative,

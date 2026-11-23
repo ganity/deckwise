@@ -6,6 +6,12 @@ startup. The worker parses locally; it does not call models or adopt results
 into the current editable PPTX. Parsing alone leaves SQLite and project revisions unchanged.
 The separate verified `courseware.project.openSaved` coordinator can persist teaching.
 
+Standalone numeric OMML bar fractions retain numerator, denominator, visible bar,
+color/alignment and source shape identity, including alternate content inside
+groups. The fixed player receives display HTML through its existing sanitized
+formula renderer. Other Office equation constructs remain gated by
+`PPTX_NATIVE_MATH_UNVERIFIED`; parser support never bypasses Host identity checks.
+
 Main resolves `<resources>/pptx-worker/pptx-worker.mjs`; a development launch
 may supply `DECKWISE_PPTX_WORKER`. Host startup receives `DECKWISE_PPTX_NODE`
 and `DECKWISE_PPTX_WORKER`. Neither is an RPC parameter. The worker is optional:

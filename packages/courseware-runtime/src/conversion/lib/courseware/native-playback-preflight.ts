@@ -42,6 +42,7 @@ export function inspectNativePlayback(source: SlideIR, sha256: string, pages: un
   }));
   const scenes = mapSlideIrToScenes('preflight', ir);
   for (const [index, page] of teaching.pages.entries()) {
+    let motionIssue: string | undefined;
     try {
       const scene = scenes[index];
       if (scene.content.type !== 'slide' || !fixedSlideSchema.safeParse(scene.content.canvas).success) throw new Error('PACKAGE_SCHEMA_INVALID');
@@ -55,18 +56,26 @@ export function inspectNativePlayback(source: SlideIR, sha256: string, pages: un
         const target = ir.pages[index].elements.find(element => element.sourceShapeId === shapeId);
         const owners = new Set([shapeId, ...(target?.sourceGroupShapeIds ?? [])]);
         const preset = nativeMotionPreset(effect.effect);
-        const mirror = native.find(item => !claimed.has(item) && item.target && owners.has(item.target.shapeId) &&
-          !item.target.paragraphIndexes && !item.target.characterRange && item.durationMs === cue.endMs - cue.atMs &&
+        const candidates = native.filter(item => !claimed.has(item) && item.target && owners.has(item.target.shapeId) &&
+          !item.target.paragraphIndexes && !item.target.characterRange &&
           preset && item.nativePreset?.class === preset.ooxmlClass && item.nativePreset.id === preset.presetId &&
           (item.nativePreset.subtype ?? 0) === preset.subtype);
-        if (!mirror) throw new Error('NATIVE_SPEECH_ANIMATION_MISSING');
+        const duration = cue.endMs - cue.atMs;
+        const mirror = candidates.find(item => item.startAtMs === cue.atMs && item.durationMs === duration);
+        if (!mirror) {
+          const actual = candidates[0];
+          motionIssue = `第 ${index + 1} 页，讲解 ${action.id}，对象 ${effect.elementId} 的 ${effect.effect} 应在 ${cue.atMs} ms 开始、持续 ${duration} ms。` +
+            (actual ? `PPT 中同类动画在 ${actual.startAtMs} ms 开始、持续 ${actual.durationMs} ms。` : 'PPT 中缺少对应的原生动画。') +
+            '请同步并保存这条动画，沿用当前画面和配音。';
+          throw new Error('NATIVE_SPEECH_ANIMATION_MISSING');
+        }
         claimed.add(mirror);
       }
       resolveSingleChildSpeechAnimations({ mapping: { ...mapping, pages: [mapping.pages[index]] }, teaching: { ...teaching, pages: [page] } }, [ir.pages[index]]);
       projectPlaybackAnimations(ir.pages[index], page.actions, mapping.pages[index], sha256, diagnostics, index);
     } catch (error) {
       const code = error instanceof Error ? error.message : 'PLAYBACK_PREFLIGHT_FAILED';
-      errors.push({ code, pageNumber: index + 1, pageId: page.pageId, message: `Page ${index + 1}: ${code}` });
+      errors.push({ code, pageNumber: index + 1, pageId: page.pageId, message: motionIssue ?? `Page ${index + 1}: ${code}` });
     }
   }
   return { sourceSha256: sha256, ready: errors.length === 0, issues: errors, diagnostics };

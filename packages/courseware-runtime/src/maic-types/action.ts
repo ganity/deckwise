@@ -93,6 +93,14 @@ export interface SpotlightAction extends ActionBase {
   dimOpacity?: number; // default 0.5
 }
 
+export interface HighlightAction extends ActionBase {
+  type: 'highlight';
+  elementIds: string[];
+  color?: string;
+  style?: 'outline' | 'fill' | 'glow';
+  opacity?: number;
+}
+
 /** Laser — point at an element with a laser effect */
 export interface LaserAction extends ActionBase {
   type: 'laser';
@@ -277,6 +285,7 @@ export type InteractionCheckpointAction = ActionBase &
 
 export type Action =
   | SpotlightAction
+  | HighlightAction
   | LaserAction
   | PlayVideoAction
   | PlayAudioAction
@@ -298,11 +307,12 @@ export type Action =
 export type ActionType = Action['type'];
 
 /** Action types that fire immediately without blocking */
-export const FIRE_AND_FORGET_ACTIONS: ActionType[] = ['spotlight', 'laser'];
+export const FIRE_AND_FORGET_ACTIONS: ActionType[] = ['spotlight', 'highlight', 'laser'];
 
 /** Action types that only work on slide scenes (require slide canvas elements) */
 export const SLIDE_ONLY_ACTIONS: ActionType[] = [
   'spotlight',
+  'highlight',
   'laser',
   'play_video',
   'play_audio',

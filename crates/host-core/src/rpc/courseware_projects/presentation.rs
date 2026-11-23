@@ -99,12 +99,16 @@ pub(super) fn verify_export(
         let real = std::fs::canonicalize(&file)?;
         let metadata = std::fs::metadata(&real)?;
         anyhow::ensure!(
-            real.starts_with(project)
-                && metadata.is_file()
-                && metadata.len() > 0
-                && metadata.modified()? <= report_time
-                && metadata.modified()? <= export_time,
-            "COURSEWARE_CONFLICT: presentation planning, narration or SVG changed after validation/export"
+            real.starts_with(project) && metadata.is_file() && metadata.len() > 0,
+            "COURSEWARE_INVALID: invalid presentation input"
+        );
+        let modified = metadata.modified()?;
+        anyhow::ensure!(
+            modified <= export_time,
+            "COURSEWARE_CONFLICT: {} changed after export; run final validation and re-export",
+            file.strip_prefix(project)?.display()
+        );
+        anyhow::ensure!(modified <= report_time, "COURSEWARE_CONFLICT: {} changed after validation; refresh the final SVG quality report and retry adoption", file.strip_prefix(project)?.display()
         );
     }
     Ok(path)

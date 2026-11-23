@@ -1,0 +1,192 @@
+diff --git a/docs/native-teaching-implementation.md b/docs/native-teaching-implementation.md
+index 4b9bb180..474118e7 100644
+--- a/docs/native-teaching-implementation.md
++++ b/docs/native-teaching-implementation.md
+@@ -155,3 +155,15 @@ Regression coverage: `test/unit/slide-quiz-projection.test.ts` and
+ `test/e2e/deckwise-grouped-quiz-recovery.spec.ts`. The latter takes a real generated
+ fixture through projection, native save and reopen and checks the picture plus
+ unchanged teaching actions. It uses a local PNG and makes no paid request.
++
++## Whole-diagram audio adoption
++
++Generated speech attention accepts up to 200 distinct current eligible object IDs, matching native selection and spotlight geometry. Adopting an already-generated audio result must resolve an eleven-layer diagram into one combined spotlight and all eleven entrance effects atomically. Unknown and duplicate targets, invalid effects, stale revisions and excessive timing still reject. Re-adoption retains existing media and timing. Desktop generation/repair and the staged editor must ship together with this bound.
++
++Quiz title edits must also update the checkpoint chapterTitle in the native teaching carrier. The assessment-context reader derives its title from that carrier; changing only the visible slide would resurrect the old title after reopening. Title/reference-only edits retain speech text, audio IDs and effects.
++
++Native Quiz projection compares managed text with the actual bound shape as well as the previous canonical template. Rebuilding both previous/next with an upgraded template must not hide stale on-slide hints. Unrelated shapes remain intact and the update retains native rollback.
++
++Question-change detection compares the supported response fields in a stable order. JSON object key-order changes alone must not invalidate already-generated speech/audio when updating a title or reference answer.
++
++When legacy canonical Quiz data omits keyPoints, retain existing checkpoint reference key points for the unchanged question. Explicit keyPoints (including an empty array) remain authoritative; a changed question never inherits the previous question's reference points.
+diff --git a/lib/agent-plugin/slide-quiz-projection.ts b/lib/agent-plugin/slide-quiz-projection.ts
+index 30d135b3..9bcb5d1e 100644
+--- a/lib/agent-plugin/slide-quiz-projection.ts
++++ b/lib/agent-plugin/slide-quiz-projection.ts
+@@ -74,7 +74,9 @@ export async function prepareQuizProjection({ page, previous, next, assets }: Pr
+     (e: any) =>
+       group ||
+       JSON.stringify(e) !== JSON.stringify(previous.elements.find((p: any) => p.id === e.id)) ||
+-      e.type === 'image_layer',
++      e.type === 'image_layer' ||
++      (e.type === 'native_text' &&
++        anchorText(readSlideShapeText(byName.get(actualName(e.id)))) !== anchorText(e.content)),
+   );
+   const replace = new Set([
+     ...changed.map((e: any) => actualName(e.id)),
+diff --git a/lib/deckwise-native-teaching.ts b/lib/deckwise-native-teaching.ts
+index 9405be2b..59bb7671 100644
+--- a/lib/deckwise-native-teaching.ts
++++ b/lib/deckwise-native-teaching.ts
+@@ -325,7 +325,7 @@ export function replaceNativeAssessments(input: {
+   expectedRevision: string;
+   changedPageIds: string[];
+   change?: { apply(): void; restore(): void };
+-  scenes: Array<{ id: string; content: any; actions?: Action[] }>;
++  scenes: Array<{ id: string; title?: string; content: any; actions?: Action[] }>;
+ }) {
+   if (getReadonlyMode()) throw new Error('Teaching is read-only');
+   const current = readNativeTeaching();
+@@ -339,6 +339,7 @@ export function replaceNativeAssessments(input: {
+     const page = next.pages[index];
+     if (!input.changedPageIds.includes(scene.id)) return;
+     if (page.locked) throw new Error('Teaching page locked');
++    if (scene.title !== undefined && typeof scene.title !== 'string') throw new Error('Invalid assessment title');
+     for (const speech of scene.actions ?? [])
+       if (speech.type === 'speech') {
+         if (typeof speech.text !== 'string' || speech.text.length > 32000 || !speech.id)
+@@ -379,6 +380,7 @@ export function replaceNativeAssessments(input: {
+       a.type === 'interaction_checkpoint' && a.checkpointKind === 'chapter_summary'
+         ? {
+             ...a,
++            chapterTitle: scene.title ?? a.chapterTitle,
+             question: q.question,
+             response: {
+               kind: q.type,
+@@ -387,7 +389,7 @@ export function replaceNativeAssessments(input: {
+             },
+             referenceAnswer: {
+               summary: q.referenceAnswer ?? q.analysis ?? (q.type === 'short_answer' ? q.answer?.join('；') : '') ?? '',
+-              keyPoints: q.keyPoints ?? [],
++              keyPoints: q.keyPoints ?? (q.question === a.question ? (a.referenceAnswer as { keyPoints?: string[] })?.keyPoints : undefined) ?? [],
+             },
+           }
+         : a,
+@@ -396,9 +398,12 @@ export function replaceNativeAssessments(input: {
+       (a) => a.type === 'interaction_checkpoint' && a.checkpointKind === 'chapter_summary',
+     );
+     const newQuestion = page.actions.find((a) => a.id === oldQuestion?.id);
++    const oldResponse = oldQuestion?.response as Record<string, unknown> | undefined;
++    const newResponse = newQuestion?.response as Record<string, unknown> | undefined;
++    // Object key order can change across JSON readers without changing the question or its audio.
+     if (
+-      JSON.stringify([oldQuestion?.question, oldQuestion?.response]) !==
+-      JSON.stringify([newQuestion?.question, newQuestion?.response])
++      JSON.stringify([oldQuestion?.question, oldResponse?.kind, oldResponse?.options, oldResponse?.answerIndices]) !==
++      JSON.stringify([newQuestion?.question, newResponse?.kind, newResponse?.options, newResponse?.answerIndices])
+     ) {
+       const reading = [q.question, ...(q.options ?? []).map((o: any) => `${o.value}. ${o.label}`)].join('\n');
+       page.actions = page.actions.map((a) => {
+@@ -545,7 +550,8 @@ function resolveNativeSpeechAttention(current: NativeTeaching, pageId: string, a
+       !['highlight', 'spotlight'].includes(String(intent.type)) ||
+       !Array.isArray(ids) ||
+       ids.length < 1 ||
+-      ids.length > 8 ||
++      // Match selection, spotlight geometry and the existing native animation target bound.
++      ids.length > 200 ||
+       new Set(ids).size !== ids.length ||
+       ids.some((id) => typeof id !== 'string' || !objects.some((o) => o.objectId === id && o.effectTargetEligible)) ||
+       Object.keys(intent).some((key) => !['type', 'objectIds', 'animation'].includes(key)) ||
+diff --git a/test/unit/deckwise-native-teaching.test.ts b/test/unit/deckwise-native-teaching.test.ts
+index 8875e9a2..00eeb1a7 100644
+--- a/test/unit/deckwise-native-teaching.test.ts
++++ b/test/unit/deckwise-native-teaching.test.ts
+@@ -69,7 +69,7 @@ class Timing {
+     this.effects = this.effects.filter((effect) => !effects.includes(effect));
+   }
+ }
+-function mount(locked = false, slides?: any[]) {
++function mount(locked = false, slides?: any[], objects = [{ logicalId: 'object', sourceShapeId: '4', type: 'shape' }]) {
+   const data = {
+     schemaVersion: 'deckwise-native-teaching/1',
+     documentId: 'document',
+@@ -82,7 +82,7 @@ function mount(locked = false, slides?: any[]) {
+       },
+     ],
+     media: [],
+-    identity: { pages: [{ pageId: 'page', objects: [{ logicalId: 'object', sourceShapeId: '4', type: 'shape' }] }] },
++    identity: { pages: [{ pageId: 'page', objects }] },
+   };
+   const parts: Array<{ GetXml(): string; Delete(): void }> = [];
+   const namespaces = new WeakMap<object, string | null>();
+@@ -1119,3 +1119,49 @@ it('replaces and removes mirrored speech motions without accumulating old native
+   expect(slide.timing.getAllAnimEffects().map((effect) => effect.getObjectId())).toEqual(['unrelated']);
+   expect(third.pages[0].actions[0].text).toBe('Before');
+ });
++
++
++it('adopts existing audio with an eleven-part diagram focus and persists all entrance effects', async () => {
++  vi.stubGlobal('crypto', webcrypto);
++  try {
++    const objects = Array.from({ length: 11 }, (_, i) => ({ logicalId: `part-${i}`, sourceShapeId: String(i + 4), type: 'shape' }));
++    const slide = { cSld: { spTree: objects.map(o => ({ sourceId: o.sourceShapeId, Id: `shape-${o.sourceShapeId}` })) },
++      timing: null as Timing | null, setTiming(value: Timing | null) { this.timing = value; } };
++    mount(false, [slide], objects);
++    const teaching = replaceNativeTeachingPage({ documentId: 'document', expectedRevision: 'revision', pageId: 'page', actions: [
++      { id: 'speech', type: 'speech', text: 'Observe the whole chain.', attention: { type: 'spotlight', objectIds: objects.map(o => o.logicalId), animation: 'fadeIn' } },
++    ] });
++    const bytes = new TextEncoder().encode('already generated audio').buffer;
++    const sha256 = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), b => b.toString(16).padStart(2, '0')).join('');
++    const input = { documentId: 'document', expectedRevision: teaching.revision, pageId: 'page', actionId: 'speech', assetId: 'existing-audio', sha256, mimeType: 'audio/mpeg', durationMs: 4000, bytes };
++    const adopted = await adoptNativeTeachingAudio(input);
++    expect(adopted.pages[0].actions[0].attention).toBeUndefined();
++    expect(adopted.pages[0].actions[0].visualCues).toHaveLength(12);
++    expect(slide.timing?.getAllAnimEffects()).toHaveLength(11);
++    expect((await adoptNativeTeachingAudio({ ...input, expectedRevision: adopted.revision })).pages[0].actions).toEqual(adopted.pages[0].actions);
++  } finally { vi.unstubAllGlobals(); }
++});
++
++it('retains a Quiz title edit in the native carrier after reopening without changing speech', async () => {
++  mount(false, [{ cSld: { spTree: [] } }]);
++  replaceNativeTeachingPage({ documentId: 'document', expectedRevision: 'revision', pageId: 'page', actions: [
++    { id: 'reading', type: 'speech', text: 'Choose\nA. One\nB. Two', audioAssetId: 'old', durationMs: 1000 },
++    { id: 'q', type: 'interaction_checkpoint', checkpointKind: 'chapter_summary', checkpointId: 'q', chapterId: 'page', chapterTitle: 'Production instructions',
++      question: 'Choose', response: { answerIndices: [0], kind: 'single', options: ['One', 'Two'] },
++      referenceAnswer: { summary: 'One', keyPoints: ['One'] }, context: { chapterSummary: 'Count', sourceSceneIds: ['page'] } },
++  ] });
++  vi.stubGlobal('crypto', webcrypto);
++  const bytes = new TextEncoder().encode('retained question audio').buffer;
++  const sha256 = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), b => b.toString(16).padStart(2, '0')).join('');
++  await adoptNativeTeachingAudio({ documentId: 'document', expectedRevision: readNativeTeaching()!.revision, pageId: 'page', actionId: 'reading', assetId: 'old', sha256, mimeType: 'audio/mpeg', durationMs: 1000, bytes });
++  vi.unstubAllGlobals();
++  const opened = (await routeNativeTeaching('assessment-context', {}, 1))!.value as any;
++  const classroom = structuredClone(opened.classroom); classroom.scenes[0].title = 'Count';
++  delete classroom.scenes[0].content.questions[0].keyPoints;
++  await routeNativeTeaching('assessment-write', { projectId: 'document', expectedRevision: opened.revision, expectedSourceRevision: opened.sourceRevision,
++    classroom, changedPageIds: ['page'] }, 1);
++  const reopened = (await routeNativeTeaching('assessment-context', {}, 1))!.value as any;
++  expect(reopened.classroom.scenes[0].title).toBe('Count');
++  expect((readNativeTeaching()!.pages[0].actions[1].referenceAnswer as any).keyPoints).toEqual(['One']);
++  expect(readNativeTeaching()!.pages[0].actions[0]).toMatchObject({ text: 'Choose\nA. One\nB. Two', audioAssetId: 'old', durationMs: 1000 });
++});
+diff --git a/test/unit/slide-quiz-projection.test.ts b/test/unit/slide-quiz-projection.test.ts
+index cc880ab5..c14fae7d 100644
+--- a/test/unit/slide-quiz-projection.test.ts
++++ b/test/unit/slide-quiz-projection.test.ts
+@@ -195,3 +195,17 @@ describe('native Quiz projection recovery', () => {
+     expect(f.slide.cSld.spTree).toEqual(f.originals);
+   });
+ });
++
++it('refreshes a stale managed hint even when previous and next use the same upgraded template', async () => {
++  const f = fixture(false);
++  f.previous.elements[1].id = 'page-3_hint';
++  f.previous.elements[1].content = 'Write your answer.';
++  f.leaves[1].setName('assessment-3_hint');
++  f.leaves[1].getText = () => 'Choose the best answer.';
++  const prepared = await prepareQuizProjection({ ...f.input, next: structuredClone(f.previous) });
++  prepared.apply();
++  expect(f.slide.cSld.spTree.find(s => s.getObjectName() === 'assessment-3_hint').getText()).toBe('Write your answer.');
++  expect(f.slide.cSld.spTree).toContain(f.originals[0]);
++  prepared.restore();
++  expect(f.slide.cSld.spTree).toEqual(f.originals);
++});

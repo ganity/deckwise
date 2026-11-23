@@ -1,0 +1,62 @@
+{
+  "master": {
+    "topic": "Grade 3 Math: rectangle area",
+    "educationContext": {
+      "bodyPageLimit": 2,
+      "grade": "\u4e09\u5e74\u7ea7",
+      "lessonType": "\u6982\u5ff5\u65b0\u6388",
+      "schoolStage": "primary",
+      "subject": "math",
+      "visualStyle": "\u5c0f\u5b66\u4e2d\u5e74\u7ea7\u6570\u5b66\u6559\u6750\u56fe\u89e3\uff0c\u767d\u5e95\u84dd\u7eff\uff0c\u6e05\u6670\u5355\u4f4d\u65b9\u683c\uff0c\u539f\u751f\u53ef\u7f16\u8f91\u6587\u5b57\u56fe\u5f62"
+    },
+    "pages": 4,
+    "sourceSha256": "391b4a7d2daf67075070dd93d3cd68dc011755e6a77f1330ccce349ddd14141e",
+    "buildId": "549448563029e4fcb1fb8d8cea52f9fff6fdbd0d934aeabf16f415be4f034c98",
+    "naturallyEndedSpeech": 6,
+    "quizWrongAndCorrectPassed": true,
+    "teacherContinuationPassed": true,
+    "allThreeEffectsObserved": true,
+    "reopenPreserved": true,
+    "deliverable": "/home/jhz/deckwise-validation/three-path-live-20261117/deliverables/primary-math-rectangle-area.pptx"
+  },
+  "scene": {
+    "topic": "Grade 7 Biology: food chains and energy transfer",
+    "educationContext": {
+      "bodyPageLimit": 2,
+      "grade": "\u4e03\u5e74\u7ea7",
+      "lessonType": "\u6982\u5ff5\u65b0\u6388",
+      "schoolStage": "junior_high",
+      "subject": "biology",
+      "visualStyle": "\u521d\u4e2d\u751f\u7269\u6559\u6750\u79d1\u5b66\u63d2\u753b\uff0c\u6d45\u8272\u80cc\u666f\uff0c\u51c6\u786e\u6807\u6ce8\u548c\u7bad\u5934\uff0c\u65e0\u5e7c\u513f\u56ed\u62df\u4eba\u5409\u7965\u7269"
+    },
+    "pages": 4,
+    "sourceSha256": "c803185abc8e3c6e498567b978b270c47a1da71cd81a54140d542ba433736d0d",
+    "buildId": "7da9d8ff5c0daeb3abc582e4b7fc78b7815d673e98665bcfa70d191bb75419b4",
+    "naturallyEndedSpeech": 9,
+    "quizWrongAndCorrectPassed": true,
+    "teacherContinuationPassed": true,
+    "allThreeEffectsObserved": true,
+    "reopenPreserved": true,
+    "deliverable": "/home/jhz/deckwise-validation/three-path-live-20261117/deliverables/junior-biology-food-chains.pptx"
+  },
+  "import": {
+    "topic": "Grade 1 Chinese: Quiet Night Thought",
+    "educationContext": {
+      "bodyPageLimit": 2,
+      "grade": "\u4e00\u5e74\u7ea7",
+      "lessonType": "\u53e4\u8bd7\u9605\u8bfb",
+      "schoolStage": "primary",
+      "subject": "chinese",
+      "visualStyle": "\u7b80\u6d01\u53e4\u8bd7\u6559\u6750\uff0c\u7c73\u767d\u4e0e\u6df1\u84dd\uff0c\u4fdd\u7559\u539f\u7a3f"
+    },
+    "pages": 4,
+    "sourceSha256": "d6d522eb86ed3b8b5d202c3aa87e244bb82a414482a45848d620a89996b2afc7",
+    "buildId": "4eeac1ce540751848695aea80a5b9d14464d3dc058fc850a70be566bc9e59f38",
+    "naturallyEndedSpeech": 4,
+    "quizWrongAndCorrectPassed": true,
+    "teacherContinuationPassed": true,
+    "allThreeEffectsObserved": true,
+    "reopenPreserved": true,
+    "deliverable": "/home/jhz/deckwise-validation/three-path-live-20261117/deliverables/primary-chinese-quiet-night.pptx"
+  }
+}

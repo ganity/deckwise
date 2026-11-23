@@ -1,0 +1,299 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-15",
+  "candidate": {
+    "branch": "feat/courseware-stage-aware-scene",
+    "head": "661711cd19459628d99a76e133461062442fc753",
+    "localOriginMain": "58a9c4f57203c93da3f590e426b42ebba1072fb6",
+    "dirtyWorktree": true,
+    "rebasedAgainstLatestRemote": false,
+    "package": {
+      "apps/desktop/release/linux-unpacked/resources/app.asar": "330108c98d52f5229b4c071c53418bb985fa89a15e0591145514dffac57935c3",
+      "apps/desktop/release/linux-unpacked/resources/bin/pi-desktop-host-core": "942771c44992c43ea756bc7174ec8d3a261ae22e1e0aca293a2f249d3ca99200",
+      "apps/desktop/release/linux-unpacked/resources/agent-runtime/sidecar.js": "cecc79ad97f4cac9ed1eddab6969d8d0f1dd4edac11fa61b842f87068856dc97"
+    }
+  },
+  "scope": {
+    "sourcePlan": "One-page explicit legacy-plan fixture; native speech fixtures saved through production IPC",
+    "auth": "Real production Education principal and cached access token through loopback auth adapter; media requests forwarded to production",
+    "approval": "Fixture review/adoption invoked by the test; no human UI approval acceptance claim",
+    "autonomousChatGeneration": false,
+    "platformSyncOrPublication": false
+  },
+  "imageAttempts": [
+    {
+      "intentId": "6ed3241c-d49b-4cc9-98c7-497b1e7785aa",
+      "quoteMaxPoints": 2,
+      "result": {
+        "state": "failed",
+        "feeState": "released",
+        "reservedPoints": 2,
+        "actualPoints": 0,
+        "errorCode": "UPSTREAM_HTTP_200"
+      },
+      "upstream": {
+        "httpStatus": 200,
+        "requestId": "0c274d22-665d-46a8-97a0-2dee96a29d2a",
+        "supplierTaskId": "318a9eb4-2caf-42fd-a924-9862c995476b",
+        "status": "failed"
+      }
+    },
+    {
+      "intentId": "76c02597-bdc5-4837-b21d-0a275429dd05",
+      "quoteMaxPoints": 2,
+      "result": {
+        "state": "ready",
+        "feeState": "settled",
+        "reservedPoints": 2,
+        "actualPoints": 2,
+        "errorCode": null
+      },
+      "asset": {
+        "sha256": "5301d21a2d54c1ef1ec58937d42fca160621db432608cbcccb9bf28ac6a74db8",
+        "mimeType": "image/png",
+        "byteLength": 807831,
+        "width": 1280,
+        "height": 800
+      },
+      "visualReview": {
+        "numbers": "0 through 5 present in order",
+        "redPoint": "at tick 3",
+        "arrow": "right",
+        "lettering": "Both Chinese strings readable and correct",
+        "style": "Clean primary-school diagram without preschool characters",
+        "pixelTickCenters": [
+          97,
+          312,
+          518,
+          727,
+          934,
+          1144
+        ],
+        "pixelIntervals": [
+          215,
+          206,
+          209,
+          207,
+          210
+        ],
+        "metricPrecision": "Not exact; visual inspection is not a general math-accuracy guarantee"
+      }
+    }
+  ],
+  "layers": {
+    "intentId": "a3d11b94-c27c-44ec-a6d5-2846319d7ac4",
+    "quoteMaxPoints": 26,
+    "result": {
+      "state": "ready",
+      "feeState": "settled",
+      "reservedPoints": 26,
+      "actualPoints": 6,
+      "errorCode": null
+    },
+    "background": {
+      "sha256": "4b6286ed094a281fc2752dcf30d6b0ad16674bc1dc4096116ba59faa9edcad01",
+      "mimeType": "image/png",
+      "byteLength": 1758355,
+      "width": 2560,
+      "height": 1600
+    },
+    "foregrounds": [
+      {
+        "intentId": "a3d11b94-c27c-44ec-a6d5-2846319d7ac4-layer-1",
+        "target": {
+          "kind": "layer",
+          "name": "1 - 说明文字载体 每格表示1"
+        },
+        "asset": {
+          "sha256": "8e820631c7da831d4d527775f213947d4737ea847f51a4411edb2bd10a56c381",
+          "mimeType": "image/png",
+          "byteLength": 1951063,
+          "width": 2142,
+          "height": 522,
+          "normalizedBoundingBox": [
+            289,
+            717,
+            711,
+            881
+          ],
+          "sourceZIndex": 1
+        }
+      },
+      {
+        "intentId": "a3d11b94-c27c-44ec-a6d5-2846319d7ac4-layer-2",
+        "target": {
+          "kind": "layer",
+          "name": "2 - 完整数轴图示"
+        },
+        "asset": {
+          "sha256": "4149b9d352fe42b34c67e806236d75db76d305bb52347b09813700de6a88e23c",
+          "mimeType": "image/png",
+          "byteLength": 1152669,
+          "width": 2668,
+          "height": 349,
+          "normalizedBoundingBox": [
+            27,
+            419,
+            979,
+            618
+          ],
+          "sourceZIndex": 2
+        }
+      },
+      {
+        "intentId": "a3d11b94-c27c-44ec-a6d5-2846319d7ac4-layer-3",
+        "target": {
+          "kind": "layer",
+          "name": "3 - 标题文字 认识数轴"
+        },
+        "asset": {
+          "sha256": "e69098998aae97d5c8ae2889d634a2febc9ab9e3ead2859d57cbc0609757f3e7",
+          "mimeType": "image/png",
+          "byteLength": 1878012,
+          "width": 2339,
+          "height": 536,
+          "normalizedBoundingBox": [
+            250,
+            102,
+            739,
+            281
+          ],
+          "sourceZIndex": 3
+        }
+      }
+    ],
+    "visualReview": "Connected axis, ticks, labels and point retained in a single region; reconstruction inspected"
+  },
+  "nativeTts": {
+    "intentId": "9b042a9d-8f7f-4ae7-92ec-8785fe2eb199",
+    "model": "doubao-tts",
+    "voice": "zh_female_vv_uranus_bigtts",
+    "quoteMaxPoints": 16,
+    "result": {
+      "state": "ready",
+      "feeState": "settled",
+      "reservedPoints": 16,
+      "actualPoints": 1,
+      "errorCode": null
+    },
+    "durationMs": 12288,
+    "reopen": [
+      "Full Electron/Host/Office restart retains the exact adopted real speech",
+      "Capture the actual saved native source and build its immutable player package",
+      "The complete lesson reaches natural audio completion without another media submission"
+    ],
+    "audioEvents": [
+      {
+        "event": "playing",
+        "time": 0,
+        "duration": 12.288
+      },
+      {
+        "event": "ended",
+        "time": 12.288,
+        "duration": 12.288
+      }
+    ],
+    "newPaidSubmissionsDuringReopen": 0
+  },
+  "scene": {
+    "compiled": true,
+    "foregroundImageObjects": 3,
+    "rasterBackground": true,
+    "nativeTextOrShapeObjects": 0,
+    "ttsIntentId": "6d03529a-3382-465f-87db-d8f9b520be11",
+    "initialSubmissionOutcome": "Editor readiness interrupted response after dispatch; recover original only",
+    "recoveryStatus": "PASS_ORIGINAL_TTS_RECOVERY_AND_LAYERED_SCENE_PLAYBACK",
+    "paidSubmissionsDuringRecovery": 0,
+    "fixtureSpeechRestoredAfterUnsavedTestExit": true,
+    "originalTask": {
+      "state": "ready",
+      "feeState": "settled",
+      "reservedPoints": 16,
+      "actualPoints": 1,
+      "errorCode": null
+    },
+    "durationMs": 8040,
+    "audioEvents": [
+      {
+        "event": "playing",
+        "time": 0,
+        "duration": 8.04
+      },
+      {
+        "event": "ended",
+        "time": 8.04,
+        "duration": 8.04
+      }
+    ],
+    "checks": [
+      "Reopen the compiled Scene, restore and explicitly save the exact test speech before original-task recovery",
+      "Query only the interrupted original TTS intent, then archive and adopt its result",
+      "Capture the actual saved native source and build its immutable player package",
+      "The complete lesson reaches natural audio completion without another media submission"
+    ],
+    "reopen": {
+      "status": "PASS_REOPEN_AND_NATURAL_PLAYBACK",
+      "checks": [
+        "Full Electron/Host/Office restart retains the exact adopted real speech",
+        "Capture the actual saved native source and build its immutable player package",
+        "The complete lesson reaches natural audio completion without another media submission"
+      ],
+      "audioEvents": [
+        {
+          "event": "playing",
+          "time": 0,
+          "duration": 8.04
+        },
+        {
+          "event": "ended",
+          "time": 8.04,
+          "duration": 8.04
+        }
+      ],
+      "paidSubmissions": 0,
+      "buildRef": {
+        "buildId": "d9779e2fa508471bafcbf1eef51661d7692fd8e83e1a76a0c3f7ec7b6fae2114",
+        "packageSha256": "d9779e2fa508471bafcbf1eef51661d7692fd8e83e1a76a0c3f7ec7b6fae2114",
+        "snapshotId": "a3d8ca87-2283-4c44-aec7-a990c090705f"
+      }
+    }
+  },
+  "testSideEffect": {
+    "loginRefresh": "Production refresh rotates tokens. Test did not retain the latest refresh token; original Desktop session may require reauthentication. Original session file was not overwritten. No courseware source data was touched."
+  },
+  "limits": [
+    "One primary-grade Math page, not all grades/subjects or multi-page recovery",
+    "No autonomous Chat planning or detailed narration acceptance",
+    "No live animation, spotlight, video or music acceptance",
+    "No platform synchronization, publication, deployment, commit or merge",
+    "Historical eight request-preparation failures remain unattributed"
+  ],
+  "confirmedFinalMediaPoints": 10,
+  "artifacts": {
+    "primary-number-line.png": {
+      "sha256": "5301d21a2d54c1ef1ec58937d42fca160621db432608cbcccb9bf28ac6a74db8",
+      "bytes": 807831
+    },
+    "layers-reconstructed.png": {
+      "sha256": "5f9799eec3143ca9c0c2e34c7bdc86e2388a594f8b2eccb272d3d8d16098057d",
+      "bytes": 692290
+    },
+    "native-playback-complete.png": {
+      "sha256": "eb532b3a4d771c5a57857bb0ca68739b80e14a2ed76fab33a281bddb6d272d9f",
+      "bytes": 16457
+    },
+    "scene-playback-complete.png": {
+      "sha256": "81599dc6be657c277be32d483142461605ba3416ca9819a23fbf9b06fc474c5f",
+      "bytes": 506451
+    },
+    "scene-reopen-playback-complete.png": {
+      "sha256": "81599dc6be657c277be32d483142461605ba3416ca9819a23fbf9b06fc474c5f",
+      "bytes": 506451
+    },
+    "scene-narration.mp3": {
+      "sha256": "f4830bf881f62c74939f35be767e9765c31f7f68038eb5cb8f0fae265b04a86c",
+      "bytes": 64365
+    }
+  }
+}

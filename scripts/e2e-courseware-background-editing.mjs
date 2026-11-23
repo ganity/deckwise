@@ -44,14 +44,17 @@ app.whenReady().then(async () => {
   const window = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });
   let viewing = "a", tools;
   const handlers = new Map(), states = [], requests = [];
+  const suppliedScripts = new Map();
   const host = { async call(method, args) {
     requests.push(method);
     if (method === "session.get") return { session: { projectPath: workspace, mode: "agent" } };
     if (method === "courseware.task.get") return { task: { taskType: args.sessionId === "a" ? "plain" : args.sessionId === "b" ? "scene" : "import",
       ...(args.sessionId === "c" ? { importPath: "c.pptx" } : { generatedPath: args.sessionId + ".pptx" }) } };
+    if (method === "courseware.nativeRepairs.read") return { revision: 0, failures: {} };
     if (method === "courseware.nativeSave.forPath") return { save: null };
     if (method === "courseware.sourceAdoption.forPath") return { adoption: null };
     if (method === "courseware.material.list") return { sources: [] };
+    if (method === "courseware.material.verifyInline") return { supplied: suppliedScripts.get(args.sessionId) === args.text };
     if (method === "courseware.material.record") return { sourceId: createHash("sha256").update(args.text).digest("hex") };
     if (method === "courseware.project.context") return { teachingRequirements: [] };
     throw Error("Unexpected Host call: " + method);
@@ -69,9 +72,14 @@ app.whenReady().then(async () => {
   const pageIds = new Map();
   const snapshots = new Map();
   const adopt = async (id, text) => {
+    suppliedScripts.set(id, "第1页\\n" + text);
     const context = await tools.execute(id, "courseware_narration_context", {}, () => true);
     pageIds.set(id, context.value.pages.map(page => page.pageId));
     snapshots.set(id, await read(id));
+    await assert.rejects(tools.execute(id, "courseware_narration_import", {
+      sourceSha256: context.value.sourceSha256, apply: true, script: { text: "Agent-authored lesson draft", policy: "preserve" }
+    }, () => true), /quote text supplied by the user/);
+    assert.deepEqual(await read(id), snapshots.get(id));
     return tools.execute(id, "courseware_narration_import", {
       sourceSha256: context.value.sourceSha256, apply: true, script: { text: "第1页\\n" + text, policy: "preserve" } }, () => true);
   };

@@ -19,8 +19,22 @@ function load(name) {
   if (!name.startsWith("./")) return require(name);
   const file = new URL(`../electron/main/${name.slice(2)}.ts`, import.meta.url);
   const exports = {}; cache.set(name, exports);
-  const code = ts.transpileModule(readFileSync(file, "utf8"), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
+  const code = ts.transpileModule(readFileSync(file, "utf8"), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true } }).outputText;
   new Function("require", "exports", code)(load, exports);
+  if (name === "./courseware-narration-batch") {
+    const generate = exports.generateSavedNarrationBatch;
+    exports.generateSavedNarrationBatch = input => {
+      const wrap = complete => async request => {
+        const data = JSON.parse(request.data ?? request.messages[0].content);
+        const reviewFixture = input.reviewFixture ?? input.complete.reviewFixture;
+        if (data.reviewKind === "narration_semantics") return reviewFixture
+          ? reviewFixture(request, data) : { text: JSON.stringify({ issues: [] }) };
+        return complete(request);
+      };
+      return generate({ ...input, complete: wrap(input.complete),
+        ...(input.completeVision ? { completeVision: wrap(input.completeVision) } : {}) });
+    };
+  }
   return exports;
 }
 const { generateSavedNarrationBatch } = load("./courseware-narration-batch");
@@ -64,6 +78,15 @@ function fixture(taskType, issues = [], requirePortrait = false, pageCount = 1) 
   return { input, requests, writes, sourceEvidence };
 }
 
+test("adopted PPT Master narrates the saved page when a draft-only subject is reported missing", async () => {
+  const f = fixture("plain", [{ kind: "missing_required_content", message: "The draft requested another subject." }], true);
+  f.input.frozenArtwork = true;
+  const result = await generateSavedNarrationBatch(f.input);
+  assert.equal(result.saved, true, JSON.stringify(result.failures));
+  assert.equal(f.writes.length, 1);
+  assert.match(f.requests[0].system, /page artwork has been accepted/);
+});
+
 for (const taskType of ["plain", "import", "scene"]) {
   test(`${taskType}: harmless visual differences keep narration and truthful object names`, async () => {
     const f = fixture(taskType, [{ kind: "visual_variation", message: "The kite is diamond-shaped rather than swallow-shaped; flying a kite is still teachable." }]);
@@ -78,15 +101,20 @@ for (const taskType of ["plain", "import", "scene"]) {
     const result = await generateSavedNarrationBatch(f.input);
     assert.equal(result.saved, true, JSON.stringify(result.failures));
     assert.match(result.diagnostics.map(d => d.message).join("\n"), /diamond-shaped/);
-    assert.match(f.requests[0].system, /shape.*color.*position/i);
+    assert.match(f.requests[0].system, taskType === "scene" ? /artwork has been accepted/ : /shape.*color.*position/i);
     const observation = JSON.parse(f.requests[0].data);
     assert.equal(observation.teaching.objective, taskType === "import" ? "" : "Say I am flying the kite");
     assert.equal(observation.instruction, "Say I am flying the kite");
   });
 
-  test(`${taskType}: a missing required picture stops narration before saving or TTS`, async () => {
+  test(`${taskType}: a source-content finding blocks only a page without a frozen master`, async () => {
     const f = fixture(taskType, [{ kind: "missing_required_content", message: "The required family portrait is missing; only labels are visible." }], true);
     const result = await generateSavedNarrationBatch(f.input);
+    if (taskType === "scene") {
+      assert.equal(result.saved, true, JSON.stringify(result.failures));
+      assert.equal(f.writes.length, 1);
+      return;
+    }
     assert.equal(result.saved, false);
     assert.equal(f.writes.length, 0);
     assert.match(result.failures[0].error, /family portrait/);
@@ -164,14 +192,14 @@ test("vision cannot transfer a word label onto an empty native card", async () =
   f.input.completeVision = async request => {
     observations++;
     const data = JSON.parse(request.data);
-    if (observations === 2) assert.match(data.repair.error, /native text.*card/u);
+    assert.equal(data.repair, undefined);
     return { text: JSON.stringify({ summary: "Word labels on a card", issues: [], objects: [
       { objectId: "label", role: "Word label", aliases: ["father mother"], text: "father mother", teachingTarget: true },
       { objectId: "card", role: "White card", aliases: [], text: observations === 1 ? "father mother" : "", teachingTarget: false },
     ] }) };
   };
   const result = await generateSavedNarrationBatch(f.input);
-  assert.equal(observations, 2, "Cross-object OCR must use the bounded visual repair");
+  assert.equal(observations, 1, "Native text is authoritative without another paid observation");
   assert.equal(result.saved, true, JSON.stringify(result.failures));
   assert.equal(f.writes.length, 1);
   assert.equal(f.sourceEvidence.elements[1].text, "");
@@ -186,7 +214,7 @@ test("text-only fallback reports that visual completeness was not verified", asy
 });
 
 for (const taskType of ["plain", "import", "scene"]) {
-  for (const corrected of [true, false]) test(`${taskType}: ${corrected ? "corrects" : "bounds persistent failure of"} a backplate binding before any save`, async () => {
+  test(`${taskType}: resolves a backplate to the named text before semantic review and save`, async () => {
     const f = fixture(taskType);
     delete f.input.completeVision;
     f.sourceEvidence.elements = [
@@ -207,23 +235,16 @@ for (const taskType of ["plain", "import", "scene"]) {
       if (data.outline) return complete(request);
       attempts++;
       assert.equal(f.writes.length, 0);
-      if (attempts === 2) assert.match(data.repair.error, /card.*container/u);
-      if (data.blocks) {
-        assert.equal(data.blocks[0].text, "Read father and mother.");
-        assert.equal(data.schema.properties.blocks, undefined, "Effect repair must not ask for new speech");
-        return { text: JSON.stringify({ focuses: [{ blockIndex: 0, objectIds: corrected ? ["father", "mother"] : ["card", "father", "mother"] }] }) };
-      }
       return { text: JSON.stringify({ blocks: [{ type: "speech", text: "Read father and mother.", attention: {
-        type: "highlight", objectIds: attempts === 1 || !corrected ? ["card", "father", "mother"] : ["father", "mother"], animation: "fadeIn",
+        type: "highlight", objectIds: ["card", "father", "mother"], animation: "fadeIn",
       } }] }) };
     };
     const result = await generateSavedNarrationBatch(f.input);
-    assert.equal(result.saved, corrected, JSON.stringify(result.failures));
-    assert.equal(attempts, corrected ? 2 : 3);
-    assert.equal(f.writes.length, corrected ? 1 : 0);
-    if (corrected) assert.deepEqual(f.writes[0].actions[0].attention.objectIds, ["father", "mother"]);
-    else assert.match(result.failures[0].error, /card.*container/u);
-    assert.match(result.diagnostics.map(item => item.message).join("\n"), /Repairing invalid narration/);
+    assert.equal(result.saved, true, JSON.stringify(result.failures));
+    assert.equal(attempts, 1);
+    assert.equal(f.writes.length, 1);
+    assert.deepEqual(f.writes[0].actions[0].attention.objectIds, ["father", "mother"]);
+    assert.equal(f.writes[0].actions[0].text, "Read father and mother.");
   });
 }
 
@@ -339,6 +360,33 @@ test("malformed brief fields get bounded page repair and a terminal page failure
   assert.equal(result.failures[0].retriable, false);
   assert.equal(attempts, 2);
   assert.equal(f.writes.length, 0);
+});
+
+for (const taskType of ["plain", "import", "scene"]) test(`${taskType}: unusable optional motion suggestions do not retry a playable narration`, async () => {
+  const f = fixture(taskType);
+  const complete = f.input.complete;
+  let plans = 0, drafts = 0, reviews = 0;
+  f.input.complete = async request => {
+    const data = JSON.parse(request.messages[0].content);
+    if (data.outline) {
+      plans++;
+      return { text: JSON.stringify({ goal: "Teach family words", pages: [{pageNumber: 1, purpose: "Read labels",
+        bridge: "Continue", focus: "father mother", revealTargets: [null, "missing-object", "missing-object"]}] }) };
+    }
+    drafts++;
+    assert.deepEqual(data.coursePlan.page.revealTargets, ["missing-object"]);
+    return complete(request);
+  };
+  f.input.reviewFixture = async (_request, data) => {
+    reviews++;
+    assert.equal("revealTargets" in data.pagePlan, false);
+    return { text: JSON.stringify({issues: []}) };
+  };
+  const result = await generateSavedNarrationBatch(f.input);
+  assert.equal(result.saved, true, JSON.stringify(result.failures));
+  assert.deepEqual([plans, drafts, reviews], [1, 1, 1]);
+  assert.ok(f.writes[0].actions.some(a => a.type === "speech"));
+  assert.ok(f.writes[0].actions.every(a => !a.attention?.animation));
 });
 
 test("a partial-page retry reuses the validated course arc and keeps successful speech", async () => {
@@ -587,6 +635,13 @@ test('native narration keeps acknowledged pages when a later page needs fresh co
 
 test('native narration does not repeat visual-content mismatches until live content changes', async () => {
   const f = nativeRecoveryFixture(); f.input.contentFailures = new Map();
+  let stored = { revision: 0, failures: {} }; f.input.turnId = 'turn';
+  f.input.retryStore = { read: async () => structuredClone(stored),
+    writeNarration: async (_session, _project, previous, narration) => {
+      assert.equal(previous.revision, stored.revision);
+      stored = { ...stored, revision: stored.revision + 1, narration: structuredClone(narration) };
+      return structuredClone(stored);
+    } };
   const vision = f.input.completeVision;
   f.input.completeVision = async request => {
     const output = JSON.parse((await vision(request)).text);
@@ -596,6 +651,7 @@ test('native narration does not repeat visual-content mismatches until live cont
   const first = await f.run(); assert.equal(first.failures[0].code, 'COURSEWARE_PAGE_CONTENT_MISMATCH');
   assert.equal(f.visions.length, 1); assert.equal(f.plans.length, 0);
   f.input.instruction = 'Please try different wording';
+  f.input.contentFailures.clear(); f.input.retryState = new Map(); f.state.documentId = 'reopened';
   const second = await f.run(); assert.equal(second.saved, false); assert.equal(f.visions.length, 1);
   assert(second.diagnostics.some(d => /SVG-only edits/.test(d.message)));
   f.state.words[0] = 'two questions'; f.state.generation++;
@@ -689,7 +745,17 @@ test('native effect repair keeps saved durations local to each page when speech 
     assert.equal(data.speeches[0].id, 'repeated-speech');
     return { text: JSON.stringify({ focuses: [{ speechId: 'repeated-speech', type: 'highlight', objectIds: [data.objects[0].objectId] }] }) };
   };
+  const reviewed = [];
+  f.input.complete.reviewFixture = async (request, data) => {
+    assert.match(request.system, /Timing is validated programmatically/);
+    assert.deepEqual(data.pendingAudioBlocks, []);
+    assert.deepEqual(data.savedAudioDurationsMs, { 'repeated-speech': data.pageNumber * 1200 });
+    assert.equal(data.blocks[0].audioAssetId, 'tts-' + String(data.pageNumber).repeat(64));
+    reviewed.push(data.pageNumber);
+    return { text: '{"issues":[]}' };
+  };
   const result = await f.run();
+  assert.deepEqual(reviewed.sort(), [1, 2]);
   assert.equal(result.saved, true, JSON.stringify(result.failures));
   assert.deepEqual(f.writes.map(w => [w.pageNumber, w.actions[0].visualCues[0].endMs]), [[1, 1200], [2, 2400]]);
 });
@@ -859,7 +925,8 @@ test('native output retry budget survives changed tool instructions and stops re
   const first=await f.run();assert.equal(first.saved,false);assert.equal(speechCalls,3);assert.equal(first.failures[0].retriable,false);
   f.input.instruction='Try a shorter instruction';
   const second=await f.run();assert.equal(second.saved,false);assert.equal(speechCalls,3);
-  assert.equal(f.visions.length,1);assert.equal(f.plans.length,1);assert.equal(second.failures[0].code,'COURSEWARE_NARRATION_RETRY_EXHAUSTED');
+  assert.equal(f.visions.length,1);assert.equal(f.plans.length,1);assert.equal(second.failures[0].code,'COURSEWARE_NARRATION_OUTPUT_INVALID');
+  assert.equal(second.failures[0].retriable, false);
   f.input.retryState.clear();
   await f.run();assert.equal(speechCalls,6,'a new explicit user turn gets a fresh bounded budget');
 });
@@ -943,7 +1010,9 @@ test('effect binding repair cannot replace already generated speech or waits', a
     assert.deepEqual(data.blocks[1], { type: 'wait', durationMs: 4000 });
     if (calls === 2) return { text: JSON.stringify({ blocks: [{ type: 'speech', text: 'Replacement words.' }] }) };
     assert.match(data.repair.error, /speech cannot be rewritten/);
-    return { text: JSON.stringify({ focuses: [{ blockIndex: 0, objectIds: ['label'] }] }) };
+    const ref = data.evidence.objects.find(o => o.objectId === 'label').objectRef;
+    assert.ok(data.schema.properties.focuses.items.properties.objectIds.anyOf[1].items.enum.includes(ref));
+    return { text: JSON.stringify({ focuses: [{ blockIndex: 0, objectIds: [ref] }] }) };
   };
   const result = await generateSavedNarrationBatch(f.input);
   assert.equal(result.saved, true, JSON.stringify(result));
@@ -967,7 +1036,8 @@ test('saving a successful peer does not renew an unchanged failed page retry bud
   const visions = f.visions.length, plans = f.plans.length;
   f.input.selected = [1];
   const second = await f.run();
-  assert.equal(second.failures[0].code, 'COURSEWARE_NARRATION_RETRY_EXHAUSTED');
+  assert.equal(second.failures[0].code, 'COURSEWARE_NARRATION_OUTPUT_INVALID');
+  assert.equal(second.failures[0].retriable, false);
   assert.equal(failedCalls, 3); assert.equal(f.visions.length, visions); assert.equal(f.plans.length, plans);
 });
 
@@ -1060,7 +1130,7 @@ test("visual existence review receives object requirements, not effects that nar
     const data = JSON.parse(request.data);
     assert.deepEqual(data.teaching, { objective: "Highlight father mother and fade in the label", requiredObjects: ["father mother"] });
     assert.equal(data.approvedPage, undefined);
-    assert.match(request.system, /effects are generated after this observation/i);
+    assert.match(request.system, /artwork has been accepted/i);
     return vision(request);
   };
   const result = await generateSavedNarrationBatch(f.input);
@@ -1087,6 +1157,72 @@ test('objects-only repair updates visual semantics without any narration model c
   assert.equal(result.saved, true, JSON.stringify(result.failures));
   assert.match(result.diagnostics.map(d => d.message).join('\n'), /Object binding advisory/);
   assert.equal(f.writes.length, 1); assert.deepEqual(f.writes[0].actions, actions);
+});
+
+for (const taskType of ['scene', 'plain']) for (const metadata of [true, false]) test(`native Scene opened as ${taskType} uses pixel-bound metadata=${metadata} and retains independent semantic review`, async () => {
+  const f = fixture(taskType);
+  f.sourceEvidence.elements[0] = { id: 'text', kind: 'image', text: '', bbox: [0, 0, 200, 100],
+    ...(metadata ? { layerMetadata: { name: 'father mother', description: 'Word labels only; the portrait is a separate layer' } } : {}) };
+  f.input.frozenArtwork = true;
+  f.input.native = { context: await f.input.host.call('courseware.project.context'),
+    evidence: async () => structuredClone(f.sourceEvidence),
+    visuals: { page: async () => ({ images: [{ assetIds: ['layer'], bytes: new Uint8Array([1]), width: 200, height: 100, sha256: 'a'.repeat(64) }],
+      imageBindings: metadata ? [{ assetId: 'layer', importElementId: 'text' }] : [] }), dispose: async () => {} },
+    save: async (expected, n, actions, semantics) => {
+      if (metadata) {
+        assert.equal(semantics[0].text, '', 'Supplier descriptions must not become exact OCR');
+        assert.deepEqual(semantics[0].aliases, ['father mother']);
+      }
+      return (await f.input.host.call('courseware.narration.save', { write: { pageId: expected.pages[n - 1].pageId, actions } })).project;
+    } };
+  let reviewed = 0;
+  f.input.reviewFixture = async (_request, data) => {
+    reviewed++;
+    if (metadata) assert.deepEqual(data.imageBindings, [{ assetId: 'layer', objectId: 'label' }]);
+    return { text: JSON.stringify({ issues: [] }) };
+  };
+  const result = await generateSavedNarrationBatch(f.input);
+  assert.equal(result.saved, true, JSON.stringify(result.failures));
+  assert.ok(reviewed > 0);
+  assert.equal(f.requests.filter(r => r.system?.startsWith('Identify teaching objects')).length, metadata ? 0 : 1);
+});
+
+test('supplier identities cannot bypass a failed independent semantic review', async () => {
+  const f = fixture('scene');
+  f.sourceEvidence.elements[0] = { id: 'text', kind: 'image', text: '', bbox: [0, 0, 200, 100],
+    layerMetadata: { name: 'father mother', description: 'Supplier says these are the word labels' } };
+  f.input.native = { context: await f.input.host.call('courseware.project.context'), evidence: async () => structuredClone(f.sourceEvidence),
+    visuals: { page: async () => ({ images: [{ assetIds: ['layer'], bytes: new Uint8Array([1]), width: 200, height: 100, sha256: 'a'.repeat(64) }], imageBindings: [{ assetId: 'layer', importElementId: 'text' }] }), dispose: async () => {} },
+    save: async () => assert.fail('A conflicting draft must not be saved') };
+  f.input.reviewFixture = async () => ({ text: JSON.stringify({ issues: [{ blockIndex: 0, kind: 'content', message: 'The actual layer is inconsistent with this draft' }] }) });
+  const result = await generateSavedNarrationBatch(f.input);
+  assert.equal(result.saved, false);
+  assert.equal(f.writes.length, 0);
+  assert.ok(result.failures.length > 0);
+});
+
+test('one missing layer description cannot trigger rediscovery of known neighboring layers', async () => {
+  const f = fixture('scene');
+  f.sourceEvidence.elements[0] = { id: 'text', kind: 'image', text: '', bbox: [0, 0, 200, 100], layerMetadata: { name: 'father mother', description: 'Word labels' } };
+  f.sourceEvidence.elements.push({ id: 'unknown', kind: 'image', text: '', bbox: [300, 0, 100, 100] });
+  const context = await f.input.host.call('courseware.project.context');
+  context.mapping.pages[0].objects.push({ objectId: 'unknown-object', importElementId: 'unknown' });
+  f.input.native = { context, evidence: async () => structuredClone(f.sourceEvidence),
+    visuals: { page: async () => ({ images: [{ assetIds: ['label-png'], bytes: new Uint8Array([1]), width: 200, height: 100, sha256: 'a'.repeat(64) }], imageBindings: [{ assetId: 'label-png', importElementId: 'text' }] }), dispose: async () => {} },
+    save: async (expected, n, actions, semantics) => {
+      assert.deepEqual(semantics.find(o => o.objectId === 'label').aliases, ['father mother']);
+      return (await f.input.host.call('courseware.narration.save', { write: { pageId: expected.pages[n - 1].pageId, actions } })).project;
+    } };
+  let discoveries = 0;
+  f.input.completeVision = async request => {
+    const data = JSON.parse(request.data); discoveries++;
+    assert.deepEqual(data.objects.map(o => o.objectId), ['unknown-object']);
+    assert.equal(data.knownLayerObjects[0].name, 'father mother');
+    assert(!('objectId' in data.knownLayerObjects[0])); assert.deepEqual(data.imageBindings, []);
+    return { text: JSON.stringify({ summary: 'The other image is decoration', objects: [{ objectId: 'label', role: 'Wrong neighboring identity', aliases: ['wrong'], text: '', teachingTarget: true }, { objectId: 'unknown-object', role: 'Decoration', aliases: [], text: '', teachingTarget: false }], issues: [] }) };
+  };
+  assert.equal((await generateSavedNarrationBatch(f.input)).saved, true);
+  assert.equal(discoveries, 1);
 });
 
 test('native object-only repair reports retained audio as ready without rewriting actions', async () => {
@@ -1127,4 +1263,424 @@ test('object-only repair can verify a counted content group without renaming its
   const result = await f.run();
   assert.equal(result.saved, true, JSON.stringify(result.failures));
   assert.deepEqual(f.writes[0].actions, []);
+});
+
+
+for (const taskType of ["plain", "import", "scene"]) test(`${taskType}: semantic review repairs only a wrong binding and reviews it again before saving`, async () => {
+  const f = fixture(taskType); delete f.input.completeVision;
+  f.sourceEvidence.text = '熔化 → 吸热 冰';
+  f.sourceEvidence.elements[0].text = '熔化 → 吸热';
+  f.sourceEvidence.elements.push({ id: 'ice', kind: 'text', text: '冰', bbox: [210, 0, 100, 100] });
+  const host = f.input.host.call;
+  f.input.host.call = async (...args) => { const result = await host(...args); if (args[0] === 'courseware.project.context') result.mapping.pages[0].objects.push({ objectId: 'ice', importElementId: 'ice' }); return result; };
+  const complete = f.input.complete;
+  let generations = 0, reviews = 0;
+  f.input.complete = async request => {
+    const data = JSON.parse(request.messages[0].content);
+    if (data.outline) return complete(request);
+    generations++;
+    if (data.blocks) {
+      assert.equal(data.blocks[0].text, '冰化成水时，要从周围吸收热量。');
+      return { text: JSON.stringify({ focuses: [{ blockIndex: 0, objectIds: ['label'] }] }) };
+    }
+    return { text: JSON.stringify({ blocks: [{ type: 'speech', text: '冰化成水时，要从周围吸收热量。', attention: { type: 'highlight', objectIds: ['ice'] } }] }) };
+  };
+  f.input.reviewFixture = async (_request, data) => {
+    reviews++; assert.equal(f.writes.length, 0); assert.equal(data.pageText, f.sourceEvidence.text);
+    assert.equal(data.blocks[0].text, '冰化成水时，要从周围吸收热量。');
+    assert.deepEqual(data.blocks[0].attention.objectIds, [reviews === 1 ? 'ice' : 'label']);
+    return { text: JSON.stringify({ issues: reviews === 1 ? [{ blockIndex: 0, kind: 'binding', message: 'Verify this melting relation rather than reading the arrow literally.', ...(taskType === 'scene' ? { objectIds: ['label'] } : {}) }] : [] }) };
+  };
+  const result = await generateSavedNarrationBatch(f.input);
+  assert.equal(result.saved, true, JSON.stringify(result));
+  assert.equal(generations, taskType === 'scene' ? 1 : 2); assert.equal(reviews, 2);
+  assert.equal(f.writes[0].actions[0].text, '冰化成水时，要从周围吸收热量。');
+});
+
+for (const route of ['plain', 'scene', 'import']) test(route + ': an exact spoken correction rechecks the whole page without regenerating peer blocks', async () => {
+  const f = fixture(route); delete f.input.completeVision;
+  const complete = f.input.complete;
+  let generations = 0, reviews = 0;
+  f.input.complete = async request => {
+    if (JSON.parse(request.messages[0].content).outline) return complete(request);
+    generations++;
+    return {text: JSON.stringify({blocks: [{type:'speech', text:'Observe the page.'}, {type:'speech', text:'Read mother.'}]})};
+  };
+  f.input.reviewFixture = async (_request, data) => {
+    assert.equal(f.writes.length, 0);
+    assert.deepEqual(data.blocks.map(b => b.text), ['Observe the page.', reviews ? 'Read father.' : 'Read mother.']);
+    return {text: JSON.stringify({issues: reviews++ ? [] : [{blockIndex:1, kind:'content', message:'Use the visible word.', replacementText:'Read father.'}]})};
+  };
+  const result = await generateSavedNarrationBatch(f.input);
+  assert.equal(result.saved, true, JSON.stringify(result.failures));
+  assert.equal(generations, 1); assert.equal(reviews, 2);
+  assert.deepEqual(f.writes[0].actions.map(a => a.text), ['Observe the page.', 'Read father.']);
+});
+
+test('a locally corrected speech is not saved when its second review is uncertain', async () => {
+  const f = fixture('plain'); delete f.input.completeVision;
+  let reviews = 0;
+  f.input.reviewFixture = async (_request, data) => {
+    if (++reviews === 1) return {text: JSON.stringify({issues: [{blockIndex: 0, kind: 'content', message: 'Correct this claim.', replacementText: 'Read father.'}]})};
+    assert.equal(data.blocks[0].text, 'Read father.');
+    return {text: JSON.stringify({issues: [{blockIndex: 0, kind: 'uncertain', message: 'The source is unclear.'}]})};
+  };
+  const result = await generateSavedNarrationBatch(f.input);
+  assert.equal(result.failures[0].code, 'COURSEWARE_NARRATION_EVIDENCE_UNCERTAIN');
+  assert.equal(reviews, 2); assert.equal(f.writes.length, 0);
+});
+
+test('semantic review repairs its own format without regenerating a valid narration draft', async () => {
+  for (const invalid of ['invalid JSON', '{}', '```json\n{"issues":[]}\n```']) {
+    const f = fixture('plain'); delete f.input.completeVision;
+    const complete = f.input.complete; let generations = 0, reviews = 0;
+    f.input.complete = async request => {
+      if (!JSON.parse(request.messages[0].content).outline) generations++;
+      return complete(request);
+    };
+    f.input.reviewFixture = async (_request, data) => {
+      reviews++;
+      if (reviews > 1) assert.match(data.repair.error, /review.*(JSON|issues)/);
+      return { text: reviews === 1 ? invalid : JSON.stringify({ issues: [] }) };
+    };
+    const result = await generateSavedNarrationBatch(f.input);
+    assert.equal(result.saved, true, JSON.stringify(result));
+    assert.equal(generations, 1, 'A malformed reviewer verdict must not rewrite the draft');
+    assert.equal(reviews, invalid.startsWith('```json') ? 1 : 2);
+  }
+});
+
+test('semantic review remains bounded, and uncertain or malformed review never saves an unchecked draft', async () => {
+  for (const kind of ['content', 'uncertain', 'malformed', 'invalid-json', 'provider-failure']) {
+    const f = fixture('plain'); delete f.input.completeVision;
+    let reviews = 0;
+    f.input.reviewFixture = async () => { reviews++; if (kind === 'provider-failure') throw Error('Review transport failed'); return { text: kind === 'invalid-json' ? 'invalid JSON' : kind === 'malformed' ? '{}' : JSON.stringify({ issues: [{ blockIndex: 0, kind, message: 'Unsupported statement' }] }) }; };
+    const result = await generateSavedNarrationBatch(f.input);
+    assert.equal(result.saved, false, kind); assert.equal(f.writes.length, 0, kind);
+    assert.equal(reviews, ['content', 'malformed', 'invalid-json'].includes(kind) ? 3 : 1, kind);
+  }
+});
+
+test('semantic content repair uses review feedback and sends actual page images to the next review', async () => {
+  const f = fixture('plain'), complete = f.input.complete;
+  let generations = 0, reviews = 0;
+  f.input.complete = async request => {
+    const data = JSON.parse(request.messages[0].content);
+    if (data.outline) return complete(request);
+    generations++;
+    if (generations > 1) assert.match(data.repair.error, /Unsupported family claim/);
+    return { text: JSON.stringify({ blocks: [{ type: 'speech', text: generations === 1 ? 'Father means 妈妈.' : 'Father means 爸爸.' }] }) };
+  };
+  f.input.reviewFixture = async (request, data) => {
+    assert(request.images.length > 0); assert(data.objects.length > 0); assert.equal(f.writes.length, 0);
+    reviews++;
+    return { text: JSON.stringify({ issues: reviews === 1 ? [{ blockIndex: 0, kind: 'content', message: 'Unsupported family claim; father means 爸爸.' }] : [] }) };
+  };
+  const result = await generateSavedNarrationBatch(f.input);
+  assert.equal(result.saved, true, JSON.stringify(result)); assert.equal(reviews, 2);
+  assert.equal(f.writes[0].actions[0].text, 'Father means 爸爸.');
+});
+
+test('narration review identifies a planned exit awaiting audio adoption', async () => {
+  const f = fixture('plain'); delete f.input.completeVision;
+  const complete = f.input.complete;
+  f.input.complete = async request => JSON.parse(request.messages[0].content).outline ? complete(request) :
+    { text: JSON.stringify({ blocks: [{ type: 'speech', text: 'Read father.', attention: { type: 'highlight', objectIds: ['label'], animation: 'fadeOut' } }] }) };
+  let reviewed = false;
+  f.input.reviewFixture = async (request, data) => {
+    assert.deepEqual(data.pendingAudioBlocks, [0]);
+    assert.equal(data.blocks[0].attention.animation, 'fadeOut');
+    assert.match(request.system, /fadeOut runs at the speech end/);
+    reviewed = true;
+    return { text: '{"issues":[]}' };
+  };
+  const result = await generateSavedNarrationBatch(f.input);
+  assert.equal(result.saved, true, JSON.stringify(result.failures));
+  assert(reviewed);
+  assert.equal(f.writes[0].actions[0].attention.animation, 'fadeOut');
+});
+
+test('a semantic failure retains a successful independent peer and never reviews an unknown UUID', async () => {
+  const f = fixture('plain', [], false, 2); delete f.input.completeVision; f.input.selected = [1, 2];
+  const complete = f.input.complete; let reviews = 0;
+  f.input.complete = async request => {
+    const data = JSON.parse(request.messages[0].content);
+    if (data.outline) return { text: JSON.stringify({ goal: 'Words', pages: data.requestedPageNumbers.map(pageNumber => ({ pageNumber, purpose: 'Read labels', focus: 'father', bridge: 'Continue' })) }) };
+    return complete(request);
+  };
+  f.input.reviewFixture = async (_request, data) => { reviews++; return { text: JSON.stringify({ issues: data.pageNumber === 1 ? [{ blockIndex: 0, kind: 'content', message: 'Wrong explanation' }] : [] }) }; };
+  const result = await generateSavedNarrationBatch(f.input);
+  assert.equal(result.saved, false); assert.deepEqual(result.savedPages.map(p => p.pageNumber), [2]);
+  assert.equal(result.failures[0].pageNumber, 1); assert.equal(reviews, 4);
+  const unknown = fixture('plain'); delete unknown.input.completeVision;
+  const model = unknown.input.complete;
+  unknown.input.complete = async request => JSON.parse(request.messages[0].content).outline ? model(request)
+    : { text: JSON.stringify({ blocks: [{ type: 'speech', text: 'Father', attention: { type: 'highlight', objectIds: ['invented'] } }] }) };
+  unknown.input.reviewFixture = async () => { throw Error('Unknown UUID reached semantic review'); };
+  const rejected = await generateSavedNarrationBatch(unknown.input);
+  assert.equal(rejected.saved, false); assert(!JSON.stringify(rejected).includes('Unknown UUID reached semantic review'));
+});
+
+test('semantic binding repair uses reviewed indices after a speech anchor splits the draft', async () => {
+  const f = fixture('plain'); delete f.input.completeVision; const complete = f.input.complete;
+  let reviews = 0;
+  f.input.complete = async request => {
+    const data = JSON.parse(request.messages[0].content);
+    if (data.outline) return complete(request);
+    if (data.blocks) {
+      assert.equal(data.blocks.length, 2); assert.equal(data.blocks[1].text, 'Father means 爸爸.');
+      return { text: JSON.stringify({ focuses: [{ blockIndex: 1, objectIds: ['label'] }] }) };
+    }
+    return { text: JSON.stringify({ blocks: [{ type: 'speech', text: 'Look. Father means 爸爸.',
+      attention: { type: 'highlight', objectIds: ['label'], anchorText: 'Father means 爸爸.' } }] }) };
+  };
+  f.input.reviewFixture = async (_request, data) => {
+    assert.equal(data.blocks.length, 2); reviews++;
+    return { text: JSON.stringify({ issues: reviews === 1 ? [{ blockIndex: 1, kind: 'binding', message: 'Bind the explanation to its verified label' }] : [] }) };
+  };
+  const result = await generateSavedNarrationBatch(f.input);
+  assert.equal(result.saved, true, JSON.stringify(result)); assert.equal(reviews, 2);
+  assert.deepEqual(f.writes[0].actions.map(a => a.text), ['Look.', 'Father means 爸爸.']);
+});
+
+test('review format repair does not consume the two narration corrections', async () => {
+  const f = fixture('plain'); delete f.input.completeVision;
+  const complete = f.input.complete; let generations = 0, reviews = 0;
+  f.input.complete = async request => {
+    if (!JSON.parse(request.messages[0].content).outline) generations++;
+    return complete(request);
+  };
+  f.input.reviewFixture = async () => ({ text: ++reviews === 1 ? '{}' : JSON.stringify({ issues: [{ blockIndex: 0, kind: 'content', message: 'Unsupported statement' }] }) });
+  const result = await generateSavedNarrationBatch(f.input);
+  assert.equal(result.saved, false); assert.equal(f.writes.length, 0);
+  assert.equal(generations, 3); assert.equal(reviews, 4);
+  assert.equal(result.failures[0].retriable, false);
+});
+
+
+for (const kind of ['malformed', 'uncertain']) test(`a ${kind} review on one native page does not block an independent page`, async () => {
+  const f = nativeRecoveryFixture(3); f.input.selected = [1, 3];
+  f.input.complete.reviewFixture = async (_request, data) => ({ text: data.pageNumber !== 1 ? '{"issues":[]}' : kind === 'malformed'
+    ? '{}' : JSON.stringify({ issues: [{ blockIndex: 0, kind: 'uncertain', message: 'Current page evidence is insufficient' }] }) });
+  const result = await f.run();
+  assert.deepEqual(result.savedPages.map(page => page.pageNumber), [3]);
+  assert.deepEqual(result.failures.map(page => page.pageNumber), [1]);
+  assert.equal(result.failures[0].retriable, false);
+});
+
+
+test('neighbor OCR cannot overwrite native text or retain its wrong aliases', async () => {
+  const f = fixture('plain');
+  f.input.completeVision = async () => ({ text: JSON.stringify({ summary: 'Native labels', issues: [], objects: [
+    { objectId: 'label', role: 'Wrong neighbor', aliases: ['wrong neighbor'], text: 'unrelated neighbor', teachingTarget: true },
+  ] }) });
+  const complete = f.input.complete;
+  f.input.complete = async request => {
+    const data = JSON.parse(request.messages[0].content);
+    if (data.evidence) {
+      assert.equal(data.evidence.objects[0].text, 'father mother');
+      assert.deepEqual(data.evidence.objects[0].aliases, ['father mother']);
+      assert.equal(data.evidence.objects[0].role, 'father mother');
+    }
+    return complete(request);
+  };
+  const result = await generateSavedNarrationBatch(f.input);
+  assert.equal(result.saved, true, JSON.stringify(result.failures)); assert.equal(f.writes.length, 1);
+});
+
+
+for (const route of ['plain', 'scene', 'import']) test(route + ': malformed observations can recover a verified focus on existing speech', async () => {
+  const f = nativeRecoveryFixture(2, route);
+  f.state.words[0] = 'Evaporation';
+  f.input.frozenArtwork = route === 'plain';
+  f.input.repairRequiredTeaching = true;
+  const speech = { id: 'phase-change', type: 'speech', text: 'Read Evaporation.', audioAssetId: 'tts-' + '1'.repeat(64), durationMs: 1800 };
+  await f.input.teaching.native('write', {expectedTeachingRevision:'r1', actions:[speech]}, 1);
+  f.writes.length = 0;
+  const complete = f.input.complete;
+  f.input.complete = async request => {
+    const data = JSON.parse(request.messages[0].content);
+    if (data.outline) return complete(request);
+    return {text: JSON.stringify({focuses:[{speechId:speech.id, type:'highlight', objectIds:['word1']}]})};
+  };
+  const observations = f.input.completeVision;
+  f.input.completeVision = async request => {
+    const data = JSON.parse(request.data);
+    if (data.repair) assert.match(data.repair.error, /issues\[0\]/);
+    const verdict = JSON.parse((await observations(request)).text);
+    verdict.issues = ['unstructured note'];
+    return {text: JSON.stringify(verdict)};
+  };
+  const result = await f.run();
+  assert.equal(result.saved, true, JSON.stringify(result.failures));
+  assert.deepEqual(f.writes.map(p => p.pageNumber), [1]);
+  assert.deepEqual(f.writes[0].actions[0], {...speech, visualCues: f.writes[0].actions[0].visualCues});
+  assert.deepEqual(f.writes[0].actions[0].visualCues[0].effect.elementIds, ['word1']);
+});
+
+test('a verified missing-content finding still blocks import when a neighboring issue is malformed', async () => {
+  const f = nativeRecoveryFixture(1, 'import');
+  f.input.repairRequiredTeaching = true;
+  await f.input.teaching.native('write', {expectedTeachingRevision: 'r1', actions: [{id: 'source', type: 'speech', text: 'Read the source.'}]}, 1);
+  f.writes.length = 0;
+  const observe = f.input.completeVision;
+  f.input.completeVision = async request => {
+    const verdict = JSON.parse((await observe(request)).text);
+    verdict.issues = ['invalid note', {kind: 'missing_required_content', message: 'The source document is missing.'}];
+    return {text: JSON.stringify(verdict)};
+  };
+  const result = await f.run();
+  assert.match(result.failures[0].error, /Required visual content missing.*source document/);
+  assert.equal(f.writes.length, 0);
+});
+
+for (const hasMappedText of [true, false]) test(`unreadable frozen observation uses available native text only (mapped text=${hasMappedText})`, async () => {
+  const f = nativeRecoveryFixture();
+  f.input.frozenArtwork = true;
+  f.state.words[0] = 'Primary source';
+  const native = f.input.teaching.native;
+  f.input.teaching.native = async (op, args, n) => {
+    const result = await native(op, args, n);
+    if (op === 'narration-context') {
+      const evidence = result.value.evidence;
+      evidence.notes = 'An outdated plan mentions another portrait.';
+      if (!hasMappedText) evidence.objects = [];
+      evidence.objects.push({objectId: 'decoration', kind: 'shape', text: '', bbox: [0, 50, 80, 80]});
+    }
+    return result;
+  };
+  f.input.completeVision = async () => ({text:'malformed model reply'});
+  const complete = f.input.complete;
+  f.input.complete = async request => {
+    const data = JSON.parse(request.messages[0].content);
+    if (data.evidence) {
+      assert.equal(data.evidence.notes, '');
+      assert.deepEqual(data.evidence.objects.map(item => item.objectId), ['word1']);
+    }
+    return complete(request);
+  };
+  const result = await f.run();
+  assert.equal(result.saved, hasMappedText, JSON.stringify(result.failures));
+  if (hasMappedText) assert.match(f.writes[0].actions[0].text, /Primary source/);
+  else {
+    assert.equal(f.writes.length, 0);
+    assert.match(result.failures[0].error, /no verified teaching target/);
+  }
+});
+
+test('visual format exhaustion remains visual and never spends the narration budget', async () => {
+  const f = nativeRecoveryFixture(); f.input.retryState = new Map(); let calls = 0;
+  f.input.completeVision = async () => { calls++; return { text: 'invalid JSON' }; };
+  const first = await f.run();
+  assert.equal(first.failures[0].code, 'COURSEWARE_VISUAL_OUTPUT_INVALID');
+  const again = await f.run();
+  assert.equal(again.failures[0].code, 'COURSEWARE_VISUAL_OUTPUT_INVALID');
+  assert.equal(calls, 2); assert.equal(f.writes.length, 0);
+  assert.equal([...f.input.retryState.values()][0].attempts, 0);
+});
+
+test('an omitted visual layer stays unverified instead of aborting the narration batch', async () => {
+  const f = fixture('scene');
+  const original = f.input.host.call;
+  let savedSemantics;
+  f.input.host.call = async (method, args) => {
+    if (method === 'courseware.pageEvidence') {
+      return { ...f.sourceEvidence, elements: [...f.sourceEvidence.elements,
+        { id: 'decor', kind: 'shape', name: 'background decoration', text: '', bbox: [300, 100, 80, 80] }] };
+    }
+    const result = await original(method, args);
+    if (method === 'courseware.project.context') result.mapping.pages[0].objects.push({ objectId: 'decor-id', importElementId: 'decor' });
+    if (method === 'courseware.narration.save') savedSemantics = args.semantics;
+    return result;
+  };
+  f.input.completeVision = async request => {
+    const data = JSON.parse(request.data);
+    const label = data.objects.find(object => object.objectId === 'label');
+    return { text: JSON.stringify({ summary: 'The page has one readable label.', objects: [{
+      objectId: label.objectId, role: 'word label', aliases: ['father mother'], text: label.text, teachingTarget: true,
+    }], issues: [] }) };
+  };
+  const result = await generateSavedNarrationBatch(f.input);
+  assert.equal(result.saved, true, JSON.stringify(result.failures));
+  assert.equal(savedSemantics.find(object => object.objectId === 'decor-id').teachingTarget, false);
+  assert.match(result.diagnostics.map(item => item.message).join('\n'), /decor-id/);
+});
+
+
+test('failed retry reservation blocks speech generation without touching the document', async () => {
+  const f = nativeRecoveryFixture(); f.input.turnId = 'turn'; let speech = 0;
+  const complete = f.input.complete;
+  f.input.complete = async request => {
+    if (!JSON.parse(request.messages[0].content).outline) speech++;
+    return complete(request);
+  };
+  f.input.retryStore = { read: async () => ({ revision: 0, failures: {} }),
+    writeNarration: async () => { throw Error('retry storage unavailable'); } };
+  const result = await f.run();
+  assert.equal(speech, 0); assert.equal(f.writes.length, 0);
+  assert(result.failures.some(f => f.error.includes('retry storage unavailable')));
+  f.input.retryStore.read = async () => { throw Error('retry read unavailable'); };
+  await assert.rejects(f.run(), /retry read unavailable/);
+  assert.equal(speech, 0);
+});
+
+
+test('cancellation during a saved retry reservation cannot dispatch narration', async () => {
+  const f = nativeRecoveryFixture(); f.input.turnId = 'turn'; let active = true, speech = 0;
+  f.input.canDispatch = () => active;
+  const complete = f.input.complete;
+  f.input.complete = async request => {
+    if (!JSON.parse(request.messages[0].content).outline) speech++;
+    return complete(request);
+  };
+  f.input.retryStore = { read: async () => ({ revision: 0, failures: {} }),
+    writeNarration: async (_session, _project, _previous, narration) => {
+      active = false; return { revision: 1, failures: {}, narration };
+    } };
+  const result = await f.run();
+  assert.equal(speech, 0); assert.equal(f.writes.length, 0); assert.equal(result.saved, false);
+});
+
+for (const visible of [true, false]) test(`a partial inventory cannot decide whole-page absence: visible=${visible}`, async () => {
+  const f = fixture('plain');
+  const call = f.input.host.call;
+  f.sourceEvidence.elements = Array.from({length: 13}, (_, i) => ({id:`t${i}`, kind:'text', text:`label ${i}`, bbox:[i*20,0,18,12]}));
+  f.input.host.call = async (method, args) => {
+    const value = await call(method, args);
+    if (method === 'courseware.project.context') value.mapping.pages[0].objects = f.sourceEvidence.elements.map(e => ({objectId:e.id, importElementId:e.id}));
+    return value;
+  };
+  const chunks = [];
+  f.input.completeVision = async req => {
+    const data = JSON.parse(req.data);
+    if (data.disputedFacts) return {text: JSON.stringify(visible ? {visible} : {visible,reason:'The unit is absent'})};
+    chunks.push(data.objects.length);
+    return {text:JSON.stringify({summary:'Numbered labels', issues: chunks.length === 1 ? [{kind:'missing_required_content',message:'The last label is outside the group'}] : [],objects:data.objects.map(o=>({objectId:o.objectId,role:'label',text:o.text,aliases:[o.text],teachingTarget:true}))})};
+  };
+  const result = await generateSavedNarrationBatch(f.input);
+  assert.deepEqual(chunks,[12,1]); assert.equal(result.saved,visible, JSON.stringify(result.failures));
+  if (!visible) assert.match(result.failures[0].error,/The unit is absent/);
+});
+
+test("an exhausted focus draft saves only independently checked speech on frozen native artwork", async () => {
+  for (const wordsValid of [true,false]) {
+    const f = nativeRecoveryFixture();
+    f.input.frozenArtwork = true;
+    const complete = f.input.complete;
+    const words = "Listen to the word father.";
+    f.input.complete = async request => {
+      const data = JSON.parse(request.messages[0].content);
+      if (data.outline) return complete(request);
+      if (data.blocks) return {text: '{"focuses":[{"blockIndex":0,"objectIds":["invented"]}]}'};
+      return {text: JSON.stringify({blocks:[{type:"speech",text:words,attention:{type:"spotlight",objectIds:["invented"]}}]})};
+    };
+    f.input.complete.reviewFixture = async (_req,data) => ({text:JSON.stringify({issues:wordsValid ? [] :
+      [{kind:"content",blockIndex:0,message:"The spoken statement is unsupported."}]})});
+    const result = await f.run();
+    assert.equal(result.saved,wordsValid,JSON.stringify(result.failures));
+    if (wordsValid) {
+      assert.equal(f.writes[0].actions[0].text,words);
+      assert.equal(f.writes[0].actions[0].attention,undefined);
+    } else assert.equal(f.writes.length,0);
+  }
 });

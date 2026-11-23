@@ -1,0 +1,32 @@
+{
+  "baseHead": "5cbd7cb44de14d6cb5f1e478ff9f57b63bd7d05d",
+  "sourceWorktree": "/home/jhz/code/train/deckwise-desktop-worktrees/courseware-stage-aware-scene",
+  "files": {
+    "apps/desktop/electron/main/courseware-native-tools.ts": "e04cf14fe6b829742c1320e46f7d3addf6fda95d3f0dd87b721ea47468b48b47",
+    "apps/desktop/electron/main/courseware-native-repairs.ts": "d689090bd3aacc260400e7012e28f7ed5f51084d8efc925315f55f51adf0bdfc",
+    "apps/desktop/electron/main/courseware-document-runtime.ts": "3e6daeae3054117459755d12020cd2a48176726d7551ab6b31bb2840c31c034e",
+    "apps/desktop/test/courseware-native-tools.test.mjs": "cea9eb05601e8a33fa2a261955494767e384b654527ac63d9faa97a28f96aafc",
+    "apps/desktop/test/courseware-native-repairs.test.mjs": "0c3b4433b3b353f54b5dc8bd7a63154ace1cda1ba59a05d1c588b3add98dc19f",
+    "crates/host-core/src/rpc/mod.rs": "8e8f0e6b2f375f0c2c609ca0982cc13de8b100a0aff9044b7f5141ccafc93909",
+    "crates/host-core/src/rpc/courseware_projects.rs": "423f04f049cf68ee2b43d9ecae15acdba29c87eb66f38c0609b61669ad10b3af",
+    "crates/host-core/src/rpc/courseware_projects/native_repairs.rs": "3be5d1eaa986ce1f29ea45a2efe9a2b91d9dc504d06d52d983c9791195a4bf1a",
+    "apps/desktop/out/main/index.js": "575b74acb40262519a0904051071aa1a1718f0edb2aa82965d8d4c71e0855afb",
+    "target/release/pi-desktop-host-core": "4762633635aeafb74faf7b96980c6479cb05d961cab5727cc8663992590f7e38"
+  },
+  "validation": {
+    "desktopTests": 221,
+    "hostRestartCASIsolationTest": "passed",
+    "desktopTypecheck": "passed",
+    "desktopProductionBuild": "passed",
+    "hostReleaseBuild": "passed",
+    "rustFormat": "passed",
+    "diffWhitespace": "passed"
+  },
+  "paidCalls": 0,
+  "installedElectronCrashJourney": "not run",
+  "knownRemaining": [
+    "native candidate retry counters remain runtime-local",
+    "live Scene adoption delay not yet attributed"
+  ],
+  "delivery": "Desktop and Host together; editor unchanged from closeout"
+}

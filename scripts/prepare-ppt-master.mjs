@@ -16,7 +16,14 @@ const PPT_MASTER_ARCHIVE_URL =
 const REQUIRED_FILES = [
   "SKILL.md",
   "scripts/attribution_guard.py",
+  "scripts/project_manager.py",
+  "scripts/svg_quality_checker.py",
+  "scripts/svg_to_pptx.py",
+  "scripts/svg_editor/server.py",
   "workflows/routing.md",
+  "workflows/generate-pptx.md",
+  "templates/design_spec_reference.md",
+  "templates/spec_lock_reference.md",
 ];
 
 function parseArgs(argv) {

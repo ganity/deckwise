@@ -34,7 +34,10 @@ export function CoursewareImportStart({ sessionId, path, education, editor }: {
   const readyRef = useRef(ready); readyRef.current = ready;
   useEffect(() => {
     active.current = true;
-    const unsubscribe = api.onAuthChanged(() => { generation.current++; setView(null); setBusy(false); setFiles([]); setReview(false); setRefresh(n => n + 1); });
+    const unsubscribe = api.onAuthChanged((state) => {
+      if (state.status !== "authenticated") { generation.current++; setView(null); setBusy(false); setFiles([]); setReview(false); }
+      setRefresh(n => n + 1);
+    });
     return () => { active.current = false; generation.current++; unsubscribe(); };
   }, []);
   useEffect(() => {

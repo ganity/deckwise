@@ -8115,3 +8115,7 @@ uses identity/media fixtures and does not replace the real Spring boundary.
 - Repeat packaged cold/warm open, edit/save/reopen on Linux, macOS and Windows
   before claiming release readiness. Current source probes do not certify those
   lanes, full timeline playback, object identity or same-canvas overlay geometry.
+
+## 单页讲解与材料修复验证
+
+在单页效果修复期间注入格式错误的视觉检查意见，重开课件核对目标、讲解、音频及其他页面。分别使用用户原文和 Agent 生成的草稿预览、采用内联材料，核对只有用户原文可以建立材料绑定。

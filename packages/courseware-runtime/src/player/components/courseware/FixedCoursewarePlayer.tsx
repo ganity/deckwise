@@ -243,7 +243,7 @@ export function FixedCoursewarePlayer({
     });
     if (build.scenes[index]?.actions?.length || build.scenes[index]?.content.type === 'quiz') playback.continuePlayback();
     else {
-      setComplete(true);
+      setComplete(index === build.scenes.length - 1);
       events.current.onPageChange?.(build.scenes[index].id);
     }
   };

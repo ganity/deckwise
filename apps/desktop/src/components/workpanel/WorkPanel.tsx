@@ -692,7 +692,7 @@ export function WorkPanel({
           )}
           {!subagentPanel && activeTab?.kind === "svg-editor" && activeTab.resource && (
             <div
-              key={activeTab.id}
+              key={`${activeSessionId}:${activeTab.id}`}
               id={`work-panel-surface-${activeTab.id}`}
               className="work-panel-tabpane"
               role="tabpanel"

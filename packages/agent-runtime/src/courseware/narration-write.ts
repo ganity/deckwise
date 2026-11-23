@@ -1,7 +1,9 @@
+import { COURSEWARE_ATTENTION_TARGET_LIMIT } from "@pi-desktop/shared";
 import { isCoursewareSceneTeaching, coursewareQuestionMatches, isTeachingWrite, isCoursewareAttentionCue, isCoursewareAttentionIntent, isCoursewareInteractionCheckpoint, type CoursewareProject, type TeachingWrite } from "@pi-desktop/shared";
+import { sequenceSpeechFocus } from "@pi-desktop/shared";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { generatePageNarrationCandidate, sceneSpeechTarget, isNarrationTextContainer } from "./page-narration-candidate.js";
+import { preferNarrationSpotlights, generatePageNarrationCandidate, narrationObjectReferences, sceneSpeechTarget, isNarrationTextContainer } from "./page-narration-candidate.js";
 import { candidateHash, checkPageCandidateBaseline, pageCandidateBaselineSchema, PageCandidateError } from "./page-candidate-baseline.js";
 
 const requiredBlock = z.discriminatedUnion("type", [
@@ -12,7 +14,7 @@ const requiredBlock = z.discriminatedUnion("type", [
   z.object({ type: z.literal("music"), title: z.string().trim().min(1).max(100), prompt: z.string().trim().min(1).max(4000) }).strict(),
   z.object({ type: z.literal("video"), prompt: z.string().trim().min(1).max(4000), durationSeconds: z.number().int().min(4).max(30).optional() }).strict(),
 ]);
-const focusDelta = z.object({ focuses: z.array(z.object({ speechId: z.string().min(1), type: z.enum(["highlight", "spotlight"]), objectIds: z.array(z.string().min(1)).min(1).max(8), animation: z.enum(["fadeIn", "pulse", "zoomIn", "slideInLeft", "slideInRight", "gentleRotate"]).optional() }).strict()).max(100) }).strict();
+const focusDelta = z.object({ focuses: z.array(z.object({ speechId: z.string().min(1), cueId: z.string().min(1).max(200).optional(), requestedHighlight: z.literal(true).optional(), type: z.enum(["highlight", "spotlight"]), objectIds: z.array(z.string().min(1).max(200)).min(1).max(COURSEWARE_ATTENTION_TARGET_LIMIT), animation: z.enum(["fadeIn", "fadeOut", "pulse", "zoomIn", "slideInLeft", "slideInRight", "gentleRotate"]).optional() }).strict()).max(100) }).strict();
 const requiredDelta = z.object({ insertions: z.array(z.object({ afterSpeechId: z.string().min(1).max(128), block: requiredBlock }).strict()).max(3) }).strict();
 
 function requirementAction(block: z.infer<typeof requiredBlock>, id: string, pageId: string, title: string): TeachingWrite["actions"][number] {
@@ -95,36 +97,76 @@ export async function generateNarrationWrite(input: Omit<Parameters<typeof gener
     if (missing.size) throw new PageCandidateError("INVALID_OUTPUT", `Repair omitted required actions: ${[...missing].join(", ")}`);
     await checkPageCandidateBaseline(baseline, input.getCurrentBaseline, input.signal);
     if (input.audioDurations && input.evidence) {
+      const { references, refPrefix } = narrationObjectReferences(input.evidence.objects);
       const proposed = focusDelta.parse(await input.generate({
-        system: "Repair only synchronized effects on the existing verbatim speech. Return {focuses:[{speechId,type:highlight|spotlight,objectIds:[exact supplied IDs],animation?:fadeIn|pulse|zoomIn|slideInLeft|slideInRight|gentleRotate}]}. Honor the requested effects and targets in instruction and teaching.requiredEffects. Highlight text and spotlight the pictured object. Multiple focuses may use the same speechId; do not rewrite or split speech, add machine IDs to spoken words, or change unrelated cues. Replace the selected speech’s focus of the same type instead of stacking it. An object may enter only once per page; use pulse for later emphasis. Use only supplied verified teaching objects; omit uncertain/background targets. For a first entrance use the requested fadeIn, not pulse. If effects already satisfy the request return an empty focuses array.",
-        data: JSON.stringify({ instruction: input.instruction, teaching, objects: input.evidence.objects, speeches: page.actions.filter(a => a.type === "speech") }), schema: focusDelta,
+        system: "Repair only synchronized effects on the existing verbatim speech. Return {focuses:[{speechId,cueId?:existing cue ID,type:highlight|spotlight,objectIds:[current-page objectRef or exact supplied ID],animation?:fadeIn|fadeOut|pulse|zoomIn|slideInLeft|slideInRight|gentleRotate}]}. Honor the requested effects and targets in instruction and teaching.requiredEffects. Default to spotlight for text, diagrams and pictures. Across the lesson use more spotlights than highlights. Reserve highlight for reading a specific word or symbol. Set requestedHighlight:true when a particular target must be highlighted. Put different focus types on separate relevant speeches wherever possible. Plan native animations at distinct teaching moments across the page, including subsequent steps and comparisons. Honor explicitly static content. For speech awaiting audio use one focus with its target IDs and optional animation. After audio adoption prefer one principal spotlight per speech; provide additional targets at distinct saved word anchors or on other speech blocks. Never estimate time by dividing the recording; do not rewrite or split speech, add machine IDs to spoken words, or change unrelated cues. To correct the targets of an existing timed cue, give its cueId and complete corrected target set; its timing and style are retained. Omit animation for a target-only edit. Supply one replacement per cue. Use a single multi-target spotlight for simultaneous objects. An object may enter only once per page; use pulse for later emphasis. Use only supplied verified teaching objects; omit uncertain/background targets. Follow the requested preset and teaching moment. Use fadeOut for a temporary object that leaves at the end of the speech. If effects already satisfy the request return an empty focuses array.",
+        data: JSON.stringify({ instruction: input.instruction, teaching, objects: input.evidence.objects.map((o,i) => ({ ...o, objectRef: refPrefix + (i+1) })), speeches: page.actions.filter(a => a.type === "speech") }), schema: focusDelta,
       }, input.signal));
+      for (const f of proposed.focuses) f.objectIds = f.objectIds.map(id => references.get(id) ?? id);
+      // A batch of unmarked speeches is a new focus plan. Preserve edits to already authored cues.
+      const newFocuses = proposed.focuses.filter(f => !f.cueId && proposed.focuses.filter(p => p.speechId === f.speechId).length === 1 &&
+        page.actions.some(a => a.id === f.speechId && !a.attention && !(Array.isArray(a.visualCues) && a.visualCues.length)));
+      if (newFocuses.length > 1) preferNarrationSpotlights(newFocuses, requirements?.requiredEffects?.includes("highlight") ?? false);
       const actions: TeachingWrite["actions"] = page.actions.flatMap(a => {
         const focuses = proposed.focuses.filter(f => f.speechId === a.id);
-        if (!focuses.length) return [structuredClone(a), ...(additions.get(String(a.id)) ?? [])];
+        if (!focuses.length) return [Array.isArray(a.visualCues) ? { ...a, visualCues: sequenceSpeechFocus(a.visualCues) } : structuredClone(a), ...(additions.get(String(a.id)) ?? [])];
+        for (const focus of focuses) {
+          if (new Set(focus.objectIds).size !== focus.objectIds.length || focus.objectIds.some(id => !input.evidence!.objects.some(o => o.objectId === id && !isNarrationTextContainer(o, input.evidence!.objects, String(a.text)))))
+            throw new PageCandidateError("INVALID_OUTPUT", "Effect repair selected an unknown or unsafe object");
+        }
+        const oldCues = Array.isArray(a.visualCues) ? a.visualCues : [];
+        if (a.type === "speech" && !a.audioAssetId && !oldCues.length) {
+          const [focus] = focuses;
+          if (focuses.length !== 1 || focus.cueId) throw new PageCandidateError("INVALID_OUTPUT", "Before audio adoption, use one attention intent per speech with its targets and optional animation");
+          const attention = { type: focus.type, objectIds: focus.objectIds, ...(focus.animation ? { animation: focus.animation } : {}) };
+          return [{ ...a, attention }, ...(additions.get(String(a.id)) ?? [])];
+        }
         const duration = input.audioDurations![String(a.id)];
         if (a.type !== "speech" || !a.audioAssetId || !Number.isSafeInteger(duration) || duration < 1 || duration > 3600000)
           throw new PageCandidateError("INVALID_OUTPUT", "Effect repair requires verified saved audio for each selected speech");
-        const oldCues = Array.isArray(a.visualCues) ? a.visualCues : [];
-        const replacedTypes = new Set(focuses.map(f => f.type));
-        const animatedTargets = new Set(focuses.filter(f => f.animation).flatMap(f => f.objectIds));
-        const replacedTargets = new Set(oldCues.flatMap(c =>
-          replacedTypes.has(c.effect.type as "highlight" | "spotlight")
-            ? c.effect.type === "highlight" ? c.effect.elementIds : c.effect.type === "spotlight" ? [c.effect.elementId, ...(c.effect.elementIds ?? [])] : [] : []));
-        const cues = oldCues.filter(c => !replacedTypes.has(c.effect.type as "highlight" | "spotlight") &&
-          !(c.effect.type === "element_animation" && (animatedTargets.has(c.effect.elementId) || replacedTargets.has(c.effect.elementId))));
-        for (const [index, focus] of focuses.entries()) {
-          if (new Set(focus.objectIds).size !== focus.objectIds.length || focus.objectIds.some(id => !input.evidence!.objects.some(o => o.objectId === id && !isNarrationTextContainer(o, input.evidence!.objects, String(a.text)))))
-            throw new PageCandidateError("INVALID_OUTPUT", "Effect repair selected an unknown or unsafe object");
+        const replaced = new Set<string>();
+        for (const f of focuses) {
+          const matching = oldCues.filter(c => c.effect.type === f.type && (!f.cueId || c.id === f.cueId));
+          if ((f.cueId && (matching.length !== 1 || f.animation)) || (!f.cueId && matching.length > 1) || matching.some(c => replaced.has(c.id)))
+            throw new PageCandidateError("INVALID_OUTPUT", "Select one existing cueId on this speech to correct its targets without replacing other timed cues");
+          if (!f.animation && matching.length === 1) f.cueId = matching[0].id;
+          for (const c of matching) replaced.add(c.id);
+        }
+        const fresh = focuses.filter(focus => !focus.cueId);
+        // Saved speech has no new word clock. Reuse its calibrated cue for this target, or choose one main focus.
+        const primary = fresh.find(f => f.type === "spotlight") ?? fresh[0];
+        const starts = fresh.map(focus => oldCues.find(c =>
+          c.effect.type === "element_animation" && c.trigger?.kind === "text" && !c.trigger.stale &&
+          c.trigger.audioAssetId === a.audioAssetId && focus.objectIds.includes(c.effect.elementId) &&
+          String(a.text).slice(c.trigger.start, c.trigger.end) === c.trigger.text));
+        const selected = fresh.filter((focus, i) => focus === primary || starts[i] || focus.animation === "fadeOut");
+        const animatedTargets = new Set(selected.filter(f => f.animation).flatMap(f => f.objectIds));
+        const cues = oldCues.flatMap(c => {
+          const patch = focuses.find(f => f.cueId === c.id);
+          if (patch && c.effect.type === "highlight") return [{ ...c, effect: { ...c.effect, elementIds: patch.objectIds } }];
+          if (patch && c.effect.type === "spotlight") return [{ ...c, effect: { ...c.effect, elementId: patch.objectIds[0], elementIds: patch.objectIds.slice(1) } }];
+          return (replaced.has(c.id) && selected.some(f => f.type === c.effect.type)) || c.effect.type === "element_animation" && !c.nativeAnimation && animatedTargets.has(c.effect.elementId) && (c.trigger?.kind !== "text" || starts.includes(c)) ? [] : [c];
+        });
+        for (const [index, focus] of fresh.entries()) {
+          const anchor = starts[index];
+          if (focus !== primary && !anchor && focus.animation !== "fadeOut") continue;
           const id = `repair-${candidateId}-${a.id}-${index}`;
-          const end = Math.min(duration, 600);
-          if (focus.animation) for (const [n, objectId] of focus.objectIds.entries()) cues.push({ id: `${id}-motion-${n}`, atMs: 0, endMs: end,
-            trigger: { version: 1, kind: "start" }, effect: { type: "element_animation", elementId: objectId, effect: focus.animation } });
-          cues.push({ id, atMs: focus.animation && focus.animation !== "pulse" && focus.animation !== "gentleRotate" ? Math.min(end, duration - 1) : 0, endMs: duration,
+          const start = anchor?.atMs ?? 0;
+          const until = Math.min(duration, ...starts.flatMap(c => c && c.atMs > start ? [c.atMs] : []));
+          if (until <= start) continue;
+          const exit = focus.animation === "fadeOut";
+          const slot = until - start;
+          const length = anchor && !exit ? Math.min(slot, anchor.endMs - anchor.atMs) :
+            slot <= 600 && !exit ? Math.max(1, Math.floor(slot / 2)) : Math.min(slot, 600);
+          const atMs = exit ? duration : start;
+          if (focus.animation) for (const [n, objectId] of focus.objectIds.entries()) cues.push({ id: `${id}-motion-${n}`, atMs, endMs: atMs + length,
+            ...(anchor && !exit ? { trigger: anchor.trigger } : exit || start === 0 ? { trigger: { version: 1 as const, kind: exit ? "end" as const : "start" as const } } : {}),
+            effect: { type: "element_animation", elementId: objectId, effect: focus.animation } });
+          cues.push({ id, atMs: focus.animation && !exit ? Math.min(start + length, until - 1) : start, endMs: until,
             effect: focus.type === "highlight" ? { type: "highlight", elementIds: focus.objectIds } : { type: "spotlight", elementId: focus.objectIds[0], elementIds: focus.objectIds.slice(1) } });
         }
         const { attention: _, ...retained } = a;
-        return [{ ...retained, visualCues: cues }, ...(additions.get(String(a.id)) ?? [])];
+        return [{ ...retained, visualCues: sequenceSpeechFocus(cues) }, ...(additions.get(String(a.id)) ?? [])];
       });
       if (proposed.focuses.some(f => !page.actions.some(a => a.type === "speech" && a.id === f.speechId))) throw new PageCandidateError("INVALID_OUTPUT", "Unknown saved speech anchor");
       // A repaired entrance can precede a previously saved entrance on a later speech.
@@ -139,11 +181,15 @@ export async function generateNarrationWrite(input: Omit<Parameters<typeof gener
         return repeated ? { ...c, effect: { ...c.effect, effect: "pulse" } } : c;
       });
       const required = requirements?.requiredEffects ?? [];
-      if (required.some(type => !actions.some(a => Array.isArray(a.visualCues) && a.visualCues.some(c => c.effect.type === (type === "animation" ? "element_animation" : type)))))
+      if (required.some(type => !actions.some(a =>
+        (!a.audioAssetId && isCoursewareAttentionIntent(a.attention) && (type === "animation" ? !!a.attention.animation : a.attention.type === type)) ||
+        (Array.isArray(a.visualCues) && a.visualCues.some(c => c.effect.type === (type === "animation" ? "element_animation" : type))))))
         throw new PageCandidateError("INVALID_OUTPUT", "Effect repair omitted an approved required effect");
       await checkPageCandidateBaseline(baseline, input.getCurrentBaseline, input.signal);
       const write = { projectId: project.projectId, pageId: page.pageId, expectedSourceRevision: project.source.revision, expectedTeachingRevision: project.teachingRevision, actions };
       if (!isTeachingWrite(write)) throw new PageCandidateError("INVALID_OUTPUT", "Invalid saved-audio effect repair");
+      await input.reviewSemantics?.(actions);
+      await checkPageCandidateBaseline(baseline, input.getCurrentBaseline, input.signal);
       return { candidateId, write };
     }
     const missingEffects = new Set<string>(requirements?.requiredEffects ?? []);
@@ -157,32 +203,63 @@ export async function generateNarrationWrite(input: Omit<Parameters<typeof gener
         missingEffects.delete(type === "element_animation" ? "animation" : type);
       }
     }
+    const objects = input.evidence?.objects ?? [];
+    const plans = new Map<string, z.infer<typeof focusDelta>["focuses"][number]>();
+    if (missingEffects.has("animation") && objects.length) {
+      const delta = focusDelta.parse(await input.generate({ schema: focusDelta,
+        system: "Plan a native motion for each distinct reveal or emphasis called for by the teaching and instruction. Return one focus per selected speech with speechId, type, current objectIds and animation. Prefer spotlights to highlights; mark specifically requested highlights with requestedHighlight:true. Respect static and comparison objects. Use the existing speech verbatim. Use an entrance for a first reveal, pulse for emphasis, or fadeOut for a temporary object at the end. Keep any existing attention and use only safe identified objects. If no target is appropriate return an empty focuses array.",
+        data: JSON.stringify({ instruction: input.instruction, teaching, missingEffects: [...missingEffects], objects,
+          speeches: page.actions.filter(a => a.type === "speech" && !a.attention) }),
+      }, input.signal));
+      if (delta.focuses.length > 1) preferNarrationSpotlights(delta.focuses, missingEffects.has("highlight"));
+      for (const plan of delta.focuses) {
+        const speech = page.actions.find(a => a.type === "speech" && !a.attention && a.id === plan.speechId);
+        if (!plan.animation || plan.cueId || !speech || plans.has(plan.speechId) ||
+            new Set(plan.objectIds).size !== plan.objectIds.length ||
+            plan.objectIds.some(id => !objects.some(o => o.objectId === id && !isNarrationTextContainer(o, objects, String(speech.text)))))
+          throw new PageCandidateError("INVALID_OUTPUT", "Bind each planned native motion to one saved speech and its verified objects");
+        plans.set(plan.speechId, plan);
+      }
+    }
+    const entered = new Set<string>();
     const actions = page.actions.flatMap(a => {
-      const objects = input.evidence?.objects ?? [];
-      const focus = missingEffects.has("highlight") ? "highlight" : missingEffects.has("spotlight") ? "spotlight" : undefined;
+      if (isCoursewareAttentionIntent(a.attention)) a.attention.objectIds.forEach(id => entered.add(id));
+      if (Array.isArray(a.visualCues)) for (const cue of a.visualCues) {
+        if (cue.effect.type === "element_animation") entered.add(cue.effect.elementId);
+      }
+      const planned = plans.get(String(a.id));
+      if (planned) {
+        missingEffects.delete("animation");
+        missingEffects.delete(planned.type);
+        if (planned.animation && ["fadeIn", "zoomIn", "slideInLeft", "slideInRight"].includes(planned.animation) &&
+            planned.objectIds.some(id => entered.has(id))) planned.animation = "pulse";
+        planned.objectIds.forEach(id => entered.add(id));
+        const { visualCues: _, ...speech } = a;
+        return [{ ...speech, attention: { type: planned.type, objectIds: planned.objectIds, animation: planned.animation } },
+          ...(additions.get(String(a.id)) ?? [])];
+      }
+      const focus = missingEffects.has("spotlight") ? "spotlight" : missingEffects.has("highlight") ? "highlight" : undefined;
       const eligible = a.type === "speech" && a.attention === undefined &&
         (missingEffects.size > 0 || !Array.isArray(a.visualCues) || !a.visualCues.length);
       const target = eligible ? sceneSpeechTarget(String(a.text), focus === "highlight" ? objects.filter(o => !!o.text.trim()) : objects) : undefined;
-      const type = focus ?? (target?.kind === "image" && !target.text.trim() ? "spotlight" : "highlight");
-      const animation = missingEffects.has("animation");
-      if (target) {
-        missingEffects.delete(type);
-        if (animation) missingEffects.delete("animation");
-      }
+      const type = focus ?? "spotlight";
+      if (target) missingEffects.delete(type);
       // Host retains baseline cues and resolves the additional intent against verified audio.
       const { visualCues: _, ...withoutCues } = a;
       return [target ? { ...withoutCues,
-        attention: { type, objectIds: [target.objectId], ...(animation ? { animation: "pulse" } : {}) } } : a,
+        attention: { type, objectIds: [target.objectId] } } : a,
         ...(additions.get(String(a.id)) ?? [])];
     });
     if (missingEffects.size) throw new PageCandidateError("INVALID_OUTPUT", `Repair could not safely bind required effects: ${[...missingEffects].join(", ")}; supply unambiguous objects mentioned in the saved speech`);
     const write = { projectId: project.projectId, pageId: page.pageId, expectedSourceRevision: project.source.revision, expectedTeachingRevision: project.teachingRevision, actions };
     if (!isTeachingWrite(write)) throw new PageCandidateError("INVALID_OUTPUT", "Invalid required teaching repair");
+    await input.reviewSemantics?.(actions);
+    await checkPageCandidateBaseline(baseline, input.getCurrentBaseline, input.signal);
     return { candidateId, write };
   }
   const educationContext = project.educationContext ? { ...project.educationContext,
     schoolStage: project.educationContext.schoolStage?.trim().toUpperCase(), subject: project.educationContext.subject?.trim().toUpperCase() } : undefined;
-  const candidate = await generatePageNarrationCandidate({ ...input, educationContext, sceneTeaching: project.taskType === "scene" || project.taskType === "plain", existingNarration: page.actions.filter((action) => action.type === "speech").map((action) => action.text).join("\n") });
+  const candidate = await generatePageNarrationCandidate({ ...input, educationContext: educationContext ?? {}, sceneTeaching: project.taskType === "scene" || project.taskType === "plain", sceneBodyImage: project.taskType === "scene", existingNarration: page.actions.filter((action) => action.type === "speech").map((action) => action.text).join("\n") });
   if (input.independentAssessmentPages && candidate.narration.blocks.some(block => block.type === "interaction" || block.type === "wait" && block.mode === "teacher_continue"))
     throw new PageCandidateError("INVALID_OUTPUT", "Use separate assessment pages for questions and teacher continuation; body lecture must retain speech, focus, music and video only");
   if (isCoursewareSceneTeaching(teaching) && !teaching.music && !page.actions.some(action => action.type === "music_slot" || action.type === "audio_clip") &&
@@ -238,7 +315,7 @@ export async function generateNarrationWrite(input: Omit<Parameters<typeof gener
       const attention = action.attention;
       return isCoursewareAttentionIntent(attention) && (attention.type === effect || effect === "animation" && !!attention.animation);
     }));
-    if (missing?.length) throw new PageCandidateError("INVALID_OUTPUT", `Missing required teaching effects: ${missing.join(", ")}; use safe supplied object IDs`);
+    if (missing?.length && !input.deferFocus) throw new PageCandidateError("INVALID_OUTPUT", `Missing required teaching effects: ${missing.join(", ")}; use safe supplied object IDs`);
   }
   if (!isTeachingWrite(write)) throw new PageCandidateError("INVALID_OUTPUT", "Invalid canonical teaching proposal");
   return { candidateId: candidate.candidateId, write };

@@ -473,13 +473,12 @@ export function createPluginServices({
     getFileRoot: async (sessionId) => {
       if (sessionId) {
         try {
-          const res = (await getHost()?.call("session.get", { id: sessionId })) as
+          const res = (await getHost()?.call("session.get", { id: sessionId, messageLimit: 1, contentLimit: 1 })) as
             | { session: { projectPath?: string } | null }
             | undefined;
-          const path = res?.session?.projectPath?.trim();
-          if (path) return path;
+          return res?.session?.projectPath?.trim() || null;
         } catch {
-          // Fall through to the visible workspace.
+          return null;
         }
       }
       return getWorkspacePath();

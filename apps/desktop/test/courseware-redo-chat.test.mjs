@@ -9,6 +9,8 @@ const source = await readFile(new URL("../electron/main/courseware-candidates.ts
 const fixture = JSON.parse(await readFile(new URL("../../../packages/shared/src/courseware-contract.fixtures/accepted.json", import.meta.url), "utf8"));
 function setup() {
   const project = structuredClone(fixture.project);
+  // Page redo is a pre-narration visual-stage operation; freeze coverage is tested separately.
+  project.pages.forEach(page => { page.actions = []; });
   const editor = { projectId: "native", documentId: "doc", sessionId: "office", editGeneration: 1, page: 1 };
   const session = { mode: "agent", providerId: "provider", modelId: "vision", thinkingLevel: "off" };
   const view = { projectId: project.projectId, pageId: project.pages[0].pageId, sourceSha256: project.source.sha256 };

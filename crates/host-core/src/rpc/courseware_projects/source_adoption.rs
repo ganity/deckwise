@@ -152,6 +152,20 @@ pub(super) async fn handle(
                 .db
                 .get_source_candidate(&root, &seed.project_id, &p.candidate_id)
                 .map_err(error)?;
+            let current = state
+                .db
+                .get_courseware_project(&root, &seed.project_id)
+                .map_err(error)?
+                .ok_or_else(|| {
+                    rpc_err(1007, "Courseware project not found", "COURSEWARE_NOT_FOUND")
+                })?;
+            if candidate["request"]["kind"] != "page-fade" && super::has_saved_narration(&current) {
+                return Err(rpc_err(
+                    1008,
+                    "COURSEWARE_STAGE_LOCKED: visual source adoption is closed after narration is saved; repair narration, audio or effects instead",
+                    "COURSEWARE_STAGE_LOCKED",
+                ));
+            }
             let hashes = json!({ "sourceSha256": candidate["source"]["sha256"], "outputSha256": candidate["outputSha256"] });
             let path = archives(&state, &hashes)?;
             let source_path = p

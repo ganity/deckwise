@@ -43,7 +43,10 @@ export function quizPptxScene(scene: MaicClassroom['scenes'][number], sourceHash
         width - 28, Math.max(.1, optionHeight - imageHeight - optionHeight * .08), Math.min(26, optionHeight * .28), '#1E3A5F', true);
     });
   });
-  text('hint', english ? 'Choose the best answer.' : '请选择最合适的答案', 38, 537, 924, 20, 14, '#8C9DB8');
+  const hint = questions[0].type === 'short_answer' ? (english ? 'Write your answer.' : '请写出你的答案')
+    : questions[0].type === 'multiple' ? (english ? 'Choose all correct answers.' : '请选择所有正确答案')
+    : (english ? 'Choose the best answer.' : '请选择最合适的答案');
+  text('hint', hint, 38, 537, 924, 20, 14, '#8C9DB8');
   return editablePptxSceneSchema.parse({ version: 1, slideId: scene.id, sourceHash, canvas,
     visualMasterAssetId: backgroundId, cleanPlateAssetId: backgroundId, elements });
 }

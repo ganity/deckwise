@@ -113,6 +113,19 @@ const finishNarration = (page) =>
     a.currentTime = a.duration - 0.15;
   });
 try {
+  await test('static-page-is-not-course-completion', async page => {
+    await page.goto(base + 'index.html?static-pages');
+    await page.locator('[data-player-mode]').waitFor();
+    await page.getByRole('button', { name: 'Play', exact: true }).click();
+    assert.equal(await page.getByText('Playback complete', { exact: true }).count(), 0);
+    const next = page.getByRole('button', { name: 'Next page', exact: true });
+    assert.equal(await next.isEnabled(), true);
+    while (await next.isEnabled()) await next.click();
+    await page.getByText('Playback complete', { exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Previous page', exact: true }).click();
+    assert.equal(await page.getByText('Playback complete', { exact: true }).count(), 0);
+    return { firstStaticPageComplete: false, lastStaticPageComplete: true, previousPageClearsCompletion: true };
+  });
   await test('successive-speech-after-user-activation', async page => {
     const audio = await readFile(new URL('../tests/fixtures/fixed-courseware/page-1.wav', import.meta.url));
     await page.goto('about:blank');

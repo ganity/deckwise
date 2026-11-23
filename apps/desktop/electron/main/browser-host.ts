@@ -188,8 +188,7 @@ export class BrowserHost {
     input: { fullPage?: boolean; path?: string } = {},
     sessionId?: string,
   ): Promise<{ mimeType: string; data: string; path?: string }> {
-    // SVG capture reads the current editor or a workspace file without showing
-    // the browser guest; other pages retain CDP and native capture fallback.
+    // SVG rendering does not need the browser guest or change its visibility.
     let shot: { mimeType: string; data: string } | null = null;
     try {
       const window = this.deps.getMainWindow?.();
@@ -200,7 +199,9 @@ export class BrowserHost {
           pathProvided: Boolean(input.path),
         });
       }
+      if (input.path && !shot) throw new Error("SVG rendering is unavailable for this workspace");
     } catch (error) {
+      if (input.path) throw error;
       this.deps.log?.("warn", "browser.screenshot.svg.fallback", { error: String(error) });
     }
     if (!shot) {

@@ -1,5 +1,9 @@
 # Main Chat courseware generation
 
+Before adoption, a visual defect identifies the affected page. An unavailable visual verdict keeps the existing export pending review. A teaching metadata mismatch identifies the page and failed check and retains the artwork. If the registration reply is lost, Main checks the saved path and native document ID and confirms the same registration through Host before continuing.
+
+Automatic recovery reports the original cause and affected page separately from the retry limit. A Scene master or split whose query was interrupted retains its known intent and last confirmed state. Body speech refresh resolves a unique current speech alias or a misplaced receipt against the current document and lists ambiguous matches. Question audio refresh can reuse its original receipt across an unrelated native save when the project, target, spoken text, model and voice still match. Changed targets and read-only destinations have distinct diagnostics. Script and lesson-plan validation identifies the affected segment, unit or page mapping before applying it.
+
 Scene compilation accepts all verified selected assets in the approved plan without an aggregate byte ceiling. Individual image validation and compiler canvas fitting remain in force; compiler copies of native cropped foregrounds fit their mapped display bounds without enlargement. The final playable package retains its existing output-size validation.
 When every foreground has a native placement, compilation preserves those coordinates and supplier labels. New Scene body-page plans omit `textMode`: the visual master renders the exact approved `visibleText`, and decomposition retains complete text carriers with their lettering in the image pixels. Compilation preserves every reviewed image layer without replacement native text. New drafts with `textMode:"native"` must be corrected before submission or approval. Already approved plans retain their existing text mode, reviewed assets and paid identities, including the exact native-text compilation path for approved textless artwork. Independent Quiz and checkpoint pages keep their structured questions and editable question presentation.
 Saved teaching continuation remains available after compilation without an active Office editor binding. Native canvas edits still use the existing editor binding checks.
@@ -25,6 +29,17 @@ add only needed independent pages, never convert existing body pages.
 The card submits directly through the existing session-targeted `sendPrompt`,
 including the selected audience and material attachments with plan/script roles.
 It adds no renderer generation loop, teaching authority or automatic publication.
+The import Skill follows that accepted Start request: fill missing teaching from
+saved pages and supplied scripts without asking the teacher to choose a narration
+source again. If a supplied script conflicts with existing narration, ask before
+replacement. Scene plan and first-image confirmations apply only to Scene;
+ordinary generation retains preview and explicit PPTX export, while import uses
+its saved source. Missing Education context in a legacy Desktop narration request
+resolves to general school guidance, never enterprise training.
+After ordinary export has saved a PPTX, later narration and media requests use
+the saved teaching route even when Office is closed. A missing PPT Master
+authoring package must not block those requests or cause another SVG export;
+slide and selection edits still require their native editor binding.
 Inputs are draft UI state until submission; accepted requirements live in the
 normal Chat history. Draft settings and unattached material selections do not
 survive a full renderer restart. Accepted submission hides the entire setup card;
@@ -43,9 +58,15 @@ inspection components. Existing publish gates remain authoritative.
 
 PPT Master SVG inspection remains mounted after adoption. Resolve its project
 from the saved source path before falling back to chat tool history. Open the
-first available SVG once during generation, allow manual reopening after export,
-and fence asynchronous preview responses when the session/project changes.
+native preview once the first valid SVG is saved during generation. Keep manual
+reopening after export and fence responses when the session or project changes.
+Resolve preview open, read, and save requests against the session that owns the
+editor tab. For model visual checks, render the specified saved SVG to PNG
+without navigating or capturing the browser view.
 Preview reads do not share the model-turn mutation lock or authorize export.
+With the native editor embedded, place the SVG preview action in its toolbar
+alongside the teaching and review controls. Hide the redundant workflow heading,
+open-editor action and ready status. Retain regeneration and repair actions.
 
 Scene planning counts cover, opening, illustrated setup and review pages within
 the saved body-page budget. Story beats map onto those pages; they do not create
@@ -185,10 +206,20 @@ Returned template font sizes must be declared as named assessment typography in
 the design spec and lock; the official quality gate still checks every SVG.
 Long questions wrap within one editable text box. Identical preparation is safe
 to replay; changed/manual artifacts are conflicts and are never overwritten.
+Unambiguous misplaced teaching fields are normalized before validation. Conflicting
+values are rejected. Before creating plan artifacts, check explicit page counts
+against quotes from user messages, keeping upper bounds distinct from exact counts.
+Delivery reviews a standalone teacher-led oral checkpoint against its question,
+reference answer and previously taught material. Recording and automated grading
+are optional unless requested. A genuine missing clue needed to answer the question
+is reported against the assessment.
+
 Preparation does not touch exported/native content, call suppliers or authorize
 export. Once a source is attached, resume saved teaching instead of preparing it
 again. Adoption must match the saved plan; plan changes invalidate previous
 validation and exports. Projects created before this manifest remain compatible.
+
+Before first adoption, Main opens the hash-bound official export read-only and checks the rendered body pages for material teaching errors. A rejection identifies the affected pages and leaves the task unadopted. An already adopted export resumes without replaying visual acceptance. Narration and delivery check speech and effect targets against the fixed page. Independent assessments retain their question, answer and analysis checks.
 
 After the authorized official export, Main parses its actual bytes and creates
 canonical scenes using Host page UUIDs. The finite `courseware.presentation.adopt`
@@ -287,7 +318,16 @@ a saved PPT is not a claim of complete teaching readiness. Candidate reviews and
 source-visual approval move into the workspace's collapsible review area, retaining
 their existing draft, revision and permission checks. Ordinary projects retain
 SVG preview, quality repair and explicit export; imports open their saved source.
-Images remain images: Scene body lettering stays in the generated image layers and is not promised as individually editable native text. Existing approved art and text modes are not silently converted.
+Images remain images: embedded lettering is not promised as editable text.
+Scene body images also retain source-grounded formulas, charts, axes, ticks and
+labels as raster content. Main and Host use the saved stage, grade, subject and
+style when preparing new images. An explicit style wins over stage defaults;
+legacy plans without a Visual Bible use neutral school styling. Connected
+diagrams remain one coherent image region through layer extraction. Quiz and
+checkpoint questions keep their independent editable templates. These prompt
+rules do not change plan approval, first-image confirmation or prepared-intent
+identity; rendered text and mathematical placement still need visual review.
+Existing approved text modes are preserved during recovery.
 
 Renderer validation: `scripts/e2e-courseware-workspace.mjs` exercises the actual
 components with isolated IPC/media fixtures, including 520px width, the two
@@ -317,6 +357,9 @@ Both planning entrances treat the saved style as an explicit user requirement
 and carry its medium, palette, materials, lighting and exclusions into the
 approved visualBible and page intents. Age alone cannot override it. Host master
 prompts no longer force a hand-painted picture-book fallback for legacy plans.
+The Scene skill owns subject-specific visual guidance; Main passes learner
+metadata and approved page content, while Host's deterministic fallback forwards
+that context without maintaining another subject prompt table.
 Approval and cover selection retain their existing lifecycle; changes after
 approval still require plan revision and invalidate affected asset bindings.
 Existing paid images are not silently regenerated.
@@ -354,13 +397,25 @@ existing in-memory composer-draft lifetime; only submitted messages are durable.
 
 These sequential Agent-mode tools use existing `tools.execute` permission,
 admission, audit and cancellation. Only reading is low risk; the rest are high.
+The Runtime validates each tool's declared schema before Host dispatch. Rejected
+arguments return `COURSEWARE_INVALID` with schema-owned field paths and, where
+available, required fields, numeric bounds, expected types, ID formats or
+allowed enum values. The error
+never echoes submitted field values or unknown extra field names. A rejected
+call creates no Host operation, changes no saved course state, and does not
+reset an existing stage or retry budget.
+`courseware_story_save` also reports duplicate beat IDs, objectives absent from
+the story objective list, and the existing 65536-byte story limit by field path.
+These post-schema checks retain the same acceptance rules and do not include
+story text in errors.
 
 | Tool | Responsibility |
 | --- | --- |
 | `courseware_workflow_get` | Read saved requirements, plan/approval, image requests, advertised models and exact asset blockers. |
 | `courseware_requirements_update` | Persist confirmed education settings with CAS before approval or attachment. |
 | `courseware_scene_image_prepare` | Prepare an image intent through the existing service, without payment/submission/adoption. |
-| `courseware_scene_image_refresh` | Query the original task and archive verified ready/settled bytes for human review. |
+| `courseware_scene_generate_remaining` | Continue an authorized whole course using the uniquely selected cover of the approved plan. The call takes no arguments and reuses the existing image pipeline. |
+| `courseware_scene_image_refresh` | An omitted receipt resolves only a unique current request. Query the original task and archive verified ready/settled bytes for human review. |
 | `courseware_scene_compile` | Revalidate approved plan and selected assets, then use existing compilation/staging. |
 
 Session and turn are Host-bound, not model-controlled. Stop, turn replacement
@@ -702,6 +757,8 @@ uses `courseware_scene_image_refresh` with the selected first-page master
 retry, prepared submission or polling flags. Default refresh remains read-only
 apart from verified archive/adoption; single-page and scoped retry requests do
 not authorize the whole-course pipeline.
+
+Main reviews each new full-page Scene master at adoption, before submitting it for decomposition. The review uses the archived image, the approved page requirements and that image's correction instructions. A rejected candidate remains archived and unselected. Layer extraction and compilation validate the selected source, assets, placement and mapping. Narration and delivery use the frozen body picture to check speech and effects. Independent assessments retain question and answer review.
 
 Desktop Main coordinates up to five master workers. Each verified, archived and
 selected master immediately hands off its own cleanPlate decomposition, including
@@ -1373,3 +1430,217 @@ missing. The existing bounded repair budget still applies.
 Release/test candidates must contain the rebuilt WiseOffice bundle as well as the
 desktop main process, player/converter and agent-runtime. A desktop-only rebuild
 does not update native editing behavior. Keep bundle hashes alongside evidence.
+
+
+### Saved-page verification after the small-lesson failures (2026-11-16)
+
+Native narration/media contexts report `pages[].effects` as target UUIDs grouped
+by highlight, spotlight and animation, including pending attention intents.
+Existing attention/audio/readiness checks still distinguish an intent from a
+verified timed effect. For a request covering all original titles, the shared
+teaching Skill checks every original logical page ID at its current position,
+reads its actual target text and repairs only missing effects while preserving
+accepted scripts/audio. `completion.ready` certifies saved typed requirements;
+it does not certify that every free-text user instruction was interpreted.
+
+`pages[].narrationTiming` reports total decoded speech `durationMs`, the saved
+classroom `budgetSeconds`, and `overBudget`. Incomplete/unknown decoded timing
+is null, never zero. An overrun produces `NARRATION_DURATION_EXCEEDED` in
+completion warnings. This is feedback, not a new global blocking rule: activity
+budget and a user's explicit speech ceiling are distinct. Candidate instructions
+reserve activity time and draft below a requested speech ceiling; the shared
+Skill checks actual timing after TTS and revises only authorized generated
+pages. Preserved user scripts require permission to change their words.
+
+Narration binding continues to validate current UUIDs, container eligibility,
+source revisions and the existing bounded repair budget. For symbolic relation
+labels, a unique source-backed component may identify the object in spoken
+clauses; a common result alone cannot choose another relationship. This is
+bounded textual grounding, not a general semantic or mathematical proof.
+Existing visual grounding uses actual page renders where supported.
+
+A static fixed-player page remains manually navigable. Pressing Play on a
+nonfinal static page does not report whole-course completion or skip its content.
+The last static page can report completion; existing narrated and Quiz playback
+continues through the existing engine.
+
+
+### LLM narration semantic review (2026-11-16)
+
+The shared saved-narration batch supplies a host-owned semantic-review callback
+to the candidate generator for all three automatic generation routes. Before
+saving a generated body draft, the selected narration model independently
+reviews current page text/notes, verified object IDs/boxes/aliases, visual
+summary, current page plan, accepted requirements and proposed speech/effects.
+When the existing vision service is available, the review also receives the
+current page renders. It treats document/model content as data and accepts
+semantic paraphrases rather than requiring literal diagram-label readings.
+
+Review returns only `issues`, each with a real block index, a bounded concrete
+message and `kind` of binding, content, requirement or uncertain. An empty
+issues list passes review. Binding failures on existing attention use the
+existing words-preserving delta repair, indexed against the reviewed blocks
+after anchor splitting. Content/missing-requirement failures regenerate only
+that draft page; each corrected output is reviewed again. Saved-audio effect
+repairs also undergo review while retaining accepted words and audio. Objects-
+only metadata repair and explicitly selected source imports retain their
+existing behavior.
+
+UUID existence, container eligibility, schema, exact approved expressions,
+source/revision fences, script policy and timing requirements remain program
+checks. With a host semantic reviewer, lexical mention matching does not veto
+its semantic decision or redirect its explicit targets. Standalone consumers
+without a reviewer retain existing textual checks. Current source is rechecked
+after review and before native persistence; model approval never bypasses CAS.
+
+Review uses the existing model/vision/current-owner/cancellation/deadline path.
+It adds at most one review per structurally valid candidate in the existing
+three-generation-attempt/two-repair budget; review does not consume an extra
+content-generation attempt. Unknown IDs fail before review. Invalid review
+JSON/schema, service failures and uncertain evidence stop that page without
+saving an unchecked draft or blindly changing speech. Successful peer pages
+remain saved. No new model setting, provider client, paid media submission,
+job store or human approval gate is introduced. More LLM calls and occasional
+review disagreement remain acceptance risks, not proof of semantic truth.
+
+### Generated assessment recovery
+
+Saved-content review can also correct an existing generated chapter-checkpoint
+`constraintPrompt` through `checkpointHintCorrections:[{actionId,text}]`. Supply
+canonical checkpoint details separately from strict native playback actions,
+which intentionally omit the hint. Match current action IDs, reject unknown or
+duplicate IDs and extra fields, and preserve question, response, reference
+answer, speech and adopted media. Reuse classroom revision checks, native save
+and the existing two-content-repair budget; reread canonical checkpoint details
+and review again. Original import pages, locked pages and read-only documents
+remain protected. This does not enable raster-layer replacement or relax final
+whole-diagram coverage checks.
+
+New mapped activities use the actual learner question for their displayed title; the accepted plan title remains in plan metadata. Quiz footers follow short-answer, multiple-choice and single-choice response modes. Final saved-page review may correct a generated Quiz title, an objective reference answer, and its analysis through the existing revision-checked classroom write, then refresh page evidence and review again. Original imported pages, locked pages and read-only documents are protected. Speech, adopted audio, user scripts and retained teaching requirements remain unchanged. Review JSON repair and content repair each remain bounded independently. Other unsupported repairs remain explicit unfinished issues.
+
+The native assessment writer must include title-only edits in `changedPageIds` and regenerate their visible projection. A successful canonical write without a changed physical page is not recovery. Objective activities without an explicit reference answer derive it from their selected options, never from the plan/source evidence quote; exact source evidence remains separate. Reference correction preserves the question, options and answer key.
+
+For a stale generated Quiz template hint, saved-content review may request `refreshProjection:true`. The revision-checked native classroom writer accepts explicit `refreshPageIds` for current Quiz pages only, includes them in changedPageIds and builds their managed projection even when canonical content is unchanged. The editor compares managed text against live shapes to reconcile old template text, preserving unrelated shapes and native rollback. Protected import/locked/read-only guards apply before requesting refresh.
+
+Legacy generated Quiz questions may store their analysis in `explanation`. Review accepts an existing string in either field and writes canonical `analysis`, synchronizing an existing legacy string. New activities store the learner reference summary as analysis and preserve explicit reference key points. Native assessment updates compare response values independently of JSON key order and retain existing reference key points when omitted by legacy canonical data and the question is unchanged. Title/analysis/reference recovery must not detach successful audio.
+
+Assessment pages are reviewed and repaired before adjacent body pages. After a write, refresh the captured checkpoint actions as well as text/evidence, so re-review and later adjacent-page checks use the saved reference answer. Preserve lesson display order, per-page repair bounds, all page checks and unchanged-source caching.
+
+### Closeout: explicit semantic repair outcomes
+
+Native required narration/effect repairs now write pending state to the Host SQLite KV store before starting model work. The key includes the persisted workspace/session, canonical source path, native project ID and stable page ID. Reads validate the owning task path; writes use revision CAS. Pending/failed repairs remain unresolved across document handoff and restart, even when broad final review passes or a peer save changes the source SHA. A successful, non-retained full narration/effect repair must save before clearing the affected record. Alias-only repair cannot clear a semantic failure. Storage failure/conflict blocks completion rather than falling back to an empty state. Removed-page records are ignored by current-page completion but retained for Undo. Formatting/provider interruptions remain “repair not verified and saved”, not fabricated semantic findings. Existing object-binding advisories remain advisories. Final review still inspects whole-diagram coverage, including arrows and background-only content. This state is not a replacement for media journals or a durable retry-budget ledger; candidate per-turn retry maps still have separate lifecycle limitations.
+
+
+### Scene background teaching-region recovery (2026-11-18)
+
+When final saved-content review finds that a required diagram entrance/spotlight
+only targets foreground arrows, it may return
+`backgroundRegionCorrection:{actionId,bounds:[x,y,width,height],description}`.
+The current Host task must be a generated Scene task and the editor must expose
+`backgroundRegionRepair`. Bounds use normalized full-slide coordinates. A
+complete rectangular teaching area may include surrounding scenery; exact
+silhouette extraction is not required. Exclude unrelated teaching panels.
+
+The native editor partitions the opaque background's original decoded pixels
+into a crop and a background plate with a white vacant rectangle. It inserts
+the crop below all existing foregrounds, appends a fade-in matching the selected
+saved speech's existing fade-in, and adds the crop to that speech's spotlight.
+The complete region is blank before entrance. No generative repaint, text
+rewrite, new speech, image/TTS purchase or player format is introduced. Rendering
+may have subpixel resampling differences at crop edges; source pixel samples are
+preserved exactly. Existing foregrounds retain their order and effects.
+
+Require current view/revision and the reviewed PNG SHA-256. Recheck image pixels,
+source history, dimensions, object references, read-only state and native locks
+after asynchronous preparation. Commit background, crop, object identity,
+semantics, cues and native timing in one Undo transaction with rollback. Save,
+reread current pixels/objects/actions, then run model review again. No pass is
+inferred from a successful write. Audio, speech, assessments, accepted scripts
+and requirements remain unchanged. Existing failed-repair records are not
+cleared merely by this operation or a broad review pass.
+
+One region per page is supported, within the existing two-content-repair budget.
+Original import pages, locked/read-only pages, whole-slide crops, unsupported
+background transforms/effects, unloaded/translucent/over-budget images and
+stale evidence cannot be repaired this way. A repeated or still-incomplete
+repair remains an explicit failure. Older editor bundles expose no capability;
+ship the matching Desktop and companion editor together.
+
+
+### Tool paths and bounded input correction (2026-11-18)
+
+`courseware_workflow_get` exposes additive `workspace.root`,
+`workspace.projectsDirectory` and, for Scene tasks, `workspace.scenePlanPath`.
+These paths come from the owning Host session, including before the first draft
+exists. `plan:null` is normal: Write the complete draft directly to that path.
+The runtime separately advertises the effective tool root (including isolated
+workspaces). Skills use returned absolute artifact paths; shell `cd` does not
+persist between calls or determine the course's owning directory.
+
+The image-refresh schema enforces the same boolean combinations as Main:
+`generateRemaining:true` excludes all other true flags; `generatePrepared` and
+`retryFailed` cannot both be true. Explicit false flags remain compatible.
+Document `sourceSha256` means the current saved PPTX hash, never a material ID
+or approved-plan hash. Assessment context exposes `configurableQuizSceneIds`;
+only these Quiz pages can receive option-image policy changes. Native text-only
+fallback context returns an empty list. User authorization and revision checks
+remain mandatory.
+
+Known invalid-reference, refresh, source-version and assessment-scope errors
+carry specific codes and correction guidance. Automatic continuation can hand a
+known input error back to the model at most twice per operation per runtime
+turn; it does not replay the failed mutation itself. Cancellation, report-only
+state, user steering and unknown paid outcomes retain their existing guards.
+Exhaustion remains a failure with a safe static diagnostic, not a provider retry
+or fabricated completion. This input budget is runtime-local; durable content
+repair budgets and media journals are separate and unchanged.
+
+
+### Native narration retry persistence and failure stages (2026-11-18)
+
+The native document runtime supplies the existing Host repair store to narration.
+Its additive `narration` field contains the active turn ID and bounded per-content
+attempt records. The Host-owned key still includes workspace, session, source
+path and native project. Content fingerprints include stable page ID, model,
+actual evidence/pixels, teaching requirements and repair mode; transient editor
+instance IDs no longer renew budgets. Editor ownership checks still use the live
+instance and remain unchanged. Explicit new turns receive a fresh bounded
+narration budget; wording changes, package autosaves and runtime recreation do not.
+
+Reserve each existing narration-generation attempt with revision CAS before its
+model call, then recheck cancellation, model/turn and document ownership. Failed
+storage prevents the call. A crash between reservation and dispatch may consume
+an unused attempt conservatively. Persist terminal visual-format, planning and
+content failures with their own codes. Visual-format failure remains
+`COURSEWARE_VISUAL_OUTPUT_INVALID`, including on subsequent calls, and does not
+become narration exhaustion with zero narration attempts. Existing visual-format
+and planning correction loops keep their limits; this is not a ledger for every
+in-flight vision/planning request. A new runtime cannot reconstruct an interrupted
+visual review before its terminal result was recorded.
+
+Required semantic repair guards and narration budgets share the existing CAS
+record. A guard-only write preserves the budget. After generation, reread state
+before clearing a saved repair; proceed only if semantic failures are unchanged.
+A concurrent semantic failure, uncertain save or storage conflict still blocks
+completion. No successful audio/image is regenerated by this bookkeeping.
+
+Automatic input correction retains bounded, locally generated schema field
+hints through wrapped errors. Arbitrary Host/provider message text, forged
+properties and mismatched error chains cannot supply trusted hints. The separate
+Agent input-correction counter remains runtime-local; it is not the native
+narration generation budget.
+
+When compiling Scene pages, Main batches review of corrections saved on each
+page's final selected visual master. It may propose only explicit removals that
+match that page's exact planned object names and quoted instruction text. Host
+accepts each removal only when the current session, account, approved plan, page,
+selected visual-master intent, archived image hash and exact instruction quote
+all match. Host stores the resulting per-page effective requirements in the
+generated scene mapping and retains the accepted proof privately with that Host
+record. Later narration reads the saved mapping; objectives, unrelated teaching
+requirements, source identity and approved plan hash stay unchanged.
+
+Saved content review can correct an existing oral checkpoint answer summary on
+an editable generated activity. It identifies the checkpoint by action ID,
+preserves its question, key points, script and audio, and verifies the summary
+in the saved teaching actions before reporting a successful repair.

@@ -403,7 +403,7 @@ impl Database {
                         )
                     };
                     cues.extend(attention::cues(&intent, &anchor, duration)?);
-                    action["visualCues"] = serde_json::json!(cues);
+                    action["visualCues"] = serde_json::json!(attention::sequence_focus(cues)?);
                     action.as_object_mut().unwrap().remove("attention");
                 }
             }

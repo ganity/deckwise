@@ -1,0 +1,48 @@
+{
+  "route": "/home/jhz/deckwise-validation/three-path-paid-20261118/scene",
+  "pages": 4,
+  "sourceSha256": "87c1e9b7a2031c4e640fc65b2b51de38c56f453effd68c85415214aa548d4835",
+  "audioAssets": {
+    "tts-6d4f0c60aa2a77904ff6b17e9719d4b3ba694f0c756bfa9ba1f740a2e6b39573": {
+      "sha256": "6d4f0c60aa2a77904ff6b17e9719d4b3ba694f0c756bfa9ba1f740a2e6b39573",
+      "durationSeconds": 9.864
+    },
+    "tts-a95e4e85a1d09c921821d32e63ff7c2a681234e909d7836c2ef6423942ffb283": {
+      "sha256": "a95e4e85a1d09c921821d32e63ff7c2a681234e909d7836c2ef6423942ffb283",
+      "durationSeconds": 4.44
+    }
+  },
+  "timing": [
+    {
+      "pageNumber": 1,
+      "speechCount": 0,
+      "audioCount": 0,
+      "speechSeconds": 0,
+      "effects": []
+    },
+    {
+      "pageNumber": 2,
+      "speechCount": 1,
+      "audioCount": 1,
+      "speechSeconds": 9.864,
+      "effects": []
+    },
+    {
+      "pageNumber": 3,
+      "speechCount": 0,
+      "audioCount": 0,
+      "speechSeconds": 0,
+      "effects": []
+    },
+    {
+      "pageNumber": 4,
+      "speechCount": 1,
+      "audioCount": 1,
+      "speechSeconds": 4.44,
+      "effects": []
+    }
+  ],
+  "allSavedSpeechAudioVerified": true,
+  "missingSpeechAudio": [],
+  "notAnAcceptanceVerdict": true
+}

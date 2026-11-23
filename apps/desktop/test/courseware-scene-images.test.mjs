@@ -26,8 +26,12 @@ async function load(name, dependencies) {
 }
 // Native codec is an external edge here; actual Electron decoding is covered by the UI gate.
 let nativePixels = Buffer.alloc(16);
-const electron = { nativeImage: { createFromBuffer: () => ({ isEmpty: () => false,
-  getSize: () => ({ width: 2, height: 2 }), toPNG: () => png, toJPEG: quality => { assert.equal(quality, 95); return jpeg; }, toBitmap: () => Buffer.from(nativePixels) }) } };
+const electron = { nativeImage: {
+  createFromBuffer: () => ({ isEmpty: () => false, getSize: () => ({ width: 2, height: 2 }),
+    resize: ({ width, height }) => ({ toBitmap: () => Buffer.alloc(width * height * 4), toPNG: () => png }),
+    toPNG: () => png, toJPEG: quality => { assert.equal(quality, 95); return jpeg; }, toBitmap: () => Buffer.from(nativePixels) }),
+  createFromBitmap: bytes => ({ toPNG: () => Buffer.from(bytes) }),
+} };
 const context = await load("courseware-scene-context", { electron, "node:crypto": { createHash }, "node:zlib": { crc32 } });
 const assetHelpers = await load("courseware-scene-image-assets", { electron, "node:crypto": { createHash },
   "node:fs": fsConstants, "node:fs/promises": files, "node:path": paths, "./courseware-scene-context": context,
@@ -53,7 +57,8 @@ const plan = { title: "Shapes", pages: [{ title: "Circle", visibleText: ["圆"],
 const digest = (v) => createHash("sha256").update(v).digest("hex");
 const pause = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 
-async function fixture(t, coursePlan = plan, planner, layerFallback) {
+async function fixture(t, coursePlan = plan, planner, layerFallback, reviewMaster = async () => {}) {
+  const educationContext = { schoolStage: "SENIOR_HIGH", grade: "11", subject: "MATH" };
   const root = await mkdtemp(join(tmpdir(), "deckwise-scene-images-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const path = join(root, sceneCoursePlanRelativePath("chat-a"));
@@ -70,8 +75,8 @@ async function fixture(t, coursePlan = plan, planner, layerFallback) {
   const host = { async call(method, p) {
     calls.push(method);
     if (method === "session.get") return { session: { projectPath: root, ...model, mode: "agent" } };
-    if (method === "courseware.task.get") return { task: { taskType: "scene", teamProjectId } };
-    if (method === "courseware.scenePlan.get") return { approval: { sha256: approval } };
+    if (method === "courseware.task.get") return { task: { taskType: "scene", teamProjectId, educationContext } };
+    if (method === "courseware.scenePlan.get") return { approval: { sha256: approval, educationContext } };
     if (method === "courseware.sceneImage.list") return { intents: await Promise.all(records(p).map(current)) };
     if (method === "courseware.sceneImage.prepare") {
       const target = p.target ?? { kind: "visualMaster" }, input = `Bright circle${p.instructions ? `\n${p.instructions}` : ""}`;
@@ -201,7 +206,7 @@ async function fixture(t, coursePlan = plan, planner, layerFallback) {
     const captured = account;
     return { key: captured, assertCurrent() { if (captured !== account) throw new Error("account changed"); } };
   } };
-  const create = () => new CoursewareSceneImages(() => host, () => active, () => running, auth, planner, layerFallback);
+  const create = () => new CoursewareSceneImages(() => host, () => active, () => running, auth, planner, layerFallback, reviewMaster);
   const base = { sessionId: "chat-a" }, coordinator = create();
   const prepare = (extra = {}) => coordinator.prepare({ ...base, planSha256: sha256, pageId: "scene-001", model: "image-model", ...extra });
   const operation = v => ({ ...base, intentId: v.intentId });
@@ -228,6 +233,7 @@ test("visual planning is durable across coordinator recreation and does not purc
   const first = await f.prepare();
   assert.equal(first.prompt, "1280x800, 16:10. Bright circle: 圆");
   assert.equal(planned.length, 1);
+  assert.deepEqual(planned[0].educationContext, { schoolStage: "SENIOR_HIGH", grade: "11", subject: "MATH" });
   const resumed = await f.create().prepare({ ...f.base, planSha256: f.sha256, pageId: "scene-001", model: "image-model" });
   assert.equal(resumed.intentId, first.intentId);
   assert.equal(resumed.prompt, first.prompt);
@@ -335,13 +341,14 @@ test("one confirmed decomposition archives its base and foreground with the same
   nativePixels = Buffer.from([0, 0, 0, 0, 0, 0, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0]);
   const bytes = Buffer.from(JSON.stringify({ data: [
     { z_index: 0, b64_json: png.toString("base64") },
-    { z_index: 2, name: "Teacher", b64_json: png.toString("base64"), bounding_box: { normalized: [100, 200, 700, 900] } },
+    { z_index: 2, name: "Teacher", description: "Teacher holding a book", b64_json: png.toString("base64"), bounding_box: { normalized: [100, 200, 700, 900] } },
   ] }));
   f.ready(bytes); f.downloadBytes(bytes);
   const restarted = f.create();
   await restarted.archive(f.operation(prepared));
   const rows = await restarted.list(f.base), foreground = rows.find(row => row.intentId === `${prepared.intentId}-layer-1`);
   assert.deepEqual(foreground.asset.normalizedBoundingBox, [100, 200, 700, 900]);
+  assert.deepEqual(foreground.asset.layerMetadata, { name: "Teacher", description: "Teacher holding a book" });
   assert.equal(foreground.selected, false);
   const before = f.calls.filter(call => call === "GET asset").length;
   await restarted.archive(f.operation(prepared));
@@ -387,7 +394,7 @@ test("decomposition preserves validated layer bounds and rejects missing or forg
   nativePixels = Buffer.from([0, 0, 0, 0, 0, 0, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0]);
   const taskRef = { taskId: "layers-task", idempotencyKey: randomUUID(), requestHash: "a".repeat(64) };
   const data = [
-    { z_index: 2, name: "Teacher", b64_json: png.toString("base64"), bounding_box: { normalized: [100, 200, 700, 900] } },
+    { z_index: 2, name: "Teacher", description: "Teacher holding a book", b64_json: png.toString("base64"), bounding_box: { normalized: [100, 200, 700, 900] } },
     { z_index: 0, b64_json: png.toString("base64") },
   ];
   const decode = value => assetHelpers.decodeSceneImageBundle(Buffer.from(JSON.stringify({ data: value })), taskRef);
@@ -395,6 +402,8 @@ test("decomposition preserves validated layer bounds and rejects missing or forg
   assert.deepEqual(images.map(image => image.target), [{ kind: "cleanPlate" }, { kind: "layer", name: "2 - Teacher" }]);
   assert.deepEqual(images[1].asset.normalizedBoundingBox, [100, 200, 700, 900]);
   assert.equal(images[1].asset.sourceZIndex, 2);
+  assert.deepEqual(images[1].asset.layerMetadata, { name: "Teacher", description: "Teacher holding a book" });
+  assert.equal(images[0].asset.layerMetadata, undefined);
   assert.deepEqual(images[1].asset.taskRef, taskRef);
   for (const layer of [ { ...data[0], bounding_box: {} }, { ...data[0], bounding_box: { normalized: [700, 200, 100, 900] } },
     { ...data[0], b64_json: "broken" }, { ...data[0], url: "https://untrusted.test/image" }, { ...data[0], z_index: 0 } ]) {
@@ -613,6 +622,15 @@ test("asset roles and edited requirements reach Host; invalid role data is refus
   assert(!f.calls.includes("POST confirmed"));
 });
 
+test("first visual master rejects placeholder references with actionable feedback and no purchase", async t => {
+  const f = await fixture(t);
+  await assert.rejects(f.prepare({ referenceIntentId: "nop" }), /INVALID_REFERENCE: omit referenceIntentId for the first visualMaster/);
+  assert(!f.calls.includes("POST confirmed"));
+  const image = await f.prepare();
+  assert.equal(image.target.kind, "visualMaster");
+  assert.equal(image.referenceImage, undefined);
+});
+
 test("independent layers require both visible pixels and actual transparent PNG pixels", async () => {
   const asset = { sha256: digest(png), mimeType: "image/png", byteLength: png.length, width: 2, height: 2 };
   const target = { kind: "layer", name: "Character" };
@@ -748,6 +766,46 @@ test("scene image IPC refuses a foreign renderer and surplus arguments before Ho
     await assert.rejects(fn({ sender: "other" }, { sessionId: "chat-a" }), /PERMISSION_DENIED/);
     await assert.rejects(fn({ sender: "main" }, { sessionId: "chat-a" }, "extra"), /Unexpected scene (image|generation)/);
   }
+});
+
+test("adoption reviews the archived master before splitting, and retains the accepted selection on rejection", async t => {
+  const { reviewSceneMaster } = await import("../electron/main/courseware-scene-master-review.ts");
+  const requests = [];
+  let answer = '{"issues":[]}';
+  const f = await fixture(t, plan, async () => "Draw the approved page", undefined,
+    input => reviewSceneMaster(input, { modelKey: "test", thinkingLevel: "high" }, async request => {
+      requests.push(request);
+      assert.match(request.system, /array order alone does not prescribe reading order/);
+      assert.match(request.system, /Enforce sequence when it carries meaning/);
+      assert.equal(request.thinkingLevel, "high");
+      assert.deepEqual(request.images[0].bytes, png);
+      assert.deepEqual(JSON.parse(request.data).visibleText, ["圆"]);
+      return { text: answer };
+    }));
+  async function archive(instructions) {
+    const row = await f.prepare({ instructions });
+    const op = f.operation(row);
+    await f.coordinator.submitConfirmed({ ...op, quoteId: (await f.coordinator.quote(op)).quoteId });
+    f.ready(); await f.coordinator.archive(op);
+    return row;
+  }
+  const accepted = await archive("Original");
+  await f.coordinator.adopt({ ...f.operation(accepted), expectedSelectedIntentId: null });
+  await f.create().adopt({ ...f.operation(accepted), expectedSelectedIntentId: accepted.intentId });
+  assert.equal(requests.length, 1);
+  const candidate = await archive("Keep the revised labels");
+  const adoption = { ...f.operation(candidate), expectedSelectedIntentId: accepted.intentId };
+  answer = '{"issues":["Wrong teaching label"]}';
+  await assert.rejects(f.coordinator.adopt(adoption), /COURSEWARE_SCENE_MASTER_REJECTED.*Wrong teaching label/);
+  assert.equal(JSON.parse(requests.at(-1).data).correction, "Keep the revised labels");
+  answer = '{"unrecognized":true}';
+  await assert.rejects(f.coordinator.adopt(adoption), /COURSEWARE_SCENE_MASTER_REVIEW_UNAVAILABLE/);
+  answer = "not a verdict";
+  await assert.rejects(f.coordinator.adopt(adoption), /COURSEWARE_SCENE_MASTER_REVIEW_UNAVAILABLE/);
+  const rows = await f.coordinator.list(f.base);
+  assert.deepEqual(rows.filter(r => r.selected).map(r => r.intentId), [accepted.intentId]);
+  assert.ok(rows.find(r => r.intentId === candidate.intentId).asset);
+  await assert.rejects(f.prepare({ target: { kind: "cleanPlate" }, referenceIntentId: candidate.intentId }), /REFERENCE|selected/i);
 });
 
 test("ready image archives original bytes, previews after coordinator restart and needs explicit page selection without another POST", async t => {
@@ -957,6 +1015,23 @@ test("native decomposition keeps opaque PNG text carriers and rejects invisible 
 });
 
 
+test("oversized supplier foregrounds keep their page coordinates after resizing", async t => {
+  const bounds = [188, 0, 812, 238];
+  const large = await sharp({ create: { width: 4203, height: 998, channels: 4, background: "red" } }).png().toBuffer();
+  const resized = await sharp(large).resize(4096, 973).png().toBuffer();
+  t.mock.method(electron.nativeImage, "createFromBuffer", bytes => {
+    const width = bytes.readUInt32BE(16), height = bytes.readUInt32BE(20);
+    return { isEmpty: () => false, getSize: () => ({ width, height }), toBitmap: () => Buffer.alloc(width * height * 4, 255),
+      resize(size) { assert.deepEqual(size, { width: 4096, height: 973 }); return { toPNG: () => resized }; } };
+  });
+  const bundle = Buffer.from(JSON.stringify({ data: [{ z_index: 0, b64_json: png.toString("base64") },
+    { z_index: 1, b64_json: large.toString("base64"), bounding_box: { normalized: bounds } }] }));
+  const [, layer] = assetHelpers.decodeSceneImageBundle(bundle, { taskId: "layers", idempotencyKey: randomUUID(), requestHash: "a".repeat(64) });
+  assert.deepEqual(layer.asset.normalizedBoundingBox, bounds);
+  assert.equal(layer.asset.width, 4096);
+  assert.equal(layer.asset.height, 973);
+});
+
 test("supplier layer URLs download in Desktop without credentials and retain native pixels", async () => {
   const calls = [], resolutions = [];
   electron.session = { defaultSession: {
@@ -988,7 +1063,7 @@ test("supplier layer URLs download in Desktop without credentials and retain nat
   await assert.rejects(assetHelpers.downloadSceneImageBundle(bad, taskRef));
   assert.equal(calls.length, 2);
   electron.net.fetch = async () => new Response("denied", { status: 403 });
-  await assert.rejects(assetHelpers.downloadSceneImageBundle(bundle, taskRef), /INVALID_ASSET/);
+  await assert.rejects(assetHelpers.downloadSceneImageBundle(bundle, taskRef), /DOWNLOAD_FAILED/);
   electron.net.fetch = async () => new Response(Buffer.alloc(32 * 1024 * 1024 + 1), { headers: { "content-type": "image/png" } });
   await assert.rejects(assetHelpers.downloadSceneImageBundle(bundle, taskRef), /BUNDLE_TOO_LARGE/);
 });
@@ -1110,4 +1185,74 @@ test("local fallback refuses unsettled failure and checks master selection again
   await assert.rejects(f.coordinator.fallback(f.operation(image)), /REFERENCE_CHANGED/);
   assert.equal(calls, 1);
   assert.equal(f.calls.filter(call => call === "courseware.sceneImage.bundle.stage").length, 0);
+});
+
+test("a settled invalid layer result recovers from the saved master without another supplier submission", async t => {
+  let calls = 0;
+  const { f, image } = await failedDecomposition(t, async () => { calls++; return fallbackBundle(); });
+  const bytes = Buffer.from(JSON.stringify({ data: [] }));
+  f.ready(bytes); f.downloadBytes(bytes);
+  f.media.getImage = async ref => (await f.media.downloadImage(ref)).task;
+  const args = f.operation(image);
+  assert((await f.coordinator.archive(args)).image.asset);
+  assert((await f.create().archive(args)).image.asset);
+  assert.equal(calls, 1);
+  assert.equal(f.calls.filter(c => c === "POST confirmed").length, 2);
+});
+
+test('compile reviews selected image corrections for every page and preserves the approved plan identity', async t => {
+  const { teachingForReviewedMasters } = await import('../electron/main/courseware-visual-master.ts');
+  const firstTeaching = { pageType: 'slide', phase: 'opening', objective: 'Compare two moon phases', durationSeconds: 60,
+    requiredObjects: ['Moon', 'Arrow', 'Crater'], requiredEffects: ['spotlight'] };
+  const secondTeaching = { pageType: 'slide', phase: 'explore', objective: 'Read a fraction', durationSeconds: 45,
+    requiredObjects: ['Numerator', 'Denominator', 'Label'], requiredEffects: ['highlight'] };
+  const coursePlan = { ...plan, pages: [{ ...plan.pages[0], teaching: firstTeaching },
+    { title: 'Fractions', visibleText: ['1/2'], visualIntent: 'A source-grounded fraction diagram', narration: 'Read the fraction.', teaching: secondTeaching }] };
+  const f = await fixture(t, coursePlan, async () => 'Complete 1280x800 teaching image');
+  const oldPixels = nativePixels;
+  nativePixels = Buffer.from([0, 0, 0, 0, 0, 0, 0, 255, 0, 0, 0, 0, 0, 0, 0, 0]);
+  t.after(() => { nativePixels = oldPixels; });
+  const submit = async (pageId, target, instructions, color, previous = null) => {
+    const bytes = await sharp({create:{width:2,height:2,channels:4,background:color}}).png().toBuffer();
+    const row = await f.prepare({pageId,target,instructions}); const op = f.operation(row);
+    await f.coordinator.submitConfirmed({...op,quoteId:(await f.coordinator.quote(op)).quoteId});
+    f.ready(bytes); f.downloadBytes(bytes); await f.coordinator.archive(op);
+    await f.coordinator.adopt({...op,expectedSelectedIntentId:previous});return row.intentId;
+  };
+  const oldMaster = await submit('scene-001', {kind:'visualMaster'}, 'Remove the crater.', 'red');
+  const firstCorrection = 'Remove the arrow, keep the crater.';
+  const firstMaster = await submit('scene-001', {kind:'visualMaster'}, firstCorrection, 'orange', oldMaster);
+  const secondCorrection = 'Remove the label, keep the fraction.';
+  f.supportsReference(true);
+  const secondMaster = await submit('scene-002', {kind:'visualMaster'}, secondCorrection, 'purple');
+  await submit('scene-001', {kind:'cleanPlate'}, '', 'blue');
+  await submit('scene-001', {kind:'layer',name:'Moon'}, '', 'green');
+  await submit('scene-002', {kind:'cleanPlate'}, '', 'yellow');
+  await submit('scene-002', {kind:'layer',name:'Fraction'}, '', 'cyan');
+  const request = {...f.base,planSha256:f.sha256}; const captured = await f.create().captureSelected(request);
+  const selectedVisuals = captured.images.filter(image => image.target.kind === 'visualMaster');
+  const coordinator = new generation.CoursewareSceneGeneration(f.create(), {
+    reviewedTeaching: input => {
+      assert.deepEqual(input.pages.map(page => page.instructions), [firstCorrection,secondCorrection]);
+      return teachingForReviewedMasters(input, async call => ({text:JSON.stringify({pages:[
+        {pageId:'scene-001',removals:[{object:'Arrow',quote:'Remove the arrow'}]},
+        {pageId:'scene-002',removals:[{object:'Label',quote:'Remove the label'}]},
+      ]})}));
+    },
+    async build(input) {
+      assert.deepEqual(input.pages.map(page => page.teaching.requiredObjects), [['Moon','Crater'],['Numerator','Denominator']]);
+      assert.deepEqual(input.pages.map(page => page.sourceHash), captured.plan.pages.map(page => page.sourceHash));return {teaching:input.pages,pptx:png};
+    },
+    async stage(input) {
+      assert(input.sceneProof.selectedIntentIds.includes(firstMaster));assert(!input.sceneProof.selectedIntentIds.includes(oldMaster));
+      assert(input.sceneProof.selectedIntentIds.includes(secondMaster));assert.equal(input.sceneProof.planSha256,f.sha256);
+      assert.deepEqual(input.sceneProof.teachingCorrections,[
+        {pageId:'scene-001',intentId:firstMaster,assetSha256:selectedVisuals.find(image=>image.pageId==='scene-001').asset.sha256,removals:[{object:'Arrow',quote:'Remove the arrow'}]},
+        {pageId:'scene-002',intentId:secondMaster,assetSha256:selectedVisuals.find(image=>image.pageId==='scene-002').asset.sha256,removals:[{object:'Label',quote:'Remove the label'}]},
+      ]);
+      return {path:'generated.pptx'};
+    },
+  });
+  await coordinator.generate(request);
+  assert.deepEqual(JSON.parse(await readFile(f.path,'utf8')).pages.map(page=>page.teaching),[firstTeaching,secondTeaching]);
 });

@@ -12,6 +12,7 @@ import {
 import { DEFAULT_IMPORT_THEME } from '../constants';
 import { resolveCoursewareFontFamily } from '../../courseware-fonts';
 import { parsePptxTiming } from './animation/parse-pptx-timing';
+import { nativeFraction, fractionHtml } from './native-fraction';
 import {
   assertPptxZipWithinLimits,
   loadPptxZipPackage,
@@ -1140,7 +1141,7 @@ function mapPage(
   const mappedElements = parserElements.flatMap((element, elementIndex) => {
     const rawType = normalizeElementType(element);
     const positionalMetadata =
-      rawType === 'shape' || rawType === 'text'
+      rawType === 'shape' || rawType === 'text' || rawType === 'math'
         ? supplement?.elementMetadata[metadataIndex++]
         : undefined;
     const metadata =
@@ -2651,6 +2652,7 @@ function mergeSourceMatchedElement(
   fallback: SlideElementIR,
   metadata?: PptxSlideElementMetadata,
 ): SlideElementIR {
+  if (fallback.type === 'formula') return { ...fallback, id: parserElement.id, sourceOrder: parserElement.sourceOrder ?? fallback.sourceOrder };
   const fallbackText = normalizeElementPlainText(fallback.content);
   const shouldHydrateFont = Boolean(fallback.defaultFontName && containsCjkText(fallbackText));
   const parserContent = applyImportedTextHighlights(
@@ -6506,7 +6508,8 @@ async function flattenFallbackRenderableNode(
       if (ink) return [addSourceGroupShapeIds(ink, sourceGroupShapeIds)];
     }
 
-    const fallbackXml = firstTagXml(nodeXml, 'mc:Fallback');
+    const fallbackXml = choiceXml && nativeFraction(firstTagXml(choiceXml, 'p:txBody') ?? '')
+      ? choiceXml : firstTagXml(nodeXml, 'mc:Fallback');
     if (!fallbackXml) return [];
     const children = splitDirectXmlChildren(fallbackXml, [
       'p:sp',
@@ -6894,6 +6897,19 @@ async function mapFallbackShapeNode(
     });
   const mappedFontSize =
     fontSize != null ? roundCanvasNumber((fontSize / 100) * (1000 / deckSize.width)) : undefined;
+  const fraction = nativeFraction(txBodyXml);
+  if (fraction) {
+    const alignment = extractXmlAttr(firstTagXml(txBodyXml, 'a:pPr') ?? '', 'algn');
+    return {
+      id: `pptx_fallback_shape_${sanitizeIdPart(id)}`, ...(sourceShapeId ? { sourceShapeId } : {}),
+      type: 'formula', left: normalized.left, top: normalized.top, width: normalized.width, height: normalized.height,
+      rotate, ...(flipH ? { flipH: true } : {}), ...(flipV ? { flipV: true } : {}),
+      latex: `\\frac{${fraction.numerator}}{${fraction.denominator}}`,
+      textAlign: alignment === 'l' ? 'left' : alignment === 'r' ? 'right' : 'center',
+      content: fractionHtml(fraction, normalizeCssColor(defaultColor) ?? '#000000', mappedFontSize ?? 32,
+        alignment === 'l' ? 'left' : alignment === 'r' ? 'right' : 'center'),
+    };
+  }
   const resolvedOverflowVisible =
     overflowVisible ??
     (shouldPreserveSingleHanGlyphOverflow({
@@ -7991,7 +8007,9 @@ function flattenSlideNodeMetadata(
   }
 
   if (/^<mc:AlternateContent\b/i.test(nodeXml)) {
-    const fallbackXml = firstTagXml(nodeXml, 'mc:Fallback');
+    const choiceXml = firstTagXml(nodeXml, 'mc:Choice');
+    const fallbackXml = choiceXml && nativeFraction(firstTagXml(choiceXml, 'p:txBody') ?? '')
+      ? choiceXml : firstTagXml(nodeXml, 'mc:Fallback');
     if (!fallbackXml) return [];
     return splitDirectXmlChildren(fallbackXml, ['p:sp', 'p:pic', 'p:cxnSp', 'p:grpSp']).flatMap(
       (childXml) => flattenSlideNodeMetadata(childXml, slideWidthPt, slideHeightPt),
@@ -8444,8 +8462,9 @@ async function recordPptxContentWarnings(
       message: `PPTX 第 ${pageIndex + 1} 页${detail}，须核对原稿后再发布`,
     });
   };
-  // Presence is conservative: an alternate picture may exist, but math fidelity is not verified.
-  if (/<(?:[A-Za-z_][\w.-]*:)?oMath(?:Para)?\b/.test(slideXml)) {
+  const mathShapes = collectXmlBlocks(slideXml, 'p:sp').filter(shape => /<(?:[A-Za-z_][\w.-]*:)?oMath\b/.test(shape));
+  if (/<(?:[A-Za-z_][\w.-]*:)?oMath(?:Para)?\b/.test(slideXml) &&
+      (!mathShapes.length || mathShapes.some(shape => !nativeFraction(firstTagXml(shape, 'p:txBody') ?? '')))) {
     record('PPTX_NATIVE_MATH_UNVERIFIED', '包含尚未验证还原的原生 Office 公式');
   }
   if (/<(?:[A-Za-z_][\w.-]*:)?linkedTxbx\b/.test(slideXml)) {

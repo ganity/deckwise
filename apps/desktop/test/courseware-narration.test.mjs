@@ -15,11 +15,11 @@ function loadNative(id) {
   if (id === "./courseware-narration-visuals") return {};
   if (!id.startsWith("./")) return require(id);
   const exports = {};
-  new Function("require", "exports", ts.transpileModule(readFileSync(new URL(`../electron/main/${id.slice(2)}.ts`, import.meta.url), "utf8"), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText)(loadNative, exports);
+  new Function("require", "exports", ts.transpileModule(readFileSync(new URL(`../electron/main/${id.slice(2)}.ts`, import.meta.url), "utf8"), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true } }).outputText)(loadNative, exports);
   return exports;
 }
 const source = await readFile(new URL("../electron/main/courseware-candidates.ts", import.meta.url), "utf8");
-const { outputText } = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } });
+const { outputText } = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true } });
 let authoringUrl;
 const module = { exports: {} };
 new Function("require", "exports", outputText)((id) => {
@@ -85,7 +85,7 @@ function setup(resolveModel) {
     }
     throw new Error(method);
   } };
-  const teaching = { async withSaved(id, operation) { assert.equal(id, "chat"); await duringSaved?.(); return operation(host, "job", snapshot, structuredClone(editor)); },
+  const teaching = { isAdoptedTeachingDocument: async () => false, async withSaved(id, operation) { assert.equal(id, "chat"); await duringSaved?.(); return operation(host, "job", snapshot, structuredClone(editor)); },
     async assertCurrent(_snapshot, pinned) { if (changed || JSON.stringify(pinned) !== JSON.stringify(editor)) throw new Error("Source or native page changed"); } };
   const complete = async (input) => { requests.push(input); await duringComplete?.(input); return { text: JSON.stringify({ blocks: [{ type: "speech", text: "Look! A red apple." }, { type: "wait", durationMs: 4000 }, { type: "praise", text: "Thank you for trying." }] }), modelKey: "provider/model" }; };
   const coordinator = new CoursewareCandidateCoordinator(teaching, complete, undefined, resolveModel);
@@ -334,8 +334,8 @@ test("source selection stays Host-only and cannot be smuggled through a public p
   assert(!f.calls.some(([method]) => method === "courseware.narration.save"));
 });
 
-test("current reviewed redo and confirmed batch capabilities survive source selection", async () => {
-  const f = setup(); const calls = [];
+test("current reviewed redo and confirmed batch capabilities survive source selection before narration", async () => {
+  const f = setup(); f.project.pages.forEach(page => { page.actions = []; }); const calls = [];
   const scope = { reviewId: "review-current", pageIds: f.project.pages.map((page) => page.pageId) };
   const redo = {
     visuals: { approved: async () => { calls.push("visual"); return { view: { projectId: f.project.projectId, pageId: f.project.pages[0].pageId, sourceSha256: f.snapshot.sha256 } }; } },
@@ -353,6 +353,24 @@ test("current reviewed redo and confirmed batch capabilities survive source sele
   } finally { authoringUrl = undefined; }
 });
 
+test("page image redo and style batch capabilities disappear once narration exists", async () => {
+  const f = setup(); const calls = [];
+  const scope = { reviewId: "review-current", pageIds: f.project.pages.map((page) => page.pageId) };
+  const redo = {
+    visuals: { approved: async () => { calls.push("visual"); return { view: { projectId: f.project.projectId, pageId: f.project.pages[0].pageId, sourceSha256: f.snapshot.sha256 } }; } },
+    style: { confirmedScope: async () => { calls.push("scope"); return scope; } },
+  };
+  const coordinator = new CoursewareCandidateCoordinator(f.teaching, async () => { throw new Error("No model call for frozen image stage"); }, redo);
+  authoringUrl = "file:///private-fixture-authoring.mjs";
+  try {
+    const context = await coordinator.execute("chat", "ppt_get_narration_context", {}, () => true);
+    assert.deepEqual(context.capabilities, ["page-narration", "page-fade"]);
+    await assert.rejects(coordinator.execute("chat", "ppt_propose_page_redo", { kind: "page-pptx", baseline: context.baseline, instruction: "Redo" }, () => true), /frozen after narration/);
+    await assert.rejects(coordinator.execute("chat", "ppt_propose_page_style_batch", { kind: "page-style-batch", baseline: context.baseline, styleBatch: scope }, () => true), /frozen after narration/);
+  } finally { authoringUrl = undefined; }
+  assert.deepEqual(calls, ["visual", "scope"]);
+});
+
 test("fade, redo and confirmed batch keep their existing dedicated delegates", async () => {
   const f = setup(); const context = await f.context();
   const scope = { reviewId: "review-current", pageIds: f.project.pages.map((page) => page.pageId) };
@@ -363,8 +381,8 @@ test("fade, redo and confirmed batch keep their existing dedicated delegates", a
   try {
     for (const [name, args, expected] of [
       ["ppt_propose_page_fade", { kind: "page-fade", baseline: context.baseline }, /Unexpected fade call/],
-      ["ppt_propose_page_redo", { kind: "page-pptx", baseline: context.baseline, instruction: "Redo" }, /Unexpected redo call/],
-      ["ppt_propose_page_style_batch", { kind: "page-style-batch", baseline: context.baseline, styleBatch: scope }, /Unexpected batch/],
+      ["ppt_propose_page_redo", { kind: "page-pptx", baseline: context.baseline, instruction: "Redo" }, /frozen after narration/],
+      ["ppt_propose_page_style_batch", { kind: "page-style-batch", baseline: context.baseline, styleBatch: scope }, /frozen after narration/],
     ]) await assert.rejects(coordinator.execute("chat", name, args, () => true), expected);
     assert(!f.calls.some(([method]) => method === "courseware.narration.save"));
   } finally { authoringUrl = undefined; }
@@ -393,6 +411,7 @@ test("native generated narration keeps page requirements, live targets and adopt
   const originalComplete = f.coordinator.complete;
   let focusRepairs = 0;
   f.coordinator.complete = async args => {
+    if (JSON.parse(args.messages[0].content).reviewKind === 'narration_semantics') return { text: JSON.stringify({ issues: [] }) };
     if (args.system.startsWith('Plan a coherent course')) return { text: JSON.stringify({ goal: 'Name the apple', pages: [{ pageNumber: 1, purpose: 'Name', bridge: 'Practice', focus: 'apple' }] }) };
     if (args.system.startsWith('Repair only synchronized effects')) { focusRepairs++; return { text: JSON.stringify({ focuses: [] }) }; }
     return originalComplete(args);
@@ -429,36 +448,50 @@ for (const policy of ["preserve", "generate-missing", "silent"]) test(`native se
   assert.equal(page.actions[0].text, "Existing narration");
 });
 
-test('native narration retry budget spans tool calls within one user turn and resets on a new turn', async () => {
-  const project = { schemaVersion: shared.COURSEWARE_CONTRACT_VERSION, projectId: 'native', taskType: 'plain', title: 'Father',
+for (const taskType of ['plain', 'scene', 'import']) test(`${taskType}: native retry budget survives runtime and editor recreation within one turn`, async () => {
+  const project = { schemaVersion: shared.COURSEWARE_CONTRACT_VERSION, projectId: 'native', taskType, title: 'Father',
     source: { revision: 'R1', sha256: 'a'.repeat(64) }, teachingRevision: 'T1',
     pages: [{ pageId: 'page', locked: false, reviewState: 'review', actions: [] }] };
   const png = Buffer.alloc(24); png.writeUInt32BE(0x89504e47, 0); png.writeUInt32BE(1280, 16); png.writeUInt32BE(720, 20);
-  const teaching = { native: async op => {
+  const teaching = { isAdoptedTeachingDocument: async () => taskType === 'scene', native: async op => {
     if (op === 'narration-visual') return { value: { dataUrl: `data:image/png;base64,${png.toString('base64')}` } };
     assert.equal(op, 'narration-context');
-    return { value: { editor: { projectId: 'native', documentId: 'doc', sessionId: 'chat', editGeneration: 1 },
+    return { value: { editor: { projectId: 'native', documentId, sessionId: 'chat', editGeneration: 1 },
       view: { project: structuredClone(project), pageId: 'page', viewId: 'view' }, text: 'father',
       evidence: { width: 1280, height: 720, notes: '', objects: [{ objectId: 'father', kind: 'text', text: 'father', bbox: [0,0,100,100] }] } } };
   } };
-  let turnId = 'turn-1', plans = 0, speech = 0;
+  let turnId = 'turn-1', plans = 0, speech = 0, documentId = 'doc';
+  let stored = { revision: 0, failures: { page: 'Required repair pending' } };
+  const retryStore = { read: async () => structuredClone(stored), writeNarration: async (_session, _project, previous, narration) => {
+    assert.equal(previous.revision, stored.revision);
+    stored = { ...stored, revision: stored.revision + 1, narration: structuredClone(narration) };
+    return structuredClone(stored);
+  } };
   const complete = async request => {
     const data = JSON.parse(request.messages[0].content);
     if (data.outline) {
       plans++;
       return { text: JSON.stringify({ goal: 'Read', pages: [{ pageNumber: 1, purpose: 'Read', focus: 'father', bridge: 'Continue' }] }) };
     }
+    assert.equal(Object.values(stored.narration.pages)[0].attempts, speech % 3 + 1, 'Reserve before model call');
     speech++;
-    return { text: JSON.stringify({ blocks: [{ type: 'wait', durationMs: 4000 }, { type: 'speech', text: 'Read father.' }] }) };
+    return { text: JSON.stringify({ blocks: [] }) };
   };
-  const coordinator = new CoursewareCandidateCoordinator(teaching, complete, undefined, async () => ({ modelKey: 'test' }), () => turnId);
+  const create = () => new CoursewareCandidateCoordinator(teaching, complete, undefined, async () => ({ modelKey: 'test' }), () => turnId, undefined, retryStore);
+  let coordinator = create();
   const generate = instruction => coordinator.proposeNativeNarrationBatch('chat', [1], instruction, () => true);
   const first = await generate('Read father');
+  assert.equal(first.failures[0].code, 'COURSEWARE_NARRATION_OUTPUT_INVALID');
   assert.equal(first.failures[0].retriable, false); assert.equal(speech, 3); assert.equal(plans, 1);
   project.source.sha256 = 'b'.repeat(64);
   const repeated = await generate('Use a shorter instruction');
-  assert.equal(repeated.failures[0].code, 'COURSEWARE_NARRATION_RETRY_EXHAUSTED');
+  assert.equal(repeated.failures[0].code, first.failures[0].code);
   assert.equal(speech, 3); assert.equal(plans, 1);
+  documentId = 'reopened-doc'; coordinator = create();
+  const resumed = await generate('Resume unchanged document');
+  assert.equal(resumed.failures[0].code, first.failures[0].code);
+  assert.equal(speech, 3); assert.equal(plans, 1);
+  assert.equal(stored.failures.page, 'Required repair pending');
   turnId = 'turn-2';
   await generate('Try again');
   assert.equal(speech, 6); assert.equal(plans, 2);
@@ -492,4 +525,57 @@ test("activity review leaves room for model reasoning before its bounded JSON ve
       : JSON.stringify({ valid: true, reason: 'Supported by the source.' }) };
   }, undefined, async () => ({ modelKey: 'review/model' }));
   await coordinator.reviewNativeActivity('chat', { question: 'Show left and right.' }, () => true);
+});
+
+test('document runtime forwards its authorized vision completion into the native batch', async () => {
+  const completeVision = async () => ({ text: 'review' });
+  let batch;
+  const candidateExports = {};
+  new Function('require', 'exports', outputText)(id => id === './courseware-native-narration'
+    ? { generateNativeNarration: async input => { batch = input; return { saved: true }; } }
+    : id === '@pi-desktop/shared' ? shared : id === '@pi-desktop/agent-runtime' ? runtime : {}, candidateExports);
+  let coordinator;
+  const runtimeExports = {};
+  const code = ts.transpileModule(readFileSync(new URL('../electron/main/courseware-document-runtime.ts', import.meta.url), 'utf8'),
+    { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true } }).outputText;
+  const Empty = class {};
+  new Function('require', 'exports', code)(id => {
+    if (id === './courseware-teaching') return { CoursewareTeachingCoordinator: class { async isAdoptedTeachingDocument() { return true; } } };
+    if (id === './courseware-candidates') return { CoursewareCandidateCoordinator: class extends candidateExports.CoursewareCandidateCoordinator {
+      constructor(...args) { super(...args); coordinator = this; }
+    } };
+    if (id === './courseware-native-assessment-media') return { createNativeAssessmentMedia: () => ({ assessments: {} }) };
+    if (id === './courseware-native-tools') return { CoursewareNativeTools: class { execute() {} } };
+    if (id === './courseware-native-repairs') return { nativeRepairStore: () => ({ marker: 'durable' }) };
+    return new Proxy({}, { get: () => Empty });
+  }, runtimeExports);
+  for (const background of [false, true]) {
+    runtimeExports.createCoursewareDocumentRuntime({ editor: {}, scope: { sessionId: 'chat', workspace: '/lesson' }, background,
+      complete: async () => ({ text: '' }), completeVision, resolveModel: async () => ({ modelKey: 'provider/model' }),
+      activeTurns: new Map([['chat', 'turn']]), getHost: () => ({}) });
+    await coordinator.proposeNativeNarrationBatch('chat', [1], 'Explain', () => true);
+    assert.equal(batch.frozenArtwork, true);
+    assert.equal(batch.completeVision, completeVision, 'native review must receive the authorized vision callback');
+    assert.equal(batch.retryStore.marker, 'durable');
+    assert.equal(batch.turnId, 'turn');
+  }
+});
+
+test('activity review repairs malformed verdicts without changing the proposed question or retrying a rejection', async () => {
+  const activity = { question: '6 times 2?', answer: '12', analysis: 'multiply' };
+  for (const response of ['{', '{}', JSON.stringify({ valid: true, reason: '' })]) {
+    let calls = 0;
+    const candidate = new CoursewareCandidateCoordinator({}, async request => {
+      const data = JSON.parse(request.messages[0].content); assert.deepEqual(data.activity ?? data, activity);
+      if (++calls > 1) assert(data.repair.error);
+      return { text: calls === 1 ? response : JSON.stringify({ valid: true, reason: '' }) };
+    }, undefined, async () => ({ modelKey: 'fixture' }));
+    await candidate.reviewNativeActivity('chat', activity, () => true);
+    assert.equal(calls, response.startsWith('{"valid"') ? 1 : 2);
+  }
+  let calls = 0;
+  const candidate = new CoursewareCandidateCoordinator({}, async () => { calls++; return { text: '{"valid":false,"reason":"Incorrect answer"}' }; },
+    undefined, async () => ({ modelKey: 'fixture' }));
+  await assert.rejects(candidate.reviewNativeActivity('chat', activity, () => true), /Incorrect answer/);
+  assert.equal(calls, 1, 'A rejected question needs actual content correction, not a repeated review');
 });

@@ -57,7 +57,7 @@ async function fixture(t, component, props, overrides = {}, translate = key => k
       if (path === `${projectPath}/validation/svg_quality_report.json`) return { kind: "text", content: JSON.stringify(project.report) };
       throw new Error("File not found");
     },
-    async pptPreviewOpen(path) { calls.push(["preview", path]); },
+    async pptPreviewOpen(path) { calls.push(["preview", path]); return { started: false }; },
     onAuthChanged: () => () => {},
     onPptEditorState: () => () => {},
     async coursewareSceneImagePreview(_sessionId, intentId) { return { image: structuredClone(rows.find(row => row.intentId === intentId)), dataUrl: "data:image/png;base64,aGVsbG8=" }; },
@@ -125,6 +125,7 @@ async function fixture(t, component, props, overrides = {}, translate = key => k
   const nodes = () => {
     const all = []; const visit = value => { if (Array.isArray(value)) return value.forEach(visit); if (!value || typeof value !== "object") return;
       all.push(value); visit(value.props?.children);
+      if (value.type === "plain-presentation") visit(value.props.renderEditor?.());
       // Inspect the editor slots supplied by Workflow; editor rendering has its own browser tests.
       if (value.type === "ppt-editor") { visit(value.props.actions); visit(value.props.reviewPanel); }
     }; visit(tree); return all;
@@ -151,6 +152,18 @@ test("generated PPT delegates current-page Quiz and checkpoint editing to the na
   await f.click("refresh");
   const entrance = f.nodes().find(node => node.type === "button" && node.props.children === "Quiz / 互动编辑");
   assert(!entrance, "Current-page editing belongs to the mounted PPT toolbar");
+  assert(f.nodes().some(node => node.type === "ppt-editor"));
+});
+
+test("authenticated refresh keeps an imported PPT mounted during a Chat turn", async t => {
+  let authChanged;
+  const f = await fixture(t, "CoursewareChatWorkflow", { sessionId: "chat" }, {
+    onAuthChanged(callback) { authChanged = callback; return () => {}; },
+  });
+  f.attached("import"); await f.click("refresh");
+  assert(f.nodes().some(node => node.type === "ppt-editor"));
+  authChanged({ status: "authenticated", profile: { userId: 1 } });
+  f.render(); await f.flush();
   assert(f.nodes().some(node => node.type === "ppt-editor"));
 });
 
@@ -1107,4 +1120,114 @@ test("saved story belongs to the editor sidebar instead of a block above the PPT
   assert(editor?.props.storyPanel);
   assert(JSON.stringify(editor.props.storyPanel).includes('Rainbow rescue'));
   assert(!f.nodes().some(node=>node.type==='summary'&&node.props.children==='coursewareStory.saved'));
+});
+
+const incompleteReceipt = { role: "tool", toolName: "courseware_media_context", toolStatus: "success", toolResult: { details: {
+  _truncated: true, nativeTeaching: true, assessmentMedia: { projectId: "lesson" },
+  completion: { ready: false, teachingRevision: "rev", sourceSha256: "sha", issues: [{ pageNumber: 1, code: "NARRATION_MISSING" }] },
+} } };
+
+test("continue sends the saved diagnosis and affected speech only once", async t => {
+  const receipt = structuredClone(incompleteReceipt);
+  const status = receipt.toolResult.details;
+  status.completion.issues = [{ pageNumber: 2, pageId: "lesson-b", actionId: "speech-b", code: "AUDIO_MISSING", repair: "tts", repairable: true }];
+  status.pages = [{ pageId: "lesson-b", pageNumber: 2, speeches: [{ actionId: "speech-a" }, { actionId: "speech-b" }] }];
+  const props = { sessionId: "chat", messages: [receipt, { role: "assistant", content: "Done for now" }] };
+  const f = await fixture(t, "CoursewareChatContinue", props, {
+    coursewareWorkflowGet: async () => ({task:{taskType:"scene", generated:true, sourcePath:"lesson.pptx"}}),
+    pptEditorTeachingOpen: async () => ({project:{projectId:"lesson",teachingRevision:"rev", source:{sha256:"sha"}}}),
+  }, (key, args) => [key, ...Object.values(args ?? {})].join(" "));
+  f.store.workPanelTabs = [{ kind: "ppt", resource: "lesson.pptx" }];
+  const button = f.nodes().find(node => node.type === "button");
+  assert(button); button.props.onClick(); button.props.onClick(); await f.flush();
+  assert.equal(f.calls.length, 1);
+  const [op, prompt, attachments, sessionId] = f.calls[0];
+  assert.deepEqual([op, attachments, sessionId], ["prompt", undefined, "chat"]);
+  assert.match(prompt, /repairPage 2/);
+  assert.match(prompt, /repairSegment 2/);
+  assert.match(prompt, /repairAudio/);
+  assert.doesNotMatch(prompt, /resumePrompt/);
+  assert(!f.nodes().some(node => node.type === "button"));
+});
+
+for (const mode of ["structured", "legacy", "different revision"]) test(`review continuation identifies the saved speech from a truncated receipt: ${mode}`, async t => {
+  const early = structuredClone(incompleteReceipt), last = structuredClone(incompleteReceipt);
+  const page = {pageNumber: 2, pageId: "page-b", speeches: [{actionId:"first"}, {actionId:"second"}]};
+  early.toolResult.details.pages = [page];
+  if (mode === "different revision") early.toolResult.details.completion.teachingRevision = "outdated";
+  const quote = "The pole is four kilograms tall", reason = "Mass does not measure height";
+  last.toolResult.details.completion.issues = [{
+    pageNumber:2, pageId:"page-b", code:"CONTENT_REVIEW_FAILED", repair:"narration", repairable:false,
+    ...(mode === "structured" ? {actionId:"second", segmentNumber:2, quote, message:reason} : {message:`Speech second: ${quote} (${reason})`}),
+  }];
+  const f = await fixture(t, "CoursewareChatContinue", {sessionId:"chat", messages: [early, last]}, {
+    coursewareWorkflowGet: async () => ({task:{taskType:"plain", generated:true, sourcePath:"lesson.pptx"}}),
+  }, (key, args) => [key, ...Object.values(args ?? {})].join(" "));
+  const button = f.nodes().find(node => node.type === "button");
+  assert(button);
+  assert.match(button.props.children, /repairSpeechFinding/);
+  assert(!button.props.children.includes(quote));
+  button.props.onClick(); await f.flush();
+  const prompt = f.calls[0][1];
+  assert(prompt.includes(quote) && prompt.includes(reason));
+  if (mode === "different revision") assert(!prompt.includes("repairSegment"));
+  else { assert.match(prompt, /repairPage 2.*repairSegment 2/); assert(!prompt.includes("Speech second:")); }
+});
+
+test("mixed pages retain distinct targets and blocked checks in a truncated receipt", async t => {
+  const receipt = structuredClone(incompleteReceipt);
+  receipt.toolResult.details.completion.issues = [
+    { pageNumber: 1, code: "AUDIO_MISSING", actionId: "a", repairable: true },
+    { pageNumber: 1, code: "AUDIO_MISSING", actionId: "b", repairable: true },
+    { pageNumber: 3, code: "NARRATION_MISSING", repairable: true },
+    { pageNumber: 0, code: "MATERIAL_UNAVAILABLE", repairable: false },
+  ];
+  const f = await fixture(t, "CoursewareChatContinue", { sessionId: "chat", messages: [receipt] }, {
+    coursewareWorkflowGet: async () => ({ task: { taskType: "import", imported: true, sourcePath: "lesson.pptx" } }),
+  }, (key, args) => [key, ...Object.values(args ?? {})].join(" "));
+  await f.click("repairMultiple");
+  const prompt = f.calls[0][1];
+  assert.match(prompt, /repairPage 1.*repairAudio.* — a/);
+  assert.match(prompt, /repairPage 1.*repairAudio.* — b/);
+  assert.match(prompt, /repairPage 3.*repairNarration/);
+  assert.match(prompt, /repairBlocked MATERIAL_UNAVAILABLE/);
+  assert.doesNotMatch(prompt, /repairPage 0/);
+});
+
+test("a completed receipt arriving during click verification cancels the obsolete repair", async t => {
+  let finish;
+  const f = await fixture(t, "CoursewareChatContinue", { sessionId: "chat", messages: [incompleteReceipt] }, {
+    coursewareWorkflowGet: async () => ({ task: { taskType: "plain", generated: true, sourcePath: "lesson.pptx" } }),
+    pptEditorTeachingOpen: () => new Promise(resolve => { finish = resolve; }),
+  });
+  f.store.workPanelTabs = [{ kind: "ppt", resource: "lesson.pptx" }];
+  f.nodes().find(node => node.type === "button").props.onClick();
+  await f.flush();
+  const completed = structuredClone(incompleteReceipt);
+  completed.toolResult.details.completion.ready = true;
+  f.props.messages = [incompleteReceipt, completed];
+  f.render(); await f.flush();
+  finish({ project: { projectId: "lesson", teachingRevision: "rev", source: { sha256: "sha" } } });
+  await f.flush();
+  assert.deepEqual(f.calls, []);
+  assert(!f.nodes().some(node => node.type === "button"));
+});
+
+test("a new completion receipt or user turn supersedes the earlier resume button", async t => {
+  const latest = structuredClone(incompleteReceipt);
+  latest.toolResult.details.completion.ready = true;
+  for (const last of [latest,{role:"user",content:"Just explain the previous result"}]) {
+    const f = await fixture(t,"CoursewareChatContinue",{sessionId:"chat",messages:[incompleteReceipt,last,{role:"assistant",content:"OK"}]});
+    assert.equal(f.nodes().length,0);
+  }
+});
+
+test("PPTX export is a named confirmation and is checked again on click", async t => {
+  const f = await fixture(t,"CoursewareChatContinue",{sessionId:"chat",messages:[
+    {role:"tool",toolName:"courseware_presentation_prepare",toolStatus:"success",toolArgs:{projectPath:".deckwise-ppt/projects/lesson"}},
+    {role:"assistant",content:"Preview ready"},
+  ]},{coursewareWorkflowGet:async()=>({task:{taskType:"plain",generated:false}})});
+  assert(f.button("confirmExport"));
+  f.project.exported = true; await f.click("confirmExport");
+  assert.deepEqual(f.calls,[]); assert.equal(f.button("confirmExport"),undefined);
 });

@@ -65,3 +65,30 @@ test("network failures show the transport errno beside the error code", async ()
   assert.match(activityGroup, /retryError\.networkCode/);
 });
 });
+
+test("continue recovers the current courseware step from safe evidence only", async () => {
+  const { default: ts } = await import("typescript");
+  const file = await read("src/lib/courseware-error-continuation.ts");
+  const exports = {};
+  new Function("exports", ts.transpileModule(file, {compilerOptions:{module:ts.ModuleKind.CommonJS, target:ts.ScriptTarget.ES2022}}).outputText)(exports);
+  const translate = (key, args) => [key, ...Object.values(args)].join(" ");
+  const resume = (message, messages) => exports.coursewareErrorContinuation(message, messages, translate);
+  for (const [toolName, field, context] of [
+    ["courseware_media_prepare", "kind", "courseware_media_context"],
+    ["courseware_media_assessments", "mode", 'courseware_media_assessments({"mode":"context"})'],
+  ]) {
+    const message = {id:"error", role:"assistant", error:{code:"TOOL_ARGUMENT_RETRY_EXHAUSTED", details:{
+      toolName, issues:`- ${field}: private rejected value\n- root: anyOf`,
+    }}};
+    const prompt = resume(message, [message]);
+    for (const text of [toolName, field, context]) assert(prompt.includes(text));
+    assert(!prompt.includes("private rejected value"));
+    assert.equal(resume(message, [message, {id:"next",role:"user"}]), null);
+  }
+  const message = {id:"400", role:"assistant", error:{code:"PROVIDER_ERROR", details:{providerStatus:400}}};
+  const search = {role:"tool", toolName:"ToolSearch", toolArgs:{query:"courseware_scene_compile"}};
+  assert.match(resume(message,[search,message]), /courseware_scene_compile.*HTTP 400/);
+  for (const unrelated of [{role:"user"}, {role:"tool",toolName:"Read"}])
+    assert.equal(resume(message, [search,unrelated,message]), undefined);
+  assert.equal(resume(message,[message]), undefined);
+});

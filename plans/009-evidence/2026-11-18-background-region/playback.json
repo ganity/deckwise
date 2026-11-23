@@ -1,0 +1,18 @@
+{
+  "buildId": "07bddae98d9e0852fec6398e96d27d4d8b63f15c261baa87e0aad483e70b1a5b",
+  "pages": 4,
+  "naturallyEndedSpeech": 16,
+  "effects": {
+    "highlight": true,
+    "spotlight": true,
+    "animation": true
+  },
+  "region": {
+    "fade": true,
+    "spotlight": true
+  },
+  "quizAnswersChecked": 1,
+  "wrongAnswersChecked": 1,
+  "teacherActivities": 1,
+  "errors": []
+}

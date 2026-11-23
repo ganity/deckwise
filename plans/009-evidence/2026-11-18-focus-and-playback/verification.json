@@ -1,0 +1,538 @@
+{
+  "scene": {
+    "sha256": "19a60b5c3f9aa9817e38eb3bb326aa96de625756172f99c650ecb091811d83b8",
+    "playback": {
+      "buildId": "f698fef6ceede8e54795751204c43feb267592273f8e8ec85857f57eea2b4c9f",
+      "pages": 4,
+      "naturallyEndedSpeech": 8,
+      "effects": {
+        "highlight": true,
+        "spotlight": true,
+        "animation": true
+      },
+      "quizAnswersChecked": 1,
+      "wrongAnswersChecked": 1,
+      "teacherActivities": 1,
+      "errors": []
+    },
+    "areas": [
+      {
+        "page": 1,
+        "normalizedRegion": [
+          0.01796875,
+          0.0175,
+          0.978125,
+          0.95875
+        ],
+        "spotlightForegrounds": [
+          "太阳",
+          "蒸发上升蓝色箭头",
+          "降雨云",
+          "降水雨滴与下箭头",
+          "蒸发标注文字块",
+          "凝结标注文字块",
+          "降水标注文字块"
+        ],
+        "highlightGroups": [
+          [
+            "蒸发上升蓝色箭头",
+            "蒸发标注文字块"
+          ],
+          [
+            "降雨云",
+            "降水雨滴与下箭头",
+            "凝结标注文字块",
+            "降水标注文字块"
+          ]
+        ]
+      },
+      {
+        "page": 3,
+        "normalizedRegion": [
+          0.01953125,
+          0.007499863298337708,
+          0.98203125,
+          0.9849997265966755
+        ],
+        "spotlightForegrounds": [
+          "山地河道",
+          "降雨积雨云",
+          "海洋指示连线",
+          "河流指示连线",
+          "地表径流蓝色箭头",
+          "海洋文字标签",
+          "地表径流文字标签",
+          "河流文字标签"
+        ],
+        "highlightGroups": [
+          [
+            "河流文字标签"
+          ],
+          [
+            "地表径流文字标签",
+            "海洋文字标签"
+          ]
+        ]
+      }
+    ],
+    "renderedFocusCues": [
+      {
+        "page": "scene-001",
+        "speech": "看左上角的太阳，它照在海面上，海水受热变成水汽。",
+        "cue": "repair-b6e39d6a-ace0-4afb-88fc-724d9ed141bc-speech-06f003a7-b638-4cf9-9909-98d3b0c27285-0-0",
+        "type": "spotlight",
+        "ids": [
+          "object-398e9e8074edabb183975a8d917c40cf9cab1f25",
+          "object-40b0cabc9a8cc439f25850927406c1745edf3406",
+          "object-a950b2a31e24a6e6c7911c7b7f174c0d5cbed34e",
+          "object-5ebf20994bec8a6e269825140f42af037c9798a3",
+          "object-c788309efe329c3991194480d67cb4dba12d8eb4",
+          "object-8d8e22557c229bc5dd6bcdc00257b6ef0d63533a",
+          "object-749bb34166397ab68fbabcaa948a2d51c5583e1a",
+          "region-01d894ce-d8d8-413e-9874-9596adc44343"
+        ],
+        "expected": [
+          "pptx_image_2",
+          "pptx_image_3",
+          "pptx_image_4",
+          "pptx_image_5",
+          "pptx_image_6",
+          "pptx_image_7",
+          "pptx_image_8",
+          "pptx_image_1"
+        ],
+        "dom": [
+          "pptx_image_1",
+          "pptx_image_2",
+          "pptx_image_3",
+          "pptx_image_4",
+          "pptx_image_5",
+          "pptx_image_6",
+          "pptx_image_7",
+          "pptx_image_8"
+        ]
+      },
+      {
+        "page": "scene-001",
+        "speech": "水汽顺着蓝色箭头往上升，进入空气，这一步就叫蒸发。",
+        "cue": "focus-speech-06f003a7-b638-4cf9-9909-98d3b0c27285-1",
+        "type": "highlight",
+        "ids": [
+          "object-40b0cabc9a8cc439f25850927406c1745edf3406",
+          "object-c788309efe329c3991194480d67cb4dba12d8eb4"
+        ],
+        "expected": [
+          "pptx_image_3",
+          "pptx_image_6"
+        ],
+        "dom": [
+          "pptx_image_3",
+          "pptx_image_6"
+        ]
+      },
+      {
+        "page": "scene-001",
+        "speech": "水汽遇冷聚成云，这就是凝结。你看，云里的水滴落下来，这叫降水。",
+        "cue": "focus-speech-06f003a7-b638-4cf9-9909-98d3b0c27285-2",
+        "type": "highlight",
+        "ids": [
+          "object-a950b2a31e24a6e6c7911c7b7f174c0d5cbed34e",
+          "object-5ebf20994bec8a6e269825140f42af037c9798a3",
+          "object-8d8e22557c229bc5dd6bcdc00257b6ef0d63533a",
+          "object-749bb34166397ab68fbabcaa948a2d51c5583e1a"
+        ],
+        "expected": [
+          "pptx_image_4",
+          "pptx_image_5",
+          "pptx_image_7",
+          "pptx_image_8"
+        ],
+        "dom": [
+          "pptx_image_4",
+          "pptx_image_5",
+          "pptx_image_7",
+          "pptx_image_8"
+        ]
+      },
+      {
+        "page": "scene-003",
+        "speech": "看山地上方这朵积雨云，雨水落向山地，又顺着坡面汇进河道往下流。",
+        "cue": "repair-8001d339-c1a6-4c33-b980-e40f00efa964-speech-ecd5ed16-da13-4f0e-8c36-c696b09ba830-0-0",
+        "type": "spotlight",
+        "ids": [
+          "object-83c36349c02eaad11ffb4099682abd3759e6d46a",
+          "object-a258126d805db1f2a3da71841d23c6e93ceac08b",
+          "object-72a002c26cc9f1e1c43899926ddd0e5d66e9fac5",
+          "object-de0e57cac9fa8e4f73f79a9e65068a6c7808aba3",
+          "object-a711acc54d451f5c280a48a3f5661ac30b13c966",
+          "object-cdbfd30631d912ed75856df558a913f43705c761",
+          "object-4cfc5f37f725c855bbb3fcdb4dbf82b02cb39a70",
+          "object-5d37cc14a81f7bdca116737d32bba33ce670e6c2",
+          "region-10a4205b-f78a-4f8f-bf76-c71732cfdab8"
+        ],
+        "expected": [
+          "pptx_image_6",
+          "pptx_image_7",
+          "pptx_image_8",
+          "pptx_image_9",
+          "pptx_image_10",
+          "pptx_image_11",
+          "pptx_image_12",
+          "pptx_image_13",
+          "pptx_image_1"
+        ],
+        "dom": [
+          "pptx_image_1",
+          "pptx_image_6",
+          "pptx_image_7",
+          "pptx_image_8",
+          "pptx_image_9",
+          "pptx_image_10",
+          "pptx_image_11",
+          "pptx_image_12",
+          "pptx_image_13"
+        ]
+      },
+      {
+        "page": "scene-003",
+        "speech": "河水顺着河道一路往低处走，这条水道就叫河流。",
+        "cue": "focus-speech-ecd5ed16-da13-4f0e-8c36-c696b09ba830-1",
+        "type": "highlight",
+        "ids": [
+          "object-5d37cc14a81f7bdca116737d32bba33ce670e6c2"
+        ],
+        "expected": [
+          "pptx_image_13"
+        ],
+        "dom": [
+          "pptx_image_13"
+        ]
+      },
+      {
+        "page": "scene-003",
+        "speech": "蓝色箭头表示水沿地表从河流流向海洋，这一段叫地表径流。",
+        "cue": "focus-speech-ecd5ed16-da13-4f0e-8c36-c696b09ba830-2",
+        "type": "highlight",
+        "ids": [
+          "object-4cfc5f37f725c855bbb3fcdb4dbf82b02cb39a70",
+          "object-cdbfd30631d912ed75856df558a913f43705c761"
+        ],
+        "expected": [
+          "pptx_image_12",
+          "pptx_image_11"
+        ],
+        "dom": [
+          "pptx_image_11",
+          "pptx_image_12"
+        ]
+      }
+    ]
+  },
+  "master": {
+    "timingComparison": {
+      "fractions-meaning-g3_20261118_145527.pptx": [
+        {
+          "page": 1,
+          "warnings": [
+            "PPTX_TIMING_UNSUPPORTED_STRUCTURE"
+          ],
+          "items": [
+            [
+              "fade",
+              true
+            ],
+            [
+              "fade",
+              true
+            ],
+            [
+              "fade",
+              true
+            ],
+            [
+              "fade",
+              true
+            ]
+          ]
+        },
+        {
+          "page": 2,
+          "warnings": [
+            "PPTX_TIMING_UNSUPPORTED_STRUCTURE"
+          ],
+          "items": [
+            [
+              "fade",
+              true
+            ],
+            [
+              "fade",
+              true
+            ],
+            [
+              "fade",
+              true
+            ],
+            [
+              "fade",
+              true
+            ],
+            [
+              "fade",
+              true
+            ],
+            [
+              "fade",
+              true
+            ]
+          ]
+        },
+        {
+          "page": 3,
+          "warnings": [],
+          "items": []
+        },
+        {
+          "page": 4,
+          "warnings": [],
+          "items": []
+        }
+      ],
+      "binding-audit.pptx": [
+        {
+          "page": 1,
+          "warnings": [],
+          "items": [
+            [
+              "fade",
+              true
+            ],
+            [
+              "fade",
+              true
+            ],
+            [
+              "fade",
+              true
+            ],
+            [
+              "teeter",
+              true
+            ],
+            [
+              "fade",
+              true
+            ],
+            [
+              "teeter",
+              true
+            ]
+          ]
+        },
+        {
+          "page": 2,
+          "warnings": [],
+          "items": [
+            [
+              "fade",
+              true
+            ],
+            [
+              "fade",
+              true
+            ],
+            [
+              "fade",
+              true
+            ],
+            [
+              "teeter",
+              true
+            ],
+            [
+              "fade",
+              true
+            ],
+            [
+              "teeter",
+              true
+            ],
+            [
+              "fade",
+              true
+            ],
+            [
+              "teeter",
+              true
+            ],
+            [
+              "fade",
+              true
+            ]
+          ]
+        },
+        {
+          "page": 3,
+          "warnings": [],
+          "items": []
+        },
+        {
+          "page": 4,
+          "warnings": [],
+          "items": []
+        }
+      ]
+    },
+    "exportSha256": "7dcd6726336be2c1313e84e091a4d87b1cdd1443bbd69ceb6898c9379d7437cb",
+    "sha256": "e0607b57ba3f59ff0e02cf2877534493406e552e9bf5107876a5a191f8842b68",
+    "playback": {
+      "buildId": "44cc6533e27190a39176cabf79bd56533e531dd119d061554e0a422047208f05",
+      "pages": 4,
+      "naturallyEndedSpeech": 10,
+      "effects": {
+        "highlight": true,
+        "spotlight": true,
+        "animation": true
+      },
+      "quizAnswersChecked": 1,
+      "wrongAnswersChecked": 1,
+      "teacherActivities": 1,
+      "errors": []
+    },
+    "renderedFocusCues": [
+      {
+        "page": "page-1",
+        "speech": "这个长方形被平均分成4份。",
+        "cue": "focus-speech-e7d6cdd3-3f01-46ca-aad5-9855ad577a5e-0",
+        "type": "spotlight",
+        "ids": [
+          "object-c75c7c848607d1de1b4d72493eed7bbf9b342b4d"
+        ],
+        "expected": [
+          "native_group_object-c75c7c848607d1de1b4d72493eed7bbf9b342b4d"
+        ],
+        "dom": [
+          "native_group_object-c75c7c848607d1de1b4d72493eed7bbf9b342b4d"
+        ]
+      },
+      {
+        "page": "page-1",
+        "speech": "涂色的这一格，就是其中的1份。",
+        "cue": "focus-speech-e7d6cdd3-3f01-46ca-aad5-9855ad577a5e-1",
+        "type": "highlight",
+        "ids": [
+          "object-734a76d5711cdd45be56339687220db8185bfb90"
+        ],
+        "expected": [
+          "pptx_shape_6"
+        ],
+        "dom": [
+          "pptx_shape_6"
+        ]
+      },
+      {
+        "page": "page-1",
+        "speech": "写作1/4，读作四分之一。",
+        "cue": "focus-speech-e7d6cdd3-3f01-46ca-aad5-9855ad577a5e-2",
+        "type": "highlight",
+        "ids": [
+          "object-5194bccf7fe983ea49f58439e8a1073e2793186e"
+        ],
+        "expected": [
+          "native_group_object-5194bccf7fe983ea49f58439e8a1073e2793186e"
+        ],
+        "dom": [
+          "native_group_object-5194bccf7fe983ea49f58439e8a1073e2793186e"
+        ]
+      },
+      {
+        "page": "page-1",
+        "speech": "分母4表示平均分成4份，分子1表示取其中的1份。",
+        "cue": "focus-speech-e7d6cdd3-3f01-46ca-aad5-9855ad577a5e-3",
+        "type": "highlight",
+        "ids": [
+          "object-1a5576116ba7f3c4fbf36794dafb6c57dc0d17f1",
+          "object-1f444fbaac6c4c9ae0430f424fc6e608f268b201"
+        ],
+        "expected": [
+          "pptx_text_27",
+          "pptx_text_28"
+        ],
+        "dom": [
+          "pptx_text_27",
+          "pptx_text_28"
+        ]
+      },
+      {
+        "page": "page-2",
+        "speech": "同学们，还是这个长方形，同样平均分成4份。",
+        "cue": "focus-speech-d9dc608f-bf02-4969-937e-a344132409e9-0",
+        "type": "spotlight",
+        "ids": [
+          "object-517a77d2396a67a63f6f34069a9fdfd685ba1a8d"
+        ],
+        "expected": [
+          "native_group_object-517a77d2396a67a63f6f34069a9fdfd685ba1a8d"
+        ],
+        "dom": [
+          "native_group_object-517a77d2396a67a63f6f34069a9fdfd685ba1a8d"
+        ]
+      },
+      {
+        "page": "page-2",
+        "speech": "这次我们涂色了其中3份，剩下1份空白。",
+        "cue": "focus-speech-d9dc608f-bf02-4969-937e-a344132409e9-1",
+        "type": "highlight",
+        "ids": [
+          "object-72bd76efc6bba51e8b1d8a02e7bdeea4e1a98856",
+          "object-fd92808d36f75e46d81da6920bcfee76a019957f",
+          "object-5b7ef524ce20bdec8d33c3c4f28e68fa57b79f2e"
+        ],
+        "expected": [
+          "pptx_shape_6",
+          "pptx_shape_7",
+          "pptx_shape_8"
+        ],
+        "dom": [
+          "pptx_shape_6",
+          "pptx_shape_7",
+          "pptx_shape_8"
+        ]
+      },
+      {
+        "page": "page-2",
+        "speech": "3份涂色合起来，写作3/4，读作四分之三。",
+        "cue": "focus-speech-d9dc608f-bf02-4969-937e-a344132409e9-2",
+        "type": "highlight",
+        "ids": [
+          "object-8834429b399104dbf04ddd5bb9169a8386892728"
+        ],
+        "expected": [
+          "native_group_object-8834429b399104dbf04ddd5bb9169a8386892728"
+        ],
+        "dom": [
+          "native_group_object-8834429b399104dbf04ddd5bb9169a8386892728"
+        ]
+      },
+      {
+        "page": "page-2",
+        "speech": "分母4表示平均分成4份，分子3表示取其中3份。",
+        "cue": "focus-speech-d9dc608f-bf02-4969-937e-a344132409e9-3",
+        "type": "highlight",
+        "ids": [
+          "object-d46237836a9f5a12bbbbd3668133426c0e200a01",
+          "object-8e1560c18b68d97669f84eb0a3bf5b6a3752a974"
+        ],
+        "expected": [
+          "native_group_object-d46237836a9f5a12bbbbd3668133426c0e200a01",
+          "native_group_object-8e1560c18b68d97669f84eb0a3bf5b6a3752a974"
+        ],
+        "dom": [
+          "native_group_object-d46237836a9f5a12bbbbd3668133426c0e200a01",
+          "native_group_object-8e1560c18b68d97669f84eb0a3bf5b6a3752a974"
+        ]
+      }
+    ],
+    "workerSha256": "62fdc8439d43dec4b0bb00ea4f7d6fe2910674f10b71ba64f88524ba92f03598"
+  }
+}

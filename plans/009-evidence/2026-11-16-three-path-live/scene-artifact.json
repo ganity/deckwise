@@ -1,0 +1,126 @@
+{
+  "teachingCarriers": [
+    "customXml/item18.xml"
+  ],
+  "verifiedEmbeddedAudio": [
+    {
+      "id": "tts-aaff4a60f9554c45008cea89a3ee78f7d78d736f86e0f5ccfc988258edcf0700",
+      "sha256": "aaff4a60f9554c45008cea89a3ee78f7d78d736f86e0f5ccfc988258edcf0700",
+      "bytes": 91821
+    },
+    {
+      "id": "tts-5d4ea99c9822b40be342d6aba0335dae88147f69ab14e4f8cadffd6880fd512a",
+      "sha256": "5d4ea99c9822b40be342d6aba0335dae88147f69ab14e4f8cadffd6880fd512a",
+      "bytes": 64365
+    },
+    {
+      "id": "tts-a4da22fd366d235284341e13824db3201d8dde68a440e1556ab72313815259ab",
+      "sha256": "a4da22fd366d235284341e13824db3201d8dde68a440e1556ab72313815259ab",
+      "bytes": 69357
+    },
+    {
+      "id": "tts-22bdff1bdb79e22e631aa20036934d3da30261c050675a0b98ac72b6ae0c46d1",
+      "sha256": "22bdff1bdb79e22e631aa20036934d3da30261c050675a0b98ac72b6ae0c46d1",
+      "bytes": 80301
+    },
+    {
+      "id": "tts-83b1877965d37e40bd64dc3e3c13ab8d7a6219653af84688449653b4262e16e6",
+      "sha256": "83b1877965d37e40bd64dc3e3c13ab8d7a6219653af84688449653b4262e16e6",
+      "bytes": 62829
+    },
+    {
+      "id": "tts-749aabd44904a87d8f00d1a8a29c15144c9af61e4d85a69768ac1a75e9df6e09",
+      "sha256": "749aabd44904a87d8f00d1a8a29c15144c9af61e4d85a69768ac1a75e9df6e09",
+      "bytes": 61293
+    },
+    {
+      "id": "tts-997aa75a04e5e4842fcb35d8411c5588fbeb94a8c8635565a6ec3a022bc65aa3",
+      "sha256": "997aa75a04e5e4842fcb35d8411c5588fbeb94a8c8635565a6ec3a022bc65aa3",
+      "bytes": 82221
+    },
+    {
+      "id": "tts-f27fc270e6939155ad50ea3fe5a9dd8c77cfc57fa803fce6cb08b4b62bf0a702",
+      "sha256": "f27fc270e6939155ad50ea3fe5a9dd8c77cfc57fa803fce6cb08b4b62bf0a702",
+      "bytes": 61101
+    },
+    {
+      "id": "tts-f17d1dbf62e42508f4c21346f203d75af0e35ab1ae227ea97238af5cbbbf3251",
+      "sha256": "f17d1dbf62e42508f4c21346f203d75af0e35ab1ae227ea97238af5cbbbf3251",
+      "bytes": 51501
+    },
+    {
+      "id": "tts-9cd3303ee5029091a1b5929021cecc247f91ba48046c61030047b41f668a7909",
+      "sha256": "9cd3303ee5029091a1b5929021cecc247f91ba48046c61030047b41f668a7909",
+      "bytes": 63021
+    },
+    {
+      "id": "tts-78fd3078e9dcebfbfed6aaa16ad320eb159a02d721193aed0cba7b6c2d92bf1c",
+      "sha256": "78fd3078e9dcebfbfed6aaa16ad320eb159a02d721193aed0cba7b6c2d92bf1c",
+      "bytes": 101421
+    },
+    {
+      "id": "tts-d014ed62bedd93a3ecb6f033477c73d143165704bed93a987fab8b00118e2f8f",
+      "sha256": "d014ed62bedd93a3ecb6f033477c73d143165704bed93a987fab8b00118e2f8f",
+      "bytes": 93165
+    },
+    {
+      "id": "tts-4621e6af59d2bec7305eeefa16241f8b612ef82017bfc33ecc0c64a34f80b0ac",
+      "sha256": "4621e6af59d2bec7305eeefa16241f8b612ef82017bfc33ecc0c64a34f80b0ac",
+      "bytes": 43821
+    },
+    {
+      "id": "tts-6f1a7910e60198e24bbd6e846053bfa5415bb23def186b994883ec0e3a7493a8",
+      "sha256": "6f1a7910e60198e24bbd6e846053bfa5415bb23def186b994883ec0e3a7493a8",
+      "bytes": 78957
+    },
+    {
+      "id": "tts-0e983a95089b4d46f975f716f46b1c7c3131190ecc329b325ad330ed88f8e7f2",
+      "sha256": "0e983a95089b4d46f975f716f46b1c7c3131190ecc329b325ad330ed88f8e7f2",
+      "bytes": 93165
+    },
+    {
+      "id": "tts-14aae072d84e1a4a49cf17fd13dbaf63cafc75e988508c2c5ce1c5a3128a753e",
+      "sha256": "14aae072d84e1a4a49cf17fd13dbaf63cafc75e988508c2c5ce1c5a3128a753e",
+      "bytes": 46893
+    },
+    {
+      "id": "tts-a62715f410933afded7456bb27cfc695c987aafe76e5b9c09aad19da13cf0b4d",
+      "sha256": "a62715f410933afded7456bb27cfc695c987aafe76e5b9c09aad19da13cf0b4d",
+      "bytes": 27693
+    }
+  ],
+  "sha256": "07c72771bfce399460bba72d5785132926d043860ba7111c455707cc123c6fc3",
+  "physicalPages": 4,
+  "withinFivePages": true,
+  "pages": [
+    {
+      "part": "ppt/slides/slide1.xml",
+      "text": []
+    },
+    {
+      "part": "ppt/slides/slide2.xml",
+      "text": [
+        "Quiz · 课堂小测：-3 的相反数",
+        "-3 的相反数是多少？",
+        "A  3",
+        "B  -3",
+        "C  0",
+        "请选择最合适的答案"
+      ]
+    },
+    {
+      "part": "ppt/slides/slide3.xml",
+      "text": []
+    },
+    {
+      "part": "ppt/slides/slide4.xml",
+      "text": [
+        "口头表达：为什么 -2 和 2 互为相反数",
+        "课堂互动问答",
+        "为什么 -2 和 2 互为相反数？",
+        "请思考后回答，课堂互动结束后将继续播放。"
+      ]
+    }
+  ],
+  "carrierNames": []
+}

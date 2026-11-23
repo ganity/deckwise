@@ -237,7 +237,7 @@ test("canonical build archives edited MAIC content and supports a Quiz-only sour
 });
 
 test('native assessment upload and reference editing use the live carrier without a classroom mirror', async t => {
-  let native = { nativeTeaching: true, projectId: 'project', revision: 'r1', sourceRevision: 'source', classroom: classroom() };
+  let native = { nativeTeaching: true, projectId: 'project', revision: 'r1', sourceRevision: 'source', classroom: runtime.prepareMaicAssessmentSpeech(classroom()) };
   const writes = [];
   const f = await setup(t, { native: async (operation, args) => {
     if (operation === 'assessment-context') return { value: structuredClone(native) };
@@ -256,6 +256,16 @@ test('native assessment upload and reference editing use the live carrier withou
   await assert.rejects(f.coordinator.write({ ...fence, classroom: opened.classroom }), /changed/);
   const next = await f.coordinator.open({ sessionId: 'session' });
   assert.equal(next.classroom.scenes[0].content.questions[0].options[1].image.src, png);
+  const scoped = structuredClone(next.classroom);
+  scoped.scenes[0].content.optionImagePolicy = { required: false, reason: 'User requests text-only options' };
+  const configured = await f.coordinator.write({ sessionId: 'session', projectId: next.projectId,
+    expectedRevision: next.revision, expectedSourceRevision: next.sourceRevision, classroom: scoped });
+  assert.deepEqual(writes[1].changedPageIds, ['quiz']);
+  assert.deepEqual(writes[1].projections, [], 'Image scope must not redraw existing question graphics');
+  assert.deepEqual(configured.classroom.scenes[0].actions, next.classroom.scenes[0].actions);
+  const reopened = await f.coordinator.open({ sessionId: 'session' });
+  assert.deepEqual(reopened.classroom.scenes[0].content.optionImagePolicy, scoped.scenes[0].content.optionImagePolicy);
+  assert.deepEqual(reopened.classroom.scenes[0].content.questions, next.classroom.scenes[0].content.questions);
 });
 
 test("read-only assessments reject question, image and reference writes before paid work", async t => {
@@ -267,4 +277,35 @@ test("read-only assessments reject question, image and reference writes before p
   await assert.rejects(f.coordinator.image({ ...fence, sceneId: "quiz", questionId: "q", dataUrl: png }), /read-only/);
   await assert.rejects(f.coordinator.reference({ ...fence, sceneId: "slide", actionId: "checkpoint" }), /read-only/);
   assert.equal(references, 0); assert(!f.calls.some(([method]) => method === "courseware.classroom.write"));
+});
+
+test('a title-only native Quiz edit includes the page and its visible projection', async t => {
+  const native = { nativeTeaching: true, projectId: 'project', revision: 'r1', sourceRevision: 'source', sourceSha256: 'a'.repeat(64), classroom: runtime.prepareMaicAssessmentSpeech(classroom()) };
+  let write;
+  const f = await setup(t, { native: async (operation, args) => {
+    if (operation === 'assessment-context') return { value: structuredClone(native) };
+    assert.equal(operation, 'assessment-write'); write = args;
+    return { value: { ...native, classroom: args.classroom } };
+  } });
+  const next = structuredClone(native.classroom); next.scenes[0].title = 'A learner-facing title';
+  await f.coordinator.write({ ...fence, classroom: next });
+  assert.deepEqual(write.changedPageIds, ['quiz']);
+  assert.equal(write.projections.length, 1);
+  assert.equal(write.projections[0].next.elements.find(e => e.id === 'quiz_title').content, 'Quiz · A learner-facing title');
+  assert.deepEqual(write.classroom.scenes[0].actions, native.classroom.scenes[0].actions);
+  assert.deepEqual(write.classroom.scenes[1], native.classroom.scenes[1]);
+});
+
+test('refreshes an unchanged managed Quiz projection without altering canonical teaching', async t => {
+  const native = { nativeTeaching: true, projectId: 'project', revision: 'r1', sourceRevision: 'source', sourceSha256: 'a'.repeat(64), classroom: runtime.prepareMaicAssessmentSpeech(classroom()) };
+  let write;
+  const f = await setup(t, { native: async (operation, args) => {
+    if (operation === 'assessment-context') return { value: structuredClone(native) };
+    assert.equal(operation, 'assessment-write'); write = args;
+    return { value: structuredClone(native) };
+  } });
+  await f.coordinator.write({ ...fence, classroom: native.classroom, refreshPageIds: ['quiz'] });
+  assert.deepEqual(write.changedPageIds, ['quiz']); assert.equal(write.projections.length, 1);
+  assert.deepEqual(write.classroom, { ...native.classroom, mediaManifest: [] });
+  await assert.rejects(f.coordinator.write({ ...fence, classroom: native.classroom, refreshPageIds: ['slide'] }), /Quiz/);
 });

@@ -2,6 +2,11 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const koEntries: ChangelogEntry[] = [
   {
+    version: "0.20.6",
+    date: "2026-11-23",
+    highlights: ["슬라이드 애니메이션이 해설에 맞춰 재생되며, 강조 표시가 겹치면 스포트라이트를 우선합니다."],
+  },
+  {
     version: "0.20.5",
     date: "2026-11-16",
     highlights: ["장면 이미지 안의 텍스트 생성을 복원하고 승인된 수업과 재시도 시 기존 자료를 유지합니다."],

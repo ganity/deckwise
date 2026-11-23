@@ -1,0 +1,229 @@
+{
+  "reviews": [
+    {
+      "time": "2026-11-17T10:29:04.179Z",
+      "toolStatus": "success",
+      "review": {
+        "applied": false,
+        "issues": [],
+        "ready": true,
+        "sourceSha256": "17008253ad1e822cf774cddad6c47fbb7f7b2ba6d4a9aa59f936151d41af346f",
+        "teachingRevision": "a4eed359-8775-42b5-94f0-207d7854cbe2"
+      },
+      "completion": {
+        "counts": {
+          "audioMissing": 8,
+          "audioReady": 2,
+          "musicClips": 0,
+          "musicPending": 0,
+          "pages": 4,
+          "questions": 2,
+          "speeches": 10
+        },
+        "issues": [
+          {
+            "actionId": "speech-266ec7b1-dda9-4ede-af45-58c6cc026163-0",
+            "code": "AUDIO_MISSING",
+            "pageId": "page-1",
+            "pageNumber": 1,
+            "repair": "tts",
+            "repairable": true
+          },
+          {
+            "actionId": "speech-266ec7b1-dda9-4ede-af45-58c6cc026163-1",
+            "code": "AUDIO_MISSING",
+            "pageId": "page-1",
+            "pageNumber": 1,
+            "repair": "tts",
+            "repairable": true
+          },
+          {
+            "actionId": "speech-266ec7b1-dda9-4ede-af45-58c6cc026163-2",
+            "code": "AUDIO_MISSING",
+            "pageId": "page-1",
+            "pageNumber": 1,
+            "repair": "tts",
+            "repairable": true
+          },
+          {
+            "actionId": "speech-266ec7b1-dda9-4ede-af45-58c6cc026163-3",
+            "code": "AUDIO_MISSING",
+            "pageId": "page-1",
+            "pageNumber": 1,
+            "repair": "tts",
+            "repairable": true
+          },
+          {
+            "actionId": "speech-266ec7b1-dda9-4ede-af45-58c6cc026163-4",
+            "code": "AUDIO_MISSING",
+            "pageId": "page-1",
+            "pageNumber": 1,
+            "repair": "tts",
+            "repairable": true
+          },
+          {
+            "actionId": "speech-06ff6ba5-98a6-42d2-882b-cbe08a81fccc-0",
+            "code": "AUDIO_MISSING",
+            "pageId": "page-2",
+            "pageNumber": 2,
+            "repair": "tts",
+            "repairable": true
+          },
+          {
+            "actionId": "speech-06ff6ba5-98a6-42d2-882b-cbe08a81fccc-1",
+            "code": "AUDIO_MISSING",
+            "pageId": "page-2",
+            "pageNumber": 2,
+            "repair": "tts",
+            "repairable": true
+          },
+          {
+            "actionId": "speech-06ff6ba5-98a6-42d2-882b-cbe08a81fccc-2",
+            "code": "AUDIO_MISSING",
+            "pageId": "page-2",
+            "pageNumber": 2,
+            "repair": "tts",
+            "repairable": true
+          },
+          {
+            "actionId": "speech-266ec7b1-dda9-4ede-af45-58c6cc026163-0",
+            "code": "ATTENTION_PENDING",
+            "pageId": "page-1",
+            "pageNumber": 1,
+            "repair": "tts",
+            "repairable": true
+          },
+          {
+            "actionId": "speech-266ec7b1-dda9-4ede-af45-58c6cc026163-1",
+            "code": "ATTENTION_PENDING",
+            "pageId": "page-1",
+            "pageNumber": 1,
+            "repair": "tts",
+            "repairable": true
+          },
+          {
+            "actionId": "speech-266ec7b1-dda9-4ede-af45-58c6cc026163-2",
+            "code": "ATTENTION_PENDING",
+            "pageId": "page-1",
+            "pageNumber": 1,
+            "repair": "tts",
+            "repairable": true
+          },
+          {
+            "actionId": "speech-266ec7b1-dda9-4ede-af45-58c6cc026163-3",
+            "code": "ATTENTION_PENDING",
+            "pageId": "page-1",
+            "pageNumber": 1,
+            "repair": "tts",
+            "repairable": true
+          },
+          {
+            "actionId": "speech-266ec7b1-dda9-4ede-af45-58c6cc026163-4",
+            "code": "ATTENTION_PENDING",
+            "pageId": "page-1",
+            "pageNumber": 1,
+            "repair": "tts",
+            "repairable": true
+          },
+          {
+            "actionId": "speech-06ff6ba5-98a6-42d2-882b-cbe08a81fccc-0",
+            "code": "ATTENTION_PENDING",
+            "pageId": "page-2",
+            "pageNumber": 2,
+            "repair": "tts",
+            "repairable": true
+          },
+          {
+            "actionId": "speech-06ff6ba5-98a6-42d2-882b-cbe08a81fccc-1",
+            "code": "ATTENTION_PENDING",
+            "pageId": "page-2",
+            "pageNumber": 2,
+            "repair": "tts",
+            "repairable": true
+          },
+          {
+            "actionId": "speech-06ff6ba5-98a6-42d2-882b-cbe08a81fccc-2",
+            "code": "ATTENTION_PENDING",
+            "pageId": "page-2",
+            "pageNumber": 2,
+            "repair": "tts",
+            "repairable": true
+          }
+        ],
+        "ready": false,
+        "sourceSha256": "17008253ad1e822cf774cddad6c47fbb7f7b2ba6d4a9aa59f936151d41af346f",
+        "teachingRevision": "a4eed359-8775-42b5-94f0-207d7854cbe2",
+        "warnings": [
+          {
+            "code": "OBJECT_BINDING_ADVISORY",
+            "message": "Planned descriptions are not independently bound: 4列3行的12个单位方格整体, 4厘米长与3厘米宽的尺寸文字. This is advisory; narrate the actual picture and bind effects only to verified eligible targets. Visual grounding checks essential teaching content separately. Do not regenerate images or invent aliases to match design details.",
+            "pageId": "page-1",
+            "pageNumber": 1
+          },
+          {
+            "code": "OBJECT_BINDING_ADVISORY",
+            "message": "Planned descriptions are not independently bound: 5列2行的10个单位方格整体, 5厘米长与2厘米宽的尺寸文字, 长×宽＝面积的公式文字, 5×2＝10平方厘米的算式. This is advisory; narrate the actual picture and bind effects only to verified eligible targets. Visual grounding checks essential teaching content separately. Do not regenerate images or invent aliases to match design details.",
+            "pageId": "page-2",
+            "pageNumber": 2
+          }
+        ]
+      },
+      "sourceSha256": "17008253ad1e822cf774cddad6c47fbb7f7b2ba6d4a9aa59f936151d41af346f"
+    },
+    {
+      "time": "2026-11-17T10:30:20.241Z",
+      "toolStatus": "success",
+      "review": {
+        "applied": false,
+        "issues": [],
+        "ready": true,
+        "sourceSha256": "041e9e2646907ad36ac77f34ec09724b5d444f091a1cc65f46f3bc9d4f44d5e1",
+        "teachingRevision": "e3c42040-4e5c-436e-a6e0-2e6f4b410f60"
+      },
+      "completion": {
+        "counts": {
+          "audioMissing": 0,
+          "audioReady": 10,
+          "musicClips": 0,
+          "musicPending": 0,
+          "pages": 4,
+          "questions": 2,
+          "speeches": 10
+        },
+        "issues": [],
+        "ready": true,
+        "sourceSha256": "041e9e2646907ad36ac77f34ec09724b5d444f091a1cc65f46f3bc9d4f44d5e1",
+        "teachingRevision": "e3c42040-4e5c-436e-a6e0-2e6f4b410f60",
+        "warnings": [
+          {
+            "code": "OBJECT_BINDING_ADVISORY",
+            "message": "Planned descriptions are not independently bound: 4列3行的12个单位方格整体, 4厘米长与3厘米宽的尺寸文字. This is advisory; narrate the actual picture and bind effects only to verified eligible targets. Visual grounding checks essential teaching content separately. Do not regenerate images or invent aliases to match design details.",
+            "pageId": "page-1",
+            "pageNumber": 1
+          },
+          {
+            "code": "OBJECT_BINDING_ADVISORY",
+            "message": "Planned descriptions are not independently bound: 5列2行的10个单位方格整体, 5厘米长与2厘米宽的尺寸文字, 长×宽＝面积的公式文字, 5×2＝10平方厘米的算式. This is advisory; narrate the actual picture and bind effects only to verified eligible targets. Visual grounding checks essential teaching content separately. Do not regenerate images or invent aliases to match design details.",
+            "pageId": "page-2",
+            "pageNumber": 2
+          }
+        ]
+      },
+      "sourceSha256": "041e9e2646907ad36ac77f34ec09724b5d444f091a1cc65f46f3bc9d4f44d5e1"
+    }
+  ],
+  "toolErrors": [
+    {
+      "time": "2026-11-17T10:08:57.998Z",
+      "tool": "Bash"
+    },
+    {
+      "time": "2026-11-17T10:09:59.957Z",
+      "tool": "Bash"
+    },
+    {
+      "time": "2026-11-17T10:11:58.609Z",
+      "tool": "plugin_pi_browser_Browser"
+    }
+  ]
+}

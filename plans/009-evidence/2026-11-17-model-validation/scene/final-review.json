@@ -1,0 +1,86 @@
+{
+  "messageId": "call_leYPkO5SCEMyFPrLqFqLfNyc|fc_007fc32263875b45016afc75c56c2087d084757957baa0587b",
+  "createdAt": "2026-11-17T15:41:58.668Z",
+  "contentReview": {
+    "applied": false,
+    "issues": [
+      {
+        "code": "CONTENT_REVIEW_FAILED",
+        "message": "第4页答错提示写着“回到第二页沿箭头重新判断”，但第2页是没有箭头的选择题；展示地表径流箭头的是第3页。应指向第3页。",
+        "pageId": "scene-004",
+        "pageNumber": 4,
+        "repair": "source",
+        "repairable": false
+      },
+      {
+        "code": "CONTENT_REVIEW_FAILED",
+        "message": "Page 3 shows the river winding from the mountains to the sea, but the saved fade-in and spotlight target only the foreground runoff-arrow image (object-0dbf2c37908c6b3773e30c8d07abdd435e4f7cd9). The river’s connecting course is part of the background image, so the required whole-group arrow-and-river entrance and spotlight are not verified.",
+        "pageId": "scene-003",
+        "pageNumber": 3,
+        "repair": "source",
+        "repairable": false
+      }
+    ],
+    "ready": false,
+    "sourceSha256": "1c47b4dd6369104d5c5ade16dc1ad84b8ce14e7053aa98c794eca81c3dcab5ad",
+    "teachingRevision": "3c0524ff-f1b2-436f-b73d-2953557808e6"
+  },
+  "completion": {
+    "counts": {
+      "audioMissing": 0,
+      "audioReady": 16,
+      "musicClips": 0,
+      "musicPending": 0,
+      "pages": 4,
+      "questions": 2,
+      "speeches": 16
+    },
+    "issues": [
+      {
+        "code": "CONTENT_REVIEW_FAILED",
+        "message": "第4页答错提示写着“回到第二页沿箭头重新判断”，但第2页是没有箭头的选择题；展示地表径流箭头的是第3页。应指向第3页。",
+        "pageId": "scene-004",
+        "pageNumber": 4,
+        "repair": "source",
+        "repairable": false
+      },
+      {
+        "code": "CONTENT_REVIEW_FAILED",
+        "message": "Page 3 shows the river winding from the mountains to the sea, but the saved fade-in and spotlight target only the foreground runoff-arrow image (object-0dbf2c37908c6b3773e30c8d07abdd435e4f7cd9). The river’s connecting course is part of the background image, so the required whole-group arrow-and-river entrance and spotlight are not verified.",
+        "pageId": "scene-003",
+        "pageNumber": 3,
+        "repair": "source",
+        "repairable": false
+      }
+    ],
+    "ready": false,
+    "sourceSha256": "1c47b4dd6369104d5c5ade16dc1ad84b8ce14e7053aa98c794eca81c3dcab5ad",
+    "teachingRevision": "3c0524ff-f1b2-436f-b73d-2953557808e6",
+    "warnings": [
+      {
+        "code": "OBJECT_BINDING_ADVISORY",
+        "message": "Planned descriptions are not independently bound: 海洋, 水汽, 陆地. This is advisory; narrate the actual picture and bind effects only to verified eligible targets. Visual grounding checks essential teaching content separately. Do not regenerate images or invent aliases to match design details.",
+        "pageId": "scene-001",
+        "pageNumber": 1
+      },
+      {
+        "code": "OBJECT_BINDING_ADVISORY",
+        "message": "Planned descriptions are not independently bound: 山地. This is advisory; narrate the actual picture and bind effects only to verified eligible targets. Visual grounding checks essential teaching content separately. Do not regenerate images or invent aliases to match design details.",
+        "pageId": "scene-003",
+        "pageNumber": 3
+      }
+    ]
+  },
+  "playbackPreflight": {
+    "diagnostics": [
+      {
+        "code": "PPTX_NOTES_MASTER_UNVERIFIED",
+        "message": "PPTX 包含备注母版，当前仅提取逐页备注，未验证母版版式与样式的保留情况，须人工核对",
+        "severity": "warning"
+      }
+    ],
+    "issues": [],
+    "ready": true,
+    "sourceSha256": "1c47b4dd6369104d5c5ade16dc1ad84b8ce14e7053aa98c794eca81c3dcab5ad"
+  }
+}

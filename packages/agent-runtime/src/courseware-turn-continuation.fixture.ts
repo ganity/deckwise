@@ -12,10 +12,13 @@ export function fixture(target: "visualMaster" | "cleanPlate" = "cleanPlate", st
   const saved = { completed: false, generated: false, failed: false, styleConfirmed: true,
     planSha256: sha256, phase: "submitted", queryError: false, ignoreReady: false, mediaUnknown: false, recoveryFailure: false, retryAfterBlock: false,
     repeatReadyReads: false, readyCompletion: false, omitContinuation: false,
-    checkpointError: "", assessmentMissing: false, assessmentStarted: false, assessmentCompleted: false,
+    checkpointError: "", assessmentMissing: false, assessmentStarted: false, assessmentCompleted: false, assessmentTts: false,
     checkpointAbort: false, explicitRetry: false, imagePipeline: false,
     qualityIssues: [] as Array<{ pageId: string; pageNumber?: number; code: string; repair: string; repairable: boolean }>, teachingMissing: false, fullMedia: false, narrationMissing: false, audioMissing: false, mediaStarted: false, audioCompleted: false };
   const calls: Array<{ name: string; args: Record<string, unknown> }> = [];
+  const assessmentTarget = (): Record<string, string> => saved.assessmentTts ? { kind: "tts", sceneId: "quiz", actionId: "question-speech" } :
+    { kind: "image", sceneId: "quiz", questionId: "q", optionValue: "A" };
+  const assessmentModel = (): Record<string, string | null> => saved.assessmentTts ? { model: "tts-model", voice: null } : { model: "image-model" };
   const events: AgentEventEnvelope[] = [];
   const image = () => ({ intentId: "decomposition", planSha256: sha256, pageId: "scene-001",
     target: { kind: target }, current: true, phase: saved.phase, selected: saved.completed && saved.styleConfirmed,
@@ -65,13 +68,13 @@ export function fixture(target: "visualMaster" | "cleanPlate" = "cleanPlate", st
       if (toolName === "courseware_media_assessments") {
         saved.assessmentStarted = true;
         if (saved.assessmentCompleted) saved.assessmentMissing = false;
-        content = { state: saved.assessmentCompleted ? 'adopted' : 'queued' };
+        content = { state: saved.assessmentCompleted ? 'adopted' : 'queued', ...(saved.assessmentTts ? { key: "maic-" + sha256 } : {}) };
       }
       if (toolName === "courseware_media_context") content = { projectId: "project", teachingRevision: "t1", sourceSha256: sha256, narrationReady: !saved.narrationMissing,
         audioReady: !saved.audioMissing, teachingReady: !saved.audioMissing && !saved.teachingMissing, pages: [{ pageNumber: 1, narrationReady: !saved.narrationMissing, audioReady: !saved.audioMissing, speeches: [{ actionId: "speech", audioReady: !saved.audioMissing }] }],
         videoReady: mediaKind !== "video" || !saved.audioMissing,
         assessmentMedia: { ready: !saved.assessmentMissing, projectId: 'project', expectedRevision: 'r1', expectedSourceRevision: 'source',
-          targets: saved.assessmentMissing ? [{kind:'image',sceneId:'quiz',questionId:'q',optionValue:'A'}] : [] },
+          targets: saved.assessmentMissing ? [assessmentTarget()] : [] },
         ...(saved.repeatReadyReads || saved.readyCompletion ? { completion: { ready: true, sourceSha256: sha256, teachingRevision: "t1" },
           approvedPlan: { narration: "x".repeat(338000) } } : {}),
         quality: { blocking: false, issues: saved.qualityIssues },
@@ -103,7 +106,8 @@ export function fixture(target: "visualMaster" | "cleanPlate" = "cleanPlate", st
       : requests === 4 && !saved.generated && saved.styleConfirmed && !saved.failed && !saved.ignoreReady
         ? [{ type: "toolCall", id: "compile", name: "courseware_scene_compile", arguments: { planSha256: sha256, ...(saved.fullMedia ? { continueTeaching: true } : {}) } }]
         : saved.assessmentMissing && !saved.assessmentStarted
-          ? [{type:'toolCall',id:'assessment',name:'courseware_media_assessments',arguments:{mode:'prepare',kind:'image',projectId:'project',expectedRevision:'r1',expectedSourceRevision:'source',sceneId:'quiz',questionId:'q',optionValue:'A',model:'image-model'}}]
+          ? [{type:'toolCall',id:'assessment',name:'courseware_media_assessments',arguments:{mode:'prepare',projectId:'project',expectedRevision:'r1',expectedSourceRevision:'source',
+            ...assessmentTarget(), ...assessmentModel()}}]
         : saved.fullMedia && requests === (["courseware_media_context", "courseware_presentation_adopt"].includes(startTool) ? 4 : 6)
           ? [{ type: "toolCall", id: "narration", name: "courseware_narration_propose", arguments: { sourceSha256: sha256, pageNumbers: [1], instruction: "Explain the whole lesson" } }]
         : saved.fullMedia && requests === (["courseware_media_context", "courseware_presentation_adopt"].includes(startTool) ? 6 : 8)

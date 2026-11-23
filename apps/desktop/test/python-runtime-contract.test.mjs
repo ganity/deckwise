@@ -69,7 +69,10 @@ test("the desktop packaging command stages PPT Master beside the Python runtime"
     "workflows/profiles/quick-generate.md",
     "references/image-generator.md",
   ];
-  for (const file of ["SKILL.md", "scripts/attribution_guard.py", "workflows/routing.md", ...imageAuthorities]) {
+  for (const file of ["SKILL.md", "scripts/attribution_guard.py", "scripts/project_manager.py",
+    "scripts/svg_quality_checker.py", "scripts/svg_to_pptx.py", "scripts/svg_editor/server.py",
+    "workflows/routing.md", "workflows/generate-pptx.md", "templates/design_spec_reference.md",
+    "templates/spec_lock_reference.md", ...imageAuthorities]) {
     await mkdir(dirname(join(localSkill, file)), { recursive: true });
     await writeFile(join(localSkill, file), `fixture: ${file}\n`);
   }
@@ -103,6 +106,13 @@ test("the desktop packaging command stages PPT Master beside the Python runtime"
     assert.equal(await readFile(join(restaged, file), "utf8"),
       await readFile(join(desktop, resource.from, file), "utf8"));
   }
+  await rm(join(localSkill, "scripts/svg_to_pptx.py"));
+  await assert.rejects(execFileAsync(process.execPath, [...args, "--output", restaged], {
+    cwd: desktop,
+    env: { ...process.env, DECKWISE_PPT_MASTER_SKILL_ROOT: localSkill },
+  }), /missing scripts\/svg_to_pptx\.py/);
+  assert.equal(await readFile(join(restaged, "scripts/svg_to_pptx.py"), "utf8"),
+    "fixture: scripts/svg_to_pptx.py\n");
 });
 
 test("packaging extracts archives from paths containing a drive colon and spaces", async (t) => {

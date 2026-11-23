@@ -38,9 +38,10 @@ const pluginPanelPreloadSource = await readFile(
   "utf8",
 );
 
-test("packaging installs only the updater runtime dependency", () => {
+test("packaging installs only the updater and review parser runtime dependencies", () => {
   assert.deepEqual(Object.keys(packageJson.dependencies).sort(), [
     "electron-updater",
+    "json5",
   ]);
 
   for (const dependency of [

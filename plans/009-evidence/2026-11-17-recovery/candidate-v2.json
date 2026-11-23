@@ -1,0 +1,22 @@
+{
+  "desktop": {
+    "apps/desktop/electron/main/courseware-narration-batch.ts": "9b3bc0294c186997fd3ed5a60bba331134e0eaba21ad4e0803b96308e99fa788",
+    "apps/desktop/electron/main/courseware-content-review.ts": "84cf9eb4542148edf1d58747c48a0d91dfedbc3f5310e49a9827e82db2bd4598",
+    "apps/desktop/electron/main/courseware-classroom.ts": "0fd76d6235ff0734806a56b7a5d71de0fec2a01f18ec386619a32f85d0f1fca6",
+    "apps/desktop/electron/main/courseware-native-activities.ts": "43748ef8f4de602813113fcad004d8b37f29cff0cf7bd7d0bafe584432e47df3",
+    "apps/desktop/out/main/index.js": "edcb5083baddfcb9d550162b8b681da4e7f87d8fea1f8c349a37a8ef044c224d"
+  },
+  "editor": {
+    "source": "/home/jhz/code/train/document-worktrees/courseware-par-A-playback",
+    "nativeTeachingSha256": "6df82ea9b4edd40cbfb3d532b9d2d8a4cbd1ee5f421efd7f15763117fb90ff2d",
+    "integration": {
+      "version": 1,
+      "contentEditor": "maic",
+      "nativeCheckpointEditor": "native-teaching",
+      "commit": "6f5c90f4860f45650422c581a2f96e2f20b55b6e",
+      "dirty": true,
+      "desktopCommit": "5cbd7cb44de14d6cb5f1e478ff9f57b63bd7d05d",
+      "desktopDirty": true
+    }
+  }
+}

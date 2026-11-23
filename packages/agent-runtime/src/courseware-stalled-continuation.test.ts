@@ -393,3 +393,38 @@ it('repairs an unresolved semantic alias within the active turn without replayin
   expect(await continuation.finish(closing,controls)).toContain('Saved courseware content');
   expect(execute.mock.calls.filter(([name])=>name==='courseware_narration_propose')).toHaveLength(1);
 });
+
+for (const ready of [true, false]) it(`requires final native content review before completion (review ready=${ready})`, async () => {
+  const continuation = new CoursewareTurnContinuation();
+  const execute = vi.fn(async (_name: string, args: Record<string, unknown>) => ({ content: [], details: {
+    nativeTeaching: true, contentReviewAvailable: true, sourceSha256, teachingRevision: 'T1', jobs: [],
+    narrationReady: true, audioReady: true, teachingReady: args.reviewContent ? ready : true,
+    completion: { ready: args.reviewContent ? ready : true, issues: args.reviewContent && !ready
+      ? [{ code: 'CONTENT_REVIEW_FAILED', pageNumber: 2, pageId: 'quiz', repairable: false, message: 'Incorrect analysis' }] : [] },
+    ...(args.reviewContent ? { contentReview: { ready } } : {}),
+  } }));
+  const controls = { execute, canWait: () => true };
+  await continuation.finish(activation, controls);
+  const result = await continuation.finish(closing, controls);
+  expect(execute.mock.calls.some(([name, args]) => name === 'courseware_media_context' && args.reviewContent === true && args.continueTeaching === true)).toBe(true);
+  expect(result).toContain(ready ? 'Saved courseware content, media and teaching checks are complete' : 'unfinished');
+  if (!ready) expect(result).not.toContain('checks are complete');
+});
+
+it('repairs the specific final-review finding on a healthy page even when a different page is blocked, and rechecks before finishing', async () => {
+  const continuation = new CoursewareTurnContinuation(); let repaired = false, reviews = 0;
+  const execute = vi.fn(async (name: string, args: Record<string, unknown>) => {
+    if (name === 'courseware_narration_propose') {
+      expect(args.pageNumbers).toEqual([2]); expect(args.repairRequiredTeaching).toBe(true);
+      expect(args.instruction).toContain('Arrow is missing from the evaporation spotlight'); repaired = true;
+      return {content:[],details:{saved:true}};
+    }
+    const issues = args.reviewContent ? [{code:'CONTENT_REVIEW_FAILED',pageId:'p1',pageNumber:1,repairable:false},
+      ...repaired ? [] : [{code:'EFFECT_TARGET_MISSING',pageId:'p2',pageNumber:2,repair:'narration',repairable:true,message:'Arrow is missing from the evaporation spotlight'}]] : [];
+    if(args.reviewContent) reviews++;
+    return {content:[],details:{nativeTeaching:true,contentReviewAvailable:true,sourceSha256,narrationReady:true,audioReady:true,teachingReady:!issues.length,jobs:[],
+      completion:{ready:!issues.length,issues}, ...(args.reviewContent ? {contentReview:{ready:false}} : {})}};
+  });
+  const controls = {execute,canWait:()=>true}; await continuation.finish(activation,controls);
+  expect(await continuation.finish(closing,controls)).toContain('unfinished'); expect(repaired).toBe(true); expect(reviews).toBe(2);
+});

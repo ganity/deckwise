@@ -8,6 +8,14 @@ import { classifyProviderError } from "./provider-retry.js";
 import { CoursewareWorkflowError } from "./courseware-workflow-recovery.js";
 
 describe("classifyAgentError", () => {
+  it("keeps actionable input diagnostics safe after automatic correction stops", () => {
+    const classified = classifyAgentError(new CoursewareWorkflowError("COURSEWARE_SOURCE_CHANGED",
+      "private document api_key=secret", "courseware_media_context"));
+    expect(classified).toMatchObject({ code: "COURSEWARE_SOURCE_CHANGED", retriable: false });
+    expect(classified.message).toContain("Read courseware_narration_context again");
+    expect(JSON.stringify(classified)).not.toMatch(/private|secret|api_key/);
+  });
+
   it("reports a continuation operation without exposing the original workflow payload", () => {
     const error = new CoursewareWorkflowError("COURSEWARE_WORKFLOW_REJECTED", "private course api_key=secret",
       "courseware_media_context", { cause: new Error("private prompt") });
@@ -19,8 +27,8 @@ describe("classifyAgentError", () => {
     expect(JSON.stringify(classified)).not.toMatch(/private|secret|api_key/);
   });
 
-  it("limits workflow diagnostics to known codes and operations", () => {
-    const error = new CoursewareWorkflowError("private code", "private message", "private operation");
+  it.each(["private code", "toString", "__proto__"])("limits workflow diagnostics to known codes and operations (%s)", code => {
+    const error = new CoursewareWorkflowError(code, "private message", "private operation");
     const classified = classifyAgentError(error);
     expect(classified).toMatchObject({ code: "COURSEWARE_WORKFLOW_FAILED", retriable: false,
       details: { origin: "local", phase: "courseware-continuation" } });

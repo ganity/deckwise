@@ -1163,8 +1163,8 @@ export const api = {
   fsReveal: (path: string) => invoke(IPC.invoke.fsReveal, { path }),
   fsOpen: (path: string) => invoke(IPC.invoke.fsOpen, { path }),
   fsIndex: () => invoke<FsIndexResult>(IPC.invoke.fsIndex),
-  pptPreviewOpen: (path: string) =>
-    invoke<PptPreviewState>(IPC.invoke.pptPreviewOpen, { path }),
+  pptPreviewOpen: (path: string, sessionId: string, requireSlide = false) =>
+    invoke<PptPreviewState | null>(IPC.invoke.pptPreviewOpen, { path, sessionId, requireSlide }),
   coursewareTaskGet: (sessionId: string) =>
     invoke<{ task: { taskType: CoursewareTaskType; educationContext?: CoursewareEducationContext; importPath?: string; generatedPath?: string } | null }>(IPC.invoke.coursewareTaskGet, { sessionId }),
   coursewareWorkflowGet: (sessionId: string) =>
@@ -1257,8 +1257,8 @@ export const api = {
     invoke<{ cancelled: boolean }>(IPC.invoke.coursewareSceneGenerateCancel, { sessionId }),
   coursewareImportPptx: (sessionId: string, token: string) =>
     invoke<{ path: string }>(IPC.invoke.coursewareImportPptx, { sessionId, token }),
-  pptPreviewRequest: <T = unknown>(path: string, route: string, method: "GET" | "POST" | "DELETE" = "GET", body?: unknown) =>
-    invoke<T>(IPC.invoke.pptPreviewRequest, { path, route, method, body }),
+  pptPreviewRequest: <T = unknown>(path: string, sessionId: string, route: string, method: "GET" | "POST" | "DELETE" = "GET", body?: unknown) =>
+    invoke<T>(IPC.invoke.pptPreviewRequest, { path, sessionId, route, method, body }),
   pptEditorOpen: (path: string, mimeType?: string) =>
     invoke<PptEditorState>(IPC.invoke.pptEditorOpen, { path, ...(mimeType ? { mimeType } : {}) }),
   pptEditorSave: () => invoke<{ ok: boolean }>(IPC.invoke.pptEditorSave),

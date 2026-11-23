@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import ts from "typescript";
+import * as paths from "node:path";
 import { coursewareMediaRecovery, sceneAssetBlockers } from "@pi-desktop/shared";
 
 const source = await readFile(new URL("../electron/main/courseware-chat-workflow.ts", import.meta.url), "utf8");
@@ -77,9 +78,11 @@ function fixture(options = {}) {
   }
   const exports = {};
   new Function("require", "exports", compiled)(id => {
+    if (id === "node:path") return paths;
+    if (id === "./courseware-scene-plan") return { sceneCoursePlanRelativePath: sessionId => `.deckwise-ppt/scenes/${sessionId}/plan.json` };
     if (id === "node:timers/promises") return { setTimeout: async ms => { calls.push(["wait", ms]); if (stoppedDuringWait) dispatchable = false; } };
     if (id === "@pi-desktop/shared") return { coursewareMediaRecovery, sceneAssetBlockers };
-    if (id === "./courseware-scene-draft") return { readSceneCourseDraft: async () => ({ plan: structuredClone(plan) }) };
+    if (id === "./courseware-scene-draft") return { readSceneCourseDraft: async () => ({ plan: options.missingPlan ? null : structuredClone(plan) }) };
     if (id === "./courseware-scene-images") return { CoursewareSceneImages: Images };
     if (id === "./courseware-scene-image-pipeline") return { runSceneImagePipeline: async (plan, services) => {
       calls.push(["pipeline", plan.sha256]);
@@ -97,6 +100,21 @@ function fixture(options = {}) {
     view: value => { viewing = value; }, stop: () => { dispatchable = false; }, mode: value => { mode = value; },
     restartHost: () => { currentHost = { ...host }; } };
 }
+
+test("Chat binds scoped layers to exactly one selected master on their own approved page", async () => {
+  const f = fixture();
+  const cover = { ...f.image, selected: true, asset: { sha256: "b".repeat(64) } };
+  f.rows.push(cover);
+  for (const target of [{ kind: "cleanPlate" }, { kind: "layer", name: "diagram" }]) {
+    const args = { planSha256: f.plan.sha256, pageId: "scene-002", target };
+    await assert.rejects(f.execute("courseware_scene_image_prepare", args), /REFERENCE_CHANGED/);
+    const master = { ...cover, intentId: "selected-page-two", pageId: "scene-002" };
+    f.rows.push(master);
+    await f.execute("courseware_scene_image_prepare", args);
+    assert.equal(f.calls.filter(([op]) => op === "prepare").at(-1)[1].referenceIntentId, master.intentId);
+    f.rows.splice(f.rows.indexOf(master), 1);
+  }
+});
 
 test("workflow diagnostics distinguish navigation, ended turns and a runtime replaced during a read", async () => {
   const foreign = fixture(); foreign.view("other");
@@ -353,11 +371,13 @@ test("prepared recovery preserves style and plan fences and never resubmits unce
 
 test("explicit image retry submits its successor and preserves the cover confirmation gate", async () => {
   const f = fixture();
+  const failed = { task: { state: "failed", feeState: "released" } };
+  f.states.push(failed);
   await f.execute("courseware_scene_image_refresh", { intentId: "image-1", retryFailed: true });
   assert.deepEqual(f.calls.filter(([name]) => name === "retry"), [["retry", { sessionId: "chat", intentId: "image-1" }]]);
   assert.deepEqual(f.calls.filter(([name]) => name === "generate"), [["generate", { sessionId: "chat", intentId: "retry-image-1" }]]);
   for (const change of [{ pageId: "scene-002" }, { target: { kind: "cleanPlate" } }, { current: false }]) {
-    const blocked = fixture(); Object.assign(blocked.image, change);
+    const blocked = fixture(); blocked.states.push(failed); Object.assign(blocked.image, change);
     await assert.rejects(blocked.execute("courseware_scene_image_refresh", { intentId: "image-1", retryFailed: true }), /confirm the first page|Scene plan changed/);
     assert(!blocked.calls.some(([name]) => name === "retry" || name === "generate"));
   }
@@ -561,4 +581,34 @@ test("confirmed Seedream failure automatically uses local fallback and adopts it
   assert(result.image.selected);
   assert(f.rows.find(row => row.intentId.endsWith("-layer-1")).selected);
   assert.equal(result.requiresHumanSelection, false);
+});
+
+
+test("workflow exposes the owning workspace and plan path even before the first draft exists", async () => {
+  const f = fixture({ missingPlan: true });
+  const view = await f.coordinator.read("chat");
+  assert.equal(view.plan, null);
+  assert.deepEqual(view.workspace, { root: "/workspace", projectsDirectory: "/workspace/.deckwise-ppt/projects",
+    scenePlanPath: "/workspace/.deckwise-ppt/scenes/chat/plan.json" });
+});
+
+test("empty refresh resolves one original receipt and never starts the paid pipeline", async () => {
+  const f = fixture();
+  f.rows.push(f.image);
+  assert.equal((await f.execute("courseware_scene_image_refresh", {})).image.intentId, f.image.intentId);
+  assert(!f.calls.some(([name]) => ["pipeline", "generate", "retry"].includes(name)));
+  const ambiguous = fixture();
+  ambiguous.rows.push(ambiguous.image, { ...ambiguous.image, intentId: "other" });
+  await assert.rejects(ambiguous.execute("courseware_scene_image_refresh", {}), /intentId.*courseware_workflow_get/);
+  assert(!ambiguous.calls.some(([name]) => name === "status"));
+});
+
+test("the zero-argument whole-course operation uses the selected cover and keeps the style gate", async () => {
+  const f = fixture();
+  f.rows.push({ ...f.image, asset: { sha256: "b".repeat(64) } });
+  await assert.rejects(f.execute("courseware_scene_generate_remaining"), /intentId|Confirm/);
+  assert(!f.calls.some(([name]) => name === "pipeline"));
+  f.rows[0].selected = true;
+  assert.equal((await f.execute("courseware_scene_generate_remaining")).pipeline.ready, true);
+  assert.equal(f.calls.filter(([name]) => name === "pipeline").length, 1);
 });

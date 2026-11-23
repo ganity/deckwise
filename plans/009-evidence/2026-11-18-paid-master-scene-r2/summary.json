@@ -1,0 +1,59 @@
+{
+  "status": "failed-full-lesson-acceptance",
+  "routes": [
+    "master",
+    "scene"
+  ],
+  "model": "deepseek-v4-1-flash",
+  "maximumPagesPerLesson": 5,
+  "plannedPagesPerLesson": 4,
+  "newIndependentTasks": true,
+  "topics": {
+    "master": "Grade 3 mathematics: fractions",
+    "scene": "Grade 7 geography: water cycle"
+  },
+  "upstreamRefresh": "git fetch origin main failed with GnuTLS -110; testing recorded local origin/main candidate",
+  "authPreflight": "authenticated EDUCATION",
+  "finishedAt": "2026-11-18T07:11:36.464601+00:00",
+  "passedLessons": 0,
+  "totalLessons": 2,
+  "paidModelRetriesStopped": true,
+  "applicationCodeChangedDuringRun": false,
+  "businessGatesRelaxed": false,
+  "master": {
+    "physicalPages": 4,
+    "autonomousPass": false,
+    "operatorDiagnosticContinuations": 2,
+    "adopted": true,
+    "bodyNarrationSaved": 0,
+    "savedActivitySpeechTexts": 2,
+    "savedAudioAssets": 0,
+    "finalContentReviewRun": false,
+    "snapshotBlockedBecause": "Speech has no fixed audio asset",
+    "numericFractionParserAndRenderPassed": true,
+    "restartPassed": true
+  },
+  "scene": {
+    "physicalPages": 4,
+    "autonomousPass": false,
+    "visualMasters": 2,
+    "decompositions": 2,
+    "verifiedForegroundMetadata": 19,
+    "bodyNarrationSaved": 0,
+    "savedAudioAssets": 2,
+    "savedAudioDurationsSeconds": [
+      9.888,
+      5.64
+    ],
+    "finalContentReviewPassed": false,
+    "fullPlaybackPassed": false,
+    "restartPassed": true
+  },
+  "notRun": [
+    "Import route",
+    "successful full-lesson natural playback",
+    "platform publication",
+    "matched par-A comparison",
+    "current remote integration qualification"
+  ]
+}

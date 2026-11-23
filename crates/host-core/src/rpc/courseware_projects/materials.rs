@@ -39,6 +39,54 @@ pub(super) async fn handle(
             "Select a courseware task before recording materials",
         ));
     }
+    if method == "courseware.material.verifyInline" {
+        let text = p.text.as_deref().unwrap_or_default();
+        if text.trim().is_empty()
+            || text.len() > 2 * 1024 * 1024
+            || p.name.is_some()
+            || p.parser.is_some()
+            || p.source_id.is_some()
+        {
+            return Err(invalid("Supply inline material text for this session"));
+        }
+        let quoted = text.replace("\r\n", "\n");
+        let mut candidates = state
+            .db
+            .conn()
+            .prepare_cached(
+                "SELECT id FROM messages WHERE session_id = ?1 AND role = 'user'
+             AND instr(replace(text, char(13)||char(10), char(10)), ?2) > 0 ORDER BY seq DESC",
+            )
+            .map_err(|e| error(e.into()))?;
+        let ids = candidates
+            .query_map(rusqlite::params![p.session_id, quoted], |r| {
+                r.get::<_, String>(0)
+            })
+            .map_err(|e| error(e.into()))?;
+        for id in ids {
+            let id = id.map_err(|e| error(e.into()))?;
+            // The transcript carries the origin of agent-to-agent deliveries that also have the user role.
+            let options = sessions::SessionReadOptions {
+                message_around: Some(id.clone()),
+                message_limit: Some(1),
+                ..Default::default()
+            };
+            let session = sessions::get_session_with_options(&state.db, &p.session_id, options)
+                .map_err(error)?;
+            if session.is_some_and(|s| {
+                s.messages.iter().any(|m| {
+                    m.id == id
+                        && m.role == "user"
+                        && m.session_message.is_none()
+                        && m.parent_tool_call_id.is_none()
+                        && m.content.replace("\r\n", "\n").contains(&quoted)
+                })
+            }) {
+                return Ok(json!({"supplied": true}));
+            }
+        }
+        return Ok(json!({"supplied": false}));
+    }
     let key = format!(
         "{}:{}",
         hex::encode(Sha256::digest(root.as_bytes())),
@@ -147,7 +195,31 @@ mod tests {
                 .kv_set(TASK_NAMESPACE, id, &json!({"taskType":"import"}))
                 .unwrap();
         }
+        for (role, content) in [
+            ("user", "My supplied script:\r\nFirst line.\r\nSecond line."),
+            ("assistant", "Invented draft."),
+        ] {
+            let msg = serde_json::from_value(
+                json!({"id":role,"role":role,"content":content,"createdAt":"2026-11-20T00:00:00Z"}),
+            )
+            .unwrap();
+            sessions::append_message(&app.db, &session.id, &msg, None).unwrap();
+        }
         let state = Arc::new(Mutex::new(app));
+        for (owner, quote, expected) in [
+            (&session.id, "First line.\nSecond line.", true),
+            (&session.id, "Invented draft.", false),
+            (&peer.id, "First line.", false),
+        ] {
+            let verified = handle(
+                state.clone(),
+                "courseware.material.verifyInline",
+                json!({"sessionId":owner, "text":quote}),
+            )
+            .await
+            .unwrap();
+            assert_eq!(verified["supplied"], expected);
+        }
         let source = json!({"sessionId":session.id,"name":"script.txt","text":"P1: Hello 1.25 kg.","parser":"utf8/1"});
         let first = handle(state.clone(), "courseware.material.record", source.clone())
             .await

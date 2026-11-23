@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import QRCode from "qrcode";
 import type { DesktopAuthState } from "@pi-desktop/shared";
@@ -83,7 +83,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     return () => window.clearInterval(timer);
   }, [state]);
 
-  if (state.status === "authenticated") return children;
+  if (state.status === "authenticated") return <Fragment key={state.profile.userId}>{children}</Fragment>;
 
   const waiting = state.status === "restoring" || state.status === "waitingForScan";
   const message = error || (state.status === "signedOut" ? state.message : "");

@@ -1,0 +1,120 @@
+{
+  "foregroundLayers": 19,
+  "allCurrentEmbeddedBytesMatch": true,
+  "layers": [
+    {
+      "page": 1,
+      "name": "太阳",
+      "description": "提取带有黄色放射光芒的卡通太阳本体，不包含其他无关元素",
+      "sha256": "be1cb1b3315f9f0dbeb9e9c73de936302a35f0c8764fd39a6658f6b6a8258287"
+    },
+    {
+      "page": 1,
+      "name": "蒸发上升蓝色箭头",
+      "description": "提取指向斜上方的半透明蓝色蒸发箭头，完整保留箭头本体",
+      "sha256": "db97c9e235d34213a8c490ed2e2d52a055a55def158b80553033e4809cb3df74"
+    },
+    {
+      "page": 1,
+      "name": "降雨云",
+      "description": "提取卡通风格的白色蓬松降雨云本体，不包含其他无关元素",
+      "sha256": "f11a8c7950f6c7ebfb6529fef62303ac98d120ce27eea1debfdbc259911271fe"
+    },
+    {
+      "page": 1,
+      "name": "降水雨滴与下箭头",
+      "description": "提取所有蓝色雨滴和指向下方的蓝色降水箭头，完整保留该降水图示区域",
+      "sha256": "4ef1771280305aeef2c61520f883954e9ce1431c44194c26d2b73d5f72248075"
+    },
+    {
+      "page": 1,
+      "name": "蒸发标注文字块",
+      "description": "提取包含“蒸发”文字的白色圆角标签、黑色指示连线和端点，完整保留该标注载体",
+      "sha256": "667aee47e202bea63d87c53bfb84bb96d26014c01e44de272c8f2d58ac61e9ad"
+    },
+    {
+      "page": 1,
+      "name": "凝结标注文字块",
+      "description": "提取包含“凝结”文字的白色圆角标签、黑色指示连线和端点，完整保留该标注载体",
+      "sha256": "b3743cf2ee6f4470cff4e85682c8ebe17ac7735bde9af2644389b7a8fa62624f"
+    },
+    {
+      "page": 1,
+      "name": "降水标注文字块",
+      "description": "提取包含“降水”文字的白色圆角标签、黑色指示连线和端点，完整保留该标注载体",
+      "sha256": "de1d80a3002fb881319804a5ac055b4b2f97674d9a0433c8a7abdc297aa4ce55"
+    },
+    {
+      "page": 3,
+      "name": "左侧小型白云",
+      "description": "提取左侧天空的小型白色云朵本体",
+      "sha256": "fa22b17eb49639d813d0b22b5f496968b2c4eb7eb51ca686226b9f89ff218c94"
+    },
+    {
+      "page": 3,
+      "name": "中部小型白云",
+      "description": "提取中部天空的小型白色云朵本体",
+      "sha256": "88da2ae22b0df3f86908103079dd2b10618f3c170976b3216cd11f1bc8340aaf"
+    },
+    {
+      "page": 3,
+      "name": "右侧小型白云",
+      "description": "提取右侧天空的小型白色云朵本体",
+      "sha256": "052ad49b9904fdce50397f851ca69dca0cdcd4c2935787866c07cda7a2910101"
+    },
+    {
+      "page": 3,
+      "name": "发光太阳",
+      "description": "提取带黄色放射光芒的卡通太阳本体，不包含其他多余元素",
+      "sha256": "43e0c02bdbe7d62e6fa7ef0fd08870383f1755e29f119bdd74ae98e89523f8fb"
+    },
+    {
+      "page": 3,
+      "name": "山地河道",
+      "description": "提取绿色山地上的蓝色自然河流本体",
+      "sha256": "2961ed39da61e9516d4cdc2ed9f1fdf5e065d59f5c1682313a51a314bc47cdfa"
+    },
+    {
+      "page": 3,
+      "name": "降雨积雨云",
+      "description": "提取完整的白色积雨云以及下方所有蓝色降雨水滴，不包含其他多余元素",
+      "sha256": "2577923aa19c7d54f8b75fd42c252f29a5374b42f2a4fcb9b71f8a707d60198d"
+    },
+    {
+      "page": 3,
+      "name": "海洋指示连线",
+      "description": "提取海洋标签指向海面的黑色指示线和末端黑点",
+      "sha256": "4723a5d3ea03cf1443484c1fed1d4da425291f25f1a97cea8584c93e3db2bd6d"
+    },
+    {
+      "page": 3,
+      "name": "河流指示连线",
+      "description": "提取河流标签指向河道的黑色指示线和末端黑点",
+      "sha256": "9d5409e1900db0ef1d4d695e085ec361061de01b55f7d71e49d03b0cbaebeaf9"
+    },
+    {
+      "page": 3,
+      "name": "地表径流蓝色箭头",
+      "description": "提取完整的蓝色指向左侧的地表径流箭头本体，不包含其他多余元素",
+      "sha256": "1e72dbe2de6f020b0f3f8b64db4dfa2320fa7f6bf8817d919f089b7129764f64"
+    },
+    {
+      "page": 3,
+      "name": "海洋文字标签",
+      "description": "提取带黑色“海洋”文字的白色圆角标签载体，连同文字完整提取",
+      "sha256": "3ebedefbeed1c3654250c5f47c5d5056d7ea1b10d9288f9ae09bb70f73d1880a"
+    },
+    {
+      "page": 3,
+      "name": "地表径流文字标签",
+      "description": "提取带黑色“地表径流”文字的白色圆角标签载体，连同文字完整提取",
+      "sha256": "6dd9d920e30a22dee5e98f313699161b243ddb21ac5f67e6f47e3e53279062e5"
+    },
+    {
+      "page": 3,
+      "name": "河流文字标签",
+      "description": "提取带黑色“河流”文字的白色圆角标签载体，连同文字完整提取",
+      "sha256": "115e76bea2bcfe6085e8ca31d3314de8a1e24cd687ca52bf9cdedac8e3875825"
+    }
+  ]
+}

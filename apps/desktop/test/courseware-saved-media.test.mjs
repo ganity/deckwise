@@ -15,7 +15,7 @@ function load(name) {
   if (modules.has(name)) return modules.get(name);
   if (!name.startsWith("./")) return require(name);
   const source = fs.readFileSync(new URL(`../electron/main/${name.slice(2)}.ts`, import.meta.url), "utf8");
-  const output = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
+  const output = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.Node16 } }).outputText;
   const exports = {};
   new Function("require", "exports", output)(load, exports); modules.set(name, exports); return exports;
 }
@@ -96,7 +96,8 @@ async function fixture(t) {
     return wrap(i);
   } };
   const check = async () => { if (!state.active || state.sourceChanged) throw new Error("Saved courseware changed or turn stopped"); };
-  const saved = { async withSaved(session, canDispatch, operation) { await check(); assert(canDispatch()); return operation({ host, project: clone(project), jobId: "parser", bytes: audio, check }); },
+  const sourcePptx = await files.readFile(new URL("../../../packages/courseware-runtime/src/authoring/tests/fixtures/office-saved-plain-image.pptx", import.meta.url));
+  const saved = { async withSaved(session, canDispatch, operation) { await check(); assert(canDispatch()); return operation({ host, project: clone(project), jobId: "parser", bytes: sourcePptx, check }); },
     async execute() { return { projectId: project.projectId, sourceSha256: project.source.sha256, teachingRevision: project.teachingRevision }; } };
   const submit = async (key, request, quote, signal, projectId, check, admit) => {
     await check?.(); if (admit) projectId = await admit();

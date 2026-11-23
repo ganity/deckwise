@@ -1,10 +1,11 @@
+import type { NativeRepairStore, NativeRepairState } from "./courseware-native-repairs";
 import { validSpeechAnimationSequence } from "@pi-desktop/courseware-runtime/node";
 import { insertNativeActivity } from "./courseware-native-activities";
 import { recoverNativeAudio } from "./courseware-native-audio-recovery";
 import { adoptNativeMaterials, type NativeMaterials } from "./courseware-native-materials";
 import { createHash } from "node:crypto";
 import { waitForPptEditorTeachingReady } from "./ppt-editor-handshake";
-import { resolveCoursewareRequiredObjects, inspectCoursewareEnrichment, inspectCoursewareTeaching, isCoursewareAttentionCue, isCoursewareSceneTeaching, isCoursewareProject, type CoursewareTeachingView } from "@pi-desktop/shared";
+import { resolveCoursewareRequiredObjects, inspectCoursewareEnrichment, inspectCoursewareTeaching, isCoursewareAttentionCue, isCoursewareAttentionIntent, isCoursewareSceneTeaching, isCoursewareProject, type CoursewareTeachingView } from "@pi-desktop/shared";
 import type { CoursewareCandidateCoordinator } from "./courseware-candidates";
 import type { CoursewareNativeAudio } from "./courseware-native-audio";
 import type { CoursewareTeachingCoordinator } from "./courseware-teaching";
@@ -13,14 +14,27 @@ type Route = (operation: string, args: Record<string, unknown>, page: number) =>
 /** Chat tools share the exact open-document commands used by the teaching sidebar. */
 export class CoursewareNativeTools {
   private lessonPreviews = new Map<string, Awaited<ReturnType<CoursewareCandidateCoordinator["planNativeLesson"]>>>();
+  private repairStates = new Map<string, NativeRepairState>();
   constructor(private teaching: CoursewareTeachingCoordinator, private candidates: CoursewareCandidateCoordinator,
     private audio: CoursewareNativeAudio, private route: Route, private session: () => string | null, private video?: import("./courseware-native-video").CoursewareNativeVideo,
     private music?: import("./courseware-native-music").CoursewareNativeMusic, private ensureOpen?: (sessionId: string, canDispatch: () => boolean) => Promise<void>,
     private ensureSaved?: (sessionId: string, canDispatch: () => boolean) => Promise<void>,
     private assessmentMedia?: Pick<import("./courseware-assessment-media").CoursewareAssessmentMedia, "execute">,
-    private materials?: { read(sessionId: string, sourceId: string): Promise<{ text: string }>; list(sessionId: string): Promise<unknown>; record?(sessionId: string, name: string, text: string): Promise<unknown> },
+    private materials?: { verifyInline(sessionId: string, text: string): Promise<boolean>; read(sessionId: string, sourceId: string): Promise<{ text: string }>; list(sessionId: string): Promise<unknown>; record?(sessionId: string, name: string, text: string): Promise<unknown> },
     private playbackPreflight?: (view: CoursewareTeachingView, check: () => void) => Promise<{ ready: boolean; sourceSha256: string;
-      issues: Array<{ code: string; pageNumber: number; pageId: string; message: string }>; diagnostics: unknown[] }>) {}
+      issues: Array<{ code: string; pageNumber: number; pageId: string; message: string }>; diagnostics: unknown[] }>,
+    private contentReview?: (sessionId: string, canDispatch: () => boolean, repairSpeech: boolean) => Promise<import("./courseware-content-review").ContentReviewResult>, private repairs?: NativeRepairStore,
+    private reviewTurns?: import('./courseware-content-review').ContentReviewTurns) {}
+
+  private async repairState(sessionId: string, projectId: string): Promise<NativeRepairState> {
+    return this.repairs ? this.repairs.read(sessionId, projectId) : this.repairStates.get(JSON.stringify([sessionId, projectId])) ?? { revision: 0, failures: {} };
+  }
+
+  private async saveRepairs(sessionId: string, projectId: string, previous: NativeRepairState, failures: Record<string, string>) {
+    const next = this.repairs ? await this.repairs.write(sessionId, projectId, previous, failures) : { revision: previous.revision + 1, failures };
+    this.repairStates.set(JSON.stringify([sessionId, projectId]), next);
+    return next;
+  }
 
   async execute(sessionId: string, name: string, args: unknown, canDispatch: () => boolean): Promise<{ value: unknown } | undefined> {
     let result: { value: unknown } | undefined;
@@ -50,7 +64,7 @@ export class CoursewareNativeTools {
     return result;
   }
 
-  private async executeUnsaved(sessionId: string, name: string, args: unknown, canDispatch: () => boolean): Promise<{ value: unknown } | undefined> {
+  private async executeUnsaved(sessionId: string, name: string, args: unknown, canDispatch: () => boolean, readingAfterReview = false): Promise<{ value: unknown } | undefined> {
     if (!/^(courseware_narration_|courseware_media_|courseware_activity_)/.test(name)) return;
     // Wait only before dispatch: an in-flight ownership change must still reject without replaying writes.
     await waitForPptEditorTeachingReady({ ready: () => sessionId === this.session(), phase: () => "focus", timeoutMs: 60_000,
@@ -63,30 +77,49 @@ export class CoursewareNativeTools {
     if (!args || typeof args !== "object" || Array.isArray(args)) throw new Error("Invalid native tool arguments");
     const input = args as Record<string, unknown>, view = opened.value as CoursewareTeachingView, project = view.project;
     if (!isCoursewareProject(project)) throw new Error("Invalid native teaching view");
+    if (name === "courseware_media_context" && input.reviewContent === true) {
+      if (!this.contentReview) throw new Error("Saved content review requires an authorized vision model");
+      const contentReview = await this.contentReview(sessionId, () => sessionId === this.session() && canDispatch(), input.continueTeaching === true);
+      check();
+      const refreshed = await this.executeUnsaved(sessionId, name, { ...input, reviewContent: false }, canDispatch, true);
+      const status = refreshed?.value as { sourceSha256: string; teachingRevision: string; teachingReady: boolean;
+        completion: { ready: boolean; issues: unknown[] } } | undefined;
+      if (!status || status.sourceSha256 !== contentReview.sourceSha256 || status.teachingRevision !== contentReview.teachingRevision)
+        throw new Error("Saved content changed after review; reread before claiming completion");
+      return { value: { ...status, contentReview, applied: contentReview.applied,
+        teachingReady: status.teachingReady && contentReview.ready,
+        completion: { ...status.completion, ready: status.completion.ready && contentReview.ready,
+          issues: [...status.completion.issues, ...contentReview.issues] } } };
+    }
     if (name === "courseware_media_assessments") return { value: await this.assessments(input, view, check) };
     if (name === "courseware_activity_insert") {
-      if (input.sourceSha256 !== project.source.sha256) throw new Error(`Native source changed; read courseware_narration_context again. Current sourceSha256: ${project.source.sha256}. Do not repeat the old SHA`);
+      if (input.sourceSha256 !== project.source.sha256) throw new Error(`COURSEWARE_SOURCE_CHANGED: Native source changed; read courseware_narration_context again. Current sourceSha256: ${project.source.sha256}. Do not repeat the old SHA`);
       return { value: await insertNativeActivity({ teaching: this.teaching, view, args: input, check,
         review: data => this.candidates.reviewNativeActivity(sessionId, data, canDispatch) }) };
     }
     if (name === "courseware_narration_import" || name === "courseware_narration_plan") {
-      if (input.sourceSha256 !== project.source.sha256) throw new Error(`Native source changed; read courseware_narration_context again. Current sourceSha256: ${project.source.sha256}. Do not repeat the old SHA`);
+      if (input.sourceSha256 !== project.source.sha256) throw new Error(`COURSEWARE_SOURCE_CHANGED: Native source changed; read courseware_narration_context again. Current sourceSha256: ${project.source.sha256}. Do not repeat the old SHA`);
       const supplied = structuredClone(input);
+      const inline: Array<{ name: string; text: string }> = [];
       for (const key of ["script", "lessonPlan"]) {
         const source = supplied[key];
         if (!source || typeof source !== "object" || Array.isArray(source)) continue;
         const sourceId = Reflect.get(source, "sourceId");
         if (sourceId === undefined) {
           const text = Reflect.get(source, "text");
-          if (input.apply === true && typeof text === "string" && this.materials?.record) {
-            await this.materials.record(sessionId, key === "script" ? "inline-script.txt" : "inline-lesson-plan.txt", text); check();
-          }
+          if (typeof text !== "string" || !await this.materials?.verifyInline(sessionId, text))
+            throw new Error(`Inline ${key} must quote text supplied by the user in this Chat. Use sourceId for an attachment. To generate or repair one page, use courseware_narration_propose with its pageNumbers and repairRequiredTeaching:true for existing speech effects.`);
+          check();
+          inline.push({name: key === "script" ? "inline-script.txt" : "inline-lesson-plan.txt", text});
           continue;
         }
         if (Reflect.get(source, "text") !== undefined || typeof sourceId !== "string" || !/^[a-f0-9]{64}$/u.test(sourceId) || !this.materials)
           throw new Error("Use exactly one immutable source ID or supplied text");
         const stored = await this.materials.read(sessionId, sourceId); check();
         Reflect.set(source, "text", stored.text); Reflect.deleteProperty(source, "sourceId");
+      }
+      if (input.apply === true) for (const item of inline) {
+        await this.materials?.record?.(sessionId, item.name, item.text); check();
       }
       if (name === "courseware_narration_plan") {
         const source = supplied.lessonPlan as { text?: unknown } | undefined;
@@ -126,6 +159,21 @@ export class CoursewareNativeTools {
       const pages = await Promise.all(numbers.map(async pageNumber => {
         const page = project.pages[pageNumber - 1], speeches = page.actions.filter(a => a.type === "speech");
         const audioReady = (speeches.length > 0 || silent.has(page.pageId)) && speeches.every(a => typeof a.audioAssetId === "string");
+        const effects = { highlight: new Set<string>(), spotlight: new Set<string>(), animation: new Set<string>() };
+        for (const speech of speeches) {
+          const attention = speech.attention;
+          if (isCoursewareAttentionIntent(attention)) {
+            for (const id of attention.objectIds) effects[attention.type].add(id);
+            if (attention.animation) for (const id of attention.objectIds) effects.animation.add(id);
+          }
+          for (const cue of Array.isArray(speech.visualCues) ? speech.visualCues : []) if (isCoursewareAttentionCue(cue)) {
+            const effect = cue.effect, kind = effect.type === "element_animation" ? "animation" : effect.type;
+            for (const id of effect.type === "highlight" ? effect.elementIds : [effect.elementId, ...(effect.elementIds ?? [])]) effects[kind].add(id);
+          }
+        }
+        const durationMs = speeches.length && speeches.every(a => typeof a.audioAssetId === "string" && Number.isSafeInteger(a.durationMs) && Number(a.durationMs) > 0)
+          ? speeches.reduce((sum, a) => sum + Number(a.durationMs), 0) : null;
+        const budgetSeconds = view.teachingRequirements?.find(t => t.pageId === page.pageId)?.teaching.durationSeconds ?? null;
         let evidence: Record<string, unknown> = {};
         if (name === "courseware_narration_context" && input.pageNumbers !== undefined) {
           const captured = (await this.teaching.native("narration-context", {}, pageNumber))?.value as {
@@ -135,7 +183,9 @@ export class CoursewareNativeTools {
           if (!captured?.view || JSON.stringify(captured.view.project) !== JSON.stringify(project)) throw new Error("Native page changed while reading material mapping context");
           evidence = { pageText: captured.text, notes: captured.evidence.notes, objects: captured.evidence.objects };
         }
-        return { ...page, ...evidence, pageNumber, hasNarration: !!speeches.length, narrationReady: !!speeches.length || silent.has(page.pageId), intentionalSilence: silent.has(page.pageId), audioReady,
+        return { ...page, ...evidence, pageNumber, effects: Object.fromEntries(Object.entries(effects).map(([kind, ids]) => [kind, [...ids]])),
+          narrationTiming: { durationMs, budgetSeconds, overBudget: durationMs !== null && budgetSeconds !== null && durationMs > budgetSeconds * 1000 },
+          hasNarration: !!speeches.length, narrationReady: !!speeches.length || silent.has(page.pageId), intentionalSilence: silent.has(page.pageId), audioReady,
           teachingReady: audioReady && !page.actions.some(a => a.attention !== undefined || ["music_slot", "video_slot"].includes(String(a.type))),
           speeches: speeches.map(a => ({ actionId: a.id, text: a.text, audioReady: typeof a.audioAssetId === "string", audioAssetId: a.audioAssetId })) };
       }));
@@ -146,7 +196,11 @@ export class CoursewareNativeTools {
       const assessments = new Set([...teachingByPage].filter(([, t]) => t.pageType !== "slide").map(([id]) => id));
       const quality = inspectCoursewareTeaching(project, teachingByPage, assessments, true);
       const requiredIssues: Array<{ code: string; pageNumber: number; pageId: string; actionId?: string; repair: string; repairable: boolean; message?: string }> = quality.issues.filter(i => i.code !== "FOCUS_MISSING" && !(silent.has(i.pageId) && ["NARRATION_MISSING", "AUDIO_MISSING"].includes(i.code)));
+      const repairState = await this.repairState(sessionId, project.projectId); check();
       for (const [index, page] of project.pages.entries()) {
+        const unresolved = repairState.failures[page.pageId];
+        if (unresolved) requiredIssues.push({ code: "NARRATION_REPAIR_UNRESOLVED", pageNumber: index + 1, pageId: page.pageId,
+          message: unresolved, repair: "narration", repairable: false });
         // The shared advisory skips assessment pages; native question speech still needs actionable audio diagnostics.
         if (assessments.has(page.pageId) && !silent.has(page.pageId)) for (const action of page.actions)
           if (action.type === "speech" && typeof action.audioAssetId !== "string")
@@ -224,13 +278,16 @@ export class CoursewareNativeTools {
       check();
       const assessmentMedia = await this.assessments({ mode: "context" }, view, check) as { ready: boolean; targets?: Array<{ kind: string }> };
       const assessmentReady = assessmentMedia.ready;
-      return { value: { nativeTeaching: true, ...(playback ? { playbackPreflight: playback } : {}), ...(materials ? { materials } : {}), ...(assessmentMedia ? { assessmentMedia } : {}), projectId: project.projectId, sourceRevision: project.source.revision, sourceSha256: project.source.sha256,
+      const { contentReview, speechRepair } = this.reviewTurns?.status(sessionId, view) ?? {};
+      if (!readingAfterReview && contentReview) requiredIssues.push(...contentReview.issues);
+      return { value: { nativeTeaching: true, contentReviewAvailable: !!this.contentReview, ...(playback ? { playbackPreflight: playback } : {}), ...(materials ? { materials } : {}), ...(assessmentMedia ? { assessmentMedia } : {}), projectId: project.projectId, sourceRevision: project.source.revision, sourceSha256: project.source.sha256,
         teachingRevision: project.teachingRevision, educationContext: project.educationContext, requiredObjectBindings,
+        ...(!readingAfterReview && contentReview ? { contentReview } : {}), ...(speechRepair ? { speechRepair } : {}),
         enrichment: { ...enrichment, policy: view.enrichment?.script?.policy, originalPages: view.enrichment?.originalPages, plan: view.enrichment?.plan, unmatchedSegments: view.enrichment?.script?.segments.filter(s => !s.pageId).map(s => ({ id: s.id, sourceLine: s.sourceLine })) }, quality, completion: { counts, ready: !requiredIssues.length && assessmentReady, issues: requiredIssues, warnings: objectWarnings, sourceSha256: project.source.sha256, teachingRevision: project.teachingRevision },
         ...(models ? { models } : {}), videoReady: !pages.some(p => p.actions.some(a => a.type === "video_slot")), pageCount: project.pages.length, pages, jobs, unresolvedOriginals,
         narrationReady: enrichment.ready && pages.every(p => p.narrationReady), audioReady: pages.every(p => p.audioReady), teachingReady: !requiredIssues.length && pages.every(p => p.teachingReady) && assessmentReady } };
     }
-    if (input.sourceSha256 !== project.source.sha256) throw new Error(`Native source changed; read courseware_narration_context again. Current sourceSha256: ${project.source.sha256}. Do not repeat the old SHA`);
+    if (input.sourceSha256 !== project.source.sha256) throw new Error(`COURSEWARE_SOURCE_CHANGED: Native source changed; read courseware_narration_context again. Current sourceSha256: ${project.source.sha256}. Do not repeat the old SHA`);
     if (name === "courseware_media_refresh" && input.kind === "tts" && input.recover === true) {
       if (input.pageNumber !== undefined || input.intentId !== undefined || input.intentIds !== undefined || input.retryFailed !== undefined ||
           input.model !== undefined && typeof input.model !== "string" ||
@@ -239,6 +296,9 @@ export class CoursewareNativeTools {
         model: input.model as string | undefined, voice: input.voice as string | null | undefined, check }) };
     }
     if (name === "courseware_narration_propose") {
+      if (!input.repairRequiredTeaching && this.reviewTurns?.current(sessionId, project.projectId)?.baseline &&
+          numbers.some(n => project.pages[n - 1].actions.some(a => a.type === 'speech')))
+        throw new Error('The current review preserves saved narration. Report additional speech findings; use required teaching repair only for effects that preserve the saved words and audio.');
       if (input.speechCount !== undefined && (!Number.isInteger(input.speechCount) || Number(input.speechCount) < 1 || Number(input.speechCount) > 100 || input.repairRequiredTeaching)) throw new Error("Exact speech count requires a narration rewrite with a count from 1 to 100");
       if (typeof input.instruction !== "string" || !input.instruction.trim() || input.instruction.length > 8000) throw new Error("Invalid narration instruction");
       if (numbers.some(n => view.enrichment?.script?.silentPageIds.includes(project.pages[n - 1].pageId)))
@@ -247,8 +307,32 @@ export class CoursewareNativeTools {
         const protectedIds = new Set(view.enrichment.originalPages.map(p => p.pageId));
         if (numbers.some(n => protectedIds.has(project.pages[n - 1].pageId))) throw new Error("Accepted script is protected; use verbatim repair or explicitly revise its source policy");
       }
+      let state = await this.repairState(sessionId, project.projectId); check();
+      const pageIds = new Map(numbers.map(n => [n, project.pages[n - 1].pageId]));
+      if (input.repairRequiredTeaching === true && input.repairObjectsOnly !== true) {
+        const pending = { ...state.failures };
+        for (const id of pageIds.values()) pending[id] = "Required teaching repair has not been verified and saved.";
+        state = await this.saveRepairs(sessionId, project.projectId, state, pending); check();
+      }
       const result = await this.candidates.proposeNativeNarrationBatch(sessionId, numbers, input.instruction, canDispatch, input.repairRequiredTeaching === true,
         this.ensureSaved ? () => this.ensureSaved!(sessionId, canDispatch) : undefined, input.repairObjectsOnly === true, input.speechCount as number | undefined);
+      check();
+      const latestState = await this.repairState(sessionId, project.projectId); check();
+      if (JSON.stringify(latestState.failures) !== JSON.stringify(state.failures))
+        throw new Error("Native repair state changed during generation; read saved teaching before continuing");
+      state = latestState;
+      // Persist the document before clearing failures; an uncertain save must leave the guard intact.
+      if (input.repairObjectsOnly !== true && result.savedPages.some(page => !page.retained && state.failures[pageIds.get(page.pageNumber) ?? ""])) {
+        await this.ensureSaved?.(sessionId, canDispatch); check();
+      }
+      const failures = { ...state.failures };
+      for (const page of result.savedPages) if (!page.retained && input.repairObjectsOnly !== true) {
+        const id = pageIds.get(page.pageNumber);
+        if (id) delete failures[id];
+      }
+      if (JSON.stringify(failures) !== JSON.stringify(state.failures)) {
+        await this.saveRepairs(sessionId, project.projectId, state, failures); check();
+      }
       return { value: { ...result, saved: false, pages: result.savedPages.map(page => ({ ...page, applied: true, saved: false })) } };
     }
     if (!["courseware_media_prepare", "courseware_media_refresh"].includes(name) || !["tts", "video", "music"].includes(String(input.kind)) ||
@@ -291,21 +375,44 @@ export class CoursewareNativeTools {
     const ids = input.intentIds ?? [input.intentId];
     if (!Array.isArray(ids) || !ids.length || ids.length > 100 || new Set(ids).size !== ids.length || ids.some(id => typeof id !== "string")) throw new Error("Invalid native speech tasks");
     const results = [], failures = [];
-    for (const intentId of ids) {
+    for (const requestedId of ids) {
+      let intentId = requestedId;
       const job = { kind: "tts", sourceSha256: project.source.sha256, pageNumber, intentId };
       try {
         check();
-        const latest = (await this.route("open", {}, pageNumber))!.value as CoursewareTeachingView;
+        let latest = (await this.route("open", {}, pageNumber))!.value as CoursewareTeachingView;
         if (latest.pageId !== current.pageId || latest.project.projectId !== project.projectId || latest.project.source.sha256 !== project.source.sha256)
           throw new Error("Native media target changed");
-        const args = { viewId: latest.viewId, expectedTeachingRevision: latest.project.teachingRevision, intentId };
-        const status = await this.audio.execute("tts:status", args, pageNumber, latest) as { phase: string; task: { state: string; errorCode?: string | null } | null };
+        let args = { viewId: latest.viewId, expectedTeachingRevision: latest.project.teachingRevision, intentId };
+        const readStatus = () => this.audio.execute("tts:status", args, job.pageNumber, latest) as Promise<{ phase: string; task: { state: string; errorCode?: string | null } | null }>;
+        let status;
+        try { status = await readStatus(); }
+        catch (error) {
+          if (!(error instanceof Error && "code" in error && error.code === "COURSEWARE_TTS_RECEIPT_NOT_FOUND")) throw error;
+          const candidates = await this.audio.execute("tts:lookup", args, pageNumber, latest) as { intentId: string; pageId: string; actionId: string }[];
+          check();
+          if (candidates.length !== 1) {
+            const state = candidates.length ? "ambiguous_receipt" : "receipt_not_found";
+            const message = candidates.length ? "Select an original receipt from candidates" : "No matching receipt in the current course; read saved speech and task records";
+            failures.push({ intentId, pageNumber, state, candidates, error: message });
+            results.push({ intentId, job, applied: false, audioReady: false, state });
+            continue;
+          }
+          const match = candidates[0];
+          job.intentId = intentId = match.intentId;
+          job.pageNumber = project.pages.findIndex(p => p.pageId === match.pageId) + 1;
+          if (!job.pageNumber) throw new Error("Original speech page is no longer present; inspect the saved course");
+          latest = (await this.route("open", {}, job.pageNumber))!.value as CoursewareTeachingView;
+          if (latest.pageId !== match.pageId || latest.project.projectId !== project.projectId || latest.project.source.sha256 !== project.source.sha256) throw new Error("Native media target changed");
+          args = { viewId: latest.viewId, expectedTeachingRevision: latest.project.teachingRevision, intentId };
+          check(); status = await readStatus();
+        }
         check();
-        if (status.task?.state === "ready") { await this.audio.execute("tts:adopt", args, pageNumber, latest); check(); results.push({ intentId, job, media: status, applied: true, audioReady: true }); }
+        if (status.task?.state === "ready") { await this.audio.execute("tts:adopt", args, job.pageNumber, latest); check(); results.push({ intentId, job, media: status, applied: true, audioReady: true }); }
         else results.push({ intentId, job, media: status, applied: false, audioReady: false, state: status.task?.state ?? status.phase ?? "submission_unknown" });
       } catch (error) {
-        check(); failures.push({ intentId, error: String(error) });
-        results.push({ intentId, job, applied: false, audioReady: false, state: "failed" });
+        check(); failures.push({ intentId, pageNumber: job.pageNumber || pageNumber, state: "refresh_unconfirmed", error: String(error) });
+        results.push({ intentId, job, applied: false, audioReady: false, state: "refresh_unconfirmed" });
       }
     }
     return { value: { pages: results, results, failures, audioReady: results.every(r => r.audioReady), saved: false } };
@@ -334,7 +441,7 @@ export class CoursewareNativeTools {
       const targets = input.kind === "image" ? [] : readings.filter(r => !r.audioReady).map(({ sceneId, actionId, pageNumber }) => ({ kind: "tts", sceneId, actionId, pageNumber }));
       const models = input.kind === "tts" ? await this.audio.execute("tts:models", { viewId: view.viewId, expectedTeachingRevision: project.teachingRevision }, view.pageNumber, view) : undefined;
       check();
-      return { projectId: project.projectId, expectedRevision: project.teachingRevision, expectedSourceRevision: project.source.revision,
+      return { configurableQuizSceneIds: [], projectId: project.projectId, expectedRevision: project.teachingRevision, expectedSourceRevision: project.source.revision,
         ready: !targets.length, targets, ...(models ? { models } : {}) };
     }
     if (!["prepare", "refresh"].includes(String(input.mode)) || input.kind !== "tts" ||

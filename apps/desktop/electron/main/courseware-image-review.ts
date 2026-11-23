@@ -17,6 +17,7 @@ type Editor = {
   getContext(workspace: string | null): Promise<PptEditorContext>;
   reviewImageTarget(asset: ReviewedImage, target: ReviewedImageTarget, workspace: string | null): Promise<PptEditorContext>;
 };
+type AssertImageStage = (sessionId: string) => Promise<{ project?: { pages?: Array<{ actions?: Array<{ type?: string }> }> } } | undefined>;
 
 /** One explicit review binds an immutable image to this saved PPTX and owning Chat only. */
 export class CoursewareImageReview {
@@ -26,7 +27,7 @@ export class CoursewareImageReview {
   private sequence = 0;
 
   constructor(private editor: Editor, private auth: DesktopAuthSession, private getWorkspace: () => Promise<string | null>,
-    private assertOwner: (sessionId: string) => void, private getHost?: () => Host | null) {}
+    private assertOwner: (sessionId: string) => void, private getHost?: () => Host | null, private readTeaching?: AssertImageStage) {}
 
   clear(): void { this.sequence++; this.review = null; }
 
@@ -43,6 +44,7 @@ export class CoursewareImageReview {
       throw new Error("Invalid image review request");
     const sessionId: string = Reflect.get(payload, "sessionId");
     this.assertOwner(sessionId);
+    await this.assertImageStage(sessionId);
     const principal = this.auth.getCoursewarePrincipal();
     const workspace = await this.getWorkspace();
     if (!workspace) throw new Error("No active courseware workspace");
@@ -162,5 +164,12 @@ export class CoursewareImageReview {
     this.assertOwner(review.sessionId); review.principal.assertCurrent();
     const now = this.editor.teachingSnapshot(review.workspace);
     if (this.review !== review || !samePptEditorBinding(now, review.snapshot) || now.sha256 !== review.snapshot.sha256 || now.revision !== review.snapshot.revision) throw new Error("Image review source changed");
+    await this.assertImageStage(review.sessionId);
+  }
+
+  private async assertImageStage(sessionId: string) {
+    const teaching = await this.readTeaching?.(sessionId);
+    if (teaching?.project?.pages?.some(page => page.actions?.some(action => action.type === "speech")))
+      throw new Error("Page image pixels are frozen after narration starts; report the visual issue and continue with narration or effect repairs");
   }
 }

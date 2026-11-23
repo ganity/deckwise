@@ -1,0 +1,434 @@
+{
+  "assessments": {
+    "scene-002": {
+      "type": "quiz",
+      "questions": [
+        {
+          "id": "water-cycle-evaporation",
+          "type": "single",
+          "question": "海洋中的水变成水汽进入空气，主要是什么过程？",
+          "options": [
+            {
+              "value": "A",
+              "label": "蒸发"
+            },
+            {
+              "value": "B",
+              "label": "降水"
+            },
+            {
+              "value": "C",
+              "label": "地表径流"
+            }
+          ],
+          "answer": [
+            "A"
+          ],
+          "analysis": "蒸发是液态水变成水汽进入空气的过程，因此选蒸发。降水是云中的水以雨、雪等形式落向地表；地表径流是水沿地表流动，均不符合题干。"
+        }
+      ],
+      "interactionMode": "classroom_instant_feedback",
+      "optionImagePolicy": {
+        "required": false,
+        "reason": "用户明确要求：选项只保留文字，不生成选项图片（活动页无选项图）。"
+      }
+    }
+  },
+  "schemaVersion": "deckwise-native-teaching/1",
+  "documentId": "native-5512c14926630b0a7d72b564e4384ce825078312",
+  "revision": "6eadfc40-d160-4747-8968-882209bcc495",
+  "title": "水循环",
+  "pages": [
+    {
+      "pageId": "scene-001",
+      "locked": false,
+      "reviewState": "review",
+      "actions": []
+    },
+    {
+      "pageId": "scene-002",
+      "locked": false,
+      "reviewState": "review",
+      "actions": [
+        {
+          "id": "scene-002-speech",
+          "type": "speech",
+          "text": "海洋中的水变成水汽进入空气，主要是什么过程？\nA. 蒸发\nB. 降水\nC. 地表径流",
+          "source": "generated",
+          "audioAssetId": "tts-6d4f0c60aa2a77904ff6b17e9719d4b3ba694f0c756bfa9ba1f740a2e6b39573",
+          "durationMs": 9864
+        },
+        {
+          "id": "scene-002-question",
+          "type": "interaction_checkpoint",
+          "checkpointId": "scene-002-checkpoint",
+          "checkpointKind": "chapter_summary",
+          "chapterId": "scene-002",
+          "chapterTitle": "辨认蒸发",
+          "question": "海洋中的水变成水汽进入空气，主要是什么过程？",
+          "response": {
+            "kind": "single",
+            "options": [
+              "蒸发",
+              "降水",
+              "地表径流"
+            ],
+            "answerIndices": [
+              0
+            ]
+          },
+          "referenceAnswer": {
+            "summary": "蒸发是液态水变成水汽进入空气的过程，因此选蒸发。降水是云中的水以雨、雪等形式落向地表；地表径流是水沿地表流动，均不符合题干。",
+            "keyPoints": []
+          },
+          "context": {
+            "chapterSummary": "辨认蒸发",
+            "sourceSceneIds": [
+              "scene-002"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "pageId": "scene-003",
+      "locked": false,
+      "reviewState": "review",
+      "actions": []
+    },
+    {
+      "pageId": "scene-004",
+      "locked": false,
+      "reviewState": "review",
+      "actions": [
+        {
+          "id": "scene-004-speech",
+          "type": "speech",
+          "text": "河流水最终流向海洋，体现哪个水循环环节？",
+          "source": "generated",
+          "audioAssetId": "tts-a95e4e85a1d09c921821d32e63ff7c2a681234e909d7836c2ef6423942ffb283",
+          "durationMs": 4440
+        },
+        {
+          "id": "scene-004-question",
+          "type": "interaction_checkpoint",
+          "checkpointId": "scene-004-checkpoint",
+          "checkpointKind": "chapter_summary",
+          "chapterId": "scene-004",
+          "chapterTitle": "辨认回海环节",
+          "question": "河流水最终流向海洋，体现哪个水循环环节？",
+          "response": {
+            "kind": "short_answer",
+            "options": [],
+            "answerIndices": []
+          },
+          "referenceAnswer": {
+            "summary": "地表径流。",
+            "keyPoints": [
+              "指出地表径流环节",
+              "河水沿地表由陆地流向海洋"
+            ]
+          },
+          "context": {
+            "chapterSummary": "以独立short_answer总结活动辨认河流回海洋对应的地表径流环节；问题使用真实TTS，保存参考答案与反馈依据。\n核心参考答案为地表径流。接受包含正确环节名称的同义完整表述；只答河流或海洋未说明环节，应提示补充。不要把该过程解释为蒸发、凝结或降水，不要求自动评分。",
+            "sourceSceneIds": [
+              "scene-004"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "identity": {
+    "pages": [
+      {
+        "pageId": "scene-001",
+        "objects": [
+          {
+            "logicalId": "object-9b3e8eb33ae721f4586800fd0ed3bcd440891f08",
+            "sourceShapeId": "108022915",
+            "sourceObjectName": "scene-image-7c867bce-a539-4b81-8c67-010e95b6a909-layer-1"
+          },
+          {
+            "logicalId": "object-5bcacb20a954c101fa65b56ce63db7f598291a7d",
+            "sourceShapeId": "885435876",
+            "sourceObjectName": "scene-image-7c867bce-a539-4b81-8c67-010e95b6a909-layer-2"
+          },
+          {
+            "logicalId": "object-cf90fa5942c5a1618132469966f65d3aac096f10",
+            "sourceShapeId": "10953350",
+            "sourceObjectName": "scene-image-7c867bce-a539-4b81-8c67-010e95b6a909-layer-3"
+          },
+          {
+            "logicalId": "object-c6db8f1f0df27c3b535f189360e739a3b05625e0",
+            "sourceShapeId": "1540766748",
+            "sourceObjectName": "scene-image-7c867bce-a539-4b81-8c67-010e95b6a909-layer-4"
+          }
+        ]
+      },
+      {
+        "pageId": "scene-002",
+        "objects": [
+          {
+            "logicalId": "object-065f25f4cabcc675119c5ab721572d0c3214a8ab",
+            "sourceShapeId": "479850425",
+            "sourceObjectName": "scene-002_title"
+          },
+          {
+            "logicalId": "object-d1a60e529e781ae4fdd0d143caad6769388ca679",
+            "sourceShapeId": "1321866614",
+            "sourceObjectName": "scene-002_q0_question"
+          },
+          {
+            "logicalId": "object-293303411b678c5392d5d1c10fa4e9ac42d6ac4e",
+            "sourceShapeId": "1808831015",
+            "sourceObjectName": "scene-002_q0_option0_card"
+          },
+          {
+            "logicalId": "object-aa3165c4cb7706c48cb568edee9d43eb9af02af3",
+            "sourceShapeId": "967291129",
+            "sourceObjectName": "scene-002_q0_option0_label"
+          },
+          {
+            "logicalId": "object-b87fe2eca9d44b3e9e32feb687fa7041ae31c192",
+            "sourceShapeId": "1770296161",
+            "sourceObjectName": "scene-002_q0_option1_card"
+          },
+          {
+            "logicalId": "object-0608996e0daf45d706d47d74a593c890b52b0541",
+            "sourceShapeId": "861793684",
+            "sourceObjectName": "scene-002_q0_option1_label"
+          },
+          {
+            "logicalId": "object-6a84f661c4599ae47dfb3859e66cf2db7fa2a199",
+            "sourceShapeId": "1854068337",
+            "sourceObjectName": "scene-002_q0_option2_card"
+          },
+          {
+            "logicalId": "object-9414d8ab71f39f7d9cd7120be539da6a89fb746b",
+            "sourceShapeId": "374369706",
+            "sourceObjectName": "scene-002_q0_option2_label"
+          },
+          {
+            "logicalId": "object-58a8997be2f67c0dba6c114f26c291cb5ece2f5d",
+            "sourceShapeId": "1096837353",
+            "sourceObjectName": "scene-002_hint"
+          }
+        ]
+      },
+      {
+        "pageId": "scene-003",
+        "objects": [
+          {
+            "logicalId": "object-b086ce827d8195cf60655c992e83e5cae11acec8",
+            "sourceShapeId": "524177430",
+            "sourceObjectName": "scene-image-e5af08af-a0f6-4a4f-ac3b-f2e8dc0969d6-layer-1"
+          },
+          {
+            "logicalId": "object-d1c876d0dc101ac1da4c5aeade6e104108aec884",
+            "sourceShapeId": "1421230836",
+            "sourceObjectName": "scene-image-e5af08af-a0f6-4a4f-ac3b-f2e8dc0969d6-layer-2"
+          },
+          {
+            "logicalId": "object-732f5723fd794c3979273ceed36ac875eb732b30",
+            "sourceShapeId": "770165577",
+            "sourceObjectName": "scene-image-e5af08af-a0f6-4a4f-ac3b-f2e8dc0969d6-layer-3"
+          },
+          {
+            "logicalId": "object-d93ee88eed579cd243d1983580329f6dace6b993",
+            "sourceShapeId": "331950904",
+            "sourceObjectName": "scene-image-e5af08af-a0f6-4a4f-ac3b-f2e8dc0969d6-layer-4"
+          },
+          {
+            "logicalId": "object-a5baa6de37e93ba57f6c3d1ac9fb8f2e7b429dc4",
+            "sourceShapeId": "1254055209",
+            "sourceObjectName": "scene-image-e5af08af-a0f6-4a4f-ac3b-f2e8dc0969d6-layer-5"
+          },
+          {
+            "logicalId": "object-cbe5f1f00caaa09a3d7d7b25115e6eb3c4b52313",
+            "sourceShapeId": "2069510029",
+            "sourceObjectName": "scene-image-e5af08af-a0f6-4a4f-ac3b-f2e8dc0969d6-layer-6"
+          },
+          {
+            "logicalId": "object-323e3958a3a41df310ae90c48f0e219d24e27ded",
+            "sourceShapeId": "1512058715",
+            "sourceObjectName": "scene-image-e5af08af-a0f6-4a4f-ac3b-f2e8dc0969d6-layer-7"
+          }
+        ]
+      },
+      {
+        "pageId": "scene-004",
+        "objects": [
+          {
+            "logicalId": "object-215eb65630d00f1cb8ec1dd1041ac4e0d0c59893",
+            "sourceShapeId": "700377476",
+            "sourceObjectName": "scene-004_panel"
+          },
+          {
+            "logicalId": "object-6a5577a5597bf8d99ab5df0fc4e03f7bddab5fce",
+            "sourceShapeId": "1960136368",
+            "sourceObjectName": "scene-004_chapter_title"
+          },
+          {
+            "logicalId": "object-971a8b053c09cea48d79dd4f02957eb5c69bfff0",
+            "sourceShapeId": "1156689422",
+            "sourceObjectName": "scene-004_section_label"
+          },
+          {
+            "logicalId": "object-ba3a0718e6772bc2dbe309730a1d1b6f9fb7c2cb",
+            "sourceShapeId": "1853278074",
+            "sourceObjectName": "scene-004_question"
+          },
+          {
+            "logicalId": "object-bac9fef96d8b06549a70f04fcda9e69132ba5916",
+            "sourceShapeId": "268345652",
+            "sourceObjectName": "scene-004_hint"
+          }
+        ]
+      }
+    ]
+  },
+  "media": [
+    {
+      "id": "tts-6d4f0c60aa2a77904ff6b17e9719d4b3ba694f0c756bfa9ba1f740a2e6b39573",
+      "sha256": "6d4f0c60aa2a77904ff6b17e9719d4b3ba694f0c756bfa9ba1f740a2e6b39573",
+      "mimeType": "audio/mpeg",
+      "byteLength": 78957,
+      "durationMs": 9864
+    },
+    {
+      "id": "tts-a95e4e85a1d09c921821d32e63ff7c2a681234e909d7836c2ef6423942ffb283",
+      "sha256": "a95e4e85a1d09c921821d32e63ff7c2a681234e909d7836c2ef6423942ffb283",
+      "mimeType": "audio/mpeg",
+      "byteLength": 35565,
+      "durationMs": 4440
+    }
+  ],
+  "generation": {
+    "educationContext": {
+      "bodyPageLimit": 2,
+      "grade": "七年级",
+      "lessonType": "概念新授",
+      "schoolStage": "junior_high",
+      "subject": "geography",
+      "visualStyle": "初中地理教材科学插画，浅色背景，准确标注和箭头，无幼儿园拟人吉祥物"
+    },
+    "sourceSha256": "1f69eb061b5cf4b5ba4672d9a4844b83bd8b004ac9e7b19c6657ee15f9152c23",
+    "pages": [
+      {
+        "pageId": "scene-001",
+        "title": "从海洋到陆地",
+        "narration": "太阳照射海洋，海水吸收热量，蒸发成水汽进入空气。水汽上升后遇冷，凝结成小水滴或冰晶，形成云。云中的水以雨、雪等形式落到陆地，这就是降水。图中的箭头表示水移动的方向。",
+        "teaching": {
+          "pageType": "slide",
+          "phase": "explore",
+          "objective": "认识蒸发、凝结和降水及正确方向。正文真实TTS讲解不超过35秒，按30秒内设计；关联示意图含箭头的完整教学区域fadeIn淡入并spotlight聚光，蒸发、凝结、降水标签依次highlight高亮。文字与箭头保留在原图层中，不重建原生正文。",
+          "durationSeconds": 30,
+          "requiredObjects": [
+            "海洋至陆地的完整水循环示意图（含箭头）",
+            "蒸发标签",
+            "凝结标签",
+            "降水标签"
+          ],
+          "requiredEffects": [
+            "animation",
+            "spotlight",
+            "highlight"
+          ]
+        }
+      },
+      {
+        "pageId": "scene-002",
+        "title": "辨认蒸发",
+        "narration": "",
+        "teaching": {
+          "pageType": "quiz",
+          "phase": "practice",
+          "objective": "辨认蒸发过程，题干使用真实TTS，选项仅文字，不生成选项图片；核对正确答案及全部选项解析。",
+          "durationSeconds": 30,
+          "requiredObjects": []
+        },
+        "quiz": {
+          "interactionMode": "classroom_instant_feedback",
+          "questions": [
+            {
+              "analysis": "蒸发是液态水变成水汽进入空气的过程，因此选蒸发。降水是云中的水以雨、雪等形式落向地表；地表径流是水沿地表流动，均不符合题干。",
+              "answer": [
+                "A"
+              ],
+              "id": "water-cycle-evaporation",
+              "options": [
+                {
+                  "label": "蒸发",
+                  "value": "A"
+                },
+                {
+                  "label": "降水",
+                  "value": "B"
+                },
+                {
+                  "label": "地表径流",
+                  "value": "C"
+                }
+              ],
+              "question": "海洋中的水变成水汽进入空气，主要是什么过程？",
+              "type": "single"
+            }
+          ],
+          "type": "quiz"
+        }
+      },
+      {
+        "pageId": "scene-003",
+        "title": "沿河流回到海洋",
+        "narration": "降水落到山地，一部分水沿地表向低处流动，汇入河流。看箭头，河水从山地流向海洋。这种沿地表流动的水流叫地表径流。它把陆地上的水输送回海洋，是海陆间水循环的重要环节。",
+        "teaching": {
+          "pageType": "slide",
+          "phase": "explore",
+          "objective": "理解山地降水沿地表汇入河流并回到海洋，正确识别地表径流及河水流向。正文真实TTS不超过35秒，按30秒内设计；关联示意图含流向箭头的完整教学区域fadeIn淡入并spotlight聚光，地表径流、河流、海洋标签highlight高亮。允许教学区域携带少量背景，不重建原生正文。",
+          "durationSeconds": 30,
+          "requiredObjects": [
+            "山地河流回海洋的完整示意图（含流向箭头）",
+            "地表径流标签",
+            "河流标签",
+            "海洋标签"
+          ],
+          "requiredEffects": [
+            "animation",
+            "spotlight",
+            "highlight"
+          ]
+        }
+      },
+      {
+        "pageId": "scene-004",
+        "title": "辨认回海环节",
+        "narration": "",
+        "teaching": {
+          "pageType": "interactive",
+          "phase": "review",
+          "objective": "以独立short_answer总结活动辨认河流回海洋对应的地表径流环节；问题使用真实TTS，保存参考答案与反馈依据。",
+          "durationSeconds": 30,
+          "requiredObjects": [],
+          "question": {
+            "text": "河流水最终流向海洋，体现哪个水循环环节？",
+            "response": {
+              "kind": "short_answer",
+              "options": [],
+              "answerIndices": []
+            },
+            "referenceAnswer": {
+              "summary": "地表径流。",
+              "keyPoints": [
+                "指出地表径流环节",
+                "河水沿地表由陆地流向海洋"
+              ]
+            },
+            "constraintPrompt": "核心参考答案为地表径流。接受包含正确环节名称的同义完整表述；只答河流或海洋未说明环节，应提示补充。不要把该过程解释为蒸发、凝结或降水，不要求自动评分。"
+          }
+        }
+      }
+    ]
+  },
+  "nativeAnimationBindings": {}
+}

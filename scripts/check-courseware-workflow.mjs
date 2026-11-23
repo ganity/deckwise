@@ -22,6 +22,11 @@ async function run(name, command, args, timeout = 240_000) {
   const log = `${child.stdout ?? ""}${child.stderr ?? ""}`;
   await writeFile(join(output, `${name}.log`), log);
   report.checks.push({ name, exitCode: child.status, durationMs: Date.now() - started });
+  if (child.status !== 0) {
+    for (const block of log.split(/^# Subtest:/m)) {
+      if (/^not ok /m.test(block)) console.error(block.slice(0, 5000));
+    }
+  }
   assert.equal(child.status, 0, `${name} failed: ${child.error ?? ""}\n${log.slice(-7000)}`);
   return log;
 }

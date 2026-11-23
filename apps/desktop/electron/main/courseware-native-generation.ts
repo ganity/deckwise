@@ -8,13 +8,14 @@ import { coursewareAuthoringUrl } from "./courseware-runtime";
 import { readNativeTeachingPackage } from "./courseware-native-package";
 import { resolveRealOpenablePath, resolveRealPathForCreateWithinRoot } from "./fs-panel";
 import { jobIdFor, listRevisions, publishRevision } from "./ppt-editor-files";
+import type { SceneTeachingCorrection } from "./courseware-visual-master";
 
 export type NativeGenerationPage = { pageId: string; title?: string; narration?: string; teaching?: CoursewareSceneTeaching; quiz?: CoursewarePlannedQuiz };
 type Host = { call<T>(method: string, params: unknown): Promise<T> };
 const hash = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 
 /** Both generators use the same portable actions; no editable canonical classroom is created. */
-function nativePages(pages: NativeGenerationPage[]) {
+export function nativePages(pages: NativeGenerationPage[]) {
   return pages.map(page => {
     if (page.teaching && !isCoursewareSceneTeaching(page.teaching)) throw new Error("Invalid generated teaching requirements");
     const question = page.teaching?.question, actions: Array<Record<string, unknown>> = [];
@@ -34,7 +35,6 @@ function nativePages(pages: NativeGenerationPage[]) {
         referenceAnswer: { summary: q.referenceAnswer ?? (q.type === "short_answer" ? q.answer?.join("；") : q.analysis) ?? "", keyPoints: q.keyPoints ?? [] },
         context: { chapterSummary: [title, q.commentPrompt].filter(Boolean).join("\n"), sourceSceneIds: [page.pageId] } });
     } else if (question) {
-      narration = question.text;
       actions.push({ id: `${page.pageId}-question`, type: "interaction_checkpoint", checkpointId: `${page.pageId}-checkpoint`,
         checkpointKind: "chapter_summary", chapterId: page.pageId, chapterTitle: title, question: question.text,
         response: question.response, referenceAnswer: question.referenceAnswer ?? { summary: "", keyPoints: [] },
@@ -49,14 +49,17 @@ function nativePages(pages: NativeGenerationPage[]) {
 /** Publish complete native bytes first; attach only the verified generated path to the task. */
 export async function publishNativeGeneratedCourse(input: {
   workspace: string; sessionId: string; title: string; pptx: Uint8Array; pages: NativeGenerationPage[]; host: Host;
-  sceneProof?: { planSha256: string; principalKey: string; selectedIntentIds: string[] };
+  sceneProof?: { planSha256: string; principalKey: string; selectedIntentIds: string[];
+    teachingCorrections?: SceneTeachingCorrection[] };
   sceneMapping?: unknown;
+  requirePlaybackTiming?: boolean;
   presentation?: { path: string; sourceSha256: string; pages: import("@pi-desktop/shared").CoursewarePresentationPage[] };
+  reviewPresentation?: () => Promise<void>;
   signal?: AbortSignal; assertCurrent?: () => Promise<void>;
 }) {
   const check = async () => { input.signal?.throwIfAborted(); await input.assertCurrent?.(); input.signal?.throwIfAborted(); };
   await check();
-  const { task } = await input.host.call<{ task?: { educationContext?: CoursewareProject["educationContext"] } }>("courseware.task.get", { sessionId: input.sessionId });
+  const { task } = await input.host.call<{ task?: { generatedPath?: string; educationContext?: CoursewareProject["educationContext"] } }>("courseware.task.get", { sessionId: input.sessionId });
   await check();
   const educationContext = task?.educationContext;
   const url = coursewareAuthoringUrl();
@@ -103,15 +106,40 @@ export async function publishNativeGeneratedCourse(input: {
     jobId = (await input.host.call<{ jobId: string }>("courseware.parseStart", { sessionId: input.sessionId, path: revision.documentPath })).jobId;
     while (true) {
       await check();
-      const status = await input.host.call<{ status: string; message?: string; summary?: { sourceSha256: string } }>("courseware.parseStatus", { jobId });
+      const status = await input.host.call<{ status: string; message?: string; summary?: { sourceSha256: string; timingWarningCount?: number; warnings?: { code: string; pageIndex?: number }[] } }>("courseware.parseStatus", { jobId });
       if (status.status === "RUNNING") { await delay(100, undefined, { signal: input.signal }); continue; }
       terminal = true;
       if (status.status !== "SUCCEEDED" || status.summary?.sourceSha256 !== sha256) throw new Error(status.message || "Generated native PPTX parsing failed");
+      if (input.requirePlaybackTiming) {
+        const timing = status.summary.warnings?.filter(w => w.code.startsWith("PPTX_TIMING_")) ?? [];
+        if (status.summary.timingWarningCount || timing.length) throw new Error(`Exported native animation cannot be reproduced by the desktop player: ${timing.map(w => `page ${(w.pageIndex ?? -1) + 1}: ${w.code}`).join(", ") || "see timing diagnostics"}. Before adoption or TTS, correct animations.json in the same project, keep the requested teaching targets, validate and export again. When no exact preset was requested, use entrance_fade for entry and emphasis_teeter for emphasis. If an exact unsupported effect was requested, report the limitation; preserve the original export.`);
+      }
       break;
     }
     await check();
-    await input.host.call("courseware.task.attachNativeGenerated", { sessionId: input.sessionId, jobId, path, project, identity: native.identity,
+    if (input.presentation && !task?.generatedPath) {
+      if (!input.reviewPresentation) throw new Error("Exported presentation review is unavailable");
+      await input.reviewPresentation();
+      await check();
+    }
+    const attach = () => input.host.call("courseware.task.attachNativeGenerated", { sessionId: input.sessionId, jobId, path, project, identity: native.identity,
       ...(input.sceneProof ? { sceneProof: input.sceneProof, sceneMapping: input.sceneMapping } : {}), ...(input.presentation ? { presentation: input.presentation } : {}) });
+    try { await attach(); }
+    catch (error) {
+      if (!input.presentation) throw error;
+      await check();
+      const saved = await input.host.call<{ task?: { generatedPath?: string; nativeDocumentId?: string } }>(
+        "courseware.task.get", { sessionId: input.sessionId }).catch(() => undefined);
+      await check();
+      if (!task?.generatedPath && saved?.task?.generatedPath === path && saved.task.nativeDocumentId === project.projectId) {
+        // The first registration committed. Host verifies the file and document identity on replay.
+        await attach();
+      } else {
+        const message = error instanceof Error ? error.message : String(error);
+        if (message.startsWith("PRESENTATION_TEACHING_MISMATCH:")) throw error;
+        throw new Error(`PRESENTATION_REGISTRATION_FAILED: ${message}. Keep the export and follow the reported registration or validation step.`, { cause: error });
+      }
+    }
     return { path, project, projectId: project.projectId, sourceSha256: sha256, sha256, generated: true, nativeTeaching: true };
   } finally {
     if (jobId) {

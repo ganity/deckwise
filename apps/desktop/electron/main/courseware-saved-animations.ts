@@ -7,15 +7,22 @@ import { coursewareAuthoringUrl } from './courseware-runtime';
 /** Final speech adoption materializes native animations for every generation/import path. */
 export async function persistSavedSpeechAnimations(saved: SavedCourseware, sessionId: string, assertCurrent: () => void) {
   const speeches = saved.project.pages.flatMap(page => page.actions.filter(action => action.type === 'speech'));
-  if (!speeches.length || speeches.some(action => !action.audioAssetId) || !speeches.some(action =>
-    Array.isArray(action.visualCues) && action.visualCues.some(cue => cue.effect.type === 'element_animation'))) return saved.project;
+  // Changing the PPTX hash while paid voice jobs are pending would invalidate their source.
+  if (speeches.some(action => !action.audioAssetId)) return saved.project;
+  const hasMotion = speeches.some(action => Array.isArray(action.visualCues) &&
+    action.visualCues.some(cue => cue.effect.type === 'element_animation'));
+  const authoring = coursewareAuthoringUrl();
+  if (!hasMotion) {
+    if (!authoring) return saved.project;
+    const { hasManagedSpeechAnimations } = await import(/* @vite-ignore */ authoring) as typeof import('@pi-desktop/courseware-runtime/authoring');
+    if (!await hasManagedSpeechAnimations(saved.bytes)) return saved.project;
+  }
   const { host } = saved;
   await saved.check(); assertCurrent();
   const seed = await host.call<NativeClassroomSeed>('courseware.classroom.source', { sessionId, projectId: saved.project.projectId, jobId: saved.jobId });
   if (seed.project.source?.sha256 !== saved.project.source.sha256 || seed.project.teachingRevision !== saved.project.teachingRevision ||
       seed.ir.pages.length !== saved.project.pages.length || seed.mapping.pages.length !== saved.project.pages.length)
     throw new Error('Speech animation source changed; read the current saved course');
-  const authoring = coursewareAuthoringUrl();
   if (!authoring) throw new Error('Installed native animation compiler is unavailable');
   const { syncSpeechAnimations } = await import(/* @vite-ignore */ authoring) as typeof import('@pi-desktop/courseware-runtime/authoring');
   const pages = saved.project.pages.map((page, index) => ({ actions: page.actions, objects: seed.ir.pages[index].elements.map(element => ({

@@ -1,0 +1,7 @@
+{
+  "pageNumber": 3,
+  "status": "unfinished",
+  "evidence": "PPTX slide3 background rId3 -> ppt/media/image16.png contains the two lower connecting arrows; all eight foreground pictures lack those arrows.",
+  "impact": "Existing target-based fade-in cannot animate those background pixels independently. Final review ready does not establish full effect coverage.",
+  "action": "Keep saved narration and media. Separate decomposition/region-effect work is needed; do not invent target IDs or weaken review."
+}

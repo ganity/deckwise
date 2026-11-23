@@ -9,17 +9,17 @@ import * as runtime from "../../../packages/courseware-runtime/dist/node.mjs";
 import * as shared from "../../../packages/shared/dist/index.js";
 const require = createRequire(import.meta.url), exports = {}, materials = {}, activities = {}, recovery = {};
 new Function("require", "exports", ts.transpileModule(readFileSync(new URL("../electron/main/courseware-native-audio-recovery.ts", import.meta.url), "utf8"), {
-  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true },
 }).outputText)(require, recovery);
 new Function("require", "exports", ts.transpileModule(readFileSync(new URL("../electron/main/courseware-native-activities.ts", import.meta.url), "utf8"), {
-  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true },
 }).outputText)(id => id === "@pi-desktop/shared" ? shared : id === "@pi-desktop/courseware-runtime/node" ? runtime :
   id.startsWith("file:") ? authoring : id === "./courseware-runtime" ? { coursewareAuthoringUrl: () => new URL("../../../packages/courseware-runtime/dist/authoring.mjs", import.meta.url).href } : require(id), activities);
 new Function("require", "exports", ts.transpileModule(readFileSync(new URL("../electron/main/courseware-native-materials.ts", import.meta.url), "utf8"), {
-  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true },
 }).outputText)(id => id === "@pi-desktop/shared" ? shared : require(id), materials);
 new Function("require", "exports", ts.transpileModule(readFileSync(new URL("../electron/main/courseware-native-tools.ts", import.meta.url), "utf8"), {
-  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true },
 }).outputText)(id => id === "./ppt-editor-handshake" ? handshake : id === "@pi-desktop/courseware-runtime/node" ? runtime : id === "@pi-desktop/shared" ? shared : id === "./courseware-native-materials" ? materials : id === "./courseware-native-activities" ? activities : id === "./courseware-native-audio-recovery" ? recovery : require(id), exports);
 const { CoursewareNativeTools } = exports;
 test("full-deck recovery defers implicit saves until all original orders are adopted", async () => {
@@ -150,6 +150,8 @@ test("full-deck recovery exposes ambiguous orders and respects explicit model/vo
   const input = { kind: "tts", sourceSha256: f.project.source.sha256, recover: true, pageNumbers: [1] };
   const ambiguous = (await tools.execute("chat", "courseware_media_refresh", input, () => true)).value;
   assert.equal(adopted, 0); assert.match(ambiguous.failures[0].error, /Multiple matching/);
+  assert.deepEqual(ambiguous.failures[0].candidates, ["one", "two"]);
+  assert.equal(ambiguous.pages[0].state, "ambiguous_receipt");
   const selected = (await tools.execute("chat", "courseware_media_refresh", { ...input, model: "voice", voice: "two" }, () => true)).value;
   assert.equal(adopted, 1); assert.equal(selected.pages[0].intentId, "two");
 });
@@ -263,6 +265,32 @@ test("Chat narration and speech use the native router for the requested page", a
   assert.equal(adopted.value.audioReady, true);
   f.cancel(); await assert.rejects(f.tools.execute("chat", "courseware_narration_context", {}, f.active), /owner/);
 });
+test("a speech alias or mispaged receipt resolves only a unique original across the current document", async () => {
+  const f = setup(), calls = [];
+  const route = async (_op, _args, n = 1) => ({ value: { project: f.project, viewId: "native." + n, pageNumber: n, pageId: "page" + n } });
+  const receipt = { actionId: "speech2", pageId: "page2", intentId: "order" };
+  const audio = { async execute(op, args, page) {
+    calls.push([op, args.intentId, page]);
+    if (op === "tts:lookup") return args.intentId === "multiple" ? [receipt, { ...receipt, intentId: "another" }] : [receipt];
+    assert.equal(op, "tts:status");
+    if (page !== 2 || args.intentId !== "order") throw Object.assign(Error("wrong page"), { code: "COURSEWARE_TTS_RECEIPT_NOT_FOUND" });
+    return { phase: "submitted", task: { state: "running" } };
+  } };
+  const tools = new CoursewareNativeTools({ native: route }, {}, audio, route, () => "chat");
+  const refresh = async intentId => (await tools.execute("chat", "courseware_media_refresh", {
+    kind: "tts", sourceSha256: f.project.source.sha256, pageNumber: 1, intentId }, () => true)).value;
+  for (const id of ["speech2", "order"]) {
+    const result = await refresh(id);
+    assert.equal(result.pages[0].job.pageNumber, 2);
+    assert.equal(result.pages[0].job.intentId, "order");
+    assert.equal(result.pages[0].state, "running");
+  }
+  const result = await refresh("multiple");
+  assert.equal(result.pages[0].state, "ambiguous_receipt");
+  assert.deepEqual(result.failures[0].candidates.map(c => c.intentId), ["order", "another"]);
+  assert.equal(calls.length, 8);
+});
+
 test("native tools reject foreign sources, pages and malformed speech batches", async () => {
   const f = setup();
   for (const input of [{ kind: "tts", pageNumber: 3, sourceSha256: f.project.source.sha256 },
@@ -330,6 +358,7 @@ test("native assessment context, question speech and recovery use document comma
   const tools = new CoursewareNativeTools({ native: () => route("open", {}, 1) }, {}, audio, route, () => "chat");
   const context = async () => (await tools.execute("chat", "courseware_media_assessments", { mode: "context" }, () => true)).value;
   let current = await context(); assert.equal(current.ready, false); assert.equal(current.targets.length, 1);
+  assert.deepEqual(current.configurableQuizSceneIds, []);
   const request = () => ({ kind: "tts", projectId: current.projectId, expectedRevision: f.project.teachingRevision, expectedSourceRevision: f.project.source.revision,
     sceneId: "page2", actionId: current.targets[0].actionId, model: "voice" });
   await tools.execute("chat", "courseware_media_assessments", { mode: "prepare", ...request() }, () => true);
@@ -384,7 +413,7 @@ test("native media context exposes configured models and reports pending attenti
 
 test('native Chat assessment images reuse the classroom target enumeration and generation service', async () => {
   const serviceExports = {};
-  new Function('require', 'exports', ts.transpileModule(readFileSync(new URL('../electron/main/courseware-assessment-media.ts', import.meta.url), 'utf8'), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText)(id => id === '@pi-desktop/courseware-runtime/node' ? runtime : require(id), serviceExports);
+  new Function('require', 'exports', ts.transpileModule(readFileSync(new URL('../electron/main/courseware-assessment-media.ts', import.meta.url), 'utf8'), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true } }).outputText)(id => id === '@pi-desktop/courseware-runtime/node' ? runtime : require(id), serviceExports);
   const view = { nativeTeaching: true, projectId: 'native', revision: 'rev', sourceRevision: 'rev', classroom: { id: 'native', createdAt: new Date(0).toISOString(), stage: { id: 'native', name: 'Quiz', createdAt: 0, updatedAt: 0 }, scenes: [{ id: 'page1', stageId: 'native', title: 'Quiz', order: 0, type: 'quiz', content: { type: 'quiz', questions: [{ id: 'q', type: 'single', question: 'Choose', options: [{ value: 'A', label: 'One' }, { value: 'B', label: 'Two' }], answer: ['A'] }] }, actions: [{ id: 'speech', type: 'speech', text: 'Choose\nA. One\nB. Two', audioId: 'tts-adopted' }], metadata: { assessmentSpeechIds: { page1: 'speech' } } }] } };
   let quotes = 0, submits = 0;
   const classroom = { open: async () => structuredClone(view), write: async args => { view.classroom = args.classroom; return structuredClone(view); } };
@@ -431,9 +460,14 @@ test("final scripts preview, adopt, retain media, survive reorder and cannot be 
   };
   const tools = new CoursewareNativeTools({ native: (op, args, n = 1) => route(op, args, n) },
     { proposeNativeNarrationBatch() { assert.fail("Preserved script must not call a generator"); } }, {}, route, () => "chat",
-    undefined, undefined, undefined, async () => { saves++; });
+    undefined, undefined, undefined, async () => { saves++; }, undefined, { verifyInline: async (_id, text) => args.script.text === text, list: async () => ({sources: []}) });
   const args = { sourceSha256: f.project.source.sha256, apply: false,
     script: { text: "P1：Hello class. 1.25 kg.\nWatch the video!\nP2: Goodbye.", policy: "preserve" } };
+  for (const apply of [false, true]) {
+    await assert.rejects(tools.execute("chat", "courseware_narration_import", { ...args, apply,
+      script: { ...args.script, text: "New agent-generated page narration." } }, () => true), /must quote text supplied by the user/);
+  }
+  assert.equal(enrichment, undefined); assert.equal(writes, 0);
   const preview = (await tools.execute("chat", "courseware_narration_import", args, () => true)).value;
   assert.equal(preview.preview, true); assert.equal(preview.coverage.ready, true); assert.equal(writes, 0);
   assert.deepEqual(preview.enrichment.script.segments.map(s => s.text), ["Hello class. 1.25 kg.", "Watch the video!", "Goodbye."]);
@@ -459,7 +493,7 @@ test("final scripts preview, adopt, retain media, survive reorder and cannot be 
 test("unmatched script, absent pages, unknown editors and false plan evidence stay explicit", async () => {
   const f = setup();
   await assert.rejects(f.tools.execute("chat", "courseware_narration_import", { sourceSha256: f.project.source.sha256,
-    apply: true, script: { text: "Hello", policy: "preserve" } }, () => true), /editor/);
+    apply: true, script: { text: "Hello", policy: "preserve" } }, () => true), /Inline script/);
   const view = { project: f.project, enrichmentCapabilities: { version: 1 } };
   const preview = await materials.adoptNativeMaterials({ view, teaching: {}, check() {}, materials: { apply: false,
     script: { text: "Hello, class!\nP2: Bye.", policy: "preserve" } } });
@@ -468,7 +502,14 @@ test("unmatched script, absent pages, unknown editors and false plan evidence st
   await assert.rejects(materials.adoptNativeMaterials({ view, teaching: {}, check() {}, materials: { apply: false,
     script: { text: "P1: One\nP2: Two", policy: "preserve", assignments: [{ segmentId: "segment-1", pageId: "page2" }] } } }), /contradicts/);
   await assert.rejects(materials.adoptNativeMaterials({ view, teaching: {}, check() {}, materials: { apply: false,
-    lessonPlan: { text: "Real plan", units: [{ id: "u", title: "Review", evidence: "Invented", pageIds: [], kind: "teaching" }] } } }), /exact source/);
+    lessonPlan: { text: "Real plan", units: [{ id: "u", title: "Review", evidence: "Invented", pageIds: [], kind: "teaching" }] } } }), /lessonPlan\.units\[0\]\.evidence.*exact source/);
+  const before = structuredClone(f.project);
+  const apply = source => materials.adoptNativeMaterials({ view, teaching: {}, check() {}, materials: { apply: true, ...source } });
+  await assert.rejects(apply({ script: { text: "P1: One\nP2: Two", policy: "preserve", assignments: [
+    { segmentId: "segment-1", pageId: "page1" }, { segmentId: "segment-1", pageId: "page2" }] } }), /assignments\[1\]\.segmentId.*duplicate.*segment-1/);
+  const unit = { id: "u", title: "Review", evidence: "Real", pageIds: ["page1"], kind: "teaching" };
+  await assert.rejects(apply({ lessonPlan: { text: "Real plan", units: [unit, { ...unit, id: "v", pageIds: ["gone"] }] } }), /units\[1\]\.pageIds.*gone/);
+  assert.deepEqual(f.project, before);
 });
 
 test("partial source adoption saves acknowledged pages and resumes without replacing their audio", async () => {
@@ -481,7 +522,7 @@ test("partial source adoption saves acknowledged pages and resumes without repla
     const view = structuredClone({ viewId: "native.page" + n, pageId: "page" + n, pageNumber: n, project: f.project, enrichment, enrichmentCapabilities: { version: 1 } });
     return { value: op === "narration-context" ? { view, text: "", evidence: {}, editor: { editGeneration: 1 } } : view };
   };
-  const tools = new CoursewareNativeTools({ native: (op, args, n = 1) => route(op, args, n) }, {}, {}, route, () => "chat", undefined, undefined, undefined, async () => { saves++; });
+  const tools = new CoursewareNativeTools({ native: (op, args, n = 1) => route(op, args, n) }, {}, {}, route, () => "chat", undefined, undefined, undefined, async () => { saves++; }, undefined, { verifyInline: async (_id, text) => args.script.text === text, list: async () => ({sources: []}) });
   const args = { sourceSha256: f.project.source.sha256, apply: true, script: { text: "P1: One\nP2: Two", policy: "preserve" } };
   const first = (await tools.execute("chat", "courseware_narration_import", args, () => true)).value;
   assert.equal(first.saved, false); assert.equal(first.pages.length, 1); assert.equal(first.failures.length, 1); assert.equal(saves, 1);
@@ -544,7 +585,7 @@ for (const taskType of ["plain", "import", "scene"]) test(`${taskType}: new Quiz
     }
     return { value: view };
   } };
-  const args = { apply: false, unitId: "review", afterPageId: "page1", question: "Which shape is round?", referenceEvidence: "A circle is round.",
+  const args = { apply: false, unitId: "review", afterPageId: "page1", question: "Which shape is round?",
     response: { kind: "single", options: ["circle", "square"], answerIndices: [0] } };
   const preview = await activities.insertNativeActivity({ view, args, teaching, check() {} });
   assert.equal(preview.preview, true); assert(!calls.includes("assessment-insert"));
@@ -567,6 +608,32 @@ test("a new oral checkpoint validates and projects its native canvas", async () 
   assert.equal(result.preview, true);
   assert.equal(result.response.kind, "short_answer");
   assert.equal(result.referenceAnswer.summary, "a ball");
+});
+
+test("a short-answer Quiz preserves its reference answer through native insertion", async () => {
+  const f = setup();
+  const view = { viewId: "native.page1", project: f.project, enrichmentCapabilities: { version: 1 }, enrichment: {
+    schemaVersion: "deckwise-teaching-enrichment/1", originalPages: f.project.pages.map((p, i) => ({ pageId: p.pageId, pageNumber: i + 1 })),
+    plan: { sha256: "c".repeat(64), units: [{ id: "talk", title: "Round objects", evidence: "A ball is round.", kind: "quiz", pageIds: [] }] } } };
+  let inserted;
+  const teaching = { async native(op, args) {
+    if (op === "narration-context") return { value: { view, editor: { editGeneration: 1 }, text: "A ball is round.", evidence: { width: 254, height: 142.875 } } };
+    if (op === "assessment-insert") inserted = args;
+    return { value: view };
+  } };
+  const args = { unitId: "talk", afterPageId: "page1", question: "Name a round object.",
+    referenceAnswer: { summary: "a ball", keyPoints: ["a ball"] }, response: { kind: "short_answer", options: [], answerIndices: [] } };
+  assert.equal((await activities.insertNativeActivity({ view, args: { ...args, apply: false }, check() {}, teaching })).preview, true);
+  assert.equal(inserted, undefined);
+  assert.equal((await activities.insertNativeActivity({ view, args: { ...args, apply: true }, check() {}, teaching })).applied, true);
+  assert.equal(inserted.quiz.questions[0].type, "short_answer");
+  assert.equal(inserted.actions[1].chapterTitle, args.question);
+  assert.equal(inserted.projection.elements.find(e => e.id.endsWith("_title")).content, `Quiz · ${args.question}`);
+  assert.deepEqual(inserted.quiz.questions[0].answer, ["a ball"]);
+  assert.equal(inserted.quiz.questions[0].referenceAnswer, "a ball");
+  assert.deepEqual(inserted.quiz.questions[0].keyPoints, ["a ball"]);
+  assert.equal(inserted.quiz.questions[0].analysis, "a ball");
+  assert.equal(inserted.expectedTeachingRevision, f.project.teachingRevision);
 });
 
 
@@ -664,7 +731,8 @@ test("semantic review accepts a supported paraphrase without forcing invented ve
     review: async data => { reviewed = data; } };
   const result = await activities.insertNativeActivity(input);
   assert.equal(result.preview, true); assert.equal(reviewed.response.options[0], 'The round circle');
-  assert.equal(reviewed.activityTitle, 'Shape');
+  assert.equal(reviewed.activityTitle, 'Which has no corners?');
+  assert.equal(reviewed.referenceAnswer.summary, 'The round circle');
   assert.deepEqual(reviewed.activityPage, { independent: true, visibleText: ['Which has no corners?', 'The round circle', 'The square'] });
   await assert.rejects(activities.insertNativeActivity({ ...input, review: async () => { throw Error('Question lacks a required condition'); } }), /required condition/);
 });
@@ -797,4 +865,110 @@ test('inserting after a Quiz reviews the mapped source page rather than the inse
   });
   assert.equal(result.preview, true);
   assert.deepEqual(reviewed.savedNarration, ['Native page 1']);
+});
+
+test('native context reports per-page effect targets and measured speech duration without discarding saved audio', async () => {
+  const f = setup();
+  f.project.pages[0].actions = [{ id: 's1', type: 'speech', text: 'First explanation', audioAssetId: 'saved-audio', durationMs: 46000,
+    visualCues: [{ id: 'h', atMs: 0, endMs: 1000, effect: { type: 'highlight', elementIds: ['circle'] } }] }];
+  const teaching = { pageType: 'slide', phase: 'explore', objective: 'Explain', durationSeconds: 45, requiredObjects: [] };
+  const route = async (_op, _args, n = 1) => ({ value: { viewId: 'v', pageId: 'page' + n, pageNumber: n, project: f.project,
+    teachingRequirements: [{ pageId: 'page1', teaching }] } });
+  const tools = new CoursewareNativeTools({ native: route }, {}, { execute: async () => [] }, route, () => 'chat');
+  const status = (await tools.execute('chat', 'courseware_media_context', {}, () => true)).value;
+  assert.deepEqual(status.pages[0].effects.highlight, ['circle']);
+  assert.deepEqual(status.pages[1].effects.highlight, []);
+  assert.equal(status.pages[0].narrationTiming.durationMs, 46000);
+  assert.equal(status.pages[0].narrationTiming.budgetSeconds, 45);
+  assert.equal(status.pages[0].narrationTiming.overBudget, true);
+  assert.equal(status.pages[1].narrationTiming.durationMs, null, 'Unknown decoded duration must not be reported as zero');
+  assert(!status.completion.warnings.some(w => w.code === 'NARRATION_DURATION_EXCEEDED'), 'classroom estimates alone must not trigger rewrites');
+  assert.equal(f.project.pages[0].actions[0].audioAssetId, 'saved-audio');
+});
+
+test('ordinary media status is model-free; explicit content review blocks unsupported completion', async () => {
+  const f = setup(); let reviews = 0;
+  const review = async () => { reviews++; return { ready: false, applied: false, sourceSha256: f.project.source.sha256,
+    teachingRevision: f.project.teachingRevision, issues: [{ code: 'CONTENT_REVIEW_FAILED', pageNumber: 1, pageId: 'page1', message: 'Incorrect answer analysis', repair: 'source', repairable: false }] }; };
+  const route = async () => ({ value: { viewId: 'v', pageId: 'page1', pageNumber: 1, project: f.project } });
+  const tools = new CoursewareNativeTools({ native: route }, {}, { execute: async () => [] }, route, () => 'chat',
+    undefined, undefined, undefined, undefined, undefined, undefined, undefined, review);
+  const status = (await tools.execute('chat', 'courseware_media_context', {}, () => true)).value;
+  assert.equal(status.contentReviewAvailable, true); assert.equal(reviews, 0);
+  const checked = (await tools.execute('chat', 'courseware_media_context', { reviewContent: true }, () => true)).value;
+  assert.equal(reviews, 1); assert.equal(checked.contentReview.ready, false);
+  assert.equal(checked.completion.ready, false); assert.equal(checked.teachingReady, false);
+  assert(checked.completion.issues.some(issue => issue.code === 'CONTENT_REVIEW_FAILED'));
+});
+
+test('a failed requested effect repair remains unfinished after a broad final review passes', async () => {
+  const f = setup(); let repaired = false;
+  for (const p of f.project.pages) p.actions[0].audioAssetId = 'original-' + p.pageId;
+  const original = structuredClone(f.project.pages);
+  const route = async (_op, _args, n = 1) => ({ value: structuredClone({ viewId: 'v', pageId: 'page' + n, pageNumber: n, project: f.project }) });
+  const candidates = { async proposeNativeNarrationBatch(_id, numbers) { return repaired
+    ? { applied: true, savedPages: numbers.map(pageNumber => ({ pageNumber, pageId: 'page' + pageNumber })), failures: [] }
+    : { applied: false, savedPages: [], failures: [{ pageNumber: 1, code: 'COURSEWARE_NARRATION_EVIDENCE_UNCERTAIN', retriable: false, error: 'Narration semantic review: connecting arrows have no verified layer' }] }; } };
+  const tools = new CoursewareNativeTools({ native: route }, candidates, { execute: async () => [] }, route, () => 'chat',
+    undefined, undefined, undefined, async () => {}, undefined, undefined, undefined,
+    async () => ({ ready: true, applied: false, issues: [], sourceSha256: f.project.source.sha256, teachingRevision: f.project.teachingRevision }));
+  const repair = () => tools.execute('chat', 'courseware_narration_propose', { pageNumbers: [1], sourceSha256: f.project.source.sha256, instruction: 'Repair required whole-diagram focus', repairRequiredTeaching: true }, () => true);
+  await repair();
+  f.project.source.sha256 = 'b'.repeat(64); // A peer save does not repair this page.
+  const result = (await tools.execute('chat', 'courseware_media_context', { reviewContent: true }, () => true)).value;
+  assert.equal(result.completion.ready, false);
+  assert(result.completion.issues.some(i => i.code === 'NARRATION_REPAIR_UNRESOLVED' && i.pageId === 'page1' && i.repair === 'narration'));
+  assert.deepEqual(f.project.pages, original);
+  repaired = true; await repair();
+  const ready = (await tools.execute('chat', 'courseware_media_context', { reviewContent: true }, () => true)).value;
+  assert.equal(ready.completion.ready, true);
+});
+
+for (const taskType of ['plain', 'scene', 'import']) test(`${taskType}: durable required repairs survive recreation, reorder and failed saves`, async () => {
+  const f = setup(); f.project.taskType = taskType;
+  for (const page of f.project.pages) page.actions[0].audioAssetId = 'original-' + page.pageId;
+  const original = structuredClone(f.project.pages);
+  let persisted = { revision: 0, failures: {} }, failWrite = false, failSave = false, failClear = false, succeeds = false, calls = 0;
+  const store = {
+    async read() { return structuredClone(persisted); },
+    async write(_session, _project, previous, failures) {
+      if (failWrite || failClear && !failures.page1) throw Error('storage unavailable');
+      assert.equal(previous.revision, persisted.revision);
+      persisted = { ...persisted, revision: persisted.revision + 1, failures: structuredClone(failures) };
+      return structuredClone(persisted);
+    },
+  };
+  const route = async (_op, _args, n = 1) => ({ value: structuredClone({ viewId: 'v', pageId: f.project.pages[n-1].pageId, pageNumber: n, project: f.project }) });
+  const candidates = { async proposeNativeNarrationBatch(_session, numbers) {
+    calls++;
+    if (!succeeds) throw Error('interrupted before repair receipt');
+    persisted = { ...persisted, revision: persisted.revision + 1, narration: { turnId: 'turn', pages: { ['a'.repeat(64)]: { attempts: 1 } } } };
+    return { applied: true, savedPages: numbers.map(pageNumber => ({ pageNumber })), failures: [] };
+  } };
+  const create = () => new CoursewareNativeTools({ native: route }, candidates, { execute: async () => [] }, route, () => 'chat',
+    undefined, undefined, undefined, async () => { if (failSave) throw Error('save uncertain'); }, undefined, undefined, undefined,
+    async () => ({ ready: true, applied: false, issues: [], sourceSha256: f.project.source.sha256, teachingRevision: f.project.teachingRevision }), store);
+  let tools = create();
+  const repair = (pageNumber = 1, extra = {}) => tools.execute('chat', 'courseware_narration_propose', { pageNumbers: [pageNumber], sourceSha256: f.project.source.sha256, instruction: 'Repair required effect', repairRequiredTeaching: true, ...extra }, () => true);
+  const status = async () => (await tools.execute('chat', 'courseware_media_context', { reviewContent: true }, () => true)).value;
+  failWrite = true;
+  await assert.rejects(repair(), /storage unavailable/); assert.equal(calls, 0, 'No model work before durable pending state');
+  failWrite = false;
+  await assert.rejects(repair(), /interrupted/);
+  tools = create(); assert.equal((await status()).completion.ready, false);
+  f.project.source.sha256 = 'b'.repeat(64); f.project.pages.reverse();
+  let result = await status(); assert(result.completion.issues.some(i => i.code === 'NARRATION_REPAIR_UNRESOLVED' && i.pageId === 'page1' && i.pageNumber === 2));
+  succeeds = true;
+  await repair(1); assert.equal((await status()).completion.ready, false, 'Peer repair cannot clear failure');
+  await repair(2, { repairObjectsOnly: true }); assert.equal((await status()).completion.ready, false, 'Alias-only repair cannot clear semantic failure');
+  failSave = true; await assert.rejects(repair(2), /save uncertain/);
+  tools = create(); assert.equal((await status()).completion.ready, false);
+  failSave = false; failClear = true; await assert.rejects(repair(2), /storage unavailable/);
+  tools = create(); assert.equal((await status()).completion.ready, false);
+  const removed = f.project.pages.pop(); assert.equal((await status()).completion.ready, true, 'Removed page cannot block current pages');
+  f.project.pages.push(removed); assert.equal((await status()).completion.ready, false, 'Undo restores the unresolved requirement');
+  failClear = false; await repair(2);
+  tools = create(); assert.equal((await status()).completion.ready, true);
+  assert.equal(persisted.narration.pages['a'.repeat(64)].attempts, 1, 'Clearing required failure preserves retry reservations');
+  assert.deepEqual([...f.project.pages].reverse(), original, 'Preserve speech and original audio throughout');
 });

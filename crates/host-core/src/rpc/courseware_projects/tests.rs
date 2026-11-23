@@ -1,5 +1,24 @@
 use super::*;
 
+#[test]
+fn saved_narration_closes_visual_source_stage() {
+    let fixture: Value = serde_json::from_str(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../packages/shared/src/courseware-contract.fixtures/accepted.json"
+    )))
+    .unwrap();
+    let mut project: crate::db::courseware_projects::CoursewareProject =
+        serde_json::from_value(fixture["project"].clone()).unwrap();
+    for page in &mut project.pages {
+        page.actions.clear();
+    }
+    assert!(!has_saved_narration(&project));
+    project.pages[0]
+        .actions
+        .push(serde_json::json!({"id":"speech-1","type":"speech","text":"Explain this page."}));
+    assert!(has_saved_narration(&project));
+}
+
 #[tokio::test]
 async fn rpc_follows_persisted_session_and_rejects_stale_or_forged_requests() {
     let dir = tempfile::tempdir().unwrap();

@@ -1,5 +1,7 @@
 # 讲解直接保存
 
+审核新生成的讲解时，模型可给出某个讲解段落的完整替换文本。所有意见都能明确落到对应段落时，程序只替换这些段落的文字，再校验并复核整页后保存。用户要求保留的讲稿和只需补效果的已有语音保留原文。
+
 > **原文镜像说明：** 本页保留完整英文规范，尚未提供全文中文译文。协议字段、约束和验收条件以 [英文源规格](/spec/03-runtime/24-courseware-narration-candidates) 为准。
 
 
@@ -421,3 +423,7 @@ Narration is selected initially. Inputs remain mounted across tab changes, while
 only selected-tab content is visible. Source-edit review forms and recovery records
 are in Review; detailed usage copy is collapsed. Keyboard arrows, Home and End
 navigate the tabs. This human UI is not an Agent execution dependency.
+
+## 单页讲解修复
+
+画面定稿后，视觉回复格式错误时，工具指出具体字段。纠正后仍有格式错误的检查意见时，可使用已经单独校验的对象，并排除未经核实的备注。对象批次整体无效时，仅可采用当前页可见原生文本框中的文字。效果目标和时序仍需与已保存的讲解核对。预览或采用内联讲稿、教案前，工具核对当前会话中的用户原文。附件继续使用原始材料 ID。单页生成讲解使用讲解工具。

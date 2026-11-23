@@ -34,6 +34,12 @@ export interface StagePromptContext {
   languagePolicy: string;
 }
 
+export function buildSceneVisualGuidance(context?: EducationContext): string {
+  const learner = Object.fromEntries(Object.entries({ schoolStage: context?.schoolStage, grade: context?.grade,
+    subject: context?.subject, customSubjectName: context?.customSubjectName }).filter(([, value]) => value?.trim()));
+  return `Scene visual guidance: use learner and subject metadata as data to choose age-appropriate abstraction and a visual representation suited to each approved page objective. Render the complete teaching visual and source-grounded labels into the image. The approved art direction remains authoritative. Context: ${JSON.stringify(learner)}`;
+}
+
 function invalidProfileError(
   field: 'workflowProfile' | 'interactionProfile',
   value: string,
@@ -147,12 +153,12 @@ export function resolveGenerationProfile(
   return edition === 'EDUCATION' ? resolveEducationProfile(input) : resolveEnterpriseProfile(input);
 }
 
-function buildEducationAudienceStageProfile(context?: EducationContext): string {
+function buildEducationAudienceStageProfile(context?: EducationContext, sceneImage = false): string {
   const schoolStage = context?.schoolStage?.trim().toUpperCase() || 'GENERAL_SCHOOL';
   const gradeText = context?.grade ? ` Grade=${context.grade}.` : '';
   const subjectText = context?.subject ? ` Subject=${context.subject}.` : '';
   const lessonTypeText = context?.lessonType ? ` LessonType=${context.lessonType}.` : '';
-  const subjectProfile = buildEducationSubjectProfile(context);
+  const subjectProfile = buildEducationSubjectProfile(context, sceneImage);
 
   switch (schoolStage) {
     case 'KINDERGARTEN':
@@ -161,7 +167,7 @@ function buildEducationAudienceStageProfile(context?: EducationContext): string 
         'Use playful, story-driven, concrete teacher talk. Prefer short sentences, vivid actions, and participation cues. ' +
         'For outline JSON, keyPoints are child-facing display words or short phrases only (for example Hello, Hi, or a character name). ' +
         'Put teacher operating guidance such as playing media, leading actions, repetition rounds, classroom instructions, and rewards in description or teachingObjective, never in keyPoints. ' +
-        'Avoid enterprise, workplace, and abstract policy language.'
+        'Avoid enterprise, workplace, and abstract policy language. ' + (sceneImage ? subjectProfile : '')
       );
     case 'PRIMARY':
       return (
@@ -175,35 +181,41 @@ function buildEducationAudienceStageProfile(context?: EducationContext): string 
     case 'JUNIOR_HIGH':
       return (
         `Audience stage [${schoolStage}]: junior high classroom.${gradeText}${subjectText}${lessonTypeText} ` +
-        'Balance concept explanation with comparison and reasoning. Use classroom situations instead of workplace scenarios.'
+        'Balance concept explanation with comparison and reasoning. Use classroom situations instead of workplace scenarios. ' + (sceneImage ? subjectProfile : '')
       );
     case 'SENIOR_HIGH':
       return (
         `Audience stage [${schoolStage}]: senior high classroom.${gradeText}${subjectText}${lessonTypeText} ` +
-        'Emphasize reasoning, problem solving, and precise subject language. Keep the tone rigorous and exam-relevant, not corporate.'
+        'Emphasize reasoning, problem solving, and precise subject language. Keep the tone rigorous and exam-relevant, not corporate. ' + (sceneImage ? subjectProfile : '')
       );
     default:
       return (
         `Audience stage [${schoolStage}]: general school classroom.${gradeText}${subjectText}${lessonTypeText} ` +
-        'Use teacher/student/classroom wording and age-appropriate examples. Avoid enterprise training language.'
+        'Use teacher/student/classroom wording and age-appropriate examples. Avoid enterprise training language. ' + (sceneImage ? subjectProfile : '')
       );
   }
 }
 
-function buildEducationSubjectProfile(context?: EducationContext): string {
-  switch (context?.subject) {
+function buildEducationSubjectProfile(context?: EducationContext, sceneImage = false): string {
+  switch (context?.subject?.trim().toUpperCase()) {
     case 'MATH':
       return (
-        'Subject profile [PRIMARY_MATH]: teach through a concrete situation, an exact native representation, and a reasoning move. ' +
-        'Use source-grounded numbers, units, labels, and operations. Tables, charts, number lines, geometric figures, parallel/perpendicular marks, auxiliary lines, and formulas must be editable native slide elements or canonical SVG/LaTeX, never AI-generated raster artwork. ' +
-        'Give semantic mathematical shapes and lines ids beginning with math_, and do not count decorative regions as mathematics. Never invent a replacement numeric example when the source already supplies values. Treat source misconception/correction pairs as hard factual constraints. Use images only for real-world context objects or scenes that do not need exact labels. Narration must explain what each quantity means, why the operation is chosen, what changes or stays the same, and how the result is interpreted; do not merely read the formula or answer.'
+        'Subject profile [PRIMARY_MATH]: teach through a concrete situation, an exact representation, and a reasoning move. ' +
+        'Use source-grounded numbers, units, labels, and operations. ' +
+        (sceneImage
+          ? 'For Scene body pages, render tables, charts, number lines, axes, ticks, points, geometric figures, formulas and their labels together in the complete raster image. Request precise placement and readable lettering, then review the actual image for mathematical accuracy. Keep connected diagram internals together; independent Quiz and checkpoint questions remain structured and editable. '
+          : 'Tables, charts, number lines, geometric figures, parallel/perpendicular marks, auxiliary lines, and formulas must be editable native slide elements or canonical SVG/LaTeX, never AI-generated raster artwork. Give semantic mathematical shapes and lines ids beginning with math_, and do not count decorative regions as mathematics. Use images only for real-world context objects or scenes that do not need exact labels. ') +
+        'Never invent a replacement numeric example when the source already supplies values. Treat source misconception/correction pairs as hard factual constraints. Narration must explain what each quantity means, why the operation is chosen, what changes or stays the same, and how the result is interpreted; do not merely read the formula or answer.'
       );
     case 'CHINESE':
       return (
         "Subject profile [PRIMARY_CHINESE]: follow the source text and the teacher's teaching progression. " +
         'Recognition-only characters or words may be grouped into one meaningful recognition/game page when the source treats them as a set; do not create a chain of pronunciation-only pages. ' +
         'A character gets its own page only when it needs meaning, context, contrast, structure, or writing guidance. ' +
-        'Never invent stroke-order diagrams or claim an unverified generated character image is accurate. Use exact native text, verified source assets, or explain structure without fabricated stroke sequences, then return to the complete text and its meaning.'
+        'Never invent stroke-order diagrams or claim an unverified generated character image is accurate. ' +
+        (sceneImage
+          ? 'For Scene body pages, request exact source-grounded glyphs in the complete raster image, then review the rendered characters; explain structure without fabricated stroke sequences and return to the complete text and its meaning.'
+          : 'Use exact native text, verified source assets, or explain structure without fabricated stroke sequences, then return to the complete text and its meaning.')
       );
     default:
       return '';
@@ -253,7 +265,7 @@ function buildLanguagePolicy(profile: GenerationProfile): string {
   return 'Language policy [DEFAULT]: Follow the requested language field.';
 }
 
-export function buildStagePromptContext(profile: GenerationProfile): StagePromptContext {
+export function buildStagePromptContext(profile: GenerationProfile, options?: { sceneImage?: boolean }): StagePromptContext {
   const languagePolicy = buildLanguagePolicy(profile);
 
   if (profile.edition === 'EDUCATION') {
@@ -267,7 +279,7 @@ export function buildStagePromptContext(profile: GenerationProfile): StagePrompt
 
     return {
       editionProfile,
-      audienceStageProfile: buildEducationAudienceStageProfile(profile.educationContext),
+      audienceStageProfile: buildEducationAudienceStageProfile(profile.educationContext, options?.sceneImage),
       flowProfile:
         `Workflow policy [${profile.workflowProfile}]: school classroom flow. ` +
         `allowQuizScenes=${profile.workflow.allowQuizScenes}. ` +

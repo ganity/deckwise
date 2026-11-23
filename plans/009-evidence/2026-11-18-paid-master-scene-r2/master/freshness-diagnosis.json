@@ -1,0 +1,83 @@
+{
+  "report": "/home/jhz/deckwise-validation/master-scene-paid-20261118-r2/master/workspace/.deckwise-ppt/projects/fractions-meaning-g3_ppt169_20261118/validation/svg_quality_report.json",
+  "export": "/home/jhz/deckwise-validation/master-scene-paid-20261118-r2/master/workspace/.deckwise-ppt/projects/fractions-meaning-g3_ppt169_20261118/exports/fractions-meaning-g3_20261118_145527.pptx",
+  "files": [
+    {
+      "path": "validation/svg_quality_report.json",
+      "mtimeNs": 1794984229155630853,
+      "empty": false,
+      "newerThanReport": false,
+      "newerThanExport": false
+    },
+    {
+      "path": "exports/fractions-meaning-g3_20261118_145527.pptx",
+      "mtimeNs": 1794984928002251357,
+      "empty": false,
+      "newerThanReport": true,
+      "newerThanExport": false
+    },
+    {
+      "path": "design_spec.md",
+      "mtimeNs": 1794983843702355131,
+      "empty": false,
+      "newerThanReport": false,
+      "newerThanExport": false
+    },
+    {
+      "path": "spec_lock.md",
+      "mtimeNs": 1794983851276222810,
+      "empty": false,
+      "newerThanReport": false,
+      "newerThanExport": false
+    },
+    {
+      "path": "notes/total.md",
+      "mtimeNs": 1794984222345749514,
+      "empty": false,
+      "newerThanReport": false,
+      "newerThanExport": false
+    },
+    {
+      "path": "presentation-plan.json",
+      "mtimeNs": 1794983806160011176,
+      "empty": false,
+      "newerThanReport": false,
+      "newerThanExport": false
+    },
+    {
+      "path": "animations.json",
+      "mtimeNs": 1794984913041011065,
+      "empty": false,
+      "newerThanReport": true,
+      "newerThanExport": false
+    },
+    {
+      "path": "svg_output/02.svg",
+      "mtimeNs": 1794984186242378671,
+      "empty": false,
+      "newerThanReport": false,
+      "newerThanExport": false
+    },
+    {
+      "path": "svg_output/04.svg",
+      "mtimeNs": 1794983806158011211,
+      "empty": false,
+      "newerThanReport": false,
+      "newerThanExport": false
+    },
+    {
+      "path": "svg_output/01.svg",
+      "mtimeNs": 1794984028360131510,
+      "empty": false,
+      "newerThanReport": false,
+      "newerThanExport": false
+    },
+    {
+      "path": "svg_output/03.svg",
+      "mtimeNs": 1794983806157011228,
+      "empty": false,
+      "newerThanReport": false,
+      "newerThanExport": false
+    }
+  ]
+}

@@ -120,14 +120,18 @@ export class CoursewareClassroomCoordinator {
   }
 
   async write(value: unknown): Promise<ClassroomView> {
-    const input = fields(value, ["sessionId", "projectId", "expectedRevision", "expectedSourceRevision", "classroom"]);
+    const input = fields(value, ["sessionId", "projectId", "expectedRevision", "expectedSourceRevision", "classroom"], ["refreshPageIds"]);
     const args = request(input), parsed = parseMaicClassroom(input.classroom);
     const captured = await this.capture(args.sessionId);
     const current = await this.current(captured, args, true);
-    if (JSON.stringify(current.classroom) === JSON.stringify(parsed)) return this.display(current, captured);
+    const refreshPageIds = input.refreshPageIds ?? [];
+    if (!Array.isArray(refreshPageIds) || refreshPageIds.length > 100 || new Set(refreshPageIds).size !== refreshPageIds.length ||
+        refreshPageIds.some(id => typeof id !== "string" || !parsed.scenes.some(scene => scene.id === id && scene.content.type === "quiz")))
+      throw new Error("Projection refresh requires current Quiz page IDs");
+    if (!refreshPageIds.length && JSON.stringify(current.classroom) === JSON.stringify(parsed)) return this.display(current, captured);
     const classroom = prepareMaicAssessmentSpeech(parsed);
     await captured.check();
-    const result = await this.persist(captured, args, classroom);
+    const result = await this.persist(captured, args, classroom, refreshPageIds);
     await captured.check();
     return this.display(this.validateView(result, args.projectId), captured);
   }
@@ -229,7 +233,7 @@ export class CoursewareClassroomCoordinator {
     return { fileName: `${title}.zip`, bytes: Array.from(bytes) };
   }
 
-  private async persist(captured: Awaited<ReturnType<CoursewareClassroomCoordinator["capture"]>>, args: Request, classroom: MaicClassroom) {
+  private async persist(captured: Awaited<ReturnType<CoursewareClassroomCoordinator["capture"]>>, args: Request, classroom: MaicClassroom, refreshPageIds: string[] = []) {
     const native = await this.input.native?.("assessment-context", {});
     if (native) {
       if ((native.value as ClassroomView).readOnly) throw new Error("Classroom document is read-only");
@@ -246,7 +250,7 @@ export class CoursewareClassroomCoordinator {
       embedded.mediaManifest = [];
       await captured.check();
       const previous = (native.value as ClassroomView).classroom;
-      const changedPageIds = embedded.scenes.filter((scene, index) => JSON.stringify(scene.content) !== JSON.stringify(previous?.scenes[index]?.content) || JSON.stringify(scene.actions) !== JSON.stringify(previous?.scenes[index]?.actions)).map(scene => scene.id);
+      const changedPageIds = embedded.scenes.filter((scene, index) => refreshPageIds.includes(scene.id) || scene.title !== previous?.scenes[index]?.title || JSON.stringify(scene.content) !== JSON.stringify(previous?.scenes[index]?.content) || JSON.stringify(scene.actions) !== JSON.stringify(previous?.scenes[index]?.actions)).map(scene => scene.id);
       const projections = [];
       const context = native.value as ClassroomView;
       for (const [index, scene] of embedded.scenes.entries()) {
@@ -257,13 +261,14 @@ export class CoursewareClassroomCoordinator {
         const { assessmentPptxScene, prepareAssessmentPage } = await import(/* @vite-ignore */ url) as typeof import("@pi-desktop/courseware-runtime/authoring");
         const canvas = context.canvas ?? { width: 1000, height: 562.5 }, source = "sha256:" + context.sourceSha256;
         const previousProjection = assessmentPptxScene(old, source, canvas);
-        if (JSON.stringify(previousProjection) === JSON.stringify(assessmentPptxScene(scene, source, canvas))) continue;
+        if (!refreshPageIds.includes(scene.id) && JSON.stringify(previousProjection) === JSON.stringify(assessmentPptxScene(scene, source, canvas))) continue;
         const { projected, assets } = await prepareAssessmentPage(scene, source, canvas, async src => imageBytes(src).bytes);
         projections.push({ page: index + 1, previous: previousProjection, next: projected, assets });
       }
       await this.current(captured, args, true);
       return (await this.input.native!("assessment-write", { ...args, classroom: embedded, changedPageIds, projections }))!.value as ClassroomView;
     }
+    if (refreshPageIds.length) throw new Error("Projection refresh requires a native Quiz document");
     return this.input.writeNative && args.projectId.startsWith("office-")
       ? this.input.writeNative({ ...args, classroom })
       : captured.host.call<ClassroomView>("courseware.classroom.write", { ...args, classroom });

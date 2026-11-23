@@ -1,0 +1,8 @@
+{
+  "isolatedAppStopped": true,
+  "ownedPreviewServerStopped": true,
+  "isolatedTokenCopiesRemoved": true,
+  "controlSocketRemoved": true,
+  "primaryLoginPreserved": true,
+  "authRotationHandledConditionally": true
+}

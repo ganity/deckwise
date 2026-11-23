@@ -1,5 +1,9 @@
 # 主 Chat 课件流程
 
+接收 PPT Master 导出时，画面错误会指出具体页。视觉审核暂时不可用时保留原文件待复核。教学数据不一致时提示页码和校验项，保留现有画面。如果接收成功的回执丢失，桌面端核对已保存的路径及文档标识，再由 Host 确认同一份文件后继续。
+
+自动恢复分别报告原始原因、受影响的页面和重试限制。Scene 原图或分层查询中断时，保留已知订单号和最后确认的状态。正文配音可以根据当前课件里的讲解编号或错页订单找回唯一原单，有多条时列出候选。练习读题遇到其他页面保存时，会核对项目、目标、朗读文本、模型和声音，再用原单继续。题目已变和文件只读会给出各自的提示。导入讲稿和教案会在写入前指出有问题的段落、单元或页面映射。
+
 > **原文镜像说明：** 本页保留完整英文规范，尚未提供全文中文译文。协议字段、约束和验收条件以 [英文源规格](/spec/03-runtime/29-courseware-chat-workflow) 为准。
 
 
@@ -46,8 +50,11 @@ inspection components. Existing publish gates remain authoritative.
 
 PPT Master SVG inspection remains mounted after adoption. Resolve its project
 from the saved source path before falling back to chat tool history. Open the
-first available SVG once during generation, allow manual reopening after export,
-and fence asynchronous preview responses when the session/project changes.
+native preview once the first valid SVG is saved during generation. Keep manual
+reopening after export and fence responses when the session or project changes.
+Resolve preview open, read, and save requests against the session that owns the
+editor tab. For model visual checks, render the specified saved SVG to PNG
+without navigating or capturing the browser view.
 Preview reads do not share the model-turn mutation lock or authorize export.
 
 Scene planning counts cover, opening, illustrated setup and review pages within
@@ -188,6 +195,14 @@ Returned template font sizes must be declared as named assessment typography in
 the design spec and lock; the official quality gate still checks every SVG.
 Long questions wrap within one editable text box. Identical preparation is safe
 to replay; changed/manual artifacts are conflicts and are never overwritten.
+Unambiguous misplaced teaching fields are normalized before validation. Conflicting
+values are rejected. Before creating plan artifacts, check explicit page counts
+against quotes from user messages, keeping upper bounds distinct from exact counts.
+Delivery reviews a standalone teacher-led oral checkpoint against its question,
+reference answer and previously taught material. Recording and automated grading
+are optional unless requested. A genuine missing clue needed to answer the question
+is reported against the assessment.
+
 Preparation does not touch exported/native content, call suppliers or authorize
 export. Once a source is attached, resume saved teaching instead of preparing it
 again. Adoption must match the saved plan; plan changes invalidate previous
@@ -363,7 +378,8 @@ admission, audit and cancellation. Only reading is low risk; the rest are high.
 | `courseware_workflow_get` | Read saved requirements, plan/approval, image requests, advertised models and exact asset blockers. |
 | `courseware_requirements_update` | Persist confirmed education settings with CAS before approval or attachment. |
 | `courseware_scene_image_prepare` | Prepare an image intent through the existing service, without payment/submission/adoption. |
-| `courseware_scene_image_refresh` | Query the original task and archive verified ready/settled bytes for human review. |
+| `courseware_scene_generate_remaining` | 使用已确认的方案和首图，继续生成已授权整课的剩余画面。 |
+| `courseware_scene_image_refresh` | 查询原任务，归档已通过校验的图像，供用户审阅。 |
 | `courseware_scene_compile` | Revalidate approved plan and selected assets, then use existing compilation/staging. |
 
 Session and turn are Host-bound, not model-controlled. Stop, turn replacement

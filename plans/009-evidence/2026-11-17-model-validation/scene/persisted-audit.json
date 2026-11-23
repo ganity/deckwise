@@ -1,0 +1,112 @@
+{
+  "route": "/home/jhz/deckwise-validation/three-path-model-validation-20261117/scene",
+  "pages": 4,
+  "sourceSha256": "1c47b4dd6369104d5c5ade16dc1ad84b8ce14e7053aa98c794eca81c3dcab5ad",
+  "audioAssets": {
+    "tts-6804bb486be5b8ed5e3870fcc0239e35a5b15fd972ac106a4558478d9ad727a9": {
+      "sha256": "6804bb486be5b8ed5e3870fcc0239e35a5b15fd972ac106a4558478d9ad727a9",
+      "durationSeconds": 10.032
+    },
+    "tts-ac84d54207a31334adefd2ced294ed130db78363a54794612232aa06068950ad": {
+      "sha256": "ac84d54207a31334adefd2ced294ed130db78363a54794612232aa06068950ad",
+      "durationSeconds": 4.44
+    },
+    "tts-e59ca2fcb464244887a9d8ad2ae9cbcbf46d0c8ae67bdab9e82f6a5905504f63": {
+      "sha256": "e59ca2fcb464244887a9d8ad2ae9cbcbf46d0c8ae67bdab9e82f6a5905504f63",
+      "durationSeconds": 2.832
+    },
+    "tts-33a60d96b8b2109058c6748da3b034b69578eb8391543a5c425435b74c6cc52b": {
+      "sha256": "33a60d96b8b2109058c6748da3b034b69578eb8391543a5c425435b74c6cc52b",
+      "durationSeconds": 5.064
+    },
+    "tts-bbaa9fb27391b19e30a1b3b0d85acb010963c28198a5a0d14cb2dcdc8ccb8b20": {
+      "sha256": "bbaa9fb27391b19e30a1b3b0d85acb010963c28198a5a0d14cb2dcdc8ccb8b20",
+      "durationSeconds": 1.872
+    },
+    "tts-7fc70573e89c02b0e57f8f295332a9a6d9e0b1a6109029ad46f58f5759f8cbed": {
+      "sha256": "7fc70573e89c02b0e57f8f295332a9a6d9e0b1a6109029ad46f58f5759f8cbed",
+      "durationSeconds": 3.24
+    },
+    "tts-26ffc149aa2d8c1cd4425b7becfc738ad3d21f7b5608597fb6f1f0b71138ab98": {
+      "sha256": "26ffc149aa2d8c1cd4425b7becfc738ad3d21f7b5608597fb6f1f0b71138ab98",
+      "durationSeconds": 2.664
+    },
+    "tts-f1fe129bea3788b750aa3e9142e53116870df21a0523e1e21538ad1a60387dd9": {
+      "sha256": "f1fe129bea3788b750aa3e9142e53116870df21a0523e1e21538ad1a60387dd9",
+      "durationSeconds": 4.032
+    },
+    "tts-5a083961b95535a0b54fd7d609303c2acc869ff4c51151d56f6e360289e70340": {
+      "sha256": "5a083961b95535a0b54fd7d609303c2acc869ff4c51151d56f6e360289e70340",
+      "durationSeconds": 2.832
+    },
+    "tts-65e1349f53d3fd995197a4eb2f421f6a81683fa13f476ac6f03f79ae759e9625": {
+      "sha256": "65e1349f53d3fd995197a4eb2f421f6a81683fa13f476ac6f03f79ae759e9625",
+      "durationSeconds": 5.064
+    },
+    "tts-2ba9986d447d2565b3d733552a7d05f999e54855d5dc69e50cb3c0a6ccb2d09a": {
+      "sha256": "2ba9986d447d2565b3d733552a7d05f999e54855d5dc69e50cb3c0a6ccb2d09a",
+      "durationSeconds": 3.048
+    },
+    "tts-9d50a53d288e0ae61284fc22a9ffb0b8a02ca586e4280b62ce07d329cf64f562": {
+      "sha256": "9d50a53d288e0ae61284fc22a9ffb0b8a02ca586e4280b62ce07d329cf64f562",
+      "durationSeconds": 2.832
+    },
+    "tts-e54f5cf80feac6e3af7e6106813212620d3d7c2a8b53b4838df9f07e8040fe31": {
+      "sha256": "e54f5cf80feac6e3af7e6106813212620d3d7c2a8b53b4838df9f07e8040fe31",
+      "durationSeconds": 3.648
+    },
+    "tts-9f224a69794e168fbc0f79eb2e48dace86321a136210411599f97865a7b37dfc": {
+      "sha256": "9f224a69794e168fbc0f79eb2e48dace86321a136210411599f97865a7b37dfc",
+      "durationSeconds": 3.24
+    },
+    "tts-6477b7313420c7141b0f68234ba1e2be5f88c8363a168fe437d83dfc68471638": {
+      "sha256": "6477b7313420c7141b0f68234ba1e2be5f88c8363a168fe437d83dfc68471638",
+      "durationSeconds": 3.048
+    },
+    "tts-9ad4dbdfbe6535f43c1b80f9903375293d966700bc7afe7bf681a8b0cd3ff0fa": {
+      "sha256": "9ad4dbdfbe6535f43c1b80f9903375293d966700bc7afe7bf681a8b0cd3ff0fa",
+      "durationSeconds": 2.256
+    }
+  },
+  "timing": [
+    {
+      "pageNumber": 1,
+      "speechCount": 8,
+      "audioCount": 8,
+      "speechSeconds": 27.6,
+      "effects": [
+        "element_animation",
+        "highlight",
+        "spotlight"
+      ]
+    },
+    {
+      "pageNumber": 2,
+      "speechCount": 1,
+      "audioCount": 1,
+      "speechSeconds": 10.032,
+      "effects": []
+    },
+    {
+      "pageNumber": 3,
+      "speechCount": 6,
+      "audioCount": 6,
+      "speechSeconds": 18.072,
+      "effects": [
+        "element_animation",
+        "highlight",
+        "spotlight"
+      ]
+    },
+    {
+      "pageNumber": 4,
+      "speechCount": 1,
+      "audioCount": 1,
+      "speechSeconds": 4.44,
+      "effects": []
+    }
+  ],
+  "allSavedSpeechAudioVerified": true,
+  "missingSpeechAudio": [],
+  "notAnAcceptanceVerdict": true
+}

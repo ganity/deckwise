@@ -1,0 +1,82 @@
+{
+  "status": "PASS",
+  "providerCalls": 0,
+  "nativeEditor": "not-run",
+  "checks": [
+    {
+      "name": "ppt-master-stage",
+      "exitCode": 0,
+      "durationMs": 826
+    },
+    {
+      "name": "python-dependencies",
+      "exitCode": 0,
+      "durationMs": 22
+    },
+    {
+      "name": "host-build",
+      "exitCode": 0,
+      "durationMs": 7641
+    },
+    {
+      "name": "main-host",
+      "exitCode": 0,
+      "durationMs": 24175,
+      "passed": 644,
+      "skipped": 0
+    },
+    {
+      "name": "shared",
+      "exitCode": 0,
+      "durationMs": 1721,
+      "passed": 44,
+      "skipped": 0
+    },
+    {
+      "name": "agent-runtime",
+      "exitCode": 0,
+      "durationMs": 14274,
+      "passed": 541,
+      "skipped": 0
+    },
+    {
+      "name": "host-contracts",
+      "exitCode": 0,
+      "durationMs": 352179,
+      "passed": 303,
+      "ignored": 2
+    }
+  ],
+  "metrics": [
+    {
+      "scenario": "music-originals",
+      "mockPosts": 2,
+      "recoveredOriginals": 2,
+      "archivedExports": 1
+    },
+    {
+      "scenario": "media-scope",
+      "mockPosts": 9,
+      "queuedExpiryPosts": 0,
+      "recoveredOriginals": 1
+    },
+    {
+      "scenario": "concurrency",
+      "peakConcurrency": {
+        "tts": 10,
+        "image": 5,
+        "image-layers": 5,
+        "music": 2,
+        "video": 2,
+        "music-export": 2
+      }
+    },
+    {
+      "modelRepairCalls": 1,
+      "originalVideoAdoptions": 1,
+      "preservedSpeeches": 2,
+      "terminalEvents": 1,
+      "providerCalls": 0
+    }
+  ]
+}

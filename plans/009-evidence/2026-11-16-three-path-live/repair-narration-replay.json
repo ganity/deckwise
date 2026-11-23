@@ -1,0 +1,48 @@
+[
+  {
+    "version": "HEAD",
+    "name": "observed-correct-concepts",
+    "accepted": false,
+    "code": "INVALID_OUTPUT",
+    "error": "Attention targets do not match this speech: melt, evaporate; speech=\"跟着橙色箭头往右读，这是吸热。冰变成水叫熔化，水变成水蒸气叫蒸发，熔化、蒸发都要吸热。\"; targets=[{\"objectId\":\"melt\",\"text\":\"熔化 → 吸热\"},{\"objectId\":\"evaporate\",\"text\":\"蒸发 → 吸热\"}]; split teaching moves or bind the verified object mentioned by its spoken alias; never put UUIDs in speech"
+  },
+  {
+    "version": "HEAD",
+    "name": "literal-label-positive-control",
+    "accepted": true
+  },
+  {
+    "version": "HEAD",
+    "name": "verified-own-label-aliases",
+    "accepted": true
+  },
+  {
+    "version": "HEAD",
+    "name": "wrong-target-negative-control",
+    "accepted": false,
+    "code": "INVALID_OUTPUT",
+    "error": "Attention targets do not match this speech: gas; speech=\"冰变成水叫熔化，这个过程需要吸热。\"; targets=[{\"objectId\":\"gas\",\"text\":\"水蒸气\"}]; split teaching moves or bind the verified object mentioned by its spoken alias; never put UUIDs in speech"
+  },
+  {
+    "version": "working",
+    "name": "observed-correct-concepts",
+    "accepted": true
+  },
+  {
+    "version": "working",
+    "name": "literal-label-positive-control",
+    "accepted": true
+  },
+  {
+    "version": "working",
+    "name": "verified-own-label-aliases",
+    "accepted": true
+  },
+  {
+    "version": "working",
+    "name": "wrong-target-negative-control",
+    "accepted": false,
+    "code": "INVALID_OUTPUT",
+    "error": "Attention targets do not match this speech: gas; speech=\"冰变成水叫熔化，这个过程需要吸热。\"; targets=[{\"objectId\":\"gas\",\"text\":\"水蒸气\"}]; split teaching moves or bind the verified object mentioned by its spoken alias; never put UUIDs in speech"
+  }
+]

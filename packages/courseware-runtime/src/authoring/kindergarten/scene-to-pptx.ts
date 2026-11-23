@@ -2,6 +2,7 @@ import PptxGen from '../../../vendor/pptxgenjs/index.cjs';
 import type pptxgen from '../../../vendor/pptxgenjs/index.cjs';
 import JSZip from 'jszip';
 import { SaxesParser } from 'saxes';
+import { createHash } from 'node:crypto';
 import sharp from 'sharp';
 import tinycolor from 'tinycolor2';
 import { z } from 'zod';
@@ -241,6 +242,8 @@ function appendScene(
               }
             : {}),
           data: image(element.assetId),
+          ...(element.layerMetadata ? { altText: JSON.stringify({ schema: 'deckwise-layer/1', ...element.layerMetadata,
+            sha256: createHash('sha256').update(images.get(element.assetId)!).digest('hex') }) } : {}),
           transparency: (1 - opacity) * 100,
         });
         break;

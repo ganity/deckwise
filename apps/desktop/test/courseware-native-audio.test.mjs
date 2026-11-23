@@ -64,6 +64,18 @@ test("automatic speech preparation reuses the exact durable order after restart 
   assert.notEqual(changed.intentId, first.intentId);
 });
 
+test("look up original receipts or current speech aliases using only the document journal", async () => {
+  const f = setup(), service = f.make();
+  const prepare = () => service.execute("tts:prepare", { ...f.args(), actionId: "speech", model: "voice-model", voice: null }, 1, f.view);
+  const first = await prepare(), second = await prepare();
+  const lookup = id => service.execute("tts:lookup", { ...f.args(), intentId: id }, 1, f.view);
+  assert.deepEqual((await lookup("speech")).map(c => c.intentId), [first.intentId, second.intentId]);
+  f.view.project.pages[0].actions[0].text = "Edited";
+  assert.deepEqual(await lookup("speech"), []);
+  assert.deepEqual(await lookup(first.intentId), [{ intentId: first.intentId, actionId: "speech", pageId: "page" }]);
+  assert.equal(f.submits(), 0);
+});
+
 test("lost submission replies keep the original order query-only through repeated automatic preparation", async () => {
   const f = setup(), service = f.make(); let submissions = 0;
   f.auth.coursewareMedia.submitConfirmedTts = async () => { submissions++; throw new Error("Reply lost"); };

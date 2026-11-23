@@ -39,7 +39,7 @@ const question = z.object({
   if (['single', 'judge'].includes(q.type) && (q.answer?.length ?? 0) > 1)
     ctx.addIssue({ code: 'custom', message: 'Single answer required' });
 });
-const maicActions = new Set(['spotlight', 'laser', 'play_video', 'play_audio', 'element_animation', 'speech',
+const maicActions = new Set(['spotlight', 'highlight', 'laser', 'play_video', 'play_audio', 'element_animation', 'speech',
   'wb_open', 'wb_draw_text', 'wb_draw_shape', 'wb_draw_chart', 'wb_draw_latex', 'wb_draw_table', 'wb_draw_line',
   'wb_clear', 'wb_delete', 'wb_close', 'discussion', 'interaction_checkpoint']);
 const number = z.number().finite();
@@ -47,6 +47,8 @@ const xy = { x: number, y: number };
 const box = { ...xy, width: number, height: number };
 const actionRequirements: Record<string, z.ZodType> = {
   spotlight: z.object({ elementId: id }), laser: z.object({ elementId: id }),
+  highlight: z.object({ elementIds: z.array(id).min(1), color: z.string().optional(),
+    style: z.enum(['outline', 'fill', 'glow']).optional(), opacity: number.min(0).max(1).optional() }),
   play_video: z.object({ elementId: id }), play_audio: z.object({ elementId: id }),
   element_animation: z.object({ elementId: id, effect: id, animationType: z.enum(['in', 'out', 'attention']), duration: number.nonnegative(), pptistTrigger: z.enum(['click', 'meantime', 'auto']) }),
   speech: z.object({ text: z.string() }),
@@ -79,7 +81,9 @@ const action = z.object({ id, type: id }).passthrough().superRefine((a, ctx) => 
     } else ctx.addIssue({ code: 'custom', message: 'Unsupported checkpoint kind' });
   }
 });
-export const maicQuizSchema = z.object({ type: z.literal('quiz'), questions: z.array(question), interactionMode: z.enum(['assessment_review', 'classroom_instant_feedback']).optional(),
+export const maicQuizSchema = z.object({ type: z.literal('quiz'), questions: z.array(question),
+  optionImagePolicy: z.object({ required: z.boolean(), reason: z.string().trim().min(1).max(1000) }).strict().optional(),
+  interactionMode: z.enum(['assessment_review', 'classroom_instant_feedback']).optional(),
     playbackConfig: z.object({ introSpeechMode: z.literal('page_enter_only'), attemptPolicy: z.literal('until_correct'), successSpeechText: z.string(),
       failureSpeechText: z.string(), cueUserOnEnter: z.boolean(), cueUserOnRetry: z.boolean() }).passthrough().optional() }).passthrough();
 const content = z.discriminatedUnion('type', [

@@ -1,0 +1,12 @@
+{
+  "sourceSha256": "efc96a64cfea07cbd186f2c77bd6408acfb8759fd38c4cdc3ebfeff05d9dfd0c",
+  "ready": true,
+  "issues": [],
+  "diagnostics": [
+    {
+      "code": "PPTX_NOTES_MASTER_UNVERIFIED",
+      "severity": "warning",
+      "message": "PPTX 包含备注母版，当前仅提取逐页备注，未验证母版版式与样式的保留情况，须人工核对"
+    }
+  ]
+}

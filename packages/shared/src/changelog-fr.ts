@@ -2,6 +2,11 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const frEntries: ChangelogEntry[] = [
   {
+    version: "0.20.6",
+    date: "2026-11-23",
+    highlights: ["Les animations des diapositives suivent la narration. En cas de chevauchement avec un surlignage, le projecteur est prioritaire."],
+  },
+  {
     version: "0.20.5",
     date: "2026-11-16",
     highlights: ["Rétablit le texte dans les images de scènes et préserve les cours approuvés et les ressources lors des nouvelles tentatives."],

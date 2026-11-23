@@ -1,7 +1,8 @@
 import { expect, it } from "vitest";
 import { createCoursewareWorkflowTools } from "./courseware-workflow-tools.js";
+import { Check } from "typebox/value";
 import { COURSEWARE_WORKFLOW_TOOLS } from "@pi-desktop/shared";
-import { CoursewareWorkflowError } from "./courseware-workflow-recovery.js";
+import { CoursewareWorkflowError, coursewareInputHint } from "./courseware-workflow-recovery.js";
 import { classifyAgentError } from "./agent-errors.js";
 
 it("retains safe editor focus diagnostics through Host tool and continuation wrapping", async () => {
@@ -17,17 +18,83 @@ it("retains safe editor focus diagnostics through Host tool and continuation wra
   expect(JSON.stringify(classified)).not.toContain("private path");
 });
 
-function fixture() {
+it.each([
+  ["PRESENTATION_TEACHING_MISMATCH: Page 2: Interaction guidance differs from plan", "PRESENTATION_TEACHING_MISMATCH", /Page 2.*Interaction guidance.*artwork/],
+  ["PRESENTATION_REGISTRATION_FAILED: no acknowledgement", "PRESENTATION_REGISTRATION_FAILED", /confirm registration/],
+  ["PRESENTATION_REVIEW_UNAVAILABLE: Page 3: timeout", "PRESENTATION_REVIEW_UNAVAILABLE", /Page 3.*same PPTX/],
+  ["PRESENTATION_VISUAL_DEFECT: Page 4: example", "PRESENTATION_VISUAL_DEFECT", /Page 4.*visual defect/],
+  ["COURSEWARE_SCENE_MASTER_REVIEW_UNAVAILABLE (scene-002): service unavailable", "COURSEWARE_SCENE_MASTER_REVIEW_UNAVAILABLE", /scene-002.*original master/],
+  ["COURSEWARE_SCENE_MASTER_REJECTED (scene-003): incorrect label", "COURSEWARE_SCENE_MASTER_REJECTED", /scene-003.*reported visual defects/],
+] as const)("preserves safe diagnostic context across a host rejection %s", async (message, code, expected) => {
+  const tools = createCoursewareWorkflowTools({ async call<T>() {
+    return { ok: false, errorCode: "COURSEWARE_WORKFLOW_REJECTED", content: { error: message + " private payload" } } as T;
+  } }, "chat", () => "turn");
+  const read = tools.find(t => t.name === "courseware_workflow_get")!;
+  const cause = await read.execute("read", {}).catch(error => error);
+  const classified = classifyAgentError(new CoursewareWorkflowError(cause.code, "continuation", read.name, { cause }));
+  expect(classified.code).toBe(code);
+  expect(classified.message).toMatch(expected);
+  expect(JSON.stringify(classified)).not.toContain("private payload");
+});
+
+function fixture(userRequests?: () => string) {
   let turn: string | undefined = "turn-1";
   let result = { ok: true, content: { generated: false } };
   const calls: Array<{ method: string; params: unknown }> = [];
   let after = () => {};
   const tools = createCoursewareWorkflowTools({ async call<T>(method: string, params: unknown): Promise<T> {
     calls.push({ method, params: structuredClone(params) }); after(); return result as T;
-  } }, "chat-1", () => turn);
+  } }, "chat-1", () => turn, userRequests);
   return { tools, calls, turn: (value?: string) => { turn = value; }, after: (value: () => void) => { after = value; },
     result: (value: typeof result) => { result = value; } };
 }
+
+it("returns schema-owned field hints before dispatch without echoing rejected input", async () => {
+  const f = fixture();
+  const requirements = f.tools.find(tool => tool.name === "courseware_requirements_update")!;
+  const bounded = await requirements.execute("limit", { expectedEducationContext: {},
+    educationContext: { bodyPageLimit: 31 } }).catch(error => error);
+  expect(bounded).toMatchObject({ code: "COURSEWARE_INVALID", operation: "courseware_requirements_update" });
+  expect(bounded.message).toContain("/educationContext/bodyPageLimit must be <= 30");
+
+  const story = f.tools.find(tool => tool.name === "courseware_story_save")!;
+  const missing = await story.execute("missing", { story: {} }).catch(error => error);
+  expect(missing.message).toContain("/expectedRevision is required");
+
+  const image = f.tools.find(tool => tool.name === "courseware_scene_image_prepare")!;
+  const base = { planSha256: "a".repeat(64), pageId: "scene-001" };
+  const layer = await image.execute("layer", { ...base, target: { kind: "layer" } }).catch(error => error);
+  expect(layer.message).toContain("/target/name is required");
+  const kind = await image.execute("kind", { ...base, target: { kind: "private-value" } }).catch(error => error);
+  expect(kind.message).toContain("/target/kind must be one of:");
+  expect(kind.message).not.toContain("private-value");
+  const id = await image.execute("id", { ...base, pageId: "private/page", target: { kind: "visualMaster" } }).catch(error => error);
+  expect(id.message).toContain("/pageId must match the required format");
+  expect(id.message).not.toContain("private/page");
+  const extra = await image.execute("extra", { ...base, target: { kind: "visualMaster" }, secret: "private-value" }).catch(error => error);
+  expect(extra.message).not.toMatch(/secret|private-value/u);
+  const media = f.tools.find(tool => tool.name === "courseware_media_refresh")!;
+  const duplicate = await media.execute("duplicate", { kind: "tts", sourceSha256: "a".repeat(64),
+    recover: true, pageNumbers: [1, 1] }).catch(error => error);
+  expect(duplicate.message).toContain("/pageNumbers must contain distinct items");
+  expect(f.calls).toEqual([]);
+  await image.execute("valid", { ...base, target: { kind: "visualMaster" } });
+  expect(f.calls).toHaveLength(1);
+  expect(f.calls[0]?.params).toMatchObject({ toolCallId: "valid", toolName: "courseware_scene_image_prepare" });
+});
+
+it("keeps visual reference selection out of the model contract and recovers a legacy master call", async () => {
+  const f = fixture();
+  const image = f.tools.find(t => t.name === "courseware_scene_image_prepare")!;
+  expect(image.parameters).not.toHaveProperty("properties.referenceIntentId");
+  const args = { planSha256: "a".repeat(64), pageId: "scene-001", target: { kind: "visualMaster" } };
+  const legacy = { ...args, referenceIntentId: "invented-id" };
+  const prepared = image.prepareArguments!(legacy);
+  await image.execute("cover", prepared);
+  expect(f.calls[0].params).toMatchObject({ args });
+  expect(Reflect.get(f.calls[0].params as object, "args")).not.toHaveProperty("referenceIntentId");
+  expect(legacy.referenceIntentId).toBe("invented-id");
+});
 
 it("advertises only finite sequential actions and pins every call to the owning active turn", async () => {
   const f = fixture();
@@ -71,6 +138,17 @@ it("dispatches an ordinary export teaching plan with bounded native Quiz option 
   expect(f.calls).toHaveLength(1);
 });
 
+it("keeps teaching checks on for adoption retries while allowing a later PPTX-only turn", async () => {
+  const f = fixture(), adopt = f.tools.find(tool => tool.name === "courseware_presentation_adopt")!;
+  const input = { path: "exports/lesson.pptx", sourceSha256: "a".repeat(64) };
+  await adopt.execute("teach", { ...input, continueTeaching: true });
+  await adopt.execute("retry", { ...input, continueTeaching: false });
+  f.turn("pptx-only");
+  await adopt.execute("file", { ...input, continueTeaching: false });
+  expect(f.calls[1]).toMatchObject({ params: { args: { continueTeaching: true } } });
+  expect(f.calls[2]).toMatchObject({ params: { args: { continueTeaching: false } } });
+});
+
 it("prepares fixed assessment SVGs through the owning turn without exporting or generating media", async () => {
   const f = fixture(), tool = f.tools.find(tool => tool.name === "courseware_presentation_prepare")!;
   const args = { projectPath: ".deckwise-ppt/projects/lesson", canvas: { width: 1280, height: 720 },
@@ -81,6 +159,39 @@ it("prepares fixed assessment SVGs through the owning turn without exporting or 
   for (const invalid of [{ ...args, canvas: { width: 0, height: 720 } }, { ...args, sourceSha256: "a".repeat(64) }])
     await expect(tool.execute("bad", invalid)).rejects.toThrow("Invalid courseware workflow input");
   expect(f.calls).toHaveLength(1);
+});
+
+it("passes only user-evidenced exact narration counts to the host", async () => {
+  const sent: any[] = [];
+  const quote = "Use four speech blocks on each page";
+  const tools = createCoursewareWorkflowTools({ async call<T>(_method: string, params: unknown): Promise<T> {
+    sent.push(params); return {ok:true,content:{}} as T;
+  } }, "chat", () => "turn", () => quote);
+  const tool = tools.find(t => t.name === "courseware_narration_propose")!;
+  const args = {sourceSha256:"a".repeat(64), pageNumbers:[1], instruction:"Five paragraphs", speechCount:4};
+  await tool.execute("suggestion", args);
+  await tool.execute("explicit", {...args, speechCountEvidence:quote});
+  expect(sent[0].args).not.toHaveProperty("speechCount");
+  expect(sent[1].args.speechCount).toBe(4);
+  expect(sent[1].args).not.toHaveProperty("speechCountEvidence");
+});
+
+it("normalizes misplaced teaching fields before SDK validation without guessing conflicting values", async () => {
+  const f = fixture(), tool = f.tools.find(t => t.name === "courseware_presentation_prepare")!;
+  const teaching = { phase: "explore", objective: "Compare", durationSeconds: 40, requiredObjects: [] };
+  const input = { projectPath: "lesson", canvas: { width: 1280, height: 720 }, pages: [
+    { pageNumber: 1, teaching, pageType: "slide", requiredEffects: ["highlight"] },
+    { pageNumber: 2, teaching: { ...teaching, pageType: "slide" }, pageType: "slide" }
+  ] };
+  const prepared = tool.prepareArguments?.(input);
+  expect(Check(tool.parameters, prepared)).toBe(true);
+  await tool.execute("prepared", prepared);
+  expect(f.calls[0].params).toMatchObject({ args: { pages: [
+    { pageNumber: 1, teaching: { ...teaching, pageType: "slide", requiredEffects: ["highlight"] } },
+    { pageNumber: 2, teaching: { ...teaching, pageType: "slide" } }
+  ] } });
+  input.pages[1].pageType = "quiz";
+  expect(() => tool.prepareArguments?.(input)).toThrow(/pages\[1\].*pageType/);
 });
 
 it("declares distinct body, Quiz and checkpoint shapes instead of optional interchangeable fields", async () => {
@@ -105,6 +216,21 @@ it("dispatches bounded story drafts while rejecting invalid references and model
     { expectedRevision: 0, story: { ...story, beats: [...story.beats, ...story.beats] } },
     { expectedRevision: 0, story: { ...story, objectives: ["Unrelated"] } },
   ]) await expect(save.execute("invalid", input)).rejects.toThrow();
+  const repeated = await save.execute("repeat", { expectedRevision: 0,
+    story: { ...story, beats: [...story.beats, ...story.beats] } }).catch(error => error);
+  expect(repeated).toMatchObject({ code: "COURSEWARE_INVALID", operation: "courseware_story_save" });
+  expect(repeated.message).toContain("/story/beats/1/id must be unique");
+  expect(coursewareInputHint(new CoursewareWorkflowError(repeated.code, "wrapped", "courseware_story_save", { cause: repeated })))
+    .toContain("/story/beats/1/id must be unique");
+  const unmatched = await save.execute("unmatched", { expectedRevision: 0,
+    story: { ...story, objectives: ["private objective"] } }).catch(error => error);
+  expect(unmatched.message).toContain("/story/beats/0/objective must reference /story/objectives");
+  expect(unmatched.message).not.toContain("private objective");
+  const oversized = await save.execute("oversized", { expectedRevision: 0,
+    story: { ...story, beats: Array.from({ length: 30 }, (_, index) => ({ ...story.beats[0], id: `beat-${index}`,
+      event: "private event ".repeat(180) })) } }).catch(error => error);
+  expect(oversized.message).toContain("/story exceeds 65536 bytes");
+  expect(oversized.message).not.toContain("private event");
   expect(f.calls).toHaveLength(1);
 });
 
@@ -141,6 +267,18 @@ it("validates assessment identities, revisions and TTS voice before dispatch", a
   await tool.execute("image", { mode: "prepare", kind: "image", projectId: "project", sceneId: "scene", questionId: "q", optionValue: "A",
     expectedRevision: "r1", expectedSourceRevision: "s1", model: "image" });
   expect(f.calls).toHaveLength(3);
+});
+
+it("dispatches revision-checked assessment image exclusions only with explicit scope and reason", async () => {
+  const f = fixture(), tool = f.tools.find(tool => tool.name === "courseware_media_assessments")!;
+  const args = { mode: "configure", projectId: "project", expectedRevision: "r1", expectedSourceRevision: "s1",
+    sceneIds: ["quiz"], optionImages: "excluded", reason: "User requested text-only choices" };
+  for (const invalid of [{ ...args, sceneIds: [] }, { ...args, sceneIds: ["quiz", "quiz"] }, { ...args, reason: "" },
+    { ...args, optionImages: "skip" }, { ...args, kind: "tts" }])
+    await expect(tool.execute("invalid", invalid)).rejects.toThrow("Invalid courseware");
+  expect(f.calls).toHaveLength(0);
+  await tool.execute("configure", args);
+  expect(f.calls.at(-1)?.params).toMatchObject({ args });
 });
 
 it("preserves the body-page budget and bounded custom style in revision-checked requirements updates", async () => {
@@ -242,6 +380,26 @@ it("exposes finite saved media operations and retains the full-course authorizat
 });
 
 
+it("exposes media fields and only common requirements at the root while rejecting empty calls", async () => {
+  const f = fixture();
+  for (const [toolName, required] of [
+    ["courseware_media_prepare", ["kind", "model", "pageNumber", "sourceSha256"]],
+    ["courseware_media_assessments", ["mode"]],
+    ["courseware_media_refresh", ["kind", "sourceSha256"]],
+  ] as const) {
+    const tool = f.tools.find(t => t.name === toolName)!;
+    const wire = JSON.parse(JSON.stringify(tool.parameters));
+    expect(wire.required.sort()).toEqual(required);
+    const fields = wire.anyOf.flatMap((branch: {properties: object}) => Object.keys(branch.properties));
+    expect(Object.keys(wire.properties).sort()).toEqual([...new Set(fields)].sort());
+    await expect(tool.execute("empty", {})).rejects.toThrow("Invalid courseware");
+  }
+  expect(f.calls).toHaveLength(0);
+  const assessment = f.tools.find(t => t.name === "courseware_media_assessments")!;
+  expect(Check(assessment.parameters, {mode:"context"})).toBe(true);
+  expect(Check(assessment.parameters, {mode:"prepare"})).toBe(false);
+});
+
 it("preserves kind-specific media validation with object-root provider schemas", async () => {
   const f = fixture();
   const prepare = f.tools.find(tool => tool.name === "courseware_media_prepare")!;
@@ -321,4 +479,62 @@ it('advertises a five-page narration limit and rejects a whole-deck call before 
   expect(f.calls).toHaveLength(before);
   await generate.execute('five-pages',{pageNumbers:[1,2,3,4,5],sourceSha256:'a'.repeat(64),instruction:'Teach'});
   expect(f.calls).toHaveLength(before + 1);
+});
+
+
+it("rejects mutually exclusive refresh operations before Host dispatch while preserving explicit false flags", async () => {
+  const f = fixture(), tool = f.tools.find(t => t.name === "courseware_scene_image_refresh")!;
+  for (const flags of [
+    { generateRemaining: true, waitForUpdate: true }, { generateRemaining: true, generatePrepared: true },
+    { generateRemaining: true, retryFailed: true }, { retryFailed: true, generatePrepared: true },
+  ]) await expect(tool.execute("invalid", { intentId: "original", ...flags })).rejects.toMatchObject({ code: "COURSEWARE_INVALID_REFRESH" });
+  expect(f.calls).toHaveLength(0);
+  for (const flags of [{}, { generateRemaining: true, waitForUpdate: false, retryFailed: false },
+    { generatePrepared: true, waitForUpdate: true }, { retryFailed: true, waitForUpdate: true }])
+    await tool.execute("valid", { intentId: "original", ...flags });
+  expect(f.calls).toHaveLength(4);
+});
+
+
+it("advertises exactly the refresh flag combinations accepted by Main", () => {
+  const tool = fixture().tools.find(t => t.name === "courseware_scene_image_refresh")!;
+  for (let bits = 0; bits < 16; bits++) {
+    const args = { intentId: "original", generateRemaining: !!(bits & 1), generatePrepared: !!(bits & 2),
+      retryFailed: !!(bits & 4), waitForUpdate: !!(bits & 8) };
+    const valid = !(args.generateRemaining && (args.generatePrepared || args.retryFailed || args.waitForUpdate)) &&
+      !(args.generatePrepared && args.retryFailed);
+    expect(Check(tool.parameters, args), JSON.stringify(args)).toBe(valid);
+  }
+});
+
+
+it("retains only schema-owned field hints through continuation wrappers", async () => {
+  const f = fixture(), tool = f.tools.find(t => t.name === "courseware_narration_propose")!;
+  const failure = await tool.execute("missing", { sourceSha256: "a".repeat(64), pageNumbers: [1] }).catch(e => e);
+  const wrapped = new CoursewareWorkflowError(failure.code, "private outer data", tool.name, { cause: failure });
+  expect(coursewareInputHint(wrapped)).toContain("/instruction is required");
+  expect(coursewareInputHint(wrapped)).not.toContain("private outer data");
+  const forged = new CoursewareWorkflowError("COURSEWARE_INVALID", "private payload", tool.name,
+    { cause: { code: "COURSEWARE_INVALID", message: "private nested data", inputHint: "private hint" } });
+  expect(coursewareInputHint(forged)).not.toContain("private");
+});
+
+
+it("dispatches the teacher's request and saved page selection instead of invented binding instructions", async () => {
+  const f = fixture(() => "Show the numerator, under 35 seconds.");
+  const tool = f.tools.find(t => t.name === "courseware_narration_propose")!;
+  const input = { pageNumbers: [2], sourceSha256: "a".repeat(64), instruction: "Every sentence must spotlight the page-one field" };
+  await tool.execute("narrate", input);
+  expect(f.calls[0].params).toMatchObject({ args: { ...input, instruction: "Show the numerator, under 35 seconds." } });
+  await tool.execute("repair", { ...input, repairRequiredTeaching: true });
+  expect(f.calls[1].params).toMatchObject({ args: { instruction: input.instruction } });
+});
+
+it("restores serialized narration parameters only for an unambiguous schema-valid call", () => {
+  const tool = fixture().tools.find(t => t.name === "courseware_narration_plan")!;
+  const hash = "a".repeat(64), lessonPlan = { sourceId: "b".repeat(64) };
+  const args = { lessonPlan, sourceSha256: hash + '</sourceSha256>\n<｜｜DSML｜｜ parameter name="apply" string="false">false' };
+  expect(tool.prepareArguments?.(args)).toEqual({ sourceSha256: hash, lessonPlan, apply: false });
+  const conflict = { ...args, apply: true };
+  expect(tool.prepareArguments?.(conflict)).toBe(conflict);
 });

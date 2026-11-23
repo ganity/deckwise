@@ -1,0 +1,21 @@
+{
+  "baseCommit": "5cbd7cb44de14d6cb5f1e478ff9f57b63bd7d05d",
+  "dirtyTaskWorktree": true,
+  "paidRerun": true,
+  "finalContentReviewIncluded": true,
+  "files": {
+    "candidate/out/main/index.js": "c9ca0e0ce369b278eb3fe6b0bbd6c88a91bfc96775c7ad031b6490503a197c9a",
+    "agent-runtime/dist/index.js": "9da1e0543de793a1cc154de57e8b8b27addce8c712e1bb7bce26dc2ef0a4ed91",
+    "agent-runtime/dist/sidecar.js": "3d676129b4fcf4daf63485be14a1844e66fd86110ad40c38984ec43e19a0af2f",
+    "pi-desktop-host-core": "cc79348b64a42adcb5a3b0951c9474f55dade40928e7c51a025d44aa4c970712",
+    "worker/manifest.json": "99ebbdde0010619ad774f32b599f8e8da3c1fa222f210d2dec6665acaf9e71cd",
+    "worker/pptx-worker.mjs": "148c6473a51917c774277afa6b9cc2e18fa6727261a3c4c3d772db3d920a0a2a",
+    "worker/authoring.mjs": "134577fb339b24922b08c172e227cfcac97320282dc1531f3404f852a7981b3f"
+  },
+  "liveRecoveryFixes": [
+    "Short-answer Quiz uses array answer",
+    "First-master reference validation names the invalid field",
+    "Semantic review receives verified saved audio durations"
+  ],
+  "previousMainSha256": "89f254cd19ab5465cf6dace3978da91184362f27a9e6d4f9adf9c5ab73264a34"
+}

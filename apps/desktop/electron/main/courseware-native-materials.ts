@@ -31,13 +31,21 @@ export async function adoptNativeMaterials(input: {
     const source = materials.script;
     const segments = parseCoursewareScript(source.text);
     const assignments = source.assignments ?? [];
-    if (assignments.length > segments.length || new Set(assignments.map(a => a.segmentId)).size !== assignments.length ||
-        assignments.some(a => !segments.some(s => s.id === a.segmentId) || !pages.some(p => p.pageId === a.pageId))) throw new Error("Invalid or duplicate script assignments");
+    if (!Array.isArray(assignments)) throw new Error("script.assignments must be an array of segment-to-page mappings");
+    const assigned = new Set<string>();
+    for (const [index, item] of assignments.entries()) {
+      const field = `script.assignments[${index}]`;
+      if (!item || typeof item !== "object") throw new Error(`${field} requires segmentId and pageId`);
+      if (!segments.some(s => s.id === item.segmentId)) throw new Error(`${field}.segmentId: unknown segment ${item.segmentId}; use a segment from this script preview`);
+      if (assigned.has(item.segmentId)) throw new Error(`${field}.segmentId: duplicate assignment for ${item.segmentId}; keep one mapping`);
+      if (!pages.some(p => p.pageId === item.pageId)) throw new Error(`${field}.pageId: page ${item.pageId} is unavailable for segment ${item.segmentId}; read current page IDs`);
+      assigned.add(item.segmentId);
+    }
     const digest = hash(source.text);
     for (const segment of segments) {
       const labelled = enrichment.originalPages.find(p => p.pageNumber === segment.sourcePageNumber)?.pageId;
       const explicit = assignments.find(a => a.segmentId === segment.id)?.pageId;
-      if (explicit && labelled && explicit !== labelled) throw new Error("Script assignment contradicts its original page label");
+      if (explicit && labelled && explicit !== labelled) throw new Error(`Script assignment contradicts its original page label: segment ${segment.id} belongs to page ${labelled}, received ${explicit}`);
       const pageId = labelled ?? explicit;
       if (pageId && pages.some(p => p.pageId === pageId)) {
         segment.pageId = pageId;
@@ -57,15 +65,24 @@ export async function adoptNativeMaterials(input: {
         segments[i].actionId = `script-${hash(digest + segments[i].id).slice(0, 40)}`;
       }
     }
-    const anchored = segments.filter(s => s.pageId).map(s => enrichment.originalPages.findIndex(p => p.pageId === s.pageId));
-    if (anchored.some((n, i) => n < 0 || i > 0 && n < anchored[i - 1])) throw new Error("Script assignments are out of original page order");
+    let previousPage = -1;
+    for (const segment of segments.filter(s => s.pageId)) {
+      const position = enrichment.originalPages.findIndex(p => p.pageId === segment.pageId);
+      if (position < 0 || position < previousPage) throw new Error(`Script assignments are out of original page order at ${segment.id} (page ${segment.pageId}); correct this mapping`);
+      previousPage = position;
+    }
     const silentPageIds = source.silentPageIds ?? [];
-    if (silentPageIds.some(id => !pages.some(p => p.pageId === id))) throw new Error("Silent page is unavailable");
+    if (!Array.isArray(silentPageIds)) throw new Error("script.silentPageIds must be an array");
+    for (const [i, id] of silentPageIds.entries()) {
+      if (!pages.some(p => p.pageId === id)) throw new Error(`script.silentPageIds[${i}]: page ${id} is unavailable`);
+      if (silentPageIds.indexOf(id) !== i || segments.some(s => s.pageId === id)) throw new Error(`script.silentPageIds[${i}]: page ${id} must be unique and have no assigned speech`);
+    }
+    if (!["preserve", "revise", "generate-missing"].includes(source.policy)) throw new Error("script.policy must be preserve, revise or generate-missing");
     enrichment.script = { sha256: digest, policy: source.policy, segments, silentPageIds };
     for (const page of pages) {
       const selected = segments.filter(s => s.pageId === page.pageId);
       if (!selected.length && !silentPageIds.includes(page.pageId)) continue;
-      if (page.locked) throw new Error("Script target is manually locked");
+      if (page.locked) throw new Error(`Script target ${page.pageId} is manually locked; inspect the saved page before applying its script`);
       const used = new Set<string>();
       const speeches = selected.map(s => {
         const matching = page.actions.filter(a => a.type === "speech" && a.text === s.text && !used.has(String(a.id)));
@@ -88,9 +105,19 @@ export async function adoptNativeMaterials(input: {
   }
   if (materials.lessonPlan) {
     const plan = materials.lessonPlan;
-    if (typeof plan.text !== "string" || !plan.text.trim() || plan.text.length > 500000 ||
-        !Array.isArray(plan.units) || plan.units.some(u => typeof u.evidence !== "string" || !plan.text.includes(u.evidence) ||
-          !Array.isArray(u.pageIds) || u.pageIds.some(id => !pages.some(p => p.pageId === id)))) throw new Error("Lesson-plan mapping requires exact source evidence and real pages");
+    if (typeof plan.text !== "string" || !plan.text.trim() || plan.text.length > 500000) throw new Error("lessonPlan.text must contain 1-500000 characters of source text");
+    if (!Array.isArray(plan.units) || !plan.units.length || plan.units.length > 100) throw new Error("lessonPlan.units must contain 1-100 units");
+    const unitIds = new Set<string>();
+    for (const [index, unit] of plan.units.entries()) {
+      const field = `lessonPlan.units[${index}]`;
+      if (!unit || typeof unit.id !== "string" || !/^[\w.-]{1,128}$/u.test(unit.id) || unitIds.has(unit.id)) throw new Error(`${field}.id must be a unique unit identifier`);
+      unitIds.add(unit.id);
+      if (typeof unit.title !== "string" || !unit.title.trim() || unit.title.length > 200) throw new Error(`${field}.title must contain 1-200 characters`);
+      if (!["teaching", "quiz", "checkpoint"].includes(unit.kind)) throw new Error(`${field}.kind must be teaching, quiz or checkpoint`);
+      if (!unit || typeof unit.evidence !== "string" || !unit.evidence.trim() || !plan.text.includes(unit.evidence)) throw new Error(`${field}.evidence: quote the exact source passage for this unit`);
+      if (!Array.isArray(unit.pageIds) || new Set(unit.pageIds).size !== unit.pageIds.length) throw new Error(`${field}.pageIds must be an array of unique current page IDs`);
+      for (const id of unit.pageIds) if (!pages.some(p => p.pageId === id)) throw new Error(`${field}.pageIds: page ${id} is unavailable; update this unit using current page IDs`);
+    }
     enrichment.plan = { sha256: hash(plan.text), units: structuredClone(plan.units) };
   }
   if (!isCoursewareEnrichment(enrichment)) throw new Error("Invalid teaching material policy or mapping");

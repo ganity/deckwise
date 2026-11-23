@@ -9,6 +9,7 @@ import { isCoursewareProject, isCoursewareSnapshot, isTeachingWrite, samePptEdit
 type Host = { call<T>(method: string, params: unknown): Promise<T> };
 type Snapshot = PptEditorBinding & { path: string; sourcePath: string; revision: number; sha256: string };
 type Editor = {
+  documentTarget?(): { workspaceRoot: string; sourcePath: string } | undefined;
   hasTeachingEditor?(workspace: string | null): boolean;
   getContext(workspace: string | null): Promise<PptEditorContext>;
   routeNativeTeaching?(workspace: string | null, operation: string, args: Record<string, unknown>, page: number): Promise<{ value: unknown } | undefined>;
@@ -33,6 +34,17 @@ export class CoursewareTeachingCoordinator {
 
   constructor(private editor: Editor, private getHost: () => Host | null, private getWorkspace: () => Promise<string | null>, private getViewingSessionId: () => string | null, private assertCandidateOwner: (sessionId: string) => void,
     private assertMediaOwner: (sessionId: string) => void = assertCandidateOwner) {}
+
+  async isAdoptedTeachingDocument(sessionId: string): Promise<boolean> {
+    const host = this.getHost(), target = this.editor.documentTarget?.();
+    if (!host || !target || this.getViewingSessionId() !== sessionId) return false;
+    const { task } = await host.call<{ task?: { taskType: string; generatedPath?: string } }>("courseware.task.get", { sessionId });
+    if (!task?.generatedPath || task.taskType !== "scene" && task.taskType !== "plain") return false;
+    const { resolveRealOpenablePath } = await import("./fs-panel");
+    const path = await resolveRealOpenablePath(task.generatedPath, target.workspaceRoot);
+    return path === target.sourcePath && this.editor.documentTarget?.()?.sourcePath === path &&
+      this.getHost() === host && this.getViewingSessionId() === sessionId;
+  }
 
   async native(operation: string, args: Record<string, unknown> = {}, pageNumber?: number): Promise<{ value: unknown } | undefined> {
     if (!this.editor.routeNativeTeaching) return;
@@ -252,6 +264,9 @@ export class CoursewareTeachingCoordinator {
         sessionId, projectId: teaching.project.projectId, candidateId: Reflect.get(payload, "candidateId"),
       });
       const source = candidate.source as { sha256?: unknown } | undefined;
+      if (["page-pptx", "page-style-batch"].includes(String(candidate.kind)) &&
+          teaching.project.pages.some(page => page.actions.some(action => action.type === "speech")))
+        throw new Error("Page image pixels are frozen after narration starts; report the visual issue as unresolved and continue with narration or effect repairs");
       if (candidate.candidateId !== Reflect.get(payload, "candidateId") || candidate.projectId !== teaching.project.projectId ||
           !["page-pptx", "page-fade", "page-style-batch"].includes(String(candidate.kind)) || candidate.status !== "needs-review" ||
           typeof source?.sha256 !== "string" || source.sha256 !== snapshot.sha256 || typeof candidate.teachingRevision !== "string" ||
@@ -328,6 +343,9 @@ export class CoursewareTeachingCoordinator {
           candidate.outputSha256 !== review.view.outputSha256 || candidate.teachingRevision !== review.view.teachingRevision ||
           JSON.stringify(candidate.targetPageIds) !== JSON.stringify(review.view.targetPageIds)) throw new Error("Reviewed PPTX scope or output changed");
       const { project } = await host.call<{ project: unknown }>("courseware.project.get", { sessionId, projectId: review.view.projectId });
+      if (["page-pptx", "page-style-batch"].includes(review.view.kind) && isCoursewareProject(project) &&
+          project.pages.some(page => page.actions.some(action => action.type === "speech")))
+        throw new Error("Page image pixels are frozen after narration starts; report the visual issue as unresolved and continue with narration or effect repairs");
       if (!isCoursewareProject(project) || project.teachingRevision !== review.view.teachingRevision ||
           JSON.stringify(candidateEffects(project, candidate)) !== JSON.stringify(effects)) throw new Error("Reviewed effect targets changed");
       await this.assertCurrent(snapshot, context, sessionId, host);

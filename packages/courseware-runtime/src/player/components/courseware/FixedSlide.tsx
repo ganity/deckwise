@@ -90,12 +90,28 @@ export function FixedSlide({
   nativeGroups?: readonly { elementId: string; children: readonly string[] }[];
 }) {
   const styles = fixedAnimationStyles(animations);
+  const groupById = new Map(nativeGroups?.map(group => [group.elementId, group]));
+  const parentById = new Map(nativeGroups?.flatMap(group => group.children.map(id => [id, group.elementId] as const)));
+  const visible = (id: string): boolean => {
+    const style = styles.get(id);
+    if (style?.hidden || style?.opacity === 0 || (nativeTargets?.has(id) && !nativeVisible?.has(id))) return false;
+    const parent = parentById.get(id);
+    return !parent || visible(parent);
+  };
+  const visibleContent = (id: string): boolean => {
+    if (!visible(id)) return false;
+    const group = groupById.get(id);
+    return !group || group.children.some(visibleContent);
+  };
   const effectSlide = {
     ...slide,
     elements: slide.elements
-      .filter(
-        (e) => !styles.get(e.id)?.hidden && styles.get(e.id)?.opacity !== 0,
-      )
+      .filter(e => {
+        if (!visibleContent(e.id)) return false;
+        if (!groupById.has(e.id) && e.id.startsWith('native_group_') && e.sourceShapeId)
+          return slide.elements.some(child => child.sourceGroupShapeIds?.includes(e.sourceShapeId!) && visibleContent(child.id));
+        return true;
+      })
       .map((e) => {
         const scale = styles.get(e.id)?.scale ?? 1;
         return e.type === "line" || scale === 1
@@ -109,8 +125,6 @@ export function FixedSlide({
             };
       }),
   };
-  const groupById = new Map(nativeGroups?.map(group => [group.elementId, group]));
-  const parentById = new Map(nativeGroups?.flatMap(group => group.children.map(id => [id, group.elementId] as const)));
   const rootId = (id: string) => { let parent: string | undefined; while ((parent = parentById.get(id))) id = parent; return id; };
   const orderOf = (id: string): number => {
     const group = groupById.get(id);

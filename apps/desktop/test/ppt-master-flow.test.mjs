@@ -68,7 +68,7 @@ test("DeckWise only accepts PPTX courseware tasks and routes the selected skill"
   assert.match(agentIpc, /courseware\.task\.get/);
   assert.match(agentIpc, /taskType === "scene"/);
   assert.match(agentIpc, /content: deckWiseModelPrompt\(req\.content\)/);
-  assert.match(agentIpc, /const modelContent = deckWiseModelPrompt\(/);
+  assert.match(agentIpc, /modelContent = deckWiseModelPrompt\(/);
   assert.match(agentIpc, /never mention Pi, PPT Master, skill ids/);
   assert.match(composer, /isInternalCoursewareModelLabel/);
   assert.match(composer, /t\("chat\.coursewareAssistant"\)/);
@@ -152,9 +152,9 @@ test("a new task never inherits another task's courseware project", () => {
   assert.doesNotMatch(panel, /listDir\("\.deckwise-ppt\/projects"\)/);
 });
 
-test("SVG preview opens in Browser and waits for explicit PPTX generation", () => {
+test("SVG preview opens in the editor and visual checks render the requested slide", () => {
   assert.match(skill, /call ToolSearch for `browser`/);
-  assert.match(skill, /Browser with `action=navigate`/);
+  assert.match(skill, /Browser with `action=screenshot` and `path`/);
   assert.match(skill, /Do not finalize or export PPTX until the user explicitly requests/);
   assert.match(presentation, /coursewareWorkflow.buildPpt/);
   assert.match(presentation, /coursewareWorkflow.exportPrompt/);

@@ -1,0 +1,16 @@
+{
+  "classification": "confirmed integration defect",
+  "route": "master",
+  "terminalStage": "native teaching adoption",
+  "error": "Generated object binding differs from source",
+  "exportedPages": 4,
+  "sourceFormulaObjects": [
+    "slide1 shape14 fraction-formula",
+    "slide2 shape14 fraction-formula"
+  ],
+  "observed": "PPT Master exports fractions as native OMML equations (a14:m/m:oMath). Packager retains native sourceShapeId 14. Current PPTX parser emits an empty text object without sourceShapeId for each formula. Host rejects the resulting unmatched parsed objects.",
+  "reproduction": "node ../worker/pptx-worker.mjs <generated PPTX> <new diagnostic directory>; compare identity.json and slide-ir.json with customXml/deckwise-native.xml",
+  "requiredFix": "Preserve supported equation content and source identity in PPTX parsing, or explicitly reject unsupported equations with an actionable diagnostic. Do not bypass identity checks or silently discard formulas.",
+  "paidMediaStarted": false,
+  "productCodeChangedDuringRun": false
+}

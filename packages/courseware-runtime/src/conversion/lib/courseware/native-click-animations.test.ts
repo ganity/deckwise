@@ -59,6 +59,7 @@ it('gives persisted speech cues one animation owner across separate native group
   first.items[0].nativePreset!.verifiedSpeechMotion = true;
   const second = structuredClone(first); second.id = 'click-2'; second.items[0].id = 'second';
   second.items[0].nativePreset = { version: 1, class: 'emph', id: 26, verifiedSpeechMotion: true };
+  second.items[0].startAtMs = 100;
   second.items[0].durationMs = 400;
   const unrelated = structuredClone(first); unrelated.id = 'click-3'; unrelated.items[0].id = 'unrelated';
   unrelated.items[0].target!.shapeId = '99';
@@ -71,6 +72,9 @@ it('gives persisted speech cues one animation owner across separate native group
   const mapping = [{ objectId: 'logical', importElementId: 'target' }];
   expect(detachLinkedSpeechAnimations(source, actions, mapping).pptxAnimation?.steps).toEqual([unrelated]);
   expect(source).toEqual(before);
+  second.items[0].startAtMs = 0;
+  expect(detachLinkedSpeechAnimations(source, actions, mapping).pptxAnimation?.steps).toEqual([second, unrelated]);
+  second.items[0].startAtMs = 100;
   expect(detachLinkedSpeechAnimations(source, [...actions, { type: 'native_animation', visualCues: [] }], mapping)).toBe(source);
   first.items[0].nativePreset!.verifiedSpeechMotion = false;
   expect(detachLinkedSpeechAnimations(source, actions, mapping).pptxAnimation?.steps).toEqual([first, unrelated]);

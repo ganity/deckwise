@@ -38,8 +38,9 @@ export async function insertNativeActivity(input: {
   }
   if (typeof args.question !== "string" || !args.question.trim() || args.question.length > 160) throw new Error("question must be 1-160 characters; retain the requested response.kind");
   if (!isCoursewareQuestionResponse(args.response)) throw new Error("Invalid response: short_answer/discussion/practice/pbl require options:[] and answerIndices:[]; never change the requested kind to repair these fields");
-  if (typeof args.referenceEvidence !== "string" || !args.referenceEvidence.trim() || args.referenceEvidence.length > 4000 ||
-      ![...sourceText, ...plan!.units.map(u => u.evidence)].some(text => text.includes(String(args.referenceEvidence))))
+  const referenceEvidence = args.referenceEvidence === undefined ? unit.evidence : args.referenceEvidence;
+  if (typeof referenceEvidence !== "string" || !referenceEvidence.trim() || referenceEvidence.length > 4000 ||
+      ![...sourceText, ...plan!.units.map(u => u.evidence)].some(text => text.includes(referenceEvidence)))
     throw new Error(`referenceEvidence must be one exact source quote, not concatenated or paraphrased text. Accepted unit evidence: ${unit.evidence}. Keep response.kind unchanged`);
   const suppliedAnswer = args.referenceAnswer;
   if (suppliedAnswer !== undefined && (!suppliedAnswer || typeof suppliedAnswer !== "object" || Array.isArray(suppliedAnswer) ||
@@ -57,10 +58,11 @@ export async function insertNativeActivity(input: {
   if (unit.kind === "quiz" && ["discussion", "practice", "pbl"].includes(response.kind)) throw new Error("Teacher-led activities require a checkpoint page");
   if (["short_answer", "discussion", "practice", "pbl"].includes(args.response.kind) && suppliedAnswer === undefined)
     throw new Error("Supply referenceAnswer:{summary,keyPoints} answering the actual activity question, including the requested example. referenceEvidence proves the source; it is not the answer. Keep response.kind unchanged");
-  const referenceAnswer = suppliedAnswer as { summary: string; keyPoints: string[] } | undefined ?? { summary: args.referenceEvidence, keyPoints: [args.referenceEvidence] };
-  if (!input.review) for (const i of response.answerIndices) if (!args.referenceEvidence.toLocaleLowerCase().includes(response.options[i].toLocaleLowerCase()))
+  const selectedAnswers = response.answerIndices.map(index => response.options[index]);
+  const referenceAnswer = suppliedAnswer as { summary: string; keyPoints: string[] } | undefined ?? { summary: selectedAnswers.join("; "), keyPoints: selectedAnswers };
+  if (!input.review) for (const i of response.answerIndices) if (!referenceEvidence.toLocaleLowerCase().includes(response.options[i].toLocaleLowerCase()))
     throw new Error("The selected answer is not backed by the supplied exact evidence");
-  await input.review?.({ activityTitle: unit.title, question: args.question, response, referenceAnswer, referenceEvidence: args.referenceEvidence,
+  await input.review?.({ activityTitle: args.question, question: args.question, response, referenceAnswer, referenceEvidence,
     activityPage: { independent: true, visibleText: [args.question, ...response.options] },
     pageText: sourceText.join("\n"), savedNarration,
     planEvidence: unit.evidence });
@@ -68,15 +70,15 @@ export async function insertNativeActivity(input: {
   const identity = createHash("sha256").update(plan!.sha256 + ":" + unit.id).digest("hex").slice(0, 40);
   const pageId = `activity-${identity}`, activityId = `question-${identity}`;
   const checkpoint = { id: activityId, type: "interaction_checkpoint", checkpointId: activityId, checkpointKind: "chapter_summary",
-    chapterId: pageId, chapterTitle: unit.title, question: args.question, response,
+    chapterId: pageId, chapterTitle: args.question, question: args.question, response,
     referenceAnswer,
     context: { chapterSummary: unit.title, sourceSceneIds: [args.afterPageId] } };
   if (!isCoursewareInteractionCheckpoint(checkpoint)) throw new Error("Invalid checkpoint content");
   // Quiz owns its answer key; a checkpoint owns its teacher guidance. Both have one visible question.
   const quiz = { type: "quiz", interactionMode: "classroom_instant_feedback", questions: [{ id: activityId, type: response.kind,
     question: args.question, options: response.options.map((label, i) => ({ value: String.fromCharCode(65 + i), label })),
-    answer: response.kind === "short_answer" ? referenceAnswer.summary : response.answerIndices.map(i => String.fromCharCode(65 + i)),
-    explanation: args.referenceEvidence, referenceAnswer: referenceAnswer.summary }] };
+    answer: response.kind === "short_answer" ? [referenceAnswer.summary] : response.answerIndices.map(i => String.fromCharCode(65 + i)),
+    analysis: referenceAnswer.summary, referenceAnswer: referenceAnswer.summary, keyPoints: referenceAnswer.keyPoints }] };
   const width = capture.evidence.width, height = capture.evidence.height;
   if (![width, height].every(n => Number.isFinite(n) && n > 0)) throw new Error("Native canvas dimensions are unavailable");
   const canvas = { width: 1000, height: height / width * 1000 };
@@ -84,7 +86,7 @@ export async function insertNativeActivity(input: {
   const { response: _localResponse, ...maicCheckpoint } = checkpoint;
   const classroom = parseMaicClassroom({ id: view.project.projectId, createdAt: new Date(0).toISOString(),
     stage: { id: view.project.projectId, name: view.project.title, createdAt: 0, updatedAt: 0 },
-    scenes: [{ id: pageId, stageId: view.project.projectId, order: 0, title: unit.title, type: unit.kind === "quiz" ? "quiz" : "slide",
+    scenes: [{ id: pageId, stageId: view.project.projectId, order: 0, title: args.question, type: unit.kind === "quiz" ? "quiz" : "slide",
       content: unit.kind === "quiz" ? quiz : { type: "slide", canvas: { id: pageId, viewportSize: canvas.width, viewportRatio: canvas.height / canvas.width,
         theme: { backgroundColor: "#FFFFFF", themeColors: ["#3B82F6"], fontColor: "#111827", fontName: "Noto Sans SC" }, elements: [{ id: `${pageId}_question`, type: "text",
         left: 80, top: canvas.height * .2, width: 840, height: canvas.height * .5, content: `<p style="font-size:32px">${escape(args.question)}</p>`,

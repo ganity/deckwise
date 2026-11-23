@@ -1,5 +1,8 @@
+import { presentationPageCounts } from "../courseware-presentation-prepare";
 import { readNativeTeachingPackage } from "../courseware-native-package";
-import { planSceneVisualMaster, type VisualMasterPlanningInput } from "../courseware-visual-master";
+import { reviewSceneMaster, type SceneMasterReview } from "../courseware-scene-master-review";
+import { presentationReview } from "../courseware-presentation-review";
+import { planSceneVisualMaster, teachingForReviewedMasters, type VisualMasterPlanningInput } from "../courseware-visual-master";
 import { planMagicLayers, magicLayersBundle, type MagicLayersFallback } from "../courseware-magic-layers";
 import { join } from "node:path";
 import type { BrowserWindow, IpcMain, IpcMainInvokeEvent } from "electron";
@@ -236,7 +239,12 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
   });
   registerPptPreviewIpc({
     registrar,
-    getWorkspaceRoot: optionalWorkspaceRoot,
+    getWorkspaceRoot: async sessionId => {
+      const { session } = await getHost()?.call<{ session?: { projectPath?: string } }>(
+        "session.get", { id: sessionId, messageLimit: 1, contentLimit: 1 },
+      ) ?? {};
+      return session?.projectPath ?? null;
+    },
   });
   registerNotificationIpc({
     registrar,
@@ -247,17 +255,21 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     sendToRenderer,
   });
   const sceneGeneration = { ...dependencies.sceneGeneration,
+    reviewMaster: (async input => reviewSceneMaster(input, await dependencies.sceneGeneration.resolveModel(input.sessionId), dependencies.completeScene)) satisfies SceneMasterReview,
     layerFallback: (async input => {
       const result = await authSession.coursewareMedia.magicLayers.split({ ...input, image: input.bytes,
         plan: async () => planMagicLayers(input, await dependencies.sceneGeneration.resolveModel(input.sessionId), dependencies.completeScene) });
       await input.check();
       return magicLayersBundle(result.bytes, result.manifest, input.width, input.height);
     }) satisfies MagicLayersFallback,
+    reviewedTeaching: (input: Parameters<typeof teachingForReviewedMasters>[0]) => teachingForReviewedMasters(input, dependencies.completeNarration),
     planVisualMaster: async (input: VisualMasterPlanningInput) => planSceneVisualMaster(input,
       await dependencies.sceneGeneration.resolveModel(input.sessionId), dependencies.completeNarration) };
   registerCoursewareSceneImageIpc({ registrar, getHost, getViewingSessionId: getNotificationViewingSessionId,
     activeTurns, authSession, generation: sceneGeneration });
   const coursewareWorkflow = new CoursewareChatWorkflow(getHost, getNotificationViewingSessionId, authSession, sceneGeneration);
+  coursewareWorkflow.checkPresentationCounts = presentationPageCounts(sceneGeneration.resolveModel, dependencies.completeNarration);
+  coursewareWorkflow.reviewPresentation = presentationReview(registrar.ipcMain, sceneGeneration.resolveModel, dependencies.completeScene);
   const savedNarration = new CoursewareSavedNarration(getHost, getNotificationViewingSessionId,
     dependencies.completeNarration, dependencies.sceneGeneration?.resolveModel, dependencies.completeScene, readNativeTeachingPackage);
   coursewareWorkflow.narration = savedNarration;

@@ -360,6 +360,42 @@ describe("system transcript reconstruction", () => {
   });
 });
 
+it("returns safe input repair guidance through the actual finishTurn bridge without replaying failed work", async () => {
+  const host = { call: vi.fn(async (method: string) => {
+    if (method === "tools.execute") return { ok: false, errorCode: "COURSEWARE_WORKFLOW_REJECTED",
+      content: { error: "COURSEWARE_SOURCE_CHANGED: private document data" } };
+    return { checkpoint: null, completion: null };
+  }) };
+  const runtime = createRuntime({ host, turnId: "turn" });
+  const agent = (runtime as any).agent;
+  const steer = vi.spyOn(agent, "steer");
+  const base = { context: { messages: [] }, newMessages: [] };
+  try {
+    expect(await agent.finishTurn({ ...base,
+      message: assistantMessage({ stopReason: "toolUse", content: [{ type: "toolCall", id: "activate",
+        name: "courseware_media_context", arguments: { continueTeaching: true } }] }),
+      toolResults: [{ role: "toolResult", toolCallId: "activate", toolName: "courseware_media_context", timestamp: 0,
+        content: [], isError: false, details: { sourceSha256: "a".repeat(64) } }],
+    })).toEqual({ action: "continue" });
+    const closing = { ...base, message: assistantMessage({ content: [{ type: "text", text: "Done" }] }), toolResults: [] };
+    expect(await agent.finishTurn(closing)).toEqual({ action: "continue" });
+    expect(host.call.mock.calls.filter(([name]) => name === "tools.execute")).toHaveLength(2);
+    expect(JSON.stringify(steer.mock.calls)).toContain("Read courseware_narration_context again");
+    expect(JSON.stringify(steer.mock.calls)).not.toContain("private document data");
+    await expect(agent.finishTurn(closing)).rejects.toThrow();
+    expect(steer).toHaveBeenCalledTimes(2);
+  } finally { await runtime.dispose(); }
+});
+
+it("advertises the actual tool root independently from scratch and project identity", async () => {
+  const runtime = createRuntime({ projectPath: "/project", workspaceRoot: "/isolated lesson", scratchDir: "/scratch" });
+  try {
+    const prompt = (runtime as any).agent.state.systemPrompt as string;
+    expect(prompt).toContain('Current tool workspace root: "/isolated lesson"');
+    expect(prompt).toContain("Each shell call starts here again");
+  } finally { await runtime.dispose(); }
+});
+
 describe("custom system prompt files (issue #542)", () => {
   const persona = "You are Custom, a specialized assistant.";
   const appendix = "MARKER-XYZ-123 Always end with the marker.";
@@ -12486,6 +12522,22 @@ describe("tool validation budget boundaries", () => {
   const batch = (toolName: string, text: string, isError = true) => ({ toolResults: [{ toolName, isError, content: [{ type: "text", text }] }] });
   const invalid = (toolName: string, field = "sourceSha256") => batch(toolName,
     `Validation failed for tool "${toolName}":\n  - ${field}: must match schema\n\nReceived arguments:\nprivate malformed payload`);
+
+  it("returns the read-only recovery step on the first rejected media call", async () => {
+    const runtime = createRuntime();
+    try {
+      for (const [name, field, hint] of [
+        ["courseware_media_prepare", "kind", "courseware_media_context"],
+        ["courseware_media_assessments", "mode", '{"mode":"context"}'],
+      ]) {
+        const result = invalid(name, field);
+        (runtime as any).observeToolValidation(result);
+        const message = result.toolResults[0].content[0].text;
+        expect(message).toContain(hint);
+        expect(message).not.toContain("private malformed payload");
+      }
+    } finally { await runtime.dispose(); }
+  });
 
   it("allows a corrected call and resets only that tool's budget on success", async () => {
     const runtime = createRuntime(), internal = runtime as any;

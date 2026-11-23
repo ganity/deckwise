@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import { Type } from "typebox";
 
 const text = (maxLength: number) => Type.String({ minLength: 1, maxLength });
@@ -31,18 +32,36 @@ const pages = Type.Array(Type.Union([
   Type.Object({ pageNumber, teaching: Type.Object({ ...assessmentTeaching, pageType: Type.Literal("quiz") }, { additionalProperties: false }), quiz }, { additionalProperties: false }),
   Type.Object({ pageNumber, teaching: Type.Object({ ...assessmentTeaching, pageType: Type.Union([Type.Literal("interactive"), Type.Literal("pbl")]), question }, { additionalProperties: false }) }, { additionalProperties: false }),
 ]), { minItems: 1, maxItems: 100 });
+const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
+export function normalizePresentationArguments(input: unknown) {
+  if (!object(input) || !Array.isArray(input.pages)) return input;
+  return { ...input, pages: input.pages.map((page, index) => {
+    if (!object(page) || !object(page.teaching)) return page;
+    const fields = Object.keys(page).filter(key => key === "pageType" || Object.hasOwn(teaching, key) || key === "question");
+    if (!fields.length) return page;
+    const canonical = { ...page.teaching }, entry = { ...page, teaching: canonical };
+    for (const key of fields) {
+      if (Object.hasOwn(canonical, key) && !isDeepStrictEqual(canonical[key], page[key]))
+        throw new Error(`pages[${index}].teaching.${key} conflicts with pages[${index}].${key}; keep the intended value inside teaching.`);
+      canonical[key] = page[key];
+      delete (entry as Record<string, unknown>)[key];
+    }
+    return entry;
+  }) };
+}
+
 export const coursewarePresentationPrepareDefinition = {
   name: "courseware_presentation_prepare", label: "Prepare fixed assessment pages",
   parameters: Type.Object({ projectPath: text(4096), pages,
     canvas: Type.Object({ width: Type.Integer({ minimum: 100, maximum: 4096 }), height: Type.Integer({ minimum: 100, maximum: 4096 }) }, { additionalProperties: false }),
   }, { additionalProperties: false }),
-  description: "Before ordinary PPT Master SVG authoring, save the complete ordered teaching plan and generate fixed Quiz/checkpoint SVGs in the existing workspace project. Use its locked canvas dimensions. Body: teaching.pageType=slide. Quiz: teaching.pageType=quiz plus a sibling quiz:{type:quiz,questions:[one question]}. Classroom interaction: teaching.pageType=interactive plus teaching.question:{text,response:{kind:discussion,options:[],answerIndices:[]},referenceAnswer:{summary,keyPoints}}; no quiz. Never substitute a short-answer Quiz for a requested classroom interaction, even after validation fails; repair the reported field in the same page type. Returns one NN.svg filename per physical page: author only body entries yourself, never redesign generated assessments. No lecture, decoration or animation on assessment pages; requiredObjects/effects stay empty. Answers and constraints stay hidden. No model or media generation, export, adoption or approval. Replaying identical input is safe; existing different/manual files are preserved and reported as conflicts. Later use shared assessment media tools for question TTS and option images. After export pass the same saved pages to courseware_presentation_adopt.",
+  description: "Before ordinary PPT Master SVG authoring, save the complete ordered teaching plan and generate fixed Quiz/checkpoint SVGs in the existing workspace project. Submit all requested physical pages together. The only page-level keys are pageNumber, teaching and optional quiz. Put pageType, phase, objective, durationSeconds, requiredObjects, requiredEffects and classroom question inside teaching. Use its locked canvas dimensions. Body: teaching.pageType=slide. Quiz: teaching.pageType=quiz plus a sibling quiz:{type:quiz,questions:[one question]}. Classroom interaction: teaching.pageType=interactive plus teaching.question:{text,response:{kind:discussion,options:[],answerIndices:[]},referenceAnswer:{summary,keyPoints}}; no quiz. The independent oral template displays only question text. Write a self-contained question or recall prompt. Never require the student to inspect an unavailable illustration. Never substitute a short-answer Quiz for a requested classroom interaction, even after validation fails; repair the reported field in the same page type. Returns one NN.svg filename per physical page: author only body entries yourself, never redesign generated assessments. No lecture, decoration or animation on assessment pages; requiredObjects/effects stay empty. Answers and constraints stay hidden. No media generation, export, adoption or approval. Replaying identical input is safe; existing different/manual files are preserved and reported as conflicts. Later use shared assessment media tools for question TTS and option images. After export use courseware_presentation_adopt; it reads the saved plan.",
 };
 export const coursewarePresentationDefinition = {
   name: "courseware_presentation_adopt", label: "Continue exported presentation teaching",
   parameters: Type.Object({ path: text(4096), sourceSha256: Type.String({ pattern: "^[a-f0-9]{64}$" }),
-    pages,
+    pages: Type.Optional(pages),
     continueTeaching: Type.Optional(Type.Boolean({ description: "Defaults to true for this teaching-course export. Set false only when the user explicitly requests PPTX-only delivery without narration or paid media." })),
   }, { additionalProperties: false }),
-  description: "After the user explicitly requests official PPTX export, adopt that verified PPT Master exports/*.pptx into the shared saved teaching workflow. Supply its actual SHA-256 and exactly one teaching entry per physical page in order. Plan these entries before SVG authoring so Quiz/checkpoint pages stay within the requested total/body budget. Quiz uses pageType:quiz plus quiz with exactly one real question, 2–4 choices keyed A-D (judge uses T/F), and answer keys referencing those exact values; interaction uses pageType:interactive plus question with referenceAnswer. Body pages retain speaker notes and requiredObjects. requiredEffects records explicitly requested highlight/spotlight/animation, only on pages with safe target objects. Never convert a body activity into an assessment or add pages here. Host verifies current final SVG quality, planning, notes and source identity. Adoption itself does not generate media. Course export defaults to continueTeaching:true even if omitted: finish detailed narration, TTS, question TTS and option images using shared saved tools, without another Continue request. For an explicit PPTX-only request set continueTeaching:false; never omit it in that case or generate paid media. Do not re-export SVG once Office editing has started; resume the saved workflow instead.",
+  description: "After the user explicitly requests official PPTX export, adopt that verified PPT Master exports/*.pptx into the shared saved teaching workflow. Supply its absolute or workspace-relative export path and actual SHA-256. Omit pages when presentation-plan.json exists. For legacy exports without a saved plan, supply one teaching entry per physical page in order. Plan these entries before SVG authoring so Quiz/checkpoint pages stay within the requested total/body budget. Quiz uses pageType:quiz plus quiz with exactly one real question, 2–4 choices keyed A-D (judge uses T/F), and answer keys referencing those exact values; interaction uses pageType:interactive plus question with referenceAnswer. Body pages retain speaker notes and requiredObjects. requiredEffects records explicitly requested highlight/spotlight/animation, only on pages with safe target objects. Never convert a body activity into an assessment or add pages here. Host verifies current final SVG quality, planning, notes and source identity. For PRESENTATION_TEACHING_MISMATCH retain the exported PPTX and report the page and failed teaching field. A registration or review service failure leaves the export available: read saved workflow before retrying. Edit artwork only for an identified visual defect. Follow explicit source, timing or stale-export diagnostics at their own stage. Adoption itself does not generate media. Course export defaults to continueTeaching:true even if omitted: finish detailed narration, TTS, question TTS and option images using shared saved tools, without another Continue request. For an explicit PPTX-only request set continueTeaching:false; never omit it in that case or generate paid media. Do not re-export SVG once Office editing has started; resume the saved workflow instead.",
 };

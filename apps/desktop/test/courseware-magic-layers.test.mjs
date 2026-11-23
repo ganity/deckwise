@@ -21,6 +21,8 @@ test("vision planning uses the selected pixels and forces local extraction param
     return { text: JSON.stringify(manifest) };
   });
   assert.equal(sent.images[0].bytes, png);
+  assert.match(sent.system, /connecting arrows/);
+  assert.match(sent.system, /never leave them in the background/);
   assert.equal(result.repairPolicy, "extract_only");
   assert.equal(result.pipelineRevision, 2);
   assert.deepEqual(result.objects[0].bbox, [2, 2, 4, 3]);

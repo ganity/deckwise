@@ -1,0 +1,102 @@
+{
+  "route": "scene",
+  "pages": 4,
+  "physicalPageLimit": 6,
+  "sourceSha256": "c803185abc8e3c6e498567b978b270c47a1da71cd81a54140d542ba433736d0d",
+  "buildId": "7da9d8ff5c0daeb3abc582e4b7fc78b7815d673e98665bcfa70d191bb75419b4",
+  "allAssetsSha256Verified": true,
+  "audioAssets": [
+    {
+      "assetId": "tts-2a98ebb3863d47da1498c98b354699a1a9e0c4e8cfaa0449a8ff66af601d7fa5",
+      "sha256Verified": true,
+      "durationSeconds": 3.84
+    },
+    {
+      "assetId": "tts-2afb9c5b95065ce0423c7d23117251f8f6f92f63bff16500425e2fc15de5673b",
+      "sha256Verified": true,
+      "durationSeconds": 2.664
+    },
+    {
+      "assetId": "tts-3ca3432387e8c4a44b090c60b74a54c91de888c01da8a2ce6a7f8839eba22e62",
+      "sha256Verified": true,
+      "durationSeconds": 8.256
+    },
+    {
+      "assetId": "tts-53650da9ebbe8dfc071e0df5d61f7d8685550a8b5764ecf7dfa332e4fca1a7de",
+      "sha256Verified": true,
+      "durationSeconds": 2.832
+    },
+    {
+      "assetId": "tts-78ef811a52fbfca4286d5e6b78bdf19e9b108f6bc701d8899b4d969a31674348",
+      "sha256Verified": true,
+      "durationSeconds": 4.824
+    },
+    {
+      "assetId": "tts-92deff3c9a833b14de553b650a74d4d7a8438898db6278189d1131a4fa7912f2",
+      "sha256Verified": true,
+      "durationSeconds": 4.272
+    },
+    {
+      "assetId": "tts-b6d330269ba630f7962bef768aaa9629a19c766a97ae0ac7bf6a77e85525ef7d",
+      "sha256Verified": true,
+      "durationSeconds": 1.224
+    },
+    {
+      "assetId": "tts-c7275c54d114591ffdf155e4ab96b29f43e99447b09ae2b0ca09c71e12dc7bf7",
+      "sha256Verified": true,
+      "durationSeconds": 8.04
+    },
+    {
+      "assetId": "tts-cb4f2292924efcb98ecd3ab495abe3577c23b777a61ed70f75c93d657b06af58",
+      "sha256Verified": true,
+      "durationSeconds": 1.632
+    }
+  ],
+  "timing": [
+    {
+      "pageNumber": 1,
+      "speechCount": 3,
+      "speechSeconds": 14.712,
+      "effects": [
+        "element_animation",
+        "highlight",
+        "spotlight"
+      ]
+    },
+    {
+      "pageNumber": 2,
+      "speechCount": 1,
+      "speechSeconds": 8.04,
+      "effects": []
+    },
+    {
+      "pageNumber": 3,
+      "speechCount": 4,
+      "speechSeconds": 12.168,
+      "effects": [
+        "element_animation",
+        "highlight",
+        "spotlight"
+      ]
+    },
+    {
+      "pageNumber": 4,
+      "speechCount": 1,
+      "speechSeconds": 2.664,
+      "effects": []
+    }
+  ],
+  "rasterOnlyBodyPages": [
+    {
+      "pageNumber": 1,
+      "pictureLayers": 8,
+      "nativeTextRuns": 0
+    },
+    {
+      "pageNumber": 3,
+      "pictureLayers": 6,
+      "nativeTextRuns": 0
+    }
+  ],
+  "bodySpeechCeilingSeconds": 35
+}

@@ -5,7 +5,8 @@ import { isCoursewareTaskRef, isCoursewareSceneImageTarget, type CoursewareScene
 import type { DesktopAuthSession } from "./auth-session";
 import type { CoursewareImageQuote, CoursewareImageRequest, CoursewareImageTask } from "./courseware-media";
 import { readSceneCourseDraft } from "./courseware-scene-draft";
-import { decodeSceneImageBundle, downloadSceneImageBundle, isSceneImageAsset, readSceneImageAsset, verifySceneImageAsset, sceneDecompositionReference, sceneLocalDecompositionReference } from "./courseware-scene-image-assets";
+import { decodeSceneImageBundle, downloadSceneImageBundle, isSceneImageAsset, readSceneImageAsset, verifySceneImageAsset, sceneDecompositionReference, sceneLocalDecompositionReference, sceneImageForCompiler } from "./courseware-scene-image-assets";
+import type { SceneMasterReview } from "./courseware-scene-master-review";
 import type { VisualMasterPlanner } from "./courseware-visual-master";
 import type { MagicLayersFallback } from "./courseware-magic-layers";
 
@@ -69,6 +70,7 @@ function view(j: Journal, task: CoursewareImageTask | null = null): CoursewareSc
     asset: j.intent.asset ? { sha256: j.intent.asset.sha256, mimeType: j.intent.asset.mimeType,
       byteLength: j.intent.asset.byteLength, width: j.intent.asset.width, height: j.intent.asset.height,
       ...(j.intent.asset.normalizedBoundingBox ? { normalizedBoundingBox: j.intent.asset.normalizedBoundingBox } : {}),
+      ...(j.intent.asset.layerMetadata ? { layerMetadata: j.intent.asset.layerMetadata } : {}),
       ...(j.intent.asset.sourceZIndex === undefined ? {} : { sourceZIndex: j.intent.asset.sourceZIndex }) } : null,
     selected: j.intent.selected ?? false,
     task: task && { state: task.state, feeState: task.feeState, reservedPoints: task.reservedPoints,
@@ -84,7 +86,7 @@ export class CoursewareSceneImages {
   constructor(private getHost: () => Host | null, private getSession: () => string | null,
     private isRunning: (sessionId: string) => boolean,
     private auth: Pick<DesktopAuthSession, "getCoursewarePrincipal" | "coursewareMedia">,
-    private planVisualMaster?: VisualMasterPlanner, private layerFallback?: MagicLayersFallback) {}
+    private planVisualMaster?: VisualMasterPlanner, private layerFallback?: MagicLayersFallback, private reviewMaster?: SceneMasterReview) {}
 
   private context(p: Record<string, string>, allowDuringTurn = false) {
     const host = this.getHost();
@@ -208,7 +210,8 @@ export class CoursewareSceneImages {
         throw new Error("COURSEWARE_SCENE_GENERATION_INPUT_CHANGED");
       const bytes = await readSceneImageAsset(saved.path, j.intent.asset, row.target);
       c.assertCurrent();
-      images.push({ pageId: row.pageId, intentId: row.intentId, target: row.target, asset: row.asset!, bytes });
+      const instructions = row.target.kind === "visualMaster" ? j.intent.planningInstructions?.trim() : undefined;
+      images.push({ ...(instructions ? { instructions } : {}), pageId: row.pageId, intentId: row.intentId, target: row.target, asset: row.asset!, bytes });
     }
     await assertCurrent();
     return { plan, ...model, images, assertCurrent, assertScope: c.assertCurrent,
@@ -235,7 +238,7 @@ export class CoursewareSceneImages {
     let referenceIntentId = requestedReference;
     if (target.kind === "visualMaster") {
       if (p.pageId === firstVisualPage.pageId) {
-        if (requestedReference !== undefined) throw new Error("COURSEWARE_SCENE_IMAGE_INVALID_REQUEST");
+        if (requestedReference !== undefined) throw new Error("COURSEWARE_INVALID_REFERENCE: omit referenceIntentId for the first visualMaster; no reference image exists yet");
       } else {
         const rows = await this.list({ sessionId: p.sessionId });
         c.assertCurrent();
@@ -265,12 +268,16 @@ export class CoursewareSceneImages {
     let j = checked(await c.host.call<Journal>("courseware.sceneImage.prepare", request));
     c.assertCurrent();
     if (target.kind === "visualMaster" && j.intent.phase === "prepared" && j.intent.sourcePrompt === undefined && this.planVisualMaster) {
+      const { approval } = await c.host.call<{ approval: { sha256: string; educationContext?: import("@pi-desktop/shared").CoursewareEducationContext } | null }>("courseware.scenePlan.get", { sessionId: p.sessionId });
+      c.assertCurrent();
+      if (approval?.sha256 !== p.planSha256) throw new Error("COURSEWARE_SCENE_IMAGE_CONTEXT_CHANGED");
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(new Error("COURSEWARE_VISUAL_PLANNING_TIMEOUT")), 120_000);
       const guard = setInterval(() => { try { c.assertCurrent(); } catch (error) { controller.abort(error); } }, 100);
       let prompt = j.intent.request.input;
       try {
         prompt = await this.planVisualMaster({ sessionId: p.sessionId, plan,
+          educationContext: approval.educationContext,
           page: plan.pages.find(page => page.pageId === p.pageId)!, instructions,
           courseStyleReferenceSupplied: referenceIntentId !== undefined, signal: controller.signal });
       } catch {
@@ -454,9 +461,6 @@ export class CoursewareSceneImages {
     if (!this.layerFallback) throw new Error("COURSEWARE_MAGICLAYERS_NOT_CONFIGURED");
     if (this.archiving.has(key)) throw new Error("COURSEWARE_SCENE_IMAGE_IN_FLIGHT");
     this.archiving.add(key);
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(new Error("COURSEWARE_MAGICLAYERS_TIMEOUT: resume the saved job")), 14 * 60_000);
-    const guard = setInterval(() => { try { c.assertCurrent(); } catch (error) { controller.abort(error); } }, 100);
     try {
       const j = checked(await c.host.call<Journal>("courseware.sceneImage.get", c.scope), p.intentId);
       if (j.intent.asset) return view(j);
@@ -465,6 +469,17 @@ export class CoursewareSceneImages {
       const receipt = await this.read(c, j);
       assertCoursewareRetryable(receipt.task);
       if (receipt.task?.state !== "failed") throw new Error("COURSEWARE_MAGICLAYERS_REQUIRES_UPSTREAM_FAILURE");
+      return await this.splitSavedMaster(p, c, j, receipt.task, this.layerFallback);
+    } finally { this.archiving.delete(key); }
+  }
+
+  private async splitSavedMaster(p: Record<string, string>, c: ReturnType<CoursewareSceneImages["context"]>,
+    j: Journal, task: CoursewareSceneImageView["task"], fallback: MagicLayersFallback) {
+    if (!j.intent.taskRef) throw new Error("COURSEWARE_SCENE_IMAGE_TASK_REQUIRED");
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(new Error("COURSEWARE_MAGICLAYERS_TIMEOUT: resume the saved job")), 14 * 60_000);
+    const guard = setInterval(() => { try { c.assertCurrent(); } catch (error) { controller.abort(error); } }, 100);
+    try {
       const check = async () => {
         controller.signal.throwIfAborted(); c.assertCurrent();
         await this.approved(c.host, p.sessionId, j.intent.planSha256);
@@ -482,7 +497,7 @@ export class CoursewareSceneImages {
       const original = await readSceneImageAsset(archived.path, asset, { kind: "visualMaster" });
       const bytes = sceneLocalDecompositionReference(original, asset);
       const plan = await this.approved(c.host, p.sessionId, j.intent.planSha256);
-      const result = await this.layerFallback({ sessionId: p.sessionId, key: j.intent.idempotencyKey,
+      const result = await fallback({ sessionId: p.sessionId, key: j.intent.idempotencyKey,
         requestHash: j.intent.requestHash, sourceSha256: asset.sha256,
         projectId: coursewareMediaSubmissionProject(j.intent.submissionScope, p.sessionId),
         page: plan.pages.find(page => page.pageId === j.intent.pageId)!, bytes, width: asset.width, height: asset.height,
@@ -499,8 +514,8 @@ export class CoursewareSceneImages {
       await check();
       const saved = checked(await c.host.call<Journal>("courseware.sceneImage.bundle.stage", { ...c.scope, images: metadata }), p.intentId);
       c.assertCurrent();
-      return { ...view(saved), task: receipt.task };
-    } finally { clearTimeout(timeout); clearInterval(guard); this.archiving.delete(key); }
+      return { ...view(saved), task: task };
+    } finally { clearTimeout(timeout); clearInterval(guard); }
   }
 
   async archive(value: unknown): Promise<CoursewareSceneImagePreview> {
@@ -523,9 +538,15 @@ export class CoursewareSceneImages {
             c.assertCurrent();
             checked(await c.host.call<Journal>("courseware.sceneImage.bundle.stage", { ...c.scope, stageOnly: true, images: [image] }), p.intentId);
             c.assertCurrent();
+          }).catch(async error => {
+            if (!this.layerFallback || !(error instanceof Error) ||
+                !["COURSEWARE_SCENE_IMAGE_INVALID_ASSET", "COURSEWARE_SCENE_INVALID_INPUT", "COURSEWARE_SCENE_IMAGE_LAYER_REQUIRES_TRANSPARENT_PNG"].includes(error.message)) throw error;
+            c.assertCurrent();
+            await this.splitSavedMaster(p, c, j, view(j, task).task, this.layerFallback);
+            return undefined;
           });
           c.assertCurrent();
-          checked(await c.host.call<Journal>("courseware.sceneImage.bundle.stage", { ...c.scope, images }), p.intentId);
+          if (images) checked(await c.host.call<Journal>("courseware.sceneImage.bundle.stage", { ...c.scope, images }), p.intentId);
           return await this.preview(value);
         }
         const a = task.assetRef;
@@ -557,9 +578,22 @@ export class CoursewareSceneImages {
       throw new Error("COURSEWARE_SCENE_IMAGE_INVALID_REQUEST");
     const { expectedSelectedIntentId, ...payload } = value as Record<string, unknown>;
     const p = input(payload, ["intentId"]), c = this.context(p);
-    const saved = await this.preview(payload);
-    if (!saved.image.current) throw new Error("COURSEWARE_SCENE_IMAGE_PLAN_CHANGED");
-    await this.approved(c.host, p.sessionId, saved.image.planSha256);
+    const archived = await c.host.call<Journal & { path: string }>("courseware.sceneImage.asset.get", c.scope);
+    const j = checked(archived, p.intentId), target = view(j).target, asset = j.intent.asset;
+    if (!j.current || !asset) throw new Error("COURSEWARE_SCENE_IMAGE_PLAN_CHANGED");
+    const bytes = await readSceneImageAsset(archived.path, asset, target);
+    const plan = await this.approved(c.host, p.sessionId, j.intent.planSha256);
+    c.assertCurrent();
+    if (target.kind === "visualMaster" && !j.intent.selected) {
+      const page = plan.pages.find(page => page.pageId === j.intent.pageId);
+      if (!page || !this.reviewMaster) throw new Error("Visual master acceptance requires a page image reviewer");
+      await this.reviewMaster({ sessionId: p.sessionId, page, nativeText: plan.textMode === "native",
+        image: asset.mimeType === "image/png" ? { assetIds: [p.intentId], bytes, width: asset.width, height: asset.height, sha256: asset.sha256 } :
+          sceneImageForCompiler({ intentId: p.intentId, asset, target, bytes }, { width: 1280, height: 800 }),
+        instructions: j.intent.planningInstructions ?? "", signal: AbortSignal.timeout(180_000) });
+      c.assertCurrent();
+      await this.approved(c.host, p.sessionId, j.intent.planSha256);
+    }
     c.assertCurrent();
     checked(await c.host.call<Journal>("courseware.sceneImage.asset.adopt", { ...c.scope, expectedSelectedIntentId }), p.intentId);
     c.assertCurrent();

@@ -1,0 +1,40 @@
+{
+  "model": "deepseek-v4-1-flash",
+  "candidateHead": "5cbd7cb44de14d6cb5f1e478ff9f57b63bd7d05d",
+  "existingDirtyCandidate": true,
+  "scope": "Explicit rerun from existing Master and Scene tasks; successful images/layers/activity audio retained, not fresh full generation",
+  "physicalPageLimit": 5,
+  "master": {
+    "pages": 4,
+    "status": "failed-native-adoption",
+    "newExport": true,
+    "mismatchesOnPages": [
+      1,
+      2
+    ],
+    "cause": "OMML fractions still emit empty text with no sourceShapeId in importer",
+    "ttsStarted": false
+  },
+  "scene": {
+    "pages": 4,
+    "status": "failed-body-narration",
+    "frontVisualGrounding": "valid-format this time",
+    "terminalCodes": [
+      "COURSEWARE_NARRATION_OUTPUT_INVALID"
+    ],
+    "page1": "Semantic review used wrong observed UUID roles; separate rain and condensation layers misidentified as a shared composite",
+    "page3": "Whole teaching-region request not implemented by generated attention targets; semantic review returned invalid issues after bounded repair",
+    "savedBodyPages": [],
+    "retainedActivityAudio": 2,
+    "sourceUnchanged": true,
+    "newImageOrTtsTasks": false
+  },
+  "supplierMetadata": {
+    "foregroundLayerCount": 11,
+    "foregroundNamesPresent": 11,
+    "foregroundDescriptionsPresent": 11,
+    "backgroundNamesOrDescriptionsPresent": 0
+  },
+  "productSourceChanged": false,
+  "fullPlaybackSkipped": "Neither rerun reached complete teaching state"
+}

@@ -31,22 +31,31 @@ export async function planNativeLesson(input: {
     if (output.length > 1024 * 1024) throw new Error("Lesson planning output exceeds limit");
     const parsed: unknown = JSON.parse(output);
     if (!record(parsed) || Object.keys(parsed).some(k => k !== "units") || !Array.isArray(parsed.units) ||
-        !parsed.units.length || parsed.units.length > 100) throw new Error("Invalid lesson planning output");
+        !parsed.units.length || parsed.units.length > 100) throw new Error("Return one units array with 1-100 entries");
     const units: NonNullable<CoursewareEnrichment["plan"]>["units"] = parsed.units.map((unit, index) => {
-      if (!record(unit) || Object.keys(unit).some(k => !["title", "evidence", "kind", "mappings"].includes(k)) ||
-          typeof unit.evidence !== "string" || !unit.evidence.trim() || !input.text.includes(unit.evidence) || !Array.isArray(unit.mappings))
-        throw new Error("Lesson units require exact source evidence");
-      const pageIds = unit.mappings.map(mapping => {
-        if (!record(mapping) || Object.keys(mapping).some(k => !["pageId", "evidence"].includes(k))) throw new Error("Invalid page mapping");
+      const field = `units[${index}]`;
+      if (!record(unit) || Object.keys(unit).some(k => !["title", "evidence", "kind", "mappings"].includes(k)))
+        throw new Error(`${field} accepts title, evidence, kind and mappings`);
+      if (typeof unit.evidence !== "string" || !unit.evidence.trim() || unit.evidence.length > 8000 || !input.text.includes(unit.evidence))
+        throw new Error(`${field}.evidence requires exact source evidence of 1-8000 characters`);
+      if (typeof unit.title !== "string" || !unit.title.trim() || unit.title.length > 200) throw new Error(`${field}.title must contain 1-200 characters`);
+      if (!["teaching", "quiz", "checkpoint"].includes(String(unit.kind))) throw new Error(`${field}.kind must be teaching, quiz or checkpoint`);
+      if (!Array.isArray(unit.mappings)) throw new Error(`${field}.mappings must be an array; leave uncertain mappings empty`);
+      const pageIds = unit.mappings.map((mapping, i) => {
+        const path = `${field}.mappings[${i}]`;
+        if (!record(mapping) || Object.keys(mapping).some(k => !["pageId", "evidence"].includes(k))) throw new Error(`${path} requires pageId and evidence`);
         const page = input.pages.find(p => p.pageId === mapping.pageId);
-        if (!page || typeof mapping.evidence !== "string" || !mapping.evidence.trim() ||
-            ![page.text, page.notes].some(text => text.includes(mapping.evidence as string))) throw new Error("Lesson mapping requires exact live page evidence");
+        if (!page) throw new Error(`${path}.pageId must identify a supplied page`);
+        if (typeof mapping.evidence !== "string" || !mapping.evidence.trim() ||
+            ![page.text, page.notes].some(text => text.includes(mapping.evidence as string))) throw new Error(`${path}.evidence requires an exact quote from page ${page.pageId}'s text or notes`);
         return page.pageId;
       });
       const result = { id: `lesson-unit-${index + 1}`, title: unit.title, evidence: unit.evidence, kind: unit.kind, pageIds };
       // Reuse only one exact existing question. Fuzzy matches remain unresolved for explicit mapping.
       const matches = unit.kind === "teaching" ? [] : input.pages.flatMap(page => page.activities.filter(a =>
         normalize(a.question).length >= 5 && normalize(unit.evidence as string).includes(normalize(a.question))).map(activity => ({ page, activity })));
+      const duplicate = pageIds.findIndex((id, i) => pageIds.indexOf(id) !== i);
+      if (matches.length !== 1 && duplicate >= 0) throw new Error(`${field}.mappings[${duplicate}].pageId duplicates ${pageIds[duplicate]}; map this unit to each page once`);
       return { ...result, ...(matches.length === 1 ? { activityId: matches[0].activity.id,
         pageIds: [...new Set([...pageIds, matches[0].page.pageId])] } : {}) };
     }) as NonNullable<CoursewareEnrichment["plan"]>["units"];

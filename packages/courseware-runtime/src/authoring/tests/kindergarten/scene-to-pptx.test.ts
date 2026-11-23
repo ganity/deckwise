@@ -1,5 +1,8 @@
 import JSZip from 'jszip';
 import { crc32 } from 'node:zlib';
+import { createHash } from 'node:crypto';
+import { SaxesParser } from 'saxes';
+import { packNativeTeachingPptx } from '../../native-teaching-pptx';
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 
@@ -67,6 +70,18 @@ const scene = {
 };
 
 describe('scene to native PPTX prototype', () => {
+  it('preserves supplier name and description bound to the exact embedded PNG through native packaging', async () => {
+    const layerMetadata = { name: 'Evaporation', description: 'Upward arrows and "evaporation" label <together>' };
+    const result = await compileSceneToPptx({ ...scene, elements: [{ ...scene.elements[0], layerMetadata }] }, assets);
+    const packed = await packNativeTeachingPptx({ source: result.pptx, title: 'Water cycle', pages: [{ pageId: 'water', actions: [] }], generation: {} });
+    const zip = await JSZip.loadAsync(packed);
+    const descriptions: string[] = [];
+    const parser = new SaxesParser({ xmlns: true });
+    parser.on('opentag', tag => { if (tag.local === 'cNvPr' && tag.attributes.name?.value === 'apple') descriptions.push(tag.attributes.descr.value); });
+    parser.write(await zip.file('ppt/slides/slide1.xml')!.async('string')).close();
+    expect(descriptions).toHaveLength(1);
+    expect(JSON.parse(descriptions[0])).toEqual({ schema: 'deckwise-layer/1', ...layerMetadata, sha256: createHash('sha256').update(png).digest('hex') });
+  });
   it('exports four independently editable objects, correct units and the clean background', async () => {
     const result = await compileSceneToPptx(scene, assets);
     const zip = await JSZip.loadAsync(result.pptx);

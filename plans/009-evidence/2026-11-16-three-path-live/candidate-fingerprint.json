@@ -1,0 +1,21 @@
+{
+  "base": "5cbd7cb44de14d6cb5f1e478ff9f57b63bd7d05d",
+  "dirty": true,
+  "files": [
+    {
+      "name": "main",
+      "path": "/home/jhz/deckwise-validation/three-path-live-20261116/candidate/out/main/index.js",
+      "sha256": "c6670cc62b0f50f1a8899b86878669f83ccca6adbd85a2d44aceadfc622d5610"
+    },
+    {
+      "name": "host",
+      "path": "/home/jhz/deckwise-validation/three-path-live-20261116/pi-desktop-host-core",
+      "sha256": "cc79348b64a42adcb5a3b0951c9474f55dade40928e7c51a025d44aa4c970712"
+    },
+    {
+      "name": "runtime",
+      "path": "/home/jhz/deckwise-validation/three-path-live-20261116/agent-runtime/dist/runtime.js",
+      "sha256": "94a82ba75e5a5041506418103a39775f5915d77fc7d1b08feab5515307e625c3"
+    }
+  ]
+}

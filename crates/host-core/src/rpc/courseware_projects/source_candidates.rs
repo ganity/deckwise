@@ -1,6 +1,6 @@
 use super::*;
 use crate::db::courseware_projects::source_candidates::{
-    FadeEvidence, RedoEvidence, SourceCandidateRequest, StyleBatchEvidence,
+    FadeEvidence, Kind, RedoEvidence, SourceCandidateRequest, StyleBatchEvidence,
 };
 
 #[derive(Deserialize)]
@@ -49,6 +49,20 @@ pub(super) async fn handle(
                 .courseware
                 .saved_project_seed(&p.job_id, Path::new(&root))
                 .map_err(error)?;
+            let current = state
+                .db
+                .get_courseware_project(&root, &seed.project_id)
+                .map_err(error)?
+                .ok_or_else(|| {
+                    rpc_err(1007, "Courseware project not found", "COURSEWARE_NOT_FOUND")
+                })?;
+            if !matches!(p.request.kind, Kind::PageFade) && super::has_saved_narration(&current) {
+                return Err(rpc_err(
+                    1008,
+                    "COURSEWARE_STAGE_LOCKED: visual source candidates are closed after narration is saved; repair narration, audio or effects instead",
+                    "COURSEWARE_STAGE_LOCKED",
+                ));
+            }
             // Keep the exact original bytes available after the single parser job is released.
             state
                 .courseware
@@ -67,6 +81,20 @@ pub(super) async fn handle(
                 .db
                 .get_source_candidate(&root, &p.project_id, &p.candidate_id)
                 .map_err(error)?;
+            let current = state
+                .db
+                .get_courseware_project(&root, &p.project_id)
+                .map_err(error)?
+                .ok_or_else(|| {
+                    rpc_err(1007, "Courseware project not found", "COURSEWARE_NOT_FOUND")
+                })?;
+            if pending["request"]["kind"] != "page-fade" && super::has_saved_narration(&current) {
+                return Err(rpc_err(
+                    1008,
+                    "COURSEWARE_STAGE_LOCKED: visual source candidates are closed after narration is saved; repair narration, audio or effects instead",
+                    "COURSEWARE_STAGE_LOCKED",
+                ));
+            }
             if pending["stale"] == true || pending["status"] == "rejected" {
                 return Err(rpc_err(
                     1008,

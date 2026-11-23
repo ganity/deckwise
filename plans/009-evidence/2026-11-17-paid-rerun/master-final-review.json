@@ -1,0 +1,117 @@
+{
+  "ready": false,
+  "audioReady": false,
+  "narrationReady": false,
+  "contentReview": {
+    "applied": false,
+    "issues": [
+      {
+        "code": "CONTENT_REVIEW_FAILED",
+        "message": "第1页未保存讲解语音动作：actions为空，虽然notes包含完整讲稿，但播放时没有对应的speech动作；本页intentionalSilence为false，无法按讲稿完成数方格和面积计算的讲解。",
+        "pageId": "page-1",
+        "pageNumber": 1,
+        "repair": "source",
+        "repairable": false
+      },
+      {
+        "code": "CONTENT_REVIEW_FAILED",
+        "message": "第1页要求聚光、入场动画和高亮效果，但保存的actions为空，未配置任何效果或目标对象，无法呈现对4列3行方格、长宽标注及4×3＝12（平方厘米）公式的相应演示。",
+        "pageId": "page-1",
+        "pageNumber": 1,
+        "repair": "source",
+        "repairable": false
+      }
+    ],
+    "ready": false,
+    "sourceSha256": "0cc07ddaa93efdd5a6e12ff182cbfb4991080047df7fc2e52e1b88a79d9aa735",
+    "teachingRevision": "3abffcc3-8eac-4542-8513-4999ba947055"
+  },
+  "completion": {
+    "counts": {
+      "audioMissing": 0,
+      "audioReady": 8,
+      "musicClips": 0,
+      "musicPending": 0,
+      "pages": 4,
+      "questions": 2,
+      "speeches": 8
+    },
+    "issues": [
+      {
+        "code": "NARRATION_MISSING",
+        "pageId": "page-1",
+        "pageNumber": 1,
+        "repair": "narration",
+        "repairable": true
+      },
+      {
+        "code": "EFFECT_MISSING",
+        "pageId": "page-1",
+        "pageNumber": 1,
+        "repair": "narration",
+        "repairable": true
+      },
+      {
+        "code": "EFFECT_MISSING",
+        "pageId": "page-1",
+        "pageNumber": 1,
+        "repair": "narration",
+        "repairable": true
+      },
+      {
+        "code": "EFFECT_MISSING",
+        "pageId": "page-1",
+        "pageNumber": 1,
+        "repair": "narration",
+        "repairable": true
+      },
+      {
+        "code": "NARRATION_MISSING",
+        "message": "Page 1 has no saved narration candidate.",
+        "pageId": "page-1",
+        "pageNumber": 1,
+        "repair": "narration",
+        "repairable": true
+      },
+      {
+        "code": "CONTENT_REVIEW_FAILED",
+        "message": "第1页未保存讲解语音动作：actions为空，虽然notes包含完整讲稿，但播放时没有对应的speech动作；本页intentionalSilence为false，无法按讲稿完成数方格和面积计算的讲解。",
+        "pageId": "page-1",
+        "pageNumber": 1,
+        "repair": "source",
+        "repairable": false
+      },
+      {
+        "code": "CONTENT_REVIEW_FAILED",
+        "message": "第1页要求聚光、入场动画和高亮效果，但保存的actions为空，未配置任何效果或目标对象，无法呈现对4列3行方格、长宽标注及4×3＝12（平方厘米）公式的相应演示。",
+        "pageId": "page-1",
+        "pageNumber": 1,
+        "repair": "source",
+        "repairable": false
+      }
+    ],
+    "ready": false,
+    "sourceSha256": "0cc07ddaa93efdd5a6e12ff182cbfb4991080047df7fc2e52e1b88a79d9aa735",
+    "teachingRevision": "3abffcc3-8eac-4542-8513-4999ba947055",
+    "warnings": [
+      {
+        "code": "OBJECT_BINDING_ADVISORY",
+        "message": "Planned descriptions are not independently bound: 完整4列3行单位方格长方形, 长4厘米标注, 宽3厘米标注, 每格1平方厘米说明, 4×3＝12（平方厘米）公式. This is advisory; narrate the actual picture and bind effects only to verified eligible targets. Visual grounding checks essential teaching content separately. Do not regenerate images or invent aliases to match design details.",
+        "pageId": "page-1",
+        "pageNumber": 1
+      },
+      {
+        "code": "NARRATION_DURATION_EXCEEDED",
+        "message": "Decoded speech totals 22632 ms against a 20-second classroom budget. Report this overrun; for generated narration shorten only this page before new TTS. Preserve user-supplied scripts and adopted audio unless revision is authorized.",
+        "pageId": "page-2",
+        "pageNumber": 2
+      },
+      {
+        "code": "OBJECT_BINDING_ADVISORY",
+        "message": "Planned descriptions are not independently bound: 每行5格，共2行说明. This is advisory; narrate the actual picture and bind effects only to verified eligible targets. Visual grounding checks essential teaching content separately. Do not regenerate images or invent aliases to match design details.",
+        "pageId": "page-2",
+        "pageNumber": 2
+      }
+    ]
+  }
+}

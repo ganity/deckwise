@@ -70,4 +70,10 @@ it('checks saved group mirrors before playback projection consumes them', () => 
   const before = structuredClone({ source, pages });
   expect(inspectNativePlayback(source, 'a'.repeat(64), pages, identity)).toMatchObject({ ready: true, issues: [] });
   expect({ source, pages }).toEqual(before);
+  Object.assign(pages[0].actions[0].visualCues[0], {atMs: 300, endMs: 900});
+  expect(inspectNativePlayback(source, 'a'.repeat(64), pages, identity)).toMatchObject({
+    ready: false, issues: [{code: 'NATIVE_SPEECH_ANIMATION_MISSING', pageNumber: 1, message: expect.stringContaining('同类动画在 0 ms 开始')}],
+  });
+  source.pages[0].pptxAnimation!.steps[0].items[0].startAtMs = 300;
+  expect(inspectNativePlayback(source, 'a'.repeat(64), pages, identity).ready).toBe(true);
 });

@@ -30,13 +30,16 @@ export const useAppStore = create(set => ({activeSessionId: "chat", runningSessi
 export function setStage(next) { stage=next; plan.approvedSha256 = stage ? plan.sha256 : null; useAppStore.setState(state => ({messages:[...state.messages,{role:"assistant",content:"fixture"}],runningSessions:{chat:stage>=2&&stage<=5}})); }
 export const api = {
   onAuthChanged: () => () => {},
-  coursewareWorkflowGet: async () => ({task:{taskType:"scene",imported:false,generated:stage>=5,...(stage>=5?{sourcePath:"/fixture/lesson.pptx"}:{})},plan:stage>=5?null:structuredClone(plan),...(stage===4?{compilation:{state:"running",planSha256:plan.sha256}}:{})}),
+  coursewareWorkflowGet: async () => ({task:{taskType:stage===7?"plain":"scene",imported:false,generated:stage>=5,...(stage>=5?{sourcePath:stage===7?"/fixture/.deckwise-ppt/projects/lesson/exports/lesson.pptx":"/fixture/lesson.pptx"}:{})},plan:stage>=5?null:structuredClone(plan),...(stage===4?{compilation:{state:"running",planSha256:plan.sha256}}:{})}),
+  fsList: async path => ({entries: ({lesson:["design_spec.md","spec_lock.md"],svg_output:["page.svg"],notes:["total.md"],validation:["svg_quality_report.json"],exports:["lesson.pptx"]}[path.split("/").at(-1)] ?? []).map(name => ({name,kind:"file",mtimeMs:1}))}),
+  fsRead: async path => ({kind:"text",content:path.endsWith("svg_quality_report.json")?JSON.stringify({stage:"final",summary:{errors:0}}):""}),
+  pptPreviewOpen: async () => {},
   coursewareScenePlanApprove: async () => { plan.approvedSha256=plan.sha256; return {plan:structuredClone(plan)}; },
   coursewareSceneImageList: async () => rows(), coursewareSceneImageStatus: async (_session,id) => rows().find(row=>row.intentId===id),
   coursewareSceneImagePreview: async (_session,id) => preview(id), coursewareSceneImageArchive: async (_session,id) => preview(id),
   coursewareSceneImageAdopt: async (_session,id) => {calls.push(["adopt",id]); return rows().map(row=>({...row,selected:true}));},
-  pptEditorOpen: async path => {calls.push(["open",path]);return {status:"ready",path,canSave:true,nativeTeaching:true,teachingProgress:{total:6,audio:3,ready:2}};},
-  onPptEditorState: () => () => {}, pptEditorSetVisible: async visible => calls.push(["visible",visible]), pptEditorSetBounds: async () => {}, pptEditorClose: async () => calls.push(["close"])
+  pptEditorOpen: async path => {calls.push(["open",path]);return {status:"ready",path,canSave:true,module:true,nativeTeaching:true,...(stage===7?{}:{teachingProgress:{total:6,audio:3,ready:2}})};},
+  onPptEditorState: () => () => {}, pptEditorConfigureUi: async () => {}, pptEditorSetVisible: async visible => calls.push(["visible",visible]), pptEditorSetBounds: async () => {}, pptEditorClose: async () => calls.push(["close"])
 };
 window.fixture={setStage,calls};
 `;
@@ -45,10 +48,11 @@ await build({ stdin: { contents: `import React from "react"; import {createRoot}
 import "workspace-fixture"; import {zhCN} from "${root}packages/i18n/src/locales/zh-CN/index.ts";
 import {CoursewareChatWorkflow} from "./src/components/courseware/CoursewareChatWorkflow";
 await i18n.use(initReactI18next).init({lng:"zh-CN",resources:{"zh-CN":{translation:zhCN}},interpolation:{escapeValue:false}});
-createRoot(document.getElementById("root")).render(<CoursewareChatWorkflow/>);`, loader: "tsx", resolveDir: join(root, "apps/desktop") },
+createRoot(document.getElementById("root")).render(<CoursewareChatWorkflow maximized onToggleMaximize={() => {}}/>);`, loader: "tsx", resolveDir: join(root, "apps/desktop") },
   outfile: join(output, "app.js"), bundle: true, format: "esm", platform: "browser", jsx: "automatic", define: { "process.env.NODE_ENV": '"test"' },
   plugins: [{name:"isolated-ipc",setup(build) {
     build.onResolve({filter:/workspace-fixture$|\/lib\/api$|\/stores\/app-store$/}, () => ({path:"fixture",namespace:"fixture"}));
+    build.onResolve({filter:/^\.\/api$/}, args => args.importer.endsWith("/lib/ppt-master-project.ts") ? {path:"fixture",namespace:"fixture"} : undefined);
     build.onLoad({filter:/.*/,namespace:"fixture"}, () => ({contents:fixture,loader:"js",resolveDir:join(root,"apps/desktop")}));
     build.onResolve({filter:new RegExp("/("+stubs.join("|")+")$")}, args => ({path:args.path.split("/").at(-1),namespace:"stub"}));
     build.onLoad({filter:/.*/,namespace:"stub"}, args => ({contents:'export function '+args.path+'(){return null;}',loader:"js"}));
@@ -102,10 +106,25 @@ try {
   await expect(page.getByText("音频 3/6 页 · 教学审核 2/6 页",{exact:true})).toBeVisible();
   await expect(page.locator(".courseware-teaching")).toHaveCount(0);
   await page.getByRole("button",{name:"刷新状态",exact:true}).click();
-  await setStage(6); await expect(page.getByRole("button",{name:"发布到教学平台",exact:true})).toBeEnabled();
+  await setStage(6); await expect(page.getByRole("button",{name:"发布",exact:true})).toBeEnabled();
   assert.equal(await page.evaluate(()=>window.fixture.calls.filter(call=>call[0]==="open").length),1);
   assert.equal(await page.evaluate(()=>window.fixture.calls.filter(call=>call[0]==="close").length),0);
+  await setStage(7);
+  const toolbar = page.locator(".ppt-editor-toolbar");
+  const manualPreview = toolbar.getByRole("button",{name:"预览与修改页面",exact:true});
+  await expect(manualPreview).toBeVisible();
+  await expect(toolbar.getByRole("button",{name:"保存",exact:true})).toBeEnabled();
+  for (const text of ["当前课件任务","打开 PPT 编辑","可以编辑","已打开"]) {
+    await expect(page.getByText(text,{exact:true})).toHaveCount(0);
+  }
+  assert(await toolbar.evaluate(element => element.scrollWidth <= element.clientWidth));
+  await page.setViewportSize({width:1100,height:760});
+  assert((await toolbar.boundingBox()).height <= 44);
+  await page.addStyleTag({path:join(root,"apps/desktop/src/styles/tokens.css")});
+  await toolbar.screenshot({path:join(output,"editor-toolbar.png")});
+  await manualPreview.click();
+  await expect.poll(()=>page.evaluate(()=>window.fixture.calls.some(([kind,tab])=>kind==="tab"&&tab.kind==="svg-editor"))).toBe(true);
   assert.deepEqual(errors,[]);
-  await writeFile(join(output,"report.json"),JSON.stringify({status:"PASS",scope:"Real renderer components; fixture IPC and media; native Office engine and paid providers not exercised",checks:["plan disclosure and pinned approval at 420px","plan approval","cover adoption","images-only preview","layers 4/6","compiler state","selected page retained","narrow layout","PPT opens during active turn","refresh does not reopen editor"],errors},null,2));
+  await writeFile(join(output,"report.json"),JSON.stringify({status:"PASS",scope:"Real renderer components; fixture IPC and media; native Office engine and paid providers not exercised",checks:["plan disclosure and pinned approval at 420px","plan approval","cover adoption","images-only preview","layers 4/6","compiler state","selected page retained","narrow layout","PPT opens during active turn","refresh does not reopen editor","ordinary PPT shares one toolbar with SVG preview"],errors},null,2));
   console.log("PASS courseware workspace renderer:",output);
 } finally {await browser.close();await new Promise(resolve=>server.close(resolve));}

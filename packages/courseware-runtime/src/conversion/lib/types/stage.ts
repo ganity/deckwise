@@ -111,6 +111,7 @@ export interface SlideContent {
  */
 export interface QuizContent {
   type: 'quiz';
+  optionImagePolicy?: { required: boolean; reason: string };
   questions: QuizQuestion[];
   interactionMode?: QuizInteractionMode;
   playbackConfig?: ClassroomQuizPlaybackConfig;

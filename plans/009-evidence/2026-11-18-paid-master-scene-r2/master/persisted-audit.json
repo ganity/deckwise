@@ -1,0 +1,48 @@
+{
+  "route": "master",
+  "pages": 4,
+  "sourceSha256": "adc20ca34c284bd23ee1812006d988cd3a99edc848c4028d91c0e4b031da85a5",
+  "audioAssets": {},
+  "timing": [
+    {
+      "pageNumber": 1,
+      "speechCount": 0,
+      "audioCount": 0,
+      "speechSeconds": 0,
+      "effects": []
+    },
+    {
+      "pageNumber": 2,
+      "speechCount": 0,
+      "audioCount": 0,
+      "speechSeconds": 0,
+      "effects": []
+    },
+    {
+      "pageNumber": 3,
+      "speechCount": 1,
+      "audioCount": 0,
+      "speechSeconds": 0,
+      "effects": []
+    },
+    {
+      "pageNumber": 4,
+      "speechCount": 1,
+      "audioCount": 0,
+      "speechSeconds": 0,
+      "effects": []
+    }
+  ],
+  "allSavedSpeechAudioVerified": false,
+  "missingSpeechAudio": [
+    {
+      "pageNumber": 3,
+      "actionId": "page-3-speech"
+    },
+    {
+      "pageNumber": 4,
+      "actionId": "page-4-speech"
+    }
+  ],
+  "notAnAcceptanceVerdict": true
+}

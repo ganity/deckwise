@@ -85,15 +85,17 @@ export function createMainCompletion({
           session?: { mode?: string; providerId?: string; modelId?: string; thinkingLevel?: string };
         }>("session.get", { id: input.sessionId, messageLimit: 1 })
       ).session;
-      const model = current?.providerId && current.modelId
-        ? { modelKey: `${current.providerId}/${current.modelId}`, thinkingLevel: current.thinkingLevel }
-        : await resolveSceneModel(String(input.sessionId));
-      if (
-        current?.mode !== "agent" ||
-        model.modelKey !== `${parsed.providerId}/${parsed.modelId}` ||
-        asPluginThinkingLevel(model.thinkingLevel) !== thinkingLevel
-      )
+      if (current?.mode !== session?.mode || current?.providerId !== session?.providerId ||
+          current?.modelId !== session?.modelId || current?.thinkingLevel !== session?.thinkingLevel)
         throw new Error("Scene completion model or mode changed");
+      // Keep explicit model identity pinned, and compare reasoning levels after launch normalization.
+      if (current?.providerId && current.modelId && `${current.providerId}/${current.modelId}` !== input.modelKey)
+        throw new Error(`Scene completion model or mode changed: saved ${current.providerId}/${current.modelId}, resolved ${input.modelKey}. Select an available model from the current catalog.`);
+      const model = current?.providerId && current.modelId && asPluginThinkingLevel(current.thinkingLevel) === thinkingLevel
+        ? { modelKey: input.modelKey, thinkingLevel: current.thinkingLevel }
+        : await resolveSceneModel(String(input.sessionId));
+      if (current?.mode !== "agent" || model.modelKey !== input.modelKey || asPluginThinkingLevel(model.thinkingLevel) !== thinkingLevel)
+        throw new Error(`Scene completion model or mode changed: requested ${input.modelKey} (${thinkingLevel}), current ${model.modelKey} (${model.thinkingLevel ?? "off"})`);
       if (getHost() !== host) throw new Error("Scene completion Host changed");
       input.signal?.throwIfAborted();
     };

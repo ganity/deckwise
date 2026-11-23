@@ -1,0 +1,5 @@
+{
+  "passed": false,
+  "stoppedByOperator": true,
+  "reason": "Body page 1 has no saved teaching actions; playback remained idle on the first page. Full-playback acceptance is not available for this incomplete lesson. No effect or natural-audio playback pass is claimed."
+}

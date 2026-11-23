@@ -201,6 +201,44 @@ fn generated_objects_bind_to_host_ids_and_remain_read_only_after_restart() {
 }
 
 #[test]
+fn generated_scene_correction_proof_is_persisted_but_not_exposed_as_editable_context() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_str().unwrap();
+    let db = Database::open_in_dir(dir.path()).unwrap();
+    let seed = seed();
+    let project = db
+        .open_identified_courseware_project_with_metadata(root, &seed, "scene", None)
+        .unwrap();
+    let proof = json!({
+        "planSha256":"a".repeat(64),
+        "principalKey":"b".repeat(64),
+        "selectedIntentIds":["selected-master"],
+        "teachingCorrection":{"pageId":"scene-001","intentId":"selected-master",
+            "removals":[{"object":"Arrow","quote":"Remove the arrow"}]}
+    });
+    let persisted = json!({"sessionId":"chat-session","proof":proof});
+    db.initialize_generated_scene_objects_with_proof(
+        root,
+        &project,
+        &mapping(&seed),
+        Some(persisted.clone()),
+    )
+    .unwrap();
+    let record = db
+        .kv_get(
+            SCENE_OBJECTS_NAMESPACE,
+            &storage_key(root, &project.project_id).unwrap(),
+        )
+        .unwrap()
+        .unwrap();
+    assert_eq!(record["generationProof"], persisted);
+    let context = db
+        .courseware_project_context(root, &project.project_id)
+        .unwrap();
+    assert!(context["sceneObjects"].get("generationProof").is_none());
+}
+
+#[test]
 fn native_text_matches_trusted_textboxes_and_legacy_shapes_but_not_images() {
     let s = seed();
     let mut text = mapping(&s);

@@ -5,7 +5,17 @@ import { inspectProject, pptMasterRepairPrompt, referencedProject, type PptProje
 import { pptEditorWorkPanelTab, svgEditorWorkPanelTab } from "../../lib/work-panel-tabs";
 import { useAppStore } from "../../stores/app-store";
 
-export function CoursewareChatPresentation({ sessionId, sourcePath, disabled, refreshKey, sourceVisuals, onReady }: { sessionId: string; sourcePath?: string; disabled: boolean; refreshKey: number; sourceVisuals?: ReactNode; onReady?: (path: string | null) => void }) {
+export function CoursewareChatPresentation({
+  sessionId, sourcePath, disabled, refreshKey, sourceVisuals, onReady, renderEditor,
+}: {
+  sessionId: string;
+  sourcePath?: string;
+  disabled: boolean;
+  refreshKey: number;
+  sourceVisuals?: ReactNode;
+  onReady?: (path: string | null) => void;
+  renderEditor?: (previewButton: ReactNode) => ReactNode;
+}) {
   const { t } = useTranslation();
   const messages = useAppStore(state => state.messages);
   const isRunning = useAppStore(state => state.runningSessions[sessionId] ?? false);
@@ -34,9 +44,9 @@ export function CoursewareChatPresentation({ sessionId, sourcePath, disabled, re
       } catch (failure) { if (!disposed && id === request) setError(String(failure)); }
     };
     void load();
-    const timer = disabled ? window.setInterval(() => void load(), 2000) : undefined;
+    const timer = disabled || isRunning ? window.setInterval(() => void load(), 2000) : undefined;
     return () => { disposed = true; if (timer !== undefined) window.clearInterval(timer); };
-  }, [path, disabled, messages.length, refreshKey]);
+  }, [sessionId, path, disabled, isRunning, messages.length, refreshKey]);
   const run = async (operation: () => Promise<void>) => {
     if (working.current || disabled || useAppStore.getState().activeSessionId !== sessionId ||
         useAppStore.getState().runningSessions[sessionId]) return;
@@ -46,15 +56,17 @@ export function CoursewareChatPresentation({ sessionId, sourcePath, disabled, re
     catch (failure) { if (useAppStore.getState().activeSessionId === sessionId) setError(String(failure)); }
     finally { working.current = false; setBusy(false); }
   };
-  const openPreview = async (projectPath: string) => {
+  const openPreview = async (projectPath: string, requireSlide = false) => {
     if (working.current || useAppStore.getState().activeSessionId !== sessionId) return;
     const request = ++previewRequest.current;
     working.current = true;
     setBusy(true); setError("");
     try {
-      await api.pptPreviewOpen(projectPath);
-      if (request === previewRequest.current && useAppStore.getState().activeSessionId === sessionId)
+      const preview = await api.pptPreviewOpen(projectPath, sessionId, requireSlide);
+      if (preview && request === previewRequest.current && useAppStore.getState().activeSessionId === sessionId) {
+        previewOpened.current = projectPath;
         useAppStore.getState().openWorkPanelTab(svgEditorWorkPanelTab(projectPath));
+      }
     } catch (failure) {
       if (request === previewRequest.current && useAppStore.getState().activeSessionId === sessionId) setError(String(failure));
     } finally {
@@ -62,22 +74,25 @@ export function CoursewareChatPresentation({ sessionId, sourcePath, disabled, re
     }
   };
   useEffect(() => {
-    if (busy || working.current || !project?.hasSvg || project.projectPath !== path || project.pptxPath || previewOpened.current === `${sessionId}:${path}`) return;
-    previewOpened.current = `${sessionId}:${path}`;
-    void openPreview(project.projectPath);
-  }, [sessionId, path, project, busy]);
+    if (!path || project?.projectPath !== path || project.pptxPath || previewOpened.current === path) return;
+    const tabs = useAppStore.getState().workPanelTabs;
+    if (tabs?.some(tab => tab.kind === "svg-editor" && tab.resource === path)) return;
+    void openPreview(path, true);
+  }, [sessionId, path, project]);
   const readyPath = project?.pptxPath && !project.needsPptxRegeneration && !project.qualityIssue ? project.pptxPath : null;
   useEffect(() => { onReady?.(readyPath); }, [readyPath, onReady]);
   const stage = isRunning ? "working" : !path ? "requirements" : !project ? "checkingPages" :
     project.qualityIssue ? "needsRepair" : project.needsPptxRegeneration ? "pagesChanged" :
     project.pptxPath ? "editable" : project.hasSvg ? "previewReady" : "pagesPending";
+  const previewButton = project?.hasSvg && <button type="button" disabled={busy}
+    onClick={() => void openPreview(project.projectPath)}>{t("coursewareWorkflow.previewPages")}</button>;
   return <>
-    <header><strong>{t("coursewareWorkflow.title")}</strong><span role="status">{t(`coursewareWorkflow.${stage}`)}</span></header>
-    {!path && <p>{t("coursewareWorkflow.briefHint")}</p>}
-    {project?.hasSvg && <div className="courseware-workflow-actions">
-    <button type="button" disabled={busy} onClick={() => void openPreview(project.projectPath)}>{t("coursewareWorkflow.previewPages")}</button>
+    {!renderEditor && <header><strong>{t("coursewareWorkflow.title")}</strong><span role="status">{t(`coursewareWorkflow.${stage}`)}</span></header>}
+    {!renderEditor && !path && <p>{t("coursewareWorkflow.briefHint")}</p>}
+    {project?.hasSvg && (!renderEditor || project.needsPptxRegeneration || project.qualityIssue) && <div className="courseware-workflow-actions">
+    {!renderEditor && previewButton}
     {project.pptxPath && !project.needsPptxRegeneration ?
-      <button type="button" disabled={disabled || busy} onClick={() =>
+      !renderEditor && <button type="button" disabled={disabled || busy} onClick={() =>
         void run(async () => { if (project.pptxPath) useAppStore.getState().openWorkPanelTab(pptEditorWorkPanelTab(project.pptxPath)); })}>{t("coursewareWorkflow.openEditor")}</button> :
       <button type="button" disabled={disabled || busy || !!project.qualityIssue} onClick={() => void run(async () => {
         if (!await useAppStore.getState().sendPrompt(t("coursewareWorkflow.exportPrompt"), undefined, sessionId))
@@ -91,5 +106,6 @@ export function CoursewareChatPresentation({ sessionId, sourcePath, disabled, re
     </div>}
     {project?.pptxPath && !project.needsPptxRegeneration && sourceVisuals}
     {error && <p role="alert" className="courseware-workflow-error">{error}</p>}
+    {renderEditor?.(previewButton)}
   </>;
 }

@@ -1,0 +1,33 @@
+{
+  "desktopHead": "5cbd7cb44de14d6cb5f1e478ff9f57b63bd7d05d",
+  "editorHead": "6f5c90f4860f45650422c581a2f96e2f20b55b6e",
+  "dirty": true,
+  "paidCalls": 0,
+  "runtimeTests": 99,
+  "desktopTests": 259,
+  "editorUnitTests": 45,
+  "hostArchiveRestartTests": 1,
+  "editorRoundtrip": {
+    "passed": true,
+    "tests": 1,
+    "durationSeconds": 57.4,
+    "fixture": "compiled-scene.pptx",
+    "foregrounds": 4,
+    "realOfficeSaveReopen": true
+  },
+  "desktopTypecheck": "pass",
+  "editorTypecheck": "pass",
+  "desktopBuild": "pass",
+  "integratedEditorBuild": "pass",
+  "workerInventory": {
+    "files": 155,
+    "status": "VERIFIED"
+  },
+  "editorInventory": {
+    "status": "VERIFIED",
+    "sha256": "e6a7e4830d4d837852e4923e02647c94bf7773161f6f5288fd147dfb4f2c02fa",
+    "files": 2858
+  },
+  "runtimeBundleSha256": "8d98dcd153bb98f6b31f641d8317609c24822333426fb22b80131c4e4c1711d3",
+  "desktopMainSha256": "54af3ddf6abb0df5be3a9d1ae56217bad62fbd42b66d24419cdfb43fd73ef449"
+}

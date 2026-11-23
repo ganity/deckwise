@@ -2,6 +2,7 @@ import { memo } from "react";
 import { useTranslation } from "react-i18next";
 import type { PlanningState, UiMessage } from "@pi-desktop/shared";
 import { proposalKindForMode } from "@pi-desktop/shared";
+import { CoursewareChatContinue } from "../../../components/courseware/CoursewareChatContinue";
 import { ConversationMinimap } from "../../../components/ConversationMinimap";
 import { PermissionCard } from "../../../components/PermissionCard";
 import { TooltipButton } from "../../../components/ui";
@@ -226,6 +227,9 @@ export const ChatTranscript = memo(function ChatTranscript({
               runtimeActivity={specializedActivity}
             />
           ) : null}
+          {sessionId && paneVisible && !readingWindow && !hasMoreAfter && !isRunning && !pendingPermission && !askPending && !approvalPending &&
+            lastTurnPart?.kind === "message" && !lastTurnPart.message.error && lastTurnPart.message.status !== "aborted" &&
+            <CoursewareChatContinue key={lastTurnPart.message.id} sessionId={sessionId} messages={messages} />}
           {hasMoreAfter ? (
             <button
               type="button"

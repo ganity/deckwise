@@ -11,7 +11,7 @@
 import { isContextOverflow, type AssistantMessage } from "@earendil-works/pi-ai";
 import { ErrorCodes, isCertificateVerificationError } from "@pi-desktop/shared";
 import { readLocalRequestErrorDetails } from "./local-request-errors.js";
-import { CoursewareWorkflowError } from "./courseware-workflow-recovery.js";
+import { coursewareInputHint, coursewareOperationHint, CoursewareWorkflowError } from "./courseware-workflow-recovery.js";
 
 export type ClassifiedAgentError = {
   code: string;
@@ -398,10 +398,11 @@ export function classifyAgentError(err: unknown): ClassifiedAgentError {
     envelope?.stopReason === "aborted" ||
     local?.causeName === "AbortError";
   if (err instanceof CoursewareWorkflowError && err.operation && !explicitlyAborted) {
-    const operation = ["courseware_workflow_get", "courseware_media_context", "courseware_scene_image_refresh",
+    const operation = ["courseware_workflow_get", "courseware_media_context", "courseware_scene_image_refresh", "courseware_scene_generate_remaining", "courseware_presentation_adopt",
       "courseware_narration_propose", "courseware_media_assessments", "courseware_media_refresh"].includes(err.operation)
       ? err.operation : undefined;
-    const code = ["COURSEWARE_CONFLICT", "COURSEWARE_INVALID", "COURSEWARE_INCOMPLETE", "COURSEWARE_NOT_FOUND",
+    const hint = coursewareInputHint(err);
+    const code = hint || ["COURSEWARE_CONFLICT", "COURSEWARE_INVALID", "COURSEWARE_INCOMPLETE", "COURSEWARE_NOT_FOUND",
       "COURSEWARE_WORKFLOW_REJECTED", "TOOL_FAILED", "PERMISSION_DENIED", "TASK_STATUS_UNAVAILABLE",
       "PPT_EDITOR_NOT_READY", "PPT_EDITOR_SAVE_IN_PROGRESS"].includes(err.code)
       ? err.code : "COURSEWARE_WORKFLOW_FAILED";
@@ -424,9 +425,7 @@ export function classifyAgentError(err: unknown): ClassifiedAgentError {
     }
     const classified: ClassifiedAgentError = {
       code, retriable: false,
-      message: operation === "courseware_media_context"
-        ? "Courseware media status check failed. Teaching completion is unfinished."
-        : "Courseware automatic continuation failed. Check the saved course state before continuing.",
+      message: hint ?? coursewareOperationHint(operation) ?? "Courseware automatic continuation failed. Check the saved course state before continuing.",
       details: { origin: "local", phase: "courseware-continuation", ...(operation ? { operation } : {}) },
     };
     return Object.defineProperty(classified, "cause", { value: err });

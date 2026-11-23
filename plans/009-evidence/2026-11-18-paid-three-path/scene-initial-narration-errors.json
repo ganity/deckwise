@@ -1,0 +1,60 @@
+[
+  {
+    "applied": false,
+    "saved": false,
+    "savedPages": [],
+    "failures": [
+      {
+        "code": "COURSEWARE_VISUAL_OUTPUT_INVALID",
+        "error": "Error: Error: Invalid scene visual object evidence: required fields are summary, objects, issues (use issues:[] when none); received fields language, pages. Summary must be 1-4000 characters. Expected 4 objects, received non-array",
+        "pageNumber": 1,
+        "retriable": false
+      },
+      {
+        "code": "COURSEWARE_VISUAL_OUTPUT_INVALID",
+        "error": "Error: Error: Invalid scene visual object evidence: required fields are summary, objects, issues (use issues:[] when none); received fields lesson, pages. Summary must be 1-4000 characters. Expected 7 objects, received non-array",
+        "pageNumber": 3,
+        "retriable": false
+      }
+    ],
+    "diagnostics": [
+      {
+        "message": "Repairing invalid visual observation once: SyntaxError: Unexpected token '以', \"以下为可保存结果。第\"... is not valid JSON",
+        "pageNumber": 1
+      },
+      {
+        "message": "Repairing invalid visual observation once: SyntaxError: Unexpected token '以', \"以下为可直接用于保存\"... is not valid JSON",
+        "pageNumber": 3
+      }
+    ]
+  },
+  {
+    "applied": false,
+    "saved": false,
+    "savedPages": [],
+    "failures": [
+      {
+        "code": "COURSEWARE_VISUAL_OUTPUT_INVALID",
+        "error": "Error: Error: Invalid scene visual object evidence: required fields are summary, objects, issues (use issues:[] when none); received fields language, pages. Summary must be 1-4000 characters. Expected 4 objects, received non-array",
+        "pageNumber": 1,
+        "retriable": false
+      },
+      {
+        "code": "COURSEWARE_VISUAL_OUTPUT_INVALID",
+        "error": "Error: Error: Invalid scene visual object evidence: required fields are summary, objects, issues (use issues:[] when none); received fields lesson, pages. Summary must be 1-4000 characters. Expected 7 objects, received non-array",
+        "pageNumber": 3,
+        "retriable": false
+      }
+    ],
+    "diagnostics": [
+      {
+        "message": "This unchanged page is blocked at COURSEWARE_VISUAL_OUTPUT_INVALID for the active user turn. Preserve saved peers and continue independent pages; changing instruction wording or batch size cannot reset this budget.",
+        "pageNumber": 1
+      },
+      {
+        "message": "This unchanged page is blocked at COURSEWARE_VISUAL_OUTPUT_INVALID for the active user turn. Preserve saved peers and continue independent pages; changing instruction wording or batch size cannot reset this budget.",
+        "pageNumber": 3
+      }
+    ]
+  }
+]

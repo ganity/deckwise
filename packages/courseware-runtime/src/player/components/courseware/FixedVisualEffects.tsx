@@ -19,11 +19,9 @@ export function FixedVisualEffects({
       .filter((e) => e.type !== "line")
       .filter((e) => ids.includes(e.id) && e.width > 0 && e.height > 0);
   const effect = spotlight?.effect;
-  const spotlightIds =
-    effect?.kind === "spotlight"
-      ? [effect.targetId, ...(effect.elementIds ?? [])]
-      : [];
-  const rects = targets(spotlightIds).map((e) => {
+  // Concurrent spotlights share one mask and the most recent dim opacity.
+  const illuminated = targets(cues.flatMap(c => c.effect.kind === "spotlight" ? [c.effect.targetId, ...(c.effect.elementIds ?? [])] : []));
+  const rects = illuminated.map((e) => {
     const { xRange, yRange } = getRectRotatedRange({
       ...e,
       rotate: e.rotate ?? 0,
@@ -52,7 +50,7 @@ export function FixedVisualEffects({
         <svg
           data-fixed-effect="spotlight"
           data-cue-id={spotlight?.id}
-          data-target-ids={spotlightIds.join(",")}
+          data-target-ids={illuminated.map(e => e.id).join(",")}
           viewBox="0 0 100 100"
           preserveAspectRatio="none"
           style={{
@@ -69,7 +67,7 @@ export function FixedVisualEffects({
           />
         </svg>
       )}
-      {cues.map(
+      {rects.length === 0 && cues.map(
         (cue) =>
           cue.effect.kind === "highlight" &&
           targets(cue.effect.targetIds).map((e) => {

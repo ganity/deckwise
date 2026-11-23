@@ -1,3 +1,4 @@
+import * as coursewareRuntime from "../electron/main/courseware-runtime.ts";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -57,6 +58,7 @@ function setup(options = {}) {
   currentHost = host;
   const exports = {};
   new Function("require", "exports", outputText)((id) => {
+    if (id === "../courseware-runtime") return coursewareRuntime;
     if (id === "@pi-desktop/courseware-runtime/node") return runtime;
     if (id === "../courseware-classroom-assets") return { readClassroomAsset() { throw Error("Unexpected classroom read in share test"); } };
     if (id === "node:path") return { dirname, join };

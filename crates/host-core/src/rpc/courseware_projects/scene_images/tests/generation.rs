@@ -556,6 +556,8 @@ async fn assessment_pages_need_no_images_and_style_review_starts_at_first_body_p
         plan_sha256: f.sha256.clone(),
         principal_key: "a".repeat(64),
         selected_intent_ids: vec![],
+        teaching_corrections: vec![],
+        teaching_correction: None,
     };
     assert_eq!(
         verify_generation(

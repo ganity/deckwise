@@ -1,0 +1,64 @@
+{
+  "route": "/home/jhz/deckwise-validation/three-path-recovery-20261117/import",
+  "pages": 4,
+  "sourceSha256": "2e9f4367737afe490aec0720d43bd8dc989462ef03b6637e3a3e071c85287a1a",
+  "audioAssets": {
+    "tts-2834041c65164b789b0e9cff4b2fbd8af3375d7eab7bcb0617c2a0a45c5f6757": {
+      "sha256": "2834041c65164b789b0e9cff4b2fbd8af3375d7eab7bcb0617c2a0a45c5f6757",
+      "durationSeconds": 6.288
+    },
+    "tts-2f276a622f24f89067e41ff6dca7ff1fb2f7415b3a89a5ea4c29aa1bd9ee2e85": {
+      "sha256": "2f276a622f24f89067e41ff6dca7ff1fb2f7415b3a89a5ea4c29aa1bd9ee2e85",
+      "durationSeconds": 10.296
+    },
+    "tts-d1104c6d63d58dde0055bc35469817d35ba8fd8c73352682967bd9b36eb43dfe": {
+      "sha256": "d1104c6d63d58dde0055bc35469817d35ba8fd8c73352682967bd9b36eb43dfe",
+      "durationSeconds": 10.056
+    },
+    "tts-835e99b2a532066bac7e927f5a9a153f3079fbcb8da1b8a638c3d33ee33ec6f6": {
+      "sha256": "835e99b2a532066bac7e927f5a9a153f3079fbcb8da1b8a638c3d33ee33ec6f6",
+      "durationSeconds": 2.664
+    }
+  },
+  "timing": [
+    {
+      "pageNumber": 1,
+      "speechCount": 1,
+      "audioCount": 1,
+      "speechSeconds": 10.296,
+      "effects": [
+        "element_animation",
+        "highlight",
+        "spotlight"
+      ]
+    },
+    {
+      "pageNumber": 2,
+      "speechCount": 1,
+      "audioCount": 1,
+      "speechSeconds": 6.288,
+      "effects": []
+    },
+    {
+      "pageNumber": 3,
+      "speechCount": 1,
+      "audioCount": 1,
+      "speechSeconds": 10.056,
+      "effects": [
+        "element_animation",
+        "highlight",
+        "spotlight"
+      ]
+    },
+    {
+      "pageNumber": 4,
+      "speechCount": 1,
+      "audioCount": 1,
+      "speechSeconds": 2.664,
+      "effects": []
+    }
+  ],
+  "allSavedSpeechAudioVerified": true,
+  "missingSpeechAudio": [],
+  "notAnAcceptanceVerdict": true
+}

@@ -23,6 +23,7 @@ test("the main app is gated by education QR authentication", () => {
   assert.match(authGate, /api\.restoreAuth\(\)/);
   assert.match(authGate, /api\.startQrLogin\(\)/);
   assert.match(authGate, /api\.pollQrLogin\(state\.ticket\)/);
+  assert.match(authGate, /<Fragment key=\{state\.profile\.userId\}>\{children\}<\/Fragment>/);
   assert.match(authSession, /edition=EDUCATION/);
   assert.match(authSession, /\/auth\/desktop\/wx\/qrcode/);
   assert.match(authSession, /profile\.pcAllowed !== true/);
