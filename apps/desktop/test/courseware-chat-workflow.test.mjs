@@ -101,6 +101,21 @@ function fixture(options = {}) {
     restartHost: () => { currentHost = { ...host }; } };
 }
 
+test("Chat binds scoped layers to exactly one selected master on their own approved page", async () => {
+  const f = fixture();
+  const cover = { ...f.image, selected: true, asset: { sha256: "b".repeat(64) } };
+  f.rows.push(cover);
+  for (const target of [{ kind: "cleanPlate" }, { kind: "layer", name: "diagram" }]) {
+    const args = { planSha256: f.plan.sha256, pageId: "scene-002", target };
+    await assert.rejects(f.execute("courseware_scene_image_prepare", args), /REFERENCE_CHANGED/);
+    const master = { ...cover, intentId: "selected-page-two", pageId: "scene-002" };
+    f.rows.push(master);
+    await f.execute("courseware_scene_image_prepare", args);
+    assert.equal(f.calls.filter(([op]) => op === "prepare").at(-1)[1].referenceIntentId, master.intentId);
+    f.rows.splice(f.rows.indexOf(master), 1);
+  }
+});
+
 test("workflow diagnostics distinguish navigation, ended turns and a runtime replaced during a read", async () => {
   const foreign = fixture(); foreign.view("other");
   await assert.rejects(foreign.coordinator.read("chat"), /conversation changed; return to this Chat/);

@@ -52,7 +52,9 @@ For a simple current-page transition, discover `ppt_propose_page_fade` with Tool
 
 Report success only at the level observed: native edit verified, candidate ready, or saved and reopened. SVG belongs to generation candidates; never overwrite Office edits with an older SVG. Keep using the existing Chat.
 
-For lesson animation, distinguish an explicit request for static slides from an unspecified preference. Plan a reveal, emphasis or exit when it helps explain the material. Keep the object, preset and teaching moment in the saved objective. Bind against the current page and speech, reusing an existing native effect when it already implements that move. Use fadeOut after the last mention of a temporary object. Preserve the original animation sequence on imported slides and retain the saved speech and audio when only effects change.
+Plan more spotlights than highlights across the lesson. Use one focus per spoken step, including spotlights for text. Give a requested word or formula highlight its own reading step. Plan native entrances and emphasis across distinct teaching moves; play the motion first and then focus the visible target. Keep explicitly static pages and simultaneous comparison objects visible.
+
+For lesson animation, distinguish an explicit request for static slides from an unspecified preference. Plan a reveal, emphasis or exit when it helps explain the material. Favor a few well-placed native effects when useful. Save the lesson even when optional motion is sparse or absent. Record explicitly mandatory effects in the page objective. Bind against the current page and speech, reusing an existing native effect when it already implements that move. Use fadeOut after the last mention of a temporary object. Preserve the original animation sequence on imported slides and retain the saved speech and audio when only effects change.
 
 ## Native simple fade
 

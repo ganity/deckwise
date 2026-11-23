@@ -243,7 +243,7 @@ describe("page narration source", () => {
           { type: "wait", mode: "teacher_continue" }] };
       } });
     expect(result.write.actions[0]).toMatchObject({ attention: { animation: "fadeIn", objectIds: ["square"] } });
-    expect(result.write.actions[1].attention).toEqual({ type: "highlight", objectIds: ["square"], animation: "pulse" });
+    expect(result.write.actions[1].attention).toEqual({ type: "spotlight", objectIds: ["square"], animation: "pulse" });
     expect(result.write.actions[2]).toMatchObject({ type: "interaction_checkpoint", checkpointKind: "teacher_continue" });
   });
   it("splits long speech without dropping text, duplicating entrances or moving the final pause", async () => {
@@ -494,13 +494,13 @@ it.each(["plain", "import", "scene"] as const)("keeps %s reading cues and their 
     evidence: { notes: "", visualSummary: "A family word card", objects: [
       { objectId: "family", kind: "text", text: "This is my family!", bbox: [0,0,100,100] },
     ] }, getCurrentBaseline: async () => baseline };
-  for (const attention of [undefined, { type: "highlight", objectIds: ["family"], anchorText: "This is my family!" }]) {
+  for (const attention of [undefined, { type: "highlight", objectIds: ["family"], requestedHighlight: true, anchorText: "This is my family!" }]) {
     const text = "先看上面这句话，跟老师说：This is my family!";
     const { write } = await generateNarrationWrite({ ...input, generate: async () => ({ blocks: [
       { type: "speech", text, ...(attention ? { attention } : {}) }, { type: "wait", durationMs: 4000 },
     ] }) });
     expect(write.actions).toEqual([expect.objectContaining({ type: "speech", text, pauseAfterMs: 4000,
-      attention: { type: "highlight", objectIds: ["family"] } })]);
+      attention: { type: attention?.type ?? "spotlight", objectIds: ["family"] } })]);
     expect(write.actions[0]).not.toHaveProperty("audioAssetId");
     expect(project.pages[0].actions).toEqual([]);
   }
@@ -511,7 +511,7 @@ it.each(["plain", "import", "scene"] as const)("keeps %s reading cues and their 
     { type: "wait", durationMs: 4000 },
   ] }) });
   expect(write.actions).toEqual([expect.objectContaining({ text: text + expression, pauseAfterMs: 4000,
-    attention: { type: "highlight", objectIds: ["family"] } })]);
+    attention: { type: "spotlight", objectIds: ["family"] } })]);
   await expect(generateNarrationWrite({ ...input, generate: async () => ({ blocks: [
     { type: "speech", text }, { type: "wait", durationMs: 4000 }, { type: "speech", text: expression },
   ] }) })).rejects.toMatchObject({ code: "INVALID_OUTPUT", message: expect.stringContaining("Incomplete reading cue") });
@@ -557,6 +557,18 @@ it("rejects incomplete required ordinary effects before saving narration and acc
   const result = await generateNarrationWrite({ ...input, generate: async () => ({ blocks: [{ type: "speech", text: "father",
     attention: { type: "highlight", objectIds: ["label"], animation: "pulse" } }] }) });
   expect(result.write.actions[0].attention).toMatchObject({ objectIds: ["label"], animation: "pulse" });
+  const mixed = { ...input, repairRequiredTeaching: true, audioDurations: { ready: 2000 }, project: { ...project, pages: [{ ...project.pages[0],
+    actions: [{ id: 'ready', type: 'speech', text: 'Already recorded.', audioAssetId: 'tts-' + 'a'.repeat(64) }, ...result.write.actions] }] } };
+  const pending = result.write.actions[0];
+  const unchanged = await generateNarrationWrite({ ...mixed, generate: async () => ({ focuses: [] }) });
+  expect(unchanged.write.actions).toEqual(mixed.project.pages[0].actions);
+  const repair = (objectId: string) => generateNarrationWrite({ ...mixed, generate: async () => ({ focuses: [
+    { speechId: pending.id, type: 'highlight', objectIds: [objectId], animation: 'fadeOut' },
+  ] }) });
+  const fixed = await repair('label');
+  expect(fixed.write.actions[1]).toEqual({ ...pending, attention: { type: 'highlight', objectIds: ['label'], animation: 'fadeOut' } });
+  expect(fixed.write.actions[0]).toEqual(mixed.project.pages[0].actions[0]);
+  await expect(repair('missing')).rejects.toThrow(/unknown or unsafe object/);
 });
 
 it("starts an explicit focus at its verified quote and never invents timing or replays an entrance", async () => {
@@ -696,7 +708,7 @@ it.each(["plain", "import", "scene"] as const)("adds focus to supplied %s speech
     repairRequiredTeaching: true, evidence: { notes: "", visualSummary: "Circle", objects: [
       { objectId: "label", kind: "text", text: "Circle", bbox: [0,0,100,30] },
     ] }, getCurrentBaseline: async () => baseline, generate: async () => { throw Error("Speech model must not run"); } });
-  expect(result.write.actions[0]).toEqual({ ...speech, attention: { type: "highlight", objectIds: ["label"] } });
+  expect(result.write.actions[0]).toEqual({ ...speech, attention: { type: "spotlight", objectIds: ["label"] } });
 });
 
 it("repairs all effects on one preserved speech using verified audio duration", async () => {
@@ -709,7 +721,27 @@ it("repairs all effects on one preserved speech using verified audio duration", 
   const result = await generateNarrationWrite(input);
   expect(result.write.actions[0]).toMatchObject(speech);
   expect(result.write.actions[0].attention).toBeUndefined();
-  expect(result.write.actions[0].visualCues).toHaveLength(3);
+  const cues = result.write.actions[0].visualCues;
+  expect(cues).toMatchObject([
+    {atMs:0, endMs:600, effect:{type:"element_animation"}},
+    {atMs:600, endMs:4000, effect:{type:"spotlight"}},
+  ]);
+  const calibrated = { id:"word", atMs:2800, endMs:3200, trigger:{version:1,kind:"text",text:"circle",start:16,end:22,phase:"with",audioAssetId:speech.audioAssetId},
+    effect:{type:"element_animation",elementId:"title",effect:"pulse"} };
+  const offset = speech.text.indexOf("circle");
+  Object.assign(calibrated.trigger, {start:offset,end:offset+6});
+  const anchored = await generateNarrationWrite({ ...input, project:{ ...project, pages:[{...project.pages[0],actions:[{...speech,visualCues:[calibrated]}]}]} });
+  expect(anchored.write.actions[0].visualCues).toMatchObject([
+    calibrated, {atMs:0,endMs:600}, {atMs:600,endMs:2800,effect:{type:"spotlight"}}, {atMs:3200,endMs:4000,effect:{type:"highlight"}},
+  ]);
+  const separate = [0, 1, 2, 3].map(i => ({ ...speech, id: "line-" + i }));
+  const batch = await generateNarrationWrite({ ...input,
+    project: { ...project, pages: [{ ...project.pages[0], actions: separate }] },
+    audioDurations: Object.fromEntries(separate.map(a => [a.id, 4000])),
+    generate: async () => ({ focuses: separate.map((a,i) => ({ speechId: a.id, type: "highlight", objectIds: ["title"],
+      ...(i === 2 ? {requestedHighlight:true} : {animation:"pulse"}) })) }),
+  });
+  expect(batch.write.actions.map(a => Array.isArray(a.visualCues) && a.visualCues.at(-1)?.effect.type)).toEqual(["spotlight","spotlight","highlight","spotlight"]);
   const timed = { id: "first", atMs: 800, endMs: 1400, effect: { type: "spotlight", elementId: "title" } };
   const later = { ...timed, id: "second", atMs: 1700, endMs: 3000 };
   const motion = { id: "motion", atMs: 0, endMs: 400, effect: { type: "element_animation", elementId: "title", effect: "fadeIn" } };
@@ -764,7 +796,7 @@ it("replaces repaired focus and keeps one entrance per target across saved speec
   const result = await generateNarrationWrite(input);
   expect(result.write.actions[0]).toMatchObject(speech);
   expect(result.write.actions[0].attention).toBeUndefined();
-  expect(result.write.actions[0].visualCues).toHaveLength(3);
+  expect(result.write.actions[0].visualCues).toHaveLength(2);
   expect(result.write.actions.flatMap(a => Array.isArray(a.visualCues) ? a.visualCues : []).filter(c => c.effect.type === "element_animation" && c.effect.effect === "fadeIn")).toHaveLength(1);
   expect(result.write.actions[0].visualCues).not.toEqual(expect.arrayContaining([expect.objectContaining({ id: "wrong-focus" })]));
   expect(project).toEqual(before);
@@ -924,4 +956,21 @@ it("keeps an eleven-part diagram in one verified focus and rejects unknown targe
   expect(isCoursewareAttentionIntent({ ...blocks[0].attention, objectIds: ['same', 'same'] })).toBe(false);
 
   await expect(generatePageNarrationCandidate({ ...input, generate: async () => ({ blocks: [{ ...blocks[0], attention: { ...blocks[0].attention, objectIds: ["unknown"] } }] }) })).rejects.toThrow(/Unknown/);
+});
+
+it.each(["plain", "scene", "import"] as const)("authors a spotlight majority and preserves successive native motion on the %s route", async taskType => {
+  const labels = ["alpha", "beta", "gamma", "delta"];
+  const objects = labels.map((label, i) => ({ objectId: label, kind: "text", text: label, bbox: [i*100,0,90,30] }));
+  const baseline = { projectId:"project",documentId:"doc",pageId:"page",sourceRevision:"R1",sourceHash:candidateHash("pptx"),
+    teachingRevision:"T1",contentHash:candidateHash(""),clean:true,readOnly:false,manualLocked:false };
+  const project: CoursewareProject = { schemaVersion:COURSEWARE_CONTRACT_VERSION,projectId:"project",taskType,title:"Steps",
+    source:{revision:"R1",sha256:baseline.sourceHash},teachingRevision:"T1",pages:[{pageId:"page",locked:false,reviewState:"review",actions:[]}] };
+  const { write } = await generateNarrationWrite({project,pageId:"page",baseline,pageText:"",instruction:"Reveal the steps and highlight beta.",
+    coursePlan:{page:{revealTargets:["alpha","gamma","delta"]}},
+    evidence:{notes:"",visualSummary:"Four ordered steps",objects},getCurrentBaseline:async()=>baseline,
+    generate:async()=>({blocks:labels.map(label=>({type:"speech",text:label,attention:{type:"highlight",objectIds:[label],
+      ...(label==="beta" ? {requestedHighlight:true} : {})}}))})});
+  const intents = write.actions.map(a=>a.attention).filter(isCoursewareAttentionIntent);
+  expect(intents.map(a=>a.type)).toEqual(["spotlight","highlight","spotlight","spotlight"]);
+  expect(intents.filter(a=>a.animation).map(a=>a.objectIds[0])).toEqual(["alpha","gamma","delta"]);
 });

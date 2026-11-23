@@ -100,3 +100,5 @@ export * from "./courseware-teaching-quality.js";
 export * from "./courseware-speech-trigger.js";
 export * from "./courseware-presentation.js";
 export { resolveCoursewareRequiredObjects } from './courseware-required-objects.js';
+
+export { sequenceSpeechFocus } from './speech-focus-timeline.js';

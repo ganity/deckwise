@@ -1,3 +1,4 @@
+import * as timingShared from "../../../packages/shared/dist/index.js";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
@@ -14,7 +15,7 @@ const { build } = require("esbuild"), { chromium, expect } = require("@playwrigh
 const exports = {};
 new Function("require", "exports", ts.transpileModule(await readFile(new URL("../electron/main/courseware-classroom-timeline.ts", import.meta.url), "utf8"), {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
-}).outputText)(id => { assert.equal(id, "@pi-desktop/courseware-runtime/node"); return runtime; }, exports);
+}).outputText)(id => { if (id === "@pi-desktop/shared") return timingShared; assert.equal(id, "@pi-desktop/courseware-runtime/node"); return runtime; }, exports);
 const out = await mkdtemp(join(tmpdir(), "maic-timeline-browser-"));
 const wav = Buffer.alloc(44 + 48000);
 wav.write("RIFF"); wav.writeUInt32LE(wav.length-8, 4); wav.write("WAVEfmt ", 8); wav.writeUInt32LE(16, 16);
@@ -25,13 +26,14 @@ const target = { id: "target", type: "text", sourceShapeId: "42", left: 20, top:
 const scene = { id: "body", stageId: "stage", type: "slide", title: "Native teaching", order: 0, content: { type: "slide", canvas: {
   id: "canvas", viewportSize: 1000, viewportRatio: .5625, theme: { backgroundColor: "#fff", themeColors: [], fontColor: "#000", fontName: "Arial" }, elements: [target],
 } }, actions: [{ id: "speech", type: "speech", text: "Local narration", audioId: "voice", audioUrl: "asset:voice" }] };
-const converted = exports.convertNativeTeaching({ scene, sourceSha256: "a".repeat(64),
+const converted = exports.convertNativeTeaching({ scene, platformDelivery: true, sourceSha256: "a".repeat(64),
   page: { id: "page", width: 1000, height: 562.5, elements: [target], pptxAnimation: { steps: [{ id: "entry", trigger: "click", items: [{ id: "appear", effect: "appear", animationType: "in", startAtMs: 0, durationMs: 0, target: { shapeId: "42" } }] }] } },
   objects: [{ objectId: "logical", importElementId: "target" }],
   resources: new Map([["voice", { url: "asset:voice", mimeType: "audio/wav", durationMs: 3000 }], ["song", { url: "asset:song", mimeType: "audio/mpeg", durationMs: 8072 }]]),
   actions: [{ id: "entry", type: "native_animation", version: 1, sourceSha256: "a".repeat(64), stepIndex: 0 },
     { id: "speech", type: "speech", text: "Local narration", audioAssetId: "voice", visualCues: [
       { id: "pulse", atMs: 0, endMs: 200, effect: { type: "element_animation", elementId: "logical", effect: "pulse" } },
+      { id: "exit", atMs: 3000, endMs: 3200, effect: { type: "element_animation", elementId: "logical", effect: "fadeOut" } },
       { id: "focus", atMs: 250, endMs: 2400, effect: { type: "spotlight", elementId: "logical" } },
       { id: "highlight", atMs: 1000, endMs: 2700, effect: { type: "highlight", elementIds: ["logical"], style: "outline" } },
     ] }, { id: "pause", type: "delay", durationMs: 400 }, { id: "music", type: "audio_clip", audioAssetId: "song" }],
@@ -70,6 +72,8 @@ try {
   const focusId = converted.elements.find(e => e.id.endsWith("spotlight")).id;
   const focus = page.locator(`[data-slide-render-element-id="${focusId}"]`);
   await expect(focus).toHaveCSS("opacity", "1");
+  const highlight = converted.elements.find(e => e.id.includes("-native-cue-") && e.outline);
+  await expect(page.locator(`[data-slide-render-element-id="${highlight.id}"]`)).toHaveCSS("opacity", "0");
   await page.getByRole("button", { name: "Pause", exact: true }).click();
   const paused = await page.getByRole("slider").first().inputValue();
   await page.waitForTimeout(200);

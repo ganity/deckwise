@@ -83,6 +83,19 @@ it("returns schema-owned field hints before dispatch without echoing rejected in
   expect(f.calls[0]?.params).toMatchObject({ toolCallId: "valid", toolName: "courseware_scene_image_prepare" });
 });
 
+it("keeps visual reference selection out of the model contract and recovers a legacy master call", async () => {
+  const f = fixture();
+  const image = f.tools.find(t => t.name === "courseware_scene_image_prepare")!;
+  expect(image.parameters).not.toHaveProperty("properties.referenceIntentId");
+  const args = { planSha256: "a".repeat(64), pageId: "scene-001", target: { kind: "visualMaster" } };
+  const legacy = { ...args, referenceIntentId: "invented-id" };
+  const prepared = image.prepareArguments!(legacy);
+  await image.execute("cover", prepared);
+  expect(f.calls[0].params).toMatchObject({ args });
+  expect(Reflect.get(f.calls[0].params as object, "args")).not.toHaveProperty("referenceIntentId");
+  expect(legacy.referenceIntentId).toBe("invented-id");
+});
+
 it("advertises only finite sequential actions and pins every call to the owning active turn", async () => {
   const f = fixture();
   for (const tool of f.tools) expect(JSON.parse(JSON.stringify(tool.parameters)).type, tool.name).toBe("object");

@@ -475,20 +475,21 @@ for (const taskType of ['plain', 'scene', 'import']) test(`${taskType}: native r
     }
     assert.equal(Object.values(stored.narration.pages)[0].attempts, speech % 3 + 1, 'Reserve before model call');
     speech++;
-    return { text: JSON.stringify({ blocks: [{ type: 'speech', text: 'Read father.', attention: { type: 'highlight', objectIds: ['unknown'] } }] }) };
+    return { text: JSON.stringify({ blocks: [] }) };
   };
   const create = () => new CoursewareCandidateCoordinator(teaching, complete, undefined, async () => ({ modelKey: 'test' }), () => turnId, undefined, retryStore);
   let coordinator = create();
   const generate = instruction => coordinator.proposeNativeNarrationBatch('chat', [1], instruction, () => true);
   const first = await generate('Read father');
+  assert.equal(first.failures[0].code, 'COURSEWARE_NARRATION_OUTPUT_INVALID');
   assert.equal(first.failures[0].retriable, false); assert.equal(speech, 3); assert.equal(plans, 1);
   project.source.sha256 = 'b'.repeat(64);
   const repeated = await generate('Use a shorter instruction');
-  assert.equal(repeated.failures[0].code, 'COURSEWARE_NARRATION_RETRY_EXHAUSTED');
+  assert.equal(repeated.failures[0].code, first.failures[0].code);
   assert.equal(speech, 3); assert.equal(plans, 1);
   documentId = 'reopened-doc'; coordinator = create();
   const resumed = await generate('Resume unchanged document');
-  assert.equal(resumed.failures[0].code, 'COURSEWARE_NARRATION_RETRY_EXHAUSTED');
+  assert.equal(resumed.failures[0].code, first.failures[0].code);
   assert.equal(speech, 3); assert.equal(plans, 1);
   assert.equal(stored.failures.page, 'Required repair pending');
   turnId = 'turn-2';

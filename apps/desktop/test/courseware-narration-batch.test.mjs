@@ -362,6 +362,33 @@ test("malformed brief fields get bounded page repair and a terminal page failure
   assert.equal(f.writes.length, 0);
 });
 
+for (const taskType of ["plain", "import", "scene"]) test(`${taskType}: unusable optional motion suggestions do not retry a playable narration`, async () => {
+  const f = fixture(taskType);
+  const complete = f.input.complete;
+  let plans = 0, drafts = 0, reviews = 0;
+  f.input.complete = async request => {
+    const data = JSON.parse(request.messages[0].content);
+    if (data.outline) {
+      plans++;
+      return { text: JSON.stringify({ goal: "Teach family words", pages: [{pageNumber: 1, purpose: "Read labels",
+        bridge: "Continue", focus: "father mother", revealTargets: [null, "missing-object", "missing-object"]}] }) };
+    }
+    drafts++;
+    assert.deepEqual(data.coursePlan.page.revealTargets, ["missing-object"]);
+    return complete(request);
+  };
+  f.input.reviewFixture = async (_request, data) => {
+    reviews++;
+    assert.equal("revealTargets" in data.pagePlan, false);
+    return { text: JSON.stringify({issues: []}) };
+  };
+  const result = await generateSavedNarrationBatch(f.input);
+  assert.equal(result.saved, true, JSON.stringify(result.failures));
+  assert.deepEqual([plans, drafts, reviews], [1, 1, 1]);
+  assert.ok(f.writes[0].actions.some(a => a.type === "speech"));
+  assert.ok(f.writes[0].actions.every(a => !a.attention?.animation));
+});
+
 test("a partial-page retry reuses the validated course arc and keeps successful speech", async () => {
   const f = fixture("plain", [], false, 2);
   delete f.input.completeVision;
@@ -721,6 +748,7 @@ test('native effect repair keeps saved durations local to each page when speech 
   const reviewed = [];
   f.input.complete.reviewFixture = async (request, data) => {
     assert.match(request.system, /Timing is validated programmatically/);
+    assert.deepEqual(data.pendingAudioBlocks, []);
     assert.deepEqual(data.savedAudioDurationsMs, { 'repeated-speech': data.pageNumber * 1200 });
     assert.equal(data.blocks[0].audioAssetId, 'tts-' + String(data.pageNumber).repeat(64));
     reviewed.push(data.pageNumber);
@@ -1351,6 +1379,25 @@ test('semantic content repair uses review feedback and sends actual page images 
   const result = await generateSavedNarrationBatch(f.input);
   assert.equal(result.saved, true, JSON.stringify(result)); assert.equal(reviews, 2);
   assert.equal(f.writes[0].actions[0].text, 'Father means 爸爸.');
+});
+
+test('narration review identifies a planned exit awaiting audio adoption', async () => {
+  const f = fixture('plain'); delete f.input.completeVision;
+  const complete = f.input.complete;
+  f.input.complete = async request => JSON.parse(request.messages[0].content).outline ? complete(request) :
+    { text: JSON.stringify({ blocks: [{ type: 'speech', text: 'Read father.', attention: { type: 'highlight', objectIds: ['label'], animation: 'fadeOut' } }] }) };
+  let reviewed = false;
+  f.input.reviewFixture = async (request, data) => {
+    assert.deepEqual(data.pendingAudioBlocks, [0]);
+    assert.equal(data.blocks[0].attention.animation, 'fadeOut');
+    assert.match(request.system, /fadeOut runs at the speech end/);
+    reviewed = true;
+    return { text: '{"issues":[]}' };
+  };
+  const result = await generateSavedNarrationBatch(f.input);
+  assert.equal(result.saved, true, JSON.stringify(result.failures));
+  assert(reviewed);
+  assert.equal(f.writes[0].actions[0].attention.animation, 'fadeOut');
 });
 
 test('a semantic failure retains a successful independent peer and never reviews an unknown UUID', async () => {

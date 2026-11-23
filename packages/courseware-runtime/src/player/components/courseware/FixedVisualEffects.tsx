@@ -67,7 +67,7 @@ export function FixedVisualEffects({
           />
         </svg>
       )}
-      {cues.map(
+      {rects.length === 0 && cues.map(
         (cue) =>
           cue.effect.kind === "highlight" &&
           targets(cue.effect.targetIds).map((e) => {

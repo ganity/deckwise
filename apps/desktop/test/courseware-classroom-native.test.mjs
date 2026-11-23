@@ -1,3 +1,4 @@
+import * as timingShared from "../../../packages/shared/dist/index.js";
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -9,7 +10,7 @@ import * as runtime from "../../../packages/courseware-runtime/dist/node.mjs";
 const timeline = {};
 new Function("require", "exports", ts.transpileModule(await readFile(new URL("../electron/main/courseware-classroom-timeline.ts", import.meta.url), "utf8"), {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
-}).outputText)(id => { if (id === "@pi-desktop/courseware-runtime/node") return runtime; throw Error(id); }, timeline);
+}).outputText)(id => { if (id === "@pi-desktop/shared") return timingShared; if (id === "@pi-desktop/courseware-runtime/node") return runtime; throw Error(id); }, timeline);
 const exports = {};
 new Function("require", "exports", ts.transpileModule(await readFile(new URL("../electron/main/courseware-classroom-native.ts", import.meta.url), "utf8"), {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },

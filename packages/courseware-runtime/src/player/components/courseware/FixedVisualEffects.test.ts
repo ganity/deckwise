@@ -10,7 +10,15 @@ it('illuminates all visible targets of concurrent cues in one mask', () => {
   const html = renderToStaticMarkup(createElement(FixedVisualEffects, {slide, cues:[
     {id:'first',atMs:0,endMs:3000,effect:{kind:'spotlight',targetId:'arrow',elementIds:['label']}},
     {id:'second',atMs:1000,endMs:2000,effect:{kind:'spotlight',targetId:'cloud',elementIds:['missing','label']}},
+    {id:'outline',atMs:0,endMs:3000,effect:{kind:'highlight',targetIds:['label']}},
   ]}));
   expect(html).toContain('data-target-ids="arrow,label,cloud"');
   expect(html.match(/<path /g)).toHaveLength(1);
+  expect(html).not.toContain('data-fixed-effect="highlight"');
+  const fallback = renderToStaticMarkup(createElement(FixedVisualEffects, {slide, cues:[
+    {id:'spot',atMs:0,endMs:1000,effect:{kind:'spotlight',targetId:'missing'}},
+    {id:'outline',atMs:0,endMs:2000,effect:{kind:'highlight',targetIds:['label']}},
+  ]}));
+  expect(fallback).toContain('data-fixed-effect="highlight"');
+  expect(fallback).not.toContain('data-fixed-effect="spotlight"');
 });

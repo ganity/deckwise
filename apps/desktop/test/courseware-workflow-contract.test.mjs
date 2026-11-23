@@ -26,6 +26,7 @@ async function load(name, dependencies) {
 const objectView = await load("courseware-scene-object-view", { "@pi-desktop/shared": shared });
 const { generateSavedNarrationBatch } = await load("courseware-narration-batch", {
   "@pi-desktop/shared": shared, "@pi-desktop/agent-runtime": runtime, "./courseware-scene-object-view": objectView,
+  "./courseware-review-json": await import("../electron/main/courseware-review-json.ts"),
   "./courseware-narration-visuals": { createNarrationVisuals() { assert.fail("Unexpected rasterization"); } },
 });
 const { buildSceneCourseDeck } = await load("courseware-scene-deck", {
@@ -110,6 +111,7 @@ test("approved body media survives actual Main/Host repair, lost save reply and 
     canDispatch: () => true, current: async expected => assert.deepEqual(await read(), expected),
     complete: async input => {
       const request = JSON.parse(input.messages[0].content);
+      if (request.reviewKind === "narration_semantics") return { text: JSON.stringify({ issues: [] }) };
       if (request.outline) return { text: JSON.stringify({ goal: "Greet", pages: request.outline.map(p => ({ pageNumber: p.pageNumber, purpose: "Greet", bridge: "Continue", focus: "Greeting" })) }) };
       if (request.missing) {
         deltaCalls++;

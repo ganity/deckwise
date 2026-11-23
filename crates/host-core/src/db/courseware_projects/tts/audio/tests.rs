@@ -777,11 +777,11 @@ fn missing_focus_repair_reuses_verified_audio_and_preserves_all_existing_actions
     let effects = extended.pages[0].actions[0]["visualCues"]
         .as_array()
         .unwrap();
-    assert_eq!(effects.len(), 3);
-    assert_eq!(effects[0], repaired.pages[0].actions[0]["visualCues"][0]);
-    assert_eq!(effects[1]["effect"]["type"], "element_animation");
-    assert_eq!(effects[2]["endMs"], 1234);
-    assert_ne!(effects[0]["id"], effects[2]["id"]);
+    assert_eq!(effects.len(), 2);
+    assert_eq!(effects[0]["effect"]["type"], "element_animation");
+    assert_eq!(effects[1]["effect"]["type"], "spotlight");
+    assert_eq!(effects[0]["endMs"], effects[1]["atMs"]);
+    assert_eq!(effects[1]["endMs"], 1234);
     let mut preserved = extended.pages[0].actions[0].clone();
     preserved.as_object_mut().unwrap().remove("visualCues");
     assert_eq!(preserved, original);

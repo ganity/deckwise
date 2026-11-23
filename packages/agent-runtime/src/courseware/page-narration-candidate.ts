@@ -16,6 +16,7 @@ export const pageNarrationOutputSchema = z.object({
     z.object({ type: z.literal('speech'), text: spokenText, attention: z.object({
       type: z.enum(['highlight', 'spotlight']), objectIds: z.array(z.string().min(1).max(200)).min(1).max(COURSEWARE_ATTENTION_TARGET_LIMIT),
       animation: z.enum(['fadeIn', 'fadeOut', 'pulse', 'zoomIn', 'slideInLeft', 'slideInRight', 'gentleRotate']).optional(),
+      requestedHighlight: z.literal(true).optional(),
       anchorText: z.string().trim().min(1).max(500).optional(),
     }).strict().optional() }).strict(),
     z.object({ type: z.literal('english_phrase'), text: z.string().trim().min(1).max(80) }).strict(),
@@ -88,12 +89,12 @@ export async function generatePageNarrationCandidate(input: {
       ...(input.educationContext?.schoolStage?.trim().toUpperCase() === 'KINDERGARTEN' ? ['For kindergarten, usually use 2-4 concise teaching moves, about 120 Chinese characters total as guidance, not a hard limit. Preserve complete expressions and every required teaching point; more moves are appropriate when distinct real objects or planned activities require them. Do not turn each clause into a separate audio fragment.'] : []),
       'coursePlan.teaching, when supplied, is the current logical page requirement after any slide reorder. Use only current-page evidence for suggested target names in the instruction. Ground requested effects in the objects being taught. Follow its objective, phase, question and music; do not select a different page by ordinal from the original approvedPlan. coursePlan.page.mustMention lists exact source-backed target expressions to model; avoidRepeating lists previous teaching to avoid reteaching, not a ban on necessary target vocabulary. Fulfil deliveryContract with actual teacher speech, not a promise to teach it later.',
       'The page durationSeconds is the total classroom activity budget, not a request for that many seconds of speech. Keep explanations concise and reserve time for the approved learner activity, music or video. Never pad speech or add silence to fill the budget. When the user states a spoken-time ceiling, treat it as a maximum, not a target. Draft below that ceiling with headroom for natural TTS pacing; roughly allow 3 Chinese characters per second or 2 English words per second, and reserve learner-turn time separately. Estimate the total of all speech blocks on this page, not each block independently. Body modelling and short guided repetition prepare learners for the separate Quiz/checkpoint; do not duplicate the later independent task or announce the end of the lesson before it.',
-      'The same synchronized teaching rules apply to ordinary presentations and scene courses. Follow the saved teaching objective for the specific object, preset and moment. User-requested static pages stay visible. When motion is unspecified, use an entrance for a meaningful first reveal, leave objects visible for comparisons, and use fadeOut at the end of the speech only for a temporary cue that is no longer needed. Optional motion with no safe target may be omitted. Honor coursePlan.teaching.requiredEffects using real supplied teaching objects: highlight text, spotlight pictures, and use a bounded meaningful animation when required. Do not animate backgrounds or uncertain composites; report missing safe targets rather than inventing IDs.',
+      'The same synchronized teaching rules apply to ordinary presentations and scene courses. Follow the saved teaching objective for the specific object, preset and moment. User-requested static pages stay visible. When motion is unspecified, use an entrance for a meaningful first reveal, leave objects visible for comparisons, and use fadeOut at the end of the speech only for a temporary cue that is no longer needed. Optional motion with no safe target may be omitted. Honor coursePlan.teaching.requiredEffects using real supplied teaching objects: prefer spotlights on teaching targets, including text, and reserve highlights for close reading of words or notation. Do not animate backgrounds or uncertain composites; report missing safe targets rather than inventing IDs.',
       kindergartenEnglish
         ? 'For spoken teaching use speech blocks; lesson vocabulary and English lesson sentences also belong in speech. Only fixed classroom commands from the kindergarten command bank use english_phrase, at most two per page. At most one optional praise block is allowed. Praise text must be 谢谢你的尝试。, 谢谢大家的参与。, Thank you for trying., or Thank you for joining in. Praise encourages participation, never assumes a correct answer.'
         : 'For spoken teaching use speech blocks. Do not emit english_phrase or praise blocks. Follow the audience language policy and the requested narration language.',
       ...(input.evidence ? ['The teaching plan determines the learning objective; actual visible text and visual observations determine slide facts. Speaker notes and existing narration are reference material, not mandatory speech or proof that an object exists. Adapt notes to the audience and current teaching move; do not blindly copy them or invent pictures, people, counts, colors, positions or media from notes or a planned visual. Never call a label a portrait or describe a missing object as visible. Image-only pages are valid. A source-backed example may extend beyond visible text, but distinguish it from what is on screen. Connect to the preceding page only when useful, without repeating its introduction or teaching the next page early.',
-        'When speech refers to a supplied object, add attention:{"type":"highlight" or "spotlight","objectIds":["exact supplied ID"]} to that speech block. Prefer highlight for text, spotlight for pictures. Split speech when the focus changes. Use only relevant, unambiguous supplied objects; omit attention when no safe target exists. A card backplate is not the independent text or pictures drawn over it: bind their own UUIDs, not the container, background or decoration. Every ID in a multi-object focus must belong to this teaching move; do not batch unrelated objects to satisfy an animation requirement. Do not invent IDs or millisecond timing.'] : []),
+        'When speech refers to a supplied object, add attention:{"type":"highlight" or "spotlight","objectIds":["exact supplied ID"]} to that speech block. Plan more spotlight cues than highlight cues across the lesson. Start a new complete speech at each change of teaching object. Use anchorText for an introductory clause before a reveal. Choose only one focus per speech. Put a requested highlight on its own reading or notation step. Set requestedHighlight:true only when the user or approved plan explicitly requires a highlight on that particular target. Plan native animation on successive meaningful steps: reveal each new stage or example as it is introduced; pulse an already visible comparison item only when emphasis helps. After the native motion finishes, show the focus. Keep comparison references, decorations and explicitly static pages still. Use only relevant, unambiguous supplied objects; omit attention when no safe target exists. A card backplate is not the independent text or pictures drawn over it: bind their own UUIDs, not the container, background or decoration. Every ID in a multi-object focus must belong to this teaching move; do not batch unrelated objects to satisfy an animation requirement. Do not invent IDs or millisecond timing.'] : []),
       ...(input.sceneTeaching ? [`${input.sceneBodyImage ? 'Scene mode' : 'Saved-page teaching'} supports kindergarten, primary, junior high and senior high with the same teaching capabilities. Plan actual student participation using only waiting allowed for this page, without fabricating assessment results. Use zoomIn for a gentle scale entrance, slideInLeft/slideInRight for a meaningful directional entrance, and gentleRotate for a brief friendly sway. Reserve entrance effects for the first reveal; later use pulse or gentleRotate. Never animate the whole page or random decoration. When revealing a teaching object helps, add animation:"fadeIn" to its attention; use animation:"pulse" for emphasis. Use fadeIn only for an intentional first reveal; use pulse when revisiting an already visible teaching target, including later speech on the same page. Omit animation for backgrounds, decoration or uncertain targets. Speech starts the cue and verified audio supplies its interval; never invent milliseconds. Keep each speech about one teaching focus and a complete teaching move, with a separate speech block whenever the named target changes. attention.anchorText is optional. If used, it must be an exact substring occurring once in that same speech at a complete sentence boundary; never detach a reading cue from its expression for focus timing. A mid-sentence anchor keeps the sentence together and starts focus with that speech. Do not add quotation marks or require the phrase to appear on the slide. Use supplied spoken aliases to match character names and text carriers; never confuse a character with its name label, a repeated portrait or background decoration.`] : []),
       input.independentAssessmentPages
         ? 'This is a body slide. Questions and teacher-led response belong to separate assessment pages. Generate lecture speech, object focus and approved music/video here; omit interaction blocks and teacher_continue waits.'
@@ -181,12 +182,42 @@ export async function generatePageNarrationCandidate(input: {
       containsExpression(source, term) && !speeches.some(block => containsExpression(block.text, term)));
     if (missing.length) throw new PageCandidateError('INVALID_OUTPUT', `Missing exact spoken teaching expressions: ${missing.join(', ')}; include them in complete teaching moves`);
   }
+  // Count cues, not targets. Preserve named highlight requirements without padding the timeline.
+  const teaching = input.coursePlan && typeof input.coursePlan === 'object' ? Reflect.get(input.coursePlan, 'teaching') : undefined;
+  // Fulfil the page plan on the first verified mention, before independent semantic review.
+  if (!input.deferFocus && Array.isArray(plan?.revealTargets)) {
+    const pending = new Set(plan.revealTargets.filter((id: unknown) => objects.some(o => o.objectId === id)));
+    for (const speech of speeches) {
+      if (!speech.attention && pending.size) {
+        const target = sceneSpeechTarget(speech.text, objects);
+        if (target && pending.has(target.objectId)) speech.attention = { type: 'spotlight', objectIds: [target.objectId] };
+      }
+      const focus = speech.attention;
+      if (!focus || !focus.objectIds.every(id => pending.has(id))) continue;
+      focus.animation ??= 'fadeIn';
+      focus.objectIds.forEach(id => pending.delete(id));
+    }
+  }
+  const focused = speeches.flatMap(block => block.attention ? [block.attention] : []);
+  preferNarrationSpotlights(focused, Array.isArray(teaching?.requiredEffects) && teaching.requiredEffects.includes('highlight'));
+  for (const focus of focused) delete focus.requestedHighlight;
   await input.reviewSemantics?.(narration.blocks);
   await checkPageCandidateBaseline(baseline, input.getCurrentBaseline, input.signal);
   return {
     version: 1 as const, candidateId: randomUUID(), kind: 'page-narration' as const, baseline,
     narration, reviewState: 'needs-review' as const, applied: false as const,
   };
+}
+
+export function preferNarrationSpotlights(focuses: { type: 'highlight' | 'spotlight'; requestedHighlight?: true }[], requiredHighlight: boolean) {
+  const highlights = focuses.filter(f => f.type === 'highlight');
+  const keep = new Set(highlights.filter(f => f.requestedHighlight));
+  if (requiredHighlight && highlights.length && !keep.size) keep.add(highlights[0]);
+  const budget = Math.floor((focuses.length - 1) / 2);
+  for (const focus of highlights) {
+    if (keep.size < budget) keep.add(focus);
+    if (!keep.has(focus)) focus.type = 'spotlight';
+  }
 }
 
 type Speech = Extract<z.infer<typeof pageNarrationOutputSchema>["blocks"][number], { type: "speech" }>;
@@ -311,17 +342,17 @@ function focusSpeech(block: Speech, objects: NarrationObject[], scene: boolean):
       const start = block.text.indexOf(anchorText);
       if (start < 0 || block.text.indexOf(anchorText, start + 1) !== -1)
         throw new PageCandidateError('INVALID_OUTPUT', 'Attention anchor must occur exactly once in its speech');
-      const boundary = [...new Intl.Segmenter(undefined, { granularity: 'sentence' }).segment(block.text)]
-        .some(sentence => sentence.index + sentence.segment.search(/\S/u) === start);
-      const prefix = boundary ? block.text.slice(0, start) : '';
+      const before = block.text.slice(0, start);
+      const boundary = [...before.matchAll(/[。！？!?，,；;]\s*|\.(?:\s+|$)/gu)].at(-1);
+      const prefix = boundary && !/[：:]\s*$/u.test(before) ? before.slice(0, boundary.index + boundary[0].length) : '';
       return [...(prefix.trim() ? [{ type: 'speech' as const, text: prefix }] : []),
-        ...focusSpeech({ type: 'speech', text: prefix.trim() ? block.text.slice(start) : block.text, attention }, objects, scene)];
+        ...focusSpeech({ type: 'speech', text: block.text.slice(prefix.length), attention }, objects, scene)];
     }
     if (!scene || attention.objectIds.length > 1 || !namedTargets(block.text, objects).length) return [{ ...block, attention }];
   }
   if (!scene) {
     const matches = namedTargets(block.text, objects.filter(object => object.text.trim()));
-    return [{ ...block, ...(matches.length === 1 ? { attention: { type: matches[0].kind === 'image' ? 'spotlight' : 'highlight', objectIds: [matches[0].objectId] } as const } : {}) }];
+    return [{ ...block, ...(matches.length === 1 ? { attention: { type: 'spotlight', objectIds: [matches[0].objectId] } as const } : {}) }];
   }
   const clauses = [...new Intl.Segmenter(undefined, { granularity: 'sentence' }).segment(block.text)].map(sentence => sentence.segment);
   const result: Speech[] = [];
@@ -330,7 +361,7 @@ function focusSpeech(block: Speech, objects: NarrationObject[], scene: boolean):
     const target = sceneSpeechTarget(text, objects, block.attention?.objectIds[0]);
     const previous = result.at(-1);
     const attention: Speech['attention'] = target ? (block.attention?.objectIds[0] === target.objectId ? { ...block.attention } : {
-      type: target.kind === 'image' && !target.text.trim() ? 'spotlight' : 'highlight', objectIds: [target.objectId],
+      type: 'spotlight', objectIds: [target.objectId],
     }) : block.attention && previous?.attention;
     if (previous && JSON.stringify(previous.attention) === JSON.stringify(attention)) previous.text += text;
     else result.push({ type: 'speech', text, ...(attention ? { attention } : {}) });

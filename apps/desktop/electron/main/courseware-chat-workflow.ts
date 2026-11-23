@@ -207,6 +207,12 @@ export class CoursewareChatWorkflow {
     };
     if (name === "courseware_scene_image_prepare") {
       canGenerate(input.pageId, input.target);
+      if (record(input.target) && ["cleanPlate", "layer"].includes(String(input.target.kind)) && input.referenceIntentId === undefined) {
+        const masters = rows.filter(row => row.current && row.selected && row.asset && row.planSha256 === input.planSha256 &&
+          row.pageId === input.pageId && row.target.kind === "visualMaster");
+        if (masters.length !== 1) throw new Error("COURSEWARE_SCENE_IMAGE_REFERENCE_CHANGED: select the current page master before preparing layers");
+        input.referenceIntentId = masters[0].intentId;
+      }
       const image = await images.prepare({ ...input, sessionId }); check();
       const submitted = image.phase === "prepared" ? await images.generate({ sessionId, intentId: image.intentId }) :
         await images.status({ sessionId, intentId: image.intentId });

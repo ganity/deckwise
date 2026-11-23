@@ -58,7 +58,11 @@ pub(super) fn cues(value: &Value, action_id: &str, duration_ms: u64) -> Result<V
     let mut focus = cue(value, action_id, duration_ms)?;
     let mut cues = Vec::new();
     if let Some(effect) = value.get("animation") {
-        let end = duration_ms.min(600);
+        let end = if duration_ms <= 600 && effect != "fadeOut" {
+            (duration_ms / 2).max(1)
+        } else {
+            duration_ms.min(600)
+        };
         let exit = effect == "fadeOut";
         let at = if exit { duration_ms } else { 0 };
         anyhow::ensure!(
@@ -72,16 +76,86 @@ pub(super) fn cues(value: &Value, action_id: &str, duration_ms: u64) -> Result<V
                 "effect":{"type":"element_animation","elementId":id,"effect":effect}}),
             );
         }
-        // Reveal before focusing; a very short speech still gets a valid final focus interval.
-        if matches!(
-            effect.as_str(),
-            Some("fadeIn" | "zoomIn" | "slideInLeft" | "slideInRight")
-        ) {
-            focus["atMs"] = json!(end.min(duration_ms - 1));
+        // The native motion owns its interval, even on a one-millisecond clip.
+        if !exit {
+            if end == duration_ms {
+                return Ok(cues);
+            }
+            focus["atMs"] = json!(end);
         }
     }
     cues.push(focus);
     Ok(cues)
+}
+
+/// Retained speech can already have a timed focus when an agent adds another intent.
+pub(super) fn sequence_focus(cues: Vec<Value>) -> Result<Vec<Value>> {
+    let times: Vec<_> = cues
+        .iter()
+        .map(|c| match (c["atMs"].as_u64(), c["endMs"].as_u64()) {
+            (Some(a), Some(b)) if a < b && b <= 3_600_000 => Ok((a, b)),
+            _ => Err(anyhow!("COURSEWARE_INVALID: invalid saved focus timing")),
+        })
+        .collect::<Result<_>>()?;
+    let rank = |c: &Value| match c["effect"]["type"].as_str() {
+        Some("element_animation") if c.get("nativeAnimation").is_some() => 0,
+        Some("element_animation")
+            if matches!(
+                c["effect"]["effect"].as_str(),
+                Some("pulse" | "gentleRotate")
+            ) =>
+        {
+            2
+        }
+        Some("element_animation") => 1,
+        Some("spotlight") => 3,
+        _ => 4,
+    };
+    let mut order: Vec<_> = (0..cues.len()).collect();
+    order.sort_by_key(|&i| rank(&cues[i]));
+    let mut kept: Vec<(usize, u64, u64)> = Vec::new();
+    for i in order {
+        let (a, b) = times[i];
+        let effect = &cues[i]["effect"];
+        let mut occupied: Vec<_> = kept
+            .iter()
+            .copied()
+            .filter(|&(_, x, y)| x < b && a < y)
+            .collect();
+        if effect["type"] == "element_animation" {
+            if occupied.iter().all(|&(j, x, y)| {
+                x == a
+                    && y == b
+                    && cues[j]["effect"]["effect"] == effect["effect"]
+                    && cues[j]["effect"]["elementId"] != effect["elementId"]
+            }) {
+                kept.push((i, a, b));
+            }
+            continue;
+        }
+        occupied.sort_by_key(|&(_, x, _)| x);
+        let mut start = a;
+        let mut best = (a, a);
+        for (_, x, y) in occupied.into_iter().chain(std::iter::once((i, b, b))) {
+            if x.saturating_sub(start) > best.1 - best.0 {
+                best = (start, x);
+            }
+            start = start.max(y);
+        }
+        if best.1 > best.0 {
+            kept.push((i, best.0, best.1));
+        }
+    }
+    kept.sort_by_key(|&(i, _, _)| i);
+    Ok(kept
+        .into_iter()
+        .map(|(i, a, b)| {
+            let mut cue = cues[i].clone();
+            cue["atMs"] = json!(a);
+            cue["endMs"] = json!(b);
+            cue
+        })
+        .collect())
 }
 
 impl Database {
@@ -202,6 +276,23 @@ impl Database {
 mod tests {
     use super::*;
     #[test]
+    fn retained_focus_and_new_motion_share_the_verified_speech_clock() {
+        let mut marks = cues(
+            &json!({"type":"spotlight","objectIds":["figure"],"animation":"pulse"}),
+            "speech",
+            4000,
+        )
+        .unwrap();
+        marks.push(json!({"id":"old","atMs":0,"endMs":4000,"effect":{"type":"highlight","elementIds":["label"]}}));
+        let result = sequence_focus(marks).unwrap();
+        let times: Vec<_> = result
+            .iter()
+            .map(|c| (c["atMs"].as_u64().unwrap(), c["endMs"].as_u64().unwrap()))
+            .collect();
+        assert_eq!(times, [(0, 600), (600, 4000)]);
+    }
+
+    #[test]
     fn timing_uses_decoded_speech_and_rejects_unbounded_intents() {
         let intent = json!({"type":"spotlight","objectIds":["one","two"]});
         assert_eq!(
@@ -241,7 +332,7 @@ mod tests {
                 duration,
             )
             .unwrap();
-            assert_eq!(planned.len(), 2);
+            assert_eq!(planned.len(), if duration == 1 { 1 } else { 2 });
             for cue in planned {
                 assert!(cue["atMs"].as_u64().unwrap() < cue["endMs"].as_u64().unwrap());
                 assert!(cue["endMs"].as_u64().unwrap() <= duration);

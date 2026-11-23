@@ -22,7 +22,7 @@ export function projectNativeGroups(page: SlideIR['pages'][number], groups: read
     const width = Math.max(...bounds.map(b => b.right)) - left, height = Math.max(...bounds.map(b => b.bottom)) - top;
     if (![left, top, width, height].every(Number.isFinite) || width <= 0 || height <= 0)
       throw new Error('GROUP_BINDING_MISMATCH');
-    const element: PPTShapeElement = { id: `native_group_${group.objectId}`, type: 'shape', left, top, width, height,
+    const element: PPTShapeElement = { id: `native_group_${group.objectId}`, sourceShapeId: group.sourceShapeId, type: 'shape', left, top, width, height,
       rotate: 0, viewBox: [1, 1], path: 'M0 0 L1 0 L1 1 L0 1 Z', fixedRatio: false, fill: 'transparent', opacity: 0 };
     if (page.elements.some(existing => existing.id === element.id)) throw new Error('GROUP_BINDING_MISMATCH');
     return { objectId: group.objectId, element };
