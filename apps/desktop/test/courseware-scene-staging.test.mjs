@@ -66,8 +66,11 @@ test("mixed scene generation publishes native teaching, Quiz answers and media s
   assert.equal(native.generation.pages[0].narration, pages[0].narration, "the plan remains evidence, not completed narration");
   assert.deepEqual(native.pages[1].actions[1].response, { kind: "single", options: ["Bye", "Hello"], answerIndices: [1] });
   assert.equal(native.pages[1].actions[0].text, "Choose the greeting\nA. Bye\nB. Hello");
-  assert.equal(native.pages[2].actions[1].response.kind, "practice");
-  assert.match(native.pages[2].actions[1].context.chapterSummary, /Wait for the teacher/);
+  const [practice] = native.pages[2].actions;
+  assert.deepEqual(native.pages[2].actions.map(action => action.type), ["interaction_checkpoint"]);
+  assert.equal(practice.question, pages[2].teaching.question.text);
+  assert.equal(practice.response.kind, "practice");
+  assert.match(practice.context.chapterSummary, /Wait for the teacher/);
   assert.equal(native.identity.pages.every(p => p.objects.length === 1), true);
   assert.deepEqual(f.calls, ["courseware.task.get", "courseware.parseStart", "courseware.parseStatus", "courseware.task.attachNativeGenerated", "courseware.parseRelease"]);
   assert.equal((await stageGeneratedSceneCourse(f.input)).path, result.path, "retry keeps the same native file and IDs");
