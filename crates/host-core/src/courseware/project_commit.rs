@@ -160,11 +160,18 @@ pub struct ProjectCommitStore {
     objects: Directory,
     displaced: Directory,
     media: Directory,
-    _lock: File,
+    lock: File,
     #[cfg(test)]
     fail_after: Option<usize>,
     #[cfg(test)]
     boundaries: usize,
+}
+
+impl Drop for ProjectCommitStore {
+    fn drop(&mut self) {
+        // A concurrently spawned child may still hold the descriptor until exec.
+        let _ = self.lock.unlock();
+    }
 }
 
 pub struct CommittedFiles {
@@ -239,7 +246,7 @@ impl ProjectCommitStore {
             objects,
             displaced,
             media,
-            _lock: lock,
+            lock,
             #[cfg(test)]
             fail_after: None,
             #[cfg(test)]
