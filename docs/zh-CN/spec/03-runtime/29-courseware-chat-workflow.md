@@ -378,7 +378,8 @@ admission, audit and cancellation. Only reading is low risk; the rest are high.
 | `courseware_workflow_get` | Read saved requirements, plan/approval, image requests, advertised models and exact asset blockers. |
 | `courseware_requirements_update` | Persist confirmed education settings with CAS before approval or attachment. |
 | `courseware_scene_image_prepare` | Prepare an image intent through the existing service, without payment/submission/adoption. |
-| `courseware_scene_image_refresh` | Query the original task and archive verified ready/settled bytes for human review. |
+| `courseware_scene_generate_remaining` | 使用已确认的方案和首图，继续生成已授权整课的剩余画面。 |
+| `courseware_scene_image_refresh` | 查询原任务，归档已通过校验的图像，供用户审阅。 |
 | `courseware_scene_compile` | Revalidate approved plan and selected assets, then use existing compilation/staging. |
 
 Session and turn are Host-bound, not model-controlled. Stop, turn replacement

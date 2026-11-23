@@ -5615,8 +5615,12 @@ mod tests {
 mod ppt_format_dispatch_tests {
     #[test]
     fn assessment_media_uses_desktop_dispatch() {
-        assert!(super::is_desktop_dispatched("courseware_scene_generate_remaining"));
-        assert!(!super::is_ppt_editor_tool("courseware_scene_generate_remaining"));
+        assert!(super::is_desktop_dispatched(
+            "courseware_scene_generate_remaining"
+        ));
+        assert!(!super::is_ppt_editor_tool(
+            "courseware_scene_generate_remaining"
+        ));
         assert!(super::is_desktop_dispatched("courseware_media_assessments"));
         assert!(!super::is_ppt_editor_tool("courseware_media_assessments"));
         assert!(super::is_desktop_dispatched(

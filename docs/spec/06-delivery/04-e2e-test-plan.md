@@ -23,7 +23,7 @@
   and audio, and repeat playback without a new paid submission.
 - Separate one-page integration evidence from detailed-narration quality,
   multi-page recovery, exact diagram geometry and platform publication.
-  [The 2026-11-15 record](../../../plans/009-evidence/2026-11-15-live-media/README.md)
+  [The 2026-11-15 record](https://github.com/ganity/deckwise/blob/main/plans/009-evidence/2026-11-15-live-media/README.md)
   covers a real primary-Math image/decomposition/compile/TTS chain and restart;
   it retains a supplier failure, test-harness limitations and the authentication
   side effect rather than claiming full release qualification.
