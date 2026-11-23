@@ -67,6 +67,8 @@ pub(super) struct Page {
     pub(super) visible_text: Vec<String>,
     pub(super) visual_intent: String,
     pub(super) narration: String,
+    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "crate::db::courseware_projects::present_option")]
+    pub(super) visual_setting_ids: Option<Vec<String>>,
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
@@ -194,6 +196,10 @@ pub(super) fn read_plan(
                 || page.quiz.as_ref().is_some_and(|quiz| {
                     quiz["questions"].as_array().is_none_or(|questions| questions.len() != 1) || crate::db::courseware_projects::classroom::validate_classroom(&json!({"id":"plan","createdAt":"plan","stage":{"id":"plan","name":"plan","createdAt":0,"updatedAt":0},"scenes":[{"id":"quiz","stageId":"plan","type":"quiz","title":"quiz","order":0,"content":quiz}]})).is_err()
                 })
+                || page.visual_setting_ids.as_ref().is_some_and(|ids| ids.is_empty()
+                    || page.quiz.is_some() || page.teaching.as_ref().is_some_and(|t| t.question.is_some())
+                    || ids.iter().collect::<std::collections::HashSet<_>>().len() != ids.len()
+                    || ids.iter().any(|id| id.len() != 64 || !id.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))))
                 || !bounded(&page.visual_intent, 1000)
                 || if page.quiz.is_some() || page.teaching.as_ref().is_some_and(|t| t.question.is_some()) {
                     !page.narration.is_empty() || !page.visible_text.is_empty() || page.teaching.as_ref().is_some_and(|t|

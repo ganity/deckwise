@@ -1,3 +1,4 @@
+import { chatSettingAttachments, materializePptSettings, resolveChatSettingImages } from "./courseware-visual-settings";
 import { resolve } from "node:path";
 import { sceneCoursePlanRelativePath } from "./courseware-scene-plan";
 import { coursewareMediaRecovery } from "@pi-desktop/shared";
@@ -35,7 +36,7 @@ export class CoursewareChatWorkflow {
   assessments?: Pick<import("./courseware-assessment-media").CoursewareAssessmentMedia, "execute">;
   constructor(private getHost: () => Host | null, private getViewingSession: () => string | null,
     private auth: Pick<DesktopAuthSession, "getCoursewarePrincipal" | "coursewareMedia">,
-    private generation: SceneCourseGenerationServices) {}
+    private generation: SceneCourseGenerationServices, private dataDir?: string) {}
 
   // Main supplies a turn guard for Agent work; panel reads retain foreground ownership.
   async read(sessionId: string, canDispatch?: () => boolean): Promise<CoursewareWorkflowView> {
@@ -90,10 +91,27 @@ export class CoursewareChatWorkflow {
     if (view.story && (!view.story.sha256 || view.story.sha256 !== view.story.approvedSha256) &&
         !["courseware_workflow_get", "courseware_requirements_update"].includes(name))
       throw new Error("Review and confirm the teaching story before courseware generation");
+    if (name === "courseware_workflow_get" && Object.keys(input).length) {
+      if (!this.dataDir || !view.task || !["plain", "scene"].includes(view.task.taskType))
+        throw new Error("Visual settings are available while preparing new course artwork");
+      if (Object.keys(input).length !== 1) throw new Error("Choose either listing chat image IDs or resolving selected images");
+      if (input.listSettingImages === true) {
+        const rows = await chatSettingAttachments(host, sessionId, undefined, check);
+        return { images: [...rows].map(([id, image]) => ({ id, name: image.name })) };
+      }
+      if (view.task.taskType !== "plain" || view.task.generated || view.task.imported || !Array.isArray(input.visualSettingIds) || !input.visualSettingIds.length)
+        throw new Error("Supply the selected chat image IDs for PPT illustration generation");
+      const images = await resolveChatSettingImages(this.dataDir, host, sessionId, input.visualSettingIds, check);
+      const references = await materializePptSettings(this.dataDir, sessionId, images);
+      check();
+      return { references, instruction: "Use the relevant returned paths in each generated illustration item's reference_images field." };
+    }
     if (name === "courseware_scene_plan_submit") {
       if (Object.keys(input).length || view.task?.taskType !== "scene" || view.task.generated || !view.plan)
         throw new Error("Write a valid scene plan for this ungenerated Chat before submitting it");
       if (!view.plan.approvedSha256 && view.plan.textMode === "native") throw new Error("New scene plans must omit textMode so visibleText is rendered in image layers; update the draft before review");
+      const ids = [...new Set(view.plan.pages.flatMap(page => page.visualSettingIds ?? []))];
+      if (ids.length) await chatSettingAttachments(host, sessionId, ids, check);
       return { validated: true, awaitingPlanApproval: view.plan.approvedSha256 !== view.plan.sha256, ...view };
     }
     if (name === "courseware_presentation_adopt" || name === "courseware_presentation_prepare") {
@@ -145,7 +163,7 @@ export class CoursewareChatWorkflow {
       return this.read(sessionId, canDispatch);
     }
     const images = new CoursewareSceneImages(() => this.getHost(),
-      () => { check(); return sessionId; }, () => !canDispatch(), this.auth, this.generation?.planVisualMaster, this.generation?.layerFallback, this.generation?.reviewMaster);
+      () => { check(); return sessionId; }, () => !canDispatch(), this.auth, this.generation?.planVisualMaster, this.generation?.layerFallback, this.generation?.reviewMaster, this.dataDir);
     if (name === "courseware_workflow_get") {
       if (Object.keys(input).length) throw new Error("Unexpected workflow read arguments");
       if (!view.plan || view.plan.approvedSha256 !== view.plan.sha256) return { ...view, images: [], models: [], blockers: [] };

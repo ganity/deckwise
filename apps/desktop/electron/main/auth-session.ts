@@ -208,6 +208,25 @@ export class DesktopAuthSession {
     };
   }
 
+  async quizSettingImage(host: Parameters<typeof import("./courseware-visual-settings").quizSettingReference>[2],
+    sessionId: string, target: string[], ids: string[] | undefined, check: () => void) {
+    const principal = this.getCoursewarePrincipal();
+    const { quizSettingReference } = await import("./courseware-visual-settings");
+    return quizSettingReference(this.options.dataDir, principal.key, host, sessionId, target, ids, () => { principal.assertCurrent(); check(); });
+  }
+
+  async visualSettings(libraryId?: number) {
+    if (libraryId !== undefined && (!Number.isSafeInteger(libraryId) || libraryId <= 0)) throw new Error("Invalid visual setting library");
+    const principal = this.getCoursewarePrincipal();
+    const token = await this.resolveAccessToken();
+    principal.assertCurrent();
+    const rows = await this.request<unknown>(libraryId === undefined ? "/visual-settings" : `/visual-settings/${libraryId}/items`,
+      { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(30000) });
+    principal.assertCurrent();
+    if (!Array.isArray(rows)) throw new Error("Invalid visual setting catalog");
+    return rows;
+  }
+
   async resolveTeamSceneImages(references: readonly CoursewareTeamAssetRef[], signal?: AbortSignal) {
     signal?.throwIfAborted();
     if (!Array.isArray(references) || !references.length || references.length > 202 ||

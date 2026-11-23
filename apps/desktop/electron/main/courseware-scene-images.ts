@@ -1,3 +1,4 @@
+import { resolveChatSettingImages, sceneSettingSheet } from "./courseware-visual-settings";
 import { randomUUID } from "node:crypto";
 import { assertCoursewareRetryable, coursewareRetryIntentId, currentCoursewareAttempts } from "./courseware-retry";
 import { coursewareMediaSubmissionProject, isCoursewareMediaPermissionRefusal } from "./courseware-media-scope";
@@ -5,7 +6,7 @@ import { isCoursewareTaskRef, isCoursewareSceneImageTarget, type CoursewareScene
 import type { DesktopAuthSession } from "./auth-session";
 import type { CoursewareImageQuote, CoursewareImageRequest, CoursewareImageTask } from "./courseware-media";
 import { readSceneCourseDraft } from "./courseware-scene-draft";
-import { decodeSceneImageBundle, downloadSceneImageBundle, isSceneImageAsset, readSceneImageAsset, verifySceneImageAsset, sceneDecompositionReference, sceneLocalDecompositionReference, sceneImageForCompiler } from "./courseware-scene-image-assets";
+import { readSceneSettingSheet, decodeSceneImageBundle, downloadSceneImageBundle, isSceneImageAsset, readSceneImageAsset, verifySceneImageAsset, sceneDecompositionReference, sceneLocalDecompositionReference, sceneImageForCompiler } from "./courseware-scene-image-assets";
 import type { SceneMasterReview } from "./courseware-scene-master-review";
 import type { VisualMasterPlanner } from "./courseware-visual-master";
 import type { MagicLayersFallback } from "./courseware-magic-layers";
@@ -15,6 +16,7 @@ type Reference = NonNullable<CoursewareSceneImageView["referenceImage"]>;
 type Journal = { current: boolean; intent: {
   intentId: string; planSha256: string; pageId: string; request: Omit<CoursewareImageRequest, "referenceImage"> & { referenceImage?: Omit<Reference, "intentId"> };
   referenceIntentId?: string;
+  settingSheet?: boolean;
   sourceReferenceImage?: Omit<Reference, "intentId">;
   target?: CoursewareSceneImageTarget;
   idempotencyKey: string; requestHash: string; phase: CoursewareSceneImageView["phase"]; taskRef: CoursewareTaskRef | null;
@@ -38,13 +40,14 @@ function checked(value: Journal, intentId?: string): Journal {
       (i.planningRequired !== undefined && typeof i.planningRequired !== "boolean") ||
       (i.sourcePrompt !== undefined && (typeof i.sourcePrompt !== "string" || !i.sourcePrompt.trim() || i.sourcePrompt.length > 4000)) ||
       (i.planningInstructions !== undefined && (typeof i.planningInstructions !== "string" || i.planningInstructions.length > 1200)) ||
-      (i.sourceReferenceImage !== undefined && (i.request?.kind !== "image-layers" || i.request.referenceImage?.mimeType !== "image/jpeg" ||
+      (i.sourceReferenceImage !== undefined && ((i.request?.kind !== "image-layers" && !i.settingSheet) || i.request.referenceImage?.mimeType !== "image/jpeg" ||
         Object.keys(i.sourceReferenceImage).sort().join(",") !== "byteLength,mimeType,sha256" || !hash(i.sourceReferenceImage.sha256) ||
         !["image/png", "image/jpeg"].includes(i.sourceReferenceImage.mimeType) || !Number.isSafeInteger(i.sourceReferenceImage.byteLength) ||
         i.sourceReferenceImage.byteLength < 1 || i.sourceReferenceImage.byteLength > 32 * 1024 * 1024)) ||
       !/^scene-[0-9]{3}$/u.test(i.pageId) || !["image", "image-layers"].includes(i.request?.kind) || !id(i.request.model) ||
       (i.request.kind === "image-layers" && (!i.request.referenceImage || (i.target?.kind ?? "visualMaster") === "visualMaster")) ||
-      (i.request.referenceImage !== undefined && (!id(i.referenceIntentId) || !hash(i.request.referenceImage.sha256) ||
+      (i.settingSheet && (i.target?.kind !== "visualMaster" || i.request.referenceImage?.mimeType !== "image/jpeg" || !!i.referenceIntentId !== !!i.sourceReferenceImage)) ||
+      (i.request.referenceImage !== undefined && ((!i.settingSheet || i.referenceIntentId !== undefined) && !id(i.referenceIntentId) || !hash(i.request.referenceImage.sha256) ||
         Object.keys(i.request.referenceImage).sort().join(",") !== "byteLength,mimeType,sha256" ||
         !["image/png", "image/jpeg"].includes(i.request.referenceImage.mimeType) || !Number.isSafeInteger(i.request.referenceImage.byteLength) ||
         i.request.referenceImage.byteLength < 1 || i.request.referenceImage.byteLength > 8 * 1024 * 1024)) ||
@@ -65,7 +68,7 @@ function view(j: Journal, task: CoursewareImageTask | null = null): CoursewareSc
   return { intentId: j.intent.intentId, planSha256: j.intent.planSha256, pageId: j.intent.pageId,
     ...(j.intent.request.kind === "image-layers" ? { decomposition: true } : {}),
     target: j.intent.target ?? { kind: "visualMaster" },
-    ...(j.intent.request.referenceImage ? { referenceImage: { ...(j.intent.sourceReferenceImage ?? j.intent.request.referenceImage), intentId: j.intent.referenceIntentId! } } : {}),
+    ...(j.intent.referenceIntentId && j.intent.request.referenceImage ? { referenceImage: { ...(j.intent.sourceReferenceImage ?? j.intent.request.referenceImage), intentId: j.intent.referenceIntentId! } } : {}),
     model: j.intent.request.model, prompt: j.intent.request.input, phase: j.intent.phase, current: j.current,
     asset: j.intent.asset ? { sha256: j.intent.asset.sha256, mimeType: j.intent.asset.mimeType,
       byteLength: j.intent.asset.byteLength, width: j.intent.asset.width, height: j.intent.asset.height,
@@ -86,7 +89,7 @@ export class CoursewareSceneImages {
   constructor(private getHost: () => Host | null, private getSession: () => string | null,
     private isRunning: (sessionId: string) => boolean,
     private auth: Pick<DesktopAuthSession, "getCoursewarePrincipal" | "coursewareMedia">,
-    private planVisualMaster?: VisualMasterPlanner, private layerFallback?: MagicLayersFallback, private reviewMaster?: SceneMasterReview) {}
+    private planVisualMaster?: VisualMasterPlanner, private layerFallback?: MagicLayersFallback, private reviewMaster?: SceneMasterReview, private dataDir?: string) {}
 
   private context(p: Record<string, string>, allowDuringTurn = false) {
     const host = this.getHost();
@@ -124,6 +127,7 @@ export class CoursewareSceneImages {
     c.assertCurrent();
     if (!models.some(model => model.model === j.intent.request.model && model.supportsReferenceImage === true))
       throw new Error("COURSEWARE_SCENE_IMAGE_REFERENCE_UNSUPPORTED");
+    if (j.intent.settingSheet && !j.intent.referenceIntentId) return null;
     const { intents } = await c.host.call<{ intents: Journal[] }>("courseware.sceneImage.list", {
       sessionId: c.scope.sessionId, principalKey: c.scope.principalKey });
     c.assertCurrent();
@@ -228,17 +232,25 @@ export class CoursewareSceneImages {
       throw new Error("COURSEWARE_SCENE_IMAGE_INVALID_REQUEST");
     const available = await this.models({ sessionId: payload.sessionId });
     const candidates = available.filter(m => target.kind === "visualMaster" ? !m.layerDecomposition : target.kind === "cleanPlate" ? m.layerDecomposition : !m.layerDecomposition && m.supportsReferenceImage);
-    const chosen = payload.model === undefined ? candidates[0] : available.find(m => m.model === payload.model);
+    const sessionId = payload.sessionId;
+    if (!id(sessionId)) throw new Error("COURSEWARE_SCENE_IMAGE_INVALID_REQUEST");
+    const c = this.context({ sessionId });
+    if (!hash(payload.planSha256)) throw new Error("COURSEWARE_SCENE_IMAGE_INVALID_REQUEST");
+    const plan = await this.approved(c.host, sessionId, payload.planSha256);
+    const page = plan.pages.find(page => page.pageId === payload.pageId && !page.quiz && !page.teaching?.question);
+    if (!page) throw new Error("COURSEWARE_SCENE_IMAGE_INVALID_REQUEST");
+    const ids = target.kind === "visualMaster" ? page.visualSettingIds ?? [] : [];
+    const preferred = ids.length ? candidates.find(model => model.supportsReferenceImage) : candidates[0];
+    if (ids.length && !preferred) throw new Error("COURSEWARE_SCENE_IMAGE_REFERENCE_UNSUPPORTED");
+    const chosen = payload.model === undefined ? preferred : available.find(m => m.model === payload.model);
     if (!chosen || (chosen.layerDecomposition && target.kind !== "cleanPlate")) throw new Error("COURSEWARE_SCENE_IMAGE_MODEL_UNAVAILABLE");
-    const p = input({ ...payload, model: chosen.model }, ["planSha256", "pageId", "model"]), c = this.context(p);
-    if (!hash(p.planSha256)) throw new Error("COURSEWARE_SCENE_IMAGE_INVALID_REQUEST");
-    const plan = await this.approved(c.host, p.sessionId, p.planSha256);
-    if (!plan.pages.some((page) => page.pageId === p.pageId && !page.quiz && !page.teaching?.question)) throw new Error("COURSEWARE_SCENE_IMAGE_INVALID_REQUEST");
+    const p = input({ ...payload, model: chosen.model }, ["planSha256", "pageId", "model"]);
+    c.assertCurrent();
     const firstVisualPage = plan.pages.find(page => !page.quiz && !page.teaching?.question)!;
     let referenceIntentId = requestedReference;
     if (target.kind === "visualMaster") {
       if (p.pageId === firstVisualPage.pageId) {
-        if (requestedReference !== undefined) throw new Error("COURSEWARE_INVALID_REFERENCE: omit referenceIntentId for the first visualMaster; no reference image exists yet");
+        if (requestedReference !== undefined) throw new Error("COURSEWARE_INVALID_REFERENCE: omit referenceIntentId for the first visualMaster; approved visual settings are attached automatically");
       } else {
         const rows = await this.list({ sessionId: p.sessionId });
         c.assertCurrent();
@@ -251,14 +263,23 @@ export class CoursewareSceneImages {
       }
     }
     c.assertCurrent();
-    let referenceInput: { sourceSha256: string; bytesBase64: string } | undefined;
-    if (chosen.layerDecomposition && referenceIntentId) {
+    if (ids.length && (!this.dataDir || !chosen.supportsReferenceImage || chosen.layerDecomposition)) throw new Error("COURSEWARE_SCENE_IMAGE_REFERENCE_UNSUPPORTED");
+    let referenceInput: { sourceSha256?: string; bytesBase64: string; guide?: string } | undefined;
+    let cover: Buffer | undefined;
+    let coverHash: string | undefined;
+    if ((chosen.layerDecomposition || ids.length) && referenceIntentId) {
       const archived = await c.host.call<Journal & { path: string }>("courseware.sceneImage.asset.get", { ...c.scope, intentId: referenceIntentId });
       const reference = checked(archived, referenceIntentId);
       if (!reference.current || !reference.intent.selected || !reference.intent.asset) throw new Error("COURSEWARE_SCENE_IMAGE_REFERENCE_CHANGED");
       const bytes = await readSceneImageAsset(archived.path, reference.intent.asset, { kind: "visualMaster" });
-      referenceInput = { sourceSha256: reference.intent.asset.sha256, bytesBase64: sceneDecompositionReference(bytes, reference.intent.asset).toString("base64") };
+      if (chosen.layerDecomposition) referenceInput = { sourceSha256: reference.intent.asset.sha256, bytesBase64: sceneDecompositionReference(bytes, reference.intent.asset).toString("base64") };
+      else { cover = bytes; coverHash = reference.intent.asset.sha256; }
       c.assertCurrent();
+    }
+    if (ids.length) {
+      const images = await resolveChatSettingImages(this.dataDir!, c.host, p.sessionId, ids, c.assertCurrent);
+      const sheet = sceneSettingSheet(images, cover);
+      referenceInput = { sourceSha256: coverHash, bytesBase64: sheet.bytes.toString("base64"), guide: sheet.instruction };
     }
     const request = { ...c.scope,
       planSha256: p.planSha256, pageId: p.pageId, model: p.model, target, instructions,
@@ -278,7 +299,7 @@ export class CoursewareSceneImages {
       try {
         prompt = await this.planVisualMaster({ sessionId: p.sessionId, plan,
           educationContext: approval.educationContext,
-          page: plan.pages.find(page => page.pageId === p.pageId)!, instructions,
+          page, instructions, settingGuide: referenceInput?.guide,
           courseStyleReferenceSupplied: referenceIntentId !== undefined, signal: controller.signal });
       } catch {
         c.assertCurrent();
@@ -376,15 +397,16 @@ export class CoursewareSceneImages {
       await this.approved(c.host, p.sessionId, j.intent.planSha256);
       const reference = await this.reference(c, j);
       let referenceImage: CoursewareImageRequest["referenceImage"];
-      if (reference) {
-        const normalized = j.intent.sourceReferenceImage !== undefined;
+      if (reference || j.intent.settingSheet) {
+        const normalized = j.intent.sourceReferenceImage !== undefined || j.intent.settingSheet === true;
         const archived = await c.host.call<Journal & { path: string }>(normalized ? "courseware.sceneImage.reference.get" : "courseware.sceneImage.asset.get", {
-          ...c.scope, intentId: normalized ? j.intent.intentId : reference.intent.intentId });
-        checked(archived, normalized ? j.intent.intentId : reference.intent.intentId);
-        if (JSON.stringify(archived.intent) !== JSON.stringify(normalized ? j.intent : reference.intent))
+          ...c.scope, intentId: normalized ? j.intent.intentId : reference!.intent.intentId });
+        checked(archived, normalized ? j.intent.intentId : reference!.intent.intentId);
+        if (JSON.stringify(archived.intent) !== JSON.stringify(normalized ? j.intent : reference!.intent))
           throw new Error("COURSEWARE_SCENE_IMAGE_REFERENCE_CHANGED");
         const metadata = normalized ? j.intent.request.referenceImage! : archived.intent.asset!;
-        const bytes = await readSceneImageAsset(archived.path, { ...metadata, width: reference.intent.asset!.width, height: reference.intent.asset!.height }, { kind: "visualMaster" });
+        const bytes = j.intent.settingSheet ? await readSceneSettingSheet(archived.path, metadata) :
+          await readSceneImageAsset(archived.path, { ...metadata, width: reference!.intent.asset!.width, height: reference!.intent.asset!.height }, { kind: "visualMaster" });
         referenceImage = { ...j.intent.request.referenceImage!, bytesBase64: bytes.toString("base64") };
       }
       c.assertCurrent();

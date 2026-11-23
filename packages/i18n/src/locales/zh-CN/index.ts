@@ -486,6 +486,8 @@ export const zhCN = {
     placeholderHint: "例如：小学三年级数学《认识分数》，15 页，清新插画风",
     placeholderHomeHint: "例如：小学三年级数学《认识分数》，15 页，清新插画风",
     placeholderShortcut: "Shift+Enter 换行 · 点击发送提交",
+    visualSettings: "设定图库",
+    noSettingImages: "这个图库里还没有设定图。",
     addFiles: "添加文件",
     filesAttached: "已将 {{count}} 项加入草稿",
     filesPasted: "已将 {{count}} 个粘贴文件保存到会话临时目录",

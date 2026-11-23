@@ -64,13 +64,15 @@ export async function readSceneCourseDraft(host: Host, payload: unknown): Promis
 }
 
 /** Explicit UI approval pins the already reviewed file; the Host rechecks its bytes. */
-export async function approveSceneCourseDraft(host: Host, payload: unknown): Promise<{ plan: CoursewareScenePlanSnapshot | null }> {
+export async function approveSceneCourseDraft(host: Host, payload: unknown, checkSettingIds?: (sessionId: string, ids: string[]) => Promise<void>): Promise<{ plan: CoursewareScenePlanSnapshot | null }> {
   if (!payload || typeof payload !== "object" || Array.isArray(payload) || Object.keys(payload).sort().join(",") !== "sessionId,sha256")
     throw new Error("Invalid scene plan approval");
   const sessionId = Reflect.get(payload, "sessionId"), sha256 = Reflect.get(payload, "sha256");
   if (typeof sha256 !== "string" || !/^[a-f0-9]{64}$/u.test(sha256)) throw new Error("Invalid scene plan hash");
   const { plan } = await readSceneCourseDraft(host, { sessionId });
   if (!plan || plan.sha256 !== sha256) throw new Error("Scene plan changed; review it again");
+  const ids = [...new Set(plan.pages.flatMap(page => page.visualSettingIds ?? []))];
+  if (ids.length) await checkSettingIds?.(sessionId, ids);
   if (!plan.approvedSha256 && plan.textMode === "native") throw new Error("New scene plans must omit textMode so visibleText is rendered in image layers; preserve already approved plans");
   await host.call("courseware.scenePlan.approve", { sessionId, sha256 });
   return readSceneCourseDraft(host, { sessionId });

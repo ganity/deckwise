@@ -484,6 +484,8 @@ export const fr = {
     "placeholderHint": "Tapez / pour les commandes · @ pour les fichiers",
     "placeholderHomeHint": "Tapez / pour les commandes · @ pour les fichiers",
     "placeholderShortcut": "Maj+Entrée pour une nouvelle ligne · Utilisez Envoyer pour soumettre",
+    visualSettings: "Images de référence",
+    noSettingImages: "Cette bibliothèque ne contient aucune image de référence.",
     "addFiles": "Ajoutez des fichiers et plus encore",
     "filesAttached": "Ajout de {{count}} élément(s) au brouillon",
     "filesPasted": "Enregistrement de {{count}} fichier(s) collé(s) dans le dossier de travail de la session",

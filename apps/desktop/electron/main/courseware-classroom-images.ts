@@ -1,12 +1,12 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { DesktopAuthSession } from "./auth-session";
 import type { CoursewareClassroomCoordinator } from "./courseware-classroom";
-import type { CoursewareImageRequest } from "./courseware-media";
+import { requestHash as mediaRequestHash, type CoursewareImageRequest } from "./courseware-media";
 import { coursewareMediaSubmissionProject } from "./courseware-media-scope";
 
 type Host = { call<T>(method: string, params: unknown): Promise<T> };
 type Selection = { sessionId: string; projectId: string; expectedRevision: string; expectedSourceRevision: string;
-  sceneId: string; questionId: string; optionValue: string; model: string };
+  sceneId: string; questionId: string; optionValue: string; model: string; visualSettingIds?: string[] };
 export type QuizImageReview = (input: { sessionId: string; question: unknown; option: { value: string; label: string }; bytes: Buffer }) => Promise<void>;
 type Quote = { quote: Awaited<ReturnType<DesktopAuthSession["coursewareMedia"]["getImageQuote"]>>; key: string; principalKey: string; revision: string; sourceRevision: string };
 const hash = (value: string | Uint8Array) => createHash("sha256").update(value).digest("hex");
@@ -15,8 +15,11 @@ const string = (value: unknown): value is string => typeof value === "string" &&
 function selection(value: unknown): Selection {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid classroom image request");
   const input = value as Record<string, unknown>;
+  if (input.visualSettingIds !== undefined && (!Array.isArray(input.visualSettingIds) || !input.visualSettingIds.length ||
+      input.visualSettingIds.some(id => typeof id !== "string" || !/^[a-f0-9]{64}$/u.test(id)) || new Set(input.visualSettingIds).size !== input.visualSettingIds.length))
+    throw new Error("Invalid quiz visual setting image IDs");
   if (["sessionId", "projectId", "expectedRevision", "expectedSourceRevision", "sceneId", "questionId", "optionValue", "model"].some(key => !string(input[key])) ||
-      Object.keys(input).some(key => !["sessionId", "projectId", "expectedRevision", "expectedSourceRevision", "sceneId", "questionId", "optionValue", "model", "quoteId"].includes(key)))
+      Object.keys(input).some(key => !["sessionId", "projectId", "expectedRevision", "expectedSourceRevision", "sceneId", "questionId", "optionValue", "model", "quoteId", "visualSettingIds"].includes(key)))
     throw new Error("Invalid classroom image selection");
   return input as Selection;
 }
@@ -25,7 +28,7 @@ export class CoursewareClassroomImages {
   private quotes = new Map<string, Quote>();
   private active = new Set<string>();
   constructor(private input: {
-    auth: Pick<DesktopAuthSession, "getCoursewarePrincipal" | "coursewareMedia">;
+    auth: Pick<DesktopAuthSession, "getCoursewarePrincipal" | "coursewareMedia"> & Partial<Pick<DesktopAuthSession, "quizSettingImage">>;
     classroom: Pick<CoursewareClassroomCoordinator, "open" | "image">;
     getHost: () => Host | null; getWorkspace: () => Promise<string | null>;
     assertOwned: (sessionId: string) => void; review: QuizImageReview;
@@ -58,14 +61,20 @@ export class CoursewareClassroomImages {
     const legacyPrompt = `Create one clear educational illustration for a classroom multiple-choice question. Lesson: ${view.classroom.stage.name}. Question: ${question.question}. Illustrate option ${option.value}: ${option.label}. Do not include letters, words, labels, borders, or multiple panels. Compose a centered square image appropriate for this lesson.`;
     const prompt = `Create a neutral, centered square educational illustration of this option alone: ${option.label}. Show its ordinary identity and properties. Do not imply that it satisfies an unstated question or add forces, motion, interactions, correctness marks, comparisons or other answer clues. No letters, words, labels, borders or multiple panels.`;
     const request: CoursewareImageRequest = { kind: "image", model: args.model, input: prompt };
-    const reference = (input: string) => {
-      const requestHash = hash([request.kind, request.model, input, null]
-        .reduce<string>((text, field) => `${text}:${field === null ? -1 : field.length}:${field ?? ""}`, "courseware-media-v1"));
+    const settings = await this.input.auth.quizSettingImage?.(host, args.sessionId,
+      [args.projectId, args.sceneId, args.questionId, args.optionValue, option.label], args.visualSettingIds, () => this.input.assertOwned(args.sessionId));
+    if (args.visualSettingIds && !settings) throw new Error("Quiz visual settings unavailable");
+    if (settings) {
+      request.referenceImage = settings.referenceImage;
+      request.input += "\n" + settings.guide;
+    }
+    const reference = (input: string, withSettings = false) => {
+      const requestHash = mediaRequestHash(withSettings ? request : { kind: "image", model: args.model, input });
       return { requestHash, idempotencyKey: `maic-${hash(JSON.stringify([principal.key, args.projectId, args.sceneId, args.questionId, args.optionValue, requestHash]))}` };
     };
-    const ref = reference(prompt), legacy = reference(legacyPrompt);
+    const ref = reference(prompt, true), legacy = reference(legacyPrompt);
     const find = async () => {
-      for (const ref of [reference(prompt), legacy]) {
+      for (const ref of (settings ? [reference(prompt, true), reference(prompt), legacy] : [reference(prompt), legacy])) {
         const task = await this.input.auth.coursewareMedia.findImage(ref); await check();
         if (task) return { ...ref, task };
       }

@@ -491,6 +491,8 @@ export const en = {
     placeholderHint: "Example: Grade 3 math, Fractions, 15 slides, clean illustrated style",
     placeholderHomeHint: "Example: Grade 3 math, Fractions, 15 slides, clean illustrated style",
     placeholderShortcut: "Shift+Enter for newline · Use Send to submit",
+    visualSettings: "Visual library",
+    noSettingImages: "No setting images in this library.",
     addFiles: "Add files",
     filesAttached: "Added {{count}} item(s) to the draft",
     filesPasted: "Saved {{count}} pasted file(s) to the session scratch folder",

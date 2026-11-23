@@ -10,6 +10,7 @@ export type VisualMasterPlanningInput = {
   educationContext?: CoursewareEducationContext;
   page: CoursewareScenePlanPage;
   instructions: string;
+  settingGuide?: string;
   courseStyleReferenceSupplied: boolean;
   signal: AbortSignal;
 };
@@ -23,7 +24,7 @@ export async function planSceneVisualMaster(input: VisualMasterPlanningInput,
   const { page, plan, signal } = input;
   const visualGuidance = buildSceneVisualGuidance(input.educationContext);
   const artDirection = input.educationContext?.visualStyle?.trim() || plan.visualBible?.artDirection;
-  const suffix = `\n${visualGuidance}${artDirection ? `\nApproved art direction: ${artDirection}.` : ""}\n${MAIC_EXTRACTION}\n${MAIC_BACKGROUND}\n${ORIGINAL_CHARACTERS}${input.courseStyleReferenceSupplied ? "\nCourse consistency: use the supplied accepted course-style reference for palette, linework, lighting, material treatment, typography style, and recurring character identity only. Do not copy its page-specific objects, words, layout, or location; the authoritative story location takes priority." : ""}`;
+  const suffix = `${input.settingGuide ? "\n" + input.settingGuide : ""}\n${visualGuidance}${artDirection ? `\nApproved art direction: ${artDirection}.` : ""}\n${MAIC_EXTRACTION}\n${MAIC_BACKGROUND}\n${ORIGINAL_CHARACTERS}${input.courseStyleReferenceSupplied ? "\nCourse consistency: use the supplied accepted course-style reference for palette, linework, lighting, material treatment, typography style, and recurring character identity only. Do not copy its page-specific objects, words, layout, or location; the authoritative story location takes priority." : ""}`;
   const data = {
     canvas: "16:10 / 1280x800",
     slide: { title: page.title, description: page.visualIntent, keyPoints: page.visibleText, pageRole: page.teaching?.phase },

@@ -18766,3 +18766,7 @@ required to qualify the new review's real-model judgments and save behavior.
 ## Page-scoped narration and material recovery
 
 Exercise a malformed visual finding during a single-page focus repair. Reopen the result and check the target, saved speech, audio and peer pages. Exercise inline material preview and adoption with both a user quotation and an agent-authored draft. Only the user quotation may create material bindings.
+
+## Visual setting references
+
+Choose a library reference and a local chat attachment. Check a stale library revision before downloading. Bind both to the first illustrated Scene page and select just one for a later page. Check the submitted reference bytes, cover style ownership, resume after restart, and ordinary decomposition. For PPT Master, verify the emitted Seedream image payload contains the selected attachment bytes. Reopen a Quiz option request without resupplying IDs and verify that its reference and receipt are reused.

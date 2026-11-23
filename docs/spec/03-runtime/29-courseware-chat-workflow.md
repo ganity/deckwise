@@ -1644,3 +1644,11 @@ Saved content review can correct an existing oral checkpoint answer summary on
 an editable generated activity. It identifies the checkpoint by action ID,
 preserves its question, key points, script and audio, and verifies the summary
 in the saved teaching actions before reporting a successful repair.
+
+## Visual setting images
+
+The composer can attach a revision-checked image from the platform visual library or a local image. Library picks designate a visual reference directly. For ordinary attachments the user identifies the images to use as references in Chat. Both sources can appear in one lesson. The desktop snapshots the bytes when attaching, and resolves their content hashes against the owning Chat's user messages.
+
+Scene plans list relevant attachment hashes in each illustrated page's optional `visualSettingIds`. They participate in approval and page identity. The image service accepts one reference, so Main fits the selected images into a single JPEG. On later pages the first panel shows the approved cover style. The prompt identifies each panel. The Host journals the actual wire hash and bytes before submission, including for the cover. Decomposition still uses just the selected page master.
+
+For ordinary PPT Master illustrations, workflow lookup materializes the selected attachments with their image extensions. The agent supplies the relevant paths per illustration in the official manifest's `reference_images`. For generated Quiz option art, the image request can use the subject's references and recover its pinned sheet during refresh.

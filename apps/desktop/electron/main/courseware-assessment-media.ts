@@ -62,8 +62,9 @@ export class CoursewareAssessmentMedia {
       check(); return { ...this.status({ ...view, classroom: view.classroom ? prepareMaicAssessmentSpeech(view.classroom) : null }), ...(models ? { models } : {}) };
     }
     if (!["prepare", "refresh"].includes(String(mode)) || !["tts", "image"].includes(String(input.kind)) ||
+        input.visualSettingIds !== undefined && input.kind !== "image" ||
         input.originalKey !== undefined && !(mode === "refresh" && input.kind === "tts") ||
-        Object.keys(input).some(key => !["mode", "kind", "projectId", "expectedRevision", "expectedSourceRevision", "sceneId", "actionId", "questionId", "optionValue", "model", "voice", "originalKey"].includes(key)))
+        Object.keys(input).some(key => !["mode", "kind", "projectId", "expectedRevision", "expectedSourceRevision", "sceneId", "actionId", "questionId", "optionValue", "model", "voice", "originalKey", "visualSettingIds"].includes(key)))
       throw new Error("Invalid assessment generation request");
     const { mode: _mode, kind, ...selection } = input;
     const request: Record<string, unknown> = { ...selection, sessionId };
