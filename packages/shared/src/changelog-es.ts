@@ -2,6 +2,11 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const esEntries: ChangelogEntry[] = [
   {
+    version: "0.20.7",
+    date: "2026-11-24",
+    highlights: ["Vuelve a generar imágenes e inserta texto artístico con IA desde el editor de PowerPoint."],
+  },
+  {
     version: "0.20.6",
     date: "2026-11-23",
     highlights: ["Las animaciones de las diapositivas siguen la narración. Si coinciden dos efectos de énfasis, se da prioridad al foco."],

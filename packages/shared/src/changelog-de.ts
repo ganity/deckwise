@@ -2,6 +2,11 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const deEntries: ChangelogEntry[] = [
   {
+    version: "0.20.7",
+    date: "2026-11-24",
+    highlights: ["Bilder im PowerPoint-Editor neu generieren und KI-Schriftgrafiken einfügen."],
+  },
+  {
     version: "0.20.6",
     date: "2026-11-23",
     highlights: ["Folienanimationen folgen dem gesprochenen Text. Bei überlappenden Hervorhebungen hat der Scheinwerfer Vorrang."],

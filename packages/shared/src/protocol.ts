@@ -2,7 +2,7 @@ export const PROTOCOL_VERSION = 11 as const;
 export const SCHEMA_VERSION = 16 as const;
 export const APP_ID = "com.trainwise.deckwise";
 export const APP_NAME = "DeckWise";
-export const APP_VERSION = "0.20.6";
+export const APP_VERSION = "0.20.7";
 
 export const APP_MENU_COMMANDS = [
   "newTask",
