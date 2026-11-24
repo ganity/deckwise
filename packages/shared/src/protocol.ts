@@ -2,7 +2,7 @@ export const PROTOCOL_VERSION = 11 as const;
 export const SCHEMA_VERSION = 16 as const;
 export const APP_ID = "com.trainwise.deckwise";
 export const APP_NAME = "DeckWise";
-export const APP_VERSION = "0.20.6";
+export const APP_VERSION = "0.20.7";
 
 export const APP_MENU_COMMANDS = [
   "newTask",
@@ -464,6 +464,9 @@ export const IPC = {
     logOpenFolder: "pi-desktop/log/openFolder",
     devtoolsToggle: "pi-desktop/devtools/toggle",
     composerPickFiles: "pi-desktop/composer/pickFiles",
+    visualSettingLibrary: "deckwise/courseware/visual-setting-library",
+    visualSettingImages: "deckwise/courseware/visual-setting-images",
+    visualSettingAttach: "deckwise/courseware/visual-setting-attach",
     composerPickPhotos: "pi-desktop/composer/pickPhotos",
     composerImportFiles: "pi-desktop/composer/importFiles",
     composerPasteFiles: "pi-desktop/composer/pasteFiles",

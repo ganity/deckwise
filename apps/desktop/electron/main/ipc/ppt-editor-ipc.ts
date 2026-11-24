@@ -1,3 +1,4 @@
+import { createEditorImageHandler } from "../courseware-editor-images";
 import { coursewareWorkerPath } from "../courseware-runtime";
 import { createQuizImageReview } from "../courseware-quiz-image-review";
 import { CoursewareDocumentTools } from "../courseware-document-tools";
@@ -312,8 +313,10 @@ export function registerPptEditorIpc(input: {
       background: targetEditor !== editor, review: reviewQuizImage, auth: input.authSession, complete: input.completeNarration, completeVision: input.completeScene,
       resolveModel: input.resolveModel, activeTurns: input.activeTurns, reviewTurns, getHost }) });
   input.onNativeTeachingReady?.(documentTools);
+  editor.editorImagesEnabled = true;
   editor.nativeTeaching = createNativeTeachingHandler({ teaching, tts, classroom, classroomTts, classroomImages,
     nativeRoute: routeNative,
+    editorImages: createEditorImageHandler(input.authSession, async () => editor.getContext(await getWorkspaceRoot()), input.getViewingSessionId),
     assessmentContext: async view => {
       const host = getHost(), sessionId = input.getViewingSessionId();
       if (!host || !sessionId) throw new Error("Teaching owner changed");

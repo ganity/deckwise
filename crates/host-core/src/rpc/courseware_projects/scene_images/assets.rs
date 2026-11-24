@@ -411,3 +411,27 @@ async fn stage_bundle(state: Arc<Mutex<AppState>>, params: Value) -> Result<Valu
     save(&state, &key, &intents)?;
     Ok(intents[parent_index].view(current.as_deref()))
 }
+
+pub(super) fn archive_normalized_reference(
+    data_dir: &std::path::Path,
+    encoded: &str,
+) -> Result<ReferenceImage, JsonRpcError> {
+    let bytes = STANDARD
+        .decode(encoded)
+        .map_err(|_| invalid("Invalid normalized reference"))?;
+    if bytes.len() < 5
+        || bytes.len() > 8 * 1024 * 1024
+        || !bytes.starts_with(b"\xff\xd8\xff")
+        || !bytes.ends_with(b"\xff\xd9")
+        || STANDARD.encode(&bytes) != encoded
+    {
+        return Err(invalid("Invalid normalized reference JPEG"));
+    }
+    let reference = ReferenceImage {
+        sha256: hex::encode(Sha256::digest(&bytes)),
+        mime_type: "image/jpeg".into(),
+        byte_length: bytes.len(),
+    };
+    snapshot_assets::archive_bytes(data_dir, &reference.sha256, &bytes).map_err(error)?;
+    Ok(reference)
+}

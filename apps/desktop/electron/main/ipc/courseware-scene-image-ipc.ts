@@ -8,10 +8,10 @@ import type { IpcRegistrar } from "./types";
 export function registerCoursewareSceneImageIpc(input: {
   registrar: IpcRegistrar; getHost: () => HostProcess | null;
   getViewingSessionId: () => string | null; activeTurns: ReadonlyMap<string, string>; authSession: DesktopAuthSession;
-  generation: SceneCourseGenerationServices;
+  generation: SceneCourseGenerationServices; dataDir?: string;
 }) {
   const images = new CoursewareSceneImages(input.getHost, input.getViewingSessionId,
-    (sessionId) => input.activeTurns.has(sessionId), input.authSession, input.generation?.planVisualMaster, input.generation?.layerFallback, input.generation?.reviewMaster);
+    (sessionId) => input.activeTurns.has(sessionId), input.authSession, input.generation?.planVisualMaster, input.generation?.layerFallback, input.generation?.reviewMaster, input.dataDir);
   const generation = new CoursewareSceneGeneration(images, input.generation);
   for (const [channel, method] of [[IPC.invoke.coursewareSceneGenerate, "generate"], [IPC.invoke.coursewareSceneGenerateCancel, "cancel"]] as const) {
     input.registrar.handleWithEvent(channel, async (event, value: unknown, ...extra: unknown[]) => {

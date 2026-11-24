@@ -210,6 +210,7 @@ test("actual Main entry runs the pipeline through its scoped image actions and n
     async prepare(args) { return (await f.services.execute("courseware_scene_image_prepare", args)).image; }
   }
   const { CoursewareChatWorkflow } = await load("courseware-chat-workflow", {
+    "./courseware-visual-settings": {},
     "node:path": await import("node:path"),
     "./courseware-scene-plan": { sceneCoursePlanRelativePath: () => "scene.plan.json" },
     "@pi-desktop/shared": shared,

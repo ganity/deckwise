@@ -15,6 +15,8 @@ import {
   IconStop,
   IconUndo2,
 } from "../../../components/icons";
+import { VisualSettingPicker } from "./VisualSettingPicker";
+import type { ComposerAttachmentsController } from "./hooks/useComposerAttachments";
 import { ComposerModelPicker } from "./ComposerModelPicker";
 import type { useComposerModelMenu } from "./hooks/useComposerModelMenu";
 
@@ -30,7 +32,7 @@ export type ComposerToolbarProps = {
   setWebSearchEnabled: (enabled: boolean) => void;
   controlsBlocked: boolean;
   pasting: boolean;
-  pickAndAttach: () => Promise<void>;
+  pickAndAttach: ComposerAttachmentsController["pickAndAttach"];
   modelMenu: ModelMenuController;
   modelLabel: string;
   thinkingLabel: string;
@@ -98,6 +100,7 @@ export function ComposerToolbar({
             <IconPlus size={15} aria-hidden="true" />
           </TooltipButton>
         </div>
+        <VisualSettingPicker disabled={controlsBlocked || pasting} attach={pickAndAttach} />
         <TooltipButton
           type="button"
           className={`icon-btn mode-chip composer-web-search${webSearchEnabled ? " active" : ""}`}

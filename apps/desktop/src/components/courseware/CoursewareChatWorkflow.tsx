@@ -194,6 +194,8 @@ function Workflow({ sessionId, panelBlocked = false, maximized, onToggleMaximize
               </summary>
               <dl className="courseware-plan-page-content">
                 <div><dt>{t("panel.scenePlan.visibleText")}</dt><dd className="courseware-plan-student-text">{page.visibleText.join(" · ")}</dd></div>
+                {page.visualSettingIds?.length && <div><dt>{t("chat.visualSettings")}</dt><dd>{page.visualSettingIds.map(id =>
+                  messages.flatMap(message => message.attachments ?? []).find(image => image.ref === "attachments/" + id)?.name ?? id.slice(0, 12)).join(", ")}</dd></div>}
                 <div><dt>{t("panel.scenePlan.visualIntent")}</dt><dd>{page.visualIntent}</dd></div>
                 <div><dt>{t("panel.scenePlan.narration")}</dt><dd>{page.narration}</dd></div>
               </dl>

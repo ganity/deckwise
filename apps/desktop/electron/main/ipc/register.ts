@@ -24,6 +24,7 @@ import { registerProviderIpc } from "./provider-ipc";
 import { registerPullsIpc } from "./pulls-ipc";
 import { registerScheduledIpc } from "./scheduled-ipc";
 import { registerSessionIpc } from "./session-ipc";
+import { registerVisualSettings } from "./visual-settings-ipc";
 import { registerCoursewareSceneImageIpc } from "./courseware-scene-image-ipc";
 import { registerCoursewareMediaCanvasIpc } from "./courseware-media-canvas-ipc";
 import { registerCoursewareCanvasImageIpc } from "./courseware-canvas-image-ipc";
@@ -265,9 +266,10 @@ export function registerIpcHandlers(dependencies: RegisterIpcDependencies) {
     reviewedTeaching: (input: Parameters<typeof teachingForReviewedMasters>[0]) => teachingForReviewedMasters(input, dependencies.completeNarration),
     planVisualMaster: async (input: VisualMasterPlanningInput) => planSceneVisualMaster(input,
       await dependencies.sceneGeneration.resolveModel(input.sessionId), dependencies.completeNarration) };
+  registerVisualSettings(registrar, authSession, dataDir, getHost);
   registerCoursewareSceneImageIpc({ registrar, getHost, getViewingSessionId: getNotificationViewingSessionId,
-    activeTurns, authSession, generation: sceneGeneration });
-  const coursewareWorkflow = new CoursewareChatWorkflow(getHost, getNotificationViewingSessionId, authSession, sceneGeneration);
+    activeTurns, authSession, generation: sceneGeneration, dataDir });
+  const coursewareWorkflow = new CoursewareChatWorkflow(getHost, getNotificationViewingSessionId, authSession, sceneGeneration, dataDir);
   coursewareWorkflow.checkPresentationCounts = presentationPageCounts(sceneGeneration.resolveModel, dependencies.completeNarration);
   coursewareWorkflow.reviewPresentation = presentationReview(registrar.ipcMain, sceneGeneration.resolveModel, dependencies.completeScene);
   const savedNarration = new CoursewareSavedNarration(getHost, getNotificationViewingSessionId,

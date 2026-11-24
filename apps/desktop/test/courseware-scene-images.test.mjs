@@ -30,18 +30,21 @@ const electron = { nativeImage: {
   createFromBuffer: () => ({ isEmpty: () => false, getSize: () => ({ width: 2, height: 2 }),
     resize: ({ width, height }) => ({ toBitmap: () => Buffer.alloc(width * height * 4), toPNG: () => png }),
     toPNG: () => png, toJPEG: quality => { assert.equal(quality, 95); return jpeg; }, toBitmap: () => Buffer.from(nativePixels) }),
-  createFromBitmap: bytes => ({ toPNG: () => Buffer.from(bytes) }),
+  createFromBitmap: bytes => ({ toPNG: () => Buffer.from(bytes), toJPEG: () => jpeg }),
 } };
 const context = await load("courseware-scene-context", { electron, "node:crypto": { createHash }, "node:zlib": { crc32 } });
 const assetHelpers = await load("courseware-scene-image-assets", { electron, "node:crypto": { createHash },
   "node:fs": fsConstants, "node:fs/promises": files, "node:path": paths, "./courseware-scene-context": context,
   "./public-https-fetch": await import("../electron/main/public-https-fetch.ts") });
+const visualSettings = await load("courseware-visual-settings", { electron, "node:crypto": { createHash, randomUUID },
+  "node:fs": fsConstants, "node:fs/promises": files, "node:path": paths });
 const mediaScope = await load("courseware-media-scope", {});
 const retryHelpers = await import("../electron/main/courseware-retry.ts");
 const module = { exports: {} };
 new Function("require", "exports", ts.transpileModule(await readFile(new URL("../electron/main/courseware-scene-images.ts", import.meta.url), "utf8"), {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
 }).outputText)((id) => {
+  if (id === "./courseware-visual-settings") return visualSettings;
   if (id === "./courseware-media-scope") return mediaScope;
   if (id === "./courseware-retry") return retryHelpers;
   if (id === "node:crypto") return { randomUUID };
@@ -74,7 +77,7 @@ async function fixture(t, coursePlan = plan, planner, layerFallback, reviewMaste
   const current = async j => ({ current: approval === j.planSha256 && digest(await readFile(path)) === j.planSha256, intent: structuredClone(j) });
   const host = { async call(method, p) {
     calls.push(method);
-    if (method === "session.get") return { session: { projectPath: root, ...model, mode: "agent" } };
+    if (method === "session.get") return { session: { projectPath: root, messages: [], ...model, mode: "agent" } };
     if (method === "courseware.task.get") return { task: { taskType: "scene", teamProjectId, educationContext } };
     if (method === "courseware.scenePlan.get") return { approval: { sha256: approval, educationContext } };
     if (method === "courseware.sceneImage.list") return { intents: await Promise.all(records(p).map(current)) };
@@ -94,7 +97,8 @@ async function fixture(t, coursePlan = plan, planner, layerFallback, reviewMaste
           j.request.referenceImage = { sha256: reference.asset.sha256, mimeType: reference.asset.mimeType, byteLength: reference.asset.byteLength };
         }
         if (p.referenceInput) {
-          assert.equal(p.referenceInput.sourceSha256, j.request.referenceImage.sha256);
+          assert.equal(p.referenceInput.sourceSha256, j.request.referenceImage?.sha256);
+          if (target.kind === "visualMaster") j.settingSheet = true;
           j.sourceReferenceImage = j.request.referenceImage;
           const bytes = Buffer.from(p.referenceInput.bytesBase64, "base64");
           j.request.referenceImage = { sha256: digest(bytes), mimeType: "image/jpeg", byteLength: bytes.length };
@@ -206,7 +210,7 @@ async function fixture(t, coursePlan = plan, planner, layerFallback, reviewMaste
     const captured = account;
     return { key: captured, assertCurrent() { if (captured !== account) throw new Error("account changed"); } };
   } };
-  const create = () => new CoursewareSceneImages(() => host, () => active, () => running, auth, planner, layerFallback, reviewMaster);
+  const create = () => new CoursewareSceneImages(() => host, () => active, () => running, auth, planner, layerFallback, reviewMaster, root);
   const base = { sessionId: "chat-a" }, coordinator = create();
   const prepare = (extra = {}) => coordinator.prepare({ ...base, planSha256: sha256, pageId: "scene-001", model: "image-model", ...extra });
   const operation = v => ({ ...base, intentId: v.intentId });
@@ -239,6 +243,30 @@ test("visual planning is durable across coordinator recreation and does not purc
   assert.equal(resumed.prompt, first.prompt);
   assert.equal(planned.length, 1);
   assert.equal(first.task, null);
+});
+
+test("approved setting IDs bind owned image bytes to the cover, survive resume, and exclude foreign attachments", async t => {
+  const ids = [digest(png), digest(jpeg)];
+  const f = await fixture(t, { ...plan, pages: [{ ...plan.pages[0], visualSettingIds: ids }] });
+  const attachments = ids.map((id, i) => ({ kind: "image", ref: "attachments/" + id, name: i ? "local.jpg" : "setting_1_v3_2_7.png" }));
+  f.supportsReference(true);
+  await mkdir(join(f.root, "attachments"));
+  await Promise.all(ids.map((id, i) => writeFile(join(f.root, "attachments", id), i ? jpeg : png)));
+  f.model({ messages: [{ role: "assistant", attachments }] });
+  await assert.rejects(f.prepare(), /missing from this chat/);
+  f.model({ messages: [{ role: "user", attachments }] });
+  const first = await f.prepare();
+  const images = await visualSettings.resolveChatSettingImages(f.root, f.host, "chat-a", ids, () => {});
+  const files = await visualSettings.materializePptSettings(f.root, "chat-a", images);
+  assert.deepEqual(await Promise.all(files.map(file => readFile(file.path))), [png, jpeg]);
+  const option = await visualSettings.quizSettingReference(f.root, "owner", f.host, "chat-a", ["quiz", "A"], ids, () => {});
+  const recovered = await visualSettings.quizSettingReference(f.root, "owner", f.host, "chat-a", ["quiz", "A"], undefined, () => {});
+  assert.deepEqual(recovered, option);
+  await writeFile(join(f.root, "attachments", ids[0]), jpeg);
+  await assert.rejects(f.prepare(), /bytes changed/);
+  const resumed = f.create();
+  await resumed.generate(f.operation(first));
+  assert.deepEqual(Buffer.from(f.calls.find(call => call.postedRequest).postedRequest.referenceImage.bytesBase64, "base64"), jpeg);
 });
 
 test("a planning failure keeps one deterministic fallback, while a changed approval prevents saving a result", async t => {

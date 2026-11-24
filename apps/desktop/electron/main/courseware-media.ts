@@ -87,7 +87,7 @@ function request(input: unknown): CoursewareTtsRequest {
 }
 
 
-function requestHash(input: CoursewareTtsRequest | CoursewareImageRequest): string {
+export function requestHash(input: CoursewareTtsRequest | CoursewareImageRequest): string {
   const fields = [input.kind, input.model, input.input, input.kind === "tts" ? input.voice ?? null : null];
   if ((input.kind === "image" || input.kind === "image-layers") && input.referenceImage) fields.push(input.referenceImage.sha256, input.referenceImage.mimeType, String(input.referenceImage.byteLength));
   if (input.kind !== "tts" && input.parameters) fields.push(JSON.stringify(input.parameters, Object.keys(input.parameters).sort()));

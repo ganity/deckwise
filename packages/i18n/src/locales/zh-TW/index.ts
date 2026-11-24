@@ -486,6 +486,8 @@ export const zhTW = {
     placeholderHint: "輸入 / 使用命令 · @ 引用檔案",
     placeholderHomeHint: "輸入 / 使用命令 · @ 引用檔案",
     placeholderShortcut: "Shift+Enter 換行 · 點擊發送提交",
+    visualSettings: "設定圖庫",
+    noSettingImages: "這個圖庫裡還沒有設定圖。",
     addFiles: "新增檔案等內容",
     filesAttached: "已將 {{count}} 項加入草稿",
     filesPasted: "已將 {{count}} 個貼上檔案儲存到會話臨時目錄",

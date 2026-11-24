@@ -53,7 +53,7 @@ export type ComposerAttachmentsController = {
   dropTargetActive: boolean;
   setDropTargetActive: (active: boolean) => void;
   droppedDirectories: ComposerDropItem[];
-  pickAndAttach: () => Promise<void>;
+  pickAndAttach: (setting?: Parameters<typeof api.attachVisualSetting>[1]) => Promise<void>;
   pasteClipboardFiles: (event: ClipboardEvent<HTMLDivElement>) => void;
   attachDroppedItems: (items: ComposerDropItem[]) => Promise<void>;
   onComposerDragEnter: (event: ReactDragEvent<HTMLDivElement>) => void;
@@ -86,12 +86,13 @@ export function useComposerAttachments({
   const snapshotReferences = (sourceSessionId: string) =>
     draft.snapshotReferences(sourceSessionId);
 
-  const pickAndAttach = async () => {
+  const pickAndAttach = async (setting?: Parameters<typeof api.attachVisualSetting>[1]) => {
     try {
       // The picker accepts regular files; the importer classifies images from
       // MIME/extension metadata after selection.
-      const result = await api.pickFiles();
-      if (result.canceled || !result.token || isInputBlocked) return;
+      if (isInputBlocked) return;
+      const result = setting ? undefined : await api.pickFiles();
+      if (!setting && !result?.token) return;
 
       const editor = draft.ref.current;
       const sourceValue = editor ? readEditorValue(editor) : draft.valueRef.current;
@@ -107,7 +108,7 @@ export function useComposerAttachments({
         // before native paths are copied into scratch.
         const sessionId = sourceSessionId ?? (await materializeDraftSession());
         if (!sessionId) throw new Error("session unavailable");
-        const imported = await api.importFiles(sessionId, result.token);
+        const imported = setting ? await api.attachVisualSetting(sessionId, setting) : await api.importFiles(sessionId, result!.token!);
         const chips = imported.files.map((file) => {
           const token = nextChipToken();
           return {

@@ -2,6 +2,11 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const trEntries: ChangelogEntry[] = [
   {
+    version: "0.20.7",
+    date: "2026-11-24",
+    highlights: ["PowerPoint düzenleyicisinde görselleri yeniden oluşturun ve yapay zekâ ile üretilen WordArt ekleyin."],
+  },
+  {
     version: "0.20.6",
     date: "2026-11-23",
     highlights: ["Slayt animasyonları anlatımla eşzamanlı oynatılır. Vurgu efektleri çakıştığında spot ışığına öncelik verilir."],

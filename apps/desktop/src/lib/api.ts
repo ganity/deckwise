@@ -693,6 +693,11 @@ export const api = {
     invoke<{ token: string | null; canceled?: boolean }>(IPC.invoke.composerPickFiles),
   getDroppedFilePath: (file: File) =>
     window.piDesktop?.getDroppedFilePath?.(file) ?? null,
+  visualSettingLibraries: () => invoke<{ id: number; name: string; revision: number }[]>(IPC.invoke.visualSettingLibrary),
+  visualSettingItems: (libraryId: number) => invoke<{ id: number; name: string; type: string; description: string;
+    images: { id: number; name: string; preview?: string }[] }[]>(IPC.invoke.visualSettingImages, libraryId),
+  attachVisualSetting: (sessionId: string, pick: { libraryId: number; revision: number; itemId: number; imageId: number }) =>
+    invoke<{ files: ComposerPastedFile[] }>(IPC.invoke.visualSettingAttach, { sessionId, ...pick }),
   pickPhotos: () =>
     invoke<{ token: string | null; canceled?: boolean }>(IPC.invoke.composerPickPhotos),
   importFiles: (sessionId: string, token: string) =>

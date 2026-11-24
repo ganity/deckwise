@@ -2,6 +2,11 @@ import type { ChangelogEntry } from "./changelog.js";
 
 export const koEntries: ChangelogEntry[] = [
   {
+    version: "0.20.7",
+    date: "2026-11-24",
+    highlights: ["PowerPoint 편집기에서 이미지를 다시 생성하고 AI 워드아트를 삽입하세요."],
+  },
+  {
     version: "0.20.6",
     date: "2026-11-23",
     highlights: ["슬라이드 애니메이션이 해설에 맞춰 재생되며, 강조 표시가 겹치면 스포트라이트를 우선합니다."],

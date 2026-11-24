@@ -508,6 +508,53 @@ async fn later_masters_pin_course_style_across_restart_and_refuse_replaced_or_fo
 }
 
 #[tokio::test]
+async fn visual_settings_pin_cover_bytes_and_bind_later_sheets_to_the_selected_style() {
+    let mut f = Fixture::new().await;
+    let mut plan: Value = serde_json::from_slice(&std::fs::read(f.path()).unwrap()).unwrap();
+    for page in plan["pages"].as_array_mut().unwrap() {
+        page["visualSettingIds"] = json!(["e".repeat(64)]);
+    }
+    let bytes = serde_json::to_vec(&plan).unwrap();
+    std::fs::write(f.path(), &bytes).unwrap();
+    f.sha256 = hex::encode(Sha256::digest(&bytes));
+    f.approve().await;
+    let mut prepare = f.prepare();
+    assert!(f
+        .call("courseware.sceneImage.prepare", prepare.clone())
+        .await
+        .is_err());
+    let jpeg = b"\xff\xd8\xffsetting-sheet\xff\xd9";
+    prepare["referenceInput"] =
+        json!({"bytesBase64":STANDARD.encode(jpeg),"guide":"Reference subject: model sheet"});
+    let cover = f
+        .call("courseware.sceneImage.prepare", prepare.clone())
+        .await
+        .unwrap();
+    assert_eq!(cover["intent"]["settingSheet"], true);
+    assert!(cover["intent"]["referenceIntentId"].is_null());
+    f.restart().await;
+    let saved = f
+        .call("courseware.sceneImage.reference.get", f.operation(&cover))
+        .await
+        .unwrap();
+    assert_eq!(
+        std::fs::read(saved["path"].as_str().unwrap()).unwrap(),
+        jpeg
+    );
+    assert_eq!(
+        f.call("courseware.sceneImage.prepare", prepare.clone())
+            .await
+            .unwrap(),
+        cover
+    );
+    prepare["pageId"] = json!("scene-002");
+    assert!(f
+        .call("courseware.sceneImage.prepare", prepare)
+        .await
+        .is_err());
+}
+
+#[tokio::test]
 async fn course_visual_bible_is_reviewed_persisted_and_included_in_master_prompts() {
     let mut f = Fixture::new().await;
     let mut plan: Value = serde_json::from_slice(&std::fs::read(f.path()).unwrap()).unwrap();

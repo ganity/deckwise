@@ -241,6 +241,17 @@ export function verifySceneImageAsset(bytes: Buffer, asset: CoursewareSceneImage
   return bytes;
 }
 
+export async function readSceneSettingSheet(path: string, ref: Pick<CoursewareSceneImageAsset, "sha256" | "byteLength" | "mimeType">) {
+  if (ref.mimeType !== "image/jpeg" || !isAbsolute(path) || basename(path) !== ref.sha256 + ".bin" || ref.byteLength > 8 * 1024 * 1024) throw invalid();
+  const file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+  try {
+    const stat = await file.stat();
+    if (!stat.isFile() || stat.size !== ref.byteLength) throw invalid();
+    const bytes = await file.readFile(), [width, height] = jpegSize(bytes);
+    return verifySceneImageAsset(bytes, { ...ref, width, height }, { kind: "visualMaster" });
+  } finally { await file.close(); }
+}
+
 /** Host supplies the private archive path; no Renderer/model path is accepted. */
 export async function readSceneImageAsset(path: unknown, asset: CoursewareSceneImageAsset, target?: CoursewareSceneImageTarget): Promise<Buffer> {
   if (!isSceneImageAsset(asset) || typeof path !== "string" || !isAbsolute(path) || basename(path) !== `${asset.sha256}.bin`) throw invalid();

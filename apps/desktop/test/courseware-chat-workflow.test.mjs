@@ -78,6 +78,7 @@ function fixture(options = {}) {
   }
   const exports = {};
   new Function("require", "exports", compiled)(id => {
+    if (id === "./courseware-visual-settings") return {};
     if (id === "node:path") return paths;
     if (id === "./courseware-scene-plan") return { sceneCoursePlanRelativePath: sessionId => `.deckwise-ppt/scenes/${sessionId}/plan.json` };
     if (id === "node:timers/promises") return { setTimeout: async ms => { calls.push(["wait", ms]); if (stoppedDuringWait) dispatchable = false; } };

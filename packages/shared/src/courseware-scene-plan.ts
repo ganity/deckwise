@@ -13,6 +13,7 @@ export type CoursewareScenePlanPage = {
   title: string;
   visibleText: string[];
   visualIntent: string;
+  visualSettingIds?: string[];
   narration: string;
   teaching?: CoursewareSceneTeaching;
   quiz?: CoursewarePlannedQuiz;

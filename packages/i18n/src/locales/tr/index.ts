@@ -493,6 +493,8 @@ export const tr = {
     placeholderHint: "Komutlar için / · dosyalar için @ yazın",
     placeholderHomeHint: "Komutlar için / · dosyalar için @ yazın",
     placeholderShortcut: "Yeni satır için Shift+Enter · göndermek için Gönder",
+    visualSettings: "Görsel kitaplığı",
+    noSettingImages: "Bu kitaplıkta referans görseli yok.",
     addFiles: "Dosya ekle",
     filesAttached: "Taslağa {{count}} öğe eklendi",
     filesPasted: "Yapıştırılan {{count}} dosya oturum klasörüne kaydedildi",

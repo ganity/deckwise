@@ -1,6 +1,5 @@
 use super::*;
 use crate::db::courseware_projects::tts::{request_hash, Phase, RejectedRequest, Request, TaskRef};
-use base64::Engine as _;
 use sha2::{Digest, Sha256};
 
 pub(super) mod assets;
@@ -43,7 +42,8 @@ struct Prepare {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct ReferenceInput {
-    source_sha256: String,
+    guide: Option<String>,
+    source_sha256: Option<String>,
     bytes_base64: String,
 }
 
@@ -183,6 +183,8 @@ struct Intent {
     reference_intent_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     source_reference_image: Option<ReferenceImage>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    setting_sheet: bool,
 }
 
 fn invalid(message: &str) -> JsonRpcError {
@@ -300,10 +302,27 @@ impl Intent {
                 .reference_image
                 .as_ref()
                 .is_some_and(|r| !r.valid() || r.byte_length > 8 * 1024 * 1024)
-            || self.request.reference_image.is_some() != self.reference_intent_id.is_some()
+            || (self.request.reference_image.is_some() != self.reference_intent_id.is_some()
+                && !(self.setting_sheet
+                    && self.reference_intent_id.is_none()
+                    && self
+                        .request
+                        .reference_image
+                        .as_ref()
+                        .is_some_and(|wire| wire.mime_type == "image/jpeg")))
+            || (self.setting_sheet
+                && (!matches!(self.target, Target::VisualMaster {})
+                    || self.request.kind != "image"
+                    || self
+                        .request
+                        .reference_image
+                        .as_ref()
+                        .is_none_or(|wire| wire.mime_type != "image/jpeg")
+                    || self.reference_intent_id.is_some() != self.source_reference_image.is_some()))
             || self.source_reference_image.as_ref().is_some_and(|r| {
                 !r.valid()
-                    || self.request.kind != "image-layers"
+                    || self.reference_intent_id.is_none()
+                    || (self.request.kind != "image-layers" && !self.setting_sheet)
                     || self
                         .request
                         .reference_image
@@ -656,6 +675,18 @@ pub(super) async fn handle(
         }
         let approved = scene_plan::approval(&state, &root, &scope.session_id)?
             .ok_or_else(|| conflict("Review and confirm the current scene plan first"))?;
+        let mut instructions = p.instructions.clone();
+        if let Some(guide) = p.reference_input.as_ref().and_then(|r| r.guide.as_ref()) {
+            if !matches!(p.target, Target::VisualMaster {})
+                || page.visual_setting_ids.is_none()
+                || guide.is_empty()
+                || guide.chars().any(char::is_control)
+            {
+                return Err(invalid("Invalid visual setting reference guide"));
+            }
+            instructions.push('\n');
+            instructions.push_str(guide);
+        }
         let prompt = prompts::build(
             &plan,
             page,
@@ -663,7 +694,7 @@ pub(super) async fn handle(
             &p.target,
             p.decomposition,
             p.reference_intent_id.is_some(),
-            &p.instructions,
+            &instructions,
         );
         if prompt.encode_utf16().count() > 4000 {
             return Err(invalid("Scene image prompt exceeds 4000 UTF-16 units; shorten the visual intent, visual bible or additional instructions"));
@@ -695,42 +726,23 @@ pub(super) async fn handle(
             },
         };
         let source_reference_image = if let Some(encoded) = &p.reference_input {
-            let source = request
-                .reference_image
-                .as_ref()
-                .ok_or_else(|| invalid("Reference required"))?;
-            if !p.decomposition
-                || source.sha256 != encoded.source_sha256
+            let source = request.reference_image.clone();
+            let settings =
+                matches!(p.target, Target::VisualMaster {}) && page.visual_setting_ids.is_some();
+            if (!p.decomposition && !settings)
+                || source.as_ref().map(|r| &r.sha256) != encoded.source_sha256.as_ref()
                 || encoded.bytes_base64.len() > (8usize * 1024 * 1024).div_ceil(3) * 4
             {
                 return Err(invalid("Invalid normalized reference source"));
             }
-            let codec = base64::engine::general_purpose::STANDARD;
-            let bytes = codec
-                .decode(&encoded.bytes_base64)
-                .map_err(|_| invalid("Invalid normalized reference"))?;
-            if bytes.len() < 5
-                || bytes.len() > 8 * 1024 * 1024
-                || !bytes.starts_with(b"\xff\xd8\xff")
-                || !bytes.ends_with(b"\xff\xd9")
-                || codec.encode(&bytes) != encoded.bytes_base64
-            {
-                return Err(invalid("Invalid normalized reference JPEG"));
-            }
-            let source = source.clone();
-            let wire = ReferenceImage {
-                sha256: hex::encode(Sha256::digest(&bytes)),
-                mime_type: "image/jpeg".into(),
-                byte_length: bytes.len(),
-            };
-            crate::courseware::snapshot_assets::archive_bytes(
-                &state.data_dir,
-                &wire.sha256,
-                &bytes,
-            )
-            .map_err(error)?;
+            let wire =
+                assets::archive_normalized_reference(&state.data_dir, &encoded.bytes_base64)?;
             request.reference_image = Some(wire);
-            Some(source)
+            source
+        } else if matches!(p.target, Target::VisualMaster {}) && page.visual_setting_ids.is_some() {
+            return Err(invalid(
+                "Load the approved page's visual setting images before preparing this request",
+            ));
         } else {
             None
         };
@@ -805,6 +817,8 @@ pub(super) async fn handle(
             intent_id: uuid::Uuid::new_v4().to_string(),
             plan_sha256: p.plan_sha256,
             page_id: p.page_id,
+            setting_sheet: matches!(p.target, Target::VisualMaster {})
+                && page.visual_setting_ids.is_some(),
             target: p.target,
             request_hash: request.hash(),
             source_prompt: None,

@@ -29,6 +29,11 @@ export type ChangelogEntry = {
 
 const enEntries: ChangelogEntry[] = [
   {
+    version: "0.20.7",
+    date: "2026-11-24",
+    highlights: ["Regenerate slide images and insert AI-generated WordArt from the PowerPoint editor."],
+  },
+  {
     version: "0.20.6",
     date: "2026-11-23",
     highlights: ["Coordinate native slide animations with narration and give spotlights priority when focus cues overlap."],
@@ -888,6 +893,11 @@ const enEntries: ChangelogEntry[] = [
 
 const zhCNEntries: ChangelogEntry[] = [
   {
+    version: "0.20.7",
+    date: "2026-11-24",
+    highlights: ["在 PPT 编辑器中重新生成图片，或插入 AI 图片艺术字。"],
+  },
+  {
     version: "0.20.6",
     date: "2026-11-23",
     highlights: ["让 PPT 原生动画跟随讲解播放，聚光和高亮时间重叠时优先呈现聚光。"],
@@ -1746,6 +1756,11 @@ const zhCNEntries: ChangelogEntry[] = [
 ];
 
 const zhTWEntries: ChangelogEntry[] = [
+  {
+    version: "0.20.7",
+    date: "2026-11-24",
+    highlights: ["在 PPT 編輯器中重新生成圖片，或插入 AI 圖片藝術字。"],
+  },
   {
     version: "0.20.6",
     date: "2026-11-23",

@@ -13,6 +13,11 @@ const load = async file => {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
   }).outputText)(id => {
     if (id === 'node:crypto') return crypto;
+    if (id === './courseware-media') return { requestHash: request => {
+      const fields = [request.kind, request.model, request.input, null];
+      if (request.referenceImage) fields.push(request.referenceImage.sha256, request.referenceImage.mimeType, String(request.referenceImage.byteLength));
+      return crypto.createHash('sha256').update(fields.reduce((text, value) => `${text}:${value === null ? -1 : value.length}:${value ?? ''}`, 'courseware-media-v1')).digest('hex');
+    } };
     if (id === 'node:fs/promises') return fs;
     if (id === 'node:path') return path;
     if (id === './courseware-runtime') return { coursewareAuthoringUrl: () => { throw Error('Unexpected native compiler'); } };

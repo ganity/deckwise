@@ -493,6 +493,8 @@ export const ko = {
     placeholderHint: "명령은 / · 파일은 @ 입력",
     placeholderHomeHint: "명령은 / · 파일은 @ 입력",
     placeholderShortcut: "줄바꿈은 Shift+Enter · 보내기를 눌러 제출",
+    visualSettings: "설정 이미지",
+    noSettingImages: "이 라이브러리에 설정 이미지가 없습니다.",
     addFiles: "파일 추가",
     filesAttached: "초안에 항목 {{count}}개 추가됨",
     filesPasted: "붙여넣은 파일 {{count}}개를 세션 임시 폴더에 저장함",

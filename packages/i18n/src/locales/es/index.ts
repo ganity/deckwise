@@ -484,6 +484,8 @@ export const es = {
     "placeholderHint": "Escriba / para comandos · @ para archivos",
     "placeholderHomeHint": "Escriba / para comandos · @ para archivos",
     "placeholderShortcut": "Mayús+Entrar para nueva línea · Utilice Enviar para enviar",
+    visualSettings: "Biblioteca de referencias",
+    noSettingImages: "Esta biblioteca no contiene imágenes de referencia.",
     "addFiles": "Agregar archivos y más",
     "filesAttached": "Se agregaron {{count}} elementos al borrador",
     "filesPasted": "Se guardaron {{count}} archivos pegados en la carpeta temporal de la sesión",

@@ -484,6 +484,8 @@ export const de = {
     "placeholderHint": "Geben Sie / für Befehle · @ für Dateien ein",
     "placeholderHomeHint": "Geben Sie / für Befehle · @ für Dateien ein",
     "placeholderShortcut": "Umschalt+Eingabetaste für Zeilenumbruch · Verwenden Sie Senden, um zu senden",
+    visualSettings: "Bildvorlagen",
+    noSettingImages: "Keine Bildvorlagen in dieser Sammlung.",
     "addFiles": "Dateien hinzufügen und mehr",
     "filesAttached": "{{count}} Element(e) zum Entwurf hinzugefügt",
     "filesPasted": "{{count}} eingefügte Datei(en) im Sitzungs-Scratch-Ordner gespeichert",

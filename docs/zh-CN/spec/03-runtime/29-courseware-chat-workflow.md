@@ -1391,3 +1391,11 @@ missing. The existing bounded repair budget still applies.
 Release/test candidates must contain the rebuilt WiseOffice bundle as well as the
 desktop main process, player/converter and agent-runtime. A desktop-only rebuild
 does not update native editing behavior. Keep bundle hashes alongside evidence.
+
+## 课件设定图
+
+在聊天输入框点击「设定图库」选择角色、物件或场景图片，也可以用「添加文件」上传本地图片，在消息里说明哪张图用作什么设定。两种来源可混用。桌面端保存所选版本的图片，之后按当前对话和图片内容识别。普通资料截图只有被指定时才作为设定图。
+
+Scene 在规划时把相关图片绑定到具体正文页，确认方案时可以查看。首图可以使用设定图。后续页同时参考已确认的首图画风和本页涉及的角色或物件。由于生图接口一次接收一张参考图，桌面端会把本次引用的图片排在同一张参考图上，同时说明每个位置的用途。分层只使用该页选定的整图。
+
+PPT Master 为需要生成的插图分别传入相关原图。练习选项需要新插图时也可以使用相应设定，任务恢复时沿用该选项已经保存的参考图。

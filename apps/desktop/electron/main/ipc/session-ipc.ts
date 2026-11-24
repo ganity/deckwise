@@ -157,7 +157,13 @@ export function registerSessionIpc({
   handle(IPC.invoke.coursewareScenePlanApprove, async (input: unknown, ...extra: unknown[]) => {
     if (!host) throw new Error("host unavailable");
     if (extra.length) throw new Error("Unexpected scene plan parameters");
-    return approveSceneCourseDraft(host, input);
+    const currentHost = host;
+    return approveSceneCourseDraft(currentHost, input, async (sessionId, ids) => {
+      const { resolveChatSettingImages } = await import("../courseware-visual-settings");
+      await resolveChatSettingImages(dataDir, currentHost, sessionId, ids, () => {
+        if (host !== currentHost) throw new Error("Scene approval session changed");
+      });
+    });
   });
   handle(IPC.invoke.sessionSearchContext, async (input) => {
     if (!host) throw new Error("host unavailable");
