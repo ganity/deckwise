@@ -125,7 +125,7 @@ test("picker attachments materialize a session before importing paths", () => {
     composer,
     /const sessionId = sourceSessionId \?\? \(await materializeDraftSession\(\)\)/,
   );
-  assert.match(composer, /api\.importFiles\(\s*sessionId,\s*result\.token\s*\)/);
+  assert.match(composer, /api\.importFiles\(\s*sessionId,\s*result!?\.token!?\s*\)/);
   assert.match(
     composer,
     /createFileReference\(file\.path, file\.name, sessionId, \{[\s\S]*kind: file\.kind/,
@@ -143,8 +143,8 @@ test("composer opens one unified file picker directly from the plus button", () 
   assert.ok(leftStart >= 0 && plusIndex > leftStart && webSearchIndex > leftStart);
   assert.ok(plusIndex < webSearchIndex, "upload must precede web search");
   assert.match(composer, /void pickAndAttach\(\);/);
-  assert.match(composer, /const pickAndAttach = async \(\) =>/);
-  assert.match(composer, /const result = await api\.pickFiles\(\);/);
+  assert.match(composer, /const pickAndAttach = async \(setting\?: Parameters<typeof api\.attachVisualSetting>\[1\]\) =>/);
+  assert.match(composer, /const result = setting \? undefined : await api\.pickFiles\(\);/);
   assert.doesNotMatch(composer, /plusOpen|plusRef|composer-plus-menu|pickAndAttach\("photos"\)/);
 });
 
