@@ -304,11 +304,22 @@ impl Intent {
                 .as_ref()
                 .is_some_and(|r| !r.valid() || r.byte_length > 8 * 1024 * 1024)
             || (self.request.reference_image.is_some() != self.reference_intent_id.is_some()
-                && !(self.setting_sheet && self.reference_intent_id.is_none()
-                    && self.request.reference_image.as_ref().is_some_and(|wire| wire.mime_type == "image/jpeg")))
-            || (self.setting_sheet && (!matches!(self.target, Target::VisualMaster {}) || self.request.kind != "image"
-                || self.request.reference_image.as_ref().is_none_or(|wire| wire.mime_type != "image/jpeg")
-                || self.reference_intent_id.is_some() != self.source_reference_image.is_some()))
+                && !(self.setting_sheet
+                    && self.reference_intent_id.is_none()
+                    && self
+                        .request
+                        .reference_image
+                        .as_ref()
+                        .is_some_and(|wire| wire.mime_type == "image/jpeg")))
+            || (self.setting_sheet
+                && (!matches!(self.target, Target::VisualMaster {})
+                    || self.request.kind != "image"
+                    || self
+                        .request
+                        .reference_image
+                        .as_ref()
+                        .is_none_or(|wire| wire.mime_type != "image/jpeg")
+                    || self.reference_intent_id.is_some() != self.source_reference_image.is_some()))
             || self.source_reference_image.as_ref().is_some_and(|r| {
                 !r.valid()
                     || self.reference_intent_id.is_none()
@@ -667,8 +678,11 @@ pub(super) async fn handle(
             .ok_or_else(|| conflict("Review and confirm the current scene plan first"))?;
         let mut instructions = p.instructions.clone();
         if let Some(guide) = p.reference_input.as_ref().and_then(|r| r.guide.as_ref()) {
-            if !matches!(p.target, Target::VisualMaster {}) || page.visual_setting_ids.is_none()
-                || guide.is_empty() || guide.chars().any(char::is_control) {
+            if !matches!(p.target, Target::VisualMaster {})
+                || page.visual_setting_ids.is_none()
+                || guide.is_empty()
+                || guide.chars().any(char::is_control)
+            {
                 return Err(invalid("Invalid visual setting reference guide"));
             }
             instructions.push('\n');
@@ -714,7 +728,8 @@ pub(super) async fn handle(
         };
         let source_reference_image = if let Some(encoded) = &p.reference_input {
             let source = request.reference_image.clone();
-            let settings = matches!(p.target, Target::VisualMaster {}) && page.visual_setting_ids.is_some();
+            let settings =
+                matches!(p.target, Target::VisualMaster {}) && page.visual_setting_ids.is_some();
             if (!p.decomposition && !settings)
                 || source.as_ref().map(|r| &r.sha256) != encoded.source_sha256.as_ref()
                 || encoded.bytes_base64.len() > (8usize * 1024 * 1024).div_ceil(3) * 4
@@ -747,7 +762,9 @@ pub(super) async fn handle(
             request.reference_image = Some(wire);
             source
         } else if matches!(p.target, Target::VisualMaster {}) && page.visual_setting_ids.is_some() {
-            return Err(invalid("Load the approved page's visual setting images before preparing this request"));
+            return Err(invalid(
+                "Load the approved page's visual setting images before preparing this request",
+            ));
         } else {
             None
         };
@@ -822,7 +839,8 @@ pub(super) async fn handle(
             intent_id: uuid::Uuid::new_v4().to_string(),
             plan_sha256: p.plan_sha256,
             page_id: p.page_id,
-            setting_sheet: matches!(p.target, Target::VisualMaster {}) && page.visual_setting_ids.is_some(),
+            setting_sheet: matches!(p.target, Target::VisualMaster {})
+                && page.visual_setting_ids.is_some(),
             target: p.target,
             request_hash: request.hash(),
             source_prompt: None,

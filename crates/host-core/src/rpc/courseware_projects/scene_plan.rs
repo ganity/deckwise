@@ -67,7 +67,11 @@ pub(super) struct Page {
     pub(super) visible_text: Vec<String>,
     pub(super) visual_intent: String,
     pub(super) narration: String,
-    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "crate::db::courseware_projects::present_option")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::db::courseware_projects::present_option"
+    )]
     pub(super) visual_setting_ids: Option<Vec<String>>,
     #[serde(
         default,
