@@ -15,6 +15,7 @@ export function createNativeTeachingHandler(input: {
   context(): Promise<PptEditorContext>;
   ensureSaved?(): Promise<void>;
   nativeRoute?(operation: string, args: Record<string, unknown>, page: number): Promise<{ value: unknown } | undefined>;
+  editorImages?(operation: string, args: Record<string, unknown>, target: PptEditorContext): Promise<unknown>;
   classroom?: CoursewareClassroomCoordinator;
   classroomTts?: CoursewareClassroomTts;
   classroomImages?: CoursewareClassroomImages;
@@ -99,6 +100,15 @@ export function createNativeTeachingHandler(input: {
       if (reads >= 4) return Promise.reject(new Error("COURSEWARE_TEACHING_READ_BUSY: retry after pending reads finish"));
       reads++;
       return queue.then(() => execute(payload)).finally(() => { reads--; });
+    }
+    if (input.editorImages && payload && typeof payload === "object" && !Array.isArray(payload)) {
+      const { operation, context, args } = payload as Record<string, unknown>;
+      if (typeof operation === "string" && operation.startsWith("editor-image:")) {
+        if (!context || typeof context !== "object" || Array.isArray(context) || !args ||
+            typeof args !== "object" || Array.isArray(args) || Object.keys(payload).length !== 3)
+          return Promise.reject(new Error("Invalid image request"));
+        return input.editorImages(operation, args as Record<string, unknown>, context as PptEditorContext);
+      }
     }
     const result = queue.then(() => execute(payload));
     queue = result.catch(() => {});

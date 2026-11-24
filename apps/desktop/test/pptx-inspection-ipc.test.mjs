@@ -50,6 +50,7 @@ test("inspection IPC authenticates sender and accepts only a host-selected saved
     if (id === "../courseware-assessment-saved") return { executeSavedAssessmentMedia() {} };
     if (id === "../courseware-scene-object-view") return { assessmentPageIds() {} };
     if (id === "../courseware-native-media") return { CoursewareNativeMedia: class {} };
+    if (id === "../courseware-editor-images") return { createEditorImageHandler() {} };
     if (id === "../courseware-native-sidebar") return { createNativeTeachingHandler() {} };
     if (id === "@pi-desktop/shared") return { IPC };
     if (id === "../ppt-editor") return { PptEditorController: Editor };

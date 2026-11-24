@@ -69,6 +69,7 @@ export class PptEditorController {
   nativeSave?: (input: NativeSaveInput) => Promise<NativeSaveCommit | undefined>;
   private classroomSave?: NativeSaveInput["classroomSave"];
   private saveWaiters = new Set<{ resolve(): void; reject(error: Error): void }>();
+  editorImagesEnabled = false;
   nativeTeaching?: (payload: unknown) => Promise<unknown>;
   private nativeTeachingReady = false;
   private teachingProgress?: { sourceSha256: string; value: CoursewareTeachingProgress };
@@ -272,7 +273,7 @@ export class PptEditorController {
       this.opening = false;
       this.ready = true;
       if (this.nativeTeaching && this.editorUrl.protocol === "deckwise-editor:")
-        this.sendCommand("document:teaching-enable", { binding: this.bridgeBinding, nativeTeaching: true });
+        this.sendCommand("document:teaching-enable", { binding: this.bridgeBinding, nativeTeaching: true, ...(this.module && this.editorImagesEnabled ? { editorImages: true } : {}) });
       if (this.visible) this.attach();
       view.webContents.setBackgroundThrottling(!this.background);
       const state = this.state("ready");
@@ -646,6 +647,9 @@ export class PptEditorController {
       return;
     }
     if (reply?.type === "document:teaching-request" && typeof reply.id === "string" && reply.id && this.nativeTeaching && this.nativeTeachingReady) {
+      const operation = reply.payload && Reflect.get(reply.payload, "operation");
+      if (typeof operation === "string" && operation.startsWith("editor-image:") &&
+          (!this.module || !this.editorImagesEnabled || this.current?.readOnly)) return;
       const id = reply.id;
       if (id.length > 200 || this.teachingRequests.has(id) || this.teachingRequests.size >= 32) return;
       const binding = this.bridgeBinding, sequence = ++this.teachingProgressSequence;
