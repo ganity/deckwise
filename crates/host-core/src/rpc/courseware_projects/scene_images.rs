@@ -1,6 +1,5 @@
 use super::*;
 use crate::db::courseware_projects::tts::{request_hash, Phase, RejectedRequest, Request, TaskRef};
-use base64::Engine as _;
 use sha2::{Digest, Sha256};
 
 pub(super) mod assets;
@@ -736,29 +735,8 @@ pub(super) async fn handle(
             {
                 return Err(invalid("Invalid normalized reference source"));
             }
-            let codec = base64::engine::general_purpose::STANDARD;
-            let bytes = codec
-                .decode(&encoded.bytes_base64)
-                .map_err(|_| invalid("Invalid normalized reference"))?;
-            if bytes.len() < 5
-                || bytes.len() > 8 * 1024 * 1024
-                || !bytes.starts_with(b"\xff\xd8\xff")
-                || !bytes.ends_with(b"\xff\xd9")
-                || codec.encode(&bytes) != encoded.bytes_base64
-            {
-                return Err(invalid("Invalid normalized reference JPEG"));
-            }
-            let wire = ReferenceImage {
-                sha256: hex::encode(Sha256::digest(&bytes)),
-                mime_type: "image/jpeg".into(),
-                byte_length: bytes.len(),
-            };
-            crate::courseware::snapshot_assets::archive_bytes(
-                &state.data_dir,
-                &wire.sha256,
-                &bytes,
-            )
-            .map_err(error)?;
+            let wire =
+                assets::archive_normalized_reference(&state.data_dir, &encoded.bytes_base64)?;
             request.reference_image = Some(wire);
             source
         } else if matches!(p.target, Target::VisualMaster {}) && page.visual_setting_ids.is_some() {
