@@ -17,7 +17,7 @@ import { loadCoursewareMedia } from "./fixtures/courseware-media-loader.mjs";
 const binary = process.env.DECKWISE_E2E_ONLINE_PREPARE_HOST;
 assert(binary, "Set DECKWISE_E2E_ONLINE_PREPARE_HOST to the newly built Host binary; this test never builds or falls back");
 const require = createRequire(import.meta.url), modules = new Map([["@pi-desktop/shared", shared]]);
-for (const name of ["fs-panel", "office-file", "ppt-editor-files", "courseware-source-files", "courseware-online-editing", "courseware-online-seed", "courseware-online-prepare"]) {
+for (const name of ["fs-panel", "office-file", "ppt-editor-files", "courseware-source-files", "courseware-online-editing", "courseware-online-seed", "courseware-online-audio", "courseware-online-prepare"]) {
   const exports = {}, source = await fs.readFile(new URL(`../electron/main/${name}.ts`, import.meta.url), "utf8");
   new Function("require", "exports", ts.transpileModule(source, { compilerOptions: {
     target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS,
@@ -202,7 +202,7 @@ async function fixture(t) {
     assert.equal(parsed.status, "SUCCEEDED", JSON.stringify(parsed));
     const { project } = await f.gateway.call("courseware.project.initializeGenerated", {
       sessionId: f.sessionId, jobId, sourceSha256: sha256, title: "Teaching seed integration",
-      narrations: Array.from({ length: parsed.summary.pages }, (_, i) => `Good! Page ${i + 1}.`),
+      narrations: Array.from({ length: parsed.summary.pages }, (_, i) => `Welcome to page ${i + 1}.`),
     });
     await f.gateway.call("courseware.parseRelease", { jobId });
     assert.equal(project.projectId, "office-lesson");

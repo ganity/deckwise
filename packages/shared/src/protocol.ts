@@ -132,6 +132,8 @@ export const IPC = {
     coursewareTeamMemberGrant: "deckwise/courseware/team/member/grant",
     coursewareTeamMemberRevoke: "deckwise/courseware/team/member/revoke",
     coursewareTeamMembers: "deckwise/courseware/team/members",
+    coursewareTeamMemberSearch: "deckwise/courseware/team/member-search",
+    coursewareGroups: "deckwise/courseware/groups",
     coursewareImport: "deckwise/courseware/import",
     documentParse: "deckwise/document/parse",
     documentCleanup: "deckwise/document/cleanup",

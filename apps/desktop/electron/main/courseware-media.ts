@@ -34,6 +34,19 @@ const integer = (v: unknown, max: number): v is number => Number.isSafeInteger(v
 const invalid = () => new Error("COURSEWARE_MEDIA_INVALID_RESPONSE");
 const teamAssetPath = /^assets\/[a-f0-9]{64}\.[a-z0-9]{1,16}$/u;
 const teamProjectId = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/u;
+const positiveId = (v: unknown): v is number => typeof v === "number" && Number.isSafeInteger(v) && v > 0;
+const uuid = (v: unknown): v is string => typeof v === "string" && teamProjectId.test(v);
+const groupRole = (value: unknown) => value === "OWNER" || value === "ADMIN" || value === "MEMBER";
+const namedGroupMember = (value: unknown) => exact(value, ["userId", "name", "role"]) &&
+  positiveId(value.userId) && typeof value.name === "string" && groupRole(value.role);
+const projectCollaborator = (value: unknown) => exact(value, ["userId", "name", "role"]) &&
+  typeof value.name === "string" && isCoursewareTeamMember(value);
+const staffCandidate = (value: unknown): value is import("@pi-desktop/shared").CoursewareTeamMemberCandidate =>
+  exact(value, ["userId", "name", "departmentName"]) &&
+  positiveId(value.userId) && typeof value.name === "string" &&
+  (value.departmentName === null || typeof value.departmentName === "string");
+const boundedArray = <T>(value: unknown, max: number, valid: (item: unknown) => boolean): value is T[] =>
+  Array.isArray(value) && value.length <= max && value.every(valid);
 
 function teamPlayback(value: unknown, projectId: string, channel: string): CoursewareTeamFixedPlayback {
   if (!exact(value, ["pointer", "fixedBuild"]) ||
@@ -351,23 +364,114 @@ export class CoursewareMediaClient extends CoursewareMediaTransport {
   }
 
   async getTeamProjects(signal?: AbortSignal): Promise<CoursewareTeamProject[]> {
-    const value = await this.json("/courseware/team/projects", this.principal(), signal);
+    const value = await this.json("/courseware/team/projects?includeTitle=true&includeGroups=true", this.principal(), signal);
     if (!Array.isArray(value) || value.length > 1000 || !value.every(isCoursewareTeamProject)) throw invalid();
     return structuredClone(value);
+  }
+
+  async coursewareGroups(input: unknown): Promise<unknown> {
+    const root = "/courseware/team/groups";
+    const invalidRequest = () => new Error("COURSEWARE_INVALID_GROUP_REQUEST");
+    if (!record(input)) throw invalidRequest();
+    const principal = this.principal();
+    const send = async (path: string, valid: (value: unknown) => boolean, init?: RequestInit) => {
+      const value = await this.json(path, principal, undefined, init);
+      this.assertPrincipal(principal);
+      if (!valid(value)) throw invalid();
+      return value;
+    };
+    const write = (path: string, method: "PUT" | "POST" | "DELETE", body?: Record<string, unknown>) =>
+      send(path, (value) => value === null, { method, body: body === undefined ? undefined : JSON.stringify(body) });
+    if (input.action === "list") {
+      return send(root, (value) => boundedArray(value, 1000, (group) =>
+        exact(group, ["groupId", "name", "role", "memberCount", "archived"]) &&
+        uuid(group.groupId) && typeof group.name === "string" && groupRole(group.role) &&
+        integer(group.memberCount, Number.MAX_SAFE_INTEGER) && typeof group.archived === "boolean"));
+    }
+    if (input.action === "create" || input.action === "rename") {
+      const name = typeof input.name === "string" ? input.name.trim() : "";
+      if (!name || name.length > 120) throw invalidRequest();
+      if (input.action === "create") {
+        return send(root, (value) => exact(value, ["groupId"]) && uuid(value.groupId),
+          { method: "POST", body: JSON.stringify({ name }) });
+      }
+      if (!uuid(input.groupId)) throw invalidRequest();
+      return write(`${root}/${input.groupId}/name`, "PUT", { name });
+    }
+    if (!uuid(input.groupId)) throw invalidRequest();
+    const group = `${root}/${input.groupId}`;
+    switch (input.action) {
+      case "members":
+        return send(`${group}/members`, (value) => boundedArray(value, 1000, namedGroupMember));
+      case "search": {
+        const query = typeof input.query === "string" ? input.query.trim() : "";
+        if (!query || query.length > 80) throw invalidRequest();
+        return send(`${group}/members/search?${new URLSearchParams({ query })}`, (value) => boundedArray(value, 20, staffCandidate));
+      }
+      case "setMember":
+        if (!positiveId(input.userId) || (input.role !== "ADMIN" && input.role !== "MEMBER")) throw invalidRequest();
+        return write(`${group}/members`, "PUT", { userId: input.userId, role: input.role });
+      case "removeMember":
+        if (!positiveId(input.userId)) throw invalidRequest();
+        return write(`${group}/members/${input.userId}`, "DELETE");
+      case "leave":
+        return write(`${group}/membership`, "DELETE");
+      case "transfer":
+        if (!positiveId(input.userId)) throw invalidRequest();
+        return write(`${group}/owner`, "PUT", { userId: input.userId });
+      case "archive":
+        return write(`${group}/archive`, "POST");
+      case "activeProjects":
+        return send(`${group}/active-projects`, (value) => boundedArray(value, 1000, uuid));
+      case "review": {
+        if (input.projectId !== undefined && !uuid(input.projectId)) throw invalidRequest();
+        const path = input.projectId === undefined ? `${group}/projects/review` : `${group}/projects/${input.projectId}/review`;
+        return send(path, (value) => exact(value, ["version", "recipients", "outsideCollaborators"]) &&
+          positiveId(value.version) && boundedArray(value.recipients, 1000, projectCollaborator) &&
+          boundedArray(value.outsideCollaborators, 1000, projectCollaborator));
+      }
+      case "share":
+      case "transferProject": {
+        if (!uuid(input.projectId)) throw invalidRequest();
+        const project = `${group}/projects/${input.projectId}`;
+        if (input.action === "transferProject") {
+          if (!positiveId(input.userId)) throw invalidRequest();
+          return write(`${project}/owner`, "PUT", { userId: input.userId });
+        }
+        const { version, recipients, outsideCollaborators, keepOutsideAccess } = input;
+        if (!positiveId(version) || !boundedArray(recipients, 1000, projectCollaborator) ||
+          !boundedArray(outsideCollaborators, 1000, projectCollaborator) || typeof keepOutsideAccess !== "boolean") throw invalidRequest();
+        return write(project, "PUT", { version, recipients, outsideCollaborators, keepOutsideAccess });
+      }
+      default:
+        throw invalidRequest();
+    }
   }
 
   async getTeamMembers(projectId: string, signal?: AbortSignal): Promise<CoursewareTeamMember[]> {
     if (!teamProjectId.test(projectId)) throw new Error("COURSEWARE_MEDIA_INVALID_TEAM_PROJECT");
     const principal = this.principal();
-    const value = await this.json("/courseware/team/projects/" + projectId + "/members", principal, signal);
+    const value = await this.json(`/courseware/team/projects/${projectId}/members?includeNames=true`, principal, signal);
     if (!Array.isArray(value) || value.length > 1000 || !value.every(isCoursewareTeamMember)) throw invalid();
     this.assertPrincipal(principal);
     return structuredClone(value);
   }
 
-  async createTeamProject(signal?: AbortSignal): Promise<string> {
+  async searchTeamMember(projectId: string, query: string, signal?: AbortSignal): Promise<import("@pi-desktop/shared").CoursewareTeamMemberCandidate[]> {
+    if (!teamProjectId.test(projectId) || !query.trim() || query.trim().length > 80) throw invalid();
     const principal = this.principal();
-    const value = await this.json("/courseware/team/projects", principal, signal, { method: "POST", body: "{}" });
+    const value = await this.json(`/courseware/team/projects/${projectId}/members/search?${new URLSearchParams({ query: query.trim() })}`, principal, signal);
+    if (!boundedArray<import("@pi-desktop/shared").CoursewareTeamMemberCandidate>(value, 20, staffCandidate)) throw invalid();
+    this.assertPrincipal(principal);
+    return structuredClone(value);
+  }
+
+  async createTeamProject(title?: string, signal?: AbortSignal, localSessionId?: string): Promise<string> {
+    const name = title?.trim();
+    if (name !== undefined && (!name || name.length > 120)) throw new Error("COURSEWARE_MEDIA_INVALID_PROJECT_TITLE");
+    if (localSessionId !== undefined && !/^[\w.-]{1,128}$/u.test(localSessionId)) throw new Error("COURSEWARE_INVALID_LOCAL_SESSION");
+    const principal = this.principal();
+    const value = await this.json("/courseware/team/projects", principal, signal, { method: "POST", body: JSON.stringify({ title: name, localSessionId }) });
     if (!exact(value, ["projectId"]) || !teamProjectId.test(String(value.projectId))) throw invalid();
     this.assertPrincipal(principal);
     return value.projectId as string;

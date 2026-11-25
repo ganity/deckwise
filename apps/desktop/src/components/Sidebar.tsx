@@ -17,6 +17,7 @@ const MAX_VISIBLE_SESSIONS = 10;
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "../lib/api";
+import { toolWorkPanelTab } from "../lib/work-panel-tabs";
 import { SessionHoverCard } from "../features/sessions/SessionHoverCard";
 import { useSessionHoverCard } from "../features/sessions/useSessionHoverCard";
 import { isDefaultSessionTitle, useAppStore } from "../stores/app-store";
@@ -262,6 +263,16 @@ export function Sidebar({
 
   const [sortOpen, setSortOpen] = useState(false);
   const [sessionMenu, setSessionMenu] = useState<string | null>(null);
+  const [assignableSession, setAssignableSession] = useState<string>();
+  useEffect(() => {
+    let current = true;
+    if (sessionMenu) {
+      void api.coursewareTaskGet(sessionMenu).then(({ task }) => {
+        if (current) setAssignableSession(task?.generatedPath || task?.importPath || task?.teamProjectId ? sessionMenu : undefined);
+      }, () => { if (current) setAssignableSession(undefined); });
+    }
+    return () => { current = false; };
+  }, [sessionMenu]);
   const [renameFor, setRenameFor] = useState<SessionSummary | null>(null);
   const [editProjectFor, setEditProjectFor] = useState<ProjectEntry | null>(null);
   const [deleteProjectFor, setDeleteProjectFor] = useState<ProjectEntry | null>(null);
@@ -1891,6 +1902,17 @@ export function Sidebar({
                 {t("nav.renameTask", { defaultValue: "Rename task" })}
               </button>
             ) : null}
+            {assignableSession === session.id && (
+              <button type="button" role="menuitem" data-action="assign-courseware-team" onClick={() => {
+                closeMenus(false);
+                void selectProjectSession(session).then(selected => {
+                  const state = useAppStore.getState();
+                  if (!selected || state.activeSessionId !== session.id) return;
+                  useAppStore.setState({ coursewareTeamAssignmentSessionId: session.id });
+                  state.openWorkPanelTabForSession(session.id, toolWorkPanelTab("ppt"));
+                });
+              }}>归属团队</button>
+            )}
             <button
               type="button"
               role="menuitem"

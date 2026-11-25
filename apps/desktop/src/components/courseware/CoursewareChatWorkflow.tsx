@@ -11,6 +11,8 @@ import { CoursewareChatPresentation } from "./CoursewareChatPresentation";
 import { CoursewareChatNarration } from "./CoursewareChatNarration";
 import { CoursewareChatPptxCandidates } from "./CoursewareChatPptxCandidates";
 import { CoursewareChatImages } from "./CoursewareChatImages";
+import { CoursewareStoryPreview } from "./CoursewareStoryPreview";
+import { CoursewareTeamAssignment } from "../workpanel/CoursewareTeamAssignment";
 
 type WorkspaceProps = { panelBlocked?: boolean; maximized?: boolean; onToggleMaximize?: () => void };
 export function CoursewareChatWorkflow(props: WorkspaceProps) {
@@ -107,25 +109,10 @@ function Workflow({ sessionId, panelBlocked = false, maximized, onToggleMaximize
     if (!await useAppStore.getState().sendPrompt(t(action === "approve" ? "coursewareStory.continuePrompt" : "coursewareStory.directPrompt"), undefined, sessionId))
       throw new Error(t("coursewareWorkflow.sendFailed"));
   });
-  const storyReview = story && <div className="courseware-plan-review">
-    <h2>{t("coursewareStory.title")}</h2>
-    {story.draft ? <div className="courseware-plan-scroll">
-      <h3>{story.draft.title}</h3><p>{story.draft.summary}</p>
-      <h4>{t("coursewareStory.objectives")}</h4><ul>{story.draft.objectives.map(item => <li key={item}>{item}</li>)}</ul>
-      <h4>{t("coursewareStory.setting")}</h4><p>{story.draft.setting}</p>
-      <ul>{story.draft.characters.map((character, index) => <li key={index}><strong>{character.name}</strong> · {character.description}</li>)}</ul>
-      <ol>{story.draft.beats.map(beat => <li key={beat.id}>
-        <h4>{beat.title}</h4><p>{beat.event}</p><dl>
-          <dt>{t("coursewareStory.objective")}</dt><dd>{beat.objective}</dd>
-          <dt>{t("coursewareStory.activity")}</dt><dd>{beat.activity}</dd>
-          {beat.assessment && <><dt>{t(beat.assessment.kind === "quiz" ? "coursewareWorkflow.quizTemplate" : "coursewareStory.checkpoint")}</dt>
-            <dd>{beat.assessment.question}</dd><dt>{t("coursewareStory.reference")}</dt><dd>{beat.assessment.referenceAnswer}</dd></>}
-        </dl>
-      </li>)}</ol>
-      {(story.draft.durationMinutes || story.draft.bodyPageLimit) && <p>{story.draft.durationMinutes ? t("coursewareStory.duration", { count: story.draft.durationMinutes }) : ""} {story.draft.bodyPageLimit ? t("coursewareStory.pages", { count: story.draft.bodyPageLimit }) : ""}</p>}
-      {!!story.draft.assumptions.length && <><h4>{t("coursewareStory.assumptions")}</h4><ul>{story.draft.assumptions.map(item => <li key={item}>{item}</li>)}</ul></>}
-    </div> : <p>{t("coursewareStory.empty")}</p>}
-    <p>{t(story.bound ? "coursewareStory.bound" : "coursewareStory.revise")}</p>
+  const storyReview = story && <div className="courseware-plan-review courseware-story-review">
+    {story.draft ? <CoursewareStoryPreview draft={story.draft} /> :
+      <div className="courseware-story-heading"><h2>{t("coursewareStory.title")}</h2><p>{t("coursewareStory.empty")}</p></div>}
+    {story.draft && <p className="courseware-story-note">{t(story.bound ? "coursewareStory.bound" : "coursewareStory.revise")}</p>}
     {storyRequirementsChanged && <p role="status">{t("coursewareStory.requirementsChanged")}</p>}
     {!story.bound && <footer className="courseware-plan-footer">
       {storyRequirementsChanged ? <button type="button" disabled={blocked} onClick={() => void run(async () => {
@@ -151,6 +138,8 @@ function Workflow({ sessionId, panelBlocked = false, maximized, onToggleMaximize
     blocked={panelBlocked} maximized={maximized} onToggleMaximize={onToggleMaximize} previewButton={previewButton}
     actions={<>
       <CoursewareDeliveryActions sessionId={sessionId} title={session?.title ?? t("coursewareWorkflow.workspace")} disabled={blocked} />
+      {view?.task?.sourcePath &&
+        <CoursewareTeamAssignment sessionId={sessionId} title={session?.title ?? t("coursewareWorkflow.workspace")} disabled={blocked} />}
       <button type="button" disabled={busy} onClick={() => setRefresh(value => value + 1)}>{t("coursewareWorkflow.refresh")}</button>
     </>}
     storyPanel={storyReview}

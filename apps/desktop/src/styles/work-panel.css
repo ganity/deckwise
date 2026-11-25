@@ -859,6 +859,37 @@
 .team-project-main span { color: var(--ds-text-muted); font-size: var(--text-xs); }
 .team-project-role { align-self: start; color: var(--ds-text-primary); font-size: var(--text-xs); }
 .team-project-play { grid-column: 1 / -1; justify-self: start; }
+.team-project-members { grid-column: 1 / -1; min-width: 0; }
+.team-project-member-form { display: grid; gap: 8px; margin-top: 8px; }
+.team-project-member-form p { margin: 0; }
+.team-project-member-search, .team-project-member-actions { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; }
+.team-project-member-search label { flex: 1 1 160px; min-width: 0; }
+.team-project-member-search input {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--ds-bg-elevated-opaque);
+  color: var(--ds-text-primary);
+}
+.team-project-member-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.team-project-member-list button { min-width: 0; max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+.team-projects-header > div:last-child { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.courseware-groups { display: grid; gap: 10px; padding: 10px; border: 1px solid var(--ds-border-subtle); border-radius: var(--radius-sm); }
+.courseware-groups p { margin: 0; }
+.courseware-group-toolbar, .courseware-group-person { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.courseware-group-toolbar label { min-width: 0; overflow-wrap: anywhere; }
+.courseware-groups select { max-width: 100%; }
+.courseware-group-summary { color: var(--ds-text-muted); font-size: var(--text-xs); }
+.courseware-group-members { min-width: 0; }
+.courseware-group-members > summary { cursor: pointer; color: var(--ds-text-primary); }
+.courseware-group-members > :not(summary) { margin-top: 8px; }
+.courseware-group-person { padding: 6px 0; border-bottom: 1px solid var(--ds-border-subtle); overflow-wrap: anywhere; }
+.courseware-group-person > span { flex: 1 1 140px; }
+.courseware-group-confirm { display: grid; gap: 8px; padding: 10px; background: var(--ds-bg-elevated-opaque); border-radius: var(--radius-sm); }
+.courseware-group-confirm ul { margin: 0; padding-inline-start: 20px; }
 .team-project-preparation { display: grid; gap: 8px; width: 100%; min-width: 0; overflow-wrap: anywhere; white-space: normal; }
 .team-project-preparation p, .team-project-preparation dl, .team-project-preparation dd { min-width: 0; margin: 0; }
 .team-project-preparation code { white-space: normal; overflow-wrap: anywhere; }

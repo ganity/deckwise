@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
-import { basename } from "node:path";
+import { basename, resolve } from "node:path";
 import { isDeepStrictEqual as same } from "node:util";
 import { isCoursewareProject, type CoursewareOnlineLaunch, type CoursewareOnlinePreparationResult, type CoursewareOnlinePreparationReview } from "@pi-desktop/shared";
 import type { DesktopAuthSession } from "./auth-session";
@@ -30,6 +30,7 @@ type Review = {
   public: CoursewareOnlinePreparationReview; host: Host; workspace: string; snapshot: Snapshot;
   principal: ReturnType<DesktopAuthSession["getCoursewarePrincipal"]>; client: CoursewareOnlineEditingClient;
   expectedSourceRevision: string | null; receipt: Receipt | null; expires: number;
+  requireTaskSource: boolean;
   seed?: CoursewareOnlineTeachingSeed;
 };
 type Pin = { principal: Review["principal"]; sessionId: string; workspace: string; result: CoursewareOnlinePreparationResult };
@@ -50,9 +51,10 @@ export class CoursewareOnlinePreparation {
     if (this.current?.public.reviewId === reviewId) { this.generation++; this.current = null; }
   }
 
-  async review(sessionId: string, projectId: string, includeTeaching = false): Promise<CoursewareOnlinePreparationReview> {
+  async review(sessionId: string, projectId: string, includeTeaching = false, requireTaskSource = false): Promise<CoursewareOnlinePreparationReview> {
     if (this.busy) throw new Error("COURSEWARE_ONLINE_PREPARATION_BUSY");
-    if (!/^[\w.-]{1,128}$/u.test(sessionId) || !uuid.test(projectId) || typeof includeTeaching !== "boolean") throw new Error("COURSEWARE_ONLINE_INVALID_REQUEST");
+    if (!/^[\w.-]{1,128}$/u.test(sessionId) || !uuid.test(projectId) ||
+        typeof includeTeaching !== "boolean" || typeof requireTaskSource !== "boolean") throw new Error("COURSEWARE_ONLINE_INVALID_REQUEST");
     const generation = ++this.generation;
     this.current = null;
     const principal = this.options.auth.getCoursewarePrincipal(), host = this.options.getHost();
@@ -64,6 +66,7 @@ export class CoursewareOnlinePreparation {
       public: { reviewId: randomUUID(), projectId, sessionId, fileName: "", byteLength: 0, sha256: "", expectedEpoch: 0, replacesSource: false },
       host, workspace, principal, snapshot: this.options.editor.sourceAdoptionSnapshot(workspace),
       client: this.options.auth.getCoursewareOnlineClient(), expectedSourceRevision: null, receipt: null, expires: Date.now() + 600_000,
+      requireTaskSource,
     };
     this.current = captured;
     try {
@@ -212,8 +215,15 @@ export class CoursewareOnlinePreparation {
   private async assertTask(captured: Review): Promise<void> {
     const { session } = await this.step(captured, captured.host.call<{ session?: { projectPath?: string } }>("session.get", { id: captured.public.sessionId }));
     if (session?.projectPath !== captured.workspace) throw conflict();
-    const { task } = await this.step(captured, captured.host.call<{ task: { teamProjectId?: string } | null }>("courseware.task.get", { sessionId: captured.public.sessionId }));
+    const { task } = await this.step(captured, captured.host.call<{ task: {
+      teamProjectId?: string; generatedPath?: string; importPath?: string;
+    } | null }>("courseware.task.get", { sessionId: captured.public.sessionId }));
     if (!task || task.teamProjectId && task.teamProjectId !== captured.public.projectId) throw conflict();
+    if (captured.requireTaskSource) {
+      const path = task.generatedPath ?? task.importPath;
+      const taskSource = path && await this.step(captured, fs.realpath(resolve(captured.workspace, path)).catch(() => null));
+      if (taskSource !== captured.snapshot.sourcePath) throw conflict();
+    }
   }
   private async assertOwner(captured: Review): Promise<void> {
     const projects = await this.step(captured, this.options.auth.coursewareMedia.getTeamProjects());

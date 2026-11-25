@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import ts from "typescript";
 import * as shared from "@pi-desktop/shared";
+import { catalogs } from "../../../packages/i18n/dist/index.js";
 
 globalThis.window = { setInterval, clearInterval, addEventListener() {}, removeEventListener() {} };
 globalThis.document = { activeElement: null, body: { style: { overflow: "" } }, querySelector: () => null };
@@ -29,6 +30,7 @@ async function fixture(t, component, props, overrides = {}, translate = key => k
   let cursor = 0, tree;
   const slot = initial => { const index = cursor++; if (!(index in state)) state[index] = initial; return index; };
   const react = {
+    useId: () => "story-preview",
     useState(initial) { const index = slot(initial); return [state[index], value => { state[index] = typeof value === "function" ? value(state[index]) : value; }]; },
     useRef(initial) { return state[slot({ current: initial })]; },
     useEffect(effect, deps) { const index = cursor++;
@@ -103,6 +105,7 @@ async function fixture(t, component, props, overrides = {}, translate = key => k
     if (id === "../../lib/tool-presentation") return toolModule;
     if (id === "../../lib/courseware-chat-candidates") return candidateModule;
     if (id === "../workpanel/PptEditorTab") return { PptEditorTab: "ppt-editor" };
+    if (id === "../workpanel/CoursewareTeamAssignment") return { CoursewareTeamAssignment: "team-assignment" };
     if (id === "../workpanel/CoursewareClassroomEditor") return { CoursewareClassroomEditor: "classroom-editor" };
     if (id === "../workpanel/CoursewareImportDialog") return { CoursewareImportDialog: "publish-dialog" };
     if (id === "../workpanel/CoursewareSourceVisuals") return { CoursewareSourceVisuals: "source-visuals" };
@@ -112,6 +115,7 @@ async function fixture(t, component, props, overrides = {}, translate = key => k
     if (id === "./ui") return { Button: "button", TooltipButton: "button", portalOverlay: value => value };
     if (id === "./icons") return { IconClose: "icon" };
     if (id === "./CoursewareChatPresentation") return { CoursewareChatPresentation: "plain-presentation" };
+    if (id === "./CoursewareStoryPreview") return { CoursewareStoryPreview: "story-preview" };
     if (id === "./CoursewareImportStart") return { CoursewareImportStart: "import-start" };
     if (id === "./CoursewareDeliveryActions") return { CoursewareDeliveryActions: "delivery-actions" };
     if (id === "./CoursewareChatImages") return { CoursewareChatImages: "scene-images" };
@@ -305,11 +309,7 @@ test("PPTX actions fence switched tasks, running turns, disabled state and late 
 
 for (const locale of ["en", "zh-CN", "zh-TW", "de", "es", "fr", "ko", "tr"]) {
   test(`ordinary export action requests the complete teaching handoff in ${locale}`, async t => {
-    const translations = {};
-    new Function("exports", ts.transpileModule(await readFile(new URL(`../../../packages/i18n/src/locales/${locale}/index.ts`, import.meta.url), "utf8"), {
-      compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
-    }).outputText)(translations);
-    const prompt = Object.values(translations)[0].coursewareWorkflow.exportPrompt;
+    const prompt = catalogs[locale].coursewareWorkflow.exportPrompt;
     assert.match(prompt, /TTS|语音/);
     assert.match(prompt, /PPTX-only|仅导出 PPTX/);
     assert.match(prompt, /original jobs|原有任务/);
@@ -1038,6 +1038,23 @@ test("a failed image status stays with its task while other pages continue refre
 const teachingStory = { schemaVersion: 1, revision: 1, sha256: "c".repeat(64), approvedSha256: null, bound: false, educationContext: {}, draft: {
   title: "Rainbow rescue", summary: "Find the colors", setting: "A garden", objectives: ["Name red"], characters: [{ name: "Robin", description: "A round robot" }],
   beats: [{ id: "find", title: "Find red", event: "Find the ball", objective: "Name red", activity: "Sort colors" }], assumptions: [] } };
+test("the story reads continuously and teaching details follow the same beat in the design view", async t => {
+  const draft = structuredClone(teachingStory.draft);
+  draft.beats[0].assessment = { kind: "checkpoint", question: "Which color?", referenceAnswer: "Red." };
+  const f = await fixture(t, "CoursewareStoryPreview", { draft });
+  const contains = text => f.nodes().some(node => node.props.children === text);
+  const tab = name => f.nodes().find(node => node.props.role === "tab" && node.props.children === "coursewareStory." + name);
+  assert.equal(tab("plot").props["aria-selected"], true);
+  assert(contains(draft.title));
+  assert(contains(draft.summary) && contains(draft.beats[0].event) && !contains(draft.beats[0].activity));
+  tab("design").props.onClick(); f.render();
+  assert.equal(tab("design").props["aria-selected"], true);
+  assert(contains(draft.beats[0].title) && contains(draft.beats[0].activity) && !contains(draft.beats[0].event));
+  const answer = f.nodes().find(n => n.type === "details" && n.props.className === "courseware-story-answer");
+  assert(answer && !answer.props.open && contains("Red."));
+  tab("design").props.onKeyDown({ key: "Home", preventDefault() {} }); f.render();
+  assert.equal(tab("plot").props["aria-selected"], true);
+});
 test("changed teaching requirements offer story revision instead of an impossible confirmation", async t => {
   const story = { ...structuredClone(teachingStory), educationContext: { grade: "K2" } };
   const f = await fixture(t, "CoursewareChatWorkflow", { sessionId: "chat" }, {
@@ -1070,7 +1087,7 @@ for (const taskType of ["plain", "scene"]) test(`story review confirms the exact
     async coursewareWorkflowGet() { return { task: { taskType, generated: false, imported: false, storyFirst: true }, story: structuredClone(story), plan: null }; },
     async coursewareStoryDecision(...args) { assert.deepEqual(args, ["chat", 1, teachingStory.sha256, "approve"]); story.approvedSha256 = story.sha256; return { story: structuredClone(story) }; },
   });
-  assert(f.nodes().some(n => n.props?.children === "Rainbow rescue"));
+  assert.deepEqual(f.nodes().find(n => n.type === "story-preview")?.props.draft, teachingStory.draft);
   assert(!f.nodes().some(n => n.type === "plain-presentation" || n.type === "scene-images"));
   const approve = () => f.nodes().find(n => n.type === "button" && n.props.children === "coursewareStory.approve");
   f.store.runningSessions.chat = true; f.render(); assert.equal(approve().props.disabled, true);

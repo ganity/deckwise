@@ -68,7 +68,8 @@ export function installEditorHostProtocol(target: Protocol = protocol): void {
     const response = await net.fetch(pathToFileURL(join(root, url.pathname.slice(1))).toString());
     const headers = new Headers(response.headers);
     headers.set("Cross-Origin-Opener-Policy", "same-origin");
-    headers.set("Cross-Origin-Embedder-Policy", "require-corp");
+    // The local converter needs shared memory. The online wrapper embeds a separately secured Docs origin.
+    if (url.pathname === "/index.html") headers.set("Cross-Origin-Embedder-Policy", "require-corp");
     return new Response(response.body, { status: response.status, headers });
   });
 }

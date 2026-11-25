@@ -34,6 +34,7 @@ function fixture(t, overrides = {}) {
     ...overrides.client,
   };
   const worker = new exports.CoursewareOnlineClientsWorker({ binding, client,
+    close(code) { calls.push(["close", code]); },
     assertCurrent() { if (!permitted) throw new Error("COURSEWARE_ONLINE_AUTH_CHANGED"); },
     async capability() { return { available: capability }; },
     async native(operation, id) {
@@ -115,6 +116,46 @@ test("poll reentry is serialized and mismatched project, epoch, client identity 
     assert.equal(one.worker.state().errorCode, "COURSEWARE_ONLINE_CLIENT_CHANGED");
     assert.equal(one.nativeCalls.length, 0); assert.equal(one.reports.length, 0);
   }
+});
+
+test("every registered window closes on permission refusal, while a temporary outage can recover", async t => {
+  let error;
+  const overrides = { client: { async heartbeatNativeClient() {
+    if (error) throw new Error(error);
+    return null;
+  } } };
+  const a = fixture(t, overrides), b = fixture(t, overrides);
+  error = "COURSEWARE_ONLINE_HTTP_503";
+  await Promise.all([a.worker.poll(), b.worker.poll()]);
+  assert.equal(a.worker.state().errorCode, error);
+  assert.equal(b.worker.state().errorCode, error);
+  error = "COURSEWARE_ONLINE_PLATFORM_46102";
+  await Promise.all([a.worker.poll(), b.worker.poll()]);
+  for (const f of [a, b]) assert.deepEqual(f.calls.at(-1), ["close", "COURSEWARE_ONLINE_READ_ONLY"]);
+  for (const [failure, reason] of [
+    ["COURSEWARE_ONLINE_PLATFORM_46100", "ACCESS_CHANGED"], ["COURSEWARE_ONLINE_PLATFORM_46906", "ACCESS_CHANGED"],
+    ["COURSEWARE_ONLINE_HTTP_401", "ACCESS_CHANGED"], ["COURSEWARE_ONLINE_HTTP_403", "ACCESS_CHANGED"],
+    ["COURSEWARE_ONLINE_PLATFORM_46200", "SESSION_INACTIVE"],
+  ]) {
+    error = failure;
+    const f = fixture(t, overrides);
+    await f.worker.poll();
+    assert.deepEqual(f.calls.at(-1), ["close", `COURSEWARE_ONLINE_${reason}`]);
+  }
+});
+
+test("a permission refusal returned after the old window closes does not close a replacement", async t => {
+  const pending = deferred();
+  const f = fixture(t, { client: { async heartbeatNativeClient() {
+    await pending.promise;
+    throw new Error("COURSEWARE_ONLINE_PLATFORM_46100");
+  } } });
+  const poll = f.worker.poll();
+  await Promise.resolve();
+  f.worker.stop();
+  pending.resolve();
+  await poll;
+  assert.equal(f.calls.some(([op]) => op === "close"), false);
 });
 
 test("lost current result cannot release a locally held barrier", async t => {

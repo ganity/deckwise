@@ -2,7 +2,8 @@ import type { CoursewareOnlineSourceDecisions, CoursewareOnlineSourceReviewResul
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "../../lib/api";
-import { CoursewareOnlineTeachingPanel } from "./CoursewareOnlineTeachingPanel";
+import { CoursewareOnlineBarrierPanel } from "./CoursewareOnlineBarrierPanel";
+import { CoursewareOnlinePauseRecovery } from "./CoursewareOnlinePauseRecovery";
 import { CoursewareOnlineSourceReview } from "./CoursewareOnlineSourceReview";
 import { CoursewarePlaybackPanel } from "./CoursewarePlaybackPanel";
 import { useAppStore } from "../../stores/app-store";
@@ -23,12 +24,9 @@ export function CoursewareOnlineEditor({ projectId, onClose, manageTeachingPause
   const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState<OnlineState["status"]>("opening");
   const [unavailable, setUnavailable] = useState(false);
-  const [failureKey, setFailureKey] = useState<"error" | "inactive" | "readOnly">("error");
+  const [failureKey, setFailureKey] = useState<"error" | "inactive" | "readOnly" | "accessChanged">("error");
   const [ownerId, setOwnerId] = useState<string | null>(null);
-  const dirty = useRef(false);
-  const uncertainSave = useRef(false);
-  const [pendingWrite, setPendingWrite] = useState(false);
-  const [pendingExit, setPendingExit] = useState<"back" | "retry" | null>(null);
+  const [nativePaused, setNativePaused] = useState(false);
   const sourceAllowed = useRef(false);
   sourceAllowed.current = manageTeachingPause && !unavailable && ["ready", "sync-pending", "sync-reported"].includes(status);
   const sourceOperation = useRef<SourceOperation | null>(null);
@@ -59,7 +57,7 @@ export function CoursewareOnlineEditor({ projectId, onClose, manageTeachingPause
   };
   const beginSource = async () => {
     const current = active.current;
-    if (!current || current.ownerId !== ownerId || !sessionId || currentSession.current !== sessionId || !sourceAllowed.current || sourceOperation.current || dirty.current || uncertainSave.current ||
+    if (!current || current.ownerId !== ownerId || !sessionId || currentSession.current !== sessionId || !sourceAllowed.current || sourceOperation.current ||
         unavailable || !["ready", "sync-pending", "sync-reported"].includes(status)) return;
     const operation: SourceOperation = { ownerId: current.ownerId, sessionId, busy: true };
     sourceOperation.current = operation; setSourceDisplay({ operation, error: null });
@@ -106,10 +104,7 @@ export function CoursewareOnlineEditor({ projectId, onClose, manageTeachingPause
     return value.image;
   };
 
-  const leave = (kind: "back" | "retry", discard = false) => {
-    if (uncertainSave.current) { setPendingExit(kind); return; }
-    if (dirty.current && !discard) { setPendingExit(kind); return; }
-    setPendingExit(null);
+  const leave = (kind: "back" | "retry") => {
     clearSource(); setSourceDisplay(null);
     if (kind === "back") { close.current(); return; }
     if (!active.current) return;
@@ -123,17 +118,25 @@ export function CoursewareOnlineEditor({ projectId, onClose, manageTeachingPause
     const current = { ownerId: crypto.randomUUID() };
     active.current = current;
     setOwnerId(current.ownerId);
-    dirty.current = false;
-    uncertainSave.current = false;
-    setPendingWrite(false);
+    setNativePaused(false);
     setStatus("opening");
     setUnavailable(false);
     setFailureKey("error");
+    let accessEnded = false;
     const accept = (next: OnlineState) => {
-      if (active.current !== current || next.ownerId !== current.ownerId || next.projectId !== projectId) return;
+      if (accessEnded || active.current !== current || next.ownerId !== current.ownerId || next.projectId !== projectId) return;
+      if (next.status === "error" && ["COURSEWARE_ONLINE_READ_ONLY", "COURSEWARE_ONLINE_ACCESS_CHANGED", "COURSEWARE_ONLINE_SESSION_INACTIVE"]
+        .includes(next.errorCode ?? "")) {
+        accessEnded = true;
+        sourceAllowed.current = false;
+        clearSource(); setSourceDisplay(null);
+        setOwnerId(null);
+        setNativePaused(false);
+      }
       setUnavailable(!next.available);
       setFailureKey(next.errorCode === "PLATFORM_46200" || next.errorCode === "COURSEWARE_ONLINE_PLATFORM_46200" || next.errorCode === "COURSEWARE_ONLINE_SESSION_INACTIVE" ? "inactive"
-        : next.errorCode === "COURSEWARE_ONLINE_READ_ONLY" ? "readOnly" : "error");
+        : next.errorCode === "COURSEWARE_ONLINE_READ_ONLY" ? "readOnly"
+          : next.errorCode === "COURSEWARE_ONLINE_ACCESS_CHANGED" ? "accessChanged" : "error");
       setStatus(next.status === "closed" ? "error" : next.status);
       if (next.available && next.status !== "closed" && next.status !== "error") {
         void api.coursewareOnlineSetVisible(current.ownerId, !sourceOperation.current).catch(() => {});
@@ -208,14 +211,9 @@ export function CoursewareOnlineEditor({ projectId, onClose, manageTeachingPause
       <button type="button" onClick={() => leave("back")}>{t("panel.onlineEditing.back")}</button>
     </header>
     {(status === "error" || unavailable) && <p role="alert">{t(unavailable ? "panel.onlineEditing.unavailable" : `panel.onlineEditing.${failureKey}`)}</p>}
-    {pendingExit && <div className="courseware-online-teaching-discard" role="group" aria-label={t("panel.onlineTeaching.discardTitle")}>
-      <p>{t(pendingWrite ? "panel.onlineTeaching.pendingSave" : "panel.onlineTeaching.discardPrompt")}</p>
-      <button type="button" onClick={() => setPendingExit(null)}>{t("panel.onlineTeaching.keepDraft")}</button>
-      {!pendingWrite && <button type="button" onClick={() => leave(pendingExit, true)}>{t("panel.onlineTeaching.discardDraft")}</button>}
-    </div>}
     {manageTeachingPause && !source && <div className="courseware-online-teaching-discard">
       <p role="note">{t("panel.onlineSource.savedScope")}</p>
-      <button type="button" disabled={!sessionId || !ownerId || unavailable || pendingWrite || dirty.current ||
+      <button type="button" disabled={!sessionId || !ownerId || unavailable ||
         !["ready", "sync-pending", "sync-reported"].includes(status)} onClick={() => void beginSource()}>{t("panel.onlineSource.begin")}</button>
     </div>}
     {source && <div className="courseware-source-review" style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 12, marginTop: 0 }}>
@@ -236,11 +234,14 @@ export function CoursewareOnlineEditor({ projectId, onClose, manageTeachingPause
     </div>}
     <div className="ppt-editor-body" style={{ flex: 1, display: source ? "none" : undefined }}>
       <div className="ppt-editor-surface" ref={surface} />
-      {ownerId && <CoursewareOnlineTeachingPanel key={ownerId} ownerId={ownerId}
-        managePause={manageTeachingPause}
-        barrierEnabled={!source && manageTeachingPause && !unavailable && status !== "opening"}
-        enabled={!source && (status === "ready" || status === "sync-pending" || status === "sync-reported")}
-        onDirtyChange={value => { dirty.current = value; }} onPendingSaveChange={value => { uncertainSave.current = value; setPendingWrite(value); }} />}
+      {ownerId && manageTeachingPause && !source && <aside className="courseware-teaching">
+        <CoursewareOnlineBarrierPanel key={ownerId} ownerId={ownerId}
+          enabled={!unavailable && status !== "opening"} blocked={false}
+          onHeldChange={setNativePaused} onResumed={() => setNativePaused(false)} />
+        <CoursewareOnlinePauseRecovery key={`pause:${ownerId}`} ownerId={ownerId}
+          enabled={["ready", "sync-pending", "sync-reported"].includes(status)}
+          blocked={nativePaused} onHeldChange={() => {}} onResumed={() => {}} />
+      </aside>}
     </div>
   </section>;
 }

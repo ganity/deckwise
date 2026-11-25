@@ -23,6 +23,9 @@ test("local editor protocol decodes WASM and denies filesystem escapes", async (
     recursive: true,
   });
   await writeFile(join(resources, "editor.html"), "<html>local editor</html>");
+  const wrapper = join(root, "resources", "editor-host");
+  await mkdir(wrapper);
+  for (const name of ["index.html", "online.html"]) await writeFile(join(wrapper, name), "");
   const wasm = Buffer.from([0, 97, 115, 109, 1, 0, 0, 0]);
   await writeFile(
     join(resources, "sdkjs/common/wasm/x2t/x2t.wasm.br"),
@@ -73,6 +76,10 @@ test("local editor protocol decodes WASM and denies filesystem escapes", async (
   });
   const request = (path, method = "GET") =>
     handler({ url: "deckwise-editor://wiseoffice" + path, method });
+  const local = await handler({ url: "deckwise-editor://host/index.html", method: "GET" });
+  const online = await handler({ url: "deckwise-editor://host/online.html", method: "GET" });
+  assert.equal(local.headers.get("cross-origin-embedder-policy"), "require-corp");
+  assert.equal(online.headers.get("cross-origin-embedder-policy"), null);
   assert.equal(
     await (await request("/editor")).text(),
     "<html>local editor</html>",

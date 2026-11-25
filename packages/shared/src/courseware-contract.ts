@@ -65,8 +65,40 @@ export type CoursewareTeamProject = {
   ownerUserId: number;
   role: "OWNER" | "EDITOR" | "VIEWER";
   createdAt: string;
+  title?: string;
+  groupId?: string;
+  sharedPublished?: boolean;
+  formalPublished?: boolean;
 };
-export type CoursewareTeamMember = { userId: number; role: "OWNER" | "EDITOR" | "VIEWER" };
+export type CoursewareTeamMember = { userId: number; role: "OWNER" | "EDITOR" | "VIEWER"; name?: string };
+export type CoursewareTeamMemberCandidate = { userId: number; name: string; departmentName: string | null };
+export type CoursewareGroupRole = "OWNER" | "ADMIN" | "MEMBER";
+export type CoursewareGroup = { groupId: string; name: string; role: CoursewareGroupRole; memberCount: number; archived: boolean };
+export type CoursewareGroupMember = { userId: number; name: string; role: CoursewareGroupRole };
+export type CoursewareGroupShareReview = {
+  version: number;
+  recipients: Required<CoursewareTeamMember>[];
+  outsideCollaborators: Required<CoursewareTeamMember>[];
+};
+export type CoursewareGroupRequest =
+  | { action: "list" }
+  | { action: "create"; name: string }
+  | { action: "rename"; groupId: string; name: string }
+  | { action: "members" | "leave" | "archive" | "activeProjects"; groupId: string }
+  | { action: "search"; groupId: string; query: string }
+  | { action: "setMember"; groupId: string; userId: number; role: "ADMIN" | "MEMBER" }
+  | { action: "removeMember" | "transfer"; groupId: string; userId: number }
+  | { action: "review"; groupId: string; projectId?: string }
+  | { action: "share"; groupId: string; projectId: string; version: number; recipients: CoursewareGroupShareReview["recipients"];
+      outsideCollaborators: CoursewareGroupShareReview["outsideCollaborators"]; keepOutsideAccess: boolean }
+  | { action: "transferProject"; groupId: string; projectId: string; userId: number };
+export type CoursewareGroupResult<A extends CoursewareGroupRequest["action"]> =
+  A extends "list" ? CoursewareGroup[] :
+  A extends "members" ? CoursewareGroupMember[] :
+  A extends "search" ? CoursewareTeamMemberCandidate[] :
+  A extends "review" ? CoursewareGroupShareReview :
+  A extends "activeProjects" ? string[] :
+  A extends "create" ? { groupId: string } : null;
 export type CoursewareTaskRef = {
   taskId: string;
   idempotencyKey: string;
@@ -174,14 +206,19 @@ export function isCoursewareBuildRef(value: unknown): value is CoursewareBuildRe
 }
 
 export function isCoursewareTeamProject(value: unknown): value is CoursewareTeamProject {
-  return fields(value, ["projectId", "ownerUserId", "role", "createdAt"]) &&
+  return fields(value, ["projectId", "ownerUserId", "role", "createdAt"], ["title", "groupId", "sharedPublished", "formalPublished"]) &&
     id(value.projectId) && typeof value.ownerUserId === "number" && Number.isSafeInteger(value.ownerUserId) && value.ownerUserId > 0 &&
+    (value.title === undefined || (typeof value.title === "string" && value.title.length <= 120)) &&
+    (value.groupId === undefined || id(value.groupId)) &&
+    (value.sharedPublished === undefined || typeof value.sharedPublished === "boolean") &&
+    (value.formalPublished === undefined || typeof value.formalPublished === "boolean") &&
     ["OWNER", "EDITOR", "VIEWER"].includes(String(value.role)) &&
     typeof value.createdAt === "string" && Number.isFinite(Date.parse(value.createdAt));
 }
 
 export function isCoursewareTeamMember(value: unknown): value is CoursewareTeamMember {
-  return fields(value, ["userId", "role"]) && typeof value.userId === "number" && Number.isSafeInteger(value.userId) && value.userId > 0 &&
+  return fields(value, ["userId", "role"], ["name"]) && typeof value.userId === "number" && Number.isSafeInteger(value.userId) && value.userId > 0 &&
+    (value.name === undefined || typeof value.name === "string") &&
     ["OWNER", "EDITOR", "VIEWER"].includes(String(value.role));
 }
 

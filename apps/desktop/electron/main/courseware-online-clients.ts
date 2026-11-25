@@ -7,10 +7,19 @@ type Options = {
   binding: CoursewareOnlineClientBinding;
   client: Client;
   assertCurrent(): void;
+  close(code: string): void;
   capability(): Promise<{ available: boolean }>;
   native(operation: "quiesce" | "status" | "resume", barrierId: string): Promise<CoursewareOnlineBarrierReceipt>;
 };
 const changed = () => new Error("COURSEWARE_ONLINE_CLIENT_CHANGED");
+const closedByPlatform = new Map([
+  ["COURSEWARE_ONLINE_PLATFORM_46102", "COURSEWARE_ONLINE_READ_ONLY"],
+  ["COURSEWARE_ONLINE_PLATFORM_46200", "COURSEWARE_ONLINE_SESSION_INACTIVE"],
+  ["COURSEWARE_ONLINE_PLATFORM_46100", "COURSEWARE_ONLINE_ACCESS_CHANGED"],
+  ["COURSEWARE_ONLINE_PLATFORM_46906", "COURSEWARE_ONLINE_ACCESS_CHANGED"],
+  ["COURSEWARE_ONLINE_HTTP_401", "COURSEWARE_ONLINE_ACCESS_CHANGED"],
+  ["COURSEWARE_ONLINE_HTTP_403", "COURSEWARE_ONLINE_ACCESS_CHANGED"],
+]);
 
 /** Each native mount owns one worker; missing evidence never releases its native restriction. */
 export class CoursewareOnlineClientsWorker {
@@ -62,6 +71,12 @@ export class CoursewareOnlineClientsWorker {
       delete this.value.errorCode;
     } catch (error) {
       if (!this.abort.signal.aborted) {
+        const closeCode = error instanceof Error ? closedByPlatform.get(error.message) : undefined;
+        if (closeCode) {
+          this.stop();
+          this.options.close(closeCode);
+          return;
+        }
         this.value.errorCode = error instanceof Error && /^COURSEWARE_ONLINE_[A-Z0-9_]+$/u.test(error.message)
           ? error.message : "COURSEWARE_ONLINE_CLIENT_EVIDENCE_UNAVAILABLE";
       }

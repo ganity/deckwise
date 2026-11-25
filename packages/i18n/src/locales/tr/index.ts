@@ -1,4 +1,4 @@
-import type { EnglishCatalog } from "../en/index.js";
+import { en, type EnglishCatalog } from "../en/index.js";
 
 export const tr = {
   importCourseware: {
@@ -54,6 +54,9 @@ export const tr = {
     "unsupported": "Some teaching steps cannot be converted completely. Review and fix them in playback first."
 },
   coursewareStory: {
+    directHint: "Konu veya ders materyalleriyle başlayın.",
+    plot: "Hikâye",
+    design: "Ders tasarımı",
     creationMode: "Oluşturma yöntemi",
     direct: "Ders içeriğini doğrudan oluştur",
     first: "Önce öğretici hikâyeyi tasarla",
@@ -1706,6 +1709,22 @@ sklm: {
       keepDraft: "Keep draft",
       discardDraft: "Discard draft and continue",
     },
+    teamGroups: en.panel.teamGroups,
+    teamMembers: {
+      createProject: "Yeni ekip projesi",
+      projectTitle: "Proje adı",
+      manage: "Üyeleri yönet",
+      collapse: "Üyeleri gizle",
+      query: "Ad veya kullanıcı kimliği",
+      empty: "Eşleşen etkin üye yok.",
+      selected: "Seçili üye: {{member}}",
+      permission: "İzin",
+      OWNER: "Sahip",
+      EDITOR: "Düzenleyebilir",
+      VIEWER: "Salt okunur",
+      grant: "İzni kaydet",
+      revoke: "Erişimi kaldır",
+    },
     onlineEditing: {
       prepareWithTeaching: "Prepare with narration",
       prepareTeachingSummary: "Upload PPTX and initialize narration for {{pageCount}} pages ({{narrationCount}} speech segments).",
@@ -1735,6 +1754,7 @@ sklm: {
       prepareConfirm: "Onayla ve hazırla",
       prepareCancel: "İncelemeyi iptal et",
       inactive: "Katılabileceğiniz etkin ve bağlı bir düzenleme oturumu yok. Proje sahibinden çevrimiçi düzenleme oturumu hazırlamasını isteyin.",
+      accessChanged: "Erişim yetkiniz değişti. Güncel izinlerinizi kontrol etmek için ekip listesine dönün.",
       readOnly: "Bu oturum salt okunurdur. Önizlemek için ekip listesine dönün.",
       title: "Çevrimiçi düzenleme",
       join: "Çevrimiçi düzenlemeye katıl",

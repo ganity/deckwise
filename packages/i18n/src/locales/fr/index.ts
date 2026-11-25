@@ -1,4 +1,4 @@
-import type { EnglishCatalog } from "../en/index.js";
+import { en, type EnglishCatalog } from "../en/index.js";
 
 export const fr = {
   importCourseware: {
@@ -54,6 +54,9 @@ export const fr = {
     "unsupported": "Some teaching steps cannot be converted completely. Review and fix them in playback first."
 },
   coursewareStory: {
+    directHint: "Partir du sujet ou du matériel pédagogique.",
+    plot: "Récit",
+    design: "Déroulé pédagogique",
     creationMode: "Méthode de création",
     direct: "Créer directement le cours",
     first: "Concevoir d’abord une histoire pédagogique",
@@ -1688,6 +1691,22 @@ sklm: {
       keepDraft: "Keep draft",
       discardDraft: "Discard draft and continue",
     },
+    teamGroups: en.panel.teamGroups,
+    teamMembers: {
+      createProject: "Nouveau projet d’équipe",
+      projectTitle: "Nom du projet",
+      manage: "Gérer les membres",
+      collapse: "Masquer les membres",
+      query: "Nom ou ID utilisateur",
+      empty: "Aucun membre actif correspondant.",
+      selected: "Membre sélectionné : {{member}}",
+      permission: "Autorisation",
+      OWNER: "Propriétaire",
+      EDITOR: "Peut modifier",
+      VIEWER: "Lecture seule",
+      grant: "Enregistrer l’autorisation",
+      revoke: "Révoquer l’accès",
+    },
     onlineEditing: {
       prepareWithTeaching: "Prepare with narration",
       prepareTeachingSummary: "Upload PPTX and initialize narration for {{pageCount}} pages ({{narrationCount}} speech segments).",
@@ -1717,6 +1736,7 @@ sklm: {
       prepareConfirm: "Confirmer et préparer",
       prepareCancel: "Annuler la vérification",
       inactive: "Aucune session d’édition active et liée n’est disponible. Demandez au propriétaire de préparer une session en ligne.",
+      accessChanged: "Votre accès a changé. Revenez à la liste de l’équipe pour vérifier vos autorisations actuelles.",
       readOnly: "Cette session est en lecture seule. Revenez à la liste de l’équipe pour la prévisualiser.",
       title: "Édition en ligne",
       join: "Rejoindre l’édition en ligne",

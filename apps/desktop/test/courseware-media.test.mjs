@@ -461,9 +461,9 @@ test("review metadata uses the authenticated team asset path and rejects swapped
 });
 
 test("team project listing is authenticated, bounded and strictly validated", async () => {
-  const projects = [{ projectId: "project-1", ownerUserId: 2, role: "OWNER", createdAt: "2026-10-22T10:00:00Z" }];
+  const projects = [{ projectId: "project-1", ownerUserId: 2, role: "OWNER", createdAt: "2026-10-22T10:00:00Z", title: "Fractions" }];
   const f = setup(async (url) => {
-    assert.equal(url, "https://platform.test/api/backend/courseware/team/projects");
+    assert.equal(url, "https://platform.test/api/backend/courseware/team/projects?includeTitle=true&includeGroups=true");
     return json(projects);
   });
   assert.deepEqual(await f.client.getTeamProjects(), projects);
@@ -486,12 +486,64 @@ test("team project creation accepts only an authenticated UUID response", async 
     return json({ projectId });
   });
   assert.equal(await f.client.createTeamProject(), projectId);
+  const named = setup(async (_url, init) => {
+    assert.deepEqual(JSON.parse(init.body), { title: "Fractions" });
+    return json({ projectId });
+  });
+  assert.equal(await named.client.createTeamProject(" Fractions "), projectId);
   const changed = setup(async () => { changed.principal({ tenantId: 1, userId: 3 }); return json({ projectId }); });
   await assert.rejects(changed.client.createTeamProject(), /AUTH_CHANGED/);
   for (const value of [{ projectId: "not-a-uuid" }, { projectId, extra: true }, projectId]) {
     const invalid = setup(async () => json(value));
     await assert.rejects(invalid.client.createTeamProject(), /INVALID_RESPONSE/);
   }
+});
+
+test("group sharing submits the reviewed permissions to the authenticated project route", async () => {
+  const groupId = "cccccccc-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const projectId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const recipients = [{ userId: 8, name: "李老师", role: "VIEWER" }];
+  const outsideCollaborators = [{ userId: 9, name: "王老师", role: "EDITOR" }];
+  const review = { version: 2, recipients, outsideCollaborators };
+  const localReview = { ...review, outsideCollaborators: [] };
+  const pathname = `/api/backend/courseware/team/groups/${groupId}/projects/${projectId}`;
+  const f = setup(async (url, init) => {
+    assert.match(init.headers.get("Authorization"), /^Bearer private-access-/);
+    if (new URL(url).pathname === `/api/backend/courseware/team/groups/${groupId}/projects/review`) {
+      assert.equal(init.method ?? "GET", "GET");
+      return json(localReview);
+    }
+    if (new URL(url).pathname === pathname + "/review") return json(review);
+    assert.equal(new URL(url).pathname, pathname);
+    assert.equal(init.method, "PUT");
+    assert.deepEqual(JSON.parse(init.body), { ...review, keepOutsideAccess: false });
+    return json(null);
+  });
+  assert.deepEqual(await f.client.coursewareGroups({ action: "review", groupId, projectId }), review);
+  assert.deepEqual(await f.client.coursewareGroups({ action: "review", groupId }), localReview);
+  await f.client.coursewareGroups({ action: "share", groupId, projectId, ...review, keepOutsideAccess: false });
+  await assert.rejects(f.client.coursewareGroups({ action: "share", groupId, projectId, ...review }), /INVALID_GROUP_REQUEST/);
+  await assert.rejects(f.client.coursewareGroups({ action: "review", groupId, projectId: "../foreign" }), /INVALID_GROUP_REQUEST/);
+  assert.equal(f.calls.length, 3);
+});
+
+test("member search encodes the query and accepts only bounded directory fields from the current account", async () => {
+  const candidates = [{ userId: 8, name: "李老师", departmentName: null }];
+  const projectId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const pathname = `/api/backend/courseware/team/projects/${projectId}/members/search`;
+  const f = setup(async (url, init) => {
+    const request = new URL(url);
+    assert.equal(request.pathname, pathname);
+    assert.equal(request.searchParams.get("query"), "李&");
+    assert.match(init.headers.get("Authorization"), /^Bearer private-access-/);
+    return json(candidates);
+  });
+  assert.deepEqual(await f.client.searchTeamMember(projectId, " 李& "), candidates);
+  for (const value of [[{ ...candidates[0], phone: "private" }], Array(21).fill(candidates[0])]) {
+    await assert.rejects(setup(async () => json(value)).client.searchTeamMember(projectId, "李"), /INVALID_RESPONSE/);
+  }
+  const changed = setup(async () => { changed.principal({ tenantId: 1, userId: 3 }); return json(candidates); });
+  await assert.rejects(changed.client.searchTeamMember(projectId, "李"), /AUTH_CHANGED/);
 });
 
 test("owner member grant and revoke use strict authenticated endpoints", async () => {

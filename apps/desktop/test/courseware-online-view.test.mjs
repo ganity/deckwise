@@ -23,7 +23,11 @@ const deferred = () => { let resolve, reject; const promise = new Promise((yes, 
 function fixture(t, options = {}) {
   const ipcMain = new EventEmitter(), views = [], sessions = [], states = [], timers = new Map();
   let permitted = true, mainVisible = true, mainDestroyed = false, currentWindow, timerId = 0, accountGeneration = 0;
-  const window = Object.assign(new EventEmitter(), { webContents: new EventEmitter(), isDestroyed: () => mainDestroyed,
+  const mainContents = Object.assign(new EventEmitter(), { isDestroyed: () => mainDestroyed });
+  const window = Object.assign(new EventEmitter(), { get webContents() {
+    if (mainDestroyed) throw new Error("Object has been destroyed");
+    return mainContents;
+  }, isDestroyed: () => mainDestroyed,
     isVisible: () => mainVisible, contentView: { children: [], addChildView(view) { this.children.push(view); },
       removeChildView(view) { this.children.splice(this.children.indexOf(view), 1); } } });
   currentWindow = window;
@@ -88,7 +92,8 @@ function fixture(t, options = {}) {
   return { controller, ipcMain, views, sessions, states, joins, window, timers, reply, envelope, entryReady, ready,
     revoke() { permitted = false; }, changeAccount() { accountGeneration++; permitted = true; }, replaceWindow() { currentWindow = null; },
     hide() { mainVisible = false; window.emit("hide"); }, show() { mainVisible = true; window.emit("show"); },
-    destroy() { mainDestroyed = true; window.emit("closed"); }, expire() { for (const [id, callback] of [...timers]) { timers.delete(id); callback(); } } };
+    destroy() { mainDestroyed = true; mainContents.removeAllListeners(); window.emit("closed"); },
+    expire() { for (const [id, callback] of [...timers]) { timers.delete(id); callback(); } } };
 }
 
 test("isolated online join keeps signed config out of URLs/public state and uses correlated events", async t => {
@@ -376,8 +381,14 @@ test("each registered native mount owns a separate registry worker and late clos
   const second = f.controller.open(OTHER_OWNER, OTHER_PROJECT); await f.ready(); await second;
   assert.equal(workers[0].stopped, true); assert.equal(workers[1].started, true);
   assert.notEqual(f.joins[0].clientId, f.joins[1].clientId);
+  workers[0].options.close("COURSEWARE_ONLINE_ACCESS_CHANGED");
   f.controller.close(OWNER); assert.equal(workers[1].stopped, undefined);
-  f.controller.close(OTHER_OWNER); assert.equal(workers[1].stopped, true);
+  workers[1].options.close("COURSEWARE_ONLINE_ACCESS_CHANGED");
+  assert.equal(workers[1].stopped, true);
+  assert.equal(f.views.at(-1).destroyed, true);
+  assert.equal(f.controller.state().errorCode, "COURSEWARE_ONLINE_ACCESS_CHANGED");
+  assert.throws(() => f.controller.teachingBinding(OTHER_OWNER), /TEACHING_CHANGED/);
+  assert.throws(() => f.controller.recoverySelection(OTHER_OWNER), /RECOVERY_CHANGED/);
 });
 
 test("legacy config preserves ordinary editing and exposes no managed registry", async t => {

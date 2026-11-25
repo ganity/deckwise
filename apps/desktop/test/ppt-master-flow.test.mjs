@@ -215,7 +215,7 @@ test("team projects use authenticated Desktop transport and appear in the work p
   assert.match(workPanel, /activeTab\?\.kind === "team"/);
   const teamTab = await read("../src/components/workpanel/TeamProjectsTab.tsx");
   assert.match(teamTab, /api\.coursewareTeamProjects\(\)/);
-  assert.match(teamTab, /api\.coursewareTeamProjectCreate\(\)/);
+  assert.match(teamTab, /api\.coursewareTeamProjectCreate\(projectTitle\)/);
   assert.match(await read("../src/components/workpanel/CoursewarePlaybackPanel.tsx"), /coursewareFixedShare\(build\.previewId, teamProjectId, sessionId, teamChannel\)/);
   assert.match(teamTab, /api\.coursewareTeamPlay\(project\.projectId, playChannel, "zh-CN"\)/);
   assert.match(teamTab, /OWNER: "创建者"/);

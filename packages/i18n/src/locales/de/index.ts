@@ -1,4 +1,4 @@
-import type { EnglishCatalog } from "../en/index.js";
+import { en, type EnglishCatalog } from "../en/index.js";
 
 export const de = {
   importCourseware: {
@@ -54,6 +54,9 @@ export const de = {
     "unsupported": "Some teaching steps cannot be converted completely. Review and fix them in playback first."
 },
   coursewareStory: {
+    directHint: "Mit dem Thema oder Unterrichtsmaterial beginnen.",
+    plot: "Geschichte",
+    design: "Unterrichtsplanung",
     creationMode: "Erstellungsweise",
     direct: "Kursmaterial direkt erstellen",
     first: "Zuerst eine Lerngeschichte entwerfen",
@@ -1688,6 +1691,22 @@ sklm: {
       keepDraft: "Keep draft",
       discardDraft: "Discard draft and continue",
     },
+    teamGroups: en.panel.teamGroups,
+    teamMembers: {
+      createProject: "Neues Teamprojekt",
+      projectTitle: "Projektname",
+      manage: "Mitglieder verwalten",
+      collapse: "Mitglieder ausblenden",
+      query: "Name oder Benutzer-ID",
+      empty: "Keine passenden aktiven Mitglieder.",
+      selected: "Ausgewähltes Mitglied: {{member}}",
+      permission: "Berechtigung",
+      OWNER: "Inhaber",
+      EDITOR: "Bearbeiten",
+      VIEWER: "Nur lesen",
+      grant: "Berechtigung speichern",
+      revoke: "Zugriff entziehen",
+    },
     onlineEditing: {
       prepareWithTeaching: "Prepare with narration",
       prepareTeachingSummary: "Upload PPTX and initialize narration for {{pageCount}} pages ({{narrationCount}} speech segments).",
@@ -1717,6 +1736,7 @@ sklm: {
       prepareConfirm: "Bestätigen und vorbereiten",
       prepareCancel: "Prüfung abbrechen",
       inactive: "Es gibt keine aktive, gebundene Bearbeitungssitzung. Bitten Sie den Projekteigentümer, eine Online-Sitzung vorzubereiten.",
+      accessChanged: "Der Zugriff hat sich geändert. Kehren Sie zur Teamliste zurück, um Ihre aktuellen Berechtigungen zu prüfen.",
       readOnly: "Diese Sitzung ist schreibgeschützt. Kehren Sie zur Teamliste zurück, um sie in der Vorschau anzusehen.",
       title: "Online bearbeiten",
       join: "Online-Bearbeitung beitreten",

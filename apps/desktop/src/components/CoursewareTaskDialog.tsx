@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { CoursewareEducationContext, CoursewareTaskType } from "@pi-desktop/shared";
 import { useAppStore } from "../stores/app-store";
 import { Button, portalOverlay, TooltipButton } from "./ui";
-import { IconClose } from "./icons";
+import { IconBookOpen, IconClose, IconMonitor } from "./icons";
 
 const visualStyles = ["cartoon3d", "cartoon2d", "vector", "watercolor", "papercut", "realistic"] as const;
 
@@ -109,11 +109,20 @@ function TaskForm({ projectPath, onClose }: { projectPath: string; onClose: () =
                 </label>
               ))}
             </fieldset>
-            {taskType !== "import" && <fieldset disabled={busy} className="courseware-task-education">
+            {taskType !== "import" && <fieldset disabled={busy} className="courseware-task-modes">
               <legend>{t("coursewareStory.creationMode")}</legend>
-              <label><input type="radio" name="creation-mode" checked={!storyFirst} onChange={() => setStoryFirst(false)} />{t("coursewareStory.direct")}</label>
-              <label><input type="radio" name="creation-mode" checked={storyFirst} onChange={() => setStoryFirst(true)} />{t("coursewareStory.first")}</label>
-              <p>{t("coursewareStory.modeHint")}</p>
+              <div className="courseware-mode-options">
+                {([false, true] as const).map(story => {
+                  const ModeIcon = story ? IconBookOpen : IconMonitor;
+                  return <label key={String(story)} className="courseware-mode-option">
+                    <ModeIcon size={19} aria-hidden="true" />
+                    <strong>{t(story ? "coursewareStory.first" : "coursewareStory.direct")}</strong>
+                    <input type="radio" name="creation-mode" checked={storyFirst === story}
+                      onChange={() => setStoryFirst(story)} />
+                    <small>{t(story ? "coursewareStory.modeHint" : "coursewareStory.directHint")}</small>
+                  </label>;
+                })}
+              </div>
             </fieldset>}
             <label className="courseware-task-field courseware-task-brief">
               <span>{t("coursewareTask.brief")}</span>

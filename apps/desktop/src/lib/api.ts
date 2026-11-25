@@ -438,12 +438,16 @@ export const api = {
   logout: () => invoke<DesktopAuthState>(IPC.invoke.authLogout),
   coursewareTeamProjects: () =>
     invoke<CoursewareTeamProject[]>(IPC.invoke.coursewareTeamProjects),
-  coursewareTeamProjectCreate: () =>
-    invoke<string>(IPC.invoke.coursewareTeamProjectCreate),
+  coursewareGroups: <R extends import("@pi-desktop/shared").CoursewareGroupRequest>(request: R) =>
+    invoke<import("@pi-desktop/shared").CoursewareGroupResult<R["action"]>>(IPC.invoke.coursewareGroups, request),
+  coursewareTeamProjectCreate: (title?: string, localSessionId?: string) =>
+    invoke<string>(IPC.invoke.coursewareTeamProjectCreate, { title, ...(localSessionId ? { localSessionId } : {}) }),
   coursewareTeamMemberGrant: (projectId: string, userId: number, role: "EDITOR" | "VIEWER") =>
     invoke<{ ok: boolean }>(IPC.invoke.coursewareTeamMemberGrant, { projectId, userId, role }),
   coursewareTeamMemberRevoke: (projectId: string, userId: number) =>
     invoke<{ ok: boolean }>(IPC.invoke.coursewareTeamMemberRevoke, { projectId, userId }),
+  coursewareTeamMemberSearch: (projectId: string, query: string) =>
+    invoke<import("@pi-desktop/shared").CoursewareTeamMemberCandidate[]>(IPC.invoke.coursewareTeamMemberSearch, { projectId, query }),
   coursewareTeamMembers: (projectId: string) =>
     invoke<import("@pi-desktop/shared").CoursewareTeamMember[]>(IPC.invoke.coursewareTeamMembers, { projectId }),
   coursewareDelivery: (action: "state" | "sync" | "publish", sessionId: string, title?: string, expectedCloudRevisionId?: string, reviewId?: string) =>
@@ -1171,7 +1175,7 @@ export const api = {
   pptPreviewOpen: (path: string, sessionId: string, requireSlide = false) =>
     invoke<PptPreviewState | null>(IPC.invoke.pptPreviewOpen, { path, sessionId, requireSlide }),
   coursewareTaskGet: (sessionId: string) =>
-    invoke<{ task: { taskType: CoursewareTaskType; educationContext?: CoursewareEducationContext; importPath?: string; generatedPath?: string } | null }>(IPC.invoke.coursewareTaskGet, { sessionId }),
+    invoke<{ task: { taskType: CoursewareTaskType; educationContext?: CoursewareEducationContext; importPath?: string; generatedPath?: string; teamProjectId?: string } | null }>(IPC.invoke.coursewareTaskGet, { sessionId }),
   coursewareWorkflowGet: (sessionId: string) =>
     invoke<CoursewareWorkflowView>(IPC.invoke.coursewareWorkflowGet, { sessionId }),
   coursewareMediaCanvasGet: (sessionId: string) =>
@@ -1313,7 +1317,7 @@ export const api = {
     invoke<import("./courseware-classroom").ClassroomEditorView>(IPC.invoke.coursewareClassroomImage, { sessionId, projectId, expectedRevision, expectedSourceRevision, ...target }),
   pptEditorTeachingOpen: (sessionId: string) => invoke<CoursewareTeachingView>(IPC.invoke.pptEditorTeachingOpen, { sessionId }),
   coursewareOnlineState: () => invoke<CoursewareOnlineEditorState>(IPC.invoke.coursewareOnlineState),
-  coursewareOnlinePrepareReview: (request: { sessionId: string; projectId: string; includeTeaching?: boolean }) =>
+  coursewareOnlinePrepareReview: (request: { sessionId: string; projectId: string; includeTeaching?: boolean; requireTaskSource?: boolean }) =>
     invoke<CoursewareOnlinePreparationReview>(IPC.invoke.coursewareOnlinePrepareReview, request),
   coursewareOnlinePrepareConfirm: (request: { reviewId: string }) =>
     invoke<CoursewareOnlinePreparationResult>(IPC.invoke.coursewareOnlinePrepareConfirm, request),

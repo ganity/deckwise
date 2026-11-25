@@ -1,4 +1,4 @@
-import type { EnglishCatalog } from "../en/index.js";
+import { en, type EnglishCatalog } from "../en/index.js";
 
 export const ko = {
   importCourseware: {
@@ -54,6 +54,9 @@ export const ko = {
     "unsupported": "Some teaching steps cannot be converted completely. Review and fix them in playback first."
 },
   coursewareStory: {
+    directHint: "주제나 교재로 수업 자료를 만듭니다.",
+    plot: "이야기",
+    design: "수업 설계",
     creationMode: "제작 방식",
     direct: "바로 수업 자료 생성",
     first: "교육 이야기 먼저 설계",
@@ -1705,6 +1708,22 @@ sklm: {
       keepDraft: "Keep draft",
       discardDraft: "Discard draft and continue",
     },
+    teamGroups: en.panel.teamGroups,
+    teamMembers: {
+      createProject: "새 팀 프로젝트",
+      projectTitle: "프로젝트 이름",
+      manage: "구성원 관리",
+      collapse: "구성원 숨기기",
+      query: "이름 또는 사용자 ID",
+      empty: "일치하는 활성 구성원이 없습니다.",
+      selected: "선택한 구성원: {{member}}",
+      permission: "권한",
+      OWNER: "소유자",
+      EDITOR: "편집 가능",
+      VIEWER: "읽기 전용",
+      grant: "권한 저장",
+      revoke: "접근 권한 취소",
+    },
     onlineEditing: {
       prepareWithTeaching: "Prepare with narration",
       prepareTeachingSummary: "Upload PPTX and initialize narration for {{pageCount}} pages ({{narrationCount}} speech segments).",
@@ -1734,6 +1753,7 @@ sklm: {
       prepareConfirm: "확인 후 준비",
       prepareCancel: "검토 취소",
       inactive: "참여할 수 있는 활성 연결 편집 세션이 없습니다. 프로젝트 소유자에게 온라인 편집 세션 준비를 요청하세요.",
+      accessChanged: "접근 권한이 변경되었습니다. 팀 목록에서 현재 권한을 확인하세요.",
       readOnly: "이 세션은 읽기 전용입니다. 팀 목록으로 돌아가서 미리 보세요.",
       title: "온라인 편집",
       join: "온라인 편집 참여",

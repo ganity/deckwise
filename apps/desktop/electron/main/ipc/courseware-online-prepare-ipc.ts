@@ -9,15 +9,18 @@ export function registerCoursewareOnlinePreparationIpc(registrar: IpcRegistrar, 
       registrar.assertMainWindowSender(event);
       const keys = method === "review" ? ["sessionId", "projectId"] : ["reviewId"];
       const includeTeaching = method === "review" && !!payload && typeof payload === "object" && Object.hasOwn(payload, "includeTeaching");
+      const requireTaskSource = method === "review" && !!payload && typeof payload === "object" && Object.hasOwn(payload, "requireTaskSource");
       if (event.senderFrame !== event.sender.mainFrame || extra.length || !payload || typeof payload !== "object" || Array.isArray(payload) ||
-          Object.keys(payload).length !== keys.length + Number(includeTeaching) || keys.some(key => !Object.hasOwn(payload, key) ||
+          Object.keys(payload).length !== keys.length + Number(includeTeaching) + Number(requireTaskSource) || keys.some(key => !Object.hasOwn(payload, key) ||
             typeof Reflect.get(payload, key) !== "string" || !/^[\w.-]{1,128}$/u.test(Reflect.get(payload, key))) ||
-          includeTeaching && typeof Reflect.get(payload, "includeTeaching") !== "boolean") throw new Error("COURSEWARE_ONLINE_INVALID_REQUEST");
+          includeTeaching && typeof Reflect.get(payload, "includeTeaching") !== "boolean" ||
+          requireTaskSource && typeof Reflect.get(payload, "requireTaskSource") !== "boolean") throw new Error("COURSEWARE_ONLINE_INVALID_REQUEST");
       if (method === "cancel") { preparation.cancel(Reflect.get(payload, "reviewId")); return { ok: true }; }
       if (!available()) throw new Error("COURSEWARE_ONLINE_DISABLED");
       try {
         return await (method === "review" ? preparation.review(Reflect.get(payload, "sessionId"), Reflect.get(payload, "projectId"),
-          includeTeaching ? Reflect.get(payload, "includeTeaching") : false) :
+          includeTeaching ? Reflect.get(payload, "includeTeaching") : false,
+          requireTaskSource ? Reflect.get(payload, "requireTaskSource") : false) :
           preparation.confirm(Reflect.get(payload, "reviewId")));
       } catch (error) {
         const known = ["COURSEWARE_ONLINE_SESSION_ACTIVE", "COURSEWARE_ONLINE_OWNER_REQUIRED", "COURSEWARE_ONLINE_SOURCE_TOO_LARGE",

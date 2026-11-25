@@ -23,6 +23,21 @@
 .courseware-task-choice strong { display: block; font-size: var(--text-sm); font-weight: var(--font-weight-strong); }
 .courseware-task-choice small { display: block; margin-top: 4px; color: var(--ds-text-muted); font-size: var(--text-xs-plus); }
 .courseware-task-dialog .courseware-task-education { margin-top: 24px; }
+.courseware-task-dialog .courseware-task-modes { margin-top: 24px; }
+.courseware-mode-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 205px), 1fr)); gap: 10px; }
+.courseware-mode-option {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; align-content: start; gap: 8px;
+  padding: 14px; border: 1px solid var(--ds-border-default); border-radius: var(--radius-md); cursor: pointer;
+}
+.courseware-mode-option > svg { color: var(--ds-text-secondary); }
+.courseware-mode-option strong { font-size: var(--text-base); font-weight: var(--font-weight-strong); }
+.courseware-mode-option small { grid-column: 1 / -1; color: var(--ds-text-secondary); font-size: var(--text-xs-plus); line-height: 1.55; }
+.courseware-mode-option input { margin: 0; accent-color: var(--ds-accent); }
+.courseware-mode-option:hover { background: var(--ds-bg-hover); }
+.courseware-mode-option:has(:checked) { border-color: var(--ds-accent); background: var(--ds-bg-active); }
+.courseware-mode-option:has(:checked) > svg { color: var(--ds-accent); }
+.courseware-mode-option:has(:focus-visible) { outline: 2px solid var(--ds-accent); outline-offset: 2px; }
+.courseware-mode-option:has(:disabled) { cursor: default; }
 .courseware-task-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
 .courseware-task-field { display: flex; flex-direction: column; gap: 6px; font-size: var(--text-xs-plus); }
 .courseware-task-field .field-input { width: 100%; min-width: 0; }

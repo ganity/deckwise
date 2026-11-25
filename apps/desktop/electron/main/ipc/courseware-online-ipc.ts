@@ -27,6 +27,7 @@ export function registerCoursewareOnlineIpc(input: {
   const controller = new CoursewareOnlineViewController({
     ipcMain: input.registrar.ipcMain, getMainWindow: input.getMainWindow, deployment,
     emit: state => input.sendToRenderer(IPC.event.coursewareOnlineState, state),
+    onAccessEnded: invalidateOnlineOperations,
     authorize: () => input.authSession.getCoursewarePrincipal(),
     join: (projectId, signal, clientId) => input.getPreparation?.()?.join(projectId, signal, clientId) ?? input.authSession.joinCoursewareOnline(projectId, signal, clientId),
     client: () => input.authSession.getCoursewareOnlineClient(),
@@ -55,7 +56,10 @@ export function registerCoursewareOnlineIpc(input: {
     getHost: input.getHost, getWorkspaceRoot: input.getWorkspaceRoot, getViewingSessionId: input.getViewingSessionId,
     ipcMain: input.registrar.ipcMain,
   });
-  const unsubscribe = input.authSession.onStateChanged(() => { input.getPreparation?.()?.invalidate(); source.invalidate(); barrier.invalidate(); pause.invalidate(); teaching.invalidate(); controller.invalidate(); });
+  function invalidateOnlineOperations(): void {
+    source.invalidate(); barrier.invalidate(); pause.invalidate(); teaching.invalidate();
+  }
+  const unsubscribe = input.authSession.onStateChanged(() => { input.getPreparation?.()?.invalidate(); invalidateOnlineOperations(); controller.invalidate(); });
   const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
   const exact = (value: unknown, keys: string[]): value is Record<string, unknown> => record(value) &&
     keys.length === Object.keys(value).length && keys.every(key => Object.hasOwn(value, key));
@@ -74,10 +78,7 @@ export function registerCoursewareOnlineIpc(input: {
     if (!exact(payload, keys) || !uuid(payload.ownerId)) throw new Error("COURSEWARE_ONLINE_INVALID_REQUEST");
     if (channel === IPC.invoke.coursewareOnlineOpen) {
       if (!uuid(payload.projectId)) throw new Error("COURSEWARE_ONLINE_INVALID_REQUEST");
-      teaching.invalidate();
-      pause.invalidate();
-      barrier.invalidate();
-      source.invalidate();
+      invalidateOnlineOperations();
       return controller.open(payload.ownerId, payload.projectId);
     }
     if (channel === IPC.invoke.coursewareOnlineSetVisible) {
@@ -89,7 +90,7 @@ export function registerCoursewareOnlineIpc(input: {
         throw new Error("COURSEWARE_ONLINE_INVALID_REQUEST");
       controller.setBounds(payload.ownerId, payload.bounds as { x: number; y: number; width: number; height: number });
     } else {
-      if (controller.state().ownerId === payload.ownerId) { source.invalidate(); teaching.invalidate(); pause.invalidate(); barrier.invalidate(); }
+      if (controller.state().ownerId === payload.ownerId) invalidateOnlineOperations();
       controller.close(payload.ownerId);
     }
     return { ok: true };
@@ -182,5 +183,5 @@ export function registerCoursewareOnlineIpc(input: {
       }
     });
   }
-  return () => { unsubscribe(); source.invalidate(); barrier.invalidate(); pause.invalidate(); teaching.invalidate(); controller.dispose(); };
+  return () => { unsubscribe(); invalidateOnlineOperations(); controller.dispose(); };
 }

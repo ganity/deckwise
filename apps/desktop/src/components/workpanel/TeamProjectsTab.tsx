@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { CoursewareOnlinePreparationReview, CoursewareTeamMember, CoursewareTeamProject } from "@pi-desktop/shared";
+import type { CoursewareGroup, CoursewareOnlinePreparationReview, CoursewareTeamMember, CoursewareTeamMemberCandidate, CoursewareTeamProject } from "@pi-desktop/shared";
 import { api } from "../../lib/api";
 import { IconFolderOpen, IconPlay, IconRefresh } from "../icons";
 import { WorkTabEmpty } from "./WorkTabEmpty";
 import { CoursewareOnlineEditor } from "./CoursewareOnlineEditor";
+import { CoursewareGroupPanel } from "./CoursewareGroupPanel";
+import { CoursewareTeamAssignment } from "./CoursewareTeamAssignment";
 
 const roleLabel: Record<CoursewareTeamProject["role"], string> = {
   OWNER: "创建者",
@@ -29,8 +31,16 @@ export function TeamProjectsTab({ sessionId }: { sessionId?: string }) {
   const [playing, setPlaying] = useState("");
   const [playError, setPlayError] = useState("");
   const [creating, setCreating] = useState(false);
+  const [projectTitle, setProjectTitle] = useState("");
+  const [creatingProjectForm, setCreatingProjectForm] = useState(false);
+  const [groupsOpen, setGroupsOpen] = useState(false);
+  const [groupId, setGroupId] = useState("");
+  const [groups, setGroups] = useState<CoursewareGroup[]>([]);
   const [memberProject, setMemberProject] = useState("");
-  const [memberUserId, setMemberUserId] = useState("");
+  const [selectedMember, setSelectedMember] = useState<Pick<CoursewareTeamMemberCandidate, "userId" | "name">>();
+  const [memberQuery, setMemberQuery] = useState("");
+  const [memberCandidates, setMemberCandidates] = useState<CoursewareTeamMemberCandidate[]>([]);
+  const [memberSearchStatus, setMemberSearchStatus] = useState<"idle" | "loading" | "ready">("idle");
   const [memberRole, setMemberRole] = useState<"EDITOR" | "VIEWER">("VIEWER");
   const [memberBusy, setMemberBusy] = useState(false);
   const [memberLoading, setMemberLoading] = useState(false);
@@ -41,7 +51,9 @@ export function TeamProjectsTab({ sessionId }: { sessionId?: string }) {
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const editingProject = useRef<string | null>(null);
   const projectRequest = useRef(0);
+  const projectCreation = useRef(false);
   const memberRequest = useRef(0);
+  const memberSearchRequest = useRef(0);
   const memberMutation = useRef(false);
   const [preparationProject, setPreparationProject] = useState<string | null>(null);
   const [preparationPhase, setPreparationPhase] = useState<"idle" | "reviewing" | "confirming">("idle");
@@ -120,9 +132,17 @@ export function TeamProjectsTab({ sessionId }: { sessionId?: string }) {
     }
   };
 
+  const resetMemberSearch = useCallback((query = "") => {
+    memberSearchRequest.current++;
+    setMemberQuery(query);
+    setMemberCandidates([]);
+    setMemberSearchStatus("idle");
+  }, []);
+
   const toggleMembers = async (projectId: string) => {
     const request = ++memberRequest.current;
-    setMembers([]); setMemberUserId(""); setMemberRole("VIEWER"); setMemberError("");
+    resetMemberSearch();
+    setMembers([]); setSelectedMember(undefined); setMemberRole("VIEWER"); setMemberError("");
     if (memberProject === projectId) { setMemberProject(""); setMemberLoading(false); return; }
     setMemberProject(projectId); setMemberLoading(true);
     try {
@@ -133,20 +153,49 @@ export function TeamProjectsTab({ sessionId }: { sessionId?: string }) {
     } finally { if (memberRequest.current === request) setMemberLoading(false); }
   };
 
+  const searchMembers = async (projectId: string) => {
+    if (!memberQuery.trim() || memberLoading || memberMutation.current || memberProject !== projectId) return;
+    const request = ++memberSearchRequest.current;
+    const view = memberRequest.current;
+    setMemberSearchStatus("loading");
+    setMemberCandidates([]); setSelectedMember(undefined); setMemberError("");
+    try {
+      const result = await api.coursewareTeamMemberSearch(projectId, memberQuery);
+      if (request !== memberSearchRequest.current || view !== memberRequest.current) return;
+      setMemberCandidates(result);
+      setMemberSearchStatus("ready");
+    } catch (failure) {
+      if (request !== memberSearchRequest.current || view !== memberRequest.current) return;
+      setMemberSearchStatus("idle");
+      setMemberError(String(failure));
+    }
+  };
+
+  const selectMember = (member: Pick<CoursewareTeamMemberCandidate, "userId" | "name">) => {
+    resetMemberSearch();
+    setSelectedMember(member);
+    setMemberError("");
+    setMemberRole(members.find((item) => item.userId === member.userId && item.role === "EDITOR") ? "EDITOR" : "VIEWER");
+  };
+
   const createProject = async () => {
+    if (!projectTitle.trim() || projectCreation.current) return;
     const request = projectRequest.current;
+    projectCreation.current = true;
     setCreating(true); setError("");
     try {
-      await api.coursewareTeamProjectCreate();
-      if (projectRequest.current === request) refresh();
+      await api.coursewareTeamProjectCreate(projectTitle);
+      if (projectRequest.current === request) {
+        setProjectTitle(""); setCreatingProjectForm(false);
+        refresh();
+      }
     } catch (failure) { if (projectRequest.current === request) setError(String(failure)); }
-    finally { setCreating(false); }
+    finally { projectCreation.current = false; setCreating(false); }
   };
 
   const changeMember = async (projectId: string, operation: "grant" | "revoke") => {
-    if (memberMutation.current || memberLoading || memberProject !== projectId) return;
-    const userId = Number(memberUserId);
-    if (!Number.isSafeInteger(userId) || userId <= 0) { setMemberError("请输入有效的用户 ID"); return; }
+    if (!selectedMember || memberMutation.current || memberLoading || memberProject !== projectId) return;
+    const { userId } = selectedMember;
     const request = memberRequest.current;
     memberMutation.current = true;
     setMemberBusy(true); setMemberError("");
@@ -155,7 +204,7 @@ export function TeamProjectsTab({ sessionId }: { sessionId?: string }) {
       else await api.coursewareTeamMemberRevoke(projectId, userId);
       if (memberRequest.current !== request) return;
       const next = await api.coursewareTeamMembers(projectId);
-      if (memberRequest.current === request) { setMemberUserId(""); setMembers(next); }
+      if (memberRequest.current === request) { setSelectedMember(undefined); setMembers(next); }
     } catch (failure) {
       if (memberRequest.current === request) setMemberError(String(failure));
     } finally { memberMutation.current = false; setMemberBusy(false); }
@@ -165,7 +214,8 @@ export function TeamProjectsTab({ sessionId }: { sessionId?: string }) {
     clearPreparation();
     const request = ++projectRequest.current;
     memberRequest.current++;
-    setMemberProject(""); setMembers([]); setMemberUserId(""); setMemberError(""); setMemberLoading(false);
+    resetMemberSearch();
+    setMemberProject(""); setMembers([]); setSelectedMember(undefined); setMemberError(""); setMemberLoading(false);
     setStatus("loading");
     setError("");
     setOnlineAvailability("checking");
@@ -185,12 +235,14 @@ export function TeamProjectsTab({ sessionId }: { sessionId?: string }) {
         setStatus("error");
       },
     );
-  }, [clearPreparation]);
+  }, [clearPreparation, resetMemberSearch]);
 
   useEffect(() => {
     const unsubscribe = api.onAuthChanged(() => {
       editingProject.current = null;
       setEditingProjectId(null);
+      setProjectTitle(""); setCreatingProjectForm(false);
+      setGroupsOpen(false); setGroupId("");
       refresh();
     });
     editingProject.current = null;
@@ -206,6 +258,26 @@ export function TeamProjectsTab({ sessionId }: { sessionId?: string }) {
   }, [refresh, sessionId]);
   const renderedProjectRequest = projectRequest.current;
   const renderedPreparationRequest = preparationRequest.current;
+  useEffect(() => {
+    let current = true;
+    if (projects.some(project => project.groupId)) {
+      void api.coursewareGroups({ action: "list" }).then(data => {
+        if (current) setGroups(data);
+      }, () => { if (current) setGroups([]); });
+    } else setGroups([]);
+    return () => { current = false; };
+  }, [projects]);
+
+  const visibleProjects = projects.filter((project) => !groupId || project.groupId === groupId);
+  const groupPanel = groupsOpen && <CoursewareGroupPanel projects={projects} groupId={groupId} onGroupChange={setGroupId} onProjectsChanged={() => {
+    const request = ++projectRequest.current;
+    void api.coursewareTeamProjects().then(
+      (next) => { if (projectRequest.current === request) setProjects(next); },
+      (failure) => { if (projectRequest.current === request) setError(String(failure)); },
+    );
+  }} />;
+  const groupsButton = <button type="button" className="btn btn-secondary" aria-expanded={groupsOpen}
+    onClick={() => { setGroupsOpen(!groupsOpen); setGroupId(""); }}>{t("panel.teamGroups.heading")}</button>;
 
   if (editingProjectId) return <CoursewareOnlineEditor projectId={editingProjectId}
     manageTeachingPause={projects.some(project => project.projectId === editingProjectId && project.role === "OWNER")} onClose={() => {
@@ -222,39 +294,54 @@ export function TeamProjectsTab({ sessionId }: { sessionId?: string }) {
       </button>
     </WorkTabEmpty>;
   }
-  if (projects.length === 0) return <WorkTabEmpty icon={IconFolderOpen} title="暂无共享课件" body="团队成员共享课件后会显示在这里。">
-    <button type="button" className="btn btn-secondary" disabled={creating} onClick={() => void createProject()}>
-      {creating ? "正在创建" : "新建团队项目"}
-    </button>
-    <button type="button" className="btn btn-secondary" onClick={refresh}>
-      <IconRefresh size={14} /> 刷新
-    </button>
-    {error && <p role="alert">{error}</p>}
-  </WorkTabEmpty>;
+  const projectCreate = creatingProjectForm
+    ? <form className="team-project-member-search" onSubmit={(event) => { event.preventDefault(); void createProject(); }}>
+        <label>{t("panel.teamMembers.projectTitle")}
+          <input value={projectTitle} maxLength={120} disabled={creating} onChange={(event) => setProjectTitle(event.target.value)} />
+        </label>
+        <button type="submit" className="btn btn-secondary" disabled={creating || !projectTitle.trim()}>
+          {t(creating ? "common.loading" : "panel.teamMembers.createProject")}
+        </button>
+        <button type="button" className="btn btn-secondary" disabled={creating}
+          onClick={() => { setProjectTitle(""); setCreatingProjectForm(false); setError(""); }}>{t("common.cancel")}</button>
+      </form>
+    : <button type="button" className="btn btn-secondary" onClick={() => setCreatingProjectForm(true)}>
+        {t("panel.teamMembers.createProject")}
+      </button>;
 
   return <section className="team-projects-tab" aria-label="团队课件">
     <header className="team-projects-header">
       <div>
         <h2>团队课件</h2>
-        <p>{projects.length} 个项目对当前账号可见</p>
+        <p>{visibleProjects.length} 个项目对当前账号可见</p>
       </div>
       <div>
-        <button type="button" className="btn btn-secondary" disabled={creating} onClick={() => void createProject()}>
-          {creating ? "正在创建" : "新建团队项目"}
-        </button>
+        {!creatingProjectForm && projectCreate}
+        {groupsButton}
         <button type="button" className="btn btn-secondary" onClick={refresh}>
           <IconRefresh size={14} /> 刷新
         </button>
       </div>
     </header>
+    {creatingProjectForm && projectCreate}
+    {groupPanel}
+    {projects.length === 0 && <WorkTabEmpty icon={IconFolderOpen} title="暂无共享课件" body="团队成员共享课件后会显示在这里。" />}
+    {groupId && projects.length > 0 && visibleProjects.length === 0 && <p>{t("panel.teamGroups.emptyGroup")}</p>}
     {onlineAvailability !== "available" && <p role="status">{t(onlineAvailability === "checking" ? "panel.onlineEditing.checking" : "panel.onlineEditing.unavailable")}</p>}
     <div className="team-projects-list">
-      {projects.map((project) => <article className="team-project-row" key={project.projectId}>
+      {visibleProjects.map((project) => <article className="team-project-row" key={project.projectId}>
         <div className="team-project-main">
-          <strong>{project.projectId}</strong>
+          <strong>{project.title?.trim() || project.projectId}</strong>
           <span>创建者用户 {project.ownerUserId}</span>
+          {project.groupId && <span>所属团队 · {groups.find(item => item.groupId === project.groupId)?.name ?? "已归属"}</span>}
+          {groupId && project.sharedPublished !== undefined && <span>{
+            t(project.formalPublished ? "panel.teamGroups.formalPublished" :
+              project.sharedPublished ? "panel.teamGroups.sharedPublished" : "panel.teamGroups.unpublished")
+          }</span>}
         </div>
         <span className="team-project-role">{roleLabel[project.role]}</span>
+        {project.role === "OWNER" && !project.groupId && <CoursewareTeamAssignment projectId={project.projectId}
+          title={project.title || project.projectId} onDone={refresh} />}
         {project.role !== "VIEWER" && <button type="button" className="btn btn-secondary" disabled={onlineAvailability !== "available" || preparationPhase === "confirming"}
           onClick={() => {
             if (onlineAvailability !== "available" || editingProject.current || preparationBusy.current || projectRequest.current !== renderedProjectRequest) return;
@@ -310,20 +397,59 @@ export function TeamProjectsTab({ sessionId }: { sessionId?: string }) {
           }}>
           <IconPlay size={14} /> {playing === project.projectId ? "正在打开" : "预览播放"}
         </button>
-        {project.role === "OWNER" && <div className="team-project-members" aria-label="成员管理">
-          <button type="button" className="btn btn-secondary" onClick={() => void toggleMembers(project.projectId)}>
-            {memberProject === project.projectId ? "收起成员管理" : "成员管理"}
+        {project.role === "OWNER" && !project.groupId && <div className="team-project-members" aria-label={t("panel.teamMembers.manage")}>
+          <button type="button" className="btn btn-secondary" aria-expanded={memberProject === project.projectId}
+            onClick={() => void toggleMembers(project.projectId)}>
+            {t(memberProject === project.projectId ? "panel.teamMembers.collapse" : "panel.teamMembers.manage")}
           </button>
           {memberProject === project.projectId && <div className="team-project-member-form">
             {memberLoading && <p role="status">{t("common.loading")}</p>}
-            <div className="team-project-member-list">{members.map((member) => <button type="button" key={member.userId} className="btn btn-secondary" disabled={memberBusy} onClick={() => {
-              setMemberUserId(String(member.userId));
-              if (member.role !== "OWNER") setMemberRole(member.role);
-            }}>用户 {member.userId} · {member.role}</button>)}</div>
-            <label>用户 ID <input value={memberUserId} inputMode="numeric" disabled={memberBusy || memberLoading} onChange={(event) => setMemberUserId(event.target.value)} /></label>
-            <label>权限 <select value={memberRole} disabled={memberBusy || memberLoading} onChange={(event) => setMemberRole(event.target.value as "EDITOR" | "VIEWER")}><option value="VIEWER">只读</option><option value="EDITOR">可编辑</option></select></label>
-            <button type="button" className="btn btn-secondary" disabled={memberBusy || memberLoading} onClick={() => void changeMember(project.projectId, "grant")}>授权</button>
-            <button type="button" className="btn btn-secondary" disabled={memberBusy || memberLoading} onClick={() => void changeMember(project.projectId, "revoke")}>撤销</button>
+            <div className="team-project-member-list">
+              {members.map((member) => <button type="button" key={member.userId} className="btn btn-secondary"
+                disabled={memberBusy || member.role === "OWNER"}
+                onClick={() => selectMember({ userId: member.userId, name: member.name ?? "" })}>
+                {[member.name, `#${member.userId}`, t(`panel.teamMembers.${member.role}`)].filter(Boolean).join(" · ")}
+              </button>)}
+            </div>
+            <form className="team-project-member-search" onSubmit={(event) => {
+              event.preventDefault();
+              void searchMembers(project.projectId);
+            }}>
+              <label>{t("panel.teamMembers.query")}
+                <input type="search" value={memberQuery} maxLength={80} disabled={memberBusy || memberLoading}
+                  onChange={(event) => { resetMemberSearch(event.target.value); setSelectedMember(undefined); setMemberError(""); }} />
+              </label>
+              <button type="submit" className="btn btn-secondary"
+                disabled={!memberQuery.trim() || memberLoading || memberBusy || memberSearchStatus === "loading"}>
+                {t("panel.teamGroups.search")}
+              </button>
+            </form>
+            {memberSearchStatus === "loading" && <p role="status">{t("common.loading")}</p>}
+            {memberSearchStatus === "ready" && memberCandidates.length === 0 && <p role="status">{t("panel.teamMembers.empty")}</p>}
+            {memberCandidates.length > 0 && <div className="team-project-member-list">
+              {memberCandidates.map((candidate) => <button type="button" key={candidate.userId}
+                className="btn btn-secondary" onClick={() => selectMember(candidate)}>
+                {[candidate.name, candidate.departmentName, `#${candidate.userId}`].filter(Boolean).join(" · ")}
+              </button>)}
+            </div>}
+            {selectedMember && <>
+              <p>{t("panel.teamMembers.selected", { member: [selectedMember.name, `#${selectedMember.userId}`].filter(Boolean).join(" · ") })}</p>
+              <div className="team-project-member-actions">
+                <label>{t("panel.teamMembers.permission")}{" "}
+                  <select value={memberRole} disabled={memberBusy} onChange={(event) => setMemberRole(event.target.value === "EDITOR" ? "EDITOR" : "VIEWER")}>
+                    <option value="VIEWER">{t("panel.teamMembers.VIEWER")}</option>
+                    <option value="EDITOR">{t("panel.teamMembers.EDITOR")}</option>
+                  </select>
+                </label>
+                <button type="button" className="btn btn-secondary" disabled={memberBusy} onClick={() => void changeMember(project.projectId, "grant")}>
+                  {t("panel.teamMembers.grant")}
+                </button>
+                {members.some((member) => member.userId === selectedMember.userId) &&
+                  <button type="button" className="btn btn-secondary" disabled={memberBusy} onClick={() => void changeMember(project.projectId, "revoke")}>
+                    {t("panel.teamMembers.revoke")}
+                  </button>}
+              </div>
+            </>}
             {memberError && <p role="alert">{memberError}</p>}
           </div>}
         </div>}

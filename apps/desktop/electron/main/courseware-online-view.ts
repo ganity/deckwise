@@ -36,6 +36,7 @@ type Options = {
   ipcMain: IpcMain;
   getMainWindow(): BrowserWindow | null;
   emit(state: CoursewareOnlineEditorState): void;
+  onAccessEnded?(): void;
   authorize(): { assertCurrent(): void };
   join(projectId: string, signal: AbortSignal, clientId: string): Promise<CoursewareOnlineLaunch>;
   client?(): CoursewareOnlineEditingClient;
@@ -172,11 +173,12 @@ export class CoursewareOnlineViewController {
       const closed = () => this.fail(attempt, "COURSEWARE_ONLINE_WINDOW_UNAVAILABLE");
       const hidden = () => this.detach(attempt);
       const shown = () => { if (this.current === attempt && this.visible) this.attach(attempt); };
+      const mainContents = window.webContents;
       window.on("closed", closed); window.on("hide", hidden); window.on("show", shown);
-      window.webContents.on("render-process-gone", closed);
+      mainContents.on("render-process-gone", closed);
       attempt.cleanup.push(() => {
         window.removeListener("closed", closed); window.removeListener("hide", hidden); window.removeListener("show", shown);
-        window.webContents.removeListener("render-process-gone", closed);
+        if (!mainContents.isDestroyed()) mainContents.removeListener("render-process-gone", closed);
       });
       void this.mount(attempt).catch(error => { if (this.current === attempt) this.fail(attempt, joinErrorCode(error)); });
     });
@@ -243,6 +245,12 @@ export class CoursewareOnlineViewController {
         binding: { ownerId: attempt.ownerId, projectId: attempt.projectId, sessionEpoch: launch.sessionEpoch,
           documentKey: launch.documentKey, docsUserId: launch.docsUserId, clientId: launch.clientId },
         client: this.options.client(), assertCurrent: () => this.assertCurrent(attempt),
+        close: code => {
+          if (this.current !== attempt) return;
+          this.selection = null;
+          this.fail(attempt, code);
+          this.options.onAccessEnded?.();
+        },
         capability: () => this.nativeBarrierCapability(attempt.ownerId),
         native: (operation, barrierId) => this.nativeBarrier(attempt.ownerId, operation, barrierId),
       });

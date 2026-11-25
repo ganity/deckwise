@@ -1,4 +1,4 @@
-import type { EnglishCatalog } from "../en/index.js";
+import { en, type EnglishCatalog } from "../en/index.js";
 
 export const es = {
   importCourseware: {
@@ -54,6 +54,9 @@ export const es = {
     "unsupported": "Some teaching steps cannot be converted completely. Review and fix them in playback first."
 },
   coursewareStory: {
+    directHint: "Empieza con el tema o los materiales de clase.",
+    plot: "Historia",
+    design: "Diseño didáctico",
     creationMode: "Forma de creación",
     direct: "Generar el material directamente",
     first: "Diseñar primero una historia didáctica",
@@ -1688,6 +1691,22 @@ sklm: {
       keepDraft: "Keep draft",
       discardDraft: "Discard draft and continue",
     },
+    teamGroups: en.panel.teamGroups,
+    teamMembers: {
+      createProject: "Nuevo proyecto de equipo",
+      projectTitle: "Nombre del proyecto",
+      manage: "Gestionar miembros",
+      collapse: "Ocultar miembros",
+      query: "Nombre o ID de usuario",
+      empty: "No hay miembros activos que coincidan.",
+      selected: "Miembro seleccionado: {{member}}",
+      permission: "Permiso",
+      OWNER: "Propietario",
+      EDITOR: "Puede editar",
+      VIEWER: "Solo lectura",
+      grant: "Guardar permiso",
+      revoke: "Revocar acceso",
+    },
     onlineEditing: {
       prepareWithTeaching: "Prepare with narration",
       prepareTeachingSummary: "Upload PPTX and initialize narration for {{pageCount}} pages ({{narrationCount}} speech segments).",
@@ -1717,6 +1736,7 @@ sklm: {
       prepareConfirm: "Confirmar y preparar",
       prepareCancel: "Cancelar revisión",
       inactive: "No hay ninguna sesión de edición activa y vinculada a la que unirse. Pide al propietario que prepare una sesión en línea.",
+      accessChanged: "Tu acceso ha cambiado. Vuelve a la lista del equipo para consultar tus permisos actuales.",
       readOnly: "Esta sesión es de solo lectura. Vuelve a la lista del equipo para previsualizarla.",
       title: "Edición en línea",
       join: "Unirse a la edición en línea",

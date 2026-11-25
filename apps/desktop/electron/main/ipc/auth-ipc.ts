@@ -31,9 +31,15 @@ export function registerAuthIpc(options: {
     registrar.assertMainWindowSender(event);
     return authSession.coursewareMedia.getTeamProjects();
   });
-  registrar.handleWithEvent(IPC.invoke.coursewareTeamProjectCreate, async (event) => {
+  registrar.handleWithEvent(IPC.invoke.coursewareGroups, async (event, input: unknown) => {
     registrar.assertMainWindowSender(event);
-    return authSession.coursewareMedia.createTeamProject();
+    return authSession.coursewareMedia.coursewareGroups(input);
+  });
+  registrar.handleWithEvent(IPC.invoke.coursewareTeamProjectCreate, async (event, input: { title?: unknown; localSessionId?: unknown } = {}) => {
+    registrar.assertMainWindowSender(event);
+    if (input.title !== undefined && typeof input.title !== "string") throw new Error("COURSEWARE_MEDIA_INVALID_PROJECT_TITLE");
+    if (input.localSessionId !== undefined && typeof input.localSessionId !== "string") throw new Error("COURSEWARE_INVALID_LOCAL_SESSION");
+    return authSession.coursewareMedia.createTeamProject(input.title, undefined, input.localSessionId);
   });
   registrar.handleWithEvent(IPC.invoke.coursewareTeamMemberGrant, async (event, input: { projectId?: unknown; userId?: unknown; role?: unknown } = {}) => {
     registrar.assertMainWindowSender(event);
@@ -48,6 +54,11 @@ export function registerAuthIpc(options: {
     if (typeof input.projectId !== "string" || !Number.isSafeInteger(userId)) throw new Error("COURSEWARE_MEDIA_INVALID_TEAM_MEMBER");
     await authSession.coursewareMedia.revokeTeamMember(input.projectId, userId);
     return { ok: true };
+  });
+  registrar.handleWithEvent(IPC.invoke.coursewareTeamMemberSearch, async (event, input: { projectId?: unknown; query?: unknown } = {}) => {
+    registrar.assertMainWindowSender(event);
+    if (typeof input.projectId !== "string" || typeof input.query !== "string") throw new Error("COURSEWARE_MEDIA_INVALID_TEAM_MEMBER");
+    return authSession.coursewareMedia.searchTeamMember(input.projectId, input.query);
   });
   registrar.handleWithEvent(IPC.invoke.coursewareTeamMembers, async (event, input: { projectId?: unknown } = {}) => {
     registrar.assertMainWindowSender(event);

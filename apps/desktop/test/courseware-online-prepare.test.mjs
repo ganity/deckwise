@@ -337,6 +337,20 @@ for (const action of [{ id: "music-1", type: "audio_clip", audioAssetId: "local-
     assert.deepEqual(f.writes(), []); assert.equal(f.receipt, null);
   });
 
+test("team sync checks the task's saved PPT before starting and again before uploading", async t => {
+  const f = await fixture(t);
+  const reviewTeam = () => f.preparation.review("chat-1", projectId, true, true);
+  const otherPath = join(f.workspace, "other.pptx");
+  await fs.writeFile(otherPath, bytes);
+  f.task.importPath = otherPath;
+  await assert.rejects(reviewTeam(), /PREPARATION_CHANGED/);
+  f.task.importPath = f.path;
+  const review = await reviewTeam();
+  f.task.generatedPath = otherPath;
+  await assert.rejects(f.preparation.confirm(review.reviewId), /PREPARATION_CHANGED/);
+  assert.deepEqual(f.writes(), []);
+});
+
 test("preparation IPC accepts finite main-frame selectors and refuses disabled writes or injected paths", async () => {
   const { registerCoursewareOnlinePreparationIpc } = await load("ipc/courseware-online-prepare-ipc", { "@pi-desktop/shared": { IPC } });
   const handlers = new Map(), calls = [], frame = {};
@@ -350,9 +364,9 @@ test("preparation IPC accepts finite main-frame selectors and refuses disabled w
   for (const channel of handlers.keys()) assert(IPC_WHITELIST.has(channel));
   const review = handlers.get(IPC.invoke.coursewareOnlinePrepareReview);
   await review(event, { sessionId: "chat-1", projectId });
-  assert.deepEqual(calls, [["review", "chat-1", projectId, false]]);
-  await review(event, { sessionId: "chat-1", projectId, includeTeaching: true });
-  assert.deepEqual(calls.at(-1), ["review", "chat-1", projectId, true]);
+  assert.deepEqual(calls, [["review", "chat-1", projectId, false, false]]);
+  await review(event, { sessionId: "chat-1", projectId, includeTeaching: true, requireTaskSource: true });
+  assert.deepEqual(calls.at(-1), ["review", "chat-1", projectId, true, true]);
   fail = true;
   await assert.rejects(review(event, { sessionId: "chat-1", projectId }), error => error.message === "COURSEWARE_ONLINE_PREPARATION_FAILED");
   fail = false;
@@ -360,6 +374,7 @@ test("preparation IPC accepts finite main-frame selectors and refuses disabled w
     [{ ...event, sender: { id: 2 } }, { sessionId: "chat-1", projectId }],
     [event, { sessionId: "chat-1", projectId, path: "/injected" }], [event, { sessionId: "../outside", projectId }],
     [event, { sessionId: "chat-1", projectId, includeTeaching: "true" }],
+    [event, { sessionId: "chat-1", projectId, requireTaskSource: "/injected" }],
     [event, { sessionId: "chat-1", projectId }, "extra"]])
     await assert.rejects(review(e, payload, ...(extra ? [extra] : [])));
   available = false;

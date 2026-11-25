@@ -15,6 +15,7 @@ const state = (ownerId, projectId = "project-owner", status = "ready") => ({ ava
 function fixture(name = "CoursewareOnlineEditor", options = {}) {
   const hooks = [], effects = [], calls = [], opens = [], reviews = [], confirmations = [], translations = [], online = new Set(), auth = new Set(), frames = new Map();
   let cursor = 0, tree, writes = 0, closed = 0, uuid = 0, frameId = 0;
+  let memberRoster = [];
   const props = { projectId: "project-owner", sessionId: options.sessionId ?? "chat-1", manageTeachingPause: options.manageTeachingPause ?? false, onClose: () => { closed++; } };
   const projects = ["OWNER", "EDITOR", "VIEWER"].map(role => ({ projectId: `project-${role.toLowerCase()}`, role, ownerUserId: 1 }));
   const api = {
@@ -26,6 +27,27 @@ function fixture(name = "CoursewareOnlineEditor", options = {}) {
     onCoursewareOnlineState(listener) { online.add(listener); return () => online.delete(listener); },
     onAuthChanged(listener) { auth.add(listener); return () => auth.delete(listener); },
     async coursewareTeamProjects() { calls.push(["projects"]); return projects; },
+    async coursewareTeamProjectCreate(title) {
+      calls.push(["project-create", title]);
+      projects.push({ projectId: "project-created", title, role: "OWNER", ownerUserId: 1 });
+      return "project-created";
+    },
+    async coursewareTeamMembers(projectId) {
+      calls.push(["members", projectId]);
+      return [{ userId: 2, role: "OWNER" }, ...memberRoster];
+    },
+    async coursewareTeamMemberSearch(projectId, query) {
+      calls.push(["member-search", projectId, query]);
+      return [{ userId: 8, name: "Teacher", departmentName: "Math" }];
+    },
+    async coursewareTeamMemberGrant(projectId, userId, role) {
+      calls.push(["member-grant", projectId, userId, role]);
+      memberRoster = [{ userId, name: "Teacher", role }];
+    },
+    async coursewareTeamMemberRevoke(projectId, userId) {
+      calls.push(["member-revoke", projectId, userId]);
+      memberRoster = [];
+    },
     coursewareOnlinePrepareReview(request) { calls.push(["review", request]); const pending = deferred(); reviews.push({ request, ...pending }); return pending.promise; },
     coursewareOnlinePrepareConfirm(request) { calls.push(["confirm", request]); const pending = deferred(); confirmations.push({ request, ...pending }); return pending.promise; },
     async coursewareOnlinePrepareCancel(request) { calls.push(["cancel", request]); return { ok: true }; },
@@ -41,10 +63,12 @@ function fixture(name = "CoursewareOnlineEditor", options = {}) {
     if (id === "../../lib/api") return { api };
     if (id === "react-i18next") return { useTranslation: () => ({ t: (key, values) => { translations.push([key, values]); return key; } }) };
     if (id === "./CoursewareOnlineEditor") return { CoursewareOnlineEditor: "OnlineEditorShell" };
+    if (id === "./CoursewareGroupPanel") return { CoursewareGroupPanel: "GroupPanel" };
     if (id === "../../stores/app-store") return { useAppStore: selector => selector({ activeSessionId: props.sessionId }) };
     if (id === "./CoursewareOnlineSourceReview") return { CoursewareOnlineSourceReview: "SourceReview" };
     if (id === "./CoursewarePlaybackPanel") return { CoursewarePlaybackPanel: "PlaybackPanel" };
-    if (id === "./CoursewareOnlineTeachingPanel") return { CoursewareOnlineTeachingPanel: "OnlineTeachingPanel" };
+    if (id === "./CoursewareOnlineBarrierPanel") return { CoursewareOnlineBarrierPanel: "OnlineBarrierPanel" };
+    if (id === "./CoursewareOnlinePauseRecovery") return { CoursewareOnlinePauseRecovery: "OnlinePauseRecovery" };
     if (id === "./WorkTabEmpty") return { WorkTabEmpty: "Empty" };
     if (id === "../icons") return { IconFolderOpen: "Folder", IconPlay: "Play", IconRefresh: "Refresh" };
     if (id === "react") return {
@@ -79,6 +103,45 @@ function fixture(name = "CoursewareOnlineEditor", options = {}) {
     status: () => nodes().find(node => node.props?.role === "status")?.props.children,
     writes: () => writes, closed: () => closed };
 }
+
+test("owner names a team project, grants a searched member permission, then revokes it", async () => {
+  const f = fixture("TeamProjectsTab");
+  await f.settle();
+  const button = (key) => f.nodes().find(node => node.type === "button" && node.props.children === `panel.teamMembers.${key}`);
+  button("createProject").props.onClick();
+  f.render();
+  f.nodes().find(node => node.type === "input").props.onChange({ target: { value: "Fractions" } });
+  f.render();
+  f.nodes().find(node => node.type === "form").props.onSubmit({ preventDefault() {} });
+  await f.settle();
+  assert(f.calls.some(call => call[0] === "project-create" && call[1] === "Fractions"));
+  const row = f.nodes().filter(node => node.type === "article").at(-1);
+  assert.equal(row.props.children[0].props.children[0].props.children, "Fractions");
+  const manage = row.props.children.find(node => node?.props?.className === "team-project-members").props.children[0];
+  manage.props.onClick();
+  await f.settle();
+  const input = f.nodes().find(node => node.type === "input" && node.props.type === "search");
+  input.props.onChange({ target: { value: "Teacher" } });
+  f.render();
+  f.nodes().find(node => node.type === "form" && node.props.className === "team-project-member-search")
+    .props.onSubmit({ preventDefault() {} });
+  await f.settle();
+  assert(f.calls.some(call => call[0] === "member-search" && call[2] === "Teacher"));
+  const candidate = f.nodes().find(node => node.type === "button" && node.props.children === "Teacher · Math · #8");
+  candidate.props.onClick();
+  f.render();
+  button("grant").props.onClick();
+  await f.settle();
+  assert.deepEqual(f.calls.find(call => call[0] === "member-grant"), ["member-grant", "project-created", 8, "VIEWER"]);
+  const member = () => f.nodes().find(node => node.type === "button" && node.props.children === "Teacher · #8 · panel.teamMembers.VIEWER");
+  member().props.onClick();
+  f.render();
+  button("revoke").props.onClick();
+  await f.settle();
+  assert.deepEqual(f.calls.find(call => call[0] === "member-revoke"), ["member-revoke", "project-created", 8]);
+  assert.equal(member(), undefined);
+  f.unmount();
+});
 
 test("team list only offers eligible members an explicit join; return refreshes the same list", async () => {
   const f = fixture("TeamProjectsTab"); await f.settle();
@@ -165,7 +228,7 @@ test("errors stay generic; explicit retry closes the old owner and discards its 
 
 test("fixed error states distinguish inactive and read-only sessions without displaying arbitrary server details", async () => {
   for (const [errorCode, key] of [["PLATFORM_46200", "inactive"], ["COURSEWARE_ONLINE_PLATFORM_46200", "inactive"], ["COURSEWARE_ONLINE_SESSION_INACTIVE", "inactive"],
-    ["COURSEWARE_ONLINE_READ_ONLY", "readOnly"], ["token-private-url", "error"]]) {
+    ["COURSEWARE_ONLINE_READ_ONLY", "readOnly"], ["COURSEWARE_ONLINE_ACCESS_CHANGED", "accessChanged"], ["token-private-url", "error"]]) {
     const f = fixture(), open = f.opens[0];
     f.event({ ...state(open.ownerId, open.projectId, "error"), errorCode }); f.render();
     assert(f.nodes().some(node => node.props?.role === "alert" && node.props.children === `panel.onlineEditing.${key}`));
@@ -326,49 +389,44 @@ test("teaching preparation errors explain missing local setup, media and conflic
   }
 });
 
-test("the native owner is shared with narration; back and retry require explicit draft discard", async () => {
-  const f = fixture(), open = f.opens[0]; open.resolve(state(open.ownerId)); await f.settle();
-  let panel = f.nodes().find(node => node.type === "OnlineTeachingPanel");
-  assert.equal(panel.props.ownerId, open.ownerId); assert.equal(panel.props.enabled, true);
-  panel.props.onDirtyChange(true); f.button("back").props.onClick(); f.render(); assert.equal(f.closed(), 0);
-  const teachingButton = key => f.nodes().find(node => node.type === "button" && node.props.children === `panel.onlineTeaching.${key}`);
-  teachingButton("keepDraft").props.onClick(); f.render(); assert.equal(teachingButton("discardDraft"), undefined);
-  f.event(state(open.ownerId, open.projectId, "error")); f.render();
-  panel = f.nodes().find(node => node.type === "OnlineTeachingPanel"); assert.equal(panel.props.enabled, false);
-  f.button("retry").props.onClick(); f.render(); assert.equal(f.opens.length, 1);
-  teachingButton("discardDraft").props.onClick(); f.render(); f.render(); assert.equal(f.opens.length, 2);
-  f.unmount();
-  const g = fixture(); g.opens[0].resolve(state(g.opens[0].ownerId)); await g.settle();
-  g.nodes().find(node => node.type === "OnlineTeachingPanel").props.onDirtyChange(true); g.button("back").props.onClick(); g.render();
-  g.nodes().find(node => node.type === "button" && node.props.children === "panel.onlineTeaching.discardDraft").props.onClick();
-  assert.equal(g.closed(), 1); g.unmount();
-});
+test("online editing leaves narration to WiseOffice and retains the owner’s save review controls", async () => {
+  const editor = fixture();
+  await readySource(editor);
+  assert(!editor.nodes().some(node => ["OnlineTeachingPanel", "OnlineBarrierPanel", "OnlinePauseRecovery"].includes(node.type)));
+  editor.button("back").props.onClick();
+  assert.equal(editor.closed(), 1);
+  editor.unmount();
 
-test("an uncertain narration save cannot be discarded through back or retry", async () => {
-  const f = fixture(), open = f.opens[0]; open.resolve(state(open.ownerId)); await f.settle();
-  const panel = f.nodes().find(node => node.type === "OnlineTeachingPanel");
-  panel.props.onDirtyChange(true); panel.props.onPendingSaveChange(true); f.render();
-  f.button("back").props.onClick(); f.render(); assert.equal(f.closed(), 0);
-  assert(!f.nodes().some(node => node.type === "button" && node.props.children === "panel.onlineTeaching.discardDraft"));
-  assert(f.nodes().some(node => node.props?.children === "panel.onlineTeaching.pendingSave"));
-  f.event(state(open.ownerId, open.projectId, "error")); f.render(); f.button("retry").props.onClick(); f.render();
-  assert.equal(f.opens.length, 1); f.unmount();
-});
-
-test("Owner barrier recovery survives admission-blocked join while narration remains disabled", async () => {
-  const f = fixture(); f.props.manageTeachingPause = true; f.render();
-  const open = f.opens[0];
-  f.event({ ...state(open.ownerId, open.projectId, "error"), errorCode: "COURSEWARE_ONLINE_PLATFORM_46901" });
-  open.reject(new Error("COURSEWARE_ONLINE_PLATFORM_46901")); await f.settle();
-  const panel = f.nodes().find(node => node.type === "OnlineTeachingPanel");
-  assert.equal(panel.props.enabled, false); assert.equal(panel.props.barrierEnabled, true);
-  assert.equal(panel.props.managePause, true); assert(f.button("retry")); f.unmount();
-  const g = fixture(); g.opens[0].reject(new Error("join failed")); await g.settle();
-  assert.equal(g.nodes().find(node => node.type === "OnlineTeachingPanel").props.barrierEnabled, false); g.unmount();
+  const owner = fixture();
+  owner.props.manageTeachingPause = true;
+  owner.render();
+  const open = owner.opens[0];
+  owner.event({ ...state(open.ownerId, open.projectId, "error"), errorCode: "COURSEWARE_ONLINE_PLATFORM_46901" });
+  open.reject(new Error("COURSEWARE_ONLINE_PLATFORM_46901"));
+  await owner.settle();
+  assert.equal(owner.nodes().find(node => node.type === "OnlineBarrierPanel").props.enabled, true);
+  assert.equal(owner.nodes().find(node => node.type === "OnlinePauseRecovery").props.enabled, false);
+  assert(!owner.nodes().some(node => node.type === "OnlineTeachingPanel"));
+  assert(owner.button("retry"));
+  owner.unmount();
 });
 
 const sourceButton = (f, key) => f.nodes().find(node => node.type === "button" && node.props.children === `panel.onlineSource.${key}`);
 async function readySource(f) { f.opens[0].resolve(state(f.opens[0].ownerId)); await f.settle(); }
+
+test("loss of project access clears the active review and teaching panel and allows returning to the team list", async () => {
+  const f = fixture("CoursewareOnlineEditor", { manageTeachingPause: true }); await readySource(f);
+  sourceButton(f, "begin").props.onClick(); await f.settle();
+  assert(f.nodes().some(node => node.type === "SourceReview"));
+  const open = f.opens[0];
+  f.event({ ...state(open.ownerId, open.projectId, "error"), errorCode: "COURSEWARE_ONLINE_ACCESS_CHANGED" });
+  await f.settle();
+  assert(!f.nodes().some(node => ["OnlineBarrierPanel", "OnlinePauseRecovery", "SourceReview", "PlaybackPanel"].includes(node.type)));
+  assert(f.calls.some(call => call[0] === "source-clear"));
+  f.button("back").props.onClick();
+  assert.equal(f.closed(), 1);
+  f.unmount();
+});
 
 test("saved source review is explicit, requires held pause and hides native editor while presenting both real page previews", async () => {
   const f=fixture("CoursewareOnlineEditor",{manageTeachingPause:true}); await readySource(f);
@@ -378,7 +436,7 @@ test("saved source review is explicit, requires held pause and hides native edit
   assert.deepEqual(f.calls.find(call=>call[0]==="source-begin"),["source-begin",{ownerId,sessionId:"chat-1"}]);
   assert.equal(f.calls.filter(call=>call[0]==="source-begin").length,1);
   assert(f.calls.some(call=>call[0]==="visible" && call[1]===ownerId && call[2]===false));
-  assert.equal(f.nodes().find(node=>node.type==="OnlineTeachingPanel").props.enabled,false);
+  assert(!f.nodes().some(node => node.type === "OnlineBarrierPanel"));
   const leaf=f.nodes().find(node=>node.type==="SourceReview");
   await leaf.props.onPreview("target-1"); await leaf.props.onOriginalPreview("old-1");
   assert.deepEqual(f.calls.filter(call=>call[0]==="source-preview").map(call=>call[1]),[
@@ -399,7 +457,7 @@ test("saved source review is explicit, requires held pause and hides native edit
   assert.equal(f.calls.filter(call=>call[0]==="visible").at(-1)[2],true);f.unmount();
 });
 
-test("review does not begin without owner, session, fresh held barrier or with a dirty teaching draft", async () => {
+test("review does not begin without owner, session or fresh held barrier", async () => {
   for(const barrier of [{state:"draining",teachingPaused:true},{state:"released",teachingPaused:false},{state:"held",teachingPaused:true,uncertain:true}]){
     const f=fixture("CoursewareOnlineEditor",{manageTeachingPause:true,barrier:()=>barrier});await readySource(f);
     sourceButton(f,"begin").props.onClick();await f.settle();
@@ -408,9 +466,6 @@ test("review does not begin without owner, session, fresh held barrier or with a
   }
   const f=fixture();await readySource(f);assert.equal(sourceButton(f,"begin"),undefined);f.unmount();
   const g=fixture("CoursewareOnlineEditor",{manageTeachingPause:true});await readySource(g);
-  const start=sourceButton(g,"begin").props.onClick;
-  g.nodes().find(node=>node.type==="OnlineTeachingPanel").props.onDirtyChange(true);start();await g.settle();
-  assert(!g.calls.some(call=>call[0]==="source-begin"));
   g.props.sessionId=undefined;g.render();assert.equal(sourceButton(g,"begin").props.disabled,true);g.unmount();
 });
 

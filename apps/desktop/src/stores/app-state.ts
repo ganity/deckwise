@@ -130,6 +130,7 @@ export type AppState = {
   openProjectPaths: string[];
   createProjectDialogOpen: boolean;
   newTaskDialog: { projectPath: string } | null;
+  coursewareTeamAssignmentSessionId?: string;
   openNewTaskDialog: (options?: { projectPath?: string | null }) => Promise<void>;
   closeNewTaskDialog: () => void;
   activeProjectPath?: string;
