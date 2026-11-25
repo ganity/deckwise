@@ -64,6 +64,7 @@ function fixture(name = "CoursewareOnlineEditor", options = {}) {
     if (id === "react-i18next") return { useTranslation: () => ({ t: (key, values) => { translations.push([key, values]); return key; } }) };
     if (id === "./CoursewareOnlineEditor") return { CoursewareOnlineEditor: "OnlineEditorShell" };
     if (id === "./CoursewareGroupPanel") return { CoursewareGroupPanel: "GroupPanel" };
+    if (id === "./CoursewareTeamAssignment") return { CoursewareTeamAssignment: "TeamAssignment" };
     if (id === "../../stores/app-store") return { useAppStore: selector => selector({ activeSessionId: props.sessionId }) };
     if (id === "./CoursewareOnlineSourceReview") return { CoursewareOnlineSourceReview: "SourceReview" };
     if (id === "./CoursewarePlaybackPanel") return { CoursewarePlaybackPanel: "PlaybackPanel" };
