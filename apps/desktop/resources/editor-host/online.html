@@ -38,7 +38,9 @@
       if (pins || !exact(command, ["type","channelId","hostUrl","apiUrl", ...(command.communityPluginConfigUrl === undefined ? [] : ["communityPluginConfigUrl"])]) || !id(command.channelId)) return;
       try {
         const host = remote(command.hostUrl), api = remote(command.apiUrl);
-        if (!host.pathname.endsWith("/courseware-online.html") || api.pathname !== "/web-apps/apps/api/documents/api.js") return;
+        const apiPath = "/web-apps/apps/api/documents/api.js";
+        if (!host.pathname.endsWith("/courseware-online.html") ||
+            (api.pathname !== apiPath && api.pathname !== "/deckwise-office" + apiPath)) return;
         if (command.communityPluginConfigUrl !== undefined) {
           const plugin = remote(command.communityPluginConfigUrl);
           if (plugin.origin !== host.origin || !plugin.pathname.endsWith("/config.json")) return;

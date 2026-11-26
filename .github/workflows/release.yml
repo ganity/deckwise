@@ -108,6 +108,7 @@ jobs:
     env:
       DECKWISE_COURSEWARE_RELEASE: '1'
       DECKWISE_COURSEWARE_LOCK: ${{ github.workspace }}/apps/desktop/resources/courseware-release-lock.json
+      DECKWISE_DOCS_PUBLIC_BASE_URL: https://trainwise.efrobot.com/deckwise-office
     strategy:
       fail-fast: false
       matrix:

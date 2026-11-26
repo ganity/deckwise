@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 
 /** Apply Desktop's content-editor ownership when building the upstream native sidebar. */
-export function maicSidebarSource(source) {
-  return maicNativePanelSource(maicCheckpointSource(source));
+export function maicSidebarSource(source, online = false) {
+  return maicNativePanelSource(maicCheckpointSource(source, online), online);
 }
 
-export function maicCheckpointSource(source) {
+export function maicCheckpointSource(source, online = false) {
   const startMarker = "      if (action.type === 'interaction_checkpoint' && action.checkpointKind === 'chapter_summary') {";
   const endMarker = "      if (action.type === 'audio_clip' || action.type === 'video_clip') {";
   const start = source.indexOf(startMarker), end = source.indexOf(endMarker, start);
@@ -13,9 +13,9 @@ export function maicCheckpointSource(source) {
   const previous = source.slice(start, end);
   assert(previous.includes("'题型'") && previous.includes("action.referenceAnswer.keyPoints"), "Missing legacy checkpoint form");
   // Keep the timeline node, ordering and playback. Canonical content has one editor.
-  return source.slice(0, start) + `      if (hasNativeTeaching()) {
+  return source.slice(0, start) + `      if (hasNativeTeaching()${online ? ' && !view?.embeddedAssessment' : ''}) {
 ${previous}
-      } else {
+      } else if (!hasNativeTeaching()) {
 ${startMarker}
         card.append(element('p', action.question),
           element('p', 'MAIC 课堂互动：请在右侧题目编辑面板中修改问题、参考答案和提示词。'));
@@ -56,11 +56,16 @@ export function maicEmbedSource(source) {
 
 
 /** Reuse the canonical React form inside the native teaching panel. */
-function maicNativePanelSource(source) {
+function maicNativePanelSource(source, online) {
   const replace = (before, after) => {
     assert(source.includes(before), `WiseOffice teaching integration changed: ${before.slice(0, 70)}`);
     source = source.replace(before, after);
   };
+  if (online) replace("    if (hasNativeTeaching() && !operation.startsWith('editor-image:')) {", `    if (hasNativeTeaching()) {
+      if (operation === 'classroom:open') return request('assessment-context', {}, target);
+      if (operation === 'classroom:write') return saveOnlineAssessment((op, input) => request(op, input, target), args, target.page ?? 1);
+    }
+    if (hasNativeTeaching() && !operation.startsWith('editor-image:')) {`);
   replace('  let startingSlideshow = false;', '  let startingSlideshow = false;\n  let previewPreparing = false;\n  let disposeAssessmentPlayback: (() => void) | undefined;');
   replace('      running = false;', '      running = false;\n      if (!teachingSlideshow && !timeline) previewPreparing = false;');
   replace('  function renderControls() {', `  function renderControls() {
@@ -88,7 +93,7 @@ function maicNativePanelSource(source) {
   assert(quoteStart >= 0 && quoteEnd > quoteStart, 'WiseOffice narration generation changed');
   const quoteSection = source.slice(quoteStart, quoteEnd);
   assert(quoteSection.includes("request('tts:submit'"), 'WiseOffice narration submission changed');
-  replace(quoteSection, `    const generate = async () => {
+  if (!online) replace(quoteSection, `    const generate = async () => {
       const owner = epoch;
       try {
         await saveCurrent();
@@ -153,7 +158,7 @@ function maicNativePanelSource(source) {
     voiceSelect.addEventListener('change', rememberVoice);
     selectDefaultVoice();
     if (speechVoices.get(action.id)?.model === modelSelect.value) voiceSelect.value = speechVoices.get(action.id)!.voice;`);
-  replace("      speechSelections.delete(action.id);", "      generateSpeech.textContent = nativeSpeechLabels.speechRegenerate;\n      speechSelections.delete(action.id);");
+  if (!online) replace("      speechSelections.delete(action.id);", "      generateSpeech.textContent = nativeSpeechLabels.speechRegenerate;\n      speechSelections.delete(action.id);");
   replace('type View = {', 'type View = { assessment?: any; embeddedAssessment?: any; nativeDraft?: any;');
   replace('  let panelLayout:', '  let assessmentPanel: HTMLElement | null = null;\n  let assessmentEditor: ReturnType<typeof mountNativeAssessment> | null = null;\n  let panelLayout:');
   replace("    const recovered = await request('draft:get', { viewId: view.viewId });", "    if (next.assessment) { draftRevision = null; draftError = ''; draftInstruction = ''; render(preserveLesson); return; }\n    const recovered = next.nativeDraft ?? await request('draft:get', { viewId: view.viewId });");
@@ -325,5 +330,6 @@ function maicNativePanelSource(source) {
               } });
             },
 ` + source.slice(questionEnd);
-  return "import { mountNativeAssessment, mountNativeTeachingQuestion, nativeSpeechLabels, speechGenerationError } from 'deckwise-native-assessment';\n" + source;
+  return "import { mountNativeAssessment, mountNativeTeachingQuestion, nativeSpeechLabels, speechGenerationError" +
+    (online ? ", saveOnlineAssessment" : "") + " } from 'deckwise-native-assessment';\n" + source;
 }

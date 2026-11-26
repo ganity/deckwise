@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import { createInstance } from "i18next";
 import { I18nextProvider } from "react-i18next";
 import { zhCN } from "@pi-desktop/i18n";
+import { parseMaicClassroom, prepareMaicAssessmentSpeech } from "@pi-desktop/courseware-runtime/player";
 import { CoursewareClassroomEditor, type ClassroomEditorToolbar } from "./CoursewareClassroomEditor";
 import type { ClassroomEditorView } from "../../lib/courseware-classroom";
 import styles from "./courseware-classroom-editor.css?inline";
@@ -11,6 +12,23 @@ export { mountNativeTeachingQuestion } from "./mount-native-teaching-question";
 const i18n = createInstance();
 export const nativeSpeechLabels = zhCN.panel.pptEditor;
 void i18n.init({ lng: "zh-CN", initAsync: false, resources: { "zh-CN": { translation: zhCN } } });
+
+export async function saveOnlineAssessment(request: (operation: string, args?: object) => Promise<any>, args: {
+  projectId: string; expectedRevision: string; expectedSourceRevision: string; classroom: unknown;
+}, page: number) {
+  const current = await request("assessment-context");
+  if (args.projectId !== current.projectId || args.expectedRevision !== current.revision || args.expectedSourceRevision !== current.sourceRevision)
+    throw new Error("课件已更新，请重新加载后再编辑课堂互动。");
+  const classroom = prepareMaicAssessmentSpeech(parseMaicClassroom(args.classroom));
+  const old = current.classroom.scenes[page - 1], next = classroom.scenes[page - 1];
+  if (!old || old.id !== next?.id || old.content.type !== next.content.type ||
+      !(old.content.type === "quiz" || (old.content.type === "slide" &&
+        old.actions?.some((action: { type: string; checkpointKind?: string }) => action.type === "interaction_checkpoint" && action.checkpointKind === "chapter_summary"))))
+    throw new Error("此题需要在桌面本地编辑后再同步。");
+  return request("assessment-write", { ...args, changedPageIds: [old.id], classroom: {
+    ...current.classroom, scenes: current.classroom.scenes.map((scene: { id: string }) => scene.id === old.id ? next : scene),
+  } });
+}
 
 /** The native iframe owns the panel; all operations retain its document binding. */
 export function mountNativeAssessment(container: HTMLElement, request: (operation: string, args?: object) => Promise<any>, onToolbarChange: () => void) {

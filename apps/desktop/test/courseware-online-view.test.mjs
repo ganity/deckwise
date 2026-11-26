@@ -15,6 +15,9 @@ const OTHER_OWNER = "22222222-2222-4222-8222-222222222222";
 const PROJECT = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const OTHER_PROJECT = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const deployment = { hostUrl: "https://office.example/courseware-online.html", apiUrl: "https://docs.example/web-apps/apps/api/documents/api.js" };
+const deploymentModule = { exports: {} };
+const deploymentSource = readFileSync(new URL("../electron/main/courseware-online-deployment.ts", import.meta.url), "utf8");
+new Function("exports", ts.transpileModule(deploymentSource, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText)(deploymentModule.exports);
 const launch = (projectId = PROJECT) => ({ projectId, sessionEpoch: 3, documentKey: "project-key-3", docsUserId: "tenant-1-user-2",
   source: { revision: "revision-1", sha256: "a".repeat(64) }, configJson: '{"token":"fixture-only-signed-config"}', expiresAtEpochMillis: Date.now() + 60_000 });
 const tick = () => new Promise(resolve => setImmediate(resolve));
@@ -58,6 +61,7 @@ function fixture(t, options = {}) {
   new Function("require", "exports", "module", "__dirname", "setTimeout", "clearTimeout", outputText)(id => {
     if (id === "electron") return electron;
     if (id === "./editor-host-protocol") return { installEditorHostProtocol() {} };
+    if (id === "./courseware-online-deployment") return deploymentModule.exports;
     if (id === "./courseware-online-clients") return { CoursewareOnlineClientsWorker: class {
       constructor(value) { this.options = value; options.workers?.push(this); }
       start() { this.started = true; } stop() { this.stopped = true; }
@@ -327,6 +331,16 @@ test("wrapper sends only deployment pins in URL and signed config only after tru
   assert.equal(f.forwarded.length, 1); assert.equal(f.forwarded[0].origin, "https://office.example");
   assert.equal(f.forwarded[0].message.configJson, launch().configJson);
   f.command(f.open); assert.equal(f.forwarded.length, 1);
+});
+
+test("Main and the wrapper accept the deployed Docs prefix", t => {
+  const prefix = "https://trainwise.efrobot.com/deckwise-office";
+  const pins = { hostUrl: prefix + "/client/courseware-online.html",
+    apiUrl: prefix + "/web-apps/apps/api/documents/api.js", communityPluginConfigUrl: prefix + "/client/modules/config.json" };
+  assert.equal(fixture(t, { deployment: pins }).controller.state().available, true);
+  const wrapper = wrapperFixture();
+  wrapper.command({ ...wrapper.configure, ...pins });
+  assert.equal(new URL(wrapper.iframe.src).searchParams.get("apiUrl"), pins.apiUrl);
 });
 
 test("wrapper validates exact origin/source/channel/correlation/shape and sanitizes errors", () => {

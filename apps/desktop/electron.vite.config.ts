@@ -79,6 +79,7 @@ export default defineConfig({
       __dirname: "import.meta.dirname",
       "process.env.WS_NO_BUFFER_UTIL": "\"1\"",
       "process.env.WS_NO_UTF_8_VALIDATE": "\"1\"",
+      __DECKWISE_DOCS_PUBLIC_BASE_URL__: JSON.stringify(process.env.DECKWISE_DOCS_PUBLIC_BASE_URL?.trim() || ""),
     },
     build: {
       rollupOptions: {

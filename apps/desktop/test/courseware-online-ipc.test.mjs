@@ -4,21 +4,33 @@ import test from "node:test";
 import ts from "typescript";
 import { IPC, IPC_WHITELIST } from "../../../packages/shared/dist/protocol.js";
 
-const load = async (name, dependencies) => {
+const load = async (name, dependencies, publicBaseUrl) => {
   const source = await readFile(new URL(`../electron/main/${name}.ts`, import.meta.url), "utf8");
   const exports = {};
-  new Function("require", "exports", ts.transpileModule(source, { compilerOptions: {
+  new Function("require", "exports", "__DECKWISE_DOCS_PUBLIC_BASE_URL__", ts.transpileModule(source, { compilerOptions: {
     module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022,
-  } }).outputText)(id => { assert(Object.hasOwn(dependencies, id), id); return dependencies[id]; }, exports);
+  } }).outputText)(id => { assert(Object.hasOwn(dependencies, id), id); return dependencies[id]; }, exports, publicBaseUrl);
   return exports;
 };
 const { coursewareOnlineDeployment } = await load("courseware-online-deployment", {});
 const pins = { DECKWISE_DOCS_ONLINE_ENTRY_URL: "https://office.test/wiseoffice/courseware-online.html",
   DECKWISE_DOCS_API_URL: "https://docs.test/web-apps/apps/api/documents/api.js" };
 
-test("online deployment pins are installation-owned and explicitly unavailable until both origins are configured", () => {
+test("online deployment pins are installation-owned and require both origins", async () => {
   assert.equal(coursewareOnlineDeployment({}), null);
   assert.deepEqual(coursewareOnlineDeployment(pins), { hostUrl: pins.DECKWISE_DOCS_ONLINE_ENTRY_URL, apiUrl: pins.DECKWISE_DOCS_API_URL });
+  const proxy = "https://trainwise.efrobot.com/deckwise-office";
+  const proxied = coursewareOnlineDeployment({
+    DECKWISE_DOCS_ONLINE_ENTRY_URL: proxy + "/client/courseware-online.html",
+    DECKWISE_DOCS_API_URL: proxy + "/web-apps/apps/api/documents/api.js",
+    DECKWISE_DOCS_PLUGIN_CONFIG_URL: proxy + "/client/modules/config.json",
+  });
+  assert.equal(proxied.apiUrl, proxy + "/web-apps/apps/api/documents/api.js");
+  assert.equal(proxied.communityPluginConfigUrl, proxy + "/client/modules/config.json");
+  const release = await load("courseware-online-deployment", {}, proxy);
+  assert.deepEqual(release.coursewareOnlineDeployment({}), proxied);
+  assert.deepEqual(release.coursewareOnlineDeployment(pins), coursewareOnlineDeployment(pins));
+  assert.throws(() => release.coursewareOnlineDeployment({ DECKWISE_DOCS_API_URL: pins.DECKWISE_DOCS_API_URL }), /INVALID_DEPLOYMENT/);
   assert.equal(coursewareOnlineDeployment({ DECKWISE_DOCS_ONLINE_ENTRY_URL: "http://127.0.0.1:4410/courseware-online.html",
     DECKWISE_DOCS_API_URL: "http://localhost:4411/web-apps/apps/api/documents/api.js" }).hostUrl, "http://127.0.0.1:4410/courseware-online.html");
   assert.equal(coursewareOnlineDeployment({ ...pins,

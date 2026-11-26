@@ -26,6 +26,13 @@ test("native sidebar keeps the checkpoint step but delegates editing to MAIC con
   nativeRender({ type: "interaction_checkpoint", checkpointKind: "chapter_summary", referenceAnswer: { keyPoints: ["Native answer"] } },
     { append: (...nodes) => nativeNodes.push(...nodes) }, element);
   assert.deepEqual(nativeNodes.map(node => node.tag), ["textarea", "select"], "Native teaching keeps its own checkpoint editor");
+  const onlineRender = new Function("hasNativeTeaching", "view", maicCheckpointSource(before, true) + ";return render")(
+    () => true, { embeddedAssessment: {} },
+  );
+  const duplicateFields = [];
+  onlineRender({ type: "interaction_checkpoint", checkpointKind: "chapter_summary", referenceAnswer: { keyPoints: [] } },
+    { append: (...nodes) => duplicateFields.push(...nodes) }, element);
+  assert.deepEqual(duplicateFields, [], "Online assessments render their editor only once");
   render({ type: "audio_clip" }, card, element);
   assert.deepEqual(nodes.at(-1), { tag: "button", text: "play" });
   assert.throws(() => maicSidebarSource("changed upstream source"), /rendering changed/);

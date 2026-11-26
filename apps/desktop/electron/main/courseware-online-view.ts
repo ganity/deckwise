@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { session, WebContentsView, type BrowserWindow, type IpcMain, type IpcMainEvent } from "electron";
 import type { CoursewareOnlineBarrierReceipt, CoursewareOnlineDeployment, CoursewareOnlineEditorState, CoursewareOnlineLaunch } from "@pi-desktop/shared";
 import { installEditorHostProtocol } from "./editor-host-protocol";
+import { isCoursewareDocsApiPath } from "./courseware-online-deployment";
 import type { CoursewareOnlineEditingClient } from "./courseware-online-editing";
 import { CoursewareOnlineClientsWorker } from "./courseware-online-clients";
 
@@ -61,7 +62,7 @@ function deploymentPins(value: CoursewareOnlineDeployment): CoursewareOnlineDepl
   };
   try {
     const host = remote(value.hostUrl), api = remote(value.apiUrl);
-    if (!host.pathname.endsWith("/courseware-online.html") || api.pathname !== "/web-apps/apps/api/documents/api.js") throw new Error();
+    if (!host.pathname.endsWith("/courseware-online.html") || !isCoursewareDocsApiPath(api.pathname)) throw new Error();
     if (value.communityPluginConfigUrl !== undefined) {
       const plugin = remote(value.communityPluginConfigUrl);
       if (plugin.origin !== host.origin || !plugin.pathname.endsWith("/config.json")) throw new Error();
